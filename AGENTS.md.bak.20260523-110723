@@ -1,0 +1,27 @@
+# Flowmanner — Agent Instructions
+
+This project spans two machines. Use the file that matches where your agent runs.
+
+- **VPS agents** (74.208.115.142) → [AGENTS.vps.md](./AGENTS.vps.md)
+- **Homelab agents** (10.99.0.3) → [AGENTS.homelab.md](./AGENTS.homelab.md)
+
+## Quick Reference
+
+| | VPS | Homelab |
+|--|-----|---------|
+| **Public IP** | 74.208.115.142 | 176.141.9.146 |
+| **WireGuard** | 10.99.0.1 | 10.99.0.3 |
+| **Role** | Frontend (Next.js), Nginx, SSL | Backend (FastAPI), DBs, LLM |
+| **SSH** | `sshpass -p '@Geegee197623' ssh root@74.208.115.142` | Local access only |
+| **Project root** | `/opt/flowmanner/` | `/opt/flowmanner/` |
+| **Frontend source** | `/opt/flowmanner/frontend/` (rsync target) | `/home/glenn/FlowmannerV2-frontend/` (edit here) |
+| **Backend source** | N/A | `/opt/flowmanner/backend/` |
+
+## DNS
+
+| Domain | A Record |
+|--------|----------|
+| flowmanner.com | 74.208.115.142 |
+| www.flowmanner.com | 74.208.115.142 |
+
+Homelab: Backend in /opt/flowmanner/backend/ via Docker Compose. NO volume mounts — MUST rebuild image after source changes. FRONTEND: Edit in /home/glenn/FlowmannerV2-frontend/, deploy with bash /opt/flowmanner/deploy-frontend.sh. 

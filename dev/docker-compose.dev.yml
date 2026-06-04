@@ -1,0 +1,219 @@
+# ============================================================
+# Flowmanner — Self-Contained Development Environment
+# ============================================================
+#
+# ⚠️  MUST be run from the PROJECT ROOT (/opt/flowmanner/):
+#
+#   cd /opt/flowmanner
+#   docker compose -f dev/docker-compose.dev.yml --env-file dev/.env.dev up
+#
+# Or use the Makefile shortcut (handles paths automatically):
+#   make dev-up
+#
+# BEFORE FIRST RUN: edit dev/.env.dev and set LLM_API_KEY.
+#
+# This compose file is FULLY SELF-CONTAINED:
+#   • Creates its own bridge network (no external deps)
+#   • Creates its own named volumes (no external volumes)
+#   • Uses sensible dev defaults in dev/.env.dev
+#   • Backend hot-reloads on source changes
+#   • Migrations run automatically on startup
+#
+# To stop:  docker compose -f dev/docker-compose.dev.yml down
+# To reset: docker compose -f dev/docker-compose.dev.yml down -v
+# Ports: API=8000, PG=5432, Redis=6379, Qdrant=6333, RabbitMQ=5672/15672
+# ============================================================
+
+networks:
+  flowmanner-dev:
+    name: flowmanner_dev
+    driver: bridge
+
+services:
+  # ── PostgreSQL 15 ───────────────────────────────────
+  dev-postgres:
+    image: postgres:15-alpine
+    container_name: dev-postgres
+    restart: unless-stopped
+    networks:
+      - flowmanner-dev
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flowmanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-flowmanner}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - dev_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowmanner} -d ${POSTGRES_DB:-flowmanner}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 1g
+    mem_reservation: 128m
+
+  # ── Redis 7 ─────────────────────────────────────────
+  dev-redis:
+    image: redis:7-alpine
+    container_name: dev-redis
+    restart: unless-stopped
+    networks:
+      - flowmanner-dev
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-dev_redis}
+      --bind 0.0.0.0
+      --appendonly yes
+    volumes:
+      - dev_redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dev_redis}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    mem_limit: 256m
+    mem_reservation: 64m
+
+  # ── Qdrant (Vector DB) ──────────────────────────────
+  dev-qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: dev-qdrant
+    restart: unless-stopped
+    networks:
+      - flowmanner-dev
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__LOG_LEVEL: INFO
+    volumes:
+      - dev_qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 512m
+    mem_reservation: 128m
+
+  # ── RabbitMQ (Celery broker) ────────────────────────
+  dev-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: dev-rabbitmq
+    restart: unless-stopped
+    networks:
+      - flowmanner-dev
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-rabbitmq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-dev_rabbitmq}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    volumes:
+      - dev_rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    mem_limit: 256m
+    mem_reservation: 64m
+
+  # ── Celery Worker (dev) ─────────────────────────────
+  dev-celery-worker:
+    image: workflows-backend:dev
+    container_name: dev-celery-worker
+    restart: unless-stopped
+    networks:
+      - flowmanner-dev
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=100
+    env_file:
+      - dev/.env.dev
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      POSTGRES_HOST: dev-postgres
+    depends_on:
+      dev-rabbitmq:
+        condition: service_healthy
+      dev-postgres:
+        condition: service_healthy
+      dev-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.tasks.celery_app", "inspect", "ping", "--timeout=10"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    mem_limit: 1g
+    mem_reservation: 128m
+
+  # ── Backend (FastAPI + hot-reload) ──────────────────
+  dev-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: workflows-backend:dev
+    container_name: dev-backend
+    restart: unless-stopped
+    networks:
+      - flowmanner-dev
+    env_file:
+      - dev/.env.dev
+    environment:
+      APP_ENV: development
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      POSTGRES_HOST: dev-postgres
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      # Mount source code for hot-reload
+      - ./backend/app:/app/app:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+      # Mount entrypoint
+      - ./dev/docker-entrypoint.dev.sh:/docker-entrypoint.dev.sh:ro
+      # Uploads
+      - dev_uploads_data:/app/uploads
+    ports:
+      - "8000:8000"
+    entrypoint: ["/bin/bash", "/docker-entrypoint.dev.sh"]
+    depends_on:
+      dev-postgres:
+        condition: service_healthy
+      dev-redis:
+        condition: service_healthy
+      dev-qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    mem_limit: 2g
+    mem_reservation: 256m
+
+volumes:
+  dev_postgres_data:
+    name: flowmanner_dev_postgres
+  dev_redis_data:
+    name: flowmanner_dev_redis
+  dev_qdrant_data:
+    name: flowmanner_dev_qdrant
+  dev_rabbitmq_data:
+    name: flowmanner_dev_rabbitmq
+  dev_uploads_data:
+    name: flowmanner_dev_uploads

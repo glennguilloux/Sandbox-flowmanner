@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: flowmanner-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://10.99.0.3:8000
+      - AUTH_TRUST_HOST=true
+    expose:
+      - "3000"
+    networks:
+      - flowmanner
+
+  nginx:
+    image: nginx:alpine
+    container_name: flowmanner-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+    networks:
+      - flowmanner
+
+networks:
+  flowmanner:
+    driver: bridge

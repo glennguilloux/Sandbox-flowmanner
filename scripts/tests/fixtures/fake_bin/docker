@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/docker.log"
+echo "$(date -u +%s) $*" >> "$LOG"
+RESP="${STUB_DIR}/docker.resp"
+if [ -f "$RESP" ]; then
+  EXIT_LINE=$(head -1 "$RESP")
+  if echo "$EXIT_LINE" | grep -q '^EXIT:'; then
+    EXIT_CODE=$(echo "$EXIT_LINE" | sed 's/^EXIT://')
+    tail -n +2 "$RESP"
+    exit "$EXIT_CODE"
+  fi
+  cat "$RESP"
+  exit 0
+fi
+# Default: simulate healthy containers
+if echo "$*" | grep -q 'ps --filter'; then
+  echo "container-id-fake123"
+elif echo "$*" | grep -q 'ps --format json'; then
+  echo '[{"Service":"frontend","State":"running"},{"Service":"nginx","State":"running"}]'
+elif echo "$*" | grep -q 'tag'; then
+  : # docker tag succeeds silently
+elif echo "$*" | grep -q 'build'; then
+  echo "docker build: success (stubbed)"
+fi
+exit 0

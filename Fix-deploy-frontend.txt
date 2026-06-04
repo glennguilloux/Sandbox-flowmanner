@@ -1,0 +1,235 @@
+Fix-deploy-frontend.txt
+========================
+Issues identified in /opt/flowmanner/deploy-frontend.sh
+
+Context: The deploy script hangs indefinitely at "Pre-Deploy Health Check"
+every time (timed out after 480s). SSH to VPS works fine. Direct curl from
+VPS works fine. Root cause: shell quoting bug in vps_exec().
+
+---
+
+ISSUE 1: vps_exec() quoting bug (line 86)
+------------------------------------------
+
+CURRENT CODE:
+  vps_exec() {
+    eval "${SSH_CMD} '$*'"
+  }
+
+  SSH_CMD="sshpass -p '${VPS_SSH_PASS}' ssh -o StrictHostKeyChecking=accept-new ${VPS_HOST}"
+
+PROBLEM:
+  $* joins all args with spaces then wraps them in single quotes. When the
+  arg string contains embedded single quotes (like "'https://flowmanner.com'"
+  from check_health), the inner quotes break the outer quoting. The shell
+  interprets the inner ' as ENDING the outer quoted string, leaving the URL
+  unquoted and mangling the syntax.
+
+  Trace what happens with:
+    vps_exec "curl -fsSL --max-time 10 '${url}' > /dev/null 2>&1"
+
+  Step 1: $* expands to:
+    curl -fsSL --max-time 10 'https://flowmanner.com' > /dev/null 2>&1
+
+  Step 2: eval "${SSH_CMD} '$*'" becomes:
+    sshpass -p '@Geegee197623' ssh ... root@74.208.115.142 'curl -fsSL --max-time 10 'https://flowmanner.com' > /dev/null 2>&1'
+
+  Step 3: The shell parses:
+    - 'curl -fsSL --max-time 10 '  →  literal: "curl -fsSL --max-time 10 "
+    - https://flowmanner.com       →  unquoted (but no special chars, so it passes)
+    - ' > /dev/null 2>&1'         →  literal: " > /dev/null 2>&1"
+
+  So the command SSH receives is:
+    curl -fsSL --max-time 10 https://flowmanner.com > /dev/null 2>&1
+
+  This mostly works for simple cases. But check_health() loops and calls
+  vps_exec 3 times with retry logic. The hanging suggests SSH connection
+  leaks from the quoting issues — SSH might be reading from stdin or
+  waiting for more input because the quoting confused the remote shell.
+
+FIX (Option A — use printf %q for safe escaping):
+  vps_exec() {
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    ${SSH_CMD} "$cmd_str"
+  }
+
+FIX (Option B — use heredoc to avoid quoting entirely):
+  vps_exec() {
+    sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new \
+      root@74.208.115.142 "bash -s" <<< "$*"
+  }
+
+FIX (Option C — pass command via stdin):
+  vps_exec() {
+    echo "$*" | sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new \
+      root@74.208.115.142 "bash"
+  }
+
+---
+
+ISSUE 2: rsync over sshpass drops mid-transfer (line 180-187)
+--------------------------------------------------------------
+
+CURRENT CODE:
+  rsync -avz --progress \
+    -e "$RSYNC_SSH" \
+    --exclude node_modules --exclude .next --exclude .git --exclude .env.local \
+    "$FRONTEND_SOURCE" \
+    "${VPS_HOST}:${VPS_PROJECT_DIR}/frontend/"
+
+PROBLEM:
+  rsync fails with "error code 255 (unexplained error)" repeatedly when
+  using sshpass. sshpass opens a PTY for the password, but rsync needs
+  multiple SSH channels (file list + data). When sshpass closes its PTY,
+  all channels die. This manifests as:
+    - "sending incremental file list" then immediate 255 error
+    - Occasional partial transfers (6 files) then drop
+
+FIX (Option A — persistent SSH control master):
+  RSYNC_SSH="sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new \
+    -o ControlMaster=auto -o ControlPath=/tmp/ssh-mux-%r@%h:%p -o ControlPersist=300"
+
+  This creates a persistent SSH connection that rsync reuses for all its
+  channels. Add a cleanup step:
+    trap 'sshpass -p "@Geegee197623" ssh -O exit ...' EXIT
+
+FIX (Option B — set up SSH key authentication and avoid sshpass):
+  # On homelab:
+  ssh-keygen -t ed25519 -f ~/.ssh/deploy-key -N ""
+  ssh-copy-id -i ~/.ssh/deploy-key.pub root@74.208.115.142
+
+  Then use:
+  RSYNC_SSH="ssh -i ~/.ssh/deploy-key -o StrictHostKeyChecking=accept-new"
+
+FIX (Option C — pre-tunnel with autossh):
+  autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" \
+    -L 2222:localhost:22 root@74.208.115.142 -N &
+  RSYNC_SSH="ssh -p 2222 -o StrictHostKeyChecking=accept-new"
+
+---
+
+ISSUE 3: check_health() curls public URL unnecessarily (line 90-111)
+---------------------------------------------------------------------
+
+CURRENT CODE:
+  check_health() {
+    local url="$1"
+    ...
+    for i in $(seq 1 "$retries"); do
+      if vps_exec "curl -fsSL --max-time 10 '${url}' > /dev/null 2>&1"; then
+    ...
+  }
+
+  Called as:
+    check_health "https://flowmanner.com" "Frontend (current)" 3 2
+
+PROBLEM:
+  Curling the public URL (https://flowmanner.com) from the VPS itself routes
+  traffic through nginx back to the frontend container (hairpin). This is:
+    - slower than direct check
+    - fails if DNS/public routing is misconfigured even though the app is fine
+    - subject to the same quoting bug in ISSUE 1
+
+FIX:
+  Check container health directly via Docker:
+    vps_exec "docker inspect --format='{{.State.Health.Status}}' flowmanner-frontend"
+
+  Or curl the local port:
+    vps_exec "curl -fs -o /dev/null --max-time 5 http://localhost:3000/"
+
+---
+
+ISSUE 4: no timeout guard on SSH commands (affects all vps_exec calls)
+-----------------------------------------------------------------------
+
+CURRENT CODE:
+  eval "${SSH_CMD} '$*'"
+
+  SSH_CMD="sshpass -p '${VPS_SSH_PASS}' ssh -o StrictHostKeyChecking=accept-new ${VPS_HOST}"
+
+PROBLEM:
+  If any SSH command hangs (e.g., due to quoting, network blip, remote
+  process stuck), the entire script blocks forever. There's no timeout on
+  either the SSH connection or individual commands.
+
+FIX (add timeout and SSH ConnectTimeout):
+  SSH_CMD="sshpass -p '${VPS_SSH_PASS}' ssh \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=15 \
+    -o ServerAliveInterval=10 \
+    -o ServerAliveCountMax=3 \
+    ${VPS_HOST}"
+
+  And optionally add a global timeout wrapper:
+  vps_exec() {
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    timeout 60 ${SSH_CMD} "$cmd_str"
+  }
+
+---
+
+Scaffold of the fixed deploy-frontend.sh
+=========================================
+
+  #!/bin/bash
+  set -euo pipefail
+
+  FRONTEND_SOURCE="/home/glenn/FlowmannerV2-frontend/"
+  VPS_HOST="root@74.208.115.142"
+  VPS_PROJECT_DIR="/opt/flowmanner"
+  VPS_SSH_PASS="@Geegee197623"
+  HEALTH_CHECK_RETRIES=10
+  HEALTH_CHECK_DELAY=5
+
+  SSH_CMD="sshpass -p '${VPS_SSH_PASS}' ssh \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=15 \
+    -o ServerAliveInterval=10 \
+    -o ServerAliveCountMax=3 \
+    ${VPS_HOST}"
+
+  RSYNC_SSH="sshpass -p '${VPS_SSH_PASS}' ssh \
+    -o StrictHostKeyChecking=accept-new \
+    -o ControlMaster=auto \
+    -o ControlPath=/tmp/ssh-mux-%r@%h:%p \
+    -o ControlPersist=600 \
+    -o ConnectTimeout=15"
+
+  # Cleanup persistent SSH connection on exit
+  cleanup() {
+    sshpass -p "${VPS_SSH_PASS}" ssh -O exit -o ControlPath=/tmp/ssh-mux-%r@%h:%p \
+      ${VPS_HOST} 2>/dev/null || true
+  }
+  trap cleanup EXIT
+
+  vps_exec() {
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    timeout 60 ${SSH_CMD} "$cmd_str"
+  }
+
+  vps_exec_no_timeout() {
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    ${SSH_CMD} "$cmd_str"
+  }
+
+  check_health() {
+    local label="$1"
+    local retries="${2:-$HEALTH_CHECK_RETRIES}"
+    local delay="${3:-$HEALTH_CHECK_DELAY}"
+
+    for i in $(seq 1 "$retries"); do
+      if vps_exec "docker inspect --format='{{.State.Health.Status}}' flowmanner-frontend" 2>/dev/null | grep -q healthy; then
+        log_success "${label} health check passed (attempt ${i}/${retries})"
+        return 0
+      fi
+      [ "$i" -lt "$retries" ] && sleep "$delay"
+    done
+    log_error "${label} health check FAILED after ${retries} attempts"
+    return 1
+  }
+
+  # deploy steps follow...

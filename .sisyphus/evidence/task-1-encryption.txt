@@ -1,0 +1,19 @@
+Task 1: OAuth DB Models + Migration — Encryption Evidence
+===========================================================
+Date: 2026-06-03
+
+Test: Secrets encrypted at rest
+Status: PASS
+
+Steps:
+1. Called encrypt_token('test-client-id-123') from app.integrations.oauth
+2. Verified ciphertext does NOT contain the plaintext 'test-client-id-123'
+3. Called decrypt_token(ciphertext) → returned 'test-client-id-123' exactly
+4. Roundtrip: PASS
+
+Encrypted sample: gAAAAABqH8Swezd9eFx8ViCD737Rz4aRIIQe3ijMrj4t6sb81L...
+
+Result: Fernet encryption via AES_ENCRYPTION_KEY works correctly.
+Secrets stored in DB (encrypted_client_id, encrypted_client_secret,
+encrypted_access_token, encrypted_refresh_token) will be ciphertext,
+not plaintext.

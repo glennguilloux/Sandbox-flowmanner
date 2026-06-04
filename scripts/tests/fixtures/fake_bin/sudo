@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/sudo.log"
+echo "$(date -u +%s) $*" >> "$LOG"
+RESP="${STUB_DIR}/sudo.resp"
+if [ -f "$RESP" ]; then
+  cat "$RESP"
+  exit 0
+fi
+# wg show: return a fake handshake line
+if echo "$*" | grep -q 'wg show'; then
+  echo "  latest handshake: 30 seconds ago"
+fi
+"$@" 2>/dev/null || true
+exit 0

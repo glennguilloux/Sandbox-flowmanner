@@ -1,0 +1,32 @@
+{
+  "thresholds": {
+    "http_req_duration": {
+      "p95": 500,
+      "p99": 1000
+    },
+    "http_req_failed": {
+      "rate": 0.05
+    },
+    "health_duration_ms": {
+      "p95": 200
+    },
+    "login_duration_ms": {
+      "p95": 500
+    },
+    "mission_create_ms": {
+      "p95": 2000
+    },
+    "search_ms": {
+      "p95": 1000
+    },
+    "chat_message_ms": {
+      "p95": 500
+    }
+  },
+  "ci_config": {
+    "script": "health",
+    "vus": 10,
+    "duration": "30s",
+    "note": "CI runs lightweight health test only; full suite runs manually or on schedule"
+  }
+}

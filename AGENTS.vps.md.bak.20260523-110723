@@ -1,0 +1,127 @@
+# Flowmanner — VPS Agent Instructions
+
+## ⚠️ YOU ARE ON THE VPS
+
+This machine is the **VPS (IONOS)** at `74.208.115.142` (WireGuard: `10.99.0.1`).
+
+You are NOT on the homelab. The homelab is a SEPARATE machine at `10.99.0.3` — you reach it through the WireGuard tunnel, not locally. Do NOT tell the user to "run commands on the VPS" — you are already here. Do NOT tell the user to "run commands on the homelab" — that is a different machine you cannot directly access beyond the WireGuard tunnel.
+
+## SSH Access
+
+No SSH keys are configured. Use sshpass for ALL VPS commands.
+
+**CRITICAL: SSH starts in `/root/`, NOT `/opt/flowmanner/`.** Every `docker compose` command MUST be prefixed with `cd /opt/flowmanner &&`. Without it you get: `no configuration file provided: not found`.
+
+```
+# WRONG — will fail
+sshpass -p '@Geegee197623' ssh root@74.208.115.142 "docker compose ps"
+
+# RIGHT — cd first, then command
+sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new root@74.208.115.142 "cd /opt/flowmanner && docker compose ps"
+```
+
+**Prefer the helper scripts instead of raw SSH commands:**
+
+```bash
+# Deploy frontend (rsync + rebuild + restart nginx)
+bash /opt/flowmanner/frontend/scripts/deploy-frontend.sh
+
+# Restart nginx only
+bash /opt/flowmanner/frontend/scripts/restart-nginx.sh
+```
+
+rsync doesn't need `cd` (it takes absolute paths):
+```bash
+rsync -avz --progress \
+  -e "sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new" \
+  /local/path/ root@74.208.115.142:/opt/flowmanner/remote/path/
+```
+
+## VPS Role
+
+The VPS runs the **public-facing frontend stack**. It proxies API traffic through a WireGuard tunnel to the homelab backend.
+
+```
+Internet → Nginx (SSL, :80/:443) → /api/* → 10.99.0.3:8000 (homelab backend)
+                                 → /*     → frontend:3000 (Next.js)
+                                 → /ws    → ws://10.99.0.3:8000/ws
+```
+
+## Services
+
+| Service | Container | Port | Notes |
+|---------|-----------|------|-------|
+| Nginx | `flowmanner-nginx` | 80, 443 | SSL termination, reverse proxy |
+| Next.js | `flowmanner-frontend` | 3000 (internal) | Built from `/opt/flowmanner/frontend/` |
+| WireGuard | `wg0` | 51820/udp | Tunnel to homelab (10.99.0.3) |
+| Plesk | `sw-cp-serverd` | 8443 | Control panel (Apache disabled) |
+
+## Paths
+
+| What | Path |
+|------|------|
+| Project root | `/opt/flowmanner/` |
+| Frontend source | `/opt/flowmanner/frontend/` |
+| Nginx config | `/opt/flowmanner/nginx/default.conf` |
+| SSL certs | `/opt/flowmanner/certs/fullchain.pem`, `privkey.pem` |
+| Environment | `/opt/flowmanner/.env` |
+| Docker Compose | `/opt/flowmanner/docker-compose.yml` |
+
+## Frontend Deployment
+
+From the homelab, rsync source then rebuild:
+
+```bash
+# 1. Sync source
+rsync -avz --progress \
+  -e "sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new" \
+  --exclude node_modules --exclude .next --exclude .git \
+  /home/glenn/FlowmannerV2-frontend/ \
+  root@74.208.115.142:/opt/flowmanner/frontend/
+
+# 2. Rebuild on VPS
+sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new root@74.208.115.142 \
+  "cd /opt/flowmanner && docker compose build frontend && docker compose up -d --no-deps frontend"
+```
+
+## SSL
+
+Let's Encrypt cert at `/opt/flowmanner/certs/`, expires Aug 15, 2026. Auto-renewed via certbot hook at `/etc/letsencrypt/renewal-hooks/deploy/flowmanner.sh` which copies certs and restarts nginx.
+
+## Environment Variables (`/opt/flowmanner/.env`)
+
+- `AUTH_SECRET` — NextAuth v5 secret
+- `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` — GitHub OAuth
+- `NEXTAUTH_URL` — `https://flowmanner.com`
+- `BACKEND_URL` — `http://10.99.0.3:8000`
+- `AUTH_TRUST_HOST` — `true`
+- `NEXT_PUBLIC_API_URL` — `https://flowmanner.com/api`
+
+## Common Commands
+
+```bash
+# Container status
+sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new root@74.208.115.142 \
+  "cd /opt/flowmanner && docker compose ps"
+
+# Logs
+sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new root@74.208.115.142 \
+  "docker logs flowmanner-frontend --tail 50"
+
+# Restart all
+sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new root@74.208.115.142 \
+  "cd /opt/flowmanner && docker compose restart"
+
+# Backend connectivity (through WireGuard)
+sshpass -p '@Geegee197623' ssh -o StrictHostKeyChecking=accept-new root@74.208.115.142 \
+  "curl -s http://10.99.0.3:8000/api/health"
+```
+
+## Troubleshooting
+
+| Problem | Check |
+|---------|-------|
+| Site down | `docker compose ps`, `ufw status` |
+| API 502 | `curl http://10.99.0.3:8000/api/health` from VPS, `wg show` |
+| SSL error | `openssl x509 -in /opt/flowmanner/certs/fullchain.pem -noout -dates` |
+| Frontend not updating | `docker compose build frontend && docker compose up -d --no-deps frontend` |

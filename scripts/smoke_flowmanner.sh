@@ -1,0 +1,1 @@
+/opt/flowmanner/scripts/tests/fixtures/fake_bin/smoke_flowmanner.sh

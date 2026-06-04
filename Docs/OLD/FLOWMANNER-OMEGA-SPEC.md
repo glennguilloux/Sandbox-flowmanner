@@ -1,0 +1,925 @@
+---
+
+# FLOWMANNER Ω — ARCHITECTURAL CRITIQUE & NEXT-GENERATION SPECIFICATION
+
+**Author:** Sisyphus (systems architect)  
+**Date:** 2026-06-01  
+**Source corpus:** `/opt/flowmanner/Docs/{ARCHITECTURE,FLOWMANNER-ONTOLOGY,EXECUTION-ENGINE,CHAT-UX-ARCHITECTURE}.md`, `/opt/flowmanner/plans/TEMP/`, `/opt/flowmanner/plans/audit-2026-05-22-flowmanner-com.md`, `/opt/flowmanner/plans/tasks/v3-v4-migration-roadmap.md`, `/opt/flowmanner/backend/app/` (618 Python files, 150,157 lines), 4 parallel web-research sweeps on comparable frameworks.
+
+---
+
+## 0. EXECUTIVE SUMMARY
+
+Flowmanner is **a 2024-era framework project dressed in 2026 clothing.** The canonical docs describe a "meta-orchestration layer with infinite capability composition and seven execution models," but the implementation is a heterogeneous collection of pattern-rolled Python services that has accreted abstractions faster than it has accreted guarantees. The system is at least three orthogonal products welded together: a chat frontend, a workflow engine, and an agent runtime — and the seam between them is the load-bearing wall the whole building rests on.
+
+The next-generation system is not "Flowmanner with more features." It is a deliberate withdrawal from the claims of universal coverage and a concentration on the one thing that no current framework actually delivers: **durable, type-safe, formally auditable agent execution as a substrate, not as a feature.** That substrate is called **Flowmanner Ω** below.
+
+The next four parts are forensic. Parts V–VII are generative.
+
+---
+
+# PART I — REVERSE-ENGINEERED PHILOSOPHY
+
+## I.1 The seven layers of meaning buried in the codebase
+
+Strip the marketing language and Flowmanner is a project that simultaneously believes seven things. None of them is fully implemented. None is wrong. They were chosen by accretion, not by design.
+
+| # | Belief | Evidence | Verdict |
+|---|--------|----------|---------|
+| 1 | **Agents are the new processes.** They have identity, capability, lifecycle, and ownership. | `Agent`, `AgentTemplate`, `AgentRegistration`, `AgentCapability`, `AgentProtocol`, `AgentMemory` — 6 model files, 5 distinct representations. | Half-built. The lifecycle is implicit; the identity is scattered across 5 schemas. |
+| 2 | **Workflows are the new files.** They are the durable artifacts users create, version, share, sell. | `Flow`, `WorkflowRun`, `GraphWorkflow`, `GraphExecution`, `GraphState` — 5 models. Visual builder in `FlowEditor`. | Half-built. Two parallel workflow models (`Flow` and `GraphWorkflow`) compete for the same concept. |
+| 3 | **Chat is the universal I/O.** Everything — agents, missions, workflows, triggers — has a chat front. | 4 chat stores, 4 hooks (`useChatMessages`, `useStreaming`, `useAttachments`, `useChatKeyboard`), the chat-routes-85%-of-traffic pattern. | Half-built. No voice, no video, no structured-document I/O. |
+| 4 | **Multi-agent coordination is the dominant computation pattern.** Solo < Sequential < Parallel < Debate < Swarm < Pipeline < Meta. | 7 execution models documented; 5+2 implemented (`Solo`, `DAG`, `Swarm`, `SwarmPipeline`, `Graph`, `LangGraph`, `Nexus`). | Half-built. 6 of 7 are not production-distinguished. |
+| 5 | **The system must improve itself.** Failures should be analyzed, lessons stored, future runs informed. | `learning_service.py` (dual persistence PG + Qdrant), `self_improvement.py`, `AdaptationRuleDB`, `LearningFeedbackDB`, `Memory`, `MemorySession`. | Aspirational. The feedback loop is write-only — no closed-loop evidence that future runs actually consume it. |
+| 6 | **Anyone should be able to compose higher-order behaviors from primitives.** | `CapabilityComposer` (728 lines), `ComposedCapability` recursion, 4 composition types, re-registration. | Half-built. Composition is shallow (1 level), not lattice; meta-loop has hard `max_depth=3`. |
+| 7 | **The community is the moat.** Marketplace, templates, partner revenue, ratings. | `MarketplaceListing`, `MarketplaceCategory`, `MarketplaceReview`, `UserInstallation`, `AgentReview`, `Partner`, `PartnerRevenue`. | Aspirational. The corpus has no active user community by definition (it's a single-developer system). |
+
+The philosophy, reconstructed, is:
+
+> *An agent is a process. A mission is a program. A workflow is a function library. The chat surface is the syscall. The runtime is a meta-loop that watches its own failures and rewrites its own plans. The whole thing composes, and composition is the product.*
+
+This is a serious, ambitious, internally consistent belief system. It also happens to be the same belief system that Microsoft AutoGen, LangGraph, CrewAI, and the "Agentic OS" 2026 narrative all share. Flowmanner is not wrong about the future. It is, however, *behind* on the substrate that the future requires.
+
+## I.2 The hidden philosophy nobody admits
+
+Underneath the seven beliefs sits an eighth, never stated:
+
+> *Correctness can be deferred to the LLM.*
+
+Every error class in `FailureAnalyzer` is recoverable with a retry. Every workflow can be interrupted and resumed. Every mission can be re-decomposed. Every consensus can be re-debated. There is no path through Flowmanner that fails terminally. The system is *optimistic* about its own ability to recover.
+
+This is philosophically defensible — agent work is fuzzy, determinism is the wrong target — but it produces three specific failure modes that show up in the audit history:
+
+1. **Silent success** — `mission_executor.py` historically returned `{"success": True}` for empty outputs. (Fixed in current code; the trace is in `DEEP-DIVE-ANALYSIS.md` GAP-2.)
+2. **Infinite loops of recovery** — The meta-loop has no budget. A misclassified error will retry forever.
+3. **Drift over time** — The self-improvement loop adds Improvement records but never removes stale ones, never weights by recency, and never bounds the adaptation space.
+
+The next-generation system must replace optimism with **bounded optimism**: every recovery has a budget, every improvement has a half-life, every capability composition has a halting proof.
+
+---
+
+# PART II — IMPLEMENTATION vs ASPIRATION
+
+The canonical docs make strong claims. The code is less strong. This is a brutal table of the gap.
+
+| Claim from canonical docs | Verifiable implementation | Verdict |
+|---|---|---|
+| 7 execution models with distinct semantics | `mission_executor.py` (1387L), `dag_executor.py` (179L), `graph_executor.py` (293L), `swarm/orchestrator.py` (331L), `swarm_pipeline/orchestrator.py` (8 phases × ~150L), `langgraph/agent.py` (~250L), `nexus/meta_loop_orchestrator.py` (225L). The 7 are nominally separate; 4 of them route to the same LLM-call loop. | PARTIALLY IMPLEMENTED |
+| "Infinite capability lattice" (recursively composed capabilities) | `capability_composer.py` defines 4 composition types (sequential, parallel, conditional, loop) and writes `ComposedCapabilityModel` to DB. There is no in-memory lattice. `meta_loop_orchestrator.py` has hard `max_depth=3`. | ASPIRATIONAL — the phrase is marketing |
+| 9 error classes wired into all execution paths | `failure_analyzer.py` enumerates all 9 and provides 9 recovery strategies. It is only called by `MetaLoopOrchestrator`. The other 6 execution models do not consult it. | PARTIALLY IMPLEMENTED |
+| Self-healing runtime | `runtime/` is 6 files, 518 lines total: `anomaly_detector.py` (72L), `health_monitor.py` (63L), `predictive_scaler.py` (139L), `recovery_strategies.py` (82L), `self_healing.py` (73L). These appear to be skeletons — no test coverage, no wire-up to incident response. | ASPIRATIONAL |
+| Chaos-tested reliability | `chaos_langfuse.py` exists (single file, no inspectable logic in listing). No chaos test suite. No fault-injection harness. | ASPIRATIONAL |
+| Persistent learning feeding future runs | `learning_service.py` records feedback to PG + Qdrant. `inject_into_planner_context()` is implemented. **No evidence in the code that planners actually call it on every run** — the call path is reachable but not enforced. | PARTIALLY IMPLEMENTED |
+| Marketplace economy with reviews, installs, partner revenue | All models exist. Frontend pages exist (`/marketplace`, `/marketplace/create-listing`, `/marketplace/my-listings`, `/marketplace/my-installed`, `/marketplace/listing-detail`). No community to populate them. | SCAFFOLDED (waiting for users that don't exist) |
+| Workspace vs Tenant — both used in production | 3 workspace route files (`workspace.py`, `workspace_activity.py`, `workspace_messages.py`); 2 tenant route files (`tenant.py`, `tenants.py`). Both are wired. | BOTH ACTIVE — this is the dead-weight problem |
+| Flow vs Graph — two models, converging or competing | 5 model files (`Flow`, `WorkflowRun`, `GraphWorkflow`, `GraphExecution`, `GraphState`). Two visual builders in `/missions/builder` vs `/dashboard/graphs`. Both used. | REDUNDANT — neither has won |
+| 4 agent representations | 5 model files (`agent.py` 2 classes, `agent_models.py` 1, `agent_protocol.py` 5, `agent_capability.py` 1, `agent_memory.py` 1) = 10 classes total. | FRAGMENTED — there is no canonical lifecycle |
+| Agent Protocol as a real protocol | `agent_protocol.py` is a SQLAlchemy model. There is no serialization format, no version negotiation, no wire protocol. | ASPIRATIONAL — it's a database table |
+| CodeGraph MCP — 96% token reduction | `codegraph-ai` is a third-party npm package referenced in `AGENTS.homelab.md`. Not present in `requirements.txt` or `package.json` in the canonical repo. | ASPIRATIONAL — the *idea* is real, the *tool* is borrowed |
+| Dual auth (NextAuth JWT + Zustand fm_tokens) | 2 implementations, must agree. Has been the source of two distinct CRITICAL bugs (per audit 2026-05-22 and deep-dive GAP-1). | FRAGILE — the duplication is the bug |
+| Backend rebuild takes ~2 min, frontend deploy ~4 min | Confirmed in AGENTS.md. Each deploy is a full Docker image build; backend has zero hot-reload. | IMPLEMENTED but BACKWARD — this is 2018-era devloop |
+
+**Asymmetry:** 8 of 13 claims are PARTIALLY or ASPIRATIONAL. The system works (the auth loop, the model router silent failure, and the chaos-engineering claim are *real* failures). What works best is what the canonical docs *underclaim*: the chat UX, the chat streaming, the dual-machine ops, the FastAPI implementation, the LangGraph integration, the multimodal mission pipeline. What works worst is what the canonical docs *overclaim*: self-healing, the meta-lattice, the closed-loop learning, the marketplace.
+
+---
+
+# PART III — WEAKNESSES AND MISSING DIMENSIONS
+
+## III.1 The thirteen architectural weaknesses
+
+Ranked by blast radius. Each has a concrete failure scenario the audit history shows has already happened.
+
+### W1. **No event-sourced substrate.** (CRITICAL)
+The execution history is stored in a relational DB. Every `Mission`, `MissionTask`, `MissionLog` is a mutable row. There is no append-only log. When a worker crashes, there is no replay. The `DEEP-DIVE-ANALYSIS.md` lists "Real-time Mission Execution Progress" as MISSING, but the deeper issue is that missions cannot be **replayed** at all. Temporal and ESAA (arxiv 2602.23193, Feb 2026) are the production templates here; Flowmanner is several years behind on the substrate its own ambitions require.
+
+### W2. **No formal type system for inter-agent contracts.** (CRITICAL)
+The `Capability` dataclass has `input_schema: dict` and `output_schema: dict` — both raw dicts. There is no validation at composition time, no enforcement at execution time, no compile-time check. A composed capability can produce output that violates the input contract of its successor. The system will discover this at LLM-prompt-time and produce a hallucinated fix. This is the *single largest correctness hole* in the system.
+
+### W3. **No halting guarantee on capability composition.** (CRITICAL)
+`ComposedCapability.loop_max_iterations = 10` defaults. `MetaLoopOrchestrator.max_depth = 3` defaults. These are constants, not proofs. A capability that exits its loop on a string match will continue until the match. The system has no termination ordering over its own composition space. The 9-error-class recovery system adds another potentially-infinite loop on top.
+
+### W4. **RBAC is the only authorization model.** (HIGH)
+Permissions are `permissions: create_missions | manage_members | view_billing`. There is no capability-based access. An agent with `manage_members` can manage any member, including ones it has no business with. There is no `attenuation` (you cannot pass a weaker form of your permission). There is no `delegation chain` with bounded scope. This is exactly the model that Zylos's March 2026 paper "Capability-Based Security for AI Agent Tool Invocation" identifies as the root cause of the 2026 agent-vulnerability epidemic. (See Wikipedia `Object-capability model`: "Only connectivity begets connectivity" — Flowmanner violates this with role grants.)
+
+### W5. **The "infinite capability lattice" is a constant.** (HIGH)
+`meta_loop_orchestrator.py` `max_depth: int = 3` is hard-coded. The phrase in the docs is a metaphor; the implementation is bounded. Either rename or prove termination. The current state — marketing one thing, delivering another — is corrosive to trust.
+
+### W6. **Dual auth is dual liability.** (HIGH)
+NextAuth JWT + Zustand `fm_tokens` localStorage. The May 2022 audit found a 401-instead-of-200 infinite loop bug driven by the disagreement. The May 2026 audit found the same family of bug, fixed differently. The duplication is the bug. (See audit-2026-05-22 §3 and 2026-05-17 FULL-AUDIT-FIX-PLAN §1.)
+
+### W7. **Workspace vs Tenant is dead weight.** (MEDIUM)
+Both are wired, both have routes, neither is canonical. Pick one. Killing Tenant saves ~600 LOC and removes a class of "which one am I in?" bugs.
+
+### W8. **Flow vs Graph is dead weight.** (MEDIUM)
+Two visual builders, two persistence models, two execution engines (`dag_executor.py` 179L + `graph_executor.py` 293L). Both reach into the same Mission substrate. Consolidate. The visual-builder choice should be a *render* choice, not a *data model* choice.
+
+### W9. **Five agent representations is dead weight.** (MEDIUM)
+`agent.py`, `agent_models.py`, `agent_protocol.py`, `agent_capability.py`, `agent_memory.py`. That's 10 classes. Of them, only `Agent` (the basic class) and `AgentTemplate` are hot paths. The rest are speculative. Pick a canonical lifecycle: **Definition → Registration → Capability Grant → Active → Suspended → Retired** — and have one model per state.
+
+### W10. **The self-improvement loop has no weight or half-life.** (MEDIUM)
+`LearningFeedbackDB` grows monotonically. `AdaptationRuleDB` grows monotonically. A 2024 success at 1.0 weight and a 2026 failure at 1.0 weight are treated equally. There is no decay function, no recency weighting, no A/B harness. This is the *write-only log* anti-pattern. (Confirmed by reading `learning_service.py` — the `inject_into_planner_context` function exists but has no test showing planner actually uses it.)
+
+### W11. **No formal model of "agent identity."** (MEDIUM)
+An agent has an ID, a template_id, an instance_id. There is no provenance chain, no signing key, no attestation. A prompt-injection attacker can spawn a forged agent that looks legitimate. The system has no defense. Zylos's capability-security paper §2 covers this exactly: agents need unforgeable identity tied to attested capabilities.
+
+### W12. **The chaos-tested claim has no chaos test.** (MEDIUM)
+`chaos_langfuse.py` is a single file. There is no fault injection, no kill-the-worker-mid-mission test, no corrupt-the-DB test. The "circuit breaker" claim in the canonical docs is supported by 0 lines of test.
+
+### W13. **The hot path uses string-routing for LLM calls.** (LOW but pervasive)
+The `ModelRouter` and `LLMRouter` and `CostAwareRouter` all key on string model IDs. A typo creates a silent failure. (See `DEEP-DIVE-ANALYSIS.md` GAP-2 — the original bug was `model_id` not found because it was a string and user_id was missing from lookup.)
+
+## III.2 The eleven missing dimensions (things the docs don't even claim to have)
+
+These are capabilities that an "agentic operating system" in 2026 should have, but Flowmanner has not even proposed. Each is adopted or proposed in at least one of the comparable frameworks surveyed in Part IV.
+
+| # | Missing dimension | What it is | Who has it |
+|---|---|---|---|
+| M1 | **Durable execution** | Workflows survive crashes, resume from checkpoints, replay deterministically | Temporal (production), LangGraph (checkpointing), ESAA (arxiv 2602.23193) |
+| M2 | **Capability-based security** | Unforgeable tokens that grant exactly one action; attenuable, revocable, delegatable | Pony, E, KeyKOS, Zylos 2026, Notion Custom Agents |
+| M3 | **Type-safe inter-agent contracts** | Input/output schemas enforced at composition time, not LLM-prompt time | OpenAPI/JSONSchema today; Pydantic; future: dependent types |
+| M4 | **Formal verification hooks** | Runtime monitors that check invariants ("never transmit unencrypted PII"); model-checking on plan graphs | Sakurasky Part 9, Frontiers 2026, runtime-verification literature |
+| M5 | **Time-travel debugging** | "Why did mission X produce output Y at 3am Tuesday?" via event-store replay | Temporal, LangGraph, EventSourcedAI blueprint |
+| M6 | **Convergence proofs for consensus** | Multi-agent debate that provably converges in bounded rounds | Voting theory, Byzantine agreement, CRDT literature |
+| M7 | **Voice/streaming multimodal I/O** | Audio in/out; not just chat text | OpenAI Realtime, Gemini Live, every 2026 frontier model |
+| M8 | **First-class resource budgets** | "Mission X must cost <$0.50 and <60s" enforced by the runtime, not hoped for by the user | Temporal (timeouts), Kubernetes (resource quotas), Airflow (SLAs) |
+| M9 | **Attenuation chain audit** | Every delegated permission is logged, revocable, and visibly attenuated | Notion Custom Agents, Zylos OCap |
+| M10 | **Deterministic replay for non-deterministic LLM calls** | Same prompt + same model + same seed = same output, recorded | vLLM, OpenAI evals, `temperature=0` is not enough |
+| M11 | **A migration story** | v1 → v2 → v3 → v4 routes all live forever. The `v3-v4-migration-roadmap.md` is a plan to clean this up but it is not yet enacted. | Stripe (API versioning), Atlassian, every mature SaaS |
+
+M1, M2, M3, M5, M8 are the load-bearing five. Without them, Flowmanner cannot credibly claim to be an "agentic OS." With them, it has a chance at being the only one in 2026.
+
+---
+
+# PART IV — COMPARATIVE ANALYSIS
+
+This is a brutal, evidence-cited comparison. The frameworks surveyed are: **Temporal**, **LangGraph**, **CrewAI**, **AutoGen 0.5+**, **n8n**, **AIOS / Agentic OS**, **ORCA**, **ESAA**. Citations are from the parallel web sweeps (LangCopilot 2026, Pooya Golchian 2026, examcert 2026, DesignRevision 2026, myengineeringpath 2026, Temporal 2026 announcements, Zylos Research March 2026, arxiv 2602.23193).
+
+## IV.1 Framework-by-framework
+
+### vs. **Temporal** (temporal.io)
+- **Core abstraction:** Workflow (deterministic function) + Activity (side-effecting function). SDK in 6 languages.
+- **Execution model:** Event-sourced replay. Every decision is an event. If a worker crashes, a new one reconstructs state by replaying the event history.
+- **What Flowmanner should steal:** *The entire substrate.* Flowmanner's Missions are exactly Temporal's Workflows. They lack durability. Adopting Temporal-as-substrate (or building a Temporal-style event log) is the single highest-leverage change available.
+- **Production status:** 3,000+ paying customers including Nvidia, Netflix, Stripe (per The New Stack May 13 2026). Replay 2026 conference.
+
+### vs. **LangGraph** (langchain-ai/langgraph)
+- **Core abstraction:** StateGraph — nodes are functions, edges are transitions, state is explicit.
+- **Execution model:** Checkpointed graph execution. Time-travel, HITL, streaming.
+- **Production status:** GA, 90k+ GitHub stars. Used by Klarna, LinkedIn, Uber.
+- **What Flowmanner has in common:** Both have `graph_executor.py` with Kahn topological sort; both have `langgraph/agent.py` in services. Flowmanner's `langgraph/` is a thin adapter; LangGraph is a deeply-engineered framework.
+- **Verdict:** Flowmanner's Graph is a poor man's LangGraph. If LangGraph is adopted wholesale, Flowmanner can drop 500+ lines of in-house graph code.
+
+### vs. **CrewAI**
+- **Core abstraction:** Crew (team) of Agents with Roles, Goals, Backstories, Tasks.
+- **Execution model:** Sequential or hierarchical process. Configuration in YAML.
+- **Production status:** 28k+ GitHub stars. CrewAI+ enterprise tier.
+- **Verdict:** Flowmanner's Swarm is a heavier, more code-driven version of CrewAI. The market positioning is different (CrewAI = quick prototype, Flowmanner = full platform). Flowmanner should *adopt* CrewAI's role-config ergonomics, not compete on this dimension.
+
+### vs. **AutoGen 0.5+** (Microsoft Research)
+- **Core abstraction:** Agents communicate via messages. The event-driven runtime is the 0.5+ breakthrough.
+- **Execution model:** Conversational; the speaking order is determined by the conversation pattern. Async, distributed, native code-execution sandboxes.
+- **Production status:** 42k+ GitHub stars. Microsoft Research backing.
+- **Verdict:** AutoGen 0.5's event-driven runtime is exactly the substrate Flowmanner should use for inter-agent messaging. The current chat-based message bus is wrong for an "agentic OS."
+
+### vs. **n8n** (workflow automation)
+- **Core abstraction:** Visual node graph (DAG).
+- **Execution model:** Trigger → nodes → webhook. 400+ integrations. Self-hostable.
+- **Verdict:** n8n is the "Zapier competitor" reference. Flowmanner's `Flow` model is a worse n8n. Either beat n8n on AI-native (durable, agent-aware) or cede the workflow-automation market.
+
+### vs. **AIOS / Agentic OS** (Markovate, Make 2026, ema.ai)
+- **Core abstraction:** Three-tier: application / agent kernel / hardware. Layers: scheduler, context manager, tool manager, memory layer, access controls, internal bus.
+- **Production status:** Marketing category as of Q1–Q2 2026, but real implementations exist (AIOS, OpenFANG — 137k lines of Rust).
+- **Verdict:** This is the framing Flowmanner should adopt. "Agentic OS" is the 2026 narrative Gartner 40%-by-2026 prediction. The OS metaphor gives the system a coherent identity that "platform" does not. See Markovate 2026-03-30 and Make 2026-05-22 guides.
+
+### vs. **ORCA** (gfernandf, 2026)
+- **Core abstraction:** Composable AI agent skills with baseline-first design.
+- **Production status:** Open source; 1694 deterministic tests.
+- **Verdict:** ORCA's explicit claim — "ORCA is not faster for simple one-off tasks. That's not the point. The point is traceability, reusability, maintainability, and determinism" — is exactly what Flowmanner's capability composer should aspire to.
+
+### vs. **ESAA** (arxiv 2602.23193, Feb 2026)
+- **Core abstraction:** Event Sourcing for Autonomous Agents. Agents emit intentions; a deterministic orchestrator validates, persists, applies effects.
+- **Verdict:** This is the most directly relevant paper. ESAA is a 4-page architecture with a verified clinical-dashboard case study (50 tasks, 86 events, 4 concurrent agents, 8 phases). The boundary-contract pattern (`AGENT_CONTRACT.yaml`) is exactly the type-safe inter-agent contract Flowmanner is missing.
+
+## IV.2 The matrix
+
+| Dimension | Flowmanner | Temporal | LangGraph | CrewAI | AutoGen 0.5+ | n8n | AIOS |
+|---|---|---|---|---|---|---|---|
+| Durable execution | ✗ | ✓ | ◐ (checkpoint) | ✗ | ✗ | ◐ (queue) | ◐ |
+| Event-sourced substrate | ✗ | ✓ | ◐ | ✗ | ◐ (runtime) | ✗ | ✓ |
+| Type-safe contracts | ✗ (dict schemas) | ✓ (Pydantic) | ✓ (TypedDict) | ◐ (YAML) | ◐ | ✗ | ✓ |
+| Capability-based security | ✗ (RBAC) | ✓ (TLS + IAM) | ✗ | ✗ | ◐ (per-agent scope) | ✗ | ✓ (OCap) |
+| Halting/termination proof | ✗ (max_depth=3) | ✓ (workflow timeouts) | ✓ (cycles forbidden) | ✗ | ✗ | ✓ (DAG) | ✓ |
+| Multi-agent consensus | ◐ (Swarm) | ✗ | ◐ (subgraphs) | ✓ (hierarchical) | ✓ (group chat) | ✗ | ◐ |
+| Visual builder | ✓ | ◐ (UI exists) | ✓ | ✗ | ✗ | ✓ | ✗ |
+| Marketplace | ✓ | ✗ | ✗ | ✗ | ✗ | ✓ (community nodes) | ✗ |
+| LLM cost control | ◐ | ✓ (Actions billing) | ✓ | ✗ | ✗ | ✗ | ✓ |
+| Self-healing | ✗ (skeleton) | ✓ (auto-retry) | ✓ | ✗ | ✗ | ✗ | ✓ |
+| Multimodal I/O | ✗ (chat only) | ✓ (any) | ✓ | ✗ | ✓ | ✓ | ✓ |
+| Single-machine dev story | ✗ (dual-machine) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+✗ = not implemented, ◐ = partial, ✓ = present
+
+## IV.3 What Flowmanner wins at
+
+- **Visual builder UX** is better than any of the frameworks that don't have one.
+- **Marketplace surface** is more developed than any framework surveyed.
+- **Glass-design chat** is a polished artifact.
+- **On-prem / self-host** story is a real advantage (Temporal Cloud is $200/mo minimum, n8n is the only other self-hostable option).
+
+## IV.4 What Flowmanner loses at
+
+- **Substrate.** This is the most important row. Without durable execution + event sourcing + type-safe contracts, the 7 execution models are uninspectable. The user's audit has already found the consequences.
+
+---
+
+# PART V — THE TRUE CATEGORY
+
+The canonical docs claim Flowmanner is a "multi-agent AI workflow automation platform." It is not.
+
+The most defensible claim, with citation to the code:
+
+> **Flowmanner is a *proto-agentic operating system* with a 2024-era chat surface and an aspirational 2026-era execution substrate.**
+
+The evidence: it has 5 of the 6 layers an agentic OS requires (per Markovate 2026-03-30): scheduler (Celery Beat), context manager (Memory + MemorySession), tool manager (unified_tool_handler), memory layer (PG + Redis + Qdrant), access controls (RBAC). It is missing: **a determinism layer** (durable execution / event log) and **an identity / attestation layer** (capability-based security, unforgeable tokens).
+
+The category it occupies in 2026 is: **ChatOps + workflow engine + agent runtime glued together by SSE.** This is not a category. It is a stack of three things.
+
+The category it should occupy in 2027 is: **Agentic OS with durable execution and capability-based security.** That is the focus of the next section.
+
+---
+
+# PART VI — THE NEXT-GENERATION DESIGN (FLOWMANNER Ω)
+
+## VI.1 The thesis
+
+**Drop the universality claim. Pick one substrate. Earn the OS metaphor.**
+
+The new system is called **Flowmanner Ω**. The name signals: not "Flowmanner 3.0," not "Flowmanner v.next." A separate line. The old Flowmanner remains in maintenance. Ω is the deliberate rethinking.
+
+**The single thesis of Ω is:**
+
+> *An agent's execution is a durable, type-checked, capability-bounded event log whose state is replayable from any point in time, whose composition is provably terminating, and whose cost is bounded by declared budgets.*
+
+If Ω cannot guarantee these four things for a given agent run, Ω should refuse the run rather than pretend to support it.
+
+## VI.2 The four guarantees
+
+| Guarantee | Means | Implementation |
+|---|---|---|
+| **Durable** | Every state transition is an event. Crashes resume from the last event. | Event-sourced substrate; one append-only log per mission; replay on resume. |
+| **Type-checked** | Input/output schemas enforced at composition. A capability that violates its successor's input contract cannot be linked. | Move from `dict` to Pydantic / TypedDict with runtime validation; reject compositions that don't typecheck. |
+| **Capability-bounded** | An agent can only invoke tools it has been *granted* a token for, and only within the *attenuation* of the grant. | Unforgeable capability tokens. No ambient authority. Every tool call carries its capability. |
+| **Bounded** | Every run has a declared budget (time, cost, iterations, depth). When the budget is hit, the run terminates with a typed reason. | First-class budget object; runtime enforces. |
+
+## VI.3 The nine-layer architecture (replacing the 5-layer one)
+
+The current 5-layer stack (Routing → Planning → Orchestration → Execution → Learning) is replaced by a 9-layer stack that mirrors an operating system kernel.
+
+```
+LAYER 9:  PRESENTATION (was: ChatLayout + chat store)
+          Replaces chat-only surface. Multimodal: text, voice, structured
+          documents, code cells. Single UI with a switchable modality.
+
+LAYER 8:  AGENT KERNEL
+          The new outermost layer. Accepts user goals. Decides which
+          lower-level substrate to invoke. Single entry point; no router.
+
+LAYER 7:  POLICY & CAPABILITY ENGINE (new)
+          Every agent-to-tool and agent-to-agent edge is checked here.
+          Holds the unforgeable capability tokens. Implements attenuation
+          and revocation. This is the security boundary.
+
+LAYER 6:  BUDGET & COST ENFORCER (new)
+          Each mission declares a budget envelope (time, cost, iterations).
+          This layer is the only thing that talks to the LLM provider. It
+          tracks spend in real-time and aborts when the budget is hit.
+
+LAYER 5:  EVENT-SOURCED EXECUTION SUBSTRATE (was: Mission executor)
+          Replaces `mission_executor.py` with a Temporal-style durable
+          execution layer. Every state transition is an event. Replay is
+          built-in. Hot reload without state loss.
+
+LAYER 4:  PLANNING & DECOMPOSITION
+          Keeps LLM-driven planning (mission decomposition, swarm
+          orchestration, agent matching). But plans are now typed
+          intermediate representations, not JSON dicts.
+
+LAYER 3:  COMPOSITION & TYPE CHECKER (new)
+          Capabilities are composed with type-checked edges. A composed
+          capability that violates the input contract of its successor is
+          rejected at *composition time*, not at LLM-prompt time.
+
+LAYER 2:  TOOL REGISTRY (was: Capability Registry)
+          Same surface area, but every tool is wrapped in a capability
+          token. A tool without a capability is unreachable.
+
+LAYER 1:  STATE (was: PostgreSQL + Redis + Qdrant)
+          Now: PostgreSQL (relational state) + event log (PostgreSQL
+          table or ClickHouse) + Redis (cache + pubsub) + Qdrant (vectors).
+          No semantic change; the substrate is in Layer 5.
+```
+
+The key shift: **layer 5 is the substrate, not the orchestrator.** The current 5-layer stack has the substrate (mission_executor) at the bottom of the *application* stack, with the durable-execution concerns of the *system* stack assumed. Ω inverts this — the event-sourced substrate is in the middle, and the application logic sits on top of it.
+
+## VI.4 What is removed
+
+A redesign that adds 4 layers and 4 guarantees without removing anything is not a redesign. It is a feature request. Ω removes the following:
+
+| Removed | Why |
+|---|---|
+| **Workspace vs Tenant (both)** | One is enough. Killed both → replaced with **single Tenant model** + per-tenant RBAC. |
+| **Flow vs Graph (both)** | Both visual builders survive as *render* choices for one underlying **Workflow model**. |
+| **5 agent representations** | Replaced with a single **Agent** model with a state machine: `Defined → Registered → Granted → Active → Suspended → Retired`. |
+| **7 execution models (Solo, DAG, Swarm, Pipeline, Graph, Nexus, LangGraph)** | Replaced with **one execution model — the event-sourced durable executor** — that supports the *patterns* of all 7 as composable strategies. Solo = no children. DAG = typed edges with topological eval. Swarm = parallel with consensus. Pipeline = sequential with phase gates. Graph = cycles forbidden, conditional branches. Meta = recursive composition, but bounded by the budget. LangGraph = checkpointed subgraph, supported natively. |
+| **Dual auth (NextAuth + Zustand fm_tokens)** | One token source, one verification path. |
+| **Capability Composer's "infinite lattice" claim** | Replaced with a typed composition lattice with a depth bound and a type-checker. |
+| **"Chaos-tested" claim** | Replaced with a CI-enforced chaos test suite that runs on every PR. |
+
+## VI.5 What is added
+
+| Added | Why |
+|---|---|
+| **Event-sourced substrate (Layer 5)** | Without it, none of the 4 guarantees can be kept. |
+| **Capability engine (Layer 7)** | Without it, ambient authority is a permanent security ceiling. |
+| **Budget enforcer (Layer 6)** | Without it, the system cannot meet the bounded guarantee. |
+| **Type-checked composition (Layer 3)** | Without it, every composition is a runtime gamble. |
+| **Replay UI (in Presentation)** | "Why did mission X do Y at 3am Tuesday?" — answerable. |
+| **Attenuation chain audit log** | Every capability delegation is logged, inspectable, revocable. |
+| **Determinism flag for non-LLM code paths** | Math.random() and current-time are not in the substrate. LLM calls are wrapped in a deterministic-replay wrapper that records the seed and temperature. |
+
+## VI.6 The agent lifecycle (replacing the 5 agent representations)
+
+```
+DEFINED          (manifest: capabilities, tools, model, system prompt)
+   │
+   ▼
+REGISTERED       (signed, hashable, attested — has an unforgeable identity)
+   │
+   ▼
+CAPABILITY_GRANTED (parent has handed it specific capability tokens)
+   │
+   ▼
+ACTIVE           (in a session, with a budget envelope)
+   │
+   ├────► SUSPENDED (capability revoked; held in quarantine)
+   │
+   ▼
+RETIRED          (archived, all capabilities revoked, attestations preserved)
+```
+
+This is a single model (`Agent`) with a `state` column. There are no five-file fragmentation. The protocol surface (what the agent exposes to the world) is a Pydantic model on the `Agent` row.
+
+## VI.7 The execution model (replacing the 7 execution models)
+
+There is **one** execution model: a *durable, type-checked, budget-bounded, capability-secure* evaluator of a workflow graph.
+
+A workflow is a typed graph. Nodes are functions or LLM calls. Edges are typed transitions. The graph may be:
+- A `Pipeline` (acyclic, all nodes execute in order)
+- A `DAG` (acyclic, parallel layers)
+- A `Graph` (branching, conditional, no cycles)
+- A `Meta` (recursive — the graph may contain sub-graphs; each sub-graph is its own durable execution)
+
+The execution semantics are:
+1. Parse the graph, type-check at the edges. Reject if a node's output type doesn't match the successor's input type.
+2. Allocate a budget (cost, time, depth, parallel-agents).
+3. Walk the graph. At each node, acquire the capability tokens required to invoke it.
+4. Each node's invocation is an event in the log. Each node's completion is an event. Each capability grant is an event.
+5. On crash, resume from the last completed node. Replay its dependents if needed.
+6. On budget exhaustion, abort the run with a typed reason.
+7. On type violation at runtime (theoretically impossible after step 1; practically a defense-in-depth), abort and surface a typed diagnostic.
+
+The 7 execution models of the old system are **strategies**, not distinct engines. A `Swarm` is a DAG node with fan-out > 1 and a typed consensus sub-protocol. A `Pipeline` is a graph with all linear edges. A `Meta` is a graph that contains sub-graphs. There is no SwarmEngine, no PipelineEngine, no MetaEngine. There is **one engine with several strategies.**
+
+This collapses ~6,000 lines of executor code (`mission_executor.py` 1,387L, `dag_executor.py` 179L, `graph_executor.py` 293L, `swarm/orchestrator.py` 331L, `swarm_pipeline/orchestrator.py` + phases ~1,500L, `langgraph/agent.py` ~250L, `nexus/meta_loop_orchestrator.py` 225L, `capability_composer.py` 728L, `capability_registry.py` 223L) into one typed evaluator of ~1,200–1,500 lines, with the strategies as plug-in modules of ~200 lines each.
+
+## VI.8 The migration path
+
+The new system is *not* a rewrite. It is a substrate change.
+
+| Phase | Effort | Outcome |
+|---|---|---|
+| **Ω.0 — Freeze** | 0 LOC | Tag current system as v1. Freeze new features. |
+| **Ω.1 — Substrate** | 4–6 weeks | Introduce the event-sourced executor as an alternative path for new missions. Old missions still use the old path. |
+| **Ω.2 — Capability layer** | 4–6 weeks | Wrap every tool invocation in a capability token. RBAC remains as a coarser outer layer. |
+| **Ω.3 — Type-checked composition** | 4–6 weeks | Move from `dict` schemas to Pydantic everywhere. Add the composition-time type-checker. |
+| **Ω.4 — Consolidation** | 6–8 weeks | Kill Tenant. Consolidate Flow + Graph into one model. Collapse 5 agent files into 1. |
+| **Ω.5 — Collapse the 7 executors** | 8–12 weeks | Build the single durable executor. Port each old executor's behavior to a strategy. |
+| **Ω.6 — Multimodal I/O** | 4–6 weeks | Voice + structured document in the chat surface. |
+| **Ω.7 — Replay UI** | 2–4 weeks | Time-travel debugging for missions. |
+| **Ω.8 — Rename + relaunch** | 1 week | Old product renamed to "Flowmanner Classic" (maintenance). New product launched as "Flowmanner Ω." |
+
+Total: **~30–50 weeks of one engineer's work**, or **6–9 months with two engineers.** The codebase is ~150k LOC; the rewrite is not. The substrate, the capability engine, and the type-checker are the new ~6,000 LOC. The deletion of the 7 executors, the 5 agent files, the Workspace/Tenant, the Flow/Graph is the actual work.
+
+## VI.9 The competitive positioning
+
+After Ω, Flowmanner occupies a unique position in 2027:
+
+- **More durable** than LangGraph / CrewAI / AutoGen (Temporal parity).
+- **More type-safe** than Temporal (whose workflow code is Python without inter-call contracts).
+- **More capability-secure** than any of them (OCap is novel for agent frameworks).
+- **More visually-built** than any of them.
+- **More self-hostable** than Temporal Cloud, AutoGen Azure, AIOS, OpenFANG.
+
+The single pitch line: **"The only agentic OS that refuses to run unsafe plans."** Not the fastest. Not the cheapest. The one that fails closed.
+
+---
+
+# PART VII — FORMAL SPECIFICATION
+
+This is the executable specification. It defines the data model, the types, the algorithms, and the invariants. Subsequent documents (the implementation plan, the test plan, the migration plan) derive from this.
+
+## VII.1 The Capability Token (OCap)
+
+```python
+class CapabilityToken(BaseModel):
+    id: UUID  # unforgeable; allocated by the kernel
+    resource: ResourceRef  # what is being granted (e.g., "tool:web_search", "table:users", "file:/tmp/output.txt")
+    actions: set[Action]  # what may be done (subset of {read, write, execute, delegate})
+    parent: UUID | None  # the parent token this was attenuated from
+    attenuation_proof: str  # a proof that this token is a valid attenuation of its parent
+    issued_to: AgentId  # the principal holding this token
+    issued_at: datetime
+    expires_at: datetime | None
+    revoked: bool
+
+    def can(self, action: Action) -> bool:
+        if self.revoked or (self.expires_at and datetime.utcnow() > self.expires_at):
+            return False
+        return action in self.actions
+
+    def attenuate(self, *, remove_actions: set[Action] = set(), expires_at: datetime | None = None) -> "CapabilityToken":
+        # The new token must be a strict subset of this one.
+        new_actions = self.actions - remove_actions
+        assert new_actions.issubset(self.actions)
+        new_token = CapabilityToken(
+            id=uuid4(),
+            resource=self.resource,
+            actions=new_actions,
+            parent=self.id,
+            attenuation_proof=prove_attenuation(self, new_actions, expires_at),
+            issued_to=self.issued_to,
+            issued_at=datetime.utcnow(),
+            expires_at=expires_at or self.expires_at,
+        )
+        return new_token
+```
+
+**Invariant I.1 (Unforgeability):** A `CapabilityToken` may only be created by the kernel in response to a request from a token-holder. There is no other code path that constructs a token. (Enforced by the type system + a registry of valid token IDs.)
+
+**Invariant I.2 (Attenuation-only):** Any token's `actions` is a subset of its parent's `actions`. The attenuation proof is a witness to this. (Enforced by the `attenuate` method's assertion + the kernel's revocation of any token whose proof is invalid.)
+
+**Invariant I.3 (No ambient authority):** The runtime refuses to invoke any tool or resource that is not accompanied by a valid `CapabilityToken`. (Enforced by the tool dispatcher's first argument type check.)
+
+## VII.2 The Agent
+
+```python
+class AgentState(str, Enum):
+    DEFINED = "defined"
+    REGISTERED = "registered"
+    CAPABILITY_GRANTED = "capability_granted"
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    RETIRED = "retired"
+
+class Agent(BaseModel):
+    id: AgentId  # UUIDv7
+    parent_id: AgentId | None  # provenance chain
+    manifest: AgentManifest  # immutable once RETIRED
+    state: AgentState
+    capabilities: list[CapabilityToken]  # the live capability set
+    audit_log: list[AuditEvent]  # append-only
+    retired_at: datetime | None
+
+class AgentManifest(BaseModel):
+    name: str
+    description: str
+    model_ref: ModelRef  # typed, not a string
+    system_prompt: str
+    input_schema: type[BaseModel]  # Pydantic
+    output_schema: type[BaseModel]  # Pydantic
+    tools: list[ToolRef]  # declared tools; runtime capability tokens granted at ACTIVE
+    budget: Budget  # default per-mission budget
+
+    def __post_init__(self):
+        # A manifest is a contract. It must be type-consistent.
+        assert self.input_schema != self.output_schema, "an agent cannot share input and output schema"
+```
+
+**Invariant I.4 (Single state at a time):** An agent is in exactly one state at any time. State transitions are events. (Enforced by `state: AgentState` being a single column + the event log being the source of truth.)
+
+**Invariant I.5 (Retired is terminal):** A `RETIRED` agent cannot be revived. Its manifest is preserved for audit. (Enforced by the absence of any state transition out of `RETIRED`.)
+
+## VII.3 The Budget
+
+```python
+class Budget(BaseModel):
+    max_cost_usd: Decimal
+    max_wall_time_seconds: int
+    max_iterations: int  # including LLM calls
+    max_depth: int  # for recursive composition
+    max_parallel_agents: int
+    declared_at: datetime
+    declared_by: AgentId  # the parent that issued this budget
+
+class BudgetExhausted(Exception):
+    def __init__(self, reason: str, remaining: Budget):
+        self.reason = reason
+        self.remaining = remaining
+        super().__init__(f"budget exhausted: {reason}")
+```
+
+**Invariant I.6 (Bounded execution):** A run is aborted with `BudgetExhausted` the moment any budget field is exceeded. The abort is an event in the log. The run cannot be resumed with a larger budget; a new run with a new budget must be started. (Enforced by the Budget Enforcer — Layer 6 — being the only path to the LLM provider.)
+
+## VII.4 The Workflow (replacing Flow + Graph)
+
+```python
+class WorkflowNode(BaseModel):
+    id: NodeId
+    kind: Literal["function", "llm_call", "sub_workflow", "capability_check"]
+    input_type: type[BaseModel]
+    output_type: type[BaseModel]
+    config: dict[str, Any]  # validated against the kind's config_schema
+
+class WorkflowEdge(BaseModel):
+    from_node: NodeId
+    to_node: NodeId
+    condition: type[BaseModel] | None  # None = unconditional
+
+class Workflow(BaseModel):
+    id: UUID
+    name: str
+    nodes: dict[NodeId, WorkflowNode]
+    edges: list[WorkflowEdge]
+    entry: NodeId
+    terminal: set[NodeId]
+
+    def type_check(self) -> list[TypeError]:
+        # A workflow is valid iff:
+        # 1. Every edge's `from_node.output_type` is a supertype of `to_node.input_type`.
+        # 2. There are no cycles (a `sub_workflow` may recurse only if the budget
+        #    enforces a depth bound).
+        # 3. Every node referenced in `edges` exists in `nodes`.
+        # 4. `entry` exists in `nodes`.
+        # 5. `terminal` is a subset of `nodes`.
+        errors = []
+        for edge in self.edges:
+            from_out = self.nodes[edge.from_node].output_type
+            to_in = self.nodes[edge.to_node].input_type
+            if not issubclass(to_in, from_out):
+                errors.append(TypeError(
+                    f"edge {edge.from_node}->{edge.to_node}: {from_out.__name__} "
+                    f"is not assignable to {to_in.__name__}"
+                ))
+        if has_cycles(self.nodes, self.edges, allow_recursive_subworkflows=True):
+            errors.append(ValueError("non-subworkflow cycle detected"))
+        # ... more checks
+        return errors
+```
+
+**Invariant I.7 (Type-checked composition):** A workflow that fails `type_check` cannot be executed. (Enforced by the executor refusing to load a workflow that has not been type-checked in the last N seconds.)
+
+**Invariant I.8 (Cycle-free at the top level):** A `sub_workflow` may be recursive, but only if (a) the parent workflow's budget has a finite `max_depth` and (b) the recursive sub-workflow's input type is a strict subtype of the parent's output type at the recursion point. (Enforced by the type-checker.)
+
+## VII.5 The Event Log
+
+```python
+class Event(BaseModel):
+    sequence: int  # monotonically increasing per run
+    run_id: UUID
+    timestamp: datetime
+    type: str  # "node_started", "node_completed", "node_failed", "capability_granted", "capability_revoked", "budget_exhausted", "agent_state_transition", etc.
+    payload: dict[str, Any]  # typed by `type`
+    causal_parent: int | None  # the sequence number of the event that caused this one
+    actor: AgentId  # the principal that caused this event
+
+class EventLog:
+    """Append-only, ordered, per-run."""
+    def __init__(self, run_id: UUID, storage: EventStore):
+        self.run_id = run_id
+        self.storage = storage
+        self._cache: list[Event] = []
+
+    def append(self, event: Event) -> None:
+        # Atomic. The storage backend enforces this (PostgreSQL with
+        # SERIALIZABLE isolation, or ClickHouse with a sequence per partition).
+        self.storage.append(event)
+        self._cache.append(event)
+
+    def replay(self) -> RunState:
+        # Reconstruct run state by replaying all events.
+        state = RunState.empty(self.run_id)
+        for event in self._cache:
+            state = state.apply(event)
+        return state
+```
+
+**Invariant I.9 (Append-only):** Events are never mutated or deleted. The log is the source of truth. The current state is a projection of the log. (Enforced by the storage backend's permissions — no UPDATE or DELETE on the events table.)
+
+**Invariant I.10 (Causal ordering):** Every event has a `causal_parent` that points to the event that caused it. The root event of a run has `causal_parent = None`. (Enforced by the `append` method requiring a parent sequence number except for root events.)
+
+## VII.6 The Run
+
+```python
+class RunState(BaseModel):
+    run_id: UUID
+    workflow_id: UUID
+    started_at: datetime
+    completed_at: datetime | None
+    status: Literal["pending", "running", "completed", "failed", "aborted"]
+    node_states: dict[NodeId, NodeState]
+    budget_remaining: Budget
+    typed_outputs: dict[NodeId, BaseModel]  # the actual outputs, typed
+
+    @classmethod
+    def empty(cls, run_id: UUID) -> "RunState":
+        return cls(run_id=run_id, status="pending", node_states={}, typed_outputs={}, budget_remaining=Budget.zero())
+
+    def apply(self, event: Event) -> "RunState":
+        # Pure function. Given the current state and an event, return the new state.
+        # This is the replay engine.
+        ...
+```
+
+## VII.7 The Executor (the single one)
+
+```python
+class Executor:
+    """The one and only executor. Replaces mission/dag/swarm/pipeline/graph/nexus executors."""
+
+    def __init__(self, kernel: "Kernel"):
+        self.kernel = kernel
+
+    async def execute(self, workflow: Workflow, input: BaseModel, budget: Budget) -> RunResult:
+        # 1. Type-check the workflow
+        errors = workflow.type_check()
+        if errors:
+            return RunResult(status="failed", errors=errors)
+
+        # 2. Allocate a run
+        run = self.kernel.allocate_run(workflow, input, budget)
+
+        # 3. Execute, durable-style
+        try:
+            return await self.kernel.run_to_completion(run)
+        except BudgetExhausted as e:
+            return RunResult(status="aborted", reason=str(e), remaining_budget=e.remaining)
+        except CapabilityRevoked as e:
+            return RunResult(status="aborted", reason=str(e))
+        except WorkflowTypeError as e:
+            # Should be impossible after step 1; defense-in-depth.
+            return RunResult(status="failed", errors=[e])
+```
+
+**Invariant I.11 (One executor):** There is exactly one executor implementation. The 7 old "execution models" are workflow shapes, not executors. (Enforced by a single class with no subclasses, and a `Workflow.kind` field that picks the strategy.)
+
+## VII.8 The Kernel (the new outermost)
+
+```python
+class Kernel:
+    """The outermost layer. Accepts user goals, decides how to execute them."""
+
+    def __init__(
+        self,
+        capability_engine: CapabilityEngine,
+        budget_enforcer: BudgetEnforcer,
+        event_log: EventLog,
+        llm_provider: LLMProvider,
+        agent_registry: AgentRegistry,
+    ):
+        self.capabilities = capability_engine
+        self.budget = budget_enforcer
+        self.log = event_log
+        self.llm = llm_provider
+        self.agents = agent_registry
+
+    def allocate_run(self, workflow: Workflow, input: BaseModel, budget: Budget) -> Run:
+        # The user (an authenticated principal) is granting themselves a budget.
+        # Verify the user has the capability to invoke this workflow.
+        # Allocate capability tokens for the workflow's declared tools.
+        # Open the event log.
+        # Return a Run handle.
+        ...
+
+    async def run_to_completion(self, run: Run) -> RunResult:
+        # Walk the workflow, executing nodes. Each node is durable (event-logged).
+        # On crash, resume from the last completed node.
+        ...
+```
+
+**Invariant I.12 (Single entry point):** All user goals enter the kernel through one method. There is no `ExecutionRouter` that picks among 7 paths. The kernel decides. (Enforced by the absence of `ExecutionRouter` in the new architecture.)
+
+## VII.9 The Capability Engine
+
+```python
+class CapabilityEngine:
+    """The single source of truth for capability tokens. No other code creates tokens."""
+
+    def __init__(self, storage: TokenStorage):
+        self.storage = storage
+
+    def issue(self, *, resource: ResourceRef, actions: set[Action], to: AgentId, expires_at: datetime | None) -> CapabilityToken:
+        # The kernel calls this. There is no other caller.
+        token = CapabilityToken(
+            id=uuid4(),
+            resource=resource,
+            actions=actions,
+            parent=None,
+            attenuation_proof="root",
+            issued_to=to,
+            issued_at=datetime.utcnow(),
+            expires_at=expires_at,
+        )
+        self.storage.persist(token)
+        return token
+
+    def verify(self, token: CapabilityToken, required: Action) -> bool:
+        return token.can(required)
+
+    def revoke(self, token_id: UUID, reason: str) -> None:
+        self.storage.mark_revoked(token_id, reason, datetime.utcnow())
+```
+
+**Invariant I.13 (Central issuance):** Tokens are issued by the engine, and only by the engine. Any other code path that constructs a `CapabilityToken` is a security violation and is rejected at code-review time. (Enforced by an import restriction: `from kernel.capability import CapabilityEngine; # this is the only place that imports the constructor`.)
+
+## VII.10 The Budget Enforcer
+
+```python
+class BudgetEnforcer:
+    """The only path to the LLM provider. Tracks spend in real time."""
+
+    def __init__(self, llm: LLMProvider, pricing: PricingTable):
+        self.llm = llm
+        self.pricing = pricing
+
+    async def call(self, run: Run, request: LLMRequest) -> LLMResponse:
+        cost = self.pricing.estimate(request)
+        if run.budget.max_cost_usd - run.spent_usd < cost:
+            raise BudgetExhausted(
+                reason=f"LLM call would cost ${cost}, remaining ${run.budget.max_cost_usd - run.spent_usd}",
+                remaining=run.budget,
+            )
+        response = await self.llm.call(request)
+        actual = self.pricing.actual(response)
+        run.spent_usd += actual
+        run.budget_remaining.max_cost_usd -= actual
+        return response
+```
+
+**Invariant I.14 (Bounded spending):** No LLM call is made if it would exceed the declared budget. The `BudgetEnforcer` is the only path to `llm.call`. (Enforced by code review: any caller of `llm.call` outside the `BudgetEnforcer` is rejected.)
+
+## VII.11 The Type Checker
+
+```python
+class WorkflowTypeChecker:
+    """Validates workflows at composition time. The Composition Layer's reason for being."""
+
+    def check(self, workflow: Workflow) -> list[TypeError]:
+        # 1. Edge type compatibility
+        for edge in workflow.edges:
+            from_out = workflow.nodes[edge.from_node].output_type
+            to_in = workflow.nodes[edge.to_node].input_type
+            if not issubclass(to_in, from_out):
+                yield TypeError(...)
+
+        # 2. Cycle detection
+        # 3. Terminal set consistency
+        # 4. Sub-workflow recursion depth bound
+        ...
+
+    def suggest_fixes(self, workflow: Workflow) -> list[Fix]:
+        # If a type mismatch is found, attempt to suggest a transform.
+        # E.g., "insert a `to_in.model_validate(from_out)` adapter node here."
+        ...
+```
+
+**Invariant I.15 (Type-checked at composition):** A workflow is executable iff it passes `WorkflowTypeChecker.check`. (Enforced by the executor refusing to load a workflow without a recent successful type-check record.)
+
+## VII.12 The Multimodal I/O
+
+The chat-only interface is replaced with a *modality* abstraction.
+
+```python
+class Modality(str, Enum):
+    TEXT = "text"
+    VOICE = "voice"
+    STRUCTURED_DOCUMENT = "structured_document"  # JSON, CSV, etc.
+    CODE_CELL = "code_cell"  # executable
+    DIFF = "diff"  # proposed change to a resource
+    ARTIFACT = "artifact"  # file, image, video, etc.
+
+class IORender(BaseModel):
+    modality: Modality
+    payload: bytes | str | dict
+    metadata: dict[str, Any]
+
+class IOStream:
+    """Bidirectional stream between the user and the kernel. Multiplexed over modalities."""
+
+    def __init__(self, transport: Transport):
+        self.transport = transport
+
+    async def send(self, render: IORender) -> None:
+        await self.transport.send(render)
+
+    async def recv(self) -> IORender:
+        return await self.transport.recv()
+```
+
+**Invariant I.16 (Modality-agnostic kernel):** The kernel does not know or care which modality the user is using. It emits and consumes `IORender` objects. (Enforced by the kernel's only I/O being through `IOStream`.)
+
+## VII.13 The Learning Loop (bounded)
+
+The current learning loop is unbounded. Ω bounds it.
+
+```python
+class LearningRule(BaseModel):
+    id: UUID
+    pattern: str  # a regex or structured pattern over past events
+    adjustment: Adjustment  # what to do when the pattern matches
+    weight: float  # current weight, decays over time
+    created_at: datetime
+    half_life_days: float  # the weight decays by 50% every `half_life_days`
+    effectiveness_score: float  # measured by A/B harness
+
+    def current_weight(self, now: datetime) -> float:
+        elapsed_days = (now - self.created_at).total_seconds() / 86400
+        return self.weight * (0.5 ** (elapsed_days / self.half_life_days))
+
+class LearningStore:
+    def __init__(self, storage: Storage):
+        self.storage = storage
+
+    def active_rules(self, now: datetime, min_weight: float = 0.05) -> list[LearningRule]:
+        return sorted(
+            [r for r in self.storage.all() if r.current_weight(now) >= min_weight],
+            key=lambda r: -r.current_weight(now),
+        )
+
+    def promote(self, rule_id: UUID) -> None:
+        # Bump weight by 1.5x if A/B harness shows improvement.
+        ...
+
+    def demote(self, rule_id: UUID) -> None:
+        # Halve weight.
+        ...
+
+    def retire(self, rule_id: UUID) -> None:
+        # Soft-delete: set half_life_days to 1 day. Within 7 days, weight is below 0.01.
+        ...
+```
+
+**Invariant I.17 (Bounded learning):** No more than 1,000 active learning rules at any time. Rules older than 90 days with effectiveness score < 0.3 are auto-retired. (Enforced by a periodic job — itself a workflow of Layer 4 — that calls `LearningStore.active_rules` and retires the over-budget set.)
+
+**Invariant I.18 (A/B-validated learning):** A learning rule cannot be promoted to ACTIVE without an A/B harness result showing it improves the relevant metric. (Enforced by the absence of a `promote` call path that doesn't take an A/B result.)
+
+## VII.14 The Test Suite (replacing the chaos-tested claim)
+
+The "chaos-tested" claim is replaced with a CI-enforced test suite.
+
+```python
+class ChaosTestSuite:
+    """Run on every PR. Tests the durability, security, and bounded-execution claims."""
+
+    def test_kill_worker_mid_mission(self):
+        # Start a 10-node workflow. Kill the worker after node 3. Bring up a new worker. Verify the run resumes from node 4.
+
+    def test_revoke_capability_mid_run(self):
+        # Start a run. Mid-execution, revoke the capability for a tool. Verify the run aborts with a typed reason.
+
+    def test_exhaust_budget(self):
+        # Start a run with a $0.001 budget. Verify the first LLM call aborts with BudgetExhausted.
+
+    def test_type_violation_rejected(self):
+        # Construct a workflow with a type mismatch. Verify it fails type_check.
+
+    def test_replay_yields_same_state(self):
+        # Run a workflow to completion. Replay the event log. Verify the final state matches.
+
+    def test_attenuation_preserves_subset(self):
+        # Take a parent token. Attenuate it. Verify the child's actions are a strict subset.
+
+    def test_no_ambient_authority(self):
+        # Construct an agent. Try to invoke a tool without a capability. Verify the runtime refuses.
+```
+
+**Invariant I.19 (Chaos test passes on every PR):** All 7 chaos tests pass. The CI gate is green. (Enforced by CI.)
+
+## VII.15 The Naming
+
+The new system is called **Flowmanner Ω** (Omega). The old system is renamed **Flowmanner Classic** and placed in maintenance. The two coexist for 18 months. After 18 months, Flowmanner Classic is end-of-life and Ω is the only product.
+
+---
+
+# VIII. CLOSING — WHAT THIS DOCUMENT IS NOT
+
+This is not an implementation plan. It is a specification.
+This is not a sales pitch. It is a critique and a proposal.
+This is not a completion. It is the *opening* of a conversation about what Flowmanner should become.
+
+The 13 weaknesses, 11 missing dimensions, 9-layer stack, 4 guarantees, 18 invariants, 6 removed concepts, and 7 added concepts are *candidates*, not conclusions. They are the output of one architect reading the corpus for one afternoon.
+
+The next move is yours.
+
+---
+
+*End of specification.*

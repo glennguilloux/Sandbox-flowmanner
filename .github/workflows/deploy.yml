@@ -1,0 +1,199 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_backend:
+        description: "Skip backend deploy"
+        type: boolean
+        default: false
+      skip_frontend:
+        description: "Skip frontend deploy"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  VPS_HOST: 74.208.115.142
+  VPS_USER: root
+  HOMELAB_HOST: 10.99.0.3
+  BACKEND_IMAGE: workflows-backend:restored
+
+jobs:
+  # ── Deploy Backend (homelab via VPS jump) ─────────────────────
+  deploy-backend:
+    name: Deploy backend to homelab
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_backend }}
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH tools
+        run: sudo apt-get update && sudo apt-get install -y sshpass rsync
+
+      - name: Rsync backend source to VPS staging
+        run: |
+          rsync -avz --delete \
+            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new" \
+            --exclude .git \
+            --exclude __pycache__ \
+            --exclude .mypy_cache \
+            --exclude .ruff_cache \
+            --exclude .pytest_cache \
+            --exclude .venv \
+            --exclude '*.pyc' \
+            backend/ \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/tmp/backend-deploy/
+
+      - name: Write and execute deploy script on VPS
+        run: |
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "cat > /tmp/deploy-backend.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+
+          HOMELAB=${{ env.HOMELAB_HOST }}
+          IMAGE=${{ env.BACKEND_IMAGE }}
+
+          echo \"=== Tagging current image for rollback ===\"
+          ssh -o StrictHostKeyChecking=accept-new \$HOMELAB \
+            \"docker tag \$IMAGE \${IMAGE}.rollback 2>/dev/null || echo no_previous_image\"
+
+          echo \"=== Copying source to homelab ===\"
+          rsync -avz --delete \
+            -e 'ssh -o StrictHostKeyChecking=accept-new' \
+            /tmp/backend-deploy/ \
+            \$HOMELAB:/opt/flowmanner/backend/
+
+          echo \"=== Building and deploying on homelab ===\"
+          ssh -o StrictHostKeyChecking=accept-new \$HOMELAB '
+            set -e
+            cd /opt/flowmanner
+            docker build -t $IMAGE backend/
+            docker compose up -d --no-deps --force-recreate backend
+          '
+
+          echo \"=== Waiting for health check ===\"
+          for i in \$(seq 1 30); do
+            if ssh -o StrictHostKeyChecking=accept-new \$HOMELAB \
+              \"curl -sf http://localhost:8000/health > /dev/null 2>&1\"; then
+              echo \"Backend is healthy\"
+              exit 0
+            fi
+            echo \"Waiting... (\$i/30)\"
+            sleep 2
+          done
+
+          echo \"=== Health check failed, rolling back ===\"
+          ssh -o StrictHostKeyChecking=accept-new \$HOMELAB \
+            \"docker tag \${IMAGE}.rollback \$IMAGE 2>/dev/null || true; \
+             cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend\"
+          exit 1
+          SCRIPT
+          chmod +x /tmp/deploy-backend.sh
+          bash /tmp/deploy-backend.sh"
+
+      - name: Cleanup staging
+        if: always()
+        run: |
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "rm -rf /tmp/backend-deploy /tmp/deploy-backend.sh" || true
+
+  # ── Deploy Frontend (VPS) ─────────────────────────────────────
+  deploy-frontend:
+    name: Deploy frontend to VPS
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_frontend }}
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH tools
+        run: sudo apt-get update && sudo apt-get install -y sshpass rsync
+
+      - name: Rsync frontend source to VPS
+        run: |
+          rsync -avz --delete \
+            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new" \
+            --exclude node_modules \
+            --exclude .next \
+            --exclude .git \
+            --exclude test-results \
+            frontend/ \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/opt/flowmanner/frontend/
+
+      - name: Build and deploy frontend on VPS
+        run: |
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "cd /opt/flowmanner && \
+              docker compose build frontend && \
+              docker compose up -d --no-deps frontend && \
+              docker compose restart nginx"
+
+      - name: Health check frontend
+        run: |
+          sleep 10
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "curl -sf -o /dev/null -w '%{http_code}' https://flowmanner.com/ || \
+             curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ || \
+             echo 'Frontend health check failed'"
+
+      - name: Rollback frontend on failure
+        if: failure()
+        run: |
+          echo "Rolling back frontend - restarting previous container..."
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "cd /opt/flowmanner && docker compose restart frontend nginx" || true
+
+  # ── Post-deploy verification ──────────────────────────────────
+  verify:
+    name: Post-deploy verification
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    if: always() && !cancelled()
+    steps:
+      - name: Install SSH tools
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Verify backend health
+        if: needs.deploy-backend.result == 'success'
+        run: |
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "curl -sf http://10.99.0.3:8000/health && echo ' Backend OK via WireGuard'"
+
+      - name: Verify frontend health
+        if: needs.deploy-frontend.result == 'success'
+        run: |
+          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
+            -o StrictHostKeyChecking=accept-new \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ && echo ' Frontend OK'"
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## Deployment Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY

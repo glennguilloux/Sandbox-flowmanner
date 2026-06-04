@@ -1,0 +1,5 @@
+Task 2 evidence: Error chain propagation verified
+  - llm_executor checks response.get("success")
+  - llm_executor returns {success: False, error: ...} on failure
+  - mission_executor checks result.get("success")
+  - Failed tasks marked FAILED with error message logged

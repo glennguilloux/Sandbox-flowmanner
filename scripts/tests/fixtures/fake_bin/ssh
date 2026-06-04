@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/ssh.log"
+echo "$(date -u +%s) $*" >> "$LOG"
+RESP="${STUB_DIR}/ssh.resp"
+if [ -f "$RESP" ]; then
+  EXIT_LINE=$(head -1 "$RESP")
+  if echo "$EXIT_LINE" | grep -q '^EXIT:'; then
+    EXIT_CODE=$(echo "$EXIT_LINE" | sed 's/^EXIT://')
+    tail -n +2 "$RESP"
+    exit "$EXIT_CODE"
+  fi
+  cat "$RESP"
+  exit 0
+fi
+# Default: echo OK (VPS reachable)
+echo "OK"
+exit 0

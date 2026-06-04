@@ -1,0 +1,14 @@
+=== Wave 2 QA Evidence ===
+
+Task 4 - Dashboard missions endpoint:
+  Routes: ['/dashboard/missions/', '/dashboard/missions']
+Task 5 - Cost analytics endpoint:
+  Routes: ['/dashboard/costs/', '/dashboard/costs']
+Task 6 - Logs and Stats endpoints:
+  Routes: ['/dashboard/logs/', '/dashboard/logs', '/dashboard/stats/', '/dashboard/stats']
+Task 7 - Integration endpoints:
+  Routes: ['/integrations/http', '/integrations/http/', '/integrations/http', '/integrations/http/', '/integrations/http/{integration_id}/', '/integrations/http/{integration_id}', '/integrations/http/{integration_id}', '/integrations/http/{integration_id}', '/integrations/http/{integration_id}/logs/', '/integrations/http/{integration_id}/logs']
+Task 8 - Approval endpoints:
+  Routes: ['/missions/{mission_id}/tasks/{task_id}/approve', '/missions/{mission_id}/tasks/{task_id}/reject']
+
+All Wave 2 endpoints verified!

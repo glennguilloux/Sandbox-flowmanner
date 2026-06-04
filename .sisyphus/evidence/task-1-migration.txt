@@ -1,0 +1,16 @@
+Task 1: OAuth DB Models + Migration — Evidence
+================================================
+Date: 2026-06-03
+
+Test: Migration applies cleanly
+Status: PASS
+
+Steps:
+1. Built new Docker image: docker build -t workflows-backend:restored backend/
+2. Restarted backend container
+3. Ran `alembic upgrade head` — migration applied
+4. Verified `alembic current` shows `next_level_growth_wave3_oauth (head)`
+5. Verified tables exist: user_oauth_apps, user_oauth_connections
+
+Result: Migration applied successfully. Both tables created with all columns,
+indexes, and foreign keys intact.

@@ -1,0 +1,25 @@
+# Flowmanner Backup Cron Schedule (H3)
+#
+# Installation:
+#   cp /opt/flowmanner/scripts/cron/flowmanner-backups.cron /etc/cron.d/flowmanner-backups
+#   chmod 644 /etc/cron.d/flowmanner-backups
+#
+# Ensure cron supports /etc/cron.d (systemd-based systems need cron installed):
+#   apt install cron  # or equivalent
+#   systemctl enable cron
+#   systemctl start cron
+#
+# Logs:
+#   grep flowmanner-backup /var/log/syslog  (stdout/stderr)
+#   /opt/flowmanner/backups/                (backup artifacts)
+
+MAILTO=""
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Daily backup at 03:00 UTC
+# Runs full backup with 7 daily + 4 weekly retention
+0 3 * * * root /opt/flowmanner/scripts/backup-db.sh >> /var/log/flowmanner-backups.log 2>&1
+
+# Weekly restore verification (Sunday at 04:00 UTC)
+0 4 * * 0 root /opt/flowmanner/scripts/restore-verify.sh --latest >> /var/log/flowmanner-backups.log 2>&1

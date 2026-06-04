@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "flowmanner-api-client"
+version = "0.1.0"
+description = "A client library for accessing Flowmanner API"
+authors = ["Flowmanner <hello@flowmanner.com>"]
+readme = "README.md"
+license = "MIT"
+homepage = "https://flowmanner.com"
+repository = "https://github.com/flowmanner/flowmanner-sdk"
+packages = [
+    { include = "flowmanner_api_client" },
+]
+include = ["flowmanner_api_client/py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+httpx = ">=0.23.0,<0.29.0"
+attrs = ">=22.2.0"
+python-dateutil = "^2.8.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F", "I", "UP"]
+
+
+[tool.poetry.scripts]
+flowmanner = "flowmanner_api_client.cli:main"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/timeout.log"
+echo "$(date -u +%s) $*" >> "$LOG"
+RESP="${STUB_DIR}/timeout.resp"
+if [ -f "$RESP" ]; then
+  CODE=$(head -1 "$RESP")
+  if [ -n "$CODE" ] && [ "$CODE" -eq "$CODE" ] 2>/dev/null; then
+    exit "$CODE"
+  fi
+fi
+# Shift past the timeout value only, then exec the rest
+TIMEOUT_VAL="$1"; shift
+exec "$@" 2>/dev/null || exit $?

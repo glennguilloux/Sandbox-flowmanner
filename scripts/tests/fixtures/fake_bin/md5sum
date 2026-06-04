@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/md5sum.log"
+echo "$(date -u +%s) $*" >> "$LOG"
+RESP="${STUB_DIR}/md5sum.resp"
+if [ -f "$RESP" ]; then
+  cat "$RESP"
+  exit 0
+fi
+# Default: deterministic hash based on content length + filename
+for f in "$@"; do
+  if [ -f "$f" ] && [ "$f" != "-" ]; then
+    SIZE=$(stat -c%s "$f" 2>/dev/null || echo 0)
+    printf "deadbeef%08x  %s\n" "$SIZE" "$(basename "$f")"
+  fi
+done
+exit 0

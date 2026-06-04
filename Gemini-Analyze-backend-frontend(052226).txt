@@ -1,0 +1,127 @@
+Here is a structured architectural analysis of your frontend codebase:
+
+1. Architecture & Core Configuration
+Moderne Tech-Stack: The codebase uses Next.js 16.2.6 (React Compiler enabled for automatic memoization) and React 19.2.4 as shown in package.json.
+Standalone Target: Build optimization is set to output: "standalone" inside next.config.ts, generating a minimal production bundle ideal for running inside Docker containers (consistent with the hybrid VPN-to-Homelab architecture defined in AGENTS.md).
+Security Hardening: next.config.ts defines solid middleware-level security headers, including a custom Content Security Policy (CSP), Strictly-Transport-Security, and cache bust routing for the service worker file sw.js.
+Sentry Integration: Client-side, server-side, and edge monitoring are automated by Sentry with custom sourcemap uploads during continuous integration as set up in sentry.client.config.ts, sentry.edge.config.ts, and sentry.server.config.ts.
+2. Internationalization & Routing
+Unified Layout Prefixes: Path structures reside under the [locale] dynamic directory using next-intl.
+Stateful Middleware: middleware.ts cleanly intercepts unprotected requests, automatically resolves missing language sub-paths, translates routes, parses nested layout rules, and guards paths like dashboard or missions with strict authentication checks.
+3. Authentication Strategy
+NextAuth.js v5 (Beta): Configured inside auth.ts. It provides Credentials login using a JWT-based session mechanism and optional GitHub OAuth.
+FastAPI Backend Gateway: Credentials authorization dynamically contacts your secure Homelab backend gateway through the internal WireGuard tunnel http://10.99.0.3:8000 as specified in auth.ts:22. Returned access tokens and refresh tokens are mapped onto JWT user objects during sessions.
+4. Workflow Canvas (Mission Builder)
+Custom Node Graphing: Utilizes xyflow (@xyflow/react) as its diagram engines located under mission-builder.
+Specialized Node Logic: Core workflow blocks are modularly split into custom React components inside nodes:
+LoopNode.tsx handles iterative loop metrics (foreaches, loops with max iteration safeguards).
+ApprovalNode.tsx offers specific timeout rules and escalation badges.
+TransformNode.tsx models data mapping via JQ or custom JavaScript scripts.
+DelayNode.tsx implements fixed as well as exponential backoff delay formulas.
+5. Testing & Verification
+Vitest Component Tests: Fast, high-isolation DOM unit tests run inside jsdom environments via Vitest configurators in vitest.config.ts. An example covering node behaviors is located in NewNodeTypes.test.tsx.
+Playwright End-to-End Tests: Provides multi-step integration and flow assembly workflows under the e2e directory, utilizing automatic viewport rendering across chromium browsers defined in playwright.config.ts.
+6. Client Providers & State
+Layered Shell Providers: Handled globally in providers.tsx. Extends server states with QueryProvider (using @tanstack/react-query and SWR caches), initiates a reactive socket client under the WebSocketProvider, and configures a Progressive Web App shell wrapper (PWAProvider).
+Zustand State Stores: Global user interface parameters and notification hooks are written into highly performant state shards under stores like workspace-store.ts, chat-store.ts, or notification-store.ts.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+This is the structured architectural analysis of the Flowmanner backend codebase, based on a comprehensive review of the active services, configuration files, and implementation folders.
+
+1. Architecture & Core Configuration
+Core Framework & ASGI: The application is built on FastAPI, as configured in the main entrypoint main_fastapi.py:90-130.
+ASGI Server & WebSocket Bypass: Real-time Socket.IO polling and WebSocket traffic are managed via ws_app main_fastapi.py:368-410. Because Starlette's BaseHTTPMiddleware disrupts WebSocket routing, a custom ASGI middleware, _WebSocketBypassMiddleware, is wrapped directly around the FastAPI instance in main_fastapi.py:370 to route /ws streams directly to python-socketio before normal HTTP middleware execution.
+Environment Setup: Setting management is orchestrated by config.py via Pydantic model configurations.
+CORS & Security Headers: Under production (settings.APP_ENV != "development"), CORS origins are strictly bound using settings.cors_origins_list with narrow allowances for methods and headers. A custom SecurityHeadersMiddleware is registered in main_fastapi.py:143 to inject necessary secure response headers.
+Containerization: The production layout in docker-compose.yml defines a multi-container deployment. To prevent transient file overrides, the backend image is fully standard-baked via Dockerfile without loose host code-mounts, which requires complete image rebuilding and container recreation when shipping code updates.
+2. API Layer
+Router Organization: The api endpoints are partitioned in main_fastapi.py:338 by versioning schemes (api_v1_router and api_v2_router).
+Dependency Injection: DB resource context is injected down requests using get_db from database.py:28-42. Hierarchical permissions and authentications are resolved inside Depends scopes via standard wrappers in deps.py:
+get_current_user: Resolves bearer token credentials and yields active SQL database records of the user.
+require_role: Checks role categories (e.g. admin, pro, free).
+require_permission: High-granularity authorization resolver resolving system role hierarchies, custom roles, or active delegations.
+Request/Response Models: Serialization and validation are managed by Pydantic models. Raw API outputs are enclosed in unified JSON wrappers via the custom _envelope helper.
+OpenAPI & Theme Customization: In main_fastapi.py:210, OpenAPI schemas are decorated with dynamic list elements for header negotiation (e.g., Accept-Version parameter injection). Under development, Swagger /docs and Redoc /redoc pathways are styled dynamically with custom dark CSS templates (e.g., SWAGGER_DARK_CSS and REDOC_DARK_CSS).
+3. Authentication & Authorization
+OAuth & SSO Providers: Implemented using standard OIDC Authorization Code Flows with PKCE code challenges in oidc.py. Available federated sign-in methods are resolved via the OIDC provider configurations in oidc.py:50.
+JWT & Session Flow: Access and refresh tokens are issued, tracked, and validated using family-bounded rotative models within auth.py:110. Token family reuse detection exists in refresh auth.py:340 to instantly revoke all subsidiary tokens of a user when an old refresh token is reused.
+Security & Lockouts: Features 2FA (TOTP verification with backup code ingestion) and account locking via record_failed_login inside auth.py:182 to temporarily block bruteforce attacks on password credentials.
+Homelab Tunnel Gateway: Traffic transitions from public interfaces (VPS at 74.208.115.142) down to the internal API (Homelab at 10.99.0.3:8000) over a secure WireGuard client interface (wg0).
+4. Database & ORM
+SQLAlchemy Async Setup: Database engine generation is defined async-first inside database.py:7 via create_async_engine using postgresql+asyncpg. It specifies connection tuning variables including pool_size and max_overflow.
+Database Sessions:
+Async sessions for FastAPI lifecycles are generated with AsyncSessionLocal database.py:16.
+Sync sessions for background celery execution pools are generated using SyncSessionLocal database.py:25 by rewriting connection URIs into postgresql+psycopg2.
+Data Migration: Database schema upgrades are managed via Alembic using migration recipes in versions.
+Key Models:
+User user.py:14: Declares credentials, roles, multi-tenant mappings, partner associations, and 2FA attributes.
+Relationships map out multi-tenant setups and billing. For example, api_keys maps user-bound LLM keys, and partner/owned_tenants controls hierarchical domain visibility.
+5. Task Queue & Background Workers
+Task Broker Integration: Multi-processing tasks are powered by Celery, routing messages over RabbitMQ (CELERY_BROKER_URL) and updating status over Redis results databases celery_app.py.
+Auto-Discovery Setup: In celery_app.py:32-43, Celery registers several namespaces including langgraph_tasks, deepagents_tasks, swarm_tasks, and webhook_tasks.
+Periodic Schedules: Custom scheduling is ran using Celery Beat to trigger tasks periodically, such as app.tasks.webhook_tasks.process_due_retries every 30 seconds celery_app.py:23.
+Execution Lifecycles: As shown in langgraph_execute_task langgraph_tasks.py:20, async execution inside the sync execution worker is bounded within custom loop managers, where loops are wrapped using asyncio.new_event_loop(). Task runs declare robust persistence, and updates are committed to standard SQL tables during lifecycle updates (started, completed, failed).
+6. LLM & Agent Orchestration
+LangGraph Integration: Workflows are designed with LangGraph using system structures inside agent.py. Transitions are driven by node states defined inside state.py.
+Dynamic Domain Personalities: Includes 200+ specialized agent blueprints grouped by domains in agent_definitions. Agents are indexed inside index.json and built using individual markdown configuration sheets that define distinct domain behaviors.
+DAG Mission Executor: Multi-tier processing is orchestrated by the MissionExecutor engine mission_executor.py:48. It translates user tasks into directed graphs, tracks step logs, manages resource consumption, and handles transient failures using robust retry mechanisms powered by tenacity mission_executor.py:29.
+7. Observability
+Tracing (Jaeger OTLP): Tracing instrumentation is defined in telemetry.py:22. When OTLP_ENDPOINT is present, FastAPIInstrumentor and RedisInstrumentor export structured transaction trace spans directly to Jaeger OTLP ports docker-compose.yml:169.
+Prometheus Metrics: Integrated metrics are exposed at /metrics telemetry.py:18, reporting standard application performance metrics alongside circuit breaker statistics.
+Sentry Centralized Logging: Unified error logging and transaction profiling are handled by SentryIntegration sentry_integration.py:90.
+Features an active before_send hook to automatically scrub sensitive PII and API tokens sentry_integration.py:159.
+Hooks directly into ObservabilityService errors via a synthetic tracebuilder that maps issues occurring in background agents or tasks sentry_integration.py:292.
+LLM Telemetry (Langfuse & Chaos Modes): LLM traces are shipped to Langfuse via configured env vars in config.py. Includes a Chaos Toggle mode openapi.json:15162 to simulate transient Langfuse SDK failures and verify that core request execution continues uninterrupted.
+8. External Integrations
+Stripe Revenue Sharing: Partner platform earnings and referrals are processed by the billing endpoint in partner.py:19. The code imports stripe and schedules Stripe Transfer operations to pay out accumulated referral balances to partners.
+PayPal Subscriptions: Regular customer billing uses PayPal. In subscription.py:72, upgrades to "Pro" or "Enterprise" tiers trigger a call to an internal paypal_client service, which creates customer subscription agreements and returns a direct approval link.
+9. Testing & Verification
+Test Architecture: The testing suite is located in tests.
+Environment Sandboxing: In the root test configuration conftest.py, critical variables (like LANGFUSE_ENABLED, key authenticators, and AES secrets) are set to sandboxed states before any module is loaded.
+Mock Lifespan Hooks: To bypass real database dependencies and external network requests, conftest.py:17 dynamically overrides FastAPI's lifespan handlers during startup.
+Dependency Overrides: Databases are stubbed out across the suite using mock_db_session conftest.py:30, replacing production async engine sessions with fully controlled AsyncMock fixtures for clean, fast units.
+10. Deployment & Infrastructure
+Network & Routing: High-level network rules are defined in docker-compose.yml. Services communicate inside an isolated, external network namespace named workflows-web (glenn_workflows-web on the host side):
+Application Database (PostgreSQL): 10.0.4.2:5432
+Vector Store (Qdrant): 10.0.4.3:6333
+Broker Queue (RabbitMQ): 10.0.4.9:5672
+Memory Cache (Redis): 10.0.4.5:6379
+Backend API Instance: 10.0.4.6:8000
+Static Assets: Static resources are served using an unprivileged Nginx image configured at 10.0.4.8:8080, mounted in read-only mode to host pathways docker-compose.yml:224.
+Homelab to VPS Proxy Setup:
+Frontend proxy (Nginx on VPS) intercepts traffic. It terminates SSL certificates and routes base routes (/*) straight to the Next.js target.
+Next.js actions targeting the API (/api/*) and WebSockets (/ws/*) are proxied through a WireGuard tunnel interface (10.99.0.1 -> 10.99.0.3:8000), executing directly inside the homelab environment. Refer to AGENTS.homelab.md:45.

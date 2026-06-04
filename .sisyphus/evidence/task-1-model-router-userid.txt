@@ -1,0 +1,5 @@
+Task 1 evidence: ModelRouter correctly accepts user_id and db_session in all call paths
+  - _is_model_available() params: ['model_id', 'user_id', 'db', 'is_admin']
+  - route_request() params: ['messages', 'model_preference', 'user_id', 'db_session', 'is_admin', 'max_tokens', 'temperature', 'kwargs']
+  - mission_executor sets self.model_router with user_id per execution
+  - llm_executor passes user_id + db_session to route_request()

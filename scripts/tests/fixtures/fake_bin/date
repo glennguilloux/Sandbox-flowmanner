@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/date.log"
+echo "$(/usr/bin/date -u +%s) $*" >> "$LOG"
+# Return fixed timestamps for any format request
+if echo "$*" | grep -q '+%Y%m%d-%H%M%S'; then
+  echo "20260602-120000"
+elif echo "$*" | grep -q '+%Y-%m-%dT%H:%M:%SZ'; then
+  echo "2026-06-02T12:00:00Z"
+elif echo "$*" | grep -q '\-u'; then
+  echo "2026-06-02T12:00:00Z"
+else
+  echo "2026-06-02T12:00:00Z"
+fi
+exit 0

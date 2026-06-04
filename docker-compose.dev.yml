@@ -1,0 +1,69 @@
+# ============================================================
+# Flowmanner — Development Override (HOMELAB ONLY)
+# ============================================================
+#
+# ⚠️  DEPRECATED for standalone use.  This file requires the homelab's
+# production docker-compose.yml, external network, and external volumes.
+#
+# For a self-contained dev environment that works on ANY machine,
+# use the standalone compose file instead:
+#
+#   docker compose -f dev/docker-compose.dev.yml --env-file dev/.env.dev up
+#
+# Or the Makefile shortcut:
+#   make dev-up
+#
+# This override file is kept for backward compatibility with the
+# homelab's existing `make dev` workflow.
+#
+# Usage (homelab only):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# This file overrides the backend service to enable hot-reload
+# and mounts source code from the host.  All other services
+# (postgres, redis, qdrant, jaeger, static) are unchanged.
+# ============================================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: workflows-backend:dev
+    container_name: backend-dev
+    command: >
+      uvicorn app.main_fastapi:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app/app
+      --log-level info
+    volumes:
+      - ./backend/app:/app/app:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+    environment:
+      APP_ENV: development
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: workflow-backend-dev
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    mem_limit: 4g
+    mem_reservation: 512m

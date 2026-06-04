@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+LOG="${STUB_DIR}/curl.log"
+echo "$(date -u +%s) $*" >> "$LOG"
+
+# Find the URL (last non-flag argument)
+URL=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -*) shift ;;
+    *)  URL="$1"; shift ;;
+  esac
+done
+URL="${URL:-unknown}"
+
+# Normalize URL for filename: replace all / and : with _
+KEY=$(echo "$URL" | tr '/:' '_')
+RESP="${STUB_DIR}/curl.${KEY}.resp"
+DEF="${STUB_DIR}/curl.default"
+
+if [ -f "$RESP" ]; then
+  CODE=$(head -1 "$RESP")
+  BODY=$(tail -n +2 "$RESP")
+
+  # -w '%{http_code}' → print just the status code
+  if echo "$*" | grep -q '%{http_code}'; then
+    echo -n "$CODE"
+    exit 0
+  fi
+
+  # -I → print status line
+  if echo "$*" | grep -q '\-I'; then
+    echo "HTTP/1.1 $CODE"
+    exit 0
+  fi
+
+  # -o <file> → write body to file
+  OUTFILE=""
+  PREV=""
+  for a in "$@"; do
+    [ "$PREV" = "-o" ] && { OUTFILE="$a"; break; }
+    PREV="$a"
+  done
+  if [ -n "$OUTFILE" ] && [ "$OUTFILE" != "/dev/null" ] && [ "$OUTFILE" != "/dev/stderr" ]; then
+    echo "$BODY" > "$OUTFILE"
+  fi
+
+  # -f: if code is 4xx/5xx, exit non-zero
+  if echo "$*" | grep -q '\-f' && echo "$CODE" | grep -q '^[45]'; then
+    exit 22
+  fi
+
+  # Print body for normal requests
+  [ "$CODE" = "200" ] || [ "$CODE" = "401" ] && echo "$BODY"
+  exit 0
+fi
+
+# Default response from default file
+if [ -f "$DEF" ]; then
+  cat "$DEF"
+fi
+exit 0
