@@ -328,12 +328,57 @@ class RunService:
     async def replay_state(
         self, run_id: str, user_id: int, at_sequence: int | None = None
     ) -> dict:
-        """Replay events to rebuild run state."""
+        """Replay events to rebuild run state.
+
+        If at_sequence is provided, rebuild state at that point (time-travel).
+        """
         await self.get(run_id, user_id)  # access check
 
         replay = get_replay_engine()
-        state = await replay.rebuild_state(self.db, str(run_id))
+        if at_sequence is not None:
+            state = await replay.rebuild_state_at_sequence(
+                self.db, str(run_id), at_sequence
+            )
+        else:
+            state = await replay.rebuild_state(self.db, str(run_id))
         return state.to_dict()
+
+    # ── Assertions ──────────────────────────────────────────────────
+
+    async def get_assertions(self, run_id: str, user_id: int) -> dict:
+        """Auto-generate and evaluate assertions for a completed run.
+
+        Uses BaselineExtractor to generate expected behaviors from the run,
+        then evaluates them with ReplayAssertionEngine.
+        """
+        run = await self.get(run_id, user_id)  # access check
+
+        from app.services.substrate.baseline_extractor import get_baseline_extractor
+        from app.services.substrate.assertion_engine import get_assertion_engine
+
+        extractor = get_baseline_extractor()
+        engine = get_assertion_engine()
+
+        # Extract expected behaviors from this run
+        expected_behaviors = await extractor.extract_from_run(
+            self.db, str(run_id)
+        )
+
+        # Evaluate them
+        results = await engine.evaluate(
+            self.db, str(run_id), expected_behaviors
+        )
+
+        return {
+            "run_id": str(run_id),
+            "status": run.status,
+            "total_cost_usd": run.total_cost_usd,
+            "total_tokens": run.total_tokens,
+            "assertions": [r.to_dict() for r in results],
+            "assertion_count": len(results),
+            "passed_count": sum(1 for r in results if r.passed),
+            "failed_count": sum(1 for r in results if not r.passed),
+        }
 
     # ── Diff ────────────────────────────────────────────────────────
 

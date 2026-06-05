@@ -131,12 +131,30 @@ async def get_run_events(
 @router.get("/{run_id}/replay/")
 async def replay_run(
     run_id: str,
+    at_sequence: int | None = Query(
+        None, ge=0, description="Replay up to this sequence (time-travel)"
+    ),
     user: User = Depends(get_current_user),
     q: RunQueryHandlers = Depends(get_run_queries),
 ):
-    """Replay run state at a given sequence number (time-travel debugging)."""
-    state = await q.replay_state(user.id, run_id)
+    """Replay run state. If at_sequence is given, rebuild state at that point."""
+    state = await q.replay_state(user.id, run_id, at_sequence=at_sequence)
     return ok(state)
+
+
+# ── Assertions ────────────────────────────────────────────────────────────────
+
+
+@router.get("/{run_id}/assertions")
+@router.get("/{run_id}/assertions/")
+async def get_run_assertions(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    q: RunQueryHandlers = Depends(get_run_queries),
+):
+    """Auto-generate and evaluate assertions for a completed run."""
+    result = await q.get_assertions(user.id, run_id)
+    return ok(result)
 
 
 # ── Diff ───────────────────────────────────────────────────────────────────────

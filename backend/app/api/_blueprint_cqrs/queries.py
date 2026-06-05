@@ -126,9 +126,19 @@ class RunQueryHandlers(QueryHandlerBase):
         )
         return [RunEventResponse.model_validate(e) for e in events]
 
-    async def replay_state(self, user_id: int, run_id: str) -> dict:
+    async def replay_state(
+        self,
+        user_id: int,
+        run_id: str,
+        at_sequence: int | None = None,
+    ) -> dict:
         svc = RunService(self.session)
-        return await svc.replay_state(run_id, user_id)
+        return await svc.replay_state(run_id, user_id, at_sequence=at_sequence)
+
+    async def get_assertions(self, user_id: int, run_id: str) -> dict:
+        """Auto-generate and evaluate assertions for a completed run."""
+        svc = RunService(self.session)
+        return await svc.get_assertions(run_id, user_id)
 
     async def diff_runs(self, user_id: int, run_a_id: str, run_b_id: str) -> dict:
         svc = RunService(self.session)
