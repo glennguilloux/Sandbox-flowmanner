@@ -397,18 +397,28 @@ class UnifiedExecutor:
     async def _ensure_circuit_breaker(
         self, db: AsyncSession, workflow: Workflow
     ) -> None:
-        """Lazily create or get a circuit breaker for this mission."""
+        """Lazily create or get a circuit breaker for this mission.
+
+        Passes the workflow's budget limits to the circuit breaker so that
+        max_cost_usd from the blueprint definition is enforced.
+        """
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
 
             service = CircuitBreakerService(db)
             workspace_id = getattr(workflow, "workspace_id", None)
+            budget = workflow.budget
             # Use a savepoint so a FK failure (e.g. blueprint ID not in missions)
             # doesn't poison the outer transaction.
             async with db.begin_nested():
                 await service.get_or_create(
                     mission_id=workflow.id,
                     workspace_id=workspace_id,
+                    max_cost_usd=float(budget.max_cost_usd),
+                    max_llm_calls=budget.max_iterations,
+                    max_duration_seconds=getattr(
+                        budget, "max_wall_time_seconds", 300
+                    ),
                 )
         except Exception as e:
             logger.debug("Circuit breaker init skipped: %s", e)
