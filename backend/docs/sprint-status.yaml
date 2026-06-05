@@ -1,0 +1,14 @@
+# Sprint Status (Party Mode Sign-Off)
+
+## FLO-15: Facilitate Party Mode Cross-Role Sign-Off
+- **Status**: Completed
+- **Sign-Off Timestamps**:
+  - Mary (Business Analyst): 2026-04-30T12:45:00Z ✅
+  - Amelia (Developer): 2026-04-30T12:46:00Z ✅
+  - Quinn (QA Engineer): 2026-04-30T12:47:00Z ✅
+  - John (PM): 2026-04-30T12:48:00Z ✅
+  - Bob (Scrum Master): 2026-04-30T12:49:00Z ✅
+- **Artifacts Signed Off**:
+  - architecture.md (a96a43b)
+  - epics.md (a96a43b)
+- **Push to feature/flowmanner-architecture**: ✅ 2026-04-30T12:50:00Z

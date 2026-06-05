@@ -1,0 +1,39 @@
+# Sprint Status (Party Mode Sign-Off)
+
+## FLO-15: Facilitate Party Mode Cross-Role Sign-Off
+- **Status**: Completed
+- **Sign-Off Timestamps**:
+  - Mary (Business Analyst): 2026-04-30T12:45:00Z ✅
+  - Amelia (Developer): 2026-04-30T12:46:00Z ✅
+  - Quinn (QA Engineer): 2026-04-30T12:47:00Z ✅
+  - John (PM): 2026-04-30T12:48:00Z ✅
+  - Bob (Scrum Master): 2026-04-30T12:49:00Z ✅
+- **Artifacts Signed Off**:
+  - architecture.md (a96a43b)
+  - epics.md (a96a43b)
+- **Push to feature/flowmanner-architecture**: ✅ 2026-04-30T12:50:00Z
+
+---
+
+## Phase 7: Full Read Cutover & Dual-Write Activation
+- **Status**: Completed
+- **Completed**: 2026-06-04
+- **Summary**:
+  - Fixed 9 test assertion failures in test_new_reads_compat.py (mock identity + fire-and-forget assertions)
+  - Added `list_active_from_blueprints()` and `active_missions_from_blueprints()` compat functions
+  - Wired list_active/active_missions to support new read path with USE_NEW_READS guard
+  - Fixed cache-hit path in list_active to query Blueprint+Run when flag is on
+  - Added `_mission_status_to_run_status()` mapper (running→executing, planning→pending, approved→completed)
+  - Added dual-write helpers: `dual_write_sync_run_status`, `dual_write_sync_blueprint`, `dual_write_soft_delete_blueprint`
+  - Wired dual-write into all 7 mutation endpoints (update, delete, abort, pause, resume, retry, batch_abort)
+  - Added 16 integration tests for dual-write helpers and status mapping
+  - Enabled USE_NEW_READS=1 in production .env
+  - Deployed backend with all changes — health check passed, no dual-write errors in logs
+  - Deprecation headers already present on v1 mission/graph/flow_compat routers (Phase 5.5)
+- **Test Results**: 99/99 pass (65 integration + 34 unit)
+- **Key Files Changed**:
+  - backend/app/api/_mission_cqrs/compat.py (new read functions + dual-write helpers + status mapper)
+  - backend/app/api/_mission_cqrs/queries.py (list_active/active_missions USE_NEW_READS guard + cache-hit fix)
+  - backend/app/api/_mission_cqrs/commands.py (dual-write wired into all mutations)
+  - backend/tests/integration/test_new_reads_compat.py (9→65 tests)
+  - backend/.env (USE_NEW_READS=1)

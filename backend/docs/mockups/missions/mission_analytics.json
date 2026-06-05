@@ -1,0 +1,40 @@
+{
+  "data": {
+    "summary": {
+      "total_missions": 142,
+      "completed_missions": 89,
+      "failed_missions": 12,
+      "active_missions": 3,
+      "total_tokens_used": 2456700,
+      "total_cost": 73.70,
+      "avg_completion_time_seconds": 487,
+      "success_rate_pct": 88.1
+    },
+    "over_time": [
+      {"date": "2026-05-26", "missions_run": 14, "missions_completed": 12, "tokens_used": 284000},
+      {"date": "2026-05-27", "missions_run": 18, "missions_completed": 15, "tokens_used": 312000},
+      {"date": "2026-05-28", "missions_run": 22, "missions_completed": 18, "tokens_used": 398000},
+      {"date": "2026-05-29", "missions_run": 16, "missions_completed": 14, "tokens_used": 267000},
+      {"date": "2026-05-30", "missions_run": 8, "missions_completed": 7, "tokens_used": 145000},
+      {"date": "2026-05-31", "missions_run": 12, "missions_completed": 10, "tokens_used": 198000},
+      {"date": "2026-06-01", "missions_run": 15, "missions_completed": 13, "tokens_used": 245000}
+    ],
+    "token_usage": {
+      "gpt-4o": {"tokens": 1203400, "cost": 36.10, "calls": 89},
+      "claude-3.5-sonnet": {"tokens": 894500, "cost": 26.84, "calls": 42},
+      "gemini-2.5-pro": {"tokens": 358800, "cost": 10.76, "calls": 11}
+    },
+    "failure_analysis": {
+      "rate_limit": 4,
+      "timeout": 3,
+      "validation_error": 2,
+      "api_error": 2,
+      "unknown": 1
+    }
+  },
+  "meta": {
+    "request_id": "550e8400-e29b-41d4-a716-446655440007",
+    "timestamp": "2026-06-02T11:00:00Z"
+  },
+  "error": null
+}

@@ -1,0 +1,49 @@
+{
+  "data": [
+    {
+      "id": "l1a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+      "mission_id": "c0a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+      "level": "info",
+      "message": "Mission started — 8 tasks queued",
+      "data": {"phase": "initialization", "task_count": 8},
+      "created_at": "2026-06-02T10:30:00Z"
+    },
+    {
+      "id": "l2b90232-8a0f-5b4c-9g2e-3f8c0d7b6e5f",
+      "mission_id": "c0a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+      "level": "info",
+      "message": "Task 'Gather competitor pricing data' completed successfully (12.4K tokens)",
+      "data": {"task_id": "t1a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e", "tokens": 12400},
+      "created_at": "2026-06-02T10:36:00Z"
+    },
+    {
+      "id": "l3c70343-9b1e-6c5d-0h3f-4g9d1e8c7f6g",
+      "mission_id": "c0a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+      "level": "info",
+      "message": "Task 'Analyze feature comparison' started",
+      "data": {"task_id": "t2b90232-8a0f-5b4c-9g2e-3f8c0d7b6e5f"},
+      "created_at": "2026-06-02T10:36:10Z"
+    },
+    {
+      "id": "l4d80454-0c2f-7d6e-1i4g-5h0e2f9d8g7h",
+      "mission_id": "c0a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+      "level": "warning",
+      "message": "Rate limit approach detected on source #3 — throttling next request",
+      "data": {"source": "compC_pricing", "retry_after_ms": 5000},
+      "created_at": "2026-06-02T10:37:00Z"
+    },
+    {
+      "id": "l5e91565-1d3g-8e7f-2j5h-6i1f3g0e9h8i",
+      "mission_id": "c0a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+      "level": "info",
+      "message": "Feature comparison 60% complete — 12 of 20 attributes analyzed",
+      "data": {"task_id": "t2b90232-8a0f-5b4c-9g2e-3f8c0d7b6e5f", "progress": 60},
+      "created_at": "2026-06-02T10:38:30Z"
+    }
+  ],
+  "meta": {
+    "request_id": "550e8400-e29b-41d4-a716-446655440006",
+    "timestamp": "2026-06-02T11:00:00Z"
+  },
+  "error": null
+}

@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /mnt/workflows/workflows/apps/backend
+plugins: asyncio-1.3.0, langsmith-0.7.30, anyio-4.13.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 3 items
+
+app/tests/test_swarm_executor_userid.py::test_swarm_passes_real_userid PASSED [ 33%]
+app/tests/test_swarm_executor_userid.py::test_created_by_none_falls_back PASSED [ 66%]
+app/tests/test_swarm_executor_userid.py::test_no_hardcoded_swarm_executor_string PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../home/glenn/.local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /home/glenn/.local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+app/tests/test_swarm_executor_userid.py::test_swarm_passes_real_userid
+app/tests/test_swarm_executor_userid.py::test_created_by_none_falls_back
+  /mnt/workflows/workflows/apps/backend/app/services/swarm_executor.py:41: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    task.started_at = datetime.utcnow()
+
+app/tests/test_swarm_executor_userid.py::test_swarm_passes_real_userid
+app/tests/test_swarm_executor_userid.py::test_created_by_none_falls_back
+  /mnt/workflows/workflows/apps/backend/app/services/swarm_executor.py:93: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    task.completed_at = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 3 passed, 5 warnings in 2.09s =========================

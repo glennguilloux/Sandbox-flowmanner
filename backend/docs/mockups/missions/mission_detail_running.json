@@ -1,0 +1,33 @@
+{
+  "data": {
+    "id": "c0a80121-7f9e-4a3b-8f1d-2e7b9c6a5d4e",
+    "user_id": 1,
+    "title": "Competitor Analysis Report — Q3 2026",
+    "description": "Generate a comprehensive competitor landscape analysis for the Southeast Asia market",
+    "mission_type": "research",
+    "status": "running",
+    "priority": "high",
+    "plan": {
+      "phases": ["research", "synthesis", "report"],
+      "current_phase": "synthesis",
+      "total_steps": 8,
+      "completed_steps": 5
+    },
+    "results": null,
+    "error_message": null,
+    "tokens_used": 45230,
+    "estimated_cost": 1.35,
+    "actual_cost": 0.98,
+    "started_at": "2026-06-02T10:30:00Z",
+    "completed_at": null,
+    "created_at": "2026-06-02T10:29:45Z",
+    "updated_at": "2026-06-02T10:35:12Z",
+    "progress": 62,
+    "eta": "2026-06-02T11:05:00Z"
+  },
+  "meta": {
+    "request_id": "550e8400-e29b-41d4-a716-446655440002",
+    "timestamp": "2026-06-02T11:00:00Z"
+  },
+  "error": null
+}

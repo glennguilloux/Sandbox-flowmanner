@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home"
+      ],
+      "description": "Access to filesystem operations"
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_token_here"
+      },
+      "description": "GitHub API access (requires token in env)"
+    }
+  },
+  "_comment": "Add your MCP servers here. Available servers: https://github.com/modelcontextprotocol/servers"
+}

@@ -1,0 +1,23 @@
+# F2: Evidence Quality Review
+
+## File Completeness Check
+- [✓] task-1-main-backend-raw.log (71376 lines)
+- [✓] task-1-main-backend-filtered.log (2412 lines)
+- [✓] task-2-bridge-backend-raw.log (2912 lines)
+- [✓] task-2-bridge-backend-filtered.log (138 lines)
+- [✓] task-3-codepath-map.md (49 lines)
+- [✓] task-3-error-classification.md (75 lines)
+- [✓] task-4-404-hypotheses.md (66 lines)
+- [✓] task-5-status-500-analysis.md (67 lines)
+- [✓] task-5-environment-drift.md (25 lines)
+- [✓] task-6-diagnosis-report.md (102 lines)
+
+## Quality Checks
+- [✓] Raw logs contain timestamped entries from both environments
+- [✓] Filtered logs separate 200/404/500 by endpoint
+- [✓] 404 analysis (task-4) and 500 analysis (task-5) are separate
+- [✓] Hypothesis files cite code references and log evidence
+- [✓] Parity/divergence note exists (task-5-environment-drift.md)
+- [✓] DB verification was performed directly (not just assumed)
+
+Evidence [10/10] | Gaps [0] | VERDICT: PASS

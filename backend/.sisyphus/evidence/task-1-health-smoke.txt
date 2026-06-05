@@ -1,0 +1,129 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /mnt/workflows/workflows/apps/backend
+plugins: asyncio-1.3.0, langsmith-0.7.30, anyio-4.13.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_health.py::test_health_endpoint_returns_healthy PASSED        [100%]
+
+=============================== warnings summary ===============================
+app/schemas/agent.py:20
+  /mnt/workflows/workflows/apps/backend/app/schemas/agent.py:20: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AgentResponse(BaseModel):
+
+app/schemas/agent.py:47
+  /mnt/workflows/workflows/apps/backend/app/schemas/agent.py:47: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AgentTemplateResponse(BaseModel):
+
+app/schemas/agent_execution.py:6
+  /mnt/workflows/workflows/apps/backend/app/schemas/agent_execution.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AgentExecutionResponse(BaseModel):
+
+app/schemas/agent_execution.py:23
+  /mnt/workflows/workflows/apps/backend/app/schemas/agent_execution.py:23: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AgentMemoryResponse(BaseModel):
+
+app/schemas/agent_execution.py:40
+  /mnt/workflows/workflows/apps/backend/app/schemas/agent_execution.py:40: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AgentToolResponse(BaseModel):
+
+app/schemas/auth.py:17
+  /mnt/workflows/workflows/apps/backend/app/schemas/auth.py:17: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserResponse(BaseModel):
+
+app/schemas/chat.py:17
+  /mnt/workflows/workflows/apps/backend/app/schemas/chat.py:17: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ChatThreadResponse(BaseModel):
+
+app/schemas/chat.py:36
+  /mnt/workflows/workflows/apps/backend/app/schemas/chat.py:36: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ChatMessageResponse(BaseModel):
+
+app/schemas/chat.py:55
+  /mnt/workflows/workflows/apps/backend/app/schemas/chat.py:55: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ChatFileResponse(BaseModel):
+
+app/schemas/file.py:16
+  /mnt/workflows/workflows/apps/backend/app/schemas/file.py:16: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class FileResponse(BaseModel):
+
+app/schemas/flow.py:16
+  /mnt/workflows/workflows/apps/backend/app/schemas/flow.py:16: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProjectResponse(BaseModel):
+
+app/schemas/flow.py:34
+  /mnt/workflows/workflows/apps/backend/app/schemas/flow.py:34: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class FlowRunResponse(BaseModel):
+
+app/schemas/flow.py:55
+  /mnt/workflows/workflows/apps/backend/app/schemas/flow.py:55: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class FlowStepResponse(BaseModel):
+
+app/schemas/graph.py:19
+  /mnt/workflows/workflows/apps/backend/app/schemas/graph.py:19: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GraphWorkflowResponse(BaseModel):
+
+app/schemas/graph.py:38
+  /mnt/workflows/workflows/apps/backend/app/schemas/graph.py:38: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GraphExecutionResponse(BaseModel):
+
+app/schemas/graph.py:51
+  /mnt/workflows/workflows/apps/backend/app/schemas/graph.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GraphStateResponse(BaseModel):
+
+../../../../../home/glenn/.local/lib/python3.14/site-packages/litellm/litellm_core_utils/logging_utils.py:273: 15 warnings
+  /home/glenn/.local/lib/python3.14/site-packages/litellm/litellm_core_utils/logging_utils.py:273: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+app/schemas/mission.py:18
+  /mnt/workflows/workflows/apps/backend/app/schemas/mission.py:18: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MissionResponse(BaseModel):
+
+app/schemas/mission.py:44
+  /mnt/workflows/workflows/apps/backend/app/schemas/mission.py:44: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MissionTaskResponse(BaseModel):
+
+app/schemas/mission.py:75
+  /mnt/workflows/workflows/apps/backend/app/schemas/mission.py:75: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MissionLogResponse(BaseModel):
+
+app/schemas/mission.py:92
+  /mnt/workflows/workflows/apps/backend/app/schemas/mission.py:92: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MissionImprovementResponse(BaseModel):
+
+app/schemas/rag.py:16
+  /mnt/workflows/workflows/apps/backend/app/schemas/rag.py:16: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RAGCollectionResponse(BaseModel):
+
+app/schemas/rag.py:35
+  /mnt/workflows/workflows/apps/backend/app/schemas/rag.py:35: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RAGDocumentResponse(BaseModel):
+
+app/schemas/swarm.py:16
+  /mnt/workflows/workflows/apps/backend/app/schemas/swarm.py:16: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SwarmResponse(BaseModel):
+
+app/schemas/swarm.py:34
+  /mnt/workflows/workflows/apps/backend/app/schemas/swarm.py:34: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SwarmAgentResponse(BaseModel):
+
+app/schemas/swarm.py:58
+  /mnt/workflows/workflows/apps/backend/app/schemas/swarm.py:58: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SwarmTaskResponse(BaseModel):
+
+app/schemas/workflow.py:16
+  /mnt/workflows/workflows/apps/backend/app/schemas/workflow.py:16: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WorkflowResponse(BaseModel):
+
+app/schemas/workflow.py:33
+  /mnt/workflows/workflows/apps/backend/app/schemas/workflow.py:33: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WorkflowRunResponse(BaseModel):
+
+app/schemas/workflow.py:51
+  /mnt/workflows/workflows/apps/backend/app/schemas/workflow.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WorkflowExecutionResponse(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 43 warnings in 0.01s ========================

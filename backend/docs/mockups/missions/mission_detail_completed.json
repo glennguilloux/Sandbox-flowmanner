@@ -1,0 +1,28 @@
+{
+  "data": {
+    "id": "b1e90232-8a0f-5b4c-9g2e-3f8c0d7b6e5f",
+    "user_id": 1,
+    "title": "Weekly Newsletter Draft",
+    "description": "Draft and polish the weekly product update newsletter",
+    "mission_type": "content",
+    "status": "completed",
+    "priority": "medium",
+    "plan": {"sections": ["intro", "features", "changelog", "cta"]},
+    "results": {"word_count": 1240, "reading_time_min": 6, "tone": "professional"},
+    "error_message": null,
+    "tokens_used": 18200,
+    "estimated_cost": 0.54,
+    "actual_cost": 0.42,
+    "started_at": "2026-06-01T08:00:00Z",
+    "completed_at": "2026-06-01T08:15:00Z",
+    "created_at": "2026-06-01T07:59:30Z",
+    "updated_at": "2026-06-01T08:15:05Z",
+    "progress": 100,
+    "eta": null
+  },
+  "meta": {
+    "request_id": "550e8400-e29b-41d4-a716-446655440003",
+    "timestamp": "2026-06-02T11:00:00Z"
+  },
+  "error": null
+}

@@ -1,0 +1,15 @@
+# Ruff configuration for Flowmanner backend
+# Start with critical rules; expand as codebase is cleaned up.
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E9",   # runtime errors (syntax errors, IO errors)
+    "F63",  # invalid escape sequences
+    "F7",   # syntax errors
+    "F82",  # undefined names
+]
+# Uncomment below to enable stricter linting once codebase is clean:
+# select = ["E", "F", "I", "UP", "B"]
+# ignore = ["E501"]

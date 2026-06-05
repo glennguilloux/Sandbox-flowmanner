@@ -1,0 +1,23 @@
+# F4: Scope Fidelity Check
+
+## 1. Implementation Drift Check
+Reading the diagnosis report (task-6-diagnosis-report.md):
+- "Next Implementation Targets" section names only file/function locations
+- No code-change instructions, no SQL to execute, no alembic commands
+- No deploy, restart, or rollback procedures
+- **Result**: CLEAN — no implementation drift
+
+## 2. Bridge-vs-Main Comparison Check
+- Report Section "Ruled-Out Hypotheses" includes "Separate environment drift — DISPROVED"
+- Report references evidence from both Task 1 (main) and Task 2 (bridge)
+- task-5-environment-drift.md provides explicit parity/divergence conclusion
+- **Result**: CLEAN — comparison requirement satisfied
+
+## 3. Scope Creep Check
+- Auth issues mentioned only when explaining 401→refresh token flow that affects mission access
+- Health/stats endpoints not analyzed independently
+- All analysis stays focused on why mission detail-family endpoints fail
+- **Result**: CLEAN — no scope creep
+
+## Summary
+Scope [CLEAN] | Drift [NONE] | VERDICT: PASS

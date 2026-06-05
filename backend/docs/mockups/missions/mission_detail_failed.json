@@ -1,0 +1,28 @@
+{
+  "data": {
+    "id": "a2d70343-9b1e-6c5d-0h3f-4g9d1e8c7f6g",
+    "user_id": 1,
+    "title": "API Documentation Scraper",
+    "description": "Scrape and re-format the external partner API docs into our internal schema",
+    "mission_type": "automation",
+    "status": "failed",
+    "priority": "high",
+    "plan": {"targets": ["endpoint1", "endpoint2", "endpoint3"], "total_endpoints": 62},
+    "results": null,
+    "error_message": "Rate limited by upstream API after 47/62 endpoints; retry suggested",
+    "tokens_used": 61400,
+    "estimated_cost": 1.84,
+    "actual_cost": 1.72,
+    "started_at": "2026-06-01T14:00:00Z",
+    "completed_at": "2026-06-01T14:22:00Z",
+    "created_at": "2026-06-01T13:59:00Z",
+    "updated_at": "2026-06-01T14:22:10Z",
+    "progress": 76,
+    "eta": null
+  },
+  "meta": {
+    "request_id": "550e8400-e29b-41d4-a716-446655440004",
+    "timestamp": "2026-06-02T11:00:00Z"
+  },
+  "error": null
+}

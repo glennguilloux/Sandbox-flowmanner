@@ -1,0 +1,24 @@
+# F3: Critical Command Re-run
+
+## Command 1: Main backend running?
+workflow-backend Up 16 hours (healthy)
+
+## Command 2: Bridge backend running?
+flowmanner-backend Up 23 hours
+
+## Command 3: mission_tasks.updated_at still missing?
+ column_name 
+-------------
+(0 rows)
+
+
+## Command 4: mission_improvements table still missing?
+ table_name 
+------------
+(0 rows)
+
+
+## Command 5: Detail endpoint accessible?
+403
+
+Commands [5/5 pass] | Reproducible [YES] | VERDICT: PASS

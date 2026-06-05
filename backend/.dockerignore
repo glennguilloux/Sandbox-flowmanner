@@ -1,0 +1,78 @@
+# ============================================================
+# .dockerignore — exclude non-runtime files from build context
+# ============================================================
+
+# Version control
+.git
+.gitignore
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.venv
+venv
+.eggs
+
+# Node (in case of accidental npm in backend)
+node_modules
+
+# Testing & CI
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+*.test
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+!alembic/README
+
+# Planning & sprint docs
+sprint-*.md
+story-status.md
+architecture.md
+02-bmad-state.md
+AUDIT-REPORT.md
+IMPROVEMENTS-LOG.md
+INTEGRATION-SEAM-REPORT.md
+
+# Docker (avoid recursive context)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Dev tooling config
+.pre-commit-config.yaml
+.sisyphus/
+mypy.ini
+.pylintrc
+ruff.toml
+.mypy_cache/
+.ruff_cache/
+
+# Environment files (secrets injected via docker-compose env_file)
+.env
+.env.*
+
+# Seed data helpers (not needed in production image)
+check_schema.py
+create_chat_tables.py
+create_missing_tables.sql
+graphify-out/
+
+# Note: scripts/ IS included — bootstrap CLI needs import_builtin_tools etc.
+
+# Build artifacts
+dist/
+build/
+*.egg
