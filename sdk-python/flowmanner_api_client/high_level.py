@@ -151,9 +151,7 @@ class FlowmannerClient:
 
     # ── Execution ──────────────────────────────────────────────────
 
-    def execute_mission(
-        self, mission_id: str, input: str | None = None
-    ) -> Any:
+    def execute_mission(self, mission_id: str, input: str | None = None) -> Any:
         """Execute a mission synchronously.
 
         Args:
@@ -176,9 +174,7 @@ class FlowmannerClient:
             raise FlowmannerError(f"Failed to execute mission {mission_id}")
         return result
 
-    def execute_mission_async(
-        self, mission_id: str, input: str | None = None
-    ) -> Any:
+    def execute_mission_async(self, mission_id: str, input: str | None = None) -> Any:
         """Execute a mission asynchronously (non-blocking).
 
         Args:
@@ -196,10 +192,8 @@ class FlowmannerClient:
         if input is not None:
             body = MissionExecuteRequest(input=input)
 
-        result = (
-            execute_mission_async_api_missions_mission_id_execute_async_post.sync(
-                mission_id=UUID(mission_id), client=self._client, body=body
-            )
+        result = execute_mission_async_api_missions_mission_id_execute_async_post.sync(
+            mission_id=UUID(mission_id), client=self._client, body=body
         )
         if result is None:
             raise FlowmannerError(

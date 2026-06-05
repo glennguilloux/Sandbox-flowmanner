@@ -23,11 +23,12 @@ def _get_client(args: argparse.Namespace):
     base_url = getattr(args, "base_url", None) or os.environ.get(
         "FLOWMANNER_BASE_URL", "https://flowmanner.com"
     )
-    api_key = getattr(args, "api_key", None) or os.environ.get(
-        "FLOWMANNER_API_KEY", ""
-    )
+    api_key = getattr(args, "api_key", None) or os.environ.get("FLOWMANNER_API_KEY", "")
     if not api_key:
-        print("Error: No API key. Set FLOWMANNER_API_KEY or pass --api-key.", file=sys.stderr)
+        print(
+            "Error: No API key. Set FLOWMANNER_API_KEY or pass --api-key.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return FlowmannerClient(base_url, api_key=api_key)
 
@@ -87,7 +88,9 @@ def cmd_costs(args: argparse.Namespace) -> None:
             for item in breakdown:
                 name = getattr(item, "model", getattr(item, "name", "unknown"))
                 item_cost = getattr(item, "cost_usd", getattr(item, "cost", 0)) or 0
-                item_tokens = getattr(item, "tokens", getattr(item, "total_tokens", 0)) or 0
+                item_tokens = (
+                    getattr(item, "tokens", getattr(item, "total_tokens", 0)) or 0
+                )
                 print(f"    {name}: ${item_cost:.4f} ({item_tokens:,} tokens)")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -160,7 +163,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Flowmanner CLI — manage missions and costs from the terminal.",
     )
     parser.add_argument("--api-key", help="API key (overrides FLOWMANNER_API_KEY)")
-    parser.add_argument("--base-url", help="API base URL (overrides FLOWMANNER_BASE_URL)")
+    parser.add_argument(
+        "--base-url", help="API base URL (overrides FLOWMANNER_BASE_URL)"
+    )
 
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -169,7 +174,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # costs
     p_costs = sub.add_parser("costs", help="Show usage costs")
-    p_costs.add_argument("--period", default="30d", help="Period: 7d, 30d, 90d (default: 30d)")
+    p_costs.add_argument(
+        "--period", default="30d", help="Period: 7d, 30d, 90d (default: 30d)"
+    )
 
     # missions
     p_missions = sub.add_parser("missions", help="Mission management")

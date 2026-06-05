@@ -423,7 +423,6 @@ async def get_stats():
         }
 
 
-
 # ---------------------------------------------------------------------------
 # Resilient OpenAPI spec generation
 # ---------------------------------------------------------------------------
@@ -437,6 +436,7 @@ async def get_stats():
 from fastapi.routing import APIRoute as _APIRoute
 
 _original_openapi = app.openapi
+
 
 def _resilient_openapi():
     """Generate OpenAPI spec, gracefully skipping routes with unresolved types."""
@@ -474,7 +474,8 @@ def _resilient_openapi():
     if skipped:
         logging.getLogger(__name__).warning(
             "OpenAPI: %d routes skipped due to unresolved forward refs: %s",
-            len(skipped), ", ".join(skipped[:10]),
+            len(skipped),
+            ", ".join(skipped[:10]),
         )
 
     schema = get_openapi(
@@ -486,6 +487,7 @@ def _resilient_openapi():
     )
     app._openapi_schema = schema
     return schema
+
 
 app.openapi = _resilient_openapi
 

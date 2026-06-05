@@ -70,6 +70,7 @@ from .compat import (
     use_new_reads,
 )
 
+
 @dataclass(slots=True)
 class PaginatedMissions:
     items: list[MissionResponse]
