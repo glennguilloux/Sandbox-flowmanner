@@ -80,7 +80,7 @@ def make_version(version_number=1):
     return SimpleNamespace(
         id=VERSION_ID,
         mission_id=MISSION_ID,
-        version_number=version_number,
+        version=version_number,
         snapshot={"title": "Snapshotted", "description": "desc", "status": "draft", "nodes": [], "edges": []},
         change_summary="Initial version",
         created_at="2026-01-01T00:00:00",

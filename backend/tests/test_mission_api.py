@@ -4,9 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user, get_db
+from app.api._mission_cqrs.deps import get_mission_queries, get_mission_commands
 from app.main_fastapi import app
 
 pytestmark = pytest.mark.integration
@@ -63,6 +65,12 @@ def mock_user():
 
 @pytest.fixture()
 def mission_service_mocks():
+    """Mock CQRS handlers at the DI boundary.
+
+    Overrides get_mission_queries and get_mission_commands to return
+    MagicMock instances with configured AsyncMock methods matching
+    the real CQRS handler interfaces.
+    """
     mission = make_mission()
     analytics = SimpleNamespace(
         total_missions=1,
@@ -71,46 +79,68 @@ def mission_service_mocks():
         total_tokens_used=0,
     )
 
-    with patch("app.api._mission_handlers.get_mission", new=AsyncMock(return_value=mission)) as mock_get_mission, patch(
-        "app.api._mission_handlers.get_mission_tasks", new=AsyncMock(return_value=[])
-    ) as mock_get_mission_tasks, patch("app.api._mission_handlers.get_mission_logs", new=AsyncMock(return_value=[])) as mock_get_mission_logs, patch(
-        "app.api._mission_handlers.get_mission_analytics", new=AsyncMock(return_value=analytics)
-    ) as mock_get_mission_analytics, patch(
-        "app.api._mission_handlers.get_mission_analytics_over_time", new=AsyncMock(return_value=[])
-    ) as mock_get_mission_analytics_over_time, patch(
-        "app.api._mission_handlers.get_token_usage_breakdown", new=AsyncMock(return_value=[])
-    ) as mock_get_token_usage_breakdown, patch(
-        "app.api._mission_handlers.get_failure_analysis", new=AsyncMock(return_value=[])
-    ) as mock_get_failure_analysis, patch("app.api._mission_handlers.asyncio.sleep", new=AsyncMock(return_value=None)) as mock_sleep, patch(
-        "app.api._mission_handlers.MissionExecutor"
-    ) as mock_executor_cls, patch("app.api._mission_handlers.SelfImprovementEngine") as mock_engine_cls:
-        executor = MagicMock()
-        executor.plan_mission = AsyncMock(return_value={"success": True})
-        executor.execute_mission = AsyncMock(return_value={"success": True})
-        mock_executor_cls.return_value = executor
+    # Build mock query handler (read operations)
+    mock_queries = MagicMock()
+    mock_queries.get_mission = AsyncMock(return_value=mission)
+    mock_queries.get_status = AsyncMock(return_value={
+        "mission_id": str(MISSION_ID),
+        "status": "pending",
+    })
+    mock_queries.list_tasks = AsyncMock(return_value=[])
+    mock_queries.list_logs = AsyncMock(return_value=[])
+    mock_queries.list_improvements = AsyncMock(return_value=[])
+    mock_queries.get_analytics = AsyncMock(return_value=analytics)
+    mock_queries.mission_analytics = AsyncMock(return_value=analytics)
+    mock_queries.get_analytics_over_time = AsyncMock(return_value=[])
+    mock_queries.get_token_usage_breakdown = AsyncMock(return_value=[])
+    mock_queries.get_failure_analysis = AsyncMock(return_value=[])
 
-        engine = MagicMock()
-        engine.get_improvements = AsyncMock(return_value=[])
-        engine.generate_strategy = AsyncMock(return_value=SimpleNamespace())
-        engine.apply_strategy = AsyncMock(return_value=SimpleNamespace())
-        mock_engine_cls.return_value = engine
+    def _fake_stream_status(user_id, mission_id, mission):
+        async def event_gen():
+            yield f"data: {{\"status\": \"pending\"}}\n\n"
+            yield f"data: {{\"status\": \"completed\"}}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(event_gen(), media_type="text/event-stream")
 
-        yield SimpleNamespace(
-            mission=mission,
-            analytics=analytics,
-            get_mission=mock_get_mission,
-            get_mission_tasks=mock_get_mission_tasks,
-            get_mission_logs=mock_get_mission_logs,
-            get_mission_analytics=mock_get_mission_analytics,
-            get_mission_analytics_over_time=mock_get_mission_analytics_over_time,
-            get_token_usage_breakdown=mock_get_token_usage_breakdown,
-            get_failure_analysis=mock_get_failure_analysis,
-            sleep=mock_sleep,
-            executor_cls=mock_executor_cls,
-            executor=executor,
-            engine_cls=mock_engine_cls,
-            engine=engine,
-        )
+    mock_queries.stream_status = _fake_stream_status
+
+    # Build mock command handler (write operations)
+    mock_commands = MagicMock()
+    mock_commands.plan_mission = AsyncMock(return_value={
+        "mission_id": str(MISSION_ID),
+        "status": "planned",
+    })
+    mock_commands.execute_mission = AsyncMock(return_value={
+        "mission_id": str(MISSION_ID),
+        "status": "completed",
+    })
+    mock_commands.create_improvement = AsyncMock(return_value={
+        "id": "imp-1",
+        "mission_id": str(MISSION_ID),
+    })
+    mock_commands.apply_improvement = AsyncMock(return_value={
+        "applied": True,
+    })
+
+    # Override the DI dependencies
+    async def _override_queries():
+        return mock_queries
+
+    async def _override_commands():
+        return mock_commands
+
+    app.dependency_overrides[get_mission_queries] = _override_queries
+    app.dependency_overrides[get_mission_commands] = _override_commands
+
+    yield SimpleNamespace(
+        mission=mission,
+        analytics=analytics,
+        queries=mock_queries,
+        commands=mock_commands,
+    )
+
+    app.dependency_overrides.pop(get_mission_queries, None)
+    app.dependency_overrides.pop(get_mission_commands, None)
 
 
 @pytest.fixture()
@@ -197,7 +227,7 @@ class TestMissionSlashCompatibility:
     )
     def test_dual_routes_return_200(self, auth_client, mission_service_mocks, path_a, path_b):
         if "/stream" in path_a:
-            mission_service_mocks.get_mission.side_effect = [
+            mission_service_mocks.queries.get_mission.side_effect = [
                 make_mission("pending"),
                 make_mission("completed"),
                 make_mission("pending"),
@@ -213,7 +243,10 @@ class TestMissionSlashCompatibility:
 
 class TestMissionStreamContract:
     def test_stream_returns_sse_and_done(self, auth_client, mission_service_mocks):
-        mission_service_mocks.get_mission.side_effect = [make_mission("pending"), make_mission("completed")]
+        mission_service_mocks.queries.get_mission.side_effect = [
+            make_mission("pending"),
+            make_mission("completed"),
+        ]
 
         response = auth_client.get(f"/api/missions/{MISSION_ID}/stream")
 

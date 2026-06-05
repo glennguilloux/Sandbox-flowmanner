@@ -15,16 +15,16 @@ def test_client():
 
 def test_health_endpoint_returns_healthy(test_client):
     """Test /health endpoint returns 200 with healthy status."""
-    with patch("app.api.v1.health.engine") as mock_engine:
+    with patch("app.database.engine") as mock_engine:
         mock_conn = AsyncMock()
         mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_conn.execute.return_value = None
-        with patch("app.api.v1.health.Redis") as mock_redis_class:
+        with patch("redis.asyncio.Redis") as mock_redis_class:
             mock_redis = AsyncMock()
             mock_redis.ping.return_value = True
             mock_redis.aclose = AsyncMock()
             mock_redis_class.from_url.return_value = mock_redis
-            with patch("app.api.v1.health.AsyncQdrantClient") as mock_qdrant_class:
+            with patch("qdrant_client.AsyncQdrantClient") as mock_qdrant_class:
                 mock_qdrant = AsyncMock()
                 mock_qdrant.get_collections.return_value = None
                 mock_qdrant.close = AsyncMock()
@@ -47,16 +47,16 @@ def test_health_endpoint_returns_healthy(test_client):
 
 def test_ready_endpoint(test_client):
     """Test /ready endpoint returns 200 with ok status."""
-    with patch("app.api.v1.health.engine") as mock_engine:
+    with patch("app.database.engine") as mock_engine:
         mock_conn = AsyncMock()
         mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_conn.execute.return_value = None
-        with patch("app.api.v1.health.Redis") as mock_redis_class:
+        with patch("redis.asyncio.Redis") as mock_redis_class:
             mock_redis = AsyncMock()
             mock_redis.ping.return_value = True
             mock_redis.aclose = AsyncMock()
             mock_redis_class.from_url.return_value = mock_redis
-            with patch("app.api.v1.health.AsyncQdrantClient") as mock_qdrant_class:
+            with patch("qdrant_client.AsyncQdrantClient") as mock_qdrant_class:
                 mock_qdrant = AsyncMock()
                 mock_qdrant.get_collections.return_value = None
                 mock_qdrant.close = AsyncMock()
@@ -72,16 +72,16 @@ def test_ready_endpoint(test_client):
 
 def test_health_full_endpoint(test_client):
     """Test /health/full endpoint returns 200."""
-    with patch("app.api.v1.health.engine") as mock_engine:
+    with patch("app.database.engine") as mock_engine:
         mock_conn = AsyncMock()
         mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_conn.execute.return_value = None
-        with patch("app.api.v1.health.Redis") as mock_redis_class:
+        with patch("redis.asyncio.Redis") as mock_redis_class:
             mock_redis = AsyncMock()
             mock_redis.ping.return_value = True
             mock_redis.aclose = AsyncMock()
             mock_redis_class.from_url.return_value = mock_redis
-            with patch("app.api.v1.health.AsyncQdrantClient") as mock_qdrant_class:
+            with patch("qdrant_client.AsyncQdrantClient") as mock_qdrant_class:
                 mock_qdrant = AsyncMock()
                 mock_qdrant.get_collections.return_value = None
                 mock_qdrant.close = AsyncMock()
