@@ -1,0 +1,903 @@
+"""Mission command handlers — mutation operations with explicit transactions."""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+
+from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
+from typing import TYPE_CHECKING
+
+from app.models.mission_advanced_models import MissionTemplate
+from app.models.mission_models import AbortReason, Mission, MissionLog, MissionStatus, MissionTask, MissionTaskStatus
+from app.schemas.mission import (
+    MissionCreate,
+    MissionExecuteRequest,
+    MissionExecutionStatus,
+    MissionImprovementCreate,
+    MissionImprovementResponse,
+    MissionLogCreate,
+    MissionTaskCreate,
+    MissionTaskUpdate,
+    MissionUpdate,
+)
+from app.services.mission_cache import invalidate_mission_cache, invalidate_user_caches
+from app.services.mission_errors import (
+    MissionNotFoundError,
+    MissionTransitionConflictError,
+    MissionValidationError,
+)
+from app.services.mission_executor import MissionExecutor
+from app.services.mission_service import (
+    create_mission,
+    create_mission_log,
+    create_mission_task,
+    delete_mission,
+    get_mission_tasks,
+    require_mission_access,
+    update_mission,
+)
+from app.services.self_improvement import SelfImprovementEngine
+
+from .base import CommandHandlerBase, _make_execution_status, _schedule_fire_and_forget
+from .compat import dual_write_soft_delete_blueprint, dual_write_sync_blueprint, dual_write_sync_run_status
+
+if TYPE_CHECKING:
+    import uuid
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
+
+    from .audit import AuditService
+
+
+class MissionCommandHandlers(CommandHandlerBase):
+    def __init__(self, session: AsyncSession, audit: AuditService | None = None, request_id: str | None = None) -> None:
+        super().__init__(session)
+        self.audit = audit
+        self._request_id = request_id
+
+    # ── Create ───────────────────────────────────────────────────────────────
+
+    async def create_mission(self, user: User, payload: MissionCreate, workspace_id: str | None = None):
+        from app.services.subscription_service import check_mission_create_allowed
+
+        # Phase 8.4: Check subscription tier limits before creating
+        limit_check = await check_mission_create_allowed(self.session, user.id, workspace_id)
+        if not limit_check.allowed:
+            from app.services.mission_errors import MissionValidationError
+            raise MissionValidationError(limit_check.reason)
+
+        async def _op():
+            result = await create_mission(
+                self.session, title=payload.title, description=payload.description or "",
+                mission_type=payload.mission_type, priority=payload.priority,
+                user_id=user.id, status="pending",
+                workspace_id=workspace_id,
+            )
+            if self.audit:
+                self.audit.mission_created(
+                    mission_id=result.id, actor_id=user.id,
+                    request_id=self._request_id,
+                    title=payload.title, mission_type=payload.mission_type,
+                )
+            # Fire-and-forget cache invalidation (failure logged)
+            _schedule_fire_and_forget(invalidate_user_caches(user.id))
+
+            # Phase 10.1 DUAL-WRITE: Also create a Blueprint (fire-and-forget)
+            # Runs AFTER the main mission is committed to avoid rollback on errors.
+            try:
+                from app.database import AsyncSessionLocal
+                from app.services.blueprint_service import BlueprintService
+
+                async def _dual_write_blueprint():
+                    try:
+                        async with AsyncSessionLocal() as bp_db:
+                            bp_svc = BlueprintService(bp_db)
+                            bp = await bp_svc.create(
+                                user_id=user.id,
+                                title=payload.title,
+                                description=payload.description or "",
+                                blueprint_type=payload.mission_type or "solo",
+                                workspace_id=workspace_id,
+                                definition={"_source_mission_id": str(result.id)},
+                            )
+                            await bp_db.commit()
+                    except Exception:
+                        logger.warning("Dual-write blueprint creation failed", exc_info=True)
+
+                _schedule_fire_and_forget(_dual_write_blueprint())
+            except Exception:
+                logger.warning("Dual-write blueprint scheduling failed", exc_info=True)
+
+            return result
+        return await self.wrap_command(_op)
+
+    # ── CRUD mutations ──────────────────────────────────────────────────────
+
+    async def update_mission(self, user: User, mission_id: uuid.UUID, payload: MissionUpdate):
+        mission = await require_mission_access(self.session, mission_id, user.id)
+        old_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+
+        async def _op():
+            updated = await update_mission(
+                self.session, mission_id,
+                title=payload.title, description=payload.description,
+                status=payload.status, priority=payload.priority,
+                mission_type=payload.mission_type, error_message=payload.error_message,
+                results=payload.results, tokens_used=payload.tokens_used,
+                actual_cost=payload.actual_cost,
+            )
+            if updated is None:
+                raise MissionNotFoundError(f"Mission {mission_id} not found")
+            new_status = updated.status.value if hasattr(updated.status, 'value') else updated.status
+            if self.audit:
+                self.audit.mission_updated(
+                    mission_id=mission_id, actor_id=user.id,
+                    old_status=old_status, new_status=new_status,
+                    request_id=self._request_id,
+                )
+            _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
+
+            # Dual-write: sync status/title/description to Blueprint+Run
+            _schedule_fire_and_forget(dual_write_sync_run_status(
+                str(mission_id), user.id, new_status,
+            ))
+            sync_fields: dict = {}
+            if payload.title is not None:
+                sync_fields["title"] = payload.title
+            if payload.description is not None:
+                sync_fields["description"] = payload.description
+            if sync_fields:
+                _schedule_fire_and_forget(dual_write_sync_blueprint(
+                    str(mission_id), user.id, **sync_fields,
+                ))
+            return updated
+        return await self.wrap_command(_op)
+
+    async def delete_mission(self, user: User, mission_id: uuid.UUID) -> None:
+        mission = await require_mission_access(self.session, mission_id, user.id)
+        old_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+
+        async def _op():
+            if not await delete_mission(self.session, mission_id, deleted_by=user.id):
+                raise MissionNotFoundError(f"Mission {mission_id} not found")
+            if self.audit:
+                self.audit.mission_deleted(
+                    mission_id=mission_id, actor_id=user.id,
+                    old_status=old_status,
+                    request_id=self._request_id,
+                )
+            # Invalidate both user-wide list caches and per-mission caches
+            _schedule_fire_and_forget(invalidate_user_caches(user.id))
+            _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
+
+            # Dual-write: soft-delete linked Blueprint
+            _schedule_fire_and_forget(dual_write_soft_delete_blueprint(
+                str(mission_id), user.id,
+            ))
+        await self.wrap_command(_op)
+
+    # ── Tasks ────────────────────────────────────────────────────────────────
+
+    async def create_task(self, user: User, mission_id: uuid.UUID, payload: MissionTaskCreate) -> MissionTask:
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        async def _op():
+            return await create_mission_task(
+                self.session, mission_id,
+                payload.title or "Untitled Task", payload.task_type or "general",
+                MissionTaskStatus.PENDING, payload.order_index, payload.input_data,
+                payload.description, payload.assigned_agent_id, payload.assigned_model,
+            )
+        return await self.wrap_command(_op)
+
+    async def update_task(self, user: User, mission_id: uuid.UUID, task_id: uuid.UUID,
+                          payload: MissionTaskUpdate) -> MissionTask:
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        async def _op():
+            result = await self.session.execute(
+                select(MissionTask).where(
+                    MissionTask.id == task_id, MissionTask.mission_id == mission_id,
+                )
+            )
+            task = result.scalar_one_or_none()
+            if task is None:
+                raise MissionNotFoundError(f"Task {task_id} not found in mission {mission_id}")
+            if payload.status is not None:
+                task.status = payload.status
+            if payload.output_data is not None:
+                task.output_data = payload.output_data
+            if payload.error_message is not None:
+                task.error_message = payload.error_message
+            if payload.tokens_used is not None:
+                task.tokens_used = payload.tokens_used
+            await self.session.flush()
+            await self.session.refresh(task)
+            return task
+        return await self.wrap_command(_op)
+
+    # ── Logs ─────────────────────────────────────────────────────────────────
+
+    async def create_log(self, user: User, mission_id: uuid.UUID, payload: MissionLogCreate) -> MissionLog:
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        async def _op():
+            return await create_mission_log(self.session, mission_id, payload.level, payload.message)
+        return await self.wrap_command(_op)
+
+    # ── Planning ─────────────────────────────────────────────────────────────
+
+    async def plan_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        async def _op():
+            executor = MissionExecutor()
+            result = await executor.plan_mission(mission_id)
+            if not result.get("success"):
+                raise MissionValidationError(result.get("error", "Planning failed"))
+            tasks = await get_mission_tasks(self.session, mission_id)
+            return _make_execution_status(mission, tasks)
+        return await self.wrap_command(_op)
+
+    # ── Execution ────────────────────────────────────────────────────────────
+
+    async def execute_mission(self, user: User, mission_id: uuid.UUID,
+                              payload: MissionExecuteRequest | None = None) -> MissionExecutionStatus:
+        from app.services.subscription_service import check_mission_execute_allowed
+
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        # Phase 8.4: Check subscription tier limits before executing
+        limit_check = await check_mission_execute_allowed(
+            self.session, user.id, mission.workspace_id,
+        )
+        if not limit_check.allowed:
+            from app.services.mission_errors import MissionValidationError
+            raise MissionValidationError(limit_check.reason)
+
+        old_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+
+        async def _op():
+            # Phase 8.1 GA: UnifiedExecutor is the sole execution path.
+            from app.services.substrate.adapters import mission_to_workflow
+            from app.services.substrate.executor import get_unified_executor
+            unified = get_unified_executor()
+            tasks = await get_mission_tasks(self.session, mission_id)
+            workflow = mission_to_workflow(mission, tasks)
+            strategy_result = await unified.execute(self.session, workflow)
+            result = {
+                "success": strategy_result.success,
+                "status": strategy_result.status,
+                "completed_tasks": len(strategy_result.completed_nodes),
+                "failed_tasks": len(strategy_result.failed_nodes),
+                "results": strategy_result.data,
+                "error": strategy_result.error,
+            }
+
+            # Phase 10.1 DUAL-WRITE: Also create a Run (fire-and-forget)
+            try:
+                from app.database import AsyncSessionLocal
+                from app.services.run_service import RunService
+
+                async def _dual_write_run():
+                    try:
+                        async with AsyncSessionLocal() as run_db:
+                            # Find the linked blueprint by source_mission_id
+                            from sqlalchemy import select as _sel
+
+                            from app.models.blueprint_models import Blueprint
+                            bp_result = await run_db.execute(
+                                _sel(Blueprint).where(
+                                    Blueprint.definition["_source_mission_id"].astext == str(mission_id),
+                                    Blueprint.deleted_at.is_(None),
+                                )
+                            )
+                            bp = bp_result.scalars().first()
+                            if bp is None:
+                                logger.debug("No linked blueprint for mission %s — skipping run dual-write", mission_id)
+                                return
+                            run_svc = RunService(run_db)
+                            run = await run_svc.create_from_blueprint(
+                                blueprint_id=str(bp.id),
+                                user_id=user.id,
+                            )
+                            # Copy execution results from StrategyResult
+                            run.started_at = datetime.now(UTC)
+                            run.status = strategy_result.status
+                            run.total_tokens = strategy_result.total_tokens
+                            run.total_cost_usd = strategy_result.total_cost_usd
+                            run.error_message = strategy_result.error
+                            run.output_data = strategy_result.data if strategy_result.success else None
+                            if strategy_result.status in ("completed", "failed", "aborted"):
+                                run.completed_at = datetime.now(UTC)
+                            await run_db.commit()
+                    except Exception:
+                        logger.warning("Dual-write run creation failed", exc_info=True)
+
+                _schedule_fire_and_forget(_dual_write_run())
+            except Exception:
+                logger.warning("Dual-write run scheduling failed", exc_info=True)
+
+            # Track analytics event (fire-and-forget)
+            try:
+                from app.services.analytics_service import EventType, track_event
+                if result.get("success"):
+                    await track_event(
+                        self.session, str(user.id), EventType.WORKFLOW_EXECUTED_SUCCESS,
+                        properties={"mission_id": str(mission_id)},
+                    )
+                else:
+                    await track_event(
+                        self.session, str(user.id), EventType.WORKFLOW_EXECUTED_FAILED,
+                        properties={"mission_id": str(mission_id), "error": result.get("error", "")},
+                    )
+            except Exception:
+                logger.debug("analytics_track_failed", exc_info=True)
+
+            tasks = await get_mission_tasks(self.session, mission_id)
+            new_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+            if self.audit:
+                self.audit.mission_executed(
+                    mission_id=mission_id, actor_id=user.id,
+                    old_status=old_status, new_status=new_status,
+                    request_id=self._request_id,
+                )
+            return MissionExecutionStatus(
+                mission_id=mission_id,
+                status=mission.status,
+                total_tasks=len(tasks),
+                completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+                failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
+                total_tokens_used=mission.tokens_used or 0,
+                started_at=mission.started_at,
+                estimated_completion=None,
+            )
+        return await self.wrap_command(_op)
+
+    async def execute_async(self, user: User, mission_id: uuid.UUID,
+                            payload: MissionExecuteRequest | None = None) -> MissionExecutionStatus:
+        from app.services.subscription_service import check_mission_execute_allowed
+
+        # NOTE: not wrapped in wrap_command — multi-commit flow:
+        #   1. commit status → QUEUED so the background task sees it
+        #   2. commit transition log separately
+        #   3. Dispatch to Celery (durable, retryable) instead of fire-and-forget
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        # Phase 8.4: Check subscription tier limits before queueing
+        limit_check = await check_mission_execute_allowed(
+            self.session, user.id, mission.workspace_id,
+        )
+        if not limit_check.allowed:
+            from app.services.mission_errors import MissionValidationError
+            raise MissionValidationError(limit_check.reason)
+
+        prev_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+        mission.status = MissionStatus.QUEUED
+        await self.session.commit()
+
+        # Log the transition
+        log = MissionLog(
+            mission_id=mission_id,
+            level="info",
+            message=f"Mission queued for async execution (was: {prev_status})",
+            data={
+                "actor": "api", "prev_state": prev_status, "next_state": MissionStatus.QUEUED,
+                "cause": "Async execution queued by user", "user_id": str(user.id),
+            },
+        )
+        self.session.add(log)
+        await self.session.commit()
+
+        # B3: Dispatch to Celery for durable execution
+        try:
+            from app.tasks.mission_execution import dispatch_mission_execution
+            dispatch_mission_execution(str(mission_id), user.id)
+        except Exception:
+            # Fallback: use UnifiedExecutor in a background task
+            logger = __import__("structlog").get_logger(__name__)
+            logger.warning("celery_dispatch_failed_fallback", mission_id=str(mission_id))
+
+            async def _run_execution():
+                from app.database import AsyncSessionLocal
+                from app.services.substrate.adapters import mission_to_workflow
+                from app.services.substrate.executor import get_unified_executor
+                async with AsyncSessionLocal() as db_session:
+                    result = await db_session.execute(select(Mission).where(Mission.id == str(mission_id)))
+                    m = result.scalars().first()
+                    if m:
+                        tasks = await get_mission_tasks(db_session, mission_id)
+                        workflow = mission_to_workflow(m, tasks)
+                        await get_unified_executor().execute(db_session, workflow)
+
+            import asyncio
+            asyncio.create_task(_run_execution())
+
+        tasks = await get_mission_tasks(self.session, mission_id)
+        return MissionExecutionStatus(
+            mission_id=mission_id,
+            status=MissionStatus.QUEUED,
+            total_tasks=len(tasks),
+            completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+            failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
+            total_tokens_used=mission.tokens_used or 0,
+            started_at=mission.started_at,
+        )
+
+    # ── Abort ────────────────────────────────────────────────────────────────
+
+    async def abort_mission(self, user: User, mission_id: uuid.UUID,
+                            reason_str: str = "user_requested") -> MissionExecutionStatus:
+        # NOTE: not wrapped in wrap_command — multi-commit flow:
+        #   1. SELECT … FOR UPDATE locks the mission row atomically
+        #   2. commit status → ABORTED + completed_at
+        #   3. commit transition log separately
+        #   Side-effects (WS emit, analytics) are fire-and-forget
+        try:
+            abort_reason = AbortReason(reason_str)
+        except ValueError:
+            raise MissionValidationError(
+                f"Invalid abort reason: '{reason_str}'. "
+                f"Valid reasons: {[r.value for r in AbortReason]}"
+            )
+
+        # SELECT ... FOR UPDATE to prevent TOCTOU races
+        result = await self.session.execute(
+            select(Mission)
+            .where(Mission.id == str(mission_id))
+            .with_for_update()
+        )
+        mission = result.scalars().first()
+        if mission is None:
+            raise MissionNotFoundError("Mission not found")
+        # Workspace-aware access check (post-lock to avoid TOCTOU)
+        if mission.workspace_id:
+            from sqlalchemy import select as _sel
+
+            from app.models.workspace_models import WorkspaceMember
+            member_result = await self.session.execute(
+                _sel(WorkspaceMember).where(
+                    WorkspaceMember.workspace_id == mission.workspace_id,
+                    WorkspaceMember.user_id == user.id,
+                    WorkspaceMember.is_active == True,
+                )
+            )
+            if member_result.scalar_one_or_none() is None:
+                raise MissionNotFoundError("Mission not found")
+        elif mission.user_id != user.id:
+            raise MissionNotFoundError("Mission not found")
+
+        abortable = {
+            MissionStatus.PENDING, MissionStatus.PLANNING, MissionStatus.PLANNED,
+            MissionStatus.EXECUTING, MissionStatus.QUEUED, MissionStatus.RUNNING,
+            MissionStatus.PAUSED,
+        }
+        if mission.status not in abortable:
+            raise MissionTransitionConflictError(
+                f"Cannot abort mission in '{mission.status}' state. "
+                f"Only active missions can be aborted."
+            )
+
+        prev_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+        mission.status = MissionStatus.ABORTED
+        mission.error_message = f"Aborted: {abort_reason.value} (was: {prev_status})"
+        mission.completed_at = datetime.now(UTC)
+        await self.session.commit()
+
+        # Phase 3.2: Also signal UnifiedExecutor abort if a run is active
+        try:
+            from app.services.substrate.executor import get_unified_executor
+            unified = get_unified_executor()
+            # The mission's plan may hold a substrate_run_id from the last execution
+            run_id = (mission.plan or {}).get("substrate_run_id")
+            if run_id:
+                await unified.abort(run_id, reason=abort_reason.value)
+            # Also abort by mission_id mapping
+            await unified.abort(str(mission_id), reason=abort_reason.value)
+        except Exception:
+            logger.debug("unified_executor_abort_signal_failed", exc_info=True)
+
+        if self.audit:
+            self.audit.mission_aborted(
+                mission_id=mission_id, actor_id=user.id,
+                old_status=prev_status, abort_reason=abort_reason.value,
+                request_id=self._request_id,
+            )
+
+        # Structured state-transition log
+        log = MissionLog(
+            mission_id=mission_id,
+            level="warning",
+            message=f"Mission aborted by user (reason: {abort_reason.value})",
+            data={
+                "actor": "user", "prev_state": prev_status, "next_state": MissionStatus.ABORTED,
+                "cause": f"User requested abort: {abort_reason.value}",
+                "user_id": str(user.id), "abort_reason": abort_reason.value,
+            },
+        )
+        self.session.add(log)
+        await self.session.commit()
+
+        # Fire-and-forget side effects
+        try:
+            from app.websocket.mission_ws import sio as _sio
+            if hasattr(_sio, "emit"):
+                await _sio.emit(
+                    "mission_aborted",
+                    {
+                        "mission_id": str(mission_id),
+                        "status": MissionStatus.ABORTED,
+                        "reason": abort_reason.value,
+                        "prev_status": prev_status,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                    room=f"mission_{mission_id}",
+                )
+        except Exception:
+            logger.debug("ws_abort_emit_failed", exc_info=True)
+            try:
+                from app.services.analytics_service import EventType, track_event
+                await track_event(
+                    self.session, str(user.id), EventType.WORKFLOW_EXECUTED_FAILED,
+                    properties={
+                        "mission_id": str(mission_id), "error": "aborted_by_user",
+                        "abort_reason": abort_reason.value,
+                    },
+                )
+            except Exception:
+                logger.debug("analytics_abort_track_failed", exc_info=True)
+
+        # Dual-write: sync abort status to Run
+        _schedule_fire_and_forget(dual_write_sync_run_status(
+            str(mission_id), user.id, "aborted",
+            error_message=f"Aborted: {abort_reason.value}",
+            completed_at=datetime.now(UTC),
+        ))
+
+        tasks = await get_mission_tasks(self.session, mission_id)
+        return MissionExecutionStatus(
+            mission_id=mission_id, status=MissionStatus.ABORTED,
+            total_tasks=len(tasks),
+            completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+            failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
+            total_tokens_used=mission.tokens_used or 0,
+            started_at=mission.started_at,
+        )
+
+    # ── Lifecycle: Pause / Resume / Retry ────────────────────────────────────
+
+    async def pause_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
+        # NOTE: not wrapped in wrap_command — multi-commit flow:
+        #   1. commit status → PAUSED + reset running tasks to PENDING
+        #   2. commit transition log separately
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        if mission.status != MissionStatus.RUNNING:
+            raise MissionTransitionConflictError(
+                f"Can only pause a running mission, not '{mission.status}'"
+            )
+
+        prev_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+        mission.status = MissionStatus.PAUSED
+
+        # Cancel all RUNNING tasks back to PENDING
+        task_result = await self.session.execute(
+            select(MissionTask).where(
+                MissionTask.mission_id == str(mission_id),
+                MissionTask.status == MissionTaskStatus.RUNNING,
+            )
+        )
+        for task in task_result.scalars().all():
+            task.status = MissionTaskStatus.PENDING
+
+        await self.session.commit()
+
+        if self.audit:
+            self.audit.mission_paused(
+                mission_id=mission_id, actor_id=user.id, old_status=prev_status,
+                request_id=self._request_id,
+            )
+
+        log = MissionLog(
+            mission_id=mission_id,
+            level="info",
+            message=f"Mission paused by user (was: {prev_status})",
+            data={
+                "actor": "user", "prev_state": prev_status,
+                "next_state": MissionStatus.PAUSED,
+                "cause": "User requested pause", "user_id": str(user.id),
+            },
+        )
+        self.session.add(log)
+        await self.session.commit()
+
+        # Dual-write: sync pause status to Run
+        _schedule_fire_and_forget(dual_write_sync_run_status(
+            str(mission_id), user.id, "paused",
+        ))
+
+        tasks = await get_mission_tasks(self.session, mission_id)
+        return _make_execution_status(mission, tasks)
+
+    async def resume_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
+        # NOTE: not wrapped in wrap_command — multi-commit flow:
+        #   1. commit status → QUEUED
+        #   2. commit transition log separately
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        if mission.status != MissionStatus.PAUSED:
+            raise MissionTransitionConflictError(
+                f"Can only resume a paused mission, not '{mission.status}'"
+            )
+
+        prev_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+        mission.status = MissionStatus.QUEUED
+        await self.session.commit()
+
+        if self.audit:
+            self.audit.mission_resumed(
+                mission_id=mission_id, actor_id=user.id, old_status=prev_status,
+                request_id=self._request_id,
+            )
+
+        log = MissionLog(
+            mission_id=mission_id,
+            level="info",
+            message=f"Mission resumed by user (was: {prev_status})",
+            data={
+                "actor": "user", "prev_state": prev_status,
+                "next_state": MissionStatus.QUEUED,
+                "cause": "User requested resume", "user_id": str(user.id),
+            },
+        )
+        self.session.add(log)
+        await self.session.commit()
+
+        # Dual-write: sync resume status to Run
+        _schedule_fire_and_forget(dual_write_sync_run_status(
+            str(mission_id), user.id, "queued",
+        ))
+
+        tasks = await get_mission_tasks(self.session, mission_id)
+        return _make_execution_status(mission, tasks)
+
+    async def retry_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
+        # NOTE: not wrapped in wrap_command — multi-commit flow:
+        #   1. commit status → PENDING + clear error_message
+        #   2. commit transition log separately
+        #   3. MissionExecutor.plan_mission runs re-planning (creates internal session)
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        if mission.status != MissionStatus.FAILED:
+            raise MissionTransitionConflictError(
+                f"Can only retry a failed mission, not '{mission.status}'"
+            )
+
+        prev_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+        mission.status = MissionStatus.PENDING
+        mission.error_message = None
+        await self.session.commit()
+
+        if self.audit:
+            self.audit.mission_retried(
+                mission_id=mission_id, actor_id=user.id, old_status=prev_status,
+                request_id=self._request_id,
+            )
+
+        log = MissionLog(
+            mission_id=mission_id,
+            level="info",
+            message=f"Mission retry initiated by user (was: {prev_status})",
+            data={
+                "actor": "user", "prev_state": prev_status,
+                "next_state": MissionStatus.PENDING,
+                "cause": "User requested retry", "user_id": str(user.id),
+            },
+        )
+        self.session.add(log)
+        await self.session.commit()
+
+        executor = MissionExecutor()
+        plan_result = await executor.plan_mission(mission_id)
+        if not plan_result.get("success"):
+            raise MissionValidationError(plan_result.get("error", "Re-planning failed"))
+
+        # Dual-write: sync retry status to Run
+        _schedule_fire_and_forget(dual_write_sync_run_status(
+            str(mission_id), user.id, "pending",
+            error_message=None,
+        ))
+
+        tasks = await get_mission_tasks(self.session, mission_id)
+        return _make_execution_status(mission, tasks)
+
+    # ── Batch Abort ──────────────────────────────────────────────────────────
+
+    async def batch_abort(self, user: User, mission_ids: list[uuid.UUID],
+                          reason: str = "user_requested") -> dict:
+        # NOTE: not wrapped in wrap_command — single-commit batch flow with
+        #   FOR UPDATE: iterates N missions, mutates ORM objects, then one
+        #   final commit persists all changes atomically.
+        try:
+            abort_reason = AbortReason(reason)
+        except ValueError:
+            raise MissionValidationError(
+                f"Invalid abort reason: '{reason}'. "
+                f"Valid reasons: {[r.value for r in AbortReason]}"
+            )
+
+        str_ids = [str(mid) for mid in mission_ids]
+
+        result = await self.session.execute(
+            select(Mission)
+            .where(Mission.id.in_(str_ids))
+            .with_for_update()
+        )
+        missions = result.scalars().all()
+
+        results = []
+        abortable = {
+            MissionStatus.PENDING, MissionStatus.PLANNING, MissionStatus.PLANNED,
+            MissionStatus.EXECUTING, MissionStatus.QUEUED, MissionStatus.RUNNING,
+            MissionStatus.PAUSED,
+        }
+
+        # Pre-fetch workspace memberships to avoid N+1 queries
+        ws_ids = {m.workspace_id for m in missions if m.workspace_id}
+        user_ws_ids: set[str] = set()
+        if ws_ids:
+            from app.models.workspace_models import WorkspaceMember
+            member_result = await self.session.execute(
+                select(WorkspaceMember.workspace_id).where(
+                    WorkspaceMember.workspace_id.in_(ws_ids),
+                    WorkspaceMember.user_id == user.id,
+                    WorkspaceMember.is_active == True,
+                )
+            )
+            user_ws_ids = {row[0] for row in member_result.all()}
+
+        for mission in missions:
+            # Workspace-aware access check for batch abort
+            if (mission.workspace_id and mission.workspace_id not in user_ws_ids) or (not mission.workspace_id and mission.user_id != user.id):
+                results.append({
+                    "mission_id": str(mission.id), "aborted": False,
+                    "error": "Not authorized",
+                })
+                continue
+
+            if mission.status not in abortable:
+                results.append({
+                    "mission_id": str(mission.id), "aborted": False,
+                    "error": f"Cannot abort mission in '{mission.status}' state",
+                })
+                continue
+
+            prev_status = mission.status.value if hasattr(mission.status, 'value') else mission.status
+            mission.status = MissionStatus.ABORTED
+            mission.error_message = f"Batch aborted: {abort_reason.value} (was: {prev_status})"
+            mission.completed_at = datetime.now(UTC)
+
+            if self.audit:
+                self.audit.mission_aborted(
+                    mission_id=mission.id, actor_id=user.id,
+                    old_status=prev_status, abort_reason=abort_reason.value,
+                )
+
+            log = MissionLog(
+                mission_id=mission.id,
+                level="warning",
+                message=f"Mission batch aborted (reason: {abort_reason.value})",
+                data={
+                    "actor": "user", "prev_state": prev_status,
+                    "next_state": MissionStatus.ABORTED,
+                    "cause": f"Batch abort: {abort_reason.value}",
+                    "user_id": str(user.id),
+                },
+            )
+            self.session.add(log)
+
+            results.append({
+                "mission_id": str(mission.id), "aborted": True,
+                "prev_status": prev_status,
+            })
+
+        await self.session.commit()
+
+        # Dual-write: sync abort status to Runs for all aborted missions
+        for r in results:
+            if r.get("aborted"):
+                _schedule_fire_and_forget(dual_write_sync_run_status(
+                    r["mission_id"], user.id, "aborted",
+                    error_message=f"Batch aborted: {abort_reason.value}",
+                    completed_at=datetime.now(UTC),
+                ))
+
+        return {
+            "total_requested": len(mission_ids),
+            "total_found": len(missions),
+            "total_aborted": sum(1 for r in results if r.get("aborted")),
+            "results": results,
+        }
+
+    # ── Template ─────────────────────────────────────────────────────────────
+
+    async def create_from_template(self, user: User, template_id: uuid.UUID) -> Mission:
+        # NOTE: not wrapped in wrap_command — preserves legacy pattern:
+        #   flush to obtain mission.id for FK references, bulk-add child
+        #   tasks, then single commit + refresh. (Could be refactored into
+        #   wrap_command if the refresh were moved to the caller.)
+        from uuid import uuid4
+
+        result = await self.session.execute(
+            select(MissionTemplate).where(MissionTemplate.id == str(template_id))
+        )
+        template = result.scalars().first()
+        if template is None:
+            raise MissionNotFoundError(f"Template {template_id} not found")
+
+        mission = Mission(
+            id=str(uuid4()),
+            title=template.name or "Untitled from template",
+            description=template.description or "",
+            mission_type=template.mission_type,
+            priority=template.priority or "medium",
+            user_id=user.id,
+            status=MissionStatus.PENDING,
+            plan=template.default_plan,
+            constraints=template.default_constraints,
+        )
+        self.session.add(mission)
+        await self.session.flush()
+
+        default_tasks = template.default_tasks or []
+        if isinstance(default_tasks, list):
+            for idx, task_def in enumerate(default_tasks):
+                if isinstance(task_def, dict):
+                    task = MissionTask(
+                        id=str(uuid4()),
+                        mission_id=mission.id,
+                        title=task_def.get("title", f"Task {idx + 1}"),
+                        description=task_def.get("description", ""),
+                        task_type=task_def.get("task_type", "llm"),
+                        order_index=idx,
+                        dependencies=task_def.get("dependencies", []),
+                        input_data=task_def.get("input_data"),
+                        assigned_agent_id=task_def.get("assigned_agent_id"),
+                        assigned_model=task_def.get("assigned_model"),
+                        status=MissionTaskStatus.PENDING,
+                        max_retries=task_def.get("max_retries", 3),
+                    )
+                    self.session.add(task)
+
+        await self.session.commit()
+        await self.session.refresh(mission)
+        return mission
+
+    # ── Improvements ─────────────────────────────────────────────────────────
+
+    async def create_improvement(self, user: User, mission_id: uuid.UUID,
+                                 payload: MissionImprovementCreate) -> MissionImprovementResponse:
+        # NOTE: not wrapped in wrap_command — SelfImprovementEngine manages its
+        #   own persistence internally (generate_strategy creates + commits).
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        engine = SelfImprovementEngine(self.session, str(user.id))
+        improvement = await engine.generate_strategy(
+            mission_id, payload.failure_type, payload.failure_context or "",
+        )
+        await self.session.refresh(improvement)
+        return MissionImprovementResponse.model_validate(improvement)
+
+    async def apply_improvement(self, user: User, mission_id: uuid.UUID,
+                                improvement_id: uuid.UUID) -> bool:
+        # NOTE: not wrapped in wrap_command — SelfImprovementEngine manages its
+        #   own persistence internally (apply_strategy mutates + commits).
+        mission = await require_mission_access(self.session, mission_id, user.id)
+
+        engine = SelfImprovementEngine(self.session, str(user.id))
+        return await engine.apply_strategy(improvement_id)

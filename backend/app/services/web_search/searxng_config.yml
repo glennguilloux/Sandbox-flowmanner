@@ -1,0 +1,77 @@
+# SearXNG Configuration for workflows platform
+# This is a reference configuration for setting up SearXNG
+
+use_default_settings: true
+
+general:
+  instance_name: "Workflows Search"
+  debug: false
+  enable_metrics: true
+
+server:
+  port: 55510
+  bind_address: "0.0.0.0"
+  secret_key: "change_this_to_a_random_string"
+  limiter: false
+  image_proxy: true
+  http_protocol_version: "1.1"
+
+search:
+  safe_search: 0
+  autocomplete: "duckduckgo"
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  pool_connections: 100
+  pool_maxsize: 20
+
+engines:
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    
+  - name: google
+    engine: google
+    shortcut: go
+    # Requires API key for production
+    
+  - name: bing
+    engine: bing
+    shortcut: bi
+    # Requires API key for production
+    
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    
+  - name: github
+    engine: github
+    shortcut: gh
+    
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: st
+    
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
+    
+  - name: reddit
+    engine: reddit
+    shortcut: re
+
+# Docker compose snippet for SearXNG:
+# searxng:
+#   image: searxng/searxng:latest
+#   ports:
+#     - "55510:8080"
+#   volumes:
+#     - ./searxng_config.yml:/etc/searxng/settings.yml
+#   environment:
+#     - SEARXNG_BASE_URL=http://localhost:55510/
+#   restart: unless-stopped

@@ -19,6 +19,16 @@ repos:
       - id: black
         language_version: python3
 
+  # --- Custom: reject deprecated Pydantic class Config pattern ---
+  - repo: local
+    hooks:
+      - id: pydantic-config-check
+        name: Check for deprecated Pydantic class Config
+        entry: python scripts/check_pydantic_config.py
+        language: system
+        files: '^app/.*\.py$'
+        pass_filenames: true
+
   # --- mypy (static type checking) ---
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1

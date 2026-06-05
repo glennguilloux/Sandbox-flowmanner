@@ -1,0 +1,540 @@
+"""UnifiedExecutor — single durable executor (H5.1). GA release.
+
+The ONLY entry point for workflow execution.  No subclasses.
+All 7 old executors become strategies dispatched from this class.
+
+Every execution through UnifiedExecutor satisfies the 4 guarantees:
+1. Durable — every state transition emits a substrate event
+2. Type-checked — input/output validated via PydanticAdapter
+3. Capability-bounded — tool calls require CapabilityToken
+4. Bounded — BudgetEnforcer wraps every LLM call
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
+
+from opentelemetry import trace
+
+from app.models.capability_models import Budget, BudgetExhausted
+from app.models.substrate_models import SubstrateEventType
+from app.services.substrate.event_log import EventLog, get_event_log
+from app.services.substrate.replay_engine import ReplayEngine, get_replay_engine
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    get_ws_manager,
+)
+from app.services.substrate.workflow_models import (
+    StrategyResult,
+    Workflow,
+    WorkflowNode,
+    WorkflowType,
+)
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
+
+
+class UnifiedExecutor:
+    """The single durable executor. No subclasses.
+
+    Usage:
+        executor = UnifiedExecutor()
+        result = await executor.execute(
+            db=session,
+            workflow=workflow,
+            run_id=str(uuid4()),
+        )
+    """
+
+    def __init__(
+        self,
+        event_log: EventLog | None = None,
+        replay_engine: ReplayEngine | None = None,
+    ) -> None:
+        self.event_log = event_log or get_event_log()
+        self.replay_engine = replay_engine or get_replay_engine()
+        self.ws_manager = get_ws_manager()
+        self._abort_signals: dict[str, asyncio.Event] = {}
+        self._strategies: dict[WorkflowType, ExecutionStrategy] = {}
+        self._strategies_loaded = False
+
+    def _load_strategies(self) -> None:
+        """Lazy-load all strategy classes on first use."""
+        if self._strategies_loaded:
+            return
+
+        from app.services.substrate.strategies.dag import DAGStrategy
+        from app.services.substrate.strategies.graph import GraphStrategy
+        from app.services.substrate.strategies.langgraph import LangGraphStrategy
+        from app.services.substrate.strategies.meta import MetaStrategy
+        from app.services.substrate.strategies.pipeline import PipelineStrategy
+        from app.services.substrate.strategies.solo import SoloStrategy
+        from app.services.substrate.strategies.swarm import SwarmStrategy
+
+        self._strategies = {
+            WorkflowType.SOLO: SoloStrategy(),
+            WorkflowType.DAG: DAGStrategy(),
+            WorkflowType.GRAPH: GraphStrategy(),
+            WorkflowType.SWARM: SwarmStrategy(),
+            WorkflowType.PIPELINE: PipelineStrategy(),
+            WorkflowType.META: MetaStrategy(),
+            WorkflowType.LANGGRAPH: LangGraphStrategy(),
+        }
+        self._strategies_loaded = True
+        logger.info("UnifiedExecutor: loaded %d strategies", len(self._strategies))
+
+    def _get_strategy(self, workflow_type: WorkflowType) -> ExecutionStrategy:
+        """Get the strategy for a workflow type."""
+        self._load_strategies()
+        strategy = self._strategies.get(workflow_type)
+        if strategy is None:
+            raise ValueError(f"No strategy registered for workflow type: {workflow_type}")
+        return strategy
+
+    # ── Public API ──────────────────────────────────────────────────
+
+    async def execute(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        *,
+        run_id: str | None = None,
+        blueprint_id: str | None = None,
+        start_node_id: str | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> StrategyResult:
+        """Execute a workflow through the unified executor.
+
+        Args:
+            db: Async database session.
+            workflow: The workflow to execute.
+            run_id: Optional existing run ID (for crash recovery).
+            start_node_id: Optional node to start from (for partial replay).
+            context: Optional initial execution context.
+
+        Returns:
+            StrategyResult with success, status, and execution details.
+        """
+        with tracer.start_as_current_span("unified_executor.execute") as span:
+            span.set_attribute("workflow.id", workflow.id)
+            span.set_attribute("workflow.type", workflow.type.value)
+
+            # Crash recovery: if a run_id was provided and has events, resume
+            run_id = run_id or str(uuid4())
+            if start_node_id:
+                span.set_attribute("workflow.start_node_id", start_node_id)
+
+            # Check for crash recovery
+            if await self.event_log.run_exists(db, run_id):
+                logger.info("Resuming run %s for workflow %s", run_id, workflow.id)
+                state = await self.replay_engine.rebuild_state(db, run_id)
+                if state.status in ("completed", "failed", "aborted"):
+                    return StrategyResult(
+                        success=state.status == "completed",
+                        status=state.status,
+                        error=state.error_message,
+                        completed_nodes=list(state.completed_tasks),
+                        failed_nodes=list(state.failed_tasks),
+                        total_tokens=state.total_tokens,
+                        total_cost_usd=state.total_cost_usd,
+                    )
+                if start_node_id is None:
+                    # Resume from last completed node
+                    start_node_id = _find_resume_point(workflow, state)
+
+            # Record mission.started event
+            await self.event_log.append(db, run_id, [{
+                "type": SubstrateEventType.MISSION_STARTED,
+                "payload": {
+                    "title": workflow.title,
+                    "workflow_type": workflow.type.value,
+                    "user_id": workflow.user_id,
+                    "node_count": len(workflow.nodes),
+                    "blueprint_id": blueprint_id,
+                },
+                "actor": "unified_executor",
+                "mission_id": workflow.id,
+                "blueprint_id": blueprint_id,
+            }], blueprint_id=blueprint_id)
+
+            # Set up abort signal
+            self._abort_signals[run_id] = asyncio.Event()
+
+            # Phase 6.4: Initialize circuit breaker for this mission
+            await self._ensure_circuit_breaker(db, workflow)
+
+            # Get strategy and validate
+            strategy = self._get_strategy(workflow.type)
+            errors = await strategy.validate(workflow)
+            if errors:
+                await self._finalize_run(db, workflow, run_id, "failed",
+                                         "; ".join(errors))
+                return StrategyResult(
+                    success=False,
+                    status="failed",
+                    error=f"Validation failed: {'; '.join(errors)}",
+                )
+
+            # Execute through strategy
+            start_time = time.monotonic()
+            exec_context = context or {}
+
+            try:
+                result = await strategy.execute(workflow, exec_context, self, db)
+            except BudgetExhausted as e:
+                logger.warning("Budget exhausted for run %s: %s", run_id, e)
+                await self._record_budget_exhausted(db, run_id, workflow, str(e))
+                await self._finalize_run(db, workflow, run_id, "failed", str(e))
+                return StrategyResult(
+                    success=False,
+                    status="failed",
+                    error=str(e),
+                    execution_time_ms=(time.monotonic() - start_time) * 1000,
+                )
+            except Exception as e:
+                logger.exception("Unhandled error in run %s", run_id)
+                await self._finalize_run(db, workflow, run_id, "failed", str(e))
+                return StrategyResult(
+                    success=False,
+                    status="failed",
+                    error=str(e),
+                    execution_time_ms=(time.monotonic() - start_time) * 1000,
+                )
+
+            result.execution_time_ms = (time.monotonic() - start_time) * 1000
+
+            # Finalize run
+            await self._finalize_run(
+                db, workflow, run_id, result.status, result.error
+            )
+
+            # Post-execution hooks
+            await self._run_post_hooks(db, workflow, result)
+
+            # Cleanup
+            self._abort_signals.pop(run_id, None)
+
+            span.set_attribute("workflow.status", result.status)
+            span.set_attribute("workflow.completed_nodes", len(result.completed_nodes))
+            return result
+
+    async def abort(self, run_id: str, reason: str = "user_requested") -> bool:
+        """Signal an abort for a running workflow.
+
+        Returns True if the abort signal was set (workflow was running).
+        """
+        event = self._abort_signals.get(run_id)
+        if event is None:
+            event = asyncio.Event()
+            self._abort_signals[run_id] = event
+
+        if not event.is_set():
+            event.set()
+            logger.info("Abort signal set for run %s: %s", run_id, reason)
+            return True
+        return False
+
+    async def pause(self, run_id: str) -> bool:
+        """Pause a running workflow.  (Future: pause signal propagation.)"""
+        logger.info("Pause requested for run %s", run_id)
+        # For now, abort is the only signal.  Pause support requires
+        # per-strategy pause point handling (future enhancement).
+        return False
+
+    async def is_running(self, run_id: str) -> bool:
+        """Check if a run is active (not yet aborted/completed)."""
+        event = self._abort_signals.get(run_id)
+        return event is not None and not event.is_set()
+
+    def is_aborted(self, run_id: str) -> bool:
+        """Check if a run's abort signal has been set."""
+        event = self._abort_signals.get(run_id)
+        return event is not None and event.is_set()
+
+    # ── Shared node execution ───────────────────────────────────────
+
+    async def execute_node(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        budget: Budget,
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Execute a single node — the shared code path for all strategies.
+
+        This is the single code path for executing a node, regardless of
+        strategy (~500 lines).  It handles:
+        1. Pre-execution budget check
+        2. Capability token creation for tool nodes
+        3. Node dispatch to the appropriate handler
+        4. Fallback strategy execution
+        5. Event logging
+        6. Retry with budget
+        7. LLM call recording
+
+        All LLM calls go through BudgetEnforcer.call().
+        All tool calls go through CapabilityEngine.verify().
+        """
+        from app.services.substrate.node_executor import NodeExecutor
+
+        node_exec = NodeExecutor(self)
+        return await node_exec.execute(db, node, context, budget, run_id, workflow)
+
+    # ── Budget enforcement (delegates to BudgetEnforcer) ─────────────
+
+    async def call_llm(
+        self,
+        budget: Budget,
+        model_id: str,
+        messages: list[dict[str, Any]],
+        user_id: str | None = None,
+        db_session: Any = None,
+        run_id: str | None = None,
+        mission_id: str | None = None,
+        task_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Make an LLM call through the budget enforcer.
+
+        This is the ONLY LLM call path in the unified executor.
+        All strategies MUST use this method for LLM calls.
+        """
+        from app.services.budget_enforcer import get_budget_enforcer
+
+        enforcer = get_budget_enforcer()
+        return await enforcer.call(
+            budget=budget,
+            model_id=model_id,
+            messages=messages,
+            user_id=user_id,
+            db_session=db_session,
+            run_id=run_id,
+            mission_id=mission_id,
+            task_id=task_id,
+        )
+
+    # ── Internal helpers ────────────────────────────────────────────
+
+    async def _finalize_run(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        run_id: str,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        """Record the terminal event for a run."""
+        event_type_map = {
+            "completed": SubstrateEventType.MISSION_COMPLETED,
+            "failed": SubstrateEventType.MISSION_FAILED,
+            "aborted": SubstrateEventType.MISSION_ABORTED,
+        }
+        event_type = event_type_map.get(status, SubstrateEventType.MISSION_FAILED)
+
+        await self.event_log.append(db, run_id, [{
+            "type": event_type,
+            "payload": {"status": status, "error": error},
+            "actor": "unified_executor",
+            "mission_id": workflow.id,
+        }])
+
+        logger.info("Run %s finalized: %s", run_id, status)
+
+    async def _record_budget_exhausted(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        workflow: Workflow,
+        reason: str,
+    ) -> None:
+        """Record a budget exhaustion event."""
+        await self.event_log.append(db, run_id, [{
+            "type": SubstrateEventType.BUDGET_EXHAUSTED,
+            "payload": {
+                "reason": reason,
+                "budget": {
+                    "max_cost_usd": float(workflow.budget.max_cost_usd),
+                    "spent_usd": float(workflow.budget.spent_usd),
+                    "iterations_used": workflow.budget.iterations_used,
+                    "max_iterations": workflow.budget.max_iterations,
+                },
+            },
+            "actor": "unified_executor",
+            "mission_id": workflow.id,
+        }])
+
+    # ── Phase 6.4: Circuit breaker ────────────────────────────────────
+
+    async def _ensure_circuit_breaker(
+        self, db: AsyncSession, workflow: Workflow
+    ) -> None:
+        """Lazily create or get a circuit breaker for this mission."""
+        try:
+            from app.services.circuit_breaker_service import CircuitBreakerService
+            service = CircuitBreakerService(db)
+            workspace_id = getattr(workflow, "workspace_id", None)
+            # Use a savepoint so a FK failure (e.g. blueprint ID not in missions)
+            # doesn't poison the outer transaction.
+            async with db.begin_nested():
+                await service.get_or_create(
+                    mission_id=workflow.id,
+                    workspace_id=workspace_id,
+                )
+        except Exception as e:
+            logger.debug("Circuit breaker init skipped: %s", e)
+
+    async def check_circuit_breaker(
+        self, db: AsyncSession, mission_id: str, call_type: str = "llm"
+    ) -> tuple[bool, str]:
+        """Check if the circuit breaker allows a call.
+
+        Returns (allowed, reason). Used by NodeExecutor before calls.
+        """
+        try:
+            from app.services.circuit_breaker_service import CircuitBreakerService
+            service = CircuitBreakerService(db)
+            async with db.begin_nested():
+                breaker = await service.get_breaker(mission_id)
+                if breaker is None:
+                    return True, ""
+                return await service.check_before_call(breaker, call_type=call_type)
+        except Exception as e:
+            logger.debug("Circuit breaker check skipped: %s", e)
+            return True, ""
+
+    async def record_circuit_breaker_call(
+        self, db: AsyncSession, mission_id: str, call_type: str = "llm", cost_usd: float = 0.0
+    ) -> None:
+        """Record a call in the circuit breaker counters."""
+        try:
+            from app.services.circuit_breaker_service import CircuitBreakerService
+            service = CircuitBreakerService(db)
+            async with db.begin_nested():
+                breaker = await service.get_breaker(mission_id)
+                if breaker is not None:
+                    await service.record_call(breaker, call_type=call_type, cost_usd=cost_usd)
+        except Exception as e:
+            logger.debug("Circuit breaker record skipped: %s", e)
+
+    async def _run_post_hooks(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        result: StrategyResult,
+    ) -> None:
+        """Run all post-execution hooks (analytics, audit, learning, linear, improvement)."""
+        # Analytics
+        try:
+            from app.services.analytics_service import get_analytics_service
+            analytics = get_analytics_service(db)
+            await analytics.calculate_mission_metrics(workflow.id)
+        except Exception as e:
+            logger.debug("Analytics hook skipped: %s", e)
+
+        # Audit log
+        try:
+            from app.api.middleware.audit import log_event
+            await log_event(
+                workflow.user_id,
+                f"workflow_{result.status}",
+                {
+                    "workflow_id": workflow.id,
+                    "title": workflow.title,
+                    "completed": len(result.completed_nodes),
+                    "failed": len(result.failed_nodes),
+                },
+            )
+        except Exception as e:
+            logger.debug("Audit log hook skipped: %s", e)
+
+        # Linear sync
+        try:
+            from app.services.linear.sync import sync_mission_to_linear
+            await sync_mission_to_linear(
+                mission_id=workflow.id,
+                status=result.status,
+                results=result.data,
+                error_message=result.error,
+            )
+        except Exception as e:
+            logger.debug("Linear sync hook skipped: %s", e)
+
+        # Learning recording
+        try:
+            from app.services.learning_service import get_learning_service
+            learning = get_learning_service()
+            if learning:
+                await learning.record_execution(
+                    task_description=f"{workflow.title} {workflow.description or ''}",
+                    plan={},
+                    result=result.data or {},
+                    success=result.success,
+                    mission_id=workflow.id,
+                    user_id=workflow.user_id,
+                    model_used=None,
+                    tokens_used=result.total_tokens,
+                    duration_seconds=result.execution_time_ms / 1000.0,
+                )
+        except Exception as e:
+            logger.debug("Learning record hook skipped: %s", e)
+
+        # Self-improvement analysis
+        try:
+            from app.services.improvement import get_improvement_loop
+            improvement = get_improvement_loop()
+            if improvement:
+                await improvement.on_mission_complete(
+                    mission_id=workflow.id,
+                    agent_id=None,
+                    success=result.success,
+                    metadata={
+                        "title": workflow.title,
+                        "task_count": len(workflow.nodes),
+                        "error_message": result.error,
+                    },
+                )
+        except Exception as e:
+            logger.debug("Improvement analysis hook skipped: %s", e)
+
+        # Phase 6.1: Episodic memory consolidation
+        try:
+            from app.database import AsyncSessionLocal
+            from app.services.episodic_memory_worker import EpisodicMemoryWorker
+            if result.success:
+                async with AsyncSessionLocal() as ep_db:
+                    worker = EpisodicMemoryWorker(ep_db)
+                    await worker.consolidate_episode(
+                        mission_id=workflow.id, run_id=result.run_id or "",
+                    )
+        except Exception as e:
+            logger.debug("Episodic memory consolidation skipped: %s", e)
+
+
+def _find_resume_point(workflow: Workflow, state: Any) -> str | None:
+    """Find the first incomplete node after crash recovery."""
+    for node in workflow.nodes:
+        if node.id not in state.completed_tasks and node.id not in state.failed_tasks:
+            return node.id
+    return None
+
+
+# ── Singleton ──────────────────────────────────────────────────────
+
+_unified_executor: UnifiedExecutor | None = None
+
+
+def get_unified_executor() -> UnifiedExecutor:
+    """Get or create the UnifiedExecutor singleton."""
+    global _unified_executor
+    if _unified_executor is None:
+        _unified_executor = UnifiedExecutor()
+    return _unified_executor

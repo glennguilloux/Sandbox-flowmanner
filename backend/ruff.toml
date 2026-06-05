@@ -9,7 +9,36 @@ select = [
     "F63",  # invalid escape sequences
     "F7",   # syntax errors
     "F82",  # undefined names
+    "UP",   # pyupgrade — deprecated Python patterns
+    "I",    # isort — import sorting
+    "C4",   # flake8-comprehensions — better comprehension patterns
+    "B",    # flake8-bugbear — common bugs and design problems
+    "SIM",  # flake8-simplify — code simplification
+    "RUF",  # Ruff-specific rules
+    "PERF", # Perflint — performance anti-patterns
+    "PT",   # flake8-pytest-style — pytest conventions
+    "TCH",  # flake8-type-checking — move type-only imports into TYPE_CHECKING blocks
 ]
-# Uncomment below to enable stricter linting once codebase is clean:
-# select = ["E", "F", "I", "UP", "B"]
-# ignore = ["E501"]
+ignore = [
+    "UP015",  # redundant-open-modes — allow explicit 'r' mode for clarity
+    "B008",   # function-call-in-default-argument — FastAPI Depends() is standard
+    "B904",   # raise-without-from-inside-except — too many, fix incrementally
+    "RUF001", # ambiguous-unicode-character-string — false positives on i18n
+    "RUF002", # ambiguous-unicode-character-docstring — false positives on i18n
+    "RUF003", # ambiguous-unicode-character-comment — false positives (en-dashes etc.)
+    "RUF006", # asyncio-dangling-task — intentional fire-and-forget in FastAPI
+    "RUF012", # mutable-class-default — Pydantic models use class attributes
+    "RUF013", # implicit-optional — too noisy with X | None already in use
+    "RUF059", # unused-unpacked-variable — false positives in for-loop unpacking
+    "PT028",  # pytest-parameter-with-default-argument — intentional in parametrize
+    "F821",   # undefined-name — ~97 from TCH refactor (FastAPI/Strawberry runtime deps). Fix per-file.
+]
+
+[lint.per-file-ignores]
+# SQLAlchemy models need type imports at runtime for Mapped[...] annotations
+# F821 false positives: SQLAlchemy resolves relationship forward refs lazily
+"app/models/*.py" = ["TC001", "TC002", "TC003", "F821"]
+# Tools use dynamic type references
+"app/tools/*.py" = ["F821"]
+# Strawberry GraphQL needs runtime imports (Info, JSON, datetime)
+"app/api/v2/schema.py" = ["TC001", "TC002", "TC003"]

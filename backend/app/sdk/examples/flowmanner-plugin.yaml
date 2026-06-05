@@ -1,0 +1,32 @@
+name: json-transform
+version: "1.0.0"
+description: Transforms JSON data between workflow nodes using configurable field mappings
+author: FlowManner Team
+permissions: []
+
+node_types:
+  - id: json_transform
+    label: JSON Transform
+    category: transform
+    description: Map fields from input JSON to output using dot-notation paths
+    icon: Braces
+    color: "#8B5CF6"
+    inputs:
+      data:
+        type: object
+        required: true
+        description: Input data object
+      mapping:
+        type: object
+        required: true
+        description: Map of output_field → input_path (dot notation)
+    outputs:
+      result:
+        type: object
+        description: Transformed output data
+
+config:
+  timeout_seconds:
+    type: integer
+    default: 30
+    description: Max execution time in seconds

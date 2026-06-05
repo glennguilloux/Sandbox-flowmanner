@@ -1,0 +1,7 @@
+__pycache__/
+.env
+dist/
+node_modules/
+*.pyc
+.alembic/
+*.db

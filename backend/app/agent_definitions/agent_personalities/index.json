@@ -1,0 +1,926 @@
+{
+  "domains": {
+    "customer-service": [
+      {
+        "id": "customer-service/call-summarizer",
+        "domain": "customer-service",
+        "filename": "call-summarizer.md",
+        "name": "Call Summarizer",
+        "description": "Call documentation specialist for accurate conversation records",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/customer-service/call-summarizer.md"
+      },
+      {
+        "id": "customer-service/chat-support-agent",
+        "domain": "customer-service",
+        "filename": "chat-support-agent.md",
+        "name": "Chat Support Agent",
+        "description": "Real-time customer support specialist for live chat interactions",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/customer-service/chat-support-agent.md"
+      },
+      {
+        "id": "customer-service/email-response-drafter",
+        "domain": "customer-service",
+        "filename": "email-response-drafter.md",
+        "name": "Email Response Drafter",
+        "description": "Customer email communication specialist for professional responses",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/customer-service/email-response-drafter.md"
+      },
+      {
+        "id": "customer-service/escalation-triage-specialist",
+        "domain": "customer-service",
+        "filename": "escalation-triage-specialist.md",
+        "name": "Escalation Triage Specialist",
+        "description": "Customer escalation management specialist for complex issues",
+        "color": "red",
+        "path": "/workspace/apps/backend/agent_personalities/customer-service/escalation-triage-specialist.md"
+      },
+      {
+        "id": "customer-service/knowledge-base-assistant",
+        "domain": "customer-service",
+        "filename": "knowledge-base-assistant.md",
+        "name": "Knowledge Base Assistant",
+        "description": "Self-service content specialist for help center management",
+        "color": "amber",
+        "path": "/workspace/apps/backend/agent_personalities/customer-service/knowledge-base-assistant.md"
+      }
+    ],
+    "finance": [
+      {
+        "id": "finance/ap-ar-clerk",
+        "domain": "finance",
+        "filename": "ap-ar-clerk.md",
+        "name": "AP/AR Clerk",
+        "description": "Accounts payable and receivable specialist for invoice processing and reconciliation",
+        "color": "emerald",
+        "path": "/workspace/apps/backend/agent_personalities/finance/ap-ar-clerk.md"
+      },
+      {
+        "id": "finance/expense-auditor",
+        "domain": "finance",
+        "filename": "expense-auditor.md",
+        "name": "Expense Auditor",
+        "description": "Expense validation specialist for policy compliance and fraud detection",
+        "color": "amber",
+        "path": "/workspace/apps/backend/agent_personalities/finance/expense-auditor.md"
+      },
+      {
+        "id": "finance/financial-analyst-assistant",
+        "domain": "finance",
+        "filename": "financial-analyst-assistant.md",
+        "name": "Financial Analyst Assistant",
+        "description": "Financial modeling and analysis support for budgeting and forecasting",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/finance/financial-analyst-assistant.md"
+      },
+      {
+        "id": "finance/fraud-detection-analyst",
+        "domain": "finance",
+        "filename": "fraud-detection-analyst.md",
+        "name": "Fraud Detection Analyst",
+        "description": "Financial crime specialist for transaction monitoring and fraud prevention",
+        "color": "red",
+        "path": "/workspace/apps/backend/agent_personalities/finance/fraud-detection-analyst.md"
+      },
+      {
+        "id": "finance/payroll-specialist",
+        "domain": "finance",
+        "filename": "payroll-specialist.md",
+        "name": "Payroll Specialist",
+        "description": "Payroll processing expert for accurate and compliant employee compensation",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/finance/payroll-specialist.md"
+      }
+    ],
+    "healthcare": [
+      {
+        "id": "healthcare/care-coordinator",
+        "domain": "healthcare",
+        "filename": "care-coordinator.md",
+        "name": "Care Coordinator",
+        "description": "Patient care management specialist for coordinated healthcare delivery",
+        "color": "cyan",
+        "path": "/workspace/apps/backend/agent_personalities/healthcare/care-coordinator.md"
+      },
+      {
+        "id": "healthcare/clinical-documentation-assistant",
+        "domain": "healthcare",
+        "filename": "clinical-documentation-assistant.md",
+        "name": "Clinical Documentation Assistant",
+        "description": "Medical coding and documentation improvement specialist",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/healthcare/clinical-documentation-assistant.md"
+      },
+      {
+        "id": "healthcare/medical-scribe",
+        "domain": "healthcare",
+        "filename": "medical-scribe.md",
+        "name": "Medical Scribe",
+        "description": "Clinical documentation specialist for accurate medical record keeping",
+        "color": "teal",
+        "path": "/workspace/apps/backend/agent_personalities/healthcare/medical-scribe.md"
+      },
+      {
+        "id": "healthcare/patient-intake-agent",
+        "domain": "healthcare",
+        "filename": "patient-intake-agent.md",
+        "name": "Patient Intake Agent",
+        "description": "Patient registration and onboarding specialist for healthcare facilities",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/healthcare/patient-intake-agent.md"
+      },
+      {
+        "id": "healthcare/prior-authorization-assistant",
+        "domain": "healthcare",
+        "filename": "prior-authorization-assistant.md",
+        "name": "Prior Authorization Assistant",
+        "description": "Insurance authorization specialist for treatment approvals",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/healthcare/prior-authorization-assistant.md"
+      }
+    ],
+    "hr": [
+      {
+        "id": "hr/hr-policy-assistant",
+        "domain": "hr",
+        "filename": "hr-policy-assistant.md",
+        "name": "HR Policy Assistant",
+        "description": "HR policy guidance specialist for employee inquiries",
+        "color": "amber",
+        "path": "/workspace/apps/backend/agent_personalities/hr/hr-policy-assistant.md"
+      },
+      {
+        "id": "hr/interview-scheduler",
+        "domain": "hr",
+        "filename": "interview-scheduler.md",
+        "name": "Interview Scheduler",
+        "description": "Interview coordination specialist for seamless scheduling",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/hr/interview-scheduler.md"
+      },
+      {
+        "id": "hr/learning-coach",
+        "domain": "hr",
+        "filename": "learning-coach.md",
+        "name": "Learning Coach",
+        "description": "Employee development specialist for training and upskilling",
+        "color": "teal",
+        "path": "/workspace/apps/backend/agent_personalities/hr/learning-coach.md"
+      },
+      {
+        "id": "hr/onboarding-coordinator",
+        "domain": "hr",
+        "filename": "onboarding-coordinator.md",
+        "name": "Onboarding Coordinator",
+        "description": "New employee onboarding specialist for successful integration",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/hr/onboarding-coordinator.md"
+      },
+      {
+        "id": "hr/resume-screener",
+        "domain": "hr",
+        "filename": "resume-screener.md",
+        "name": "Resume Screener",
+        "description": "Candidate evaluation specialist for efficient resume review",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/hr/resume-screener.md"
+      }
+    ],
+    "legal": [
+      {
+        "id": "legal/contract-reviewer",
+        "domain": "legal",
+        "filename": "contract-reviewer.md",
+        "name": "Contract Reviewer",
+        "description": "Legal contract analysis specialist for risk identification and compliance",
+        "color": "slate",
+        "path": "/workspace/apps/backend/agent_personalities/legal/contract-reviewer.md"
+      },
+      {
+        "id": "legal/e-discovery-assistant",
+        "domain": "legal",
+        "filename": "e-discovery-assistant.md",
+        "name": "E-Discovery Assistant",
+        "description": "Electronic discovery specialist for litigation document management",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/legal/e-discovery-assistant.md"
+      },
+      {
+        "id": "legal/kyc-aml-analyst",
+        "domain": "legal",
+        "filename": "kyc-aml-analyst.md",
+        "name": "KYC/AML Analyst",
+        "description": "Know Your Customer and Anti-Money Laundering compliance specialist",
+        "color": "red",
+        "path": "/workspace/apps/backend/agent_personalities/legal/kyc-aml-analyst.md"
+      },
+      {
+        "id": "legal/policy-compliance-checker",
+        "domain": "legal",
+        "filename": "policy-compliance-checker.md",
+        "name": "Policy Compliance Checker",
+        "description": "Regulatory compliance specialist for policy adherence verification",
+        "color": "amber",
+        "path": "/workspace/apps/backend/agent_personalities/legal/policy-compliance-checker.md"
+      },
+      {
+        "id": "legal/regulatory-research-assistant",
+        "domain": "legal",
+        "filename": "regulatory-research-assistant.md",
+        "name": "Regulatory Research Assistant",
+        "description": "Legal research specialist for regulatory analysis and interpretation",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/legal/regulatory-research-assistant.md"
+      }
+    ],
+    "marketing": [
+      {
+        "id": "marketing/campaign-optimizer",
+        "domain": "marketing",
+        "filename": "campaign-optimizer.md",
+        "name": "Campaign Optimizer",
+        "description": "Marketing campaign performance specialist for ROI improvement",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/marketing/campaign-optimizer.md"
+      },
+      {
+        "id": "marketing/copywriter",
+        "domain": "marketing",
+        "filename": "copywriter.md",
+        "name": "Copywriter",
+        "description": "Marketing content specialist for compelling brand messaging",
+        "color": "pink",
+        "path": "/workspace/apps/backend/agent_personalities/marketing/copywriter.md"
+      },
+      {
+        "id": "marketing/market-research-assistant",
+        "domain": "marketing",
+        "filename": "market-research-assistant.md",
+        "name": "Market Research Assistant",
+        "description": "Market intelligence specialist for competitive and consumer insights",
+        "color": "cyan",
+        "path": "/workspace/apps/backend/agent_personalities/marketing/market-research-assistant.md"
+      },
+      {
+        "id": "marketing/seo-analyst",
+        "domain": "marketing",
+        "filename": "seo-analyst.md",
+        "name": "SEO Analyst",
+        "description": "Search engine optimization specialist for organic visibility",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/marketing/seo-analyst.md"
+      },
+      {
+        "id": "marketing/social-media-manager",
+        "domain": "marketing",
+        "filename": "social-media-manager.md",
+        "name": "Social Media Manager",
+        "description": "Social media strategy and engagement specialist",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/marketing/social-media-manager.md"
+      }
+    ],
+    "media-creative": [
+      {
+        "id": "media-creative/content-editor",
+        "domain": "media-creative",
+        "filename": "content-editor.md",
+        "name": "Content Editor",
+        "description": "Content quality specialist for editorial excellence",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/media-creative/content-editor.md"
+      },
+      {
+        "id": "media-creative/graphic-design-assistant",
+        "domain": "media-creative",
+        "filename": "graphic-design-assistant.md",
+        "name": "Graphic Design Assistant",
+        "description": "Visual design specialist for brand and marketing assets",
+        "color": "pink",
+        "path": "/workspace/apps/backend/agent_personalities/media-creative/graphic-design-assistant.md"
+      },
+      {
+        "id": "media-creative/localization-specialist",
+        "domain": "media-creative",
+        "filename": "localization-specialist.md",
+        "name": "Localization Specialist",
+        "description": "Content adaptation specialist for global audiences",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/media-creative/localization-specialist.md"
+      },
+      {
+        "id": "media-creative/transcription-producer",
+        "domain": "media-creative",
+        "filename": "transcription-producer.md",
+        "name": "Transcription Producer",
+        "description": "Audio/video transcription specialist for accurate documentation",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/media-creative/transcription-producer.md"
+      },
+      {
+        "id": "media-creative/video-editor-assistant",
+        "domain": "media-creative",
+        "filename": "video-editor-assistant.md",
+        "name": "Video Editor Assistant",
+        "description": "Video post-production specialist for content creation",
+        "color": "red",
+        "path": "/workspace/apps/backend/agent_personalities/media-creative/video-editor-assistant.md"
+      }
+    ],
+    "operations": [
+      {
+        "id": "operations/demand-forecaster",
+        "domain": "operations",
+        "filename": "demand-forecaster.md",
+        "name": "Demand Forecaster",
+        "description": "Demand planning specialist for accurate forecasting",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/operations/demand-forecaster.md"
+      },
+      {
+        "id": "operations/inventory-planner",
+        "domain": "operations",
+        "filename": "inventory-planner.md",
+        "name": "Inventory Planner",
+        "description": "Inventory optimization specialist for stock management",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/operations/inventory-planner.md"
+      },
+      {
+        "id": "operations/logistics-dispatcher",
+        "domain": "operations",
+        "filename": "logistics-dispatcher.md",
+        "name": "Logistics Dispatcher",
+        "description": "Transportation coordination specialist for efficient delivery",
+        "color": "orange",
+        "path": "/workspace/apps/backend/agent_personalities/operations/logistics-dispatcher.md"
+      },
+      {
+        "id": "operations/procurement-analyst",
+        "domain": "operations",
+        "filename": "procurement-analyst.md",
+        "name": "Procurement Analyst",
+        "description": "Strategic sourcing specialist for supplier management",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/operations/procurement-analyst.md"
+      },
+      {
+        "id": "operations/workflow-coordinator",
+        "domain": "operations",
+        "filename": "workflow-coordinator.md",
+        "name": "Workflow Coordinator",
+        "description": "Process orchestration specialist for operational efficiency",
+        "color": "cyan",
+        "path": "/workspace/apps/backend/agent_personalities/operations/workflow-coordinator.md"
+      }
+    ],
+    "sales": [
+      {
+        "id": "sales/account-research-analyst",
+        "domain": "sales",
+        "filename": "account-research-analyst.md",
+        "name": "Account Research Analyst",
+        "description": "Account intelligence specialist for strategic sales preparation",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/sales/account-research-analyst.md"
+      },
+      {
+        "id": "sales/crm-follow-up-agent",
+        "domain": "sales",
+        "filename": "crm-follow-up-agent.md",
+        "name": "CRM Follow-Up Agent",
+        "description": "Sales follow-up automation specialist for pipeline nurturing",
+        "color": "teal",
+        "path": "/workspace/apps/backend/agent_personalities/sales/crm-follow-up-agent.md"
+      },
+      {
+        "id": "sales/lead-qualifier",
+        "domain": "sales",
+        "filename": "lead-qualifier.md",
+        "name": "Lead Qualifier",
+        "description": "Sales lead assessment specialist for pipeline qualification",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/sales/lead-qualifier.md"
+      },
+      {
+        "id": "sales/proposal-writer",
+        "domain": "sales",
+        "filename": "proposal-writer.md",
+        "name": "Proposal Writer",
+        "description": "Sales proposal specialist for RFP responses and business proposals",
+        "color": "orange",
+        "path": "/workspace/apps/backend/agent_personalities/sales/proposal-writer.md"
+      },
+      {
+        "id": "sales/sdr-outreach-assistant",
+        "domain": "sales",
+        "filename": "sdr-outreach-assistant.md",
+        "name": "SDR Outreach Assistant",
+        "description": "Sales development specialist for prospecting and outreach campaigns",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/sales/sdr-outreach-assistant.md"
+      }
+    ],
+    "software-it": [
+      {
+        "id": "software-it/code-review-assistant",
+        "domain": "software-it",
+        "filename": "code-review-assistant.md",
+        "name": "Code Review Assistant",
+        "description": "Expert code reviewer focusing on quality, security, and best practices",
+        "color": "purple",
+        "path": "/workspace/apps/backend/agent_personalities/software-it/code-review-assistant.md"
+      },
+      {
+        "id": "software-it/devops-runbook-agent",
+        "domain": "software-it",
+        "filename": "devops-runbook-agent.md",
+        "name": "DevOps Runbook Agent",
+        "description": "Infrastructure automation specialist for deployment and incident response",
+        "color": "orange",
+        "path": "/workspace/apps/backend/agent_personalities/software-it/devops-runbook-agent.md"
+      },
+      {
+        "id": "software-it/qa-tester",
+        "domain": "software-it",
+        "filename": "qa-tester.md",
+        "name": "QA Tester",
+        "description": "Automated testing specialist for comprehensive test coverage and bug detection",
+        "color": "blue",
+        "path": "/workspace/apps/backend/agent_personalities/software-it/qa-tester.md"
+      },
+      {
+        "id": "software-it/security-monitoring-analyst",
+        "domain": "software-it",
+        "filename": "security-monitoring-analyst.md",
+        "name": "Security Monitoring Analyst",
+        "description": "Cybersecurity specialist for threat detection and security incident response",
+        "color": "red",
+        "path": "/workspace/apps/backend/agent_personalities/software-it/security-monitoring-analyst.md"
+      },
+      {
+        "id": "software-it/support-triage-agent",
+        "domain": "software-it",
+        "filename": "support-triage-agent.md",
+        "name": "Support Triage Agent",
+        "description": "First-response specialist for technical support ticket classification and routing",
+        "color": "green",
+        "path": "/workspace/apps/backend/agent_personalities/software-it/support-triage-agent.md"
+      }
+    ]
+  },
+  "agents": [
+    {
+      "id": "customer-service/call-summarizer",
+      "domain": "customer-service",
+      "filename": "call-summarizer.md",
+      "name": "Call Summarizer",
+      "description": "Call documentation specialist for accurate conversation records",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/customer-service/call-summarizer.md"
+    },
+    {
+      "id": "customer-service/chat-support-agent",
+      "domain": "customer-service",
+      "filename": "chat-support-agent.md",
+      "name": "Chat Support Agent",
+      "description": "Real-time customer support specialist for live chat interactions",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/customer-service/chat-support-agent.md"
+    },
+    {
+      "id": "customer-service/email-response-drafter",
+      "domain": "customer-service",
+      "filename": "email-response-drafter.md",
+      "name": "Email Response Drafter",
+      "description": "Customer email communication specialist for professional responses",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/customer-service/email-response-drafter.md"
+    },
+    {
+      "id": "customer-service/escalation-triage-specialist",
+      "domain": "customer-service",
+      "filename": "escalation-triage-specialist.md",
+      "name": "Escalation Triage Specialist",
+      "description": "Customer escalation management specialist for complex issues",
+      "color": "red",
+      "path": "/workspace/apps/backend/agent_personalities/customer-service/escalation-triage-specialist.md"
+    },
+    {
+      "id": "customer-service/knowledge-base-assistant",
+      "domain": "customer-service",
+      "filename": "knowledge-base-assistant.md",
+      "name": "Knowledge Base Assistant",
+      "description": "Self-service content specialist for help center management",
+      "color": "amber",
+      "path": "/workspace/apps/backend/agent_personalities/customer-service/knowledge-base-assistant.md"
+    },
+    {
+      "id": "finance/ap-ar-clerk",
+      "domain": "finance",
+      "filename": "ap-ar-clerk.md",
+      "name": "AP/AR Clerk",
+      "description": "Accounts payable and receivable specialist for invoice processing and reconciliation",
+      "color": "emerald",
+      "path": "/workspace/apps/backend/agent_personalities/finance/ap-ar-clerk.md"
+    },
+    {
+      "id": "finance/expense-auditor",
+      "domain": "finance",
+      "filename": "expense-auditor.md",
+      "name": "Expense Auditor",
+      "description": "Expense validation specialist for policy compliance and fraud detection",
+      "color": "amber",
+      "path": "/workspace/apps/backend/agent_personalities/finance/expense-auditor.md"
+    },
+    {
+      "id": "finance/financial-analyst-assistant",
+      "domain": "finance",
+      "filename": "financial-analyst-assistant.md",
+      "name": "Financial Analyst Assistant",
+      "description": "Financial modeling and analysis support for budgeting and forecasting",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/finance/financial-analyst-assistant.md"
+    },
+    {
+      "id": "finance/fraud-detection-analyst",
+      "domain": "finance",
+      "filename": "fraud-detection-analyst.md",
+      "name": "Fraud Detection Analyst",
+      "description": "Financial crime specialist for transaction monitoring and fraud prevention",
+      "color": "red",
+      "path": "/workspace/apps/backend/agent_personalities/finance/fraud-detection-analyst.md"
+    },
+    {
+      "id": "finance/payroll-specialist",
+      "domain": "finance",
+      "filename": "payroll-specialist.md",
+      "name": "Payroll Specialist",
+      "description": "Payroll processing expert for accurate and compliant employee compensation",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/finance/payroll-specialist.md"
+    },
+    {
+      "id": "healthcare/care-coordinator",
+      "domain": "healthcare",
+      "filename": "care-coordinator.md",
+      "name": "Care Coordinator",
+      "description": "Patient care management specialist for coordinated healthcare delivery",
+      "color": "cyan",
+      "path": "/workspace/apps/backend/agent_personalities/healthcare/care-coordinator.md"
+    },
+    {
+      "id": "healthcare/clinical-documentation-assistant",
+      "domain": "healthcare",
+      "filename": "clinical-documentation-assistant.md",
+      "name": "Clinical Documentation Assistant",
+      "description": "Medical coding and documentation improvement specialist",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/healthcare/clinical-documentation-assistant.md"
+    },
+    {
+      "id": "healthcare/medical-scribe",
+      "domain": "healthcare",
+      "filename": "medical-scribe.md",
+      "name": "Medical Scribe",
+      "description": "Clinical documentation specialist for accurate medical record keeping",
+      "color": "teal",
+      "path": "/workspace/apps/backend/agent_personalities/healthcare/medical-scribe.md"
+    },
+    {
+      "id": "healthcare/patient-intake-agent",
+      "domain": "healthcare",
+      "filename": "patient-intake-agent.md",
+      "name": "Patient Intake Agent",
+      "description": "Patient registration and onboarding specialist for healthcare facilities",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/healthcare/patient-intake-agent.md"
+    },
+    {
+      "id": "healthcare/prior-authorization-assistant",
+      "domain": "healthcare",
+      "filename": "prior-authorization-assistant.md",
+      "name": "Prior Authorization Assistant",
+      "description": "Insurance authorization specialist for treatment approvals",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/healthcare/prior-authorization-assistant.md"
+    },
+    {
+      "id": "hr/hr-policy-assistant",
+      "domain": "hr",
+      "filename": "hr-policy-assistant.md",
+      "name": "HR Policy Assistant",
+      "description": "HR policy guidance specialist for employee inquiries",
+      "color": "amber",
+      "path": "/workspace/apps/backend/agent_personalities/hr/hr-policy-assistant.md"
+    },
+    {
+      "id": "hr/interview-scheduler",
+      "domain": "hr",
+      "filename": "interview-scheduler.md",
+      "name": "Interview Scheduler",
+      "description": "Interview coordination specialist for seamless scheduling",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/hr/interview-scheduler.md"
+    },
+    {
+      "id": "hr/learning-coach",
+      "domain": "hr",
+      "filename": "learning-coach.md",
+      "name": "Learning Coach",
+      "description": "Employee development specialist for training and upskilling",
+      "color": "teal",
+      "path": "/workspace/apps/backend/agent_personalities/hr/learning-coach.md"
+    },
+    {
+      "id": "hr/onboarding-coordinator",
+      "domain": "hr",
+      "filename": "onboarding-coordinator.md",
+      "name": "Onboarding Coordinator",
+      "description": "New employee onboarding specialist for successful integration",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/hr/onboarding-coordinator.md"
+    },
+    {
+      "id": "hr/resume-screener",
+      "domain": "hr",
+      "filename": "resume-screener.md",
+      "name": "Resume Screener",
+      "description": "Candidate evaluation specialist for efficient resume review",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/hr/resume-screener.md"
+    },
+    {
+      "id": "legal/contract-reviewer",
+      "domain": "legal",
+      "filename": "contract-reviewer.md",
+      "name": "Contract Reviewer",
+      "description": "Legal contract analysis specialist for risk identification and compliance",
+      "color": "slate",
+      "path": "/workspace/apps/backend/agent_personalities/legal/contract-reviewer.md"
+    },
+    {
+      "id": "legal/e-discovery-assistant",
+      "domain": "legal",
+      "filename": "e-discovery-assistant.md",
+      "name": "E-Discovery Assistant",
+      "description": "Electronic discovery specialist for litigation document management",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/legal/e-discovery-assistant.md"
+    },
+    {
+      "id": "legal/kyc-aml-analyst",
+      "domain": "legal",
+      "filename": "kyc-aml-analyst.md",
+      "name": "KYC/AML Analyst",
+      "description": "Know Your Customer and Anti-Money Laundering compliance specialist",
+      "color": "red",
+      "path": "/workspace/apps/backend/agent_personalities/legal/kyc-aml-analyst.md"
+    },
+    {
+      "id": "legal/policy-compliance-checker",
+      "domain": "legal",
+      "filename": "policy-compliance-checker.md",
+      "name": "Policy Compliance Checker",
+      "description": "Regulatory compliance specialist for policy adherence verification",
+      "color": "amber",
+      "path": "/workspace/apps/backend/agent_personalities/legal/policy-compliance-checker.md"
+    },
+    {
+      "id": "legal/regulatory-research-assistant",
+      "domain": "legal",
+      "filename": "regulatory-research-assistant.md",
+      "name": "Regulatory Research Assistant",
+      "description": "Legal research specialist for regulatory analysis and interpretation",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/legal/regulatory-research-assistant.md"
+    },
+    {
+      "id": "marketing/campaign-optimizer",
+      "domain": "marketing",
+      "filename": "campaign-optimizer.md",
+      "name": "Campaign Optimizer",
+      "description": "Marketing campaign performance specialist for ROI improvement",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/marketing/campaign-optimizer.md"
+    },
+    {
+      "id": "marketing/copywriter",
+      "domain": "marketing",
+      "filename": "copywriter.md",
+      "name": "Copywriter",
+      "description": "Marketing content specialist for compelling brand messaging",
+      "color": "pink",
+      "path": "/workspace/apps/backend/agent_personalities/marketing/copywriter.md"
+    },
+    {
+      "id": "marketing/market-research-assistant",
+      "domain": "marketing",
+      "filename": "market-research-assistant.md",
+      "name": "Market Research Assistant",
+      "description": "Market intelligence specialist for competitive and consumer insights",
+      "color": "cyan",
+      "path": "/workspace/apps/backend/agent_personalities/marketing/market-research-assistant.md"
+    },
+    {
+      "id": "marketing/seo-analyst",
+      "domain": "marketing",
+      "filename": "seo-analyst.md",
+      "name": "SEO Analyst",
+      "description": "Search engine optimization specialist for organic visibility",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/marketing/seo-analyst.md"
+    },
+    {
+      "id": "marketing/social-media-manager",
+      "domain": "marketing",
+      "filename": "social-media-manager.md",
+      "name": "Social Media Manager",
+      "description": "Social media strategy and engagement specialist",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/marketing/social-media-manager.md"
+    },
+    {
+      "id": "media-creative/content-editor",
+      "domain": "media-creative",
+      "filename": "content-editor.md",
+      "name": "Content Editor",
+      "description": "Content quality specialist for editorial excellence",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/media-creative/content-editor.md"
+    },
+    {
+      "id": "media-creative/graphic-design-assistant",
+      "domain": "media-creative",
+      "filename": "graphic-design-assistant.md",
+      "name": "Graphic Design Assistant",
+      "description": "Visual design specialist for brand and marketing assets",
+      "color": "pink",
+      "path": "/workspace/apps/backend/agent_personalities/media-creative/graphic-design-assistant.md"
+    },
+    {
+      "id": "media-creative/localization-specialist",
+      "domain": "media-creative",
+      "filename": "localization-specialist.md",
+      "name": "Localization Specialist",
+      "description": "Content adaptation specialist for global audiences",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/media-creative/localization-specialist.md"
+    },
+    {
+      "id": "media-creative/transcription-producer",
+      "domain": "media-creative",
+      "filename": "transcription-producer.md",
+      "name": "Transcription Producer",
+      "description": "Audio/video transcription specialist for accurate documentation",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/media-creative/transcription-producer.md"
+    },
+    {
+      "id": "media-creative/video-editor-assistant",
+      "domain": "media-creative",
+      "filename": "video-editor-assistant.md",
+      "name": "Video Editor Assistant",
+      "description": "Video post-production specialist for content creation",
+      "color": "red",
+      "path": "/workspace/apps/backend/agent_personalities/media-creative/video-editor-assistant.md"
+    },
+    {
+      "id": "operations/demand-forecaster",
+      "domain": "operations",
+      "filename": "demand-forecaster.md",
+      "name": "Demand Forecaster",
+      "description": "Demand planning specialist for accurate forecasting",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/operations/demand-forecaster.md"
+    },
+    {
+      "id": "operations/inventory-planner",
+      "domain": "operations",
+      "filename": "inventory-planner.md",
+      "name": "Inventory Planner",
+      "description": "Inventory optimization specialist for stock management",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/operations/inventory-planner.md"
+    },
+    {
+      "id": "operations/logistics-dispatcher",
+      "domain": "operations",
+      "filename": "logistics-dispatcher.md",
+      "name": "Logistics Dispatcher",
+      "description": "Transportation coordination specialist for efficient delivery",
+      "color": "orange",
+      "path": "/workspace/apps/backend/agent_personalities/operations/logistics-dispatcher.md"
+    },
+    {
+      "id": "operations/procurement-analyst",
+      "domain": "operations",
+      "filename": "procurement-analyst.md",
+      "name": "Procurement Analyst",
+      "description": "Strategic sourcing specialist for supplier management",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/operations/procurement-analyst.md"
+    },
+    {
+      "id": "operations/workflow-coordinator",
+      "domain": "operations",
+      "filename": "workflow-coordinator.md",
+      "name": "Workflow Coordinator",
+      "description": "Process orchestration specialist for operational efficiency",
+      "color": "cyan",
+      "path": "/workspace/apps/backend/agent_personalities/operations/workflow-coordinator.md"
+    },
+    {
+      "id": "sales/account-research-analyst",
+      "domain": "sales",
+      "filename": "account-research-analyst.md",
+      "name": "Account Research Analyst",
+      "description": "Account intelligence specialist for strategic sales preparation",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/sales/account-research-analyst.md"
+    },
+    {
+      "id": "sales/crm-follow-up-agent",
+      "domain": "sales",
+      "filename": "crm-follow-up-agent.md",
+      "name": "CRM Follow-Up Agent",
+      "description": "Sales follow-up automation specialist for pipeline nurturing",
+      "color": "teal",
+      "path": "/workspace/apps/backend/agent_personalities/sales/crm-follow-up-agent.md"
+    },
+    {
+      "id": "sales/lead-qualifier",
+      "domain": "sales",
+      "filename": "lead-qualifier.md",
+      "name": "Lead Qualifier",
+      "description": "Sales lead assessment specialist for pipeline qualification",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/sales/lead-qualifier.md"
+    },
+    {
+      "id": "sales/proposal-writer",
+      "domain": "sales",
+      "filename": "proposal-writer.md",
+      "name": "Proposal Writer",
+      "description": "Sales proposal specialist for RFP responses and business proposals",
+      "color": "orange",
+      "path": "/workspace/apps/backend/agent_personalities/sales/proposal-writer.md"
+    },
+    {
+      "id": "sales/sdr-outreach-assistant",
+      "domain": "sales",
+      "filename": "sdr-outreach-assistant.md",
+      "name": "SDR Outreach Assistant",
+      "description": "Sales development specialist for prospecting and outreach campaigns",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/sales/sdr-outreach-assistant.md"
+    },
+    {
+      "id": "software-it/code-review-assistant",
+      "domain": "software-it",
+      "filename": "code-review-assistant.md",
+      "name": "Code Review Assistant",
+      "description": "Expert code reviewer focusing on quality, security, and best practices",
+      "color": "purple",
+      "path": "/workspace/apps/backend/agent_personalities/software-it/code-review-assistant.md"
+    },
+    {
+      "id": "software-it/devops-runbook-agent",
+      "domain": "software-it",
+      "filename": "devops-runbook-agent.md",
+      "name": "DevOps Runbook Agent",
+      "description": "Infrastructure automation specialist for deployment and incident response",
+      "color": "orange",
+      "path": "/workspace/apps/backend/agent_personalities/software-it/devops-runbook-agent.md"
+    },
+    {
+      "id": "software-it/qa-tester",
+      "domain": "software-it",
+      "filename": "qa-tester.md",
+      "name": "QA Tester",
+      "description": "Automated testing specialist for comprehensive test coverage and bug detection",
+      "color": "blue",
+      "path": "/workspace/apps/backend/agent_personalities/software-it/qa-tester.md"
+    },
+    {
+      "id": "software-it/security-monitoring-analyst",
+      "domain": "software-it",
+      "filename": "security-monitoring-analyst.md",
+      "name": "Security Monitoring Analyst",
+      "description": "Cybersecurity specialist for threat detection and security incident response",
+      "color": "red",
+      "path": "/workspace/apps/backend/agent_personalities/software-it/security-monitoring-analyst.md"
+    },
+    {
+      "id": "software-it/support-triage-agent",
+      "domain": "software-it",
+      "filename": "support-triage-agent.md",
+      "name": "Support Triage Agent",
+      "description": "First-response specialist for technical support ticket classification and routing",
+      "color": "green",
+      "path": "/workspace/apps/backend/agent_personalities/software-it/support-triage-agent.md"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "version": "1",
+  "updated_at": "2026-06-02",
+  "models": {
+    "deepseek-chat": {"input": 0.14, "output": 0.28, "provider": "deepseek"},
+    "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
+    "claude-3-5-sonnet": {"input": 3.00, "output": 15.00, "provider": "anthropic"},
+    "claude-3-haiku": {"input": 0.25, "output": 1.25, "provider": "anthropic"},
+    "claude-3-opus": {"input": 15.00, "output": 75.00, "provider": "anthropic"},
+    "gpt-4o": {"input": 5.00, "output": 15.00, "provider": "openai"},
+    "gpt-4-turbo": {"input": 10.00, "output": 30.00, "provider": "openai"},
+    "openrouter-gemma-2-9b-free": {"input": 0.0, "output": 0.0, "provider": "openrouter"},
+    "openrouter-gemini-2.0-flash": {"input": 0.15, "output": 0.60, "provider": "openrouter"},
+    "openrouter-deepseek-coder": {"input": 0.14, "output": 0.28, "provider": "openrouter"},
+    "vllm-qwen3-14b-chat": {"input": 0.0, "output": 0.0, "provider": "local"},
+    "llamacpp-qwen3.6-27b": {"input": 0.0, "output": 0.0, "provider": "local"}
+  }
+}

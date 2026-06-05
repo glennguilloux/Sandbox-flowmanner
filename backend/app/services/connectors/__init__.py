@@ -1,0 +1,98 @@
+"""
+External API Connectors Module
+
+Provides a unified framework for integrating with external services:
+- Slack
+- Discord
+- Email (SMTP/IMAP)
+- HTTP Webhooks
+
+Usage:
+    from app.services.connectors import ConnectorManager, SlackConnector, DiscordConnector
+    
+    manager = ConnectorManager()
+    await manager.register_connector("slack_main", slack_config)
+    response = await manager.execute("slack_main", "send_message", {...})
+"""
+
+from typing import Optional
+
+from .base import (
+    AuthenticationError,
+    AuthType,
+    BaseConnector,
+    ConnectorConfig,
+    ConnectorError,
+    ConnectorResponse,
+    ConnectorStatus,
+    RateLimitConfig,
+    RateLimitExceeded,
+)
+from .discord_connector import DiscordConnector
+from .email_connector import EmailConnector
+from .github_connector import GitHubConnector
+from .google_connector import GoogleConnector
+from .linear_connector import LinearConnector
+from .manager import ConnectorManager
+from .notion_connector import NotionConnector
+from .slack_connector import SlackConnector
+from .webhook_connector import WebhookConnector
+
+__all__ = [
+    "AuthType",
+    "AuthenticationError",
+    # Base classes
+    "BaseConnector",
+    "ConnectorConfig",
+    "ConnectorError",
+    # Manager
+    "ConnectorManager",
+    "ConnectorResponse",
+    "ConnectorStatus",
+    "DiscordConnector",
+    "EmailConnector",
+    "GitHubConnector",
+    "GoogleConnector",
+    "LinearConnector",
+    "NotionConnector",
+    "RateLimitConfig",
+    "RateLimitExceeded",
+    # Connectors
+    "SlackConnector",
+    "WebhookConnector",
+    "get_connector_manager",
+]
+
+# Connector type registry
+CONNECTOR_TYPES = {
+    "slack": SlackConnector,
+    "discord": DiscordConnector,
+    "email": EmailConnector,
+    "webhook": WebhookConnector,
+    "github": GitHubConnector,
+    "google": GoogleConnector,
+    "notion": NotionConnector,
+    "linear": LinearConnector,
+}
+
+
+def get_connector_class(connector_type: str):
+    """Get connector class by type name"""
+    return CONNECTOR_TYPES.get(connector_type)
+
+
+def list_available_connectors():
+    """List all available connector types"""
+    return list(CONNECTOR_TYPES.keys())
+
+
+# Singleton manager instance
+_connector_manager: ConnectorManager | None = None
+
+
+def get_connector_manager() -> ConnectorManager:
+    """Get or create the singleton ConnectorManager instance"""
+    global _connector_manager
+    if _connector_manager is None:
+        _connector_manager = ConnectorManager()
+    return _connector_manager
