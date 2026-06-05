@@ -80,7 +80,9 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index("ix_mission_versions_mission_id", "mission_versions", ["mission_id"])
+    op.create_index(
+        "ix_mission_versions_mission_id", "mission_versions", ["mission_id"]
+    )
 
 
 def downgrade() -> None:

@@ -30,7 +30,7 @@ def test_usage_service_get_summary():
     service.record_usage("user-1", "gpt-4", "openai", 100, 50)
     service.record_usage("user-1", "gpt-4", "openai", 200, 100)
     summary = service.get_summary("user-1", period="day")
-    assert summary.total_tokens == (100+50) + (200+100)
+    assert summary.total_tokens == (100 + 50) + (200 + 100)
     assert summary.total_cost > 0
     assert len(summary.breakdown) == 1
 
@@ -61,7 +61,9 @@ async def test_sse_stream_basic():
 
     async def fake_generator():
         yield json.dumps({"type": "token", "content": "Hello"})
-        yield json.dumps({"type": "complete", "usage": {"prompt_tokens": 10, "completion_tokens": 5}})
+        yield json.dumps(
+            {"type": "complete", "usage": {"prompt_tokens": 10, "completion_tokens": 5}}
+        )
 
     events = []
     async for event in _sse_stream(fake_generator()):

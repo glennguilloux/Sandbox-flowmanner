@@ -104,7 +104,9 @@ class CapabilityRegistry:
 
         cap = self._capabilities.pop(capability_id)
         if cap.category in self._categories:
-            self._categories[cap.category] = [c for c in self._categories[cap.category] if c != capability_id]
+            self._categories[cap.category] = [
+                c for c in self._categories[cap.category] if c != capability_id
+            ]
 
         # Remove any aliases pointing to this capability
         self._aliases = {k: v for k, v in self._aliases.items() if v != capability_id}
@@ -164,7 +166,9 @@ class CapabilityRegistry:
             return {"input": cap.input_schema, "output": cap.output_schema}
         return None
 
-    def validate_input(self, capability_id: str, params: dict[str, Any]) -> tuple[bool, str | None]:
+    def validate_input(
+        self, capability_id: str, params: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """
         Validate input parameters against the capability's schema.
 
@@ -198,8 +202,15 @@ class CapabilityRegistry:
         }
         for field_name, value in params.items():
             expected_type = properties.get(field_name, {}).get("type")
-            if expected_type and expected_type in type_map and not isinstance(value, type_map[expected_type]):
-                return False, f"Field {field_name} expected {expected_type}, got {type(value).__name__}"
+            if (
+                expected_type
+                and expected_type in type_map
+                and not isinstance(value, type_map[expected_type])
+            ):
+                return (
+                    False,
+                    f"Field {field_name} expected {expected_type}, got {type(value).__name__}",
+                )
 
         return True, None
 
@@ -260,7 +271,9 @@ class CapabilityRegistry:
                                     "description": _row.description,
                                 }
                             }
+
                         return _handler
+
                     handler = await _make_handler()
 
                 capability = Capability(
@@ -280,22 +293,37 @@ class CapabilityRegistry:
             except Exception as exc:
                 logger.warning("Failed to hydrate capability %s: %s", row.slug, exc)
 
-        logger.info("CapabilityRegistry.hydrate_from_db: %d capabilities hydrated", hydrated)
+        logger.info(
+            "CapabilityRegistry.hydrate_from_db: %d capabilities hydrated", hydrated
+        )
         return hydrated
 
     @staticmethod
     def _resolve_handler(handler_ref: str):
         """Resolve a dotted Python path — delegates to shared utility."""
         from app.tools.base import resolve_handler_ref
+
         return resolve_handler_ref(handler_ref)
 
 
 # Helper function to create capabilities easily
 def create_capability(
-    id: str, name: str, description: str, category: str, handler: Callable[[dict[str, Any]], Awaitable[Any]], **kwargs
+    id: str,
+    name: str,
+    description: str,
+    category: str,
+    handler: Callable[[dict[str, Any]], Awaitable[Any]],
+    **kwargs,
 ) -> Capability:
     """Helper to create a Capability with less boilerplate"""
-    return Capability(id=id, name=name, description=description, category=category, handler=handler, **kwargs)
+    return Capability(
+        id=id,
+        name=name,
+        description=description,
+        category=category,
+        handler=handler,
+        **kwargs,
+    )
 
 
 # Singleton instance

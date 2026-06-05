@@ -53,7 +53,7 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 pytestmark = [
     pytest.mark.skipif(
         not _DB_AVAILABLE,
-        reason=f"Database not available: {_DB_IMPORT_ERROR if not _DB_AVAILABLE else ''}"
+        reason=f"Database not available: {_DB_IMPORT_ERROR if not _DB_AVAILABLE else ''}",
     ),
     pytest.mark.integration,
 ]
@@ -62,6 +62,7 @@ pytestmark = [
 # ═══════════════════════════════════════════════════════════════════
 # Test: Agent versioning (real DB)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestAgentVersioningIntegration:
 
@@ -88,7 +89,9 @@ class TestAgentVersioningIntegration:
 
                 # Version it
                 new_ver = await create_version_snapshot(
-                    db, "agent", agent,
+                    db,
+                    "agent",
+                    agent,
                     change_summary="initial creation",
                 )
                 await db.commit()
@@ -98,7 +101,9 @@ class TestAgentVersioningIntegration:
 
                 # Verify version row exists
                 result = await db.execute(
-                    text("SELECT version, change_summary FROM agent_versions WHERE agent_id = :aid"),
+                    text(
+                        "SELECT version, change_summary FROM agent_versions WHERE agent_id = :aid"
+                    ),
                     {"aid": agent_id},
                 )
                 row = result.first()
@@ -108,7 +113,9 @@ class TestAgentVersioningIntegration:
 
                 # Verify snapshot JSONB
                 result = await db.execute(
-                    text("SELECT snapshot FROM agent_versions WHERE agent_id = :aid AND version = 2"),
+                    text(
+                        "SELECT snapshot FROM agent_versions WHERE agent_id = :aid AND version = 2"
+                    ),
                     {"aid": agent_id},
                 )
                 snap_row = result.first()
@@ -118,8 +125,13 @@ class TestAgentVersioningIntegration:
                 assert snap["snapshot_version"] == 2
 
             finally:
-                await db.execute(text("DELETE FROM agent_versions WHERE agent_id = :aid"), {"aid": agent_id})
-                await db.execute(text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id})
+                await db.execute(
+                    text("DELETE FROM agent_versions WHERE agent_id = :aid"),
+                    {"aid": agent_id},
+                )
+                await db.execute(
+                    text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id}
+                )
                 await db.commit()
 
     @pytest.mark.asyncio
@@ -140,24 +152,32 @@ class TestAgentVersioningIntegration:
                 await db.flush()
 
                 # Version 2
-                v2 = await create_version_snapshot(db, "agent", agent, change_summary="v2")
+                v2 = await create_version_snapshot(
+                    db, "agent", agent, change_summary="v2"
+                )
                 assert v2 == 2
 
                 # Version 3
                 agent.name = "Updated Agent"
-                v3 = await create_version_snapshot(db, "agent", agent, change_summary="v3 renamed")
+                v3 = await create_version_snapshot(
+                    db, "agent", agent, change_summary="v3 renamed"
+                )
                 assert v3 == 3
 
                 # Version 4
                 agent.description = "Now with description"
-                v4 = await create_version_snapshot(db, "agent", agent, change_summary="v4 described")
+                v4 = await create_version_snapshot(
+                    db, "agent", agent, change_summary="v4 described"
+                )
                 assert v4 == 4
 
                 await db.commit()
 
                 # Query history via service
                 history = await get_version_history(db, "agent", agent_id)
-                assert len(history) == 3  # versions 2, 3, 4 (version 1 is the entity itself)
+                assert (
+                    len(history) == 3
+                )  # versions 2, 3, 4 (version 1 is the entity itself)
                 # Should be desc order
                 assert history[0]["version"] == 4
                 assert history[1]["version"] == 3
@@ -171,8 +191,13 @@ class TestAgentVersioningIntegration:
                 assert snap["change_summary"] == "v3 renamed"
 
             finally:
-                await db.execute(text("DELETE FROM agent_versions WHERE agent_id = :aid"), {"aid": agent_id})
-                await db.execute(text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id})
+                await db.execute(
+                    text("DELETE FROM agent_versions WHERE agent_id = :aid"),
+                    {"aid": agent_id},
+                )
+                await db.execute(
+                    text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id}
+                )
                 await db.commit()
 
     @pytest.mark.asyncio
@@ -203,7 +228,9 @@ class TestAgentVersioningIntegration:
                 assert result.scalar() == 1
 
                 # Delete the agent (cascade should remove versions)
-                await db.execute(text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id})
+                await db.execute(
+                    text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id}
+                )
                 await db.commit()
 
                 # Verify versions are gone
@@ -215,14 +242,20 @@ class TestAgentVersioningIntegration:
 
             finally:
                 # Cleanup in case cascade didn't work (test would have failed above)
-                await db.execute(text("DELETE FROM agent_versions WHERE agent_id = :aid"), {"aid": agent_id})
-                await db.execute(text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id})
+                await db.execute(
+                    text("DELETE FROM agent_versions WHERE agent_id = :aid"),
+                    {"aid": agent_id},
+                )
+                await db.execute(
+                    text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id}
+                )
                 await db.commit()
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Test: Workspace versioning (real DB)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestWorkspaceVersioningIntegration:
 
@@ -248,7 +281,9 @@ class TestWorkspaceVersioningIntegration:
 
                 # Version it
                 new_ver = await create_version_snapshot(
-                    db, "workspace", ws,
+                    db,
+                    "workspace",
+                    ws,
                     change_summary="initial creation",
                 )
                 await db.commit()
@@ -258,7 +293,9 @@ class TestWorkspaceVersioningIntegration:
 
                 # Verify version row
                 result = await db.execute(
-                    text("SELECT version, snapshot FROM workspace_versions WHERE workspace_id = :wid"),
+                    text(
+                        "SELECT version, snapshot FROM workspace_versions WHERE workspace_id = :wid"
+                    ),
                     {"wid": ws_id},
                 )
                 row = result.first()
@@ -269,8 +306,13 @@ class TestWorkspaceVersioningIntegration:
                 assert row[1]["snapshot_version"] == 2
 
             finally:
-                await db.execute(text("DELETE FROM workspace_versions WHERE workspace_id = :wid"), {"wid": ws_id})
-                await db.execute(text("DELETE FROM workspaces WHERE id = :wid"), {"wid": ws_id})
+                await db.execute(
+                    text("DELETE FROM workspace_versions WHERE workspace_id = :wid"),
+                    {"wid": ws_id},
+                )
+                await db.execute(
+                    text("DELETE FROM workspaces WHERE id = :wid"), {"wid": ws_id}
+                )
                 await db.commit()
 
     @pytest.mark.asyncio
@@ -295,7 +337,9 @@ class TestWorkspaceVersioningIntegration:
 
                 await create_version_snapshot(db, "workspace", ws, change_summary="v2")
                 ws.plan = "pro"
-                await create_version_snapshot(db, "workspace", ws, change_summary="upgraded to pro")
+                await create_version_snapshot(
+                    db, "workspace", ws, change_summary="upgraded to pro"
+                )
                 await db.commit()
 
                 # History
@@ -315,14 +359,20 @@ class TestWorkspaceVersioningIntegration:
                 assert missing is None
 
             finally:
-                await db.execute(text("DELETE FROM workspace_versions WHERE workspace_id = :wid"), {"wid": ws_id})
-                await db.execute(text("DELETE FROM workspaces WHERE id = :wid"), {"wid": ws_id})
+                await db.execute(
+                    text("DELETE FROM workspace_versions WHERE workspace_id = :wid"),
+                    {"wid": ws_id},
+                )
+                await db.execute(
+                    text("DELETE FROM workspaces WHERE id = :wid"), {"wid": ws_id}
+                )
                 await db.commit()
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Test: Mission versioning (real DB)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestMissionVersioningIntegration:
 
@@ -348,7 +398,9 @@ class TestMissionVersioningIntegration:
 
                 # Version it
                 new_ver = await create_version_snapshot(
-                    db, "mission", mission,
+                    db,
+                    "mission",
+                    mission,
                     change_summary="initial plan",
                 )
                 await db.commit()
@@ -358,7 +410,9 @@ class TestMissionVersioningIntegration:
 
                 # Verify version row uses 'version' column (not 'version_number')
                 result = await db.execute(
-                    text("SELECT version, title, mission_type, priority FROM mission_versions WHERE mission_id = :mid"),
+                    text(
+                        "SELECT version, title, mission_type, priority FROM mission_versions WHERE mission_id = :mid"
+                    ),
                     {"mid": mission_id},
                 )
                 row = result.first()
@@ -369,8 +423,13 @@ class TestMissionVersioningIntegration:
                 assert row[3] == "medium"
 
             finally:
-                await db.execute(text("DELETE FROM mission_versions WHERE mission_id = :mid"), {"mid": mission_id})
-                await db.execute(text("DELETE FROM missions WHERE id = :mid"), {"mid": mission_id})
+                await db.execute(
+                    text("DELETE FROM mission_versions WHERE mission_id = :mid"),
+                    {"mid": mission_id},
+                )
+                await db.execute(
+                    text("DELETE FROM missions WHERE id = :mid"), {"mid": mission_id}
+                )
                 await db.commit()
 
     @pytest.mark.asyncio
@@ -390,37 +449,53 @@ class TestMissionVersioningIntegration:
                 db.add(mission)
                 await db.flush()
 
-                await create_version_snapshot(db, "mission", mission, change_summary="v2")
-                await create_version_snapshot(db, "mission", mission, change_summary="v3")
+                await create_version_snapshot(
+                    db, "mission", mission, change_summary="v2"
+                )
+                await create_version_snapshot(
+                    db, "mission", mission, change_summary="v3"
+                )
                 await db.commit()
 
                 # Verify 2 versions exist
                 result = await db.execute(
-                    text("SELECT count(*) FROM mission_versions WHERE mission_id = :mid"),
+                    text(
+                        "SELECT count(*) FROM mission_versions WHERE mission_id = :mid"
+                    ),
                     {"mid": mission_id},
                 )
                 assert result.scalar() == 2
 
                 # Delete mission (cascade)
-                await db.execute(text("DELETE FROM missions WHERE id = :mid"), {"mid": mission_id})
+                await db.execute(
+                    text("DELETE FROM missions WHERE id = :mid"), {"mid": mission_id}
+                )
                 await db.commit()
 
                 # Verify versions gone
                 result = await db.execute(
-                    text("SELECT count(*) FROM mission_versions WHERE mission_id = :mid"),
+                    text(
+                        "SELECT count(*) FROM mission_versions WHERE mission_id = :mid"
+                    ),
                     {"mid": mission_id},
                 )
                 assert result.scalar() == 0
 
             finally:
-                await db.execute(text("DELETE FROM mission_versions WHERE mission_id = :mid"), {"mid": mission_id})
-                await db.execute(text("DELETE FROM missions WHERE id = :mid"), {"mid": mission_id})
+                await db.execute(
+                    text("DELETE FROM mission_versions WHERE mission_id = :mid"),
+                    {"mid": mission_id},
+                )
+                await db.execute(
+                    text("DELETE FROM missions WHERE id = :mid"), {"mid": mission_id}
+                )
                 await db.commit()
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Test: Unique composite index enforcement
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestUniqueIndexIntegration:
 
@@ -442,7 +517,9 @@ class TestUniqueIndexIntegration:
                 await db.flush()
 
                 # Create version 2
-                await create_version_snapshot(db, "agent", agent, change_summary="first v2")
+                await create_version_snapshot(
+                    db, "agent", agent, change_summary="first v2"
+                )
                 await db.commit()
 
                 # Try to insert a duplicate (agent_id, version=2) directly
@@ -463,8 +540,13 @@ class TestUniqueIndexIntegration:
                 await db.rollback()
 
             finally:
-                await db.execute(text("DELETE FROM agent_versions WHERE agent_id = :aid"), {"aid": agent_id})
-                await db.execute(text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id})
+                await db.execute(
+                    text("DELETE FROM agent_versions WHERE agent_id = :aid"),
+                    {"aid": agent_id},
+                )
+                await db.execute(
+                    text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id}
+                )
                 await db.commit()
 
     @pytest.mark.asyncio
@@ -508,14 +590,20 @@ class TestUniqueIndexIntegration:
                 await db.rollback()
 
             finally:
-                await db.execute(text("DELETE FROM workspace_versions WHERE workspace_id = :wid"), {"wid": ws_id})
-                await db.execute(text("DELETE FROM workspaces WHERE id = :wid"), {"wid": ws_id})
+                await db.execute(
+                    text("DELETE FROM workspace_versions WHERE workspace_id = :wid"),
+                    {"wid": ws_id},
+                )
+                await db.execute(
+                    text("DELETE FROM workspaces WHERE id = :wid"), {"wid": ws_id}
+                )
                 await db.commit()
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Test: Empty history for non-existent entity
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestEmptyHistoryIntegration:
 
@@ -553,7 +641,9 @@ class TestEmptyHistoryIntegration:
                 # Create 5 versions (v2 through v6)
                 for i in range(2, 7):
                     agent.name = f"Version {i}"
-                    await create_version_snapshot(db, "agent", agent, change_summary=f"v{i}")
+                    await create_version_snapshot(
+                        db, "agent", agent, change_summary=f"v{i}"
+                    )
                 await db.commit()
 
                 # Get all
@@ -566,11 +656,18 @@ class TestEmptyHistoryIntegration:
                 assert limited[0]["version"] == 6  # desc order
 
                 # Offset + limit
-                offset = await get_version_history(db, "agent", agent_id, limit=2, offset=2)
+                offset = await get_version_history(
+                    db, "agent", agent_id, limit=2, offset=2
+                )
                 assert len(offset) == 2
                 assert offset[0]["version"] == 4
 
             finally:
-                await db.execute(text("DELETE FROM agent_versions WHERE agent_id = :aid"), {"aid": agent_id})
-                await db.execute(text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id})
+                await db.execute(
+                    text("DELETE FROM agent_versions WHERE agent_id = :aid"),
+                    {"aid": agent_id},
+                )
+                await db.execute(
+                    text("DELETE FROM agents WHERE id = :aid"), {"aid": agent_id}
+                )
                 await db.commit()

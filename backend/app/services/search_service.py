@@ -48,7 +48,9 @@ class SearchService:
             elif entity_type == "agents":
                 results.extend(await self._search_agents(db, tsquery, user_id, limit))
             elif entity_type == "knowledge":
-                results.extend(await self._search_knowledge(db, tsquery, user_id, limit))
+                results.extend(
+                    await self._search_knowledge(db, tsquery, user_id, limit)
+                )
 
         # Sort by relevance score
         results.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -66,32 +68,38 @@ class SearchService:
         """Search missions using full-text search."""
         try:
             # Check if tsvector column exists
-            check = await db.execute(text(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = 'missions' AND column_name = 'search_vector'"
-            ))
+            check = await db.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'missions' AND column_name = 'search_vector'"
+                )
+            )
             has_tsvector = check.scalar() is not None
 
             if has_tsvector:
                 # Use indexed full-text search
-                query = text("""
+                query = text(
+                    """
                     SELECT id, title, description, status, created_at,
                            ts_rank(search_vector, to_tsquery('english', :tsquery)) as score
                     FROM missions
                     WHERE search_vector @@ to_tsquery('english', :tsquery)
                     ORDER BY score DESC
                     LIMIT :limit
-                """)
+                """
+                )
                 result = await db.execute(query, {"tsquery": tsquery, "limit": limit})
             else:
                 # Fallback to LIKE search
-                query = text("""
+                query = text(
+                    """
                     SELECT id, title, description, status, created_at, 0.5 as score
                     FROM missions
                     WHERE title ILIKE :pattern OR description ILIKE :pattern
                     ORDER BY created_at DESC
                     LIMIT :limit
-                """)
+                """
+                )
                 pattern = f"%{tsquery.replace(' & ', '%')}%"
                 result = await db.execute(query, {"pattern": pattern, "limit": limit})
 
@@ -117,13 +125,15 @@ class SearchService:
     ) -> list[dict]:
         """Search agents using full-text search."""
         try:
-            query = text("""
+            query = text(
+                """
                 SELECT id, name, description, category, created_at, 0.5 as score
                 FROM agents
                 WHERE name ILIKE :pattern OR description ILIKE :pattern
                 ORDER BY created_at DESC
                 LIMIT :limit
-            """)
+            """
+            )
             pattern = f"%{tsquery.replace(' & ', '%')}%"
             result = await db.execute(query, {"pattern": pattern, "limit": limit})
 
@@ -149,13 +159,15 @@ class SearchService:
     ) -> list[dict]:
         """Search knowledge/memories using full-text search."""
         try:
-            query = text("""
+            query = text(
+                """
                 SELECT id, content, session_id, created_at, 0.5 as score
                 FROM memories
                 WHERE content ILIKE :pattern
                 ORDER BY created_at DESC
                 LIMIT :limit
-            """)
+            """
+            )
             pattern = f"%{tsquery.replace(' & ', '%')}%"
             result = await db.execute(query, {"pattern": pattern, "limit": limit})
 
@@ -198,9 +210,12 @@ class SearchService:
         try:
             pattern = f"%{query}%"
             # Get recent matching titles
-            missions = await db.execute(text(
-                "SELECT DISTINCT title FROM missions WHERE title ILIKE :p LIMIT :l"
-            ), {"p": pattern, "l": limit})
+            missions = await db.execute(
+                text(
+                    "SELECT DISTINCT title FROM missions WHERE title ILIKE :p LIMIT :l"
+                ),
+                {"p": pattern, "l": limit},
+            )
 
             return [row.title for row in missions.fetchall()]
         except Exception as e:

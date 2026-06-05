@@ -53,6 +53,7 @@ def _get_redis() -> redis.Redis | None:
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class MemorySummarizationInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
@@ -97,6 +98,7 @@ class MemorySummarizationInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class MemorySummarizationTool(BaseTool):
     """Auto-compress long conversations into dense foundational memories.
@@ -299,7 +301,9 @@ class MemorySummarizationTool(BaseTool):
                 pg_stored = True
                 logger.info(
                     "Memory summary persisted in PG: id=%s key=%s action=%s",
-                    entry_id, key, action,
+                    entry_id,
+                    key,
+                    action,
                 )
         except Exception as e:
             logger.error("Failed to persist summary in PG: %s", e)
@@ -342,7 +346,9 @@ class MemorySummarizationTool(BaseTool):
             "compression_ratio": round(len(summary) / max(len(text), 1), 4),
         }
 
-        persist_info = await self._persist_summary(validated, user_id, summary, "summarize", stats)
+        persist_info = await self._persist_summary(
+            validated, user_id, summary, "summarize", stats
+        )
 
         return ToolResult.success_result(
             tool_id=self.tool_id,
@@ -383,7 +389,9 @@ class MemorySummarizationTool(BaseTool):
             "compression_ratio": round(len(compressed) / max(len(text), 1), 4),
         }
 
-        persist_info = await self._persist_summary(validated, user_id, compressed, "compress", stats)
+        persist_info = await self._persist_summary(
+            validated, user_id, compressed, "compress", stats
+        )
 
         return ToolResult.success_result(
             tool_id=self.tool_id,
@@ -412,16 +420,13 @@ class MemorySummarizationTool(BaseTool):
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
         summary_sentences = self._extractive_summary(
-            text, validated.max_sentences,
+            text,
+            validated.max_sentences,
         )
         summary_list = re.split(r"(?<=[.!?])\s+", summary_sentences)
 
         # Format as bullet points, stripping trailing whitespace
-        bullets = [
-            f"• {s.strip().rstrip('.')}"
-            for s in summary_list
-            if s.strip()
-        ]
+        bullets = [f"• {s.strip().rstrip('.')}" for s in summary_list if s.strip()]
 
         bullet_text = "\n".join(bullets)
         stats = {
@@ -431,7 +436,11 @@ class MemorySummarizationTool(BaseTool):
         }
 
         persist_info = await self._persist_summary(
-            validated, user_id, bullet_text, "bullet_points", stats,
+            validated,
+            user_id,
+            bullet_text,
+            "bullet_points",
+            stats,
         )
 
         return ToolResult.success_result(
@@ -468,7 +477,11 @@ class MemorySummarizationTool(BaseTool):
         }
 
         persist_info = await self._persist_summary(
-            validated, user_id, ", ".join(keywords), "keywords", stats,
+            validated,
+            user_id,
+            ", ".join(keywords),
+            "keywords",
+            stats,
         )
 
         return ToolResult.success_result(
@@ -589,7 +602,9 @@ class MemorySummarizationTool(BaseTool):
                     deleted_pg = True
                     logger.info(
                         "Deleted %d memory summary entries: key=%s namespace=%s",
-                        len(rows), key, namespace,
+                        len(rows),
+                        key,
+                        namespace,
                     )
         except Exception as e:
             logger.error("PostgreSQL delete failed: %s", e)
@@ -632,10 +647,23 @@ class MemorySummarizationTool(BaseTool):
         #   - Presence of key phrases
         #   - Position (first sentences are usually more important)
         key_phrases = [
-            "important", "critical", "key", "must", "required",
-            "conclusion", "summary", "therefore", "however",
-            "decision", "action item", "deadline", "goal",
-            "result", "finding", "recommend", "next step",
+            "important",
+            "critical",
+            "key",
+            "must",
+            "required",
+            "conclusion",
+            "summary",
+            "therefore",
+            "however",
+            "decision",
+            "action item",
+            "deadline",
+            "goal",
+            "result",
+            "finding",
+            "recommend",
+            "next step",
         ]
 
         scored = []
@@ -656,9 +684,7 @@ class MemorySummarizationTool(BaseTool):
 
             # Keyword score
             s_lower = s.lower()
-            kw_score = sum(
-                0.3 for kw in key_phrases if kw in s_lower
-            )
+            kw_score = sum(0.3 for kw in key_phrases if kw in s_lower)
 
             # Position score: first sentences weighted higher
             pos_score = 1.0 - (i / len(sentences)) * 0.5
@@ -680,20 +706,109 @@ class MemorySummarizationTool(BaseTool):
 
         # Common stopwords to filter out
         stopwords = {
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "being", "have", "has", "had", "do", "does", "did", "will",
-            "would", "could", "should", "may", "might", "can", "shall",
-            "to", "of", "in", "for", "on", "with", "at", "by", "from",
-            "as", "into", "through", "during", "before", "after", "above",
-            "below", "between", "out", "off", "over", "under", "again",
-            "further", "then", "once", "here", "there", "when", "where",
-            "why", "how", "all", "both", "each", "few", "more", "most",
-            "other", "some", "such", "no", "nor", "not", "only", "own",
-            "same", "so", "than", "too", "very", "just", "because",
-            "about", "up", "down", "this", "that", "these", "those",
-            "it", "its", "and", "but", "or", "if", "while", "also",
-            "we", "you", "he", "she", "they", "me", "him", "her", "us",
-            "their", "our",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "can",
+            "shall",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "out",
+            "off",
+            "over",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "both",
+            "each",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "because",
+            "about",
+            "up",
+            "down",
+            "this",
+            "that",
+            "these",
+            "those",
+            "it",
+            "its",
+            "and",
+            "but",
+            "or",
+            "if",
+            "while",
+            "also",
+            "we",
+            "you",
+            "he",
+            "she",
+            "they",
+            "me",
+            "him",
+            "her",
+            "us",
+            "their",
+            "our",
         }
 
         # Tokenize and clean

@@ -47,6 +47,7 @@ TestSessionLocal = sessionmaker(
 
 # ── Engine lifecycle ───────────────────────────────────────────────────────
 
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def _manage_engine():
     yield
@@ -58,6 +59,7 @@ async def _manage_engine():
 # AsyncSessionLocal, which uses settings.DATABASE_URL. We must override
 # it to use localhost, otherwise the background task tries to connect to
 # the Docker hostname "workflow-postgres" and fails.
+
 
 @pytest.fixture(autouse=True)
 def _patch_database(monkeypatch):
@@ -71,18 +73,22 @@ def _patch_database(monkeypatch):
     """
     monkeypatch.setattr(settings, "DATABASE_URL", _TEST_DATABASE_URL)
     import app.database
+
     monkeypatch.setattr(app.database, "AsyncSessionLocal", TestSessionLocal)
 
 
 # ── Skip if database isn't reachable ───────────────────────────────────────
 
+
 @pytest.fixture(scope="session")
 def _check_database():
     loop = asyncio.new_event_loop()
     try:
+
         async def _ping():
             async with TestSessionLocal() as s:
                 await s.execute(text("SELECT 1"))
+
         loop.run_until_complete(_ping())
     except Exception as e:
         pytest.skip(f"Database not reachable: {e}")
@@ -92,11 +98,13 @@ def _check_database():
 
 # ── Unique test user ID ────────────────────────────────────────────────────
 
+
 def _unique_test_id() -> int:
     return uuid.uuid4().int % 900_000 + 100_000
 
 
 # ── Test user + session fixture ────────────────────────────────────────────
+
 
 @pytest_asyncio.fixture
 async def test_user_and_session():
@@ -122,11 +130,15 @@ async def test_user_and_session():
     # Cleanup
     async with TestSessionLocal() as cleanup_session:
         await cleanup_session.execute(
-            text("DELETE FROM graph_states WHERE execution_id IN (SELECT id FROM graph_executions WHERE workflow_id IN (SELECT id FROM graph_workflows WHERE user_id = :uid))"),
+            text(
+                "DELETE FROM graph_states WHERE execution_id IN (SELECT id FROM graph_executions WHERE workflow_id IN (SELECT id FROM graph_workflows WHERE user_id = :uid))"
+            ),
             {"uid": user_id},
         )
         await cleanup_session.execute(
-            text("DELETE FROM graph_executions WHERE workflow_id IN (SELECT id FROM graph_workflows WHERE user_id = :uid)"),
+            text(
+                "DELETE FROM graph_executions WHERE workflow_id IN (SELECT id FROM graph_workflows WHERE user_id = :uid)"
+            ),
             {"uid": user_id},
         )
         await cleanup_session.execute(
@@ -141,6 +153,7 @@ async def test_user_and_session():
 
 
 # ── TestClient with real DB, mocked auth ──────────────────────────────────
+
 
 @pytest.fixture
 def real_db_client(test_user_and_session):
@@ -167,6 +180,7 @@ def real_db_client(test_user_and_session):
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _linear_workflow_payload(name: str = "Integration Test — Linear") -> dict:
     """Return a graph_definition for: start → task → log → end."""
@@ -225,7 +239,9 @@ def _linear_workflow_payload(name: str = "Integration Test — Linear") -> dict:
     }
 
 
-def _wait_for_execution(client, workflow_id: str, execution_id: str, timeout: float = 30.0) -> dict:
+def _wait_for_execution(
+    client, workflow_id: str, execution_id: str, timeout: float = 30.0
+) -> dict:
     """Poll GET /api/graphs/{wid}/executions/{eid} until terminal status."""
     deadline = time.monotonic() + timeout
     terminal = {"completed", "failed", "paused"}
@@ -245,15 +261,20 @@ def _wait_for_execution(client, workflow_id: str, execution_id: str, timeout: fl
             data = resp.json()
             status = data.get("status", "unknown")
             error = data.get("error_message", "")
-            pytest.fail(f"Execution did not reach terminal state within {timeout}s. "
-                        f"Current status: {status}. Error: {error}")
+            pytest.fail(
+                f"Execution did not reach terminal state within {timeout}s. "
+                f"Current status: {status}. Error: {error}"
+            )
     except Exception:
         pass
-    pytest.fail(f"Execution did not reach terminal state within {timeout}s. "
-                f"Could not determine current status.")
+    pytest.fail(
+        f"Execution did not reach terminal state within {timeout}s. "
+        f"Could not determine current status."
+    )
 
 
 # ── Tests ──────────────────────────────────────────────────────────────────
+
 
 class TestFullGraphExecution:
     """End-to-end: start → task → log → end, all nodes complete."""
@@ -292,11 +313,13 @@ class TestFullGraphExecution:
         output_data = result.get("output_data") or {}
         outputs = output_data.get("outputs", {})
         for nid in ("start-1", "transform-1", "log-1", "end-1"):
-            assert nid in outputs, f"Missing output for node {nid}. Got: {list(outputs.keys())}"
+            assert (
+                nid in outputs
+            ), f"Missing output for node {nid}. Got: {list(outputs.keys())}"
             node_output = outputs[nid]
-            assert node_output.get("success") is not False, (
-                f"Node {nid} failed: {node_output.get('error')}"
-            )
+            assert (
+                node_output.get("success") is not False
+            ), f"Node {nid} failed: {node_output.get('error')}"
 
     def test_execution_detail_has_node_states(self, real_db_client):
         """Verify GET /executions/{eid} returns per-node states."""
@@ -319,7 +342,9 @@ class TestFullGraphExecution:
         assert detail.status_code == 200
         detail_data = detail.json()
         node_states = detail_data.get("node_states", [])
-        assert len(node_states) >= 4, f"Expected >=4 node states, got {len(node_states)}"
+        assert (
+            len(node_states) >= 4
+        ), f"Expected >=4 node states, got {len(node_states)}"
 
         node_ids = {ns.get("node_id") for ns in node_states}
         assert "start-1" in node_ids
@@ -360,9 +385,9 @@ class TestSubGraphExecution:
                 f"Missing output for downstream node {nid}. "
                 f"Got: {list(outputs.keys())}"
             )
-            assert outputs[nid].get("success") is not False, (
-                f"Node {nid} failed: {outputs[nid].get('error')}"
-            )
+            assert (
+                outputs[nid].get("success") is not False
+            ), f"Node {nid} failed: {outputs[nid].get('error')}"
 
         # start-1 should NOT be in outputs
         assert "start-1" not in outputs, (
@@ -447,24 +472,27 @@ class TestEdgeCases:
         result = _wait_for_execution(client, workflow_id, execution_id)
         # The execution completes but the nonexistent node produces an error output
         outputs = (result.get("output_data") or {}).get("outputs", {})
-        assert len(outputs) == 1, (
-            f"Expected 1 output with error for nonexistent start node, got {len(outputs)}"
-        )
+        assert (
+            len(outputs) == 1
+        ), f"Expected 1 output with error for nonexistent start node, got {len(outputs)}"
         node_output = list(outputs.values())[0]
-        assert node_output.get("success") is False, (
-            f"Expected node failure, got: {node_output}"
-        )
-        assert "not found" in node_output.get("error", "").lower(), (
-            f"Expected 'not found' error, got: {node_output.get('error')}"
-        )
+        assert (
+            node_output.get("success") is False
+        ), f"Expected node failure, got: {node_output}"
+        assert (
+            "not found" in node_output.get("error", "").lower()
+        ), f"Expected 'not found' error, got: {node_output.get('error')}"
 
     def test_create_workflow_without_nodes(self, real_db_client):
         """Workflow with empty graph_definition should still be creatable."""
         client = real_db_client
-        resp = client.post("/api/graphs/", json={
-            "name": "Empty Workflow",
-            "graph_definition": {"nodes": [], "edges": []},
-        })
+        resp = client.post(
+            "/api/graphs/",
+            json={
+                "name": "Empty Workflow",
+                "graph_definition": {"nodes": [], "edges": []},
+            },
+        )
         assert resp.status_code == 201
         wf = resp.json()
         assert wf["name"] == "Empty Workflow"

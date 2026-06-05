@@ -27,6 +27,7 @@ class Priority(str, Enum):
 @dataclass
 class SupportTicket:
     """A support ticket"""
+
     ticket_id: str
     subject: str
     description: str
@@ -39,7 +40,7 @@ class SupportTicket:
 
 class SupportAgentTemplate:
     """Support domain agent template"""
-    
+
     PERSONALITY = """You are a Customer Support Specialist with expertise in:
 - Ticket classification and routing
 - Response drafting and personalization
@@ -48,21 +49,21 @@ class SupportAgentTemplate:
 
 Your role is to efficiently handle support requests, provide accurate responses, and know when to escalate.
 Always be helpful, empathetic, and solution-oriented."""
-    
+
     TOOLS = [
         "ticket_classifier",
         "response_drafter",
         "knowledge_base",
         "escalation_manager",
-        "sentiment_analyzer"
+        "sentiment_analyzer",
     ]
-    
+
     MEMORY_CONFIG = {
         "enable_long_term": True,
         "context_window": 4000,
-        "remember_customer_history": True
+        "remember_customer_history": True,
     }
-    
+
     PROMPT_LIBRARY = {
         "classify_ticket": """Classify this support ticket:
 
@@ -74,7 +75,6 @@ Determine:
 2. Priority (low, medium, high, urgent)
 3. Estimated resolution time
 4. Required expertise""",
-        
         "draft_response": """Draft a response to this support ticket:
 
 Ticket: {ticket_info}
@@ -86,7 +86,6 @@ Guidelines:
 - Provide clear, actionable steps
 - Anticipate follow-up questions
 - Include relevant resources""",
-        
         "escalation_check": """Determine if this ticket needs escalation:
 
 {ticket_info}
@@ -98,13 +97,13 @@ Consider:
 4. Customer sentiment
 5. Previous resolution attempts
 
-Respond with ESCALATE or RESOLVE and reasoning."""
+Respond with ESCALATE or RESOLVE and reasoning.""",
     }
-    
+
     def __init__(self):
         self.name = "Support Agent"
         self.domain = "support"
-    
+
     def get_config(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -112,5 +111,5 @@ Respond with ESCALATE or RESOLVE and reasoning."""
             "personality": self.PERSONALITY,
             "tools": self.TOOLS,
             "memory_config": self.MEMORY_CONFIG,
-            "prompt_library": self.PROMPT_LIBRARY
+            "prompt_library": self.PROMPT_LIBRARY,
         }

@@ -1,46 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="PayoutResponse")
-
 
 
 @_attrs_define
 class PayoutResponse:
-    """ 
-        Attributes:
-            success (bool):
-            amount (float):
-            message (str):
-            currency (str | Unset):  Default: 'USD'.
-            payout_id (None | str | Unset):
-     """
+    """
+    Attributes:
+        success (bool):
+        amount (float):
+        message (str):
+        currency (str | Unset):  Default: 'USD'.
+        payout_id (None | str | Unset):
+    """
 
     success: bool
     amount: float
     message: str
-    currency: str | Unset = 'USD'
+    currency: str | Unset = "USD"
     payout_id: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         success = self.success
@@ -57,22 +44,21 @@ class PayoutResponse:
         else:
             payout_id = self.payout_id
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-            "amount": amount,
-            "message": message,
-        })
+        field_dict.update(
+            {
+                "success": success,
+                "amount": amount,
+                "message": message,
+            }
+        )
         if currency is not UNSET:
             field_dict["currency"] = currency
         if payout_id is not UNSET:
             field_dict["payout_id"] = payout_id
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -94,7 +80,6 @@ class PayoutResponse:
 
         payout_id = _parse_payout_id(d.pop("payout_id", UNSET))
 
-
         payout_response = cls(
             success=success,
             amount=amount,
@@ -102,7 +87,6 @@ class PayoutResponse:
             currency=currency,
             payout_id=payout_id,
         )
-
 
         payout_response.additional_properties = d
         return payout_response

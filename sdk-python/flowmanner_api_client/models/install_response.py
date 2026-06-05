@@ -1,42 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="InstallResponse")
-
 
 
 @_attrs_define
 class InstallResponse:
-    """ 
-        Attributes:
-            success (bool):
-            installation_id (str):
-            message (None | str | Unset):
-     """
+    """
+    Attributes:
+        success (bool):
+        installation_id (str):
+        message (None | str | Unset):
+    """
 
     success: bool
     installation_id: str
     message: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         success = self.success
@@ -49,19 +36,18 @@ class InstallResponse:
         else:
             message = self.message
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-            "installation_id": installation_id,
-        })
+        field_dict.update(
+            {
+                "success": success,
+                "installation_id": installation_id,
+            }
+        )
         if message is not UNSET:
             field_dict["message"] = message
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -79,13 +65,11 @@ class InstallResponse:
 
         message = _parse_message(d.pop("message", UNSET))
 
-
         install_response = cls(
             success=success,
             installation_id=installation_id,
             message=message,
         )
-
 
         install_response.additional_properties = d
         return install_response

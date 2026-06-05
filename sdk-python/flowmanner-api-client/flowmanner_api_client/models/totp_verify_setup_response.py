@@ -22,7 +22,9 @@ class TOTPVerifySetupResponse:
     """
 
     backup_codes: list[str]
-    message: str | Unset = "2FA enabled successfully. Save your backup codes — they won't be shown again."
+    message: str | Unset = (
+        "2FA enabled successfully. Save your backup codes — they won't be shown again."
+    )
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

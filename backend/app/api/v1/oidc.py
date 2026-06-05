@@ -80,7 +80,9 @@ async def get_providers(db: AsyncSession = Depends(get_db)):
 async def oidc_login(
     provider: str,
     request: Request,
-    redirect_uri: str | None = Query(None, description="Custom redirect URI after callback"),
+    redirect_uri: str | None = Query(
+        None, description="Custom redirect URI after callback"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -186,7 +188,9 @@ async def oidc_callback(
         return RedirectResponse(url=frontend_url, status_code=302)
     except Exception as e:
         logger.error(f"OIDC callback error: {e}", exc_info=True)
-        frontend_url = _get_frontend_error_url("server_error", "An unexpected error occurred")
+        frontend_url = _get_frontend_error_url(
+            "server_error", "An unexpected error occurred"
+        )
         return RedirectResponse(url=frontend_url, status_code=302)
 
 

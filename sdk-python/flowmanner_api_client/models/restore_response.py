@@ -1,37 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-from uuid import UUID
-
 if TYPE_CHECKING:
-  from ..models.restore_response_snapshot_type_0 import RestoreResponseSnapshotType0
-
-
-
+    from ..models.restore_response_snapshot_type_0 import RestoreResponseSnapshotType0
 
 
 T = TypeVar("T", bound="RestoreResponse")
 
 
-
 @_attrs_define
 class RestoreResponse:
-    """ 
-        Attributes:
-            message (str):
-            version_id (UUID):
-            version_number (int):
-            snapshot (None | RestoreResponseSnapshotType0 | Unset):
-     """
+    """
+    Attributes:
+        message (str):
+        version_id (UUID):
+        version_number (int):
+        snapshot (None | RestoreResponseSnapshotType0 | Unset):
+    """
 
     message: str
     version_id: UUID
@@ -39,12 +32,11 @@ class RestoreResponse:
     snapshot: None | RestoreResponseSnapshotType0 | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.restore_response_snapshot_type_0 import RestoreResponseSnapshotType0
+        from ..models.restore_response_snapshot_type_0 import (
+            RestoreResponseSnapshotType0,
+        )
+
         message = self.message
 
         version_id = str(self.version_id)
@@ -59,35 +51,36 @@ class RestoreResponse:
         else:
             snapshot = self.snapshot
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "message": message,
-            "version_id": version_id,
-            "version_number": version_number,
-        })
+        field_dict.update(
+            {
+                "message": message,
+                "version_id": version_id,
+                "version_number": version_number,
+            }
+        )
         if snapshot is not UNSET:
             field_dict["snapshot"] = snapshot
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.restore_response_snapshot_type_0 import RestoreResponseSnapshotType0
+        from ..models.restore_response_snapshot_type_0 import (
+            RestoreResponseSnapshotType0,
+        )
+
         d = dict(src_dict)
         message = d.pop("message")
 
         version_id = UUID(d.pop("version_id"))
 
-
-
-
         version_number = d.pop("version_number")
 
-        def _parse_snapshot(data: object) -> None | RestoreResponseSnapshotType0 | Unset:
+        def _parse_snapshot(
+            data: object,
+        ) -> None | RestoreResponseSnapshotType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -97,8 +90,6 @@ class RestoreResponse:
                     raise TypeError()
                 snapshot_type_0 = RestoreResponseSnapshotType0.from_dict(data)
 
-
-
                 return snapshot_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -106,14 +97,12 @@ class RestoreResponse:
 
         snapshot = _parse_snapshot(d.pop("snapshot", UNSET))
 
-
         restore_response = cls(
             message=message,
             version_id=version_id,
             version_number=version_number,
             snapshot=snapshot,
         )
-
 
         restore_response.additional_properties = d
         return restore_response

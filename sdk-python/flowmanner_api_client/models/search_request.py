@@ -1,37 +1,28 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="SearchRequest")
-
 
 
 @_attrs_define
 class SearchRequest:
-    """ Search request model
+    """Search request model
 
-        Attributes:
-            query (str):
-            max_results (int | Unset):  Default: 10.
-            providers (list[str] | None | Unset):
-            use_query_understanding (bool | Unset):  Default: True.
-            use_reranking (bool | Unset):  Default: True.
-            use_cache (bool | Unset):  Default: True.
-     """
+    Attributes:
+        query (str):
+        max_results (int | Unset):  Default: 10.
+        providers (list[str] | None | Unset):
+        use_query_understanding (bool | Unset):  Default: True.
+        use_reranking (bool | Unset):  Default: True.
+        use_cache (bool | Unset):  Default: True.
+    """
 
     query: str
     max_results: int | Unset = 10
@@ -40,10 +31,6 @@ class SearchRequest:
     use_reranking: bool | Unset = True
     use_cache: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         query = self.query
@@ -56,7 +43,6 @@ class SearchRequest:
         elif isinstance(self.providers, list):
             providers = self.providers
 
-
         else:
             providers = self.providers
 
@@ -66,12 +52,13 @@ class SearchRequest:
 
         use_cache = self.use_cache
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "query": query,
-        })
+        field_dict.update(
+            {
+                "query": query,
+            }
+        )
         if max_results is not UNSET:
             field_dict["max_results"] = max_results
         if providers is not UNSET:
@@ -84,8 +71,6 @@ class SearchRequest:
             field_dict["use_cache"] = use_cache
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -111,7 +96,6 @@ class SearchRequest:
 
         providers = _parse_providers(d.pop("providers", UNSET))
 
-
         use_query_understanding = d.pop("use_query_understanding", UNSET)
 
         use_reranking = d.pop("use_reranking", UNSET)
@@ -126,7 +110,6 @@ class SearchRequest:
             use_reranking=use_reranking,
             use_cache=use_cache,
         )
-
 
         search_request.additional_properties = d
         return search_request

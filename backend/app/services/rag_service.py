@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class RAGService:
     """Retrieve relevant document context from Qdrant vector store."""
 
-    def __init__(self, qdrant_url: str | None = None, collection_name: str | None = None):
+    def __init__(
+        self, qdrant_url: str | None = None, collection_name: str | None = None
+    ):
         self._qdrant_url = qdrant_url or settings.QDRANT_URL
         self._collection_name = collection_name or settings.QDRANT_COLLECTION_NAME
         self._client: QdrantClient | None = None
@@ -30,7 +32,9 @@ class RAGService:
                 self._client = QdrantClient(url=self._qdrant_url)
                 logger.info(f"Connected to Qdrant at {self._qdrant_url}")
             except Exception as e:
-                logger.warning(f"Failed to connect to Qdrant at {self._qdrant_url}: {e}")
+                logger.warning(
+                    f"Failed to connect to Qdrant at {self._qdrant_url}: {e}"
+                )
                 raise
         return self._client
 
@@ -39,7 +43,9 @@ class RAGService:
             collections = self.client.get_collections().collections
             return any(c.name == self._collection_name for c in collections)
         except Exception as e:
-            logger.warning(f"Could not verify collection '{self._collection_name}': {e}")
+            logger.warning(
+                f"Could not verify collection '{self._collection_name}': {e}"
+            )
             return False
 
     def query_documents(
@@ -51,11 +57,17 @@ class RAGService:
         if not query or not query.strip():
             return []
 
-        threshold = score_threshold if score_threshold is not None else settings.RAG_SIMILARITY_THRESHOLD
+        threshold = (
+            score_threshold
+            if score_threshold is not None
+            else settings.RAG_SIMILARITY_THRESHOLD
+        )
 
         try:
             if not self._check_collection():
-                logger.warning(f"Collection '{self._collection_name}' does not exist at {self._qdrant_url}")
+                logger.warning(
+                    f"Collection '{self._collection_name}' does not exist at {self._qdrant_url}"
+                )
                 return []
 
             search_result = self.client.search(
@@ -68,13 +80,19 @@ class RAGService:
             results = []
             for point in search_result:
                 payload = point.payload or {}
-                results.append({
-                    "id": point.id,
-                    "text": payload.get("text", payload.get("content", "")),
-                    "score": point.score,
-                    "source": payload.get("source", payload.get("url", "")),
-                    "metadata": {k: v for k, v in payload.items() if k not in ("text", "content", "source", "url")},
-                })
+                results.append(
+                    {
+                        "id": point.id,
+                        "text": payload.get("text", payload.get("content", "")),
+                        "score": point.score,
+                        "source": payload.get("source", payload.get("url", "")),
+                        "metadata": {
+                            k: v
+                            for k, v in payload.items()
+                            if k not in ("text", "content", "source", "url")
+                        },
+                    }
+                )
 
             logger.debug(f"RAG query '{query[:50]}...' returned {len(results)} results")
             return results

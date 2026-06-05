@@ -9,7 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.track_event_request_properties_type_0 import TrackEventRequestPropertiesType0
+    from ..models.track_event_request_properties_type_0 import (
+        TrackEventRequestPropertiesType0,
+    )
 
 
 T = TypeVar("T", bound="TrackEventRequest")
@@ -32,7 +34,9 @@ class TrackEventRequest:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.track_event_request_properties_type_0 import TrackEventRequestPropertiesType0
+        from ..models.track_event_request_properties_type_0 import (
+            TrackEventRequestPropertiesType0,
+        )
 
         user_id = self.user_id
 
@@ -69,14 +73,18 @@ class TrackEventRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.track_event_request_properties_type_0 import TrackEventRequestPropertiesType0
+        from ..models.track_event_request_properties_type_0 import (
+            TrackEventRequestPropertiesType0,
+        )
 
         d = dict(src_dict)
         user_id = d.pop("user_id")
 
         event_type = d.pop("event_type")
 
-        def _parse_properties(data: object) -> None | TrackEventRequestPropertiesType0 | Unset:
+        def _parse_properties(
+            data: object,
+        ) -> None | TrackEventRequestPropertiesType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

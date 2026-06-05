@@ -1,44 +1,31 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="ChatMessageCreate")
-
 
 
 @_attrs_define
 class ChatMessageCreate:
-    """ 
-        Attributes:
-            content (str):
-            role (str | Unset):  Default: 'user'.
-            model (None | str | Unset):
-            model_id (None | str | Unset):
-     """
+    """
+    Attributes:
+        content (str):
+        role (str | Unset):  Default: 'user'.
+        model (None | str | Unset):
+        model_id (None | str | Unset):
+    """
 
     content: str
-    role: str | Unset = 'user'
+    role: str | Unset = "user"
     model: None | str | Unset = UNSET
     model_id: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         content = self.content
@@ -57,12 +44,13 @@ class ChatMessageCreate:
         else:
             model_id = self.model_id
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "content": content,
-        })
+        field_dict.update(
+            {
+                "content": content,
+            }
+        )
         if role is not UNSET:
             field_dict["role"] = role
         if model is not UNSET:
@@ -71,8 +59,6 @@ class ChatMessageCreate:
             field_dict["model_id"] = model_id
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -90,7 +76,6 @@ class ChatMessageCreate:
 
         model = _parse_model(d.pop("model", UNSET))
 
-
         def _parse_model_id(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -100,14 +85,12 @@ class ChatMessageCreate:
 
         model_id = _parse_model_id(d.pop("model_id", UNSET))
 
-
         chat_message_create = cls(
             content=content,
             role=role,
             model=model,
             model_id=model_id,
         )
-
 
         chat_message_create.additional_properties = d
         return chat_message_create

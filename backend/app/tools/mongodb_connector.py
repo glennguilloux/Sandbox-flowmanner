@@ -22,7 +22,7 @@ class MongoDbConnectorInput(ToolInput):
     action: str = Field(
         ...,
         description="Action: 'find', 'find_one', 'insert_one', 'insert_many', 'update_one', "
-                    "'update_many', 'delete_one', 'delete_many', 'aggregate', 'count'",
+        "'update_many', 'delete_one', 'delete_many', 'aggregate', 'count'",
     )
     collection: str = Field(..., description="MongoDB collection name")
     database: str = Field("default", description="MongoDB database name")
@@ -95,6 +95,7 @@ class MongoDbConnectorTool(BaseTool):
             # Try importing motor (async) first, fall back to pymongo (sync)
             try:
                 import motor.motor_asyncio
+
                 client = motor.motor_asyncio.AsyncIOMotorClient(conn_str)
                 db = client[validated.database]
                 collection = db[validated.collection]
@@ -124,7 +125,11 @@ class MongoDbConnectorTool(BaseTool):
 
         try:
             if action == "find":
-                cursor = collection.find(filter_q or {}).skip(validated.skip).limit(validated.limit)
+                cursor = (
+                    collection.find(filter_q or {})
+                    .skip(validated.skip)
+                    .limit(validated.limit)
+                )
                 if validated.sort:
                     field, direction = validated.sort.rsplit(":", 1)
                     cursor = cursor.sort(field, int(direction))
@@ -137,27 +142,50 @@ class MongoDbConnectorTool(BaseTool):
 
             elif action == "insert_one":
                 if not data or not isinstance(data, dict):
-                    return ToolResult.error_result(tool_id=self.tool_id, error="data must be a dict for insert_one")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="data must be a dict for insert_one"
+                    )
                 result = await collection.insert_one(data)
                 return self._result(action, {"inserted_id": str(result.inserted_id)})
 
             elif action == "insert_many":
                 if not data or not isinstance(data, list):
-                    return ToolResult.error_result(tool_id=self.tool_id, error="data must be a list for insert_many")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id,
+                        error="data must be a list for insert_many",
+                    )
                 result = await collection.insert_many(data)
-                return self._result(action, {"inserted_count": len(result.inserted_ids)})
+                return self._result(
+                    action, {"inserted_count": len(result.inserted_ids)}
+                )
 
             elif action == "update_one":
                 if not filter_q or not update:
-                    return ToolResult.error_result(tool_id=self.tool_id, error="filter_query and update required")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="filter_query and update required"
+                    )
                 result = await collection.update_one(filter_q, update)
-                return self._result(action, {"matched_count": result.matched_count, "modified_count": result.modified_count})
+                return self._result(
+                    action,
+                    {
+                        "matched_count": result.matched_count,
+                        "modified_count": result.modified_count,
+                    },
+                )
 
             elif action == "update_many":
                 if not filter_q or not update:
-                    return ToolResult.error_result(tool_id=self.tool_id, error="filter_query and update required")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="filter_query and update required"
+                    )
                 result = await collection.update_many(filter_q, update)
-                return self._result(action, {"matched_count": result.matched_count, "modified_count": result.modified_count})
+                return self._result(
+                    action,
+                    {
+                        "matched_count": result.matched_count,
+                        "modified_count": result.modified_count,
+                    },
+                )
 
             elif action == "delete_one":
                 result = await collection.delete_one(filter_q or {})
@@ -169,7 +197,10 @@ class MongoDbConnectorTool(BaseTool):
 
             elif action == "aggregate":
                 if not pipeline or not isinstance(pipeline, list):
-                    return ToolResult.error_result(tool_id=self.tool_id, error="pipeline must be a list for aggregate")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id,
+                        error="pipeline must be a list for aggregate",
+                    )
                 cursor = collection.aggregate(pipeline)
                 docs = await cursor.to_list(length=validated.limit)
                 return self._result(action, {"count": len(docs), "documents": docs})
@@ -179,7 +210,9 @@ class MongoDbConnectorTool(BaseTool):
                 return self._result(action, {"count": count})
 
             else:
-                return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}")
+                return ToolResult.error_result(
+                    tool_id=self.tool_id, error=f"Unknown action: {action}"
+                )
 
         finally:
             client.close()
@@ -194,7 +227,11 @@ class MongoDbConnectorTool(BaseTool):
 
         try:
             if action == "find":
-                cursor = collection.find(filter_q or {}).skip(validated.skip).limit(validated.limit)
+                cursor = (
+                    collection.find(filter_q or {})
+                    .skip(validated.skip)
+                    .limit(validated.limit)
+                )
                 if validated.sort:
                     field, direction = validated.sort.rsplit(":", 1)
                     cursor = cursor.sort(field, int(direction))
@@ -205,24 +242,46 @@ class MongoDbConnectorTool(BaseTool):
                 return self._result(action, {"document": doc})
             elif action == "insert_one":
                 if not data or not isinstance(data, dict):
-                    return ToolResult.error_result(tool_id=self.tool_id, error="data must be a dict")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="data must be a dict"
+                    )
                 result = collection.insert_one(data)
                 return self._result(action, {"inserted_id": str(result.inserted_id)})
             elif action == "insert_many":
                 if not data or not isinstance(data, list):
-                    return ToolResult.error_result(tool_id=self.tool_id, error="data must be a list")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="data must be a list"
+                    )
                 result = collection.insert_many(data)
-                return self._result(action, {"inserted_count": len(result.inserted_ids)})
+                return self._result(
+                    action, {"inserted_count": len(result.inserted_ids)}
+                )
             elif action == "update_one":
                 if not filter_q or not update:
-                    return ToolResult.error_result(tool_id=self.tool_id, error="filter_query and update required")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="filter_query and update required"
+                    )
                 result = collection.update_one(filter_q, update)
-                return self._result(action, {"matched_count": result.matched_count, "modified_count": result.modified_count})
+                return self._result(
+                    action,
+                    {
+                        "matched_count": result.matched_count,
+                        "modified_count": result.modified_count,
+                    },
+                )
             elif action == "update_many":
                 if not filter_q or not update:
-                    return ToolResult.error_result(tool_id=self.tool_id, error="filter_query and update required")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="filter_query and update required"
+                    )
                 result = collection.update_many(filter_q, update)
-                return self._result(action, {"matched_count": result.matched_count, "modified_count": result.modified_count})
+                return self._result(
+                    action,
+                    {
+                        "matched_count": result.matched_count,
+                        "modified_count": result.modified_count,
+                    },
+                )
             elif action == "delete_one":
                 result = collection.delete_one(filter_q or {})
                 return self._result(action, {"deleted_count": result.deleted_count})
@@ -231,14 +290,18 @@ class MongoDbConnectorTool(BaseTool):
                 return self._result(action, {"deleted_count": result.deleted_count})
             elif action == "aggregate":
                 if not pipeline or not isinstance(pipeline, list):
-                    return ToolResult.error_result(tool_id=self.tool_id, error="pipeline must be a list")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="pipeline must be a list"
+                    )
                 docs = list(collection.aggregate(pipeline))
                 return self._result(action, {"count": len(docs), "documents": docs})
             elif action == "count":
                 count = collection.count_documents(filter_q or {})
                 return self._result(action, {"count": count})
             else:
-                return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}")
+                return ToolResult.error_result(
+                    tool_id=self.tool_id, error=f"Unknown action: {action}"
+                )
         finally:
             client.close()
 

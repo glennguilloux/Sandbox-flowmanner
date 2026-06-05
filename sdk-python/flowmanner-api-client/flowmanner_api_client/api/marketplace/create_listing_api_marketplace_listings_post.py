@@ -5,7 +5,9 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_listing_api_marketplace_listings_post_data import CreateListingApiMarketplaceListingsPostData
+from ...models.create_listing_api_marketplace_listings_post_data import (
+    CreateListingApiMarketplaceListingsPostData,
+)
 from ...models.http_validation_error import HTTPValidationError
 from ...models.marketplace_listing import MarketplaceListing
 from ...types import Response

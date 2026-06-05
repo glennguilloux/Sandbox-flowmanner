@@ -26,7 +26,9 @@ class RateTemplateApiCommunityTemplatesTemplateIdRatePostData:
         d = dict(src_dict)
         rate_template_api_community_templates_template_id_rate_post_data = cls()
 
-        rate_template_api_community_templates_template_id_rate_post_data.additional_properties = d
+        rate_template_api_community_templates_template_id_rate_post_data.additional_properties = (
+            d
+        )
         return rate_template_api_community_templates_template_id_rate_post_data
 
     @property

@@ -1,46 +1,45 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.graph_execution_detail_response_input_data_type_0 import GraphExecutionDetailResponseInputDataType0
-  from ..models.graph_execution_detail_response_node_states_item import GraphExecutionDetailResponseNodeStatesItem
-  from ..models.graph_execution_detail_response_output_data_type_0 import GraphExecutionDetailResponseOutputDataType0
-
-
-
+    from ..models.graph_execution_detail_response_input_data_type_0 import (
+        GraphExecutionDetailResponseInputDataType0,
+    )
+    from ..models.graph_execution_detail_response_node_states_item import (
+        GraphExecutionDetailResponseNodeStatesItem,
+    )
+    from ..models.graph_execution_detail_response_output_data_type_0 import (
+        GraphExecutionDetailResponseOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="GraphExecutionDetailResponse")
 
 
-
 @_attrs_define
 class GraphExecutionDetailResponse:
-    """ 
-        Attributes:
-            id (str):
-            workflow_id (str):
-            status (str):
-            created_at (datetime.datetime):
-            input_data (GraphExecutionDetailResponseInputDataType0 | None | Unset):
-            output_data (GraphExecutionDetailResponseOutputDataType0 | None | Unset):
-            error_message (None | str | Unset):
-            started_at (datetime.datetime | None | Unset):
-            completed_at (datetime.datetime | None | Unset):
-            node_states (list[GraphExecutionDetailResponseNodeStatesItem] | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        workflow_id (str):
+        status (str):
+        created_at (datetime.datetime):
+        input_data (GraphExecutionDetailResponseInputDataType0 | None | Unset):
+        output_data (GraphExecutionDetailResponseOutputDataType0 | None | Unset):
+        error_message (None | str | Unset):
+        started_at (datetime.datetime | None | Unset):
+        completed_at (datetime.datetime | None | Unset):
+        node_states (list[GraphExecutionDetailResponseNodeStatesItem] | Unset):
+    """
 
     id: str
     workflow_id: str
@@ -54,14 +53,14 @@ class GraphExecutionDetailResponse:
     node_states: list[GraphExecutionDetailResponseNodeStatesItem] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_execution_detail_response_input_data_type_0 import GraphExecutionDetailResponseInputDataType0
-        from ..models.graph_execution_detail_response_node_states_item import GraphExecutionDetailResponseNodeStatesItem
-        from ..models.graph_execution_detail_response_output_data_type_0 import GraphExecutionDetailResponseOutputDataType0
+        from ..models.graph_execution_detail_response_input_data_type_0 import (
+            GraphExecutionDetailResponseInputDataType0,
+        )
+        from ..models.graph_execution_detail_response_output_data_type_0 import (
+            GraphExecutionDetailResponseOutputDataType0,
+        )
+
         id = self.id
 
         workflow_id = self.workflow_id
@@ -115,17 +114,16 @@ class GraphExecutionDetailResponse:
                 node_states_item = node_states_item_data.to_dict()
                 node_states.append(node_states_item)
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "workflow_id": workflow_id,
-            "status": status,
-            "created_at": created_at,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "workflow_id": workflow_id,
+                "status": status,
+                "created_at": created_at,
+            }
+        )
         if input_data is not UNSET:
             field_dict["input_data"] = input_data
         if output_data is not UNSET:
@@ -141,13 +139,18 @@ class GraphExecutionDetailResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_execution_detail_response_input_data_type_0 import GraphExecutionDetailResponseInputDataType0
-        from ..models.graph_execution_detail_response_node_states_item import GraphExecutionDetailResponseNodeStatesItem
-        from ..models.graph_execution_detail_response_output_data_type_0 import GraphExecutionDetailResponseOutputDataType0
+        from ..models.graph_execution_detail_response_input_data_type_0 import (
+            GraphExecutionDetailResponseInputDataType0,
+        )
+        from ..models.graph_execution_detail_response_node_states_item import (
+            GraphExecutionDetailResponseNodeStatesItem,
+        )
+        from ..models.graph_execution_detail_response_output_data_type_0 import (
+            GraphExecutionDetailResponseOutputDataType0,
+        )
+
         d = dict(src_dict)
         id = d.pop("id")
 
@@ -157,10 +160,9 @@ class GraphExecutionDetailResponse:
 
         created_at = isoparse(d.pop("created_at"))
 
-
-
-
-        def _parse_input_data(data: object) -> GraphExecutionDetailResponseInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> GraphExecutionDetailResponseInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -168,9 +170,9 @@ class GraphExecutionDetailResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                input_data_type_0 = GraphExecutionDetailResponseInputDataType0.from_dict(data)
-
-
+                input_data_type_0 = (
+                    GraphExecutionDetailResponseInputDataType0.from_dict(data)
+                )
 
                 return input_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -179,8 +181,9 @@ class GraphExecutionDetailResponse:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-
-        def _parse_output_data(data: object) -> GraphExecutionDetailResponseOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> GraphExecutionDetailResponseOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -188,17 +191,18 @@ class GraphExecutionDetailResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                output_data_type_0 = GraphExecutionDetailResponseOutputDataType0.from_dict(data)
-
-
+                output_data_type_0 = (
+                    GraphExecutionDetailResponseOutputDataType0.from_dict(data)
+                )
 
                 return output_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(GraphExecutionDetailResponseOutputDataType0 | None | Unset, data)
+            return cast(
+                GraphExecutionDetailResponseOutputDataType0 | None | Unset, data
+            )
 
         output_data = _parse_output_data(d.pop("output_data", UNSET))
-
 
         def _parse_error_message(data: object) -> None | str | Unset:
             if data is None:
@@ -208,7 +212,6 @@ class GraphExecutionDetailResponse:
             return cast(None | str | Unset, data)
 
         error_message = _parse_error_message(d.pop("error_message", UNSET))
-
 
         def _parse_started_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -220,15 +223,12 @@ class GraphExecutionDetailResponse:
                     raise TypeError()
                 started_at_type_0 = isoparse(data)
 
-
-
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
-
 
         def _parse_completed_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -240,8 +240,6 @@ class GraphExecutionDetailResponse:
                     raise TypeError()
                 completed_at_type_0 = isoparse(data)
 
-
-
                 return completed_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -249,18 +247,16 @@ class GraphExecutionDetailResponse:
 
         completed_at = _parse_completed_at(d.pop("completed_at", UNSET))
 
-
         _node_states = d.pop("node_states", UNSET)
         node_states: list[GraphExecutionDetailResponseNodeStatesItem] | Unset = UNSET
         if _node_states is not UNSET:
             node_states = []
             for node_states_item_data in _node_states:
-                node_states_item = GraphExecutionDetailResponseNodeStatesItem.from_dict(node_states_item_data)
-
-
+                node_states_item = GraphExecutionDetailResponseNodeStatesItem.from_dict(
+                    node_states_item_data
+                )
 
                 node_states.append(node_states_item)
-
 
         graph_execution_detail_response = cls(
             id=id,
@@ -274,7 +270,6 @@ class GraphExecutionDetailResponse:
             completed_at=completed_at,
             node_states=node_states,
         )
-
 
         graph_execution_detail_response.additional_properties = d
         return graph_execution_detail_response

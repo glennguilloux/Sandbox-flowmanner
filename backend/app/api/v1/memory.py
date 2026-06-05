@@ -71,7 +71,9 @@ async def list_sessions(
 ):
     offset = (page - 1) * limit
 
-    count_q = select(func.count(MemorySession.id)).where(MemorySession.user_id == user.id)
+    count_q = select(func.count(MemorySession.id)).where(
+        MemorySession.user_id == user.id
+    )
     total = (await db.execute(count_q)).scalar() or 0
 
     q = (
@@ -229,6 +231,7 @@ async def extract_memories(
     # If mission_id provided, try to get mission output
     if mission_id and not text_content:
         from app.models.mission_models import Mission
+
         result = await db.execute(select(Mission).where(Mission.id == mission_id))
         mission = result.scalar_one_or_none()
         if mission and mission.results:
@@ -248,7 +251,11 @@ async def extract_memories(
         session_id = str(session.id)
 
     # Simple extraction: split text into meaningful chunks
-    sentences = [s.strip() for s in text_content.replace("\n", ". ").split(". ") if len(s.strip()) > 20]
+    sentences = [
+        s.strip()
+        for s in text_content.replace("\n", ". ").split(". ")
+        if len(s.strip()) > 20
+    ]
 
     extracted = []
     for sentence in sentences[:20]:  # limit to 20 memories per extraction
@@ -256,7 +263,11 @@ async def extract_memories(
             session_id=session_id,
             user_id=user.id,
             content=sentence.strip().rstrip(".") + ".",
-            meta={"source": "extraction", "mission_id": mission_id} if mission_id else {"source": "extraction"},
+            meta=(
+                {"source": "extraction", "mission_id": mission_id}
+                if mission_id
+                else {"source": "extraction"}
+            ),
             source_mission_id=mission_id,
         )
         db.add(memory)

@@ -20,6 +20,7 @@ MISSION_ID = uuid.UUID("014da489-b7f5-44f7-9e89-046a05a5ab56")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def make_mission_orm(**overrides):
     """Create an ORM-like mock mission with all fields MissionResponse needs."""
     m = MagicMock()
@@ -68,11 +69,17 @@ def make_mission_task_orm(mission_id=MISSION_ID, **overrides):
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def mock_user():
     return MagicMock(
-        id=1, email="user@example.com", username="testuser",
-        role="user", is_active=True, is_admin=False, is_superuser=False,
+        id=1,
+        email="user@example.com",
+        username="testuser",
+        role="user",
+        is_active=True,
+        is_admin=False,
+        is_superuser=False,
     )
 
 
@@ -162,9 +169,13 @@ class TestCqrsListCreatePipeline:
             "app.api._mission_cqrs.commands.create_mission",
             new=AsyncMock(return_value=mission),
         ):
-            response = cqrs_client.post("/api/v2/missions/", json={
-                "title": "New Mission", "mission_type": "general",
-            })
+            response = cqrs_client.post(
+                "/api/v2/missions/",
+                json={
+                    "title": "New Mission",
+                    "mission_type": "general",
+                },
+            )
 
         assert response.status_code == 201
         data = response.json()
@@ -181,9 +192,13 @@ class TestCqrsListCreatePipeline:
             "app.api._mission_cqrs.commands.create_mission",
             new=AsyncMock(side_effect=IntegrityError("stmt", {}, Exception("boom"))),
         ):
-            response = cqrs_client.post("/api/v2/missions/", json={
-                "title": "Will Fail", "mission_type": "general",
-            })
+            response = cqrs_client.post(
+                "/api/v2/missions/",
+                json={
+                    "title": "Will Fail",
+                    "mission_type": "general",
+                },
+            )
 
         # IntegrityError → MissionValidationError → HTTP 422 in FastAPI
         # (or 400 depending on exception handler registration)
@@ -242,9 +257,12 @@ class TestCqrsCrudPipeline:
             "app.api._mission_cqrs.commands.update_mission",
             new=AsyncMock(return_value=updated),
         ):
-            response = cqrs_client.patch(f"/api/v2/missions/{MISSION_ID}", json={
-                "title": "Updated Title",
-            })
+            response = cqrs_client.patch(
+                f"/api/v2/missions/{MISSION_ID}",
+                json={
+                    "title": "Updated Title",
+                },
+            )
 
         assert response.status_code == 200
         assert response.json()["data"]["title"] == "Updated Title"
@@ -258,9 +276,12 @@ class TestCqrsCrudPipeline:
             "app.services.mission_service.get_mission",
             return_value=mission,
         ):
-            response = cqrs_client.patch(f"/api/v2/missions/{MISSION_ID}", json={
-                "title": "Should 404",
-            })
+            response = cqrs_client.patch(
+                f"/api/v2/missions/{MISSION_ID}",
+                json={
+                    "title": "Should 404",
+                },
+            )
 
         assert response.status_code == 404
 

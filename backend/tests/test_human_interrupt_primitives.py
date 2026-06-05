@@ -34,10 +34,12 @@ class TestHumanInterruptDataclass:
         mid = str(uuid4())
         deadline = datetime(2026, 7, 1, tzinfo=timezone.utc)
         hi = HumanInterrupt(
-            mission_id=mid, interrupt_type="clarification",
+            mission_id=mid,
+            interrupt_type="clarification",
             context={"question": "which model?"},
             proposed_action={"model": "deepseek-chat"},
-            confidence=0.85, deadline=deadline,
+            confidence=0.85,
+            deadline=deadline,
         )
         d = hi.to_dict()
         assert d["mission_id"] == mid
@@ -64,8 +66,12 @@ class TestInterruptPersistence:
         db = AsyncMock(spec=AsyncSession)
         mid = str(uuid4())
 
-        hi = HumanInterrupt(mission_id=mid, interrupt_type="approval",
-                            context={"action": "delete"}, confidence=0.75)
+        hi = HumanInterrupt(
+            mission_id=mid,
+            interrupt_type="approval",
+            context={"action": "delete"},
+            confidence=0.75,
+        )
         await mgr.raise_interrupt(db, hi)
 
         calls = [c.args[0] for c in db.add.call_args_list]
@@ -99,8 +105,10 @@ class TestInterruptPersistence:
         intr_id = str(uuid4())
 
         record = HumanInterruptRecord(
-            id=intr_id, mission_id=str(uuid4()),
-            interrupt_type="approval", status="pending",
+            id=intr_id,
+            mission_id=str(uuid4()),
+            interrupt_type="approval",
+            status="pending",
         )
         result_mock = MagicMock()
         result_mock.scalars.return_value.first.return_value = record
@@ -117,8 +125,10 @@ class TestInterruptPersistence:
         intr_id = str(uuid4())
 
         record = HumanInterruptRecord(
-            id=intr_id, mission_id=str(uuid4()),
-            interrupt_type="approval", status="pending",
+            id=intr_id,
+            mission_id=str(uuid4()),
+            interrupt_type="approval",
+            status="pending",
         )
         result_mock = MagicMock()
         result_mock.scalars.return_value.first.return_value = record
@@ -145,8 +155,10 @@ class TestInterruptPersistence:
         db = AsyncMock(spec=AsyncSession)
         intr_id = str(uuid4())
         record = HumanInterruptRecord(
-            id=intr_id, mission_id=str(uuid4()),
-            interrupt_type="approval", status="approved",
+            id=intr_id,
+            mission_id=str(uuid4()),
+            interrupt_type="approval",
+            status="approved",
         )
         result_mock = MagicMock()
         result_mock.scalars.return_value.first.return_value = record
@@ -167,8 +179,12 @@ class TestListPending:
     async def test_returns_pending_records(self):
         mgr = HITLManager()
         db = AsyncMock(spec=AsyncSession)
-        r1 = HumanInterruptRecord(id=str(uuid4()), mission_id=str(uuid4()),
-                                  interrupt_type="approval", status="pending")
+        r1 = HumanInterruptRecord(
+            id=str(uuid4()),
+            mission_id=str(uuid4()),
+            interrupt_type="approval",
+            status="pending",
+        )
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [r1]
         db.execute = AsyncMock(return_value=result_mock)
@@ -204,14 +220,25 @@ class TestApprovalRequiredFor:
         assert HITLManager.approval_required_for("read", confidence=0.9) is False
 
     def test_destructive_prefix_requires_approval(self):
-        assert HITLManager.approval_required_for("destructive_delete", confidence=1.0) is True
+        assert (
+            HITLManager.approval_required_for("destructive_delete", confidence=1.0)
+            is True
+        )
 
     def test_explicit_destructive_set(self):
         gate = {"delete_file", "transfer_funds"}
-        assert HITLManager.approval_required_for("delete_file", confidence=1.0,
-                                                   destructive_actions=gate) is True
-        assert HITLManager.approval_required_for("read", confidence=1.0,
-                                                   destructive_actions=gate) is False
+        assert (
+            HITLManager.approval_required_for(
+                "delete_file", confidence=1.0, destructive_actions=gate
+            )
+            is True
+        )
+        assert (
+            HITLManager.approval_required_for(
+                "read", confidence=1.0, destructive_actions=gate
+            )
+            is False
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════

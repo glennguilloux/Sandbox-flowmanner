@@ -1,55 +1,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="BYOKValidateRequest")
-
 
 
 @_attrs_define
 class BYOKValidateRequest:
-    """ 
-        Attributes:
-            provider (str):
-            api_key (str):
-     """
+    """
+    Attributes:
+        provider (str):
+        api_key (str):
+    """
 
     provider: str
     api_key: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         provider = self.provider
 
         api_key = self.api_key
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "provider": provider,
-            "api_key": api_key,
-        })
+        field_dict.update(
+            {
+                "provider": provider,
+                "api_key": api_key,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -62,7 +48,6 @@ class BYOKValidateRequest:
             provider=provider,
             api_key=api_key,
         )
-
 
         byok_validate_request.additional_properties = d
         return byok_validate_request

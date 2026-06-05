@@ -9,7 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_workflow_update_graph_definition_type_0 import GraphWorkflowUpdateGraphDefinitionType0
+    from ..models.graph_workflow_update_graph_definition_type_0 import (
+        GraphWorkflowUpdateGraphDefinitionType0,
+    )
 
 
 T = TypeVar("T", bound="GraphWorkflowUpdate")
@@ -32,7 +34,9 @@ class GraphWorkflowUpdate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_workflow_update_graph_definition_type_0 import GraphWorkflowUpdateGraphDefinitionType0
+        from ..models.graph_workflow_update_graph_definition_type_0 import (
+            GraphWorkflowUpdateGraphDefinitionType0,
+        )
 
         name: None | str | Unset
         if isinstance(self.name, Unset):
@@ -76,7 +80,9 @@ class GraphWorkflowUpdate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_workflow_update_graph_definition_type_0 import GraphWorkflowUpdateGraphDefinitionType0
+        from ..models.graph_workflow_update_graph_definition_type_0 import (
+            GraphWorkflowUpdateGraphDefinitionType0,
+        )
 
         d = dict(src_dict)
 
@@ -98,7 +104,9 @@ class GraphWorkflowUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_graph_definition(data: object) -> GraphWorkflowUpdateGraphDefinitionType0 | None | Unset:
+        def _parse_graph_definition(
+            data: object,
+        ) -> GraphWorkflowUpdateGraphDefinitionType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -106,7 +114,9 @@ class GraphWorkflowUpdate:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                graph_definition_type_0 = GraphWorkflowUpdateGraphDefinitionType0.from_dict(data)
+                graph_definition_type_0 = (
+                    GraphWorkflowUpdateGraphDefinitionType0.from_dict(data)
+                )
 
                 return graph_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

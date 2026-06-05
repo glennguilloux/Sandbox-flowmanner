@@ -131,8 +131,13 @@ class MemoryService:
         """
         if agent_id and content:
             return await self._store_memory(
-                agent_id, content, memory_type, importance, metadata,
-                tags=tags, user_id=user_id,
+                agent_id,
+                content,
+                memory_type,
+                importance,
+                metadata,
+                tags=tags,
+                user_id=user_id,
             )
         if key:
             return await self._store_simple(key, value)
@@ -277,7 +282,9 @@ class MemoryService:
 
         # 2. Best-effort mirror to Redis cache
         await self._cache_set(
-            f"{MEMORY_KEY_PREFIX}mem:{memory_id}", memory_dict, ttl=86400,
+            f"{MEMORY_KEY_PREFIX}mem:{memory_id}",
+            memory_dict,
+            ttl=86400,
         )
 
         logger.info("Stored memory %s for agent %s", memory_id, agent_id)
@@ -321,7 +328,9 @@ class MemoryService:
                     "content": entry.content,
                     "memory_type": entry.memory_type,
                     "importance": entry.importance,
-                    "created_at": entry.created_at.isoformat() if entry.created_at else "",
+                    "created_at": (
+                        entry.created_at.isoformat() if entry.created_at else ""
+                    ),
                     "metadata": entry.meta or {},
                 }
                 memories.append(mem)
@@ -332,17 +341,22 @@ class MemoryService:
                 scored: list[tuple[int, dict]] = []
                 for m in memories:
                     score = sum(
-                        1 for word in query_lower.split()
+                        1
+                        for word in query_lower.split()
                         if len(word) > 2 and word in m.get("content", "").lower()
                     )
                     if score > 0:
                         scored.append((score, m))
-                scored.sort(key=lambda x: (x[1].get("importance", 0), x[0]), reverse=True)
+                scored.sort(
+                    key=lambda x: (x[1].get("importance", 0), x[0]), reverse=True
+                )
                 memories = [m for _, m in scored]
 
             return memories[:limit]
         except Exception as e:
-            logger.warning("Memory retrieve_by_query failed for agent %s: %s", agent_id, e)
+            logger.warning(
+                "Memory retrieve_by_query failed for agent %s: %s", agent_id, e
+            )
             return []
         finally:
             if owns:

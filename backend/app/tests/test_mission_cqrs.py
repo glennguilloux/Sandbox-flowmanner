@@ -219,6 +219,7 @@ def _configure_session(s: AsyncMock) -> None:
     fall through to the free-tier / no-limit defaults instead of raising
     ``ValueError: not enough values to unpack``.
     """
+
     async def _execute(*args, **kwargs):
         result = MagicMock()
         result.first.return_value = None
@@ -227,6 +228,7 @@ def _configure_session(s: AsyncMock) -> None:
         result.scalars.return_value = result
         result.all.return_value = []
         return result
+
     s.execute = _execute
 
 
@@ -274,7 +276,9 @@ class TestMissionQueryHandlersOwnership:
             await handlers.get_mission(user_id=1, mission_id="abc-123")
 
     @pytest.mark.asyncio
-    async def test_get_mission_raises_when_both_none_and_mismatch(self, handlers, mocker):
+    async def test_get_mission_raises_when_both_none_and_mismatch(
+        self, handlers, mocker
+    ):
         """Edge case: None mission should still raise the same error."""
         mocker.patch(
             "app.api._mission_cqrs.queries.require_mission_access",
@@ -332,9 +336,15 @@ class TestMissionCommandHandlersOwnership:
     async def test_update_mission_raises_when_not_owned(self, session, user, mocker):
         handlers = MissionCommandHandlers(session)
         payload = MagicMock(
-            title=None, description=None, status=None, priority=None,
-            mission_type=None, error_message=None, results=None,
-            tokens_used=None, actual_cost=None,
+            title=None,
+            description=None,
+            status=None,
+            priority=None,
+            mission_type=None,
+            error_message=None,
+            results=None,
+            tokens_used=None,
+            actual_cost=None,
         )
 
         mocker.patch(
@@ -348,9 +358,15 @@ class TestMissionCommandHandlersOwnership:
     async def test_update_mission_raises_when_not_found(self, session, user, mocker):
         handlers = MissionCommandHandlers(session)
         payload = MagicMock(
-            title=None, description=None, status=None, priority=None,
-            mission_type=None, error_message=None, results=None,
-            tokens_used=None, actual_cost=None,
+            title=None,
+            description=None,
+            status=None,
+            priority=None,
+            mission_type=None,
+            error_message=None,
+            results=None,
+            tokens_used=None,
+            actual_cost=None,
         )
 
         mocker.patch(
@@ -406,9 +422,13 @@ class TestMissionCommandHandlersSuccess:
     # ── create_mission ────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_create_mission_calls_service_and_commits(self, handlers, session, user, mocker):
+    async def test_create_mission_calls_service_and_commits(
+        self, handlers, session, user, mocker
+    ):
         payload = MagicMock(
-            title="Test", description="desc", mission_type="general",
+            title="Test",
+            description="desc",
+            mission_type="general",
             priority="medium",
         )
         expected_mission = MagicMock()
@@ -421,18 +441,27 @@ class TestMissionCommandHandlersSuccess:
 
         assert result is expected_mission
         mock_create.assert_awaited_once_with(
-            session, title="Test", description="desc",
-            mission_type="general", priority="medium",
-            user_id=1, status="pending", workspace_id=None,
+            session,
+            title="Test",
+            description="desc",
+            mission_type="general",
+            priority="medium",
+            user_id=1,
+            status="pending",
+            workspace_id=None,
         )
         session.commit.assert_awaited_once()
         session.rollback.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_create_mission_defaults_description(self, handlers, session, user, mocker):
+    async def test_create_mission_defaults_description(
+        self, handlers, session, user, mocker
+    ):
         """None description is coerced to empty string."""
         payload = MagicMock(
-            title="Minimal", description=None, mission_type="general",
+            title="Minimal",
+            description=None,
+            mission_type="general",
             priority="low",
         )
 
@@ -449,15 +478,23 @@ class TestMissionCommandHandlersSuccess:
     # ── update_mission ────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_update_mission_calls_service_and_commits(self, handlers, session, user, mocker):
+    async def test_update_mission_calls_service_and_commits(
+        self, handlers, session, user, mocker
+    ):
         mission = MagicMock()
         mission.user_id = 1
         updated = MagicMock()
 
         payload = MagicMock(
-            title="Updated", description="new desc", status="running",
-            priority="high", mission_type="research", error_message=None,
-            results=None, tokens_used=100, actual_cost=0.05,
+            title="Updated",
+            description="new desc",
+            status="running",
+            priority="high",
+            mission_type="research",
+            error_message=None,
+            results=None,
+            tokens_used=100,
+            actual_cost=0.05,
         )
 
         mocker.patch(
@@ -472,24 +509,38 @@ class TestMissionCommandHandlersSuccess:
 
         assert result is updated
         mock_update.assert_awaited_once_with(
-            session, "abc-123",
-            title="Updated", description="new desc",
-            status="running", priority="high",
-            mission_type="research", error_message=None,
-            results=None, tokens_used=100, actual_cost=0.05,
+            session,
+            "abc-123",
+            title="Updated",
+            description="new desc",
+            status="running",
+            priority="high",
+            mission_type="research",
+            error_message=None,
+            results=None,
+            tokens_used=100,
+            actual_cost=0.05,
         )
         session.commit.assert_awaited_once()
         session.rollback.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_update_mission_raises_when_service_returns_none(self, handlers, session, user, mocker):
+    async def test_update_mission_raises_when_service_returns_none(
+        self, handlers, session, user, mocker
+    ):
         """If update_mission returns None, wrap_command raises MissionNotFoundError."""
         mission = MagicMock()
         mission.user_id = 1
         payload = MagicMock(
-            title=None, description=None, status=None, priority=None,
-            mission_type=None, error_message=None, results=None,
-            tokens_used=None, actual_cost=None,
+            title=None,
+            description=None,
+            status=None,
+            priority=None,
+            mission_type=None,
+            error_message=None,
+            results=None,
+            tokens_used=None,
+            actual_cost=None,
         )
 
         mocker.patch(
@@ -508,7 +559,9 @@ class TestMissionCommandHandlersSuccess:
     # ── delete_mission ────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_delete_mission_calls_service_and_commits(self, handlers, session, user, mocker):
+    async def test_delete_mission_calls_service_and_commits(
+        self, handlers, session, user, mocker
+    ):
         mission = MagicMock()
         mission.user_id = 1
 
@@ -527,7 +580,9 @@ class TestMissionCommandHandlersSuccess:
         session.rollback.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_delete_mission_raises_when_service_returns_false(self, handlers, session, user, mocker):
+    async def test_delete_mission_raises_when_service_returns_false(
+        self, handlers, session, user, mocker
+    ):
         """If delete_mission returns False, wrap_command raises MissionNotFoundError."""
         mission = MagicMock()
         mission.user_id = 1
@@ -546,10 +601,14 @@ class TestMissionCommandHandlersSuccess:
         session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_create_mission_rollback_on_service_failure(self, handlers, session, user, mocker):
+    async def test_create_mission_rollback_on_service_failure(
+        self, handlers, session, user, mocker
+    ):
         """Service exception inside wrap_command triggers rollback."""
         payload = MagicMock(
-            title="Test", description="desc", mission_type="general",
+            title="Test",
+            description="desc",
+            mission_type="general",
             priority="medium",
         )
 
@@ -566,15 +625,21 @@ class TestMissionCommandHandlersSuccess:
     # ── create_task ───────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_create_task_calls_service_and_commits(self, handlers, session, user, mocker):
+    async def test_create_task_calls_service_and_commits(
+        self, handlers, session, user, mocker
+    ):
         mission = MagicMock()
         mission.user_id = 1
         expected_task = MagicMock()
 
         payload = MagicMock(
-            title="New Task", task_type="llm", order_index=0,
-            input_data={"key": "val"}, description="desc",
-            assigned_agent_id=None, assigned_model="gpt-4",
+            title="New Task",
+            task_type="llm",
+            order_index=0,
+            input_data={"key": "val"},
+            description="desc",
+            assigned_agent_id=None,
+            assigned_model="gpt-4",
         )
 
         mocker.patch(
@@ -589,23 +654,36 @@ class TestMissionCommandHandlersSuccess:
 
         assert result is expected_task
         mock_create.assert_awaited_once_with(
-            session, "abc-123", "New Task", "llm",
-            MissionTaskStatus.PENDING, 0, {"key": "val"},
-            "desc", None, "gpt-4",
+            session,
+            "abc-123",
+            "New Task",
+            "llm",
+            MissionTaskStatus.PENDING,
+            0,
+            {"key": "val"},
+            "desc",
+            None,
+            "gpt-4",
         )
         session.commit.assert_awaited_once()
         session.rollback.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_create_task_defaults_title_and_type(self, handlers, session, user, mocker):
+    async def test_create_task_defaults_title_and_type(
+        self, handlers, session, user, mocker
+    ):
         """None title → 'Untitled Task', None task_type → 'general'."""
         mission = MagicMock()
         mission.user_id = 1
 
         payload = MagicMock(
-            title=None, task_type=None, order_index=None,
-            input_data=None, description=None,
-            assigned_agent_id=None, assigned_model=None,
+            title=None,
+            task_type=None,
+            order_index=None,
+            input_data=None,
+            description=None,
+            assigned_agent_id=None,
+            assigned_model=None,
         )
 
         mocker.patch(
@@ -620,13 +698,15 @@ class TestMissionCommandHandlersSuccess:
 
         # create_mission_task is called with positional args, not kwargs
         args = mock_create.call_args[0]
-        assert args[2] == "Untitled Task"   # 3rd positional: title
-        assert args[3] == "general"         # 4th positional: task_type
+        assert args[2] == "Untitled Task"  # 3rd positional: title
+        assert args[3] == "general"  # 4th positional: task_type
 
     # ── update_task ───────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_update_task_calls_execute_and_commits(self, handlers, session, user, mocker):
+    async def test_update_task_calls_execute_and_commits(
+        self, handlers, session, user, mocker
+    ):
         mission = MagicMock()
         mission.user_id = 1
 
@@ -639,8 +719,10 @@ class TestMissionCommandHandlersSuccess:
         session.execute = AsyncMock(return_value=mock_result)
 
         payload = MagicMock(
-            status="completed", output_data={"result": "ok"},
-            error_message=None, tokens_used=50,
+            status="completed",
+            output_data={"result": "ok"},
+            error_message=None,
+            tokens_used=50,
         )
 
         mocker.patch(
@@ -668,8 +750,10 @@ class TestMissionCommandHandlersSuccess:
         session.execute = AsyncMock(return_value=mock_result)
 
         payload = MagicMock(
-            status="failed", output_data=None,
-            error_message=None, tokens_used=None,
+            status="failed",
+            output_data=None,
+            error_message=None,
+            tokens_used=None,
         )
 
         mocker.patch(
@@ -685,7 +769,9 @@ class TestMissionCommandHandlersSuccess:
     # ── create_log ────────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_create_log_calls_service_and_commits(self, handlers, session, user, mocker):
+    async def test_create_log_calls_service_and_commits(
+        self, handlers, session, user, mocker
+    ):
         mission = MagicMock()
         mission.user_id = 1
         expected_log = MagicMock()
@@ -710,7 +796,9 @@ class TestMissionCommandHandlersSuccess:
     # ── plan_mission ──────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_plan_mission_commits_on_success(self, handlers, session, user, mocker):
+    async def test_plan_mission_commits_on_success(
+        self, handlers, session, user, mocker
+    ):
         mission = MagicMock()
         mission.user_id = 1
         mission.id = "550e8400-e29b-41d4-a716-446655440003"
@@ -734,7 +822,9 @@ class TestMissionCommandHandlersSuccess:
         executor.plan_mission = AsyncMock(return_value={"success": True})
         mock_exec_cls.return_value = executor
 
-        result = await handlers.plan_mission(user, "550e8400-e29b-41d4-a716-446655440003")
+        result = await handlers.plan_mission(
+            user, "550e8400-e29b-41d4-a716-446655440003"
+        )
 
         assert result.status == "pending"
         assert result.total_tasks == 0
@@ -742,7 +832,9 @@ class TestMissionCommandHandlersSuccess:
         session.rollback.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_plan_mission_rollback_on_planning_failure(self, handlers, session, user, mocker):
+    async def test_plan_mission_rollback_on_planning_failure(
+        self, handlers, session, user, mocker
+    ):
         """If planning returns success=False, MissionValidationError + rollback."""
         mission = MagicMock()
         mission.user_id = 1
@@ -760,7 +852,9 @@ class TestMissionCommandHandlersSuccess:
         )
 
         executor = MagicMock()
-        executor.plan_mission = AsyncMock(return_value={"success": False, "error": "bad config"})
+        executor.plan_mission = AsyncMock(
+            return_value={"success": False, "error": "bad config"}
+        )
         mock_exec_cls.return_value = executor
 
         with pytest.raises(MissionValidationError, match="bad config"):
@@ -772,7 +866,9 @@ class TestMissionCommandHandlersSuccess:
     # ── execute_mission ───────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_execute_mission_uses_default_executor(self, handlers, session, user, mocker):
+    async def test_execute_mission_uses_default_executor(
+        self, handlers, session, user, mocker
+    ):
         """When no feature flags are enabled, uses UnifiedExecutor via get_unified_executor()."""
         mission = MagicMock()
         mission.user_id = 1
@@ -820,7 +916,9 @@ class TestMissionCommandHandlersSuccess:
             new=AsyncMock(return_value=None),
         )
 
-        result = await handlers.execute_mission(user, "550e8400-e29b-41d4-a716-446655440005")
+        result = await handlers.execute_mission(
+            user, "550e8400-e29b-41d4-a716-446655440005"
+        )
 
         assert result.status == "running"
         assert result.total_tokens_used == 100
@@ -848,7 +946,9 @@ class TestMissionQueryHandlersSuccess:
     # ── list_missions pagination ──────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_list_missions_returns_paginated_result(self, handlers, session, mocker):
+    async def test_list_missions_returns_paginated_result(
+        self, handlers, session, mocker
+    ):
         """list_missions returns PaginatedMissions with items, total, page, per_page."""
         mission = MagicMock()
         mission.user_id = 1
@@ -892,7 +992,9 @@ class TestMissionQueryHandlersSuccess:
         await handlers.list_missions(user_id=1, page=3, per_page=10)
 
         # offset = (3-1)*10 = 20
-        mock_list.assert_awaited_once_with(session, 1, offset=20, limit=10, workspace_id=None)
+        mock_list.assert_awaited_once_with(
+            session, 1, offset=20, limit=10, workspace_id=None
+        )
 
     @pytest.mark.asyncio
     async def test_list_missions_empty_result(self, handlers, mocker):
@@ -981,7 +1083,9 @@ class TestMissionQueryHandlersSuccess:
             "app.api._mission_cqrs.queries.get_mission_tasks",
             new=AsyncMock(return_value=[task]),
         )
-        result = await handlers.get_status(user_id=1, mission_id="550e8400-e29b-41d4-a716-446655440001")
+        result = await handlers.get_status(
+            user_id=1, mission_id="550e8400-e29b-41d4-a716-446655440001"
+        )
 
         assert str(result.mission_id) == "550e8400-e29b-41d4-a716-446655440001"
         assert result.status == "running"
@@ -1015,7 +1119,9 @@ class TestMissionQueryHandlersSuccess:
             "app.api._mission_cqrs.queries.get_mission_tasks",
             new=AsyncMock(return_value=[passed, failed, pending]),
         )
-        result = await handlers.get_status(user_id=1, mission_id="550e8400-e29b-41d4-a716-446655440002")
+        result = await handlers.get_status(
+            user_id=1, mission_id="550e8400-e29b-41d4-a716-446655440002"
+        )
 
         assert result.total_tasks == 3
         assert result.completed_tasks == 1
@@ -1049,7 +1155,9 @@ class TestMissionQueryHandlersSuccess:
             "app.api._mission_cqrs.queries.get_failure_analysis",
             new=AsyncMock(return_value={"failure_rate": 0.1}),
         )
-        result = await handlers.mission_analytics(user_id=1, mission_id="abc-123", days=30)
+        result = await handlers.mission_analytics(
+            user_id=1, mission_id="abc-123", days=30
+        )
 
         assert isinstance(result, dict)
         assert "summary" in result

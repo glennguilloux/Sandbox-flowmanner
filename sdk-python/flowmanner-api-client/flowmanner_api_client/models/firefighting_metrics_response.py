@@ -42,7 +42,9 @@ class FirefightingMetricsResponse:
 
         manual_intervention_missions = []
         for manual_intervention_missions_item_data in self.manual_intervention_missions:
-            manual_intervention_missions_item = manual_intervention_missions_item_data.to_dict()
+            manual_intervention_missions_item = (
+                manual_intervention_missions_item_data.to_dict()
+            )
             manual_intervention_missions.append(manual_intervention_missions_item)
 
         field_dict: dict[str, Any] = {}

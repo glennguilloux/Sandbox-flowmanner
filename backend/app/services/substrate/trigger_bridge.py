@@ -16,16 +16,13 @@ Usage:
 """
 
 from __future__ import annotations
+from datetime import datetime
 
 import asyncio
 import contextlib
 import logging
-from typing import TYPE_CHECKING
 
 from app.database import AsyncSessionLocal
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -90,22 +87,23 @@ class TriggerBridge:
     async def _poll_once(self) -> None:
         """Check and fire due cron triggers."""
         import time
+
         self._tick_count += 1
         self._last_tick_time = time.monotonic()
         try:
             async with AsyncSessionLocal() as db:
                 from app.services.trigger_service import process_cron_triggers
+
                 fired = await process_cron_triggers(db)
                 await db.commit()
                 if fired:
-                    logger.info(
-                        "TriggerBridge dispatched %d cron trigger(s)", fired
-                    )
+                    logger.info("TriggerBridge dispatched %d cron trigger(s)", fired)
         except Exception as e:
             logger.error("TriggerBridge polling tick failed: %s", e, exc_info=True)
 
 
 # ── Notify helper: called from trigger_service when next_fire_at changes ──
+
 
 async def notify_trigger_due(next_fire_at: datetime | None = None) -> None:
     """Future hook: notify that a trigger's fire time has changed.

@@ -28,7 +28,9 @@ async def _make_session():
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
     session = session_factory()
     await session.execute(text("DELETE FROM improvement_knowledge_edges"))
     await session.execute(text("DELETE FROM improvement_knowledge_nodes"))
@@ -59,7 +61,8 @@ async def test_persist_single_node_and_reload():
     try:
         kg = KnowledgeGraph(db_session=session)
         node_a = await kg.add_node(
-            NodeType.FAILURE, FailureType.TOOL_TIMEOUT.value,
+            NodeType.FAILURE,
+            FailureType.TOOL_TIMEOUT.value,
             properties={"severity": "high", "count": 5},
         )
 
@@ -87,15 +90,18 @@ async def test_persist_node_with_edge_and_reload():
         kg = KnowledgeGraph(db_session=session)
 
         failure = await kg.add_node(
-            NodeType.FAILURE, FailureType.TOOL_TIMEOUT.value,
+            NodeType.FAILURE,
+            FailureType.TOOL_TIMEOUT.value,
             properties={"agent": "worker-1"},
         )
         strategy = await kg.add_node(
-            NodeType.STRATEGY, StrategyType.ADD_RETRY.value,
+            NodeType.STRATEGY,
+            StrategyType.ADD_RETRY.value,
             properties={"max_retries": 3},
         )
         edge = await kg.add_edge(
-            failure.id, strategy.id,
+            failure.id,
+            strategy.id,
             EdgeType.FIXES,
             weight=2.5,
             properties={"success_rate": 0.85, "total": 10, "successes": 8},
@@ -170,7 +176,8 @@ async def test_update_node_persists_changes():
     try:
         kg = KnowledgeGraph(db_session=session)
         node = await kg.add_node(
-            NodeType.STRATEGY, "CIRCUIT_BREAKER",
+            NodeType.STRATEGY,
+            "CIRCUIT_BREAKER",
             properties={"threshold": 5},
         )
 
@@ -197,7 +204,9 @@ async def test_duplicate_edge_averages_weight():
         n1 = await kg.add_node(NodeType.FAILURE, "DUPLICATE_TEST_A")
         n2 = await kg.add_node(NodeType.STRATEGY, "DUPLICATE_TEST_B")
 
-        e1 = await kg.add_edge(n1.id, n2.id, EdgeType.FIXES, weight=4.0, properties={"extra": "yes"})
+        e1 = await kg.add_edge(
+            n1.id, n2.id, EdgeType.FIXES, weight=4.0, properties={"extra": "yes"}
+        )
         assert e1 is not None
 
         e2 = await kg.add_edge(n1.id, n2.id, EdgeType.FIXES, weight=8.0)
@@ -299,8 +308,9 @@ async def test_no_db_session_skips_persistence():
     """Without a db_session, operations work in-memory only and don't crash."""
     kg = KnowledgeGraph(db_session=None)
 
-    node = await kg.add_node(NodeType.FAILURE, "IN_MEMORY_ONLY",
-                              properties={"note": "should not persist"})
+    node = await kg.add_node(
+        NodeType.FAILURE, "IN_MEMORY_ONLY", properties={"note": "should not persist"}
+    )
     await kg.add_edge(node.id, node.id, EdgeType.SIMILAR_TO, weight=0.5)
 
     assert len(kg._nodes) == 1

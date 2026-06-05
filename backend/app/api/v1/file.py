@@ -152,7 +152,6 @@ async def delete_file(
     return {"status": "deleted"}
 
 
-
 # ── Content retrieval ────────────────────────────────────────────────────────
 
 
@@ -181,9 +180,13 @@ async def get_file_content(
 # ── Register on both routers (with trailing slash variants) ──────────────────
 
 for _r in (router, files_router):
-    _r.add_api_route("/upload", upload_file, methods=["POST"], response_model=FileResponse)
+    _r.add_api_route(
+        "/upload", upload_file, methods=["POST"], response_model=FileResponse
+    )
     _r.add_api_route("", list_files, methods=["GET"], response_model=FileListResponse)
     _r.add_api_route("/", list_files, methods=["GET"], response_model=FileListResponse)
-    _r.add_api_route("/{file_id}", get_file, methods=["GET"], response_model=FileResponse)
+    _r.add_api_route(
+        "/{file_id}", get_file, methods=["GET"], response_model=FileResponse
+    )
     _r.add_api_route("/{file_id}", delete_file, methods=["DELETE"])
     _r.add_api_route("/{file_id}/content", get_file_content, methods=["GET"])

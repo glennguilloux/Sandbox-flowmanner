@@ -1,45 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
 T = TypeVar("T", bound="TenantMemberAdd")
-
 
 
 @_attrs_define
 class TenantMemberAdd:
-    """ 
-        Attributes:
-            email (str):
-            role (str | Unset):  Default: 'member'.
-            can_create_missions (bool | Unset):  Default: True.
-            can_manage_members (bool | Unset):  Default: False.
-            can_view_billing (bool | Unset):  Default: False.
-     """
+    """
+    Attributes:
+        email (str):
+        role (str | Unset):  Default: 'member'.
+        can_create_missions (bool | Unset):  Default: True.
+        can_manage_members (bool | Unset):  Default: False.
+        can_view_billing (bool | Unset):  Default: False.
+    """
 
     email: str
-    role: str | Unset = 'member'
+    role: str | Unset = "member"
     can_create_missions: bool | Unset = True
     can_manage_members: bool | Unset = False
     can_view_billing: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         email = self.email
@@ -52,12 +40,13 @@ class TenantMemberAdd:
 
         can_view_billing = self.can_view_billing
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "email": email,
-        })
+        field_dict.update(
+            {
+                "email": email,
+            }
+        )
         if role is not UNSET:
             field_dict["role"] = role
         if can_create_missions is not UNSET:
@@ -68,8 +57,6 @@ class TenantMemberAdd:
             field_dict["can_view_billing"] = can_view_billing
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -91,7 +78,6 @@ class TenantMemberAdd:
             can_manage_members=can_manage_members,
             can_view_billing=can_view_billing,
         )
-
 
         tenant_member_add.additional_properties = d
         return tenant_member_add

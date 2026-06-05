@@ -46,6 +46,7 @@ GIT_ACTIONS: tuple[str, ...] = (
 
 # ── Input ───────────────────────────────────────────────────────────
 
+
 class GitRepoManagerInput(ToolInput):
     action: str = Field(
         ...,
@@ -93,6 +94,7 @@ class GitRepoManagerInput(ToolInput):
 
 
 # ── Tool ────────────────────────────────────────────────────────────
+
 
 class GitRepoManagerTool(BaseTool):
     """Clone, branch, commit, push, and create PRs via git CLI + GitHub API."""
@@ -177,9 +179,7 @@ class GitRepoManagerTool(BaseTool):
             cwd=cwd,
         )
         try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except TimeoutError:
             proc.kill()
             await proc.wait()
@@ -252,7 +252,7 @@ class GitRepoManagerTool(BaseTool):
         if "@" in clean and ":" in clean:
             # git@github.com:owner/repo or ssh://git@github.com/owner/repo
             if clean.startswith("ssh://"):
-                clean = clean[len("ssh://"):]
+                clean = clean[len("ssh://") :]
                 # Now: git@github.com/owner/repo
                 if "@" in clean:
                     clean = clean.split("@", 1)[1]
@@ -286,7 +286,11 @@ class GitRepoManagerTool(BaseTool):
 
         rc, stdout, stderr = await self._run_git(args, timeout=300)
         if rc != 0:
-            return {"action": "clone", "repo_url": v.repo_url, "error": stderr or stdout}
+            return {
+                "action": "clone",
+                "repo_url": v.repo_url,
+                "error": stderr or stdout,
+            }
 
         return {
             "action": "clone",
@@ -299,7 +303,10 @@ class GitRepoManagerTool(BaseTool):
     async def _checkout(self, v: GitRepoManagerInput) -> dict[str, Any]:
         cwd = self._resolve_work_dir(v)
         if not cwd:
-            return {"action": "checkout_branch", "error": "No work_dir available; clone a repo first or set work_dir"}
+            return {
+                "action": "checkout_branch",
+                "error": "No work_dir available; clone a repo first or set work_dir",
+            }
 
         branch = v.branch or "main"
         rc, stdout, stderr = await self._run_git(["checkout", branch], cwd=cwd)
@@ -346,7 +353,10 @@ class GitRepoManagerTool(BaseTool):
             for f in v.files:
                 rc, _, stderr = await self._run_git(["add", f], cwd=cwd)
                 if rc != 0:
-                    return {"action": "commit", "error": f"Failed to stage {f}: {stderr}"}
+                    return {
+                        "action": "commit",
+                        "error": f"Failed to stage {f}: {stderr}",
+                    }
         else:
             await self._run_git(["add", "-A"], cwd=cwd)
 
@@ -355,7 +365,10 @@ class GitRepoManagerTool(BaseTool):
 
         rc, stdout, stderr = await self._run_git(["commit", "-m", v.message], cwd=cwd)
         if rc != 0 and "nothing to commit" in (stdout + stderr).lower():
-            return {"action": "commit", "output": "Nothing to commit (working tree clean)"}
+            return {
+                "action": "commit",
+                "output": "Nothing to commit (working tree clean)",
+            }
 
         return {
             "action": "commit",
@@ -375,7 +388,9 @@ class GitRepoManagerTool(BaseTool):
             args.extend(["origin", v.branch])
         else:
             # Push current branch to origin
-            rc, stdout, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
+            rc, stdout, _ = await self._run_git(
+                ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
+            )
             if rc == 0 and stdout:
                 args.extend(["origin", stdout])
 
@@ -412,12 +427,20 @@ class GitRepoManagerTool(BaseTool):
             return {"action": "create_pr", "error": "No work_dir available"}
 
         if not GITHUB_TOKEN:
-            return {"action": "create_pr", "error": "GITHUB_TOKEN env var not set — cannot create PR via API"}
+            return {
+                "action": "create_pr",
+                "error": "GITHUB_TOKEN env var not set — cannot create PR via API",
+            }
 
         # Determine head branch
-        rc, head_branch, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
+        rc, head_branch, _ = await self._run_git(
+            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
+        )
         if rc != 0 or not head_branch:
-            return {"action": "create_pr", "error": "Could not determine current branch"}
+            return {
+                "action": "create_pr",
+                "error": "Could not determine current branch",
+            }
 
         # Push first if needed
         await self._run_git(["push", "origin", head_branch], cwd=cwd, timeout=120)
@@ -427,11 +450,17 @@ class GitRepoManagerTool(BaseTool):
             ["config", "--get", "remote.origin.url"], cwd=cwd
         )
         if rc != 0 or not remote_url:
-            return {"action": "create_pr", "error": "Could not determine remote origin URL"}
+            return {
+                "action": "create_pr",
+                "error": "Could not determine remote origin URL",
+            }
 
         owner, repo = self._parse_github_repo(remote_url)
         if not owner or not repo:
-            return {"action": "create_pr", "error": f"Could not parse owner/repo from: {remote_url}"}
+            return {
+                "action": "create_pr",
+                "error": f"Could not parse owner/repo from: {remote_url}",
+            }
 
         base = v.pr_base or "main"
         title = v.pr_title or f"PR from {head_branch}"
@@ -479,7 +508,9 @@ class GitRepoManagerTool(BaseTool):
 
         rc, stdout, stderr = await self._run_git(["status", "--porcelain"], cwd=cwd)
         lines = [l for l in stdout.split("\n") if l.strip()] if stdout else []
-        rc2, branch, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
+        rc2, branch, _ = await self._run_git(
+            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
+        )
 
         return {
             "action": "get_status",
@@ -497,12 +528,16 @@ class GitRepoManagerTool(BaseTool):
 
         # Local branches
         rc1, local, _ = await self._run_git(["branch"], cwd=cwd)
-        local_branches = [
-            b.lstrip("* ").strip() for b in local.split("\n") if b.strip()
-        ] if local else []
+        local_branches = (
+            [b.lstrip("* ").strip() for b in local.split("\n") if b.strip()]
+            if local
+            else []
+        )
 
         # Current branch
-        rc2, current, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
+        rc2, current, _ = await self._run_git(
+            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
+        )
 
         return {
             "action": "list_branches",
@@ -562,6 +597,7 @@ class GitRepoManagerTool(BaseTool):
                 continue
             # Set local only if neither is configured
             await self._run_git(["config", key, default], cwd=cwd)
+
     async def _cleanup(self, v: GitRepoManagerInput) -> dict[str, Any]:
         """Remove cloned working directories to free disk space."""
         import shutil
@@ -571,7 +607,10 @@ class GitRepoManagerTool(BaseTool):
                 shutil.rmtree(v.work_dir)
                 return {"action": "cleanup", "removed": v.work_dir}
             except Exception as e:
-                return {"action": "cleanup", "error": f"Failed to remove {v.work_dir}: {e}"}
+                return {
+                    "action": "cleanup",
+                    "error": f"Failed to remove {v.work_dir}: {e}",
+                }
 
         # Clean up all repos under WORK_DIR_BASE
         if os.path.isdir(WORK_DIR_BASE):

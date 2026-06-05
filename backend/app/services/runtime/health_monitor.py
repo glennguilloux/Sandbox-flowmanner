@@ -10,6 +10,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class HealthMonitor:
     """Monitor system health"""
 
@@ -19,7 +20,7 @@ class HealthMonitor:
             "redis": {"healthy": True, "last_check": None, "issues": []},
             "api": {"healthy": True, "last_check": None, "issues": []},
             "workers": {"healthy": True, "last_check": None, "issues": []},
-            "storage": {"healthy": True, "last_check": None, "issues": []}
+            "storage": {"healthy": True, "last_check": None, "issues": []},
         }
         self._recovery_attempts_24h = 0
 
@@ -40,7 +41,7 @@ class HealthMonitor:
             "overall_healthy": overall_healthy,
             "components": self._components,
             "recovery_attempts_24h": self._recovery_attempts_24h,
-            "timestamp": now
+            "timestamp": now,
         }
 
     async def check_component(self, component: str) -> dict[str, Any]:
@@ -53,10 +54,11 @@ class HealthMonitor:
         self._components[component] = {
             "healthy": healthy,
             "last_check": datetime.now(UTC).isoformat(),
-            "issues": [] if healthy else ["Issue detected"]
+            "issues": [] if healthy else ["Issue detected"],
         }
 
         return self._components[component]
+
 
 # Singleton instance
 health_monitor = HealthMonitor()

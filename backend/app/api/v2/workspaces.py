@@ -99,9 +99,7 @@ async def _get_user_workspaces(db: AsyncSession, user_id: int):
     workspace_ids = [m.workspace_id for m in memberships]
     if not workspace_ids:
         return []
-    result = await db.execute(
-        select(Workspace).where(Workspace.id.in_(workspace_ids))
-    )
+    result = await db.execute(select(Workspace).where(Workspace.id.in_(workspace_ids)))
     return result.scalars().all()
 
 
@@ -128,16 +126,18 @@ async def list_workspaces(
             select(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id)
         )
         member_count = len(member_count_result.scalars().all())
-        items.append(WorkspaceResponse(
-            id=ws.id,
-            name=ws.name,
-            slug=ws.slug,
-            owner_id=ws.owner_id,
-            plan=ws.plan,
-            member_count=member_count,
-            created_at=str(ws.created_at) if ws.created_at else "",
-            updated_at=str(ws.updated_at) if ws.updated_at else "",
-        ).model_dump())
+        items.append(
+            WorkspaceResponse(
+                id=ws.id,
+                name=ws.name,
+                slug=ws.slug,
+                owner_id=ws.owner_id,
+                plan=ws.plan,
+                member_count=member_count,
+                created_at=str(ws.created_at) if ws.created_at else "",
+                updated_at=str(ws.updated_at) if ws.updated_at else "",
+            ).model_dump()
+        )
     return ok(items)
 
 
@@ -148,11 +148,17 @@ async def create_workspace(
     user: User = Depends(get_current_user),
 ):
     ws_id = str(uuid4())
-    slug = payload.slug or re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-") or f"workspace-{ws_id[:8]}"
+    slug = (
+        payload.slug
+        or re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-")
+        or f"workspace-{ws_id[:8]}"
+    )
 
     existing = await db.execute(select(Workspace).where(Workspace.slug == slug))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already taken")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already taken"
+        )
 
     ws = Workspace(id=ws_id, name=payload.name, slug=slug, owner_id=user.id)
     db.add(ws)
@@ -160,15 +166,17 @@ async def create_workspace(
     await db.flush()
     await db.refresh(ws)
 
-    return ok(WorkspaceResponse(
-        id=ws.id,
-        name=ws.name,
-        slug=ws.slug,
-        owner_id=ws.owner_id,
-        plan=ws.plan,
-        member_count=1,
-        created_at=str(ws.created_at) if ws.created_at else "",
-    ).model_dump())
+    return ok(
+        WorkspaceResponse(
+            id=ws.id,
+            name=ws.name,
+            slug=ws.slug,
+            owner_id=ws.owner_id,
+            plan=ws.plan,
+            member_count=1,
+            created_at=str(ws.created_at) if ws.created_at else "",
+        ).model_dump()
+    )
 
 
 @router.get("/{workspace_id}")
@@ -191,16 +199,18 @@ async def get_workspace(
     )
     member_count = len(member_count_result.scalars().all())
 
-    return ok(WorkspaceResponse(
-        id=ws.id,
-        name=ws.name,
-        slug=ws.slug,
-        owner_id=ws.owner_id,
-        plan=ws.plan,
-        member_count=member_count,
-        created_at=str(ws.created_at) if ws.created_at else "",
-        updated_at=str(ws.updated_at) if ws.updated_at else "",
-    ).model_dump())
+    return ok(
+        WorkspaceResponse(
+            id=ws.id,
+            name=ws.name,
+            slug=ws.slug,
+            owner_id=ws.owner_id,
+            plan=ws.plan,
+            member_count=member_count,
+            created_at=str(ws.created_at) if ws.created_at else "",
+            updated_at=str(ws.updated_at) if ws.updated_at else "",
+        ).model_dump()
+    )
 
 
 @router.patch("/{workspace_id}")
@@ -224,15 +234,17 @@ async def update_workspace(
     await db.flush()
     await db.refresh(ws)
 
-    return ok(WorkspaceResponse(
-        id=ws.id,
-        name=ws.name,
-        slug=ws.slug,
-        owner_id=ws.owner_id,
-        plan=ws.plan,
-        created_at=str(ws.created_at) if ws.created_at else "",
-        updated_at=str(ws.updated_at) if ws.updated_at else "",
-    ).model_dump())
+    return ok(
+        WorkspaceResponse(
+            id=ws.id,
+            name=ws.name,
+            slug=ws.slug,
+            owner_id=ws.owner_id,
+            plan=ws.plan,
+            created_at=str(ws.created_at) if ws.created_at else "",
+            updated_at=str(ws.updated_at) if ws.updated_at else "",
+        ).model_dump()
+    )
 
 
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -272,15 +284,17 @@ async def list_members(
     for m in members:
         user_result = await db.execute(select(User).where(User.id == m.user_id))
         u = user_result.scalar_one_or_none()
-        items.append(MemberResponse(
-            id=m.id,
-            user_id=m.user_id,
-            workspace_id=m.workspace_id,
-            role=m.role,
-            user_email=u.email if u else "",
-            user_name=u.full_name or u.username if u else "",
-            joined_at=str(m.joined_at) if m.joined_at else "",
-        ).model_dump())
+        items.append(
+            MemberResponse(
+                id=m.id,
+                user_id=m.user_id,
+                workspace_id=m.workspace_id,
+                role=m.role,
+                user_email=u.email if u else "",
+                user_name=u.full_name or u.username if u else "",
+                joined_at=str(m.joined_at) if m.joined_at else "",
+            ).model_dump()
+        )
 
     return ok(items)
 
@@ -295,9 +309,7 @@ async def list_teams(
     if not membership:
         raise _not_found()
 
-    result = await db.execute(
-        select(Team).where(Team.workspace_id == workspace_id)
-    )
+    result = await db.execute(select(Team).where(Team.workspace_id == workspace_id))
     teams = result.scalars().all()
 
     items = []
@@ -306,14 +318,16 @@ async def list_teams(
             select(TeamMember).where(TeamMember.team_id == t.id)
         )
         member_count = len(member_count_result.scalars().all())
-        items.append(TeamResponse(
-            id=t.id,
-            workspace_id=t.workspace_id,
-            name=t.name,
-            description=t.description,
-            member_count=member_count,
-            created_at=str(t.created_at) if t.created_at else "",
-        ).model_dump())
+        items.append(
+            TeamResponse(
+                id=t.id,
+                workspace_id=t.workspace_id,
+                name=t.name,
+                description=t.description,
+                member_count=member_count,
+                created_at=str(t.created_at) if t.created_at else "",
+            ).model_dump()
+        )
 
     return ok(items)
 
@@ -339,11 +353,13 @@ async def create_team(
     await db.flush()
     await db.refresh(team)
 
-    return ok(TeamResponse(
-        id=team.id,
-        workspace_id=team.workspace_id,
-        name=team.name,
-        description=team.description,
-        member_count=0,
-        created_at=str(team.created_at) if team.created_at else "",
-    ).model_dump())
+    return ok(
+        TeamResponse(
+            id=team.id,
+            workspace_id=team.workspace_id,
+            name=team.name,
+            description=team.description,
+            member_count=0,
+            created_at=str(team.created_at) if team.created_at else "",
+        ).model_dump()
+    )

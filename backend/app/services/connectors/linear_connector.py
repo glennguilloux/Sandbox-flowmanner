@@ -88,7 +88,9 @@ class LinearConnector(BaseConnector):
         try:
             from app.services.linear.client import LinearClient
 
-            api_key = self.config.auth_config.get("key_value") or settings.LINEAR_API_KEY
+            api_key = (
+                self.config.auth_config.get("key_value") or settings.LINEAR_API_KEY
+            )
             if not api_key:
                 logger.warning("No Linear API key configured")
                 return False

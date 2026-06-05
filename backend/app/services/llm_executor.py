@@ -119,7 +119,9 @@ class LlmExecutor:
                     ),
                     latency_ms=latency_ms,
                     success=response.get("success", False),
-                    error_message=response.get("error") if not response.get("success") else None,
+                    error_message=(
+                        response.get("error") if not response.get("success") else None
+                    ),
                 )
 
             if not response.get("success"):

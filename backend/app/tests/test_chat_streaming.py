@@ -13,6 +13,7 @@ from app.main_fastapi import app
 
 pytestmark = pytest.mark.integration
 
+
 def _make_thread(user_id: int = 1):
     return SimpleNamespace(
         id=42,

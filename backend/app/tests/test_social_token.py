@@ -29,6 +29,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-123")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _mock_github_profile():
     """Return a fake GitHub profile dict that _fetch_social_profile would return."""
     return {
@@ -83,6 +84,7 @@ def _make_mock_user(**kwargs):
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_db_session():
     """AsyncMock simulating an async SQLAlchemy session."""
@@ -100,6 +102,7 @@ def mock_db_session():
 @pytest.fixture
 def test_client(mock_db_session):
     """TestClient with DB override."""
+
     async def override_get_db():
         yield mock_db_session
 
@@ -113,13 +116,17 @@ def test_client(mock_db_session):
 # 1. Unsupported provider
 # ---------------------------------------------------------------------------
 
+
 def test_social_token_unsupported_provider(test_client, mock_db_session):
     """POST /api/auth/social/token with unsupported provider returns 400."""
     with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)):
-        response = test_client.post("/api/auth/social/token", json={
-            "provider": "twitter",
-            "access_token": "fake-token",
-        })
+        response = test_client.post(
+            "/api/auth/social/token",
+            json={
+                "provider": "twitter",
+                "access_token": "fake-token",
+            },
+        )
     assert response.status_code == 400
     assert "Unsupported provider" in response.json()["detail"]
 
@@ -128,15 +135,19 @@ def test_social_token_unsupported_provider(test_client, mock_db_session):
 # 2. Rate limited — too many requests from same IP
 # ---------------------------------------------------------------------------
 
+
 def test_social_token_rate_limited(test_client, mock_db_session):
     """POST /api/auth/social/token returns 429 when rate limit is exceeded."""
     rate_limit_mock = MagicMock(return_value=(False, 0, 42))
 
     with patch("app.api.v1.auth.check_rate_limit", rate_limit_mock):
-        response = test_client.post("/api/auth/social/token", json={
-            "provider": "github",
-            "access_token": "gho_valid_token",
-        })
+        response = test_client.post(
+            "/api/auth/social/token",
+            json={
+                "provider": "github",
+                "access_token": "gho_valid_token",
+            },
+        )
 
     assert response.status_code == 429
     data = response.json()
@@ -151,8 +162,10 @@ def test_social_token_rate_limited(test_client, mock_db_session):
 # 3. Invalid GitHub token (API rejects it)
 # ---------------------------------------------------------------------------
 
+
 def test_social_token_github_invalid_token(test_client, mock_db_session):
     """POST /api/auth/social/token with invalid GitHub token returns 401."""
+
     async def raise_401(*args, **kwargs):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -161,10 +174,13 @@ def test_social_token_github_invalid_token(test_client, mock_db_session):
 
     with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)):
         with patch("app.api.v1.auth._fetch_social_profile", side_effect=raise_401):
-            response = test_client.post("/api/auth/social/token", json={
-                "provider": "github",
-                "access_token": "invalid-github-token",
-            })
+            response = test_client.post(
+                "/api/auth/social/token",
+                json={
+                    "provider": "github",
+                    "access_token": "invalid-github-token",
+                },
+            )
 
     assert response.status_code == 401
     assert "Invalid GitHub access token" in response.json()["detail"]
@@ -173,6 +189,7 @@ def test_social_token_github_invalid_token(test_client, mock_db_session):
 # ---------------------------------------------------------------------------
 # 4. New GitHub user — first login
 # ---------------------------------------------------------------------------
+
 
 @patch("app.services.auth_service.create_user")
 def test_social_token_github_new_user(
@@ -184,22 +201,40 @@ def test_social_token_github_new_user(
     profile = _mock_github_profile()
 
     with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)):
-        with patch("app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)):
-            with patch("app.api.v1.auth._ensure_oidc_provider", AsyncMock(return_value="github-uuid-1234")):
+        with patch(
+            "app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)
+        ):
+            with patch(
+                "app.api.v1.auth._ensure_oidc_provider",
+                AsyncMock(return_value="github-uuid-1234"),
+            ):
 
                 # All DB queries return None (no existing user / OIDC link)
-                mock_db_session.execute.return_value = _make_db_result(scalar_one_or_none=None)
+                mock_db_session.execute.return_value = _make_db_result(
+                    scalar_one_or_none=None
+                )
 
-                new_user = _make_mock_user(id=42, email=profile["email"], username=profile["login"])
+                new_user = _make_mock_user(
+                    id=42, email=profile["email"], username=profile["login"]
+                )
                 mock_create_user_svc.return_value = new_user
 
-                with patch("app.api.v1.auth.create_access_token", return_value="acc-github-new-42"):
-                    with patch("app.api.v1.auth._issue_refresh_token", AsyncMock(return_value="ref-github-new-42")):
+                with patch(
+                    "app.api.v1.auth.create_access_token",
+                    return_value="acc-github-new-42",
+                ):
+                    with patch(
+                        "app.api.v1.auth._issue_refresh_token",
+                        AsyncMock(return_value="ref-github-new-42"),
+                    ):
 
-                        response = test_client.post("/api/auth/social/token", json={
-                            "provider": "github",
-                            "access_token": "gho_valid_token",
-                        })
+                        response = test_client.post(
+                            "/api/auth/social/token",
+                            json={
+                                "provider": "github",
+                                "access_token": "gho_valid_token",
+                            },
+                        )
 
     assert response.status_code == 200
     data = response.json()
@@ -224,6 +259,7 @@ def test_social_token_github_new_user(
 # 5. Returning GitHub user — OIDC account link exists
 # ---------------------------------------------------------------------------
 
+
 def test_social_token_github_returning_user(test_client, mock_db_session):
     """Returning GitHub OAuth: finds existing OIDC account → returns tokens."""
     profile = _mock_github_profile()
@@ -233,8 +269,13 @@ def test_social_token_github_returning_user(test_client, mock_db_session):
     mock_oidc_account.user_id = 42
 
     with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)):
-        with patch("app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)):
-            with patch("app.api.v1.auth._ensure_oidc_provider", AsyncMock(return_value="github-uuid-1234")):
+        with patch(
+            "app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)
+        ):
+            with patch(
+                "app.api.v1.auth._ensure_oidc_provider",
+                AsyncMock(return_value="github-uuid-1234"),
+            ):
 
                 # Query 1: OIDC account → found
                 # Query 2: User by id → found
@@ -249,13 +290,22 @@ def test_social_token_github_returning_user(test_client, mock_db_session):
 
                 mock_db_session.execute = AsyncMock(side_effect=execute_side_effect)
 
-                with patch("app.api.v1.auth.create_access_token", return_value="acc-returning-42"):
-                    with patch("app.api.v1.auth._issue_refresh_token", AsyncMock(return_value="ref-returning-42")):
+                with patch(
+                    "app.api.v1.auth.create_access_token",
+                    return_value="acc-returning-42",
+                ):
+                    with patch(
+                        "app.api.v1.auth._issue_refresh_token",
+                        AsyncMock(return_value="ref-returning-42"),
+                    ):
 
-                        response = test_client.post("/api/auth/social/token", json={
-                            "provider": "github",
-                            "access_token": "gho_valid_token",
-                        })
+                        response = test_client.post(
+                            "/api/auth/social/token",
+                            json={
+                                "provider": "github",
+                                "access_token": "gho_valid_token",
+                            },
+                        )
 
     assert response.status_code == 200
     data = response.json()
@@ -267,14 +317,20 @@ def test_social_token_github_returning_user(test_client, mock_db_session):
 # 6. Email-linked user — existing account by email, link OIDC
 # ---------------------------------------------------------------------------
 
+
 def test_social_token_github_email_link(test_client, mock_db_session):
     """Existing user by email (no OIDC link): links OIDC account → returns tokens."""
     profile = _mock_github_profile()
     existing_user = _make_mock_user(id=99, email=profile["email"], avatar_url=None)
 
     with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)):
-        with patch("app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)):
-            with patch("app.api.v1.auth._ensure_oidc_provider", AsyncMock(return_value="github-uuid-1234")):
+        with patch(
+            "app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)
+        ):
+            with patch(
+                "app.api.v1.auth._ensure_oidc_provider",
+                AsyncMock(return_value="github-uuid-1234"),
+            ):
 
                 # Query 1: OIDC account lookup → None (no link yet)
                 # Query 2: User by email → found
@@ -291,13 +347,22 @@ def test_social_token_github_email_link(test_client, mock_db_session):
 
                 mock_db_session.execute = AsyncMock(side_effect=execute_side_effect)
 
-                with patch("app.api.v1.auth.create_access_token", return_value="acc-email-link-99"):
-                    with patch("app.api.v1.auth._issue_refresh_token", AsyncMock(return_value="ref-email-link-99")):
+                with patch(
+                    "app.api.v1.auth.create_access_token",
+                    return_value="acc-email-link-99",
+                ):
+                    with patch(
+                        "app.api.v1.auth._issue_refresh_token",
+                        AsyncMock(return_value="ref-email-link-99"),
+                    ):
 
-                        response = test_client.post("/api/auth/social/token", json={
-                            "provider": "github",
-                            "access_token": "gho_valid_token",
-                        })
+                        response = test_client.post(
+                            "/api/auth/social/token",
+                            json={
+                                "provider": "github",
+                                "access_token": "gho_valid_token",
+                            },
+                        )
 
     assert response.status_code == 200
     data = response.json()
@@ -315,6 +380,7 @@ def test_social_token_github_email_link(test_client, mock_db_session):
 # 7. New Google user — first login
 # ---------------------------------------------------------------------------
 
+
 @patch("app.services.auth_service.create_user")
 def test_social_token_google_new_user(
     mock_create_user_svc,
@@ -325,21 +391,39 @@ def test_social_token_google_new_user(
     profile = _mock_google_profile()
 
     with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)):
-        with patch("app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)):
-            with patch("app.api.v1.auth._ensure_oidc_provider", AsyncMock(return_value="google-uuid-5678")):
+        with patch(
+            "app.api.v1.auth._fetch_social_profile", AsyncMock(return_value=profile)
+        ):
+            with patch(
+                "app.api.v1.auth._ensure_oidc_provider",
+                AsyncMock(return_value="google-uuid-5678"),
+            ):
 
-                mock_db_session.execute.return_value = _make_db_result(scalar_one_or_none=None)
+                mock_db_session.execute.return_value = _make_db_result(
+                    scalar_one_or_none=None
+                )
 
-                new_user = _make_mock_user(id=55, email=profile["email"], username=profile["login"])
+                new_user = _make_mock_user(
+                    id=55, email=profile["email"], username=profile["login"]
+                )
                 mock_create_user_svc.return_value = new_user
 
-                with patch("app.api.v1.auth.create_access_token", return_value="acc-google-new-55"):
-                    with patch("app.api.v1.auth._issue_refresh_token", AsyncMock(return_value="ref-google-new-55")):
+                with patch(
+                    "app.api.v1.auth.create_access_token",
+                    return_value="acc-google-new-55",
+                ):
+                    with patch(
+                        "app.api.v1.auth._issue_refresh_token",
+                        AsyncMock(return_value="ref-google-new-55"),
+                    ):
 
-                        response = test_client.post("/api/auth/social/token", json={
-                            "provider": "google",
-                            "access_token": "ya29.valid_google_token",
-                        })
+                        response = test_client.post(
+                            "/api/auth/social/token",
+                            json={
+                                "provider": "google",
+                                "access_token": "ya29.valid_google_token",
+                            },
+                        )
 
     assert response.status_code == 200
     data = response.json()

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class PlaywrightControllerInput(ToolInput):
     action: str = Field(
         ...,
@@ -66,6 +67,7 @@ class PlaywrightControllerInput(ToolInput):
 
 # ── Tool ──────────────────────────────────────────────────────────────
 
+
 class PlaywrightControllerTool(BaseTool):
     """Advanced Playwright-level browser control: evaluate JS, wait, extract content."""
 
@@ -86,7 +88,13 @@ class PlaywrightControllerTool(BaseTool):
                     "success": {"type": "boolean"},
                 },
             },
-            tags=["browser", "playwright", "javascript", "extraction", "differentiator"],
+            tags=[
+                "browser",
+                "playwright",
+                "javascript",
+                "extraction",
+                "differentiator",
+            ],
             requires_auth=True,
             timeout_seconds=30,
         )
@@ -135,7 +143,9 @@ class PlaywrightControllerTool(BaseTool):
             elif action == "wait":
                 return await self._wait(session, validated)
             elif action == "execute_sequence":
-                return await self._execute_sequence(session, validated, str(user_id), service)
+                return await self._execute_sequence(
+                    session, validated, str(user_id), service
+                )
             else:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
@@ -150,7 +160,9 @@ class PlaywrightControllerTool(BaseTool):
 
     # ── evaluate ────────────────────────────────────────────────
 
-    async def _evaluate(self, session, validated: PlaywrightControllerInput) -> ToolResult:
+    async def _evaluate(
+        self, session, validated: PlaywrightControllerInput
+    ) -> ToolResult:
         if not validated.script:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -169,6 +181,7 @@ class PlaywrightControllerTool(BaseTool):
 
             if validated.screenshot_after:
                 import base64
+
                 ss = await session.page.screenshot(type="png")
                 response["screenshot"] = base64.b64encode(ss).decode("utf-8")
 
@@ -181,7 +194,9 @@ class PlaywrightControllerTool(BaseTool):
 
     # ── get_content ─────────────────────────────────────────────
 
-    async def _get_content(self, session, validated: PlaywrightControllerInput) -> ToolResult:
+    async def _get_content(
+        self, session, validated: PlaywrightControllerInput
+    ) -> ToolResult:
         try:
             page = session.page
             mode = validated.extract_mode
@@ -189,7 +204,9 @@ class PlaywrightControllerTool(BaseTool):
             if mode == "html":
                 content = await page.content()
             elif mode == "text":
-                content = await page.evaluate("() => document.body ? document.body.innerText : ''")
+                content = await page.evaluate(
+                    "() => document.body ? document.body.innerText : ''"
+                )
             elif mode == "inner_text":
                 if validated.selector:
                     content = await page.inner_text(validated.selector)
@@ -220,6 +237,7 @@ class PlaywrightControllerTool(BaseTool):
 
             if validated.screenshot_after:
                 import base64
+
                 ss = await session.page.screenshot(type="png")
                 response["screenshot"] = base64.b64encode(ss).decode("utf-8")
 
@@ -244,7 +262,8 @@ class PlaywrightControllerTool(BaseTool):
                         error="'selector' is required for wait_type='selector'",
                     )
                 await page.wait_for_selector(
-                    validated.selector, timeout=validated.timeout_ms,
+                    validated.selector,
+                    timeout=validated.timeout_ms,
                 )
                 detail = f"Selector '{validated.selector}' appeared"
             elif wait_type == "text":

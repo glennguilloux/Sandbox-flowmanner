@@ -41,12 +41,16 @@ async def run():
 
     async with engine.begin() as conn:
         # Verify required columns exist (migration must have run first)
-        has_slug = await conn.execute(sa_text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = 'agent_templates' AND column_name = 'slug'"
-        ))
+        has_slug = await conn.execute(
+            sa_text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'agent_templates' AND column_name = 'slug'"
+            )
+        )
         if not has_slug.fetchone():
-            logger.error("agent_templates.slug column does not exist. Run Alembic migration first: alembic upgrade head")
+            logger.error(
+                "agent_templates.slug column does not exist. Run Alembic migration first: alembic upgrade head"
+            )
             await engine.dispose()
             return
 
@@ -60,7 +64,9 @@ async def run():
             definition = json.dumps(agent_data, default=str)
 
             result = await conn.execute(
-                sa_text("SELECT template_id, version FROM agent_templates WHERE slug = :slug"),
+                sa_text(
+                    "SELECT template_id, version FROM agent_templates WHERE slug = :slug"
+                ),
                 {"slug": slug},
             )
             existing = result.fetchone()
@@ -77,7 +83,8 @@ async def run():
                 template_id = existing[0]
                 version = existing[1] or 1
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         UPDATE agent_templates SET
                             name = :name, description = :description,
                             system_prompt = :system_prompt, agent_type = :agent_type,
@@ -85,7 +92,8 @@ async def run():
                             definition = CAST(:definition AS jsonb),
                             version = version + 1, updated_at = :updated_at
                         WHERE slug = :slug
-                    """),
+                    """
+                    ),
                     {
                         "name": agent_data["name"],
                         "description": agent_data["description"],
@@ -98,10 +106,12 @@ async def run():
                     },
                 )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO agent_template_versions (id, template_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :template_id, :version, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "template_id": template_id,
@@ -114,7 +124,8 @@ async def run():
             else:
                 template_id = str(uuid4())
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO agent_templates (
                             template_id, name, description, agent_type, system_prompt,
                             model_config, is_active, state, slug, version, source, definition,
@@ -124,7 +135,8 @@ async def run():
                             CAST(:model_config AS jsonb), true, 'defined', :slug, 1, 'file_imported',
                             CAST(:definition AS jsonb), :updated_at, :updated_at
                         )
-                    """),
+                    """
+                    ),
                     {
                         "template_id": template_id,
                         "name": agent_data["name"],
@@ -138,10 +150,12 @@ async def run():
                     },
                 )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO agent_template_versions (id, template_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :template_id, 1, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "template_id": template_id,
@@ -156,20 +170,25 @@ async def run():
 
         for tpl in AGENT_TEMPLATES:
             slug = tpl.id
-            definition = json.dumps({
-                "id": tpl.id,
-                "name": tpl.name,
-                "description": tpl.description,
-                "category": tpl.category.value,
-                "icon": tpl.icon,
-                "tags": tpl.tags,
-                "system_prompt": tpl.model_config.system_prompt,
-                "provider": tpl.model_config.provider,
-                "model_name": tpl.model_config.model_name,
-                "temperature": tpl.model_config.temperature,
-                "max_tokens": tpl.model_config.max_tokens,
-                "tools": [{"tool_id": t.tool_id, "enabled": t.enabled} for t in tpl.tools],
-            }, default=str)
+            definition = json.dumps(
+                {
+                    "id": tpl.id,
+                    "name": tpl.name,
+                    "description": tpl.description,
+                    "category": tpl.category.value,
+                    "icon": tpl.icon,
+                    "tags": tpl.tags,
+                    "system_prompt": tpl.model_config.system_prompt,
+                    "provider": tpl.model_config.provider,
+                    "model_name": tpl.model_config.model_name,
+                    "temperature": tpl.model_config.temperature,
+                    "max_tokens": tpl.model_config.max_tokens,
+                    "tools": [
+                        {"tool_id": t.tool_id, "enabled": t.enabled} for t in tpl.tools
+                    ],
+                },
+                default=str,
+            )
 
             config = {
                 "slug": slug,
@@ -178,7 +197,9 @@ async def run():
             }
 
             result = await conn.execute(
-                sa_text("SELECT template_id, version FROM agent_templates WHERE slug = :slug"),
+                sa_text(
+                    "SELECT template_id, version FROM agent_templates WHERE slug = :slug"
+                ),
                 {"slug": slug},
             )
             existing = result.fetchone()
@@ -187,7 +208,8 @@ async def run():
                 template_id = existing[0]
                 version = existing[1] or 1
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         UPDATE agent_templates SET
                             name = :name, description = :description,
                             system_prompt = :system_prompt, agent_type = :agent_type,
@@ -195,7 +217,8 @@ async def run():
                             definition = CAST(:definition AS jsonb),
                             version = version + 1, updated_at = :updated_at
                         WHERE slug = :slug
-                    """),
+                    """
+                    ),
                     {
                         "name": tpl.name,
                         "description": tpl.description,
@@ -208,10 +231,12 @@ async def run():
                     },
                 )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO agent_template_versions (id, template_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :template_id, :version, :snapshot::jsonb, :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "template_id": template_id,
@@ -224,7 +249,8 @@ async def run():
             else:
                 template_id = str(uuid4())
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO agent_templates (
                             template_id, name, description, agent_type, system_prompt,
                             model_config, is_active, state, slug, version, source, definition,
@@ -234,7 +260,8 @@ async def run():
                             CAST(:model_config AS jsonb), true, 'defined', :slug, 1, 'python_imported',
                             CAST(:definition AS jsonb), :updated_at, :updated_at
                         )
-                    """),
+                    """
+                    ),
                     {
                         "template_id": template_id,
                         "name": tpl.name,
@@ -248,10 +275,12 @@ async def run():
                     },
                 )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO agent_template_versions (id, template_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :template_id, 1, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "template_id": template_id,
@@ -264,7 +293,9 @@ async def run():
     await engine.dispose()
     logger.info(
         "Import complete: %d new, %d updated, %d total",
-        new_count, updated_count, new_count + updated_count,
+        new_count,
+        updated_count,
+        new_count + updated_count,
     )
 
 

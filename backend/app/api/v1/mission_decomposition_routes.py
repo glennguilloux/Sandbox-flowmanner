@@ -107,12 +107,14 @@ async def get_dag_endpoint(
         deps = task.dependencies or {}
         dep_list = [d for d in deps.get("depends_on", []) if d in task_ids]
 
-        nodes.append(DAGNode(
-            id=str(task.id),
-            title=task.title,
-            status=task.status,
-            dependencies=dep_list,
-        ))
+        nodes.append(
+            DAGNode(
+                id=str(task.id),
+                title=task.title,
+                status=task.status,
+                dependencies=dep_list,
+            )
+        )
 
         for dep_id in dep_list:
             edges.append({"from": dep_id, "to": str(task.id)})

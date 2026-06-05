@@ -37,13 +37,20 @@ if TYPE_CHECKING:
 # ──────────────────────────────────────────────────────────────
 
 _VALID_SCOPES: set[str] = {
-    "missions:read", "missions:write",
-    "sessions:read", "sessions:write",
-    "api_keys:read", "api_keys:write",
-    "webhooks:read", "webhooks:write",
-    "workspaces:read", "workspaces:write",
-    "agents:read", "agents:write",
-    "chat:read", "chat:write",
+    "missions:read",
+    "missions:write",
+    "sessions:read",
+    "sessions:write",
+    "api_keys:read",
+    "api_keys:write",
+    "webhooks:read",
+    "webhooks:write",
+    "workspaces:read",
+    "workspaces:write",
+    "agents:read",
+    "agents:write",
+    "chat:read",
+    "chat:write",
 }
 
 _VALID_ROLES: set[str] = {"viewer", "member", "admin", "owner"}
@@ -65,6 +72,7 @@ def validate_role(role: str) -> bool:
 # Token hashing utilities
 # ──────────────────────────────────────────────────────────────
 
+
 def hash_refresh_token(token: str) -> str:
     """SHA-256 the refresh token for storage. Never store plaintext."""
     return hashlib.sha256(token.encode()).hexdigest()
@@ -78,6 +86,7 @@ def generate_invite_token() -> str:
 # ──────────────────────────────────────────────────────────────
 # Session management
 # ──────────────────────────────────────────────────────────────
+
 
 def create_access_token(
     user_id: int,
@@ -341,6 +350,7 @@ async def get_session_by_id(db: AsyncSession, session_id: str) -> AuthSession | 
 # API key management
 # ──────────────────────────────────────────────────────────────
 
+
 async def create_api_key(
     db: AsyncSession,
     user_id: int,
@@ -406,10 +416,13 @@ async def revoke_api_key(db: AsyncSession, key_id: str, user_id: int) -> bool:
 # Feature flag resolution
 # ──────────────────────────────────────────────────────────────
 
+
 async def is_auth_v3_enabled(db: AsyncSession) -> bool:
     """Check if the master Auth v3 endpoints flag is globally enabled."""
     result = await db.execute(
-        text("SELECT enabled_globally FROM feature_flags WHERE key = 'AUTH_V3_ENDPOINTS'")
+        text(
+            "SELECT enabled_globally FROM feature_flags WHERE key = 'AUTH_V3_ENDPOINTS'"
+        )
     )
     flag = result.scalar()
     return bool(flag)
@@ -418,6 +431,7 @@ async def is_auth_v3_enabled(db: AsyncSession) -> bool:
 # ──────────────────────────────────────────────────────────────
 # Password hashing (reuses existing bcrypt pattern)
 # ──────────────────────────────────────────────────────────────
+
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
@@ -435,6 +449,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # ──────────────────────────────────────────────────────────────
 # User management
 # ──────────────────────────────────────────────────────────────
+
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     """Find a user by email."""

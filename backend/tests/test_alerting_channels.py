@@ -22,6 +22,7 @@ _MODULE_PATH = "app.services.alerting"
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def _reload_alerting(**env_overrides: str | None) -> object:
     """Reload the alerting module with given env vars set.
 
@@ -34,6 +35,7 @@ def _reload_alerting(**env_overrides: str | None) -> object:
             os.environ[k] = v
 
     import app.services.alerting as am
+
     importlib.reload(am)
     return am
 
@@ -69,16 +71,19 @@ def _make_slo_payload() -> dict:
 
 class TestChannelParsing:
 
-    @pytest.mark.parametrize("env_val,expected", [
-        ("ntfy,webhook", ["ntfy", "webhook"]),
-        ("ntfy", ["ntfy"]),
-        ("webhook,email,pagerduty,ntfy", ["webhook", "email", "pagerduty", "ntfy"]),
-        (" ntfy , webhook ", ["ntfy", "webhook"]),
-        ("NTFY,WEBHOOK", ["ntfy", "webhook"]),
-        ("", []),
-        ("   ", []),
-        ("unknown_channel", ["unknown_channel"]),
-    ])
+    @pytest.mark.parametrize(
+        "env_val,expected",
+        [
+            ("ntfy,webhook", ["ntfy", "webhook"]),
+            ("ntfy", ["ntfy"]),
+            ("webhook,email,pagerduty,ntfy", ["webhook", "email", "pagerduty", "ntfy"]),
+            (" ntfy , webhook ", ["ntfy", "webhook"]),
+            ("NTFY,WEBHOOK", ["ntfy", "webhook"]),
+            ("", []),
+            ("   ", []),
+            ("unknown_channel", ["unknown_channel"]),
+        ],
+    )
     def test_parses_notify_channels_csv(self, env_val, expected):
         """_get_channels() correctly parses NOTIFY_CHANNELS env."""
         am = _reload_alerting(
@@ -295,9 +300,13 @@ class TestMultiChannelDispatch:
             return True
 
         # Patch the dispatcher registry dict so patches flow through
-        with patch.dict(am._CHANNEL_DISPATCHERS, {
-            "ntfy": fake_ntfy, "webhook": fake_webhook,
-        }):
+        with patch.dict(
+            am._CHANNEL_DISPATCHERS,
+            {
+                "ntfy": fake_ntfy,
+                "webhook": fake_webhook,
+            },
+        ):
             results = await am._dispatch_to_channels(
                 _make_payload(), channels=["ntfy", "webhook"]
             )
@@ -329,9 +338,14 @@ class TestMultiChannelDispatch:
             results_tracker["email_ok"] = True
             return False  # placeholder
 
-        with patch.dict(am._CHANNEL_DISPATCHERS, {
-            "ntfy": fake_ntfy, "webhook": fake_webhook, "email": fake_email,
-        }):
+        with patch.dict(
+            am._CHANNEL_DISPATCHERS,
+            {
+                "ntfy": fake_ntfy,
+                "webhook": fake_webhook,
+                "email": fake_email,
+            },
+        ):
             dispatch_results = await am._dispatch_to_channels(
                 _make_payload(), channels=["ntfy", "webhook", "email"]
             )
@@ -381,7 +395,9 @@ class TestCircuitAlertEndToEnd:
         async def fake_dispatch(payload, channels):
             return {"webhook": True}
 
-        with patch.object(am, "_dispatch_to_channels", side_effect=fake_dispatch) as mock_dispatch:
+        with patch.object(
+            am, "_dispatch_to_channels", side_effect=fake_dispatch
+        ) as mock_dispatch:
             await am.send_circuit_alert("test-db", "closed", "open", 3)
 
         mock_dispatch.assert_awaited_once()
@@ -477,7 +493,9 @@ class TestSLOAlertEndToEnd:
         async def fake_dispatch(payload, channels):
             return {"webhook": True, "ntfy": True}
 
-        with patch.object(am, "_dispatch_to_channels", side_effect=fake_dispatch) as mock_dispatch:
+        with patch.object(
+            am, "_dispatch_to_channels", side_effect=fake_dispatch
+        ) as mock_dispatch:
             await am.send_slo_alert(
                 slo_name="mission_success_rate",
                 description="Mission execution success rate > 95%",

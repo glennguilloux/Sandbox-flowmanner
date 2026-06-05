@@ -96,7 +96,9 @@ class AIExecutionPlanner:
                 self._topology_manager = get_topology_manager()
                 logger.info("AIExecutionPlanner initialized with semantic matching")
             except Exception as e:
-                logger.warning(f"Semantic layer unavailable, using rule-based fallback: {e}")
+                logger.warning(
+                    f"Semantic layer unavailable, using rule-based fallback: {e}"
+                )
                 self._use_semantic = False
 
     def _setup_default_rules(self):
@@ -132,7 +134,11 @@ class AIExecutionPlanner:
                 "capabilities": ["tool:generate_image"],
                 "category": "creative",
             },
-            {"patterns": [r"analyze", r"examine", r"review"], "capabilities": ["tool:analyze"], "category": "analysis"},
+            {
+                "patterns": [r"analyze", r"examine", r"review"],
+                "capabilities": ["tool:analyze"],
+                "category": "analysis",
+            },
             {
                 "patterns": [r"write code", r"implement", r"develop"],
                 "capabilities": ["tool:write_code"],
@@ -192,17 +198,24 @@ class AIExecutionPlanner:
         if self._use_semantic and self._topology_manager:
             return await self._create_semantic_plan(goal, context, available_agents)
         else:
-            return await self._create_rule_based_plan(goal, context, available_capabilities)
+            return await self._create_rule_based_plan(
+                goal, context, available_capabilities
+            )
 
     async def _create_semantic_plan(
-        self, goal: str, context: dict[str, Any] | None, available_agents: list[str] | None
+        self,
+        goal: str,
+        context: dict[str, Any] | None,
+        available_agents: list[str] | None,
     ) -> ExecutionPlan:
         """Create plan using semantic attention matching"""
         steps = []
         step_id = 0
 
         # Find best matching agents using attention
-        matches = await self._topology_manager.find_best_agent(query=goal, max_results=5)
+        matches = await self._topology_manager.find_best_agent(
+            query=goal, max_results=5
+        )
 
         # Filter by available agents if specified
         if available_agents:
@@ -242,7 +255,10 @@ class AIExecutionPlanner:
         )
 
     async def _create_rule_based_plan(
-        self, goal: str, context: dict[str, Any] | None, available_capabilities: list[str] | None
+        self,
+        goal: str,
+        context: dict[str, Any] | None,
+        available_capabilities: list[str] | None,
     ) -> ExecutionPlan:
         """Create plan using rule-based matching (fallback)"""
         goal_lower = goal.lower()
@@ -260,7 +276,9 @@ class AIExecutionPlanner:
 
         # Filter by available capabilities if specified
         if available_capabilities:
-            matched_capabilities = matched_capabilities.intersection(set(available_capabilities))
+            matched_capabilities = matched_capabilities.intersection(
+                set(available_capabilities)
+            )
 
         # Create steps
         for cap_id in matched_capabilities:
@@ -290,7 +308,10 @@ class AIExecutionPlanner:
             goal=goal,
             steps=steps,
             estimated_cost=self._estimate_cost(steps),
-            metadata={"planning_method": "rule-based", "matched_capabilities": list(matched_capabilities)},
+            metadata={
+                "planning_method": "rule-based",
+                "matched_capabilities": list(matched_capabilities),
+            },
             planning_method="rule-based",
         )
 
@@ -332,7 +353,9 @@ class AIExecutionPlanner:
             "estimated_usd": round(total, 4),
             "step_count": len(steps),
             "llm_steps": sum(1 for s in steps if "agent" in s.capability_id),
-            "avg_confidence": sum(s.confidence for s in steps) / len(steps) if steps else 0,
+            "avg_confidence": (
+                sum(s.confidence for s in steps) / len(steps) if steps else 0
+            ),
         }
 
     async def optimize_plan(self, plan: ExecutionPlan) -> ExecutionPlan:
@@ -360,9 +383,13 @@ class AIExecutionPlanner:
             deps = f" (depends on: {step.depends_on})" if step.depends_on else ""
             agent = f" [{step.agent_id}]" if step.agent_id else ""
             conf = f" ({step.confidence:.2f})" if step.confidence > 0 else ""
-            lines.append(f"  Step {step.step_id}: {step.capability_id}{agent}{conf}{deps}")
+            lines.append(
+                f"  Step {step.step_id}: {step.capability_id}{agent}{conf}{deps}"
+            )
 
-        lines.append(f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}")
+        lines.append(
+            f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}"
+        )
 
         return "\n".join(lines)
 

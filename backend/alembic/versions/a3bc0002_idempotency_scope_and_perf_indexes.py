@@ -9,13 +9,14 @@ Create Date: 2026-06-02 14:00:00.000000
    on (user_id, method, endpoint, idempotency_key)
 3. Adds performance indexes for hot mission/task queries (B4)
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = 'a3bc0002'
-down_revision: Union[str, Sequence[str], None] = 'a3bc0001'
+revision: str = "a3bc0002"
+down_revision: Union[str, Sequence[str], None] = "a3bc0001"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -23,42 +24,47 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # ── Idempotency scope ─────────────────────────────────────────────────
     op.add_column(
-        'idempotency_keys',
-        sa.Column('method', sa.String(length=10), nullable=True),
+        "idempotency_keys",
+        sa.Column("method", sa.String(length=10), nullable=True),
     )
 
     # Drop old unique index on idempotency_key alone
-    op.drop_index('ix_idempotency_keys_idempotency_key', table_name='idempotency_keys')
+    op.drop_index("ix_idempotency_keys_idempotency_key", table_name="idempotency_keys")
     # Create composite scoped unique index
     op.create_index(
-        'ix_idempotency_keys_scoped',
-        'idempotency_keys',
-        ['user_id', 'method', 'endpoint', 'idempotency_key'],
+        "ix_idempotency_keys_scoped",
+        "idempotency_keys",
+        ["user_id", "method", "endpoint", "idempotency_key"],
         unique=True,
     )
 
     # ── Performance indexes (B4) ──────────────────────────────────────────
     # Hot path: missions by user + status (for list_active, active_missions)
     op.create_index(
-        'ix_missions_user_status_not_deleted',
-        'missions',
-        ['user_id', 'status'],
+        "ix_missions_user_status_not_deleted",
+        "missions",
+        ["user_id", "status"],
         unique=False,
-        postgresql_where=sa.text('deleted_at IS NULL'),
+        postgresql_where=sa.text("deleted_at IS NULL"),
     )
 
     # Hot path: mission_tasks by mission_id + status (for progress queries)
     op.create_index(
-        'ix_mission_tasks_mission_status',
-        'mission_tasks',
-        ['mission_id', 'status'],
+        "ix_mission_tasks_mission_status",
+        "mission_tasks",
+        ["mission_id", "status"],
         unique=False,
     )
 
 
 def downgrade() -> None:
-    op.drop_index('ix_mission_tasks_mission_status', table_name='mission_tasks')
-    op.drop_index('ix_missions_user_status_not_deleted', table_name='missions')
-    op.drop_index('ix_idempotency_keys_scoped', table_name='idempotency_keys')
-    op.create_index('ix_idempotency_keys_idempotency_key', 'idempotency_keys', ['idempotency_key'], unique=True)
-    op.drop_column('idempotency_keys', 'method')
+    op.drop_index("ix_mission_tasks_mission_status", table_name="mission_tasks")
+    op.drop_index("ix_missions_user_status_not_deleted", table_name="missions")
+    op.drop_index("ix_idempotency_keys_scoped", table_name="idempotency_keys")
+    op.create_index(
+        "ix_idempotency_keys_idempotency_key",
+        "idempotency_keys",
+        ["idempotency_key"],
+        unique=True,
+    )
+    op.drop_column("idempotency_keys", "method")

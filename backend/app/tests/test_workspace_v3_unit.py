@@ -81,7 +81,9 @@ class TestAcceptInvitationRequest:
 
 class TestTeamCreateRequest:
     def test_valid_team(self):
-        req = TeamCreateRequest(name="Engineering", workspace_id="ws_abc1234567890123456789012345678901")
+        req = TeamCreateRequest(
+            name="Engineering", workspace_id="ws_abc1234567890123456789012345678901"
+        )
         assert req.name == "Engineering"
         assert req.description == ""
 

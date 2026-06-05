@@ -1,78 +1,59 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.track_event_request import TrackEventRequest
-
-
-
+    from ..models.track_event_request import TrackEventRequest
 
 
 T = TypeVar("T", bound="TrackBatchRequest")
 
 
-
 @_attrs_define
 class TrackBatchRequest:
-    """ 
-        Attributes:
-            events (list[TrackEventRequest]):
-     """
+    """
+    Attributes:
+        events (list[TrackEventRequest]):
+    """
 
     events: list[TrackEventRequest]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.track_event_request import TrackEventRequest
         events = []
         for events_item_data in self.events:
             events_item = events_item_data.to_dict()
             events.append(events_item)
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "events": events,
-        })
+        field_dict.update(
+            {
+                "events": events,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.track_event_request import TrackEventRequest
+
         d = dict(src_dict)
         events = []
         _events = d.pop("events")
-        for events_item_data in (_events):
+        for events_item_data in _events:
             events_item = TrackEventRequest.from_dict(events_item_data)
 
-
-
             events.append(events_item)
-
 
         track_batch_request = cls(
             events=events,
         )
-
 
         track_batch_request.additional_properties = d
         return track_batch_request

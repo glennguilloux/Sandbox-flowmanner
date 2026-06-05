@@ -6,7 +6,9 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_settings_api_auth_settings_patch_data import UpdateSettingsApiAuthSettingsPatchData
+from ...models.update_settings_api_auth_settings_patch_data import (
+    UpdateSettingsApiAuthSettingsPatchData,
+)
 from ...types import Response
 
 

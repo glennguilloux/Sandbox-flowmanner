@@ -1,59 +1,46 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.dag_response import DAGResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, Unset
-from typing import cast
-
+from ...types import Response, Unset
 
 
 def _get_kwargs(
     mission_id: str,
     *,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/missions/decomposition/{mission_id}/dag".format(mission_id=quote(str(mission_id), safe=""),),
+        "url": "/api/missions/decomposition/{mission_id}/dag".format(
+            mission_id=quote(str(mission_id), safe=""),
+        ),
     }
-
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> DAGResponse | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> DAGResponse | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = DAGResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -63,7 +50,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[DAGResponse | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[DAGResponse | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -76,10 +65,9 @@ def sync_detailed(
     mission_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[DAGResponse | HTTPValidationError]:
-    """ Get Dag Endpoint
+    """Get Dag Endpoint
 
      Return DAG structure for visualization.
 
@@ -93,13 +81,11 @@ def sync_detailed(
 
     Returns:
         Response[DAGResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -108,14 +94,14 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     mission_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> DAGResponse | HTTPValidationError | None:
-    """ Get Dag Endpoint
+    """Get Dag Endpoint
 
      Return DAG structure for visualization.
 
@@ -129,24 +115,22 @@ def sync(
 
     Returns:
         DAGResponse | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         mission_id=mission_id,
-client=client,
-accept_version=accept_version,
-
+        client=client,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     mission_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[DAGResponse | HTTPValidationError]:
-    """ Get Dag Endpoint
+    """Get Dag Endpoint
 
      Return DAG structure for visualization.
 
@@ -160,29 +144,25 @@ async def asyncio_detailed(
 
     Returns:
         Response[DAGResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     mission_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> DAGResponse | HTTPValidationError | None:
-    """ Get Dag Endpoint
+    """Get Dag Endpoint
 
      Return DAG structure for visualization.
 
@@ -196,12 +176,12 @@ async def asyncio(
 
     Returns:
         DAGResponse | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        mission_id=mission_id,
-client=client,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            mission_id=mission_id,
+            client=client,
+            accept_version=accept_version,
+        )
+    ).parsed

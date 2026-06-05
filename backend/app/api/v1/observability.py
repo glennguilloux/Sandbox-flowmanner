@@ -29,10 +29,12 @@ async def observability_status():
         status = breaker.get_status()
         circuit_states[name] = status
 
-    return _envelope({
-        "circuit_breakers": circuit_states,
-        "alerting": get_alerting_status(),
-    })
+    return _envelope(
+        {
+            "circuit_breakers": circuit_states,
+            "alerting": get_alerting_status(),
+        }
+    )
 
 
 @router.post("/observability/auth-loop-alert")
@@ -42,6 +44,7 @@ async def auth_loop_alert(alert: AuthLoopAlert, request: Request):
     Increments the Prometheus counter and logs via Sentry.
     """
     import logging
+
     logger = logging.getLogger("flowmanner.auth")
 
     logger.error(
@@ -66,6 +69,7 @@ async def auth_loop_alert(alert: AuthLoopAlert, request: Request):
     # Increment Prometheus counter
     try:
         from app.core.metrics import record_auth_redirect_loop
+
         record_auth_redirect_loop(source="middleware")
     except Exception:
         logger.debug("auth_loop_metric_failed", exc_info=True)
@@ -188,6 +192,7 @@ async def health_check():
     # Langfuse trace stats
     try:
         from app.services.langfuse_service import get_langfuse_service
+
         lf = get_langfuse_service()
         health["langfuse"] = lf.get_trace_stats()
     except Exception:
@@ -206,4 +211,5 @@ async def slo_dashboard():
     Can be imported into Langfuse or Grafana for SLO visualization.
     """
     from app.core.slo_dashboard import get_slo_dashboard_config
+
     return _envelope(get_slo_dashboard_config())

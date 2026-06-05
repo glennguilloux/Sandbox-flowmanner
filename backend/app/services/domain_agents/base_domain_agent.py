@@ -10,17 +10,17 @@ logger = logging.getLogger(__name__)
 class BaseDomainAgent(ABC):
     """
     Abstract base class for domain-specific AI assistants.
-    
+
     Each domain agent (Legal, Finance, Biotech) inherits from this class
     and implements domain-specific prompts, tools, and response handling.
     """
-    
+
     # Domain metadata - override in subclasses
     domain_name: str = "base"
     domain_icon: str = "🤖"
     domain_color: str = "#6B7280"
     domain_description: str = "Base domain agent"
-    
+
     def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.model = self.config.get("model", "qwen3.5:35b")
@@ -28,7 +28,7 @@ class BaseDomainAgent(ABC):
         self.max_tokens = self.config.get("max_tokens", 4096)
         self.api_key = self.config.get("api_key")
         self._llm_client = None
-        
+
     @property
     def metadata(self) -> dict[str, str]:
         """Return domain metadata for UI rendering"""
@@ -38,23 +38,25 @@ class BaseDomainAgent(ABC):
             "color": self.domain_color,
             "description": self.domain_description,
         }
-    
+
     @abstractmethod
     def get_system_prompt(self) -> str:
         """Return the domain-specific system prompt"""
         pass
-    
+
     @abstractmethod
     def get_tools(self) -> list[dict[str, Any]]:
         """Return domain-specific tools/capabilities"""
         pass
-    
+
     @abstractmethod
     def process_response(self, response: str) -> dict[str, Any]:
         """Process and structure the LLM response"""
         pass
-    
-    async def run(self, query: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+
+    async def run(
+        self, query: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Execute a query against the domain agent using a real LLM call.
 
@@ -108,7 +110,8 @@ class BaseDomainAgent(ABC):
         except Exception as e:
             logger.warning(
                 "[%s] LLM call failed, falling back to echo: %s",
-                self.domain_name.upper(), e,
+                self.domain_name.upper(),
+                e,
             )
 
         # Graceful fallback: echo the input (maintains availability)
@@ -120,11 +123,11 @@ class BaseDomainAgent(ABC):
             "success": True,
             "fallback": True,
         }
-    
+
     def validate_config(self) -> bool:
         """Validate the agent configuration"""
         return True
-    
+
     def get_capabilities(self) -> list[str]:
         """Return list of domain-specific capabilities"""
         return []

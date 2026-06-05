@@ -68,6 +68,7 @@ def _validate_url(url: str) -> tuple[bool, str | None]:
     except Exception as e:
         return False, f"URL validation error: {e}"
 
+
 # ── Configuration ─────────────────────────────────────────────────────
 
 DEFAULT_TITLE_MAX_LENGTH = int(os.getenv("META_TITLE_MAX_LENGTH", "60"))
@@ -85,15 +86,86 @@ META_ACTIONS = (
 
 # Common SEO stopwords to exclude from TF-IDF
 _SEO_STOPWORDS = {
-    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "can", "shall", "you", "your",
-    "we", "our", "they", "their", "it", "its", "this", "that", "these",
-    "those", "what", "which", "who", "how", "all", "each", "every",
-    "both", "few", "more", "most", "other", "some", "such", "no", "nor",
-    "not", "only", "own", "same", "so", "than", "too", "very", "just",
-    "about", "also", "here", "there", "when", "where", "why",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "from",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "can",
+    "shall",
+    "you",
+    "your",
+    "we",
+    "our",
+    "they",
+    "their",
+    "it",
+    "its",
+    "this",
+    "that",
+    "these",
+    "those",
+    "what",
+    "which",
+    "who",
+    "how",
+    "all",
+    "each",
+    "every",
+    "both",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "no",
+    "nor",
+    "not",
+    "only",
+    "own",
+    "same",
+    "so",
+    "than",
+    "too",
+    "very",
+    "just",
+    "about",
+    "also",
+    "here",
+    "there",
+    "when",
+    "where",
+    "why",
 }
 
 
@@ -118,11 +190,15 @@ class MetaTagGeneratorInput(ToolInput):
         description="Raw HTML content of the page. Takes precedence over url if both provided.",
     )
     max_title_length: int = Field(
-        DEFAULT_TITLE_MAX_LENGTH, ge=20, le=120,
+        DEFAULT_TITLE_MAX_LENGTH,
+        ge=20,
+        le=120,
         description="Maximum character length for generated title",
     )
     max_description_length: int = Field(
-        DEFAULT_DESC_MAX_LENGTH, ge=50, le=320,
+        DEFAULT_DESC_MAX_LENGTH,
+        ge=50,
+        le=320,
         description="Maximum character length for generated description",
     )
 
@@ -159,14 +235,17 @@ class MetaTagGeneratorTool(BaseTool):
                 "type": "object",
                 "properties": {
                     "existing_tags": {"type": "object"},
-                    "suggestions": {"type": "array", "items": {
-                        "type": "object",
-                        "properties": {
-                            "title": {"type": "string"},
-                            "description": {"type": "string"},
-                            "score": {"type": "number"},
+                    "suggestions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {"type": "string"},
+                                "description": {"type": "string"},
+                                "score": {"type": "number"},
+                            },
                         },
-                    }},
+                    },
                     "issues": {"type": "array", "items": {"type": "string"}},
                     "success": {"type": "boolean"},
                 },
@@ -237,16 +316,16 @@ class MetaTagGeneratorTool(BaseTool):
             ),
             "Accept": "text/html,application/xhtml+xml",
         }
-        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=FETCH_TIMEOUT, follow_redirects=True
+        ) as client:
             resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             return resp.text
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: MetaTagGeneratorInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: MetaTagGeneratorInput) -> dict[str, Any]:
         """Route to the appropriate meta tag handler."""
         if validated.action == "analyze_meta":
             return await self._analyze_meta(validated)
@@ -265,9 +344,7 @@ class MetaTagGeneratorTool(BaseTool):
         """Parse HTML content with BeautifulSoup."""
         return BeautifulSoup(html, "lxml")
 
-    def _extract_existing_meta(
-        self, soup: BeautifulSoup
-    ) -> dict[str, str | None]:
+    def _extract_existing_meta(self, soup: BeautifulSoup) -> dict[str, str | None]:
         """Extract existing title and meta description from HTML."""
         title = None
         if soup.title and soup.title.string:
@@ -336,10 +413,12 @@ class MetaTagGeneratorTool(BaseTool):
             keyword_scores = []
             for name, score in zip(feature_names, scores, strict=False):
                 if score > 0 and name.lower() not in _SEO_STOPWORDS and len(name) > 1:
-                    keyword_scores.append({
-                        "keyword": name,
-                        "score": round(float(score), 4),
-                    })
+                    keyword_scores.append(
+                        {
+                            "keyword": name,
+                            "score": round(float(score), 4),
+                        }
+                    )
 
             keyword_scores.sort(key=lambda x: x["score"], reverse=True)
             return keyword_scores[:top_n]
@@ -349,12 +428,13 @@ class MetaTagGeneratorTool(BaseTool):
 
     # ── Action handlers ──────────────────────────────────────────
 
-    async def _analyze_meta(
-        self, validated: MetaTagGeneratorInput
-    ) -> dict[str, Any]:
+    async def _analyze_meta(self, validated: MetaTagGeneratorInput) -> dict[str, Any]:
         """Analyze existing meta tags and compute keyword relevance."""
         if not validated.page_content:
-            return {"error": "page_content or url is required for analyze_meta", "success": False}
+            return {
+                "error": "page_content or url is required for analyze_meta",
+                "success": False,
+            }
 
         soup = self._parse_html(validated.page_content)
         meta = self._extract_existing_meta(soup)
@@ -403,17 +483,21 @@ class MetaTagGeneratorTool(BaseTool):
             )
 
         if not meta["og_title"] and not meta["og_description"]:
-            issues.append("Missing Open Graph tags — social sharing previews will be limited.")
+            issues.append(
+                "Missing Open Graph tags — social sharing previews will be limited."
+            )
 
         # Check keyword relevance in title
         if validated.target_keywords and meta["title"]:
             title_lower = meta["title"].lower()
-            present = [kw for kw in validated.target_keywords if kw.lower() in title_lower]
-            missing = [kw for kw in validated.target_keywords if kw.lower() not in title_lower]
+            present = [
+                kw for kw in validated.target_keywords if kw.lower() in title_lower
+            ]
+            missing = [
+                kw for kw in validated.target_keywords if kw.lower() not in title_lower
+            ]
             if missing:
-                issues.append(
-                    f"Missing target keywords in title: {', '.join(missing)}"
-                )
+                issues.append(f"Missing target keywords in title: {', '.join(missing)}")
 
         # Build suggestions
         suggestions: list[dict[str, Any]] = []
@@ -425,16 +509,19 @@ class MetaTagGeneratorTool(BaseTool):
             # Score based on keyword coverage
             top_kw_names = [k["keyword"] for k in keywords[:10]] if keywords else []
             kw_match = sum(
-                1 for kw in validated.target_keywords
+                1
+                for kw in validated.target_keywords
                 if any(kw.lower() in tk.lower() for tk in top_kw_names)
             )
             score = round((kw_match / max(len(validated.target_keywords), 1)) * 100)
 
-            suggestions.append({
-                "title": title_result.get("generated_title", ""),
-                "description": desc_result.get("generated_description", ""),
-                "score": score,
-            })
+            suggestions.append(
+                {
+                    "title": title_result.get("generated_title", ""),
+                    "description": desc_result.get("generated_description", ""),
+                    "score": score,
+                }
+            )
 
         return {
             "action": "analyze_meta",
@@ -445,9 +532,7 @@ class MetaTagGeneratorTool(BaseTool):
             "success": True,
         }
 
-    async def _generate_title(
-        self, validated: MetaTagGeneratorInput
-    ) -> dict[str, Any]:
+    async def _generate_title(self, validated: MetaTagGeneratorInput) -> dict[str, Any]:
         """Generate an SEO-optimized title tag."""
         keywords = validated.target_keywords
         if not keywords:
@@ -458,7 +543,10 @@ class MetaTagGeneratorTool(BaseTool):
                 tfidf_kw = self._compute_tfidf_keywords(text, top_n=5)
                 keywords = [k["keyword"] for k in tfidf_kw[:3]]
             if not keywords:
-                return {"error": "target_keywords is required for generate_title", "success": False}
+                return {
+                    "error": "target_keywords is required for generate_title",
+                    "success": False,
+                }
 
         # Build a title from primary keyword + secondary keywords
         primary = keywords[0].strip().title()
@@ -507,13 +595,14 @@ class MetaTagGeneratorTool(BaseTool):
                 tfidf_kw = self._compute_tfidf_keywords(text, top_n=5)
                 keywords = [k["keyword"] for k in tfidf_kw[:3]]
             if not keywords:
-                return {"error": "target_keywords is required for generate_description", "success": False}
+                return {
+                    "error": "target_keywords is required for generate_description",
+                    "success": False,
+                }
 
         # Start with a value proposition using target keywords
         kw_list = ", ".join(kw for kw in keywords[:3])
-        description = (
-            f"Discover everything about {kw_list}. "
-        )
+        description = f"Discover everything about {kw_list}. "
 
         # Enrich with text content summary if available
         if validated.page_content:
@@ -528,7 +617,9 @@ class MetaTagGeneratorTool(BaseTool):
                 if len(sentences) > 1:
                     sentence2 = sentences[1].strip()
                     if len(sentence2) > 20:
-                        remaining = validated.max_description_length - len(description) - 1
+                        remaining = (
+                            validated.max_description_length - len(description) - 1
+                        )
                         if remaining > 20:
                             description += f"{sentence2[:remaining].rstrip()}."
 
@@ -574,7 +665,12 @@ class MetaTagGeneratorTool(BaseTool):
                 {
                     "title": title_result.get("generated_title", ""),
                     "description": desc_result.get("generated_description", ""),
-                    "score": 100 if title_result.get("within_limit") and desc_result.get("within_limit") else 70,
+                    "score": (
+                        100
+                        if title_result.get("within_limit")
+                        and desc_result.get("within_limit")
+                        else 70
+                    ),
                 }
             ],
             "top_keywords": analysis.get("top_keywords"),

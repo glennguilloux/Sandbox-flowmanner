@@ -10,7 +10,9 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.marketplace_review import MarketplaceReview
-    from ..models.reviews_response_rating_breakdown import ReviewsResponseRatingBreakdown
+    from ..models.reviews_response_rating_breakdown import (
+        ReviewsResponseRatingBreakdown,
+    )
 
 
 T = TypeVar("T", bound="ReviewsResponse")
@@ -73,7 +75,9 @@ class ReviewsResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.marketplace_review import MarketplaceReview
-        from ..models.reviews_response_rating_breakdown import ReviewsResponseRatingBreakdown
+        from ..models.reviews_response_rating_breakdown import (
+            ReviewsResponseRatingBreakdown,
+        )
 
         d = dict(src_dict)
         reviews = []
@@ -96,7 +100,9 @@ class ReviewsResponse:
         if isinstance(_rating_breakdown, Unset):
             rating_breakdown = UNSET
         else:
-            rating_breakdown = ReviewsResponseRatingBreakdown.from_dict(_rating_breakdown)
+            rating_breakdown = ReviewsResponseRatingBreakdown.from_dict(
+                _rating_breakdown
+            )
 
         reviews_response = cls(
             reviews=reviews,

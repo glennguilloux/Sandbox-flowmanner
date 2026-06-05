@@ -10,6 +10,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 # ── _build_plan_prompt ────────────────────────────────────────────────────────
 
+
 class TestBuildPlanPrompt:
     """MissionPlanner._build_plan_prompt: prompt structure."""
 
@@ -90,6 +91,7 @@ class TestBuildPlanPrompt:
 
 # ── plan_mission ──────────────────────────────────────────────────────────────
 
+
 class TestPlanMission:
     """MissionPlanner.plan_mission: end-to-end planning."""
 
@@ -121,19 +123,37 @@ class TestPlanMission:
         mock_existing_result = MagicMock()
         mock_existing_result.scalars().first.return_value = None
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_mission_result,  # SELECT Mission
-            mock_existing_result,  # SELECT MissionTask (existing)
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                mock_mission_result,  # SELECT Mission
+                mock_existing_result,  # SELECT MissionTask (existing)
+            ]
+        )
 
         with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
             mock_session.return_value.__aexit__.return_value = None
 
-            with patch.object(planner, "_generate_plan", AsyncMock(return_value=[
-                {"title": "Task 1", "description": "Do thing", "task_type": "llm", "dependencies": []},
-                {"title": "Task 2", "description": "Do another", "task_type": "tool", "dependencies": [0]},
-            ])):
+            with patch.object(
+                planner,
+                "_generate_plan",
+                AsyncMock(
+                    return_value=[
+                        {
+                            "title": "Task 1",
+                            "description": "Do thing",
+                            "task_type": "llm",
+                            "dependencies": [],
+                        },
+                        {
+                            "title": "Task 2",
+                            "description": "Do another",
+                            "task_type": "tool",
+                            "dependencies": [0],
+                        },
+                    ]
+                ),
+            ):
                 result = await planner.plan_mission("mission-1")
 
         assert result["success"] is True
@@ -165,10 +185,12 @@ class TestPlanMission:
         mock_existing = MagicMock()
         mock_existing.scalars().first.return_value = MagicMock()  # existing task
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_mission_result,
-            mock_existing,
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                mock_mission_result,
+                mock_existing,
+            ]
+        )
 
         with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
@@ -204,10 +226,12 @@ class TestPlanMission:
         mock_existing = MagicMock()
         mock_existing.scalars().first.return_value = None
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_mission_result,
-            mock_existing,
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                mock_mission_result,
+                mock_existing,
+            ]
+        )
 
         with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
@@ -262,15 +286,20 @@ class TestPlanMission:
         mock_existing = MagicMock()
         mock_existing.scalars().first.return_value = None
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_mission_result,
-            mock_existing,
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                mock_mission_result,
+                mock_existing,
+            ]
+        )
 
         with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
-            with patch.object(planner, "_generate_plan",
-                              AsyncMock(side_effect=PermanentMissionError("forbidden"))):
+            with patch.object(
+                planner,
+                "_generate_plan",
+                AsyncMock(side_effect=PermanentMissionError("forbidden")),
+            ):
                 result = await planner.plan_mission("mission-1")
 
         assert result["success"] is False
@@ -300,21 +329,27 @@ class TestPlanMission:
         mock_existing = MagicMock()
         mock_existing.scalars().first.return_value = None
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_mission_result,
-            mock_existing,
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                mock_mission_result,
+                mock_existing,
+            ]
+        )
 
         with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
-            with patch.object(planner, "_generate_plan",
-                              AsyncMock(side_effect=RuntimeError("unexpected"))):
+            with patch.object(
+                planner,
+                "_generate_plan",
+                AsyncMock(side_effect=RuntimeError("unexpected")),
+            ):
                 result = await planner.plan_mission("mission-1")
 
         assert result["success"] is False
 
 
 # ── _generate_plan ────────────────────────────────────────────────────────────
+
 
 class TestGeneratePlan:
     """MissionPlanner._generate_plan: LLM-based plan generation."""
@@ -324,13 +359,15 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "content": '[{"title":"T1","description":"D1","task_type":"llm","dependencies":[]}]',
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 10, "output_tokens": 5},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "content": '[{"title":"T1","description":"D1","task_type":"llm","dependencies":[]}]',
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 10, "output_tokens": 5},
+            }
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -342,13 +379,15 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "content": '```json\n[{"title":"T1","description":"D1","task_type":"llm","dependencies":[]}]\n```',
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 10, "output_tokens": 5},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "content": '```json\n[{"title":"T1","description":"D1","task_type":"llm","dependencies":[]}]\n```',
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 10, "output_tokens": 5},
+            }
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -360,13 +399,15 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "content": "Sorry, I cannot plan this right now.",
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 5, "output_tokens": 10},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "content": "Sorry, I cannot plan this right now.",
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 5, "output_tokens": 10},
+            }
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -377,13 +418,15 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "content": "[]",
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 5, "output_tokens": 2},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "content": "[]",
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 5, "output_tokens": 2},
+            }
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -396,18 +439,24 @@ class TestGeneratePlan:
         planner = MissionPlanner(get_model_router=lambda: None)
 
         mock_response = MagicMock()
-        mock_response.json = MagicMock(return_value={
-            "choices": [{
-                "message": {
-                    "content": '[{"title":"Via HTTP","description":"d","task_type":"llm","dependencies":[]}]'
-                }
-            }],
-            "usage": {"prompt_tokens": 5, "completion_tokens": 10},
-        })
+        mock_response.json = MagicMock(
+            return_value={
+                "choices": [
+                    {
+                        "message": {
+                            "content": '[{"title":"Via HTTP","description":"d","task_type":"llm","dependencies":[]}]'
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 10},
+            }
+        )
         mock_response.raise_for_status = MagicMock()
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
+                return_value=mock_response
+            )
             tasks = await planner._generate_plan("Plan via HTTP")
 
         assert len(tasks) == 1
@@ -418,10 +467,12 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": False,
-            "error": "Router is down",
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Router is down",
+            }
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -433,7 +484,9 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(side_effect=RetryableMissionError("overloaded"))
+        mock_router.route_request = AsyncMock(
+            side_effect=RetryableMissionError("overloaded")
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         with pytest.raises(RetryableMissionError):
@@ -445,7 +498,9 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(side_effect=PermanentMissionError("forbidden"))
+        mock_router.route_request = AsyncMock(
+            side_effect=PermanentMissionError("forbidden")
+        )
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -473,13 +528,15 @@ class TestGeneratePlan:
         mock_cost_tracker.estimate_cost = MagicMock(return_value=0.001)
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "content": '[{"title":"T1","description":"D1","task_type":"llm","dependencies":[]}]',
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 10, "output_tokens": 5},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "content": '[{"title":"T1","description":"D1","task_type":"llm","dependencies":[]}]',
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 10, "output_tokens": 5},
+            }
+        )
 
         planner = MissionPlanner(
             cost_tracker=mock_cost_tracker,
@@ -502,13 +559,15 @@ class TestGeneratePlan:
         mock_cost_tracker.estimate_cost = MagicMock(return_value=0.0)
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "content": "No JSON here",
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 5, "output_tokens": 3},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "content": "No JSON here",
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 5, "output_tokens": 3},
+            }
+        )
 
         planner = MissionPlanner(
             cost_tracker=mock_cost_tracker,
@@ -523,6 +582,7 @@ class TestGeneratePlan:
 
 
 # ── Constructor ───────────────────────────────────────────────────────────────
+
 
 class TestMissionPlannerConstructor:
     """MissionPlanner.__init__: wiring and defaults."""

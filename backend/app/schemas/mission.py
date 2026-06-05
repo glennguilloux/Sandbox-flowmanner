@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import uuid
+from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-if TYPE_CHECKING:
-    import uuid
-    from datetime import datetime
-
-    from app.models.mission_models import MissionStatus, MissionTaskStatus
+from app.models.mission_models import MissionStatus, MissionTaskStatus
 
 
 class MissionCreate(BaseModel):
@@ -174,6 +172,7 @@ class MissionAnalyticsResponse(BaseModel):
 
 class PaginatedMissions(BaseModel):
     """Typed paginated response for mission list endpoints."""
+
     items: list[MissionResponse]
     total: int
     page: int
@@ -183,14 +182,15 @@ class PaginatedMissions(BaseModel):
 
 class MissionListResult(BaseModel):
     """Typed mission list result (non-paginated)."""
+
     missions: list[MissionResponse]
     total: int
 
 
 class MissionAnalyticsResult(BaseModel):
     """Typed mission analytics response — field types kept as Any for flexibility."""
+
     summary: Any = None
     over_time: Any = None
     token_usage: Any = None
     failure_analysis: Any = None
-

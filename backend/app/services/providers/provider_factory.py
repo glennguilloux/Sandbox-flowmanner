@@ -57,7 +57,9 @@ class ProviderFactory:
         if api_key is None:
             ProviderFactory._instances[provider] = instance
 
-        logger.info(f"Created {provider} provider service instance (using {'user' if api_key else 'platform'} key)")
+        logger.info(
+            f"Created {provider} provider service instance (using {'user' if api_key else 'platform'} key)"
+        )
 
         return instance
 

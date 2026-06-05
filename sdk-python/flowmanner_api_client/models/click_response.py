@@ -1,39 +1,32 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.click_response_clicked_at_type_0 import ClickResponseClickedAtType0
-
-
-
+    from ..models.click_response_clicked_at_type_0 import ClickResponseClickedAtType0
 
 
 T = TypeVar("T", bound="ClickResponse")
 
 
-
 @_attrs_define
 class ClickResponse:
-    """ 
-        Attributes:
-            success (bool):
-            stale_ref (bool | Unset):  Default: False.
-            method (None | str | Unset):
-            healed (bool | None | Unset):
-            clicked_at (ClickResponseClickedAtType0 | None | Unset):
-            suggest_resnapshot (bool | None | Unset):
-            error (None | str | Unset):
-     """
+    """
+    Attributes:
+        success (bool):
+        stale_ref (bool | Unset):  Default: False.
+        method (None | str | Unset):
+        healed (bool | None | Unset):
+        clicked_at (ClickResponseClickedAtType0 | None | Unset):
+        suggest_resnapshot (bool | None | Unset):
+        error (None | str | Unset):
+    """
 
     success: bool
     stale_ref: bool | Unset = False
@@ -44,12 +37,11 @@ class ClickResponse:
     error: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.click_response_clicked_at_type_0 import ClickResponseClickedAtType0
+        from ..models.click_response_clicked_at_type_0 import (
+            ClickResponseClickedAtType0,
+        )
+
         success = self.success
 
         stale_ref = self.stale_ref
@@ -86,12 +78,13 @@ class ClickResponse:
         else:
             error = self.error
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-        })
+        field_dict.update(
+            {
+                "success": success,
+            }
+        )
         if stale_ref is not UNSET:
             field_dict["stale_ref"] = stale_ref
         if method is not UNSET:
@@ -107,11 +100,12 @@ class ClickResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.click_response_clicked_at_type_0 import ClickResponseClickedAtType0
+        from ..models.click_response_clicked_at_type_0 import (
+            ClickResponseClickedAtType0,
+        )
+
         d = dict(src_dict)
         success = d.pop("success")
 
@@ -126,7 +120,6 @@ class ClickResponse:
 
         method = _parse_method(d.pop("method", UNSET))
 
-
         def _parse_healed(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -136,8 +129,9 @@ class ClickResponse:
 
         healed = _parse_healed(d.pop("healed", UNSET))
 
-
-        def _parse_clicked_at(data: object) -> ClickResponseClickedAtType0 | None | Unset:
+        def _parse_clicked_at(
+            data: object,
+        ) -> ClickResponseClickedAtType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -147,15 +141,12 @@ class ClickResponse:
                     raise TypeError()
                 clicked_at_type_0 = ClickResponseClickedAtType0.from_dict(data)
 
-
-
                 return clicked_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(ClickResponseClickedAtType0 | None | Unset, data)
 
         clicked_at = _parse_clicked_at(d.pop("clicked_at", UNSET))
-
 
         def _parse_suggest_resnapshot(data: object) -> bool | None | Unset:
             if data is None:
@@ -164,8 +155,9 @@ class ClickResponse:
                 return data
             return cast(bool | None | Unset, data)
 
-        suggest_resnapshot = _parse_suggest_resnapshot(d.pop("suggest_resnapshot", UNSET))
-
+        suggest_resnapshot = _parse_suggest_resnapshot(
+            d.pop("suggest_resnapshot", UNSET)
+        )
 
         def _parse_error(data: object) -> None | str | Unset:
             if data is None:
@@ -176,7 +168,6 @@ class ClickResponse:
 
         error = _parse_error(d.pop("error", UNSET))
 
-
         click_response = cls(
             success=success,
             stale_ref=stale_ref,
@@ -186,7 +177,6 @@ class ClickResponse:
             suggest_resnapshot=suggest_resnapshot,
             error=error,
         )
-
 
         click_response.additional_properties = d
         return click_response

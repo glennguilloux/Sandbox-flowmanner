@@ -66,7 +66,11 @@ class PromptSynthesizer:
         if not chunks:
             return GeneratedPrompt(
                 system_prompt="",
-                rationale={"error": ["No relevant book notes found. Ingest notes first via /ingest."]},
+                rationale={
+                    "error": [
+                        "No relevant book notes found. Ingest notes first via /ingest."
+                    ]
+                },
                 recommended_model="deepseek/deepseek-v4-flash",
                 temperature=0.7,
             )
@@ -111,25 +115,27 @@ class PromptSynthesizer:
             "",
             grouped_chunks,
             "",
-            f'Generate an optimal system prompt for:\nGoal: {goal}',
+            f"Generate an optimal system prompt for:\nGoal: {goal}",
         ]
         if role_description:
             lines.append(f"Role: {role_description}")
 
-        lines.extend([
-            "",
-            "Return your response in this format:",
-            "",
-            "## System Prompt",
-            "[the generated system prompt]",
-            "",
-            "## Rationale",
-            "[which chunks informed each section, as bullet points]",
-            "",
-            "## Configuration",
-            "- Recommended model: [model]",
-            "- Temperature: [value]",
-        ])
+        lines.extend(
+            [
+                "",
+                "Return your response in this format:",
+                "",
+                "## System Prompt",
+                "[the generated system prompt]",
+                "",
+                "## Rationale",
+                "[which chunks informed each section, as bullet points]",
+                "",
+                "## Configuration",
+                "- Recommended model: [model]",
+                "- Temperature: [value]",
+            ]
+        )
         return "\n".join(lines)
 
     @staticmethod
@@ -144,9 +150,13 @@ class PromptSynthesizer:
         for section in sections:
             section = section.strip()
             if section.lower().startswith("system prompt"):
-                system_prompt = section.split("\n", 1)[1].strip() if "\n" in section else ""
+                system_prompt = (
+                    section.split("\n", 1)[1].strip() if "\n" in section else ""
+                )
             elif section.lower().startswith("rationale"):
-                rationale_text = section.split("\n", 1)[1].strip() if "\n" in section else ""
+                rationale_text = (
+                    section.split("\n", 1)[1].strip() if "\n" in section else ""
+                )
                 current_key = "general"
                 for line in rationale_text.split("\n"):
                     line = line.strip().strip("- ").strip()

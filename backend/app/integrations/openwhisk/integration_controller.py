@@ -24,7 +24,7 @@ class ActionDeployment:
     action_name: str
     version: str
     deployed_at: datetime
-    status: str = 'deployed'  # deployed, updating, failed, rollback
+    status: str = "deployed"  # deployed, updating, failed, rollback
     code_hash: str | None = None
     activation_count: int = 0
     error_count: int = 0
@@ -57,11 +57,7 @@ class OpenWhiskIntegrationController:
     - Collect deployment metrics
     """
 
-    def __init__(
-        self,
-        client: OpenWhiskClient,
-        auth_manager: OpenWhiskAuthManager
-    ):
+    def __init__(self, client: OpenWhiskClient, auth_manager: OpenWhiskAuthManager):
         """
         Initialize integration controller
 
@@ -78,7 +74,7 @@ class OpenWhiskIntegrationController:
 
     async def deploy_all_actions(
         self,
-        actions_dir: str = '/run/media/glenn/web1/workflows/apps/backend/app/workers/actions'
+        actions_dir: str = "/run/media/glenn/web1/workflows/apps/backend/app/workers/actions",
     ) -> DeploymentStatus:
         """
         Deploy all worker actions to OpenWhisk
@@ -96,7 +92,7 @@ class OpenWhiskIntegrationController:
             deployed_actions=0,
             failed_actions=0,
             pending_actions=0,
-            start_time=datetime.now(UTC)
+            start_time=datetime.now(UTC),
         )
 
         # List all action files
@@ -106,13 +102,15 @@ class OpenWhiskIntegrationController:
         # Deploy each action
         for action_file in action_files:
             try:
-                action_name = action_file['name']
-                code = action_file['code']
-                main_fn = action_file.get('main', 'main')
-                kind = action_file.get('kind', 'python:3.11')
+                action_name = action_file["name"]
+                code = action_file["code"]
+                main_fn = action_file.get("main", "main")
+                kind = action_file.get("kind", "python:3.11")
 
                 # Read description if available
-                description = action_file.get('description', f'Auto-deployed: {action_name}')
+                description = action_file.get(
+                    "description", f"Auto-deployed: {action_name}"
+                )
 
                 # Deploy action
                 await self.client.create_action(
@@ -120,16 +118,16 @@ class OpenWhiskIntegrationController:
                     code=code,
                     main=main_fn,
                     kind=kind,
-                    description=description
+                    description=description,
                 )
 
                 # Record deployment
                 self.deployments[action_name] = ActionDeployment(
                     action_name=action_name,
-                    version='1.0.0',
+                    version="1.0.0",
                     deployed_at=datetime.now(UTC),
                     code_hash=self._hash_code(code),
-                    status='deployed'
+                    status="deployed",
                 )
 
                 status.deployed_actions += 1
@@ -151,10 +149,7 @@ class OpenWhiskIntegrationController:
         return status
 
     async def update_action(
-        self,
-        action_name: str,
-        code: str | None = None,
-        description: str | None = None
+        self, action_name: str, code: str | None = None, description: str | None = None
     ) -> bool:
         """
         Update an existing action
@@ -177,13 +172,11 @@ class OpenWhiskIntegrationController:
             deployment = self.deployments[action_name]
 
             # Mark as updating
-            deployment.status = 'updating'
+            deployment.status = "updating"
 
             # Update in OpenWhisk
             await self.client.update_action(
-                action_name=action_name,
-                code=code,
-                description=description
+                action_name=action_name, code=code, description=description
             )
 
             # Update deployment record
@@ -192,21 +185,19 @@ class OpenWhiskIntegrationController:
                 deployment.version = self._increment_version(deployment.version)
 
             deployment.deployed_at = datetime.now(UTC)
-            deployment.status = 'deployed'
+            deployment.status = "deployed"
 
             logger.info(f"Action {action_name} updated to {deployment.version}")
             return True
 
         except Exception as e:
-            deployment.status = 'failed'
+            deployment.status = "failed"
             deployment.error_count += 1
             logger.error(f"Failed to update action {action_name}: {e}")
             return False
 
     async def rollback_action(
-        self,
-        action_name: str,
-        target_version: str | None = None
+        self, action_name: str, target_version: str | None = None
     ) -> bool:
         """
         Rollback action to previous version
@@ -218,7 +209,9 @@ class OpenWhiskIntegrationController:
         Returns:
             True if rollback successful
         """
-        logger.warning(f"Rolling back action: {action_name} to {target_version or 'previous'}")
+        logger.warning(
+            f"Rolling back action: {action_name} to {target_version or 'previous'}"
+        )
 
         if action_name not in self.deployments:
             logger.error(f"Cannot rollback: action {action_name} not deployed")
@@ -226,11 +219,11 @@ class OpenWhiskIntegrationController:
 
         try:
             deployment = self.deployments[action_name]
-            deployment.status = 'rollback'
+            deployment.status = "rollback"
 
             # For this implementation, we'll need to store code history
             # For now, we'll mark as failed and require manual redeployment
-            deployment.status = 'failed_rollback'
+            deployment.status = "failed_rollback"
             deployment.error_count += 1
 
             logger.warning(f"Rollback requires manual intervention for {action_name}")
@@ -260,25 +253,21 @@ class OpenWhiskIntegrationController:
             action_info = await self.client.get_action(action_name)
 
             return {
-                'action_name': action_name,
-                'deployment_version': deployment.version,
-                'live_version': action_info.version,
-                'status': deployment.status,
-                'deployed_at': deployment.deployed_at.isoformat(),
-                'code_hash': deployment.code_hash,
-                'activation_count': deployment.activation_count,
-                'error_count': deployment.error_count,
-                'average_duration_ms': deployment.average_duration_ms,
-                'live_namespace': action_info.namespace,
-                'live_updated': action_info.updated.isoformat()
+                "action_name": action_name,
+                "deployment_version": deployment.version,
+                "live_version": action_info.version,
+                "status": deployment.status,
+                "deployed_at": deployment.deployed_at.isoformat(),
+                "code_hash": deployment.code_hash,
+                "activation_count": deployment.activation_count,
+                "error_count": deployment.error_count,
+                "average_duration_ms": deployment.average_duration_ms,
+                "live_namespace": action_info.namespace,
+                "live_updated": action_info.updated.isoformat(),
             }
         except Exception as e:
             logger.error(f"Error getting status for {action_name}: {e}")
-            return {
-                'action_name': action_name,
-                'error': str(e),
-                'status': 'unknown'
-            }
+            return {"action_name": action_name, "error": str(e), "status": "unknown"}
 
     async def health_check_all_actions(self) -> dict[str, Any]:
         """
@@ -297,26 +286,28 @@ class OpenWhiskIntegrationController:
             try:
                 status = await self.get_action_status(action_name)
 
-                if status and status.get('status') == 'deployed':
+                if status and status.get("status") == "deployed":
                     healthy_count += 1
-                    action_statuses.append({'name': action_name, 'status': 'healthy'})
+                    action_statuses.append({"name": action_name, "status": "healthy"})
                 else:
                     unhealthy_count += 1
-                    action_statuses.append({'name': action_name, 'status': 'unhealthy'})
+                    action_statuses.append({"name": action_name, "status": "unhealthy"})
 
             except Exception as e:
                 unhealthy_count += 1
-                action_statuses.append({'name': action_name, 'status': 'error', 'error': str(e)})
+                action_statuses.append(
+                    {"name": action_name, "status": "error", "error": str(e)}
+                )
 
         total = len(self.deployments)
 
         return {
-            'total_actions': total,
-            'healthy_actions': healthy_count,
-            'unhealthy_actions': unhealthy_count,
-            'health_percentage': (healthy_count / total * 100) if total > 0 else 0,
-            'action_statuses': action_statuses,
-            'timestamp': datetime.now(UTC).isoformat()
+            "total_actions": total,
+            "healthy_actions": healthy_count,
+            "unhealthy_actions": unhealthy_count,
+            "health_percentage": (healthy_count / total * 100) if total > 0 else 0,
+            "action_statuses": action_statuses,
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def remove_action(self, action_name: str) -> bool:
@@ -365,23 +356,25 @@ class OpenWhiskIntegrationController:
             return action_files
 
         for filename in os.listdir(actions_dir):
-            if not filename.endswith('.py') or filename.startswith('_'):
+            if not filename.endswith(".py") or filename.startswith("_"):
                 continue
 
             filepath = os.path.join(actions_dir, filename)
-            action_name = filename.replace('.py', '')
+            action_name = filename.replace(".py", "")
 
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     code = f.read()
 
-                action_files.append({
-                    'name': action_name,
-                    'code': code,
-                    'main': 'main',  # OpenWhisk default
-                    'kind': 'python:3.11',
-                    'description': f'Worker action: {action_name}'
-                })
+                action_files.append(
+                    {
+                        "name": action_name,
+                        "code": code,
+                        "main": "main",  # OpenWhisk default
+                        "kind": "python:3.11",
+                        "description": f"Worker action: {action_name}",
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error reading action file {filename}: {e}")
@@ -392,14 +385,15 @@ class OpenWhiskIntegrationController:
     def _hash_code(self, code: str) -> str:
         """Generate hash of code for change detection"""
         import hashlib
+
         return hashlib.sha256(code.encode()).hexdigest()[:16]
 
     def _increment_version(self, version: str) -> str:
         """Increment version number (simplified)"""
         try:
-            parts = version.split('.')
+            parts = version.split(".")
             patch = int(parts[-1]) + 1
-            return '.'.join([*parts[:-1], str(patch)])
+            return ".".join([*parts[:-1], str(patch)])
         except Exception:
             logger.debug("Failed to parse version for increment: %s", version)
             return f"{version}.1"
@@ -412,22 +406,30 @@ class OpenWhiskIntegrationController:
             Deployment summary dictionary
         """
         total_deployments = len(self.deployments)
-        healthy = sum(1 for d in self.deployments.values() if d.status == 'deployed')
-        failed = sum(1 for d in self.deployments.values() if d.status.startswith('failed'))
+        healthy = sum(1 for d in self.deployments.values() if d.status == "deployed")
+        failed = sum(
+            1 for d in self.deployments.values() if d.status.startswith("failed")
+        )
 
         return {
-            'total_deployments': total_deployments,
-            'healthy_actions': healthy,
-            'failed_actions': failed,
-            'deployment_health': (healthy / total_deployments * 100) if total_deployments > 0 else 0,
-            'deployment_timestamp': self.current_deployment.start_time.isoformat() if self.current_deployment else None,
-            'errors': self.current_deployment.errors if self.current_deployment else []
+            "total_deployments": total_deployments,
+            "healthy_actions": healthy,
+            "failed_actions": failed,
+            "deployment_health": (
+                (healthy / total_deployments * 100) if total_deployments > 0 else 0
+            ),
+            "deployment_timestamp": (
+                self.current_deployment.start_time.isoformat()
+                if self.current_deployment
+                else None
+            ),
+            "errors": self.current_deployment.errors if self.current_deployment else [],
         }
 
 
 def create_integration_controller(
     client: OpenWhiskClient | None = None,
-    auth_manager: OpenWhiskAuthManager | None = None
+    auth_manager: OpenWhiskAuthManager | None = None,
 ) -> OpenWhiskIntegrationController | None:
     """
     Factory function to create integration controller
@@ -447,10 +449,12 @@ def create_integration_controller(
     try:
         if client is None:
             from .client import get_openwhisk_client
+
             client = get_openwhisk_client()
 
         if auth_manager is None:
             from .auth import get_auth_manager
+
             auth_manager = get_auth_manager()
 
         if not client or not auth_manager:
@@ -458,8 +462,7 @@ def create_integration_controller(
             return None
 
         controller = OpenWhiskIntegrationController(
-            client=client,
-            auth_manager=auth_manager
+            client=client, auth_manager=auth_manager
         )
 
         logger.info("Integration controller created successfully")

@@ -1,37 +1,28 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="MarketplaceInstallation")
-
 
 
 @_attrs_define
 class MarketplaceInstallation:
-    """ 
-        Attributes:
-            id (str):
-            listing_id (str):
-            listing_name (str):
-            listing_slug (str):
-            installed_at (str):
-            listing_icon_url (None | str | Unset):
-            version (None | str | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        listing_id (str):
+        listing_name (str):
+        listing_slug (str):
+        installed_at (str):
+        listing_icon_url (None | str | Unset):
+        version (None | str | Unset):
+    """
 
     id: str
     listing_id: str
@@ -41,10 +32,6 @@ class MarketplaceInstallation:
     listing_icon_url: None | str | Unset = UNSET
     version: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -69,24 +56,23 @@ class MarketplaceInstallation:
         else:
             version = self.version
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "listing_id": listing_id,
-            "listing_name": listing_name,
-            "listing_slug": listing_slug,
-            "installed_at": installed_at,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "listing_id": listing_id,
+                "listing_name": listing_name,
+                "listing_slug": listing_slug,
+                "installed_at": installed_at,
+            }
+        )
         if listing_icon_url is not UNSET:
             field_dict["listing_icon_url"] = listing_icon_url
         if version is not UNSET:
             field_dict["version"] = version
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -110,7 +96,6 @@ class MarketplaceInstallation:
 
         listing_icon_url = _parse_listing_icon_url(d.pop("listing_icon_url", UNSET))
 
-
         def _parse_version(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -119,7 +104,6 @@ class MarketplaceInstallation:
             return cast(None | str | Unset, data)
 
         version = _parse_version(d.pop("version", UNSET))
-
 
         marketplace_installation = cls(
             id=id,
@@ -130,7 +114,6 @@ class MarketplaceInstallation:
             listing_icon_url=listing_icon_url,
             version=version,
         )
-
 
         marketplace_installation.additional_properties = d
         return marketplace_installation

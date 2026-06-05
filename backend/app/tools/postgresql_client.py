@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 class PostgresqlClientInput(ToolInput):
-    query: str = Field(..., description="SQL query to execute (SELECT, INSERT, UPDATE, DELETE)")
+    query: str = Field(
+        ..., description="SQL query to execute (SELECT, INSERT, UPDATE, DELETE)"
+    )
     connection_string: str | None = Field(
         None,
         description="PostgreSQL connection string (uses DATABASE_URL env var if omitted)",
@@ -64,7 +66,9 @@ class PostgresqlClientTool(BaseTool):
             )
 
         # Ensure async driver
-        if conn_str.startswith("postgresql://") or not conn_str.startswith("postgresql+asyncpg"):
+        if conn_str.startswith("postgresql://") or not conn_str.startswith(
+            "postgresql+asyncpg"
+        ):
             conn_str = conn_str.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         try:
@@ -76,7 +80,11 @@ class PostgresqlClientTool(BaseTool):
                     validated.params or {},
                 )
 
-                is_select = query.strip().upper().startswith(("SELECT", "WITH", "SHOW", "EXPLAIN"))
+                is_select = (
+                    query.strip()
+                    .upper()
+                    .startswith(("SELECT", "WITH", "SHOW", "EXPLAIN"))
+                )
 
                 if is_select:
                     rows = result.fetchmany(validated.max_rows)
@@ -97,7 +105,9 @@ class PostgresqlClientTool(BaseTool):
                         "row_count": row_count,
                         "rows": data,
                         "columns": columns if is_select else [],
-                        "truncated": row_count >= validated.max_rows if is_select else False,
+                        "truncated": (
+                            row_count >= validated.max_rows if is_select else False
+                        ),
                     },
                 )
 

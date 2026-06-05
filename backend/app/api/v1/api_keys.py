@@ -26,6 +26,8 @@ def _mask_key(encrypted: str) -> str:
     if len(encrypted) <= 8:
         return "****"
     return f"{encrypted[:4]}...{encrypted[-4:]}"
+
+
 user_keys_router = APIRouter(prefix="/user/keys", tags=["user-keys"])
 
 # In-module cache: {provider_key: (timestamp, List[ModelInfo])}
@@ -53,16 +55,56 @@ def _get_base_url(provider: str, base_url: str | None = None) -> str:
 
 _MODEL_CATALOG: dict[str, list[dict]] = {
     "openai": [
-        {"id": "gpt-4o", "name": "GPT-4o", "provider": "openai", "context_window": 128000},
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "provider": "openai", "context_window": 128000},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "provider": "openai", "context_window": 128000},
-        {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "provider": "openai", "context_window": 16385},
+        {
+            "id": "gpt-4o",
+            "name": "GPT-4o",
+            "provider": "openai",
+            "context_window": 128000,
+        },
+        {
+            "id": "gpt-4o-mini",
+            "name": "GPT-4o Mini",
+            "provider": "openai",
+            "context_window": 128000,
+        },
+        {
+            "id": "gpt-4-turbo",
+            "name": "GPT-4 Turbo",
+            "provider": "openai",
+            "context_window": 128000,
+        },
+        {
+            "id": "gpt-3.5-turbo",
+            "name": "GPT-3.5 Turbo",
+            "provider": "openai",
+            "context_window": 16385,
+        },
     ],
     "openai-compatible": [
-        {"id": "gpt-4o", "name": "GPT-4o", "provider": "openai-compatible", "context_window": 128000},
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "provider": "openai-compatible", "context_window": 128000},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "provider": "openai-compatible", "context_window": 128000},
-        {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "provider": "openai-compatible", "context_window": 16385},
+        {
+            "id": "gpt-4o",
+            "name": "GPT-4o",
+            "provider": "openai-compatible",
+            "context_window": 128000,
+        },
+        {
+            "id": "gpt-4o-mini",
+            "name": "GPT-4o Mini",
+            "provider": "openai-compatible",
+            "context_window": 128000,
+        },
+        {
+            "id": "gpt-4-turbo",
+            "name": "GPT-4 Turbo",
+            "provider": "openai-compatible",
+            "context_window": 128000,
+        },
+        {
+            "id": "gpt-3.5-turbo",
+            "name": "GPT-3.5 Turbo",
+            "provider": "openai-compatible",
+            "context_window": 16385,
+        },
     ],
 }
 
@@ -110,7 +152,10 @@ async def validate_api_key(request: BYOKValidateRequest) -> BYOKValidateResponse
         return BYOKValidateResponse(status="invalid", models=[], error=error_detail)
 
     if not response.is_success:
-        logger.warning("Unexpected status %s from provider during BYOK validation", response.status_code)
+        logger.warning(
+            "Unexpected status %s from provider during BYOK validation",
+            response.status_code,
+        )
         return BYOKValidateResponse(
             status="invalid",
             models=[],
@@ -123,7 +168,14 @@ async def validate_api_key(request: BYOKValidateRequest) -> BYOKValidateResponse
         for m in data.get("data", []):
             model_id = m.get("id", "")
             if model_id:
-                models.append(ModelInfo(id=model_id, name=model_id, provider=provider, context_window=None))
+                models.append(
+                    ModelInfo(
+                        id=model_id,
+                        name=model_id,
+                        provider=provider,
+                        context_window=None,
+                    )
+                )
     except Exception as exc:
         logger.warning("Failed to parse models from provider response: %s", exc)
         return BYOKValidateResponse(status="valid", models=[], error=None)
@@ -140,7 +192,12 @@ async def get_provider_models(provider: str) -> list[ModelInfo]:
             detail=f"No model catalog found for provider: {provider}",
         )
     return [
-        ModelInfo(id=m["id"], name=m["name"], provider=m["provider"], context_window=m.get("context_window"))
+        ModelInfo(
+            id=m["id"],
+            name=m["name"],
+            provider=m["provider"],
+            context_window=m.get("context_window"),
+        )
         for m in catalog
     ]
 
@@ -191,7 +248,14 @@ async def discover_models(request: BYOKValidateRequest) -> list[ModelInfo]:
         for m in data.get("data", []):
             model_id = m.get("id", "")
             if model_id and _is_chat_model(model_id):
-                filtered_models.append(ModelInfo(id=model_id, name=model_id, provider=provider, context_window=None))
+                filtered_models.append(
+                    ModelInfo(
+                        id=model_id,
+                        name=model_id,
+                        provider=provider,
+                        context_window=None,
+                    )
+                )
     except Exception as exc:
         logger.warning("Failed to parse models from provider response: %s", exc)
         return []
@@ -209,7 +273,8 @@ async def list_keys(
     query = select(UserAPIKey).where(UserAPIKey.user_id == user.id)
     if workspace_id:
         query = query.where(
-            (UserAPIKey.workspace_id == workspace_id) | (UserAPIKey.workspace_id.is_(None))
+            (UserAPIKey.workspace_id == workspace_id)
+            | (UserAPIKey.workspace_id.is_(None))
         )
     query = query.order_by(UserAPIKey.id)
     result = await db.execute(query)
@@ -241,6 +306,7 @@ async def add_key(
 ):
     # Phase 8.4: Check subscription tier allows API key generation
     from app.services.subscription_service import check_api_key_allowed
+
     limit_check = await check_api_key_allowed(db, user.id, workspace_id)
     if not limit_check.allowed:
         raise HTTPException(
@@ -249,6 +315,7 @@ async def add_key(
         )
 
     from app.utils.encryption import encrypt_api_key
+
     api_key = data.get("api_key") or data.get("key", "")
     if not api_key:
         raise HTTPException(status_code=400, detail="api_key is required")
@@ -287,10 +354,13 @@ async def delete_key(
     workspace_id: str | None = Depends(get_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id)
+    query = select(UserAPIKey).where(
+        UserAPIKey.id == key_id, UserAPIKey.user_id == user.id
+    )
     if workspace_id:
         query = query.where(
-            (UserAPIKey.workspace_id == workspace_id) | (UserAPIKey.workspace_id.is_(None))
+            (UserAPIKey.workspace_id == workspace_id)
+            | (UserAPIKey.workspace_id.is_(None))
         )
     result = await db.execute(query)
     key = result.scalar_one_or_none()
@@ -307,10 +377,13 @@ async def test_key(
     workspace_id: str | None = Depends(get_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id)
+    query = select(UserAPIKey).where(
+        UserAPIKey.id == key_id, UserAPIKey.user_id == user.id
+    )
     if workspace_id:
         query = query.where(
-            (UserAPIKey.workspace_id == workspace_id) | (UserAPIKey.workspace_id.is_(None))
+            (UserAPIKey.workspace_id == workspace_id)
+            | (UserAPIKey.workspace_id.is_(None))
         )
     result = await db.execute(query)
     key = result.scalar_one_or_none()
@@ -319,19 +392,41 @@ async def test_key(
     # Test the key by calling the provider's models endpoint
     try:
         api_key = key.get_api_key()
-        base_url = key.base_url or _PROVIDER_BASE_URLS.get(key.provider.lower(), _PROVIDER_BASE_URLS["openai"])
+        base_url = key.base_url or _PROVIDER_BASE_URLS.get(
+            key.provider.lower(), _PROVIDER_BASE_URLS["openai"]
+        )
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 f"{base_url.rstrip('/')}/models",
                 headers={"Authorization": f"Bearer {api_key}"},
             )
         if resp.status_code in (401, 403):
-            return {"provider": key.provider, "key_name": key.key_label, "valid": False, "message": "Invalid API key"}
+            return {
+                "provider": key.provider,
+                "key_name": key.key_label,
+                "valid": False,
+                "message": "Invalid API key",
+            }
         if resp.is_success:
-            return {"provider": key.provider, "key_name": key.key_label, "valid": True, "message": "Key is valid"}
-        return {"provider": key.provider, "key_name": key.key_label, "valid": False, "message": f"HTTP {resp.status_code}"}
+            return {
+                "provider": key.provider,
+                "key_name": key.key_label,
+                "valid": True,
+                "message": "Key is valid",
+            }
+        return {
+            "provider": key.provider,
+            "key_name": key.key_label,
+            "valid": False,
+            "message": f"HTTP {resp.status_code}",
+        }
     except Exception as e:
-        return {"provider": key.provider, "key_name": key.key_label, "valid": False, "message": str(e)}
+        return {
+            "provider": key.provider,
+            "key_name": key.key_label,
+            "valid": False,
+            "message": str(e),
+        }
 
 
 @user_keys_router.get("")

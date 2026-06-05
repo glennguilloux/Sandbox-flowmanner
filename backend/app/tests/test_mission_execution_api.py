@@ -149,9 +149,7 @@ def test_execute_async_mission(test_client):
         ), patch(
             "app.services.mission_service.get_mission_tasks", return_value=mock_tasks
         ):
-            response = test_client.post(
-                f"/api/missions/{MISSION_ID}/execute-async"
-            )
+            response = test_client.post(f"/api/missions/{MISSION_ID}/execute-async")
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "queued"

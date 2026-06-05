@@ -97,11 +97,14 @@ async def user_online(workspace_id: str, user_id: int, socket_id: str) -> bool:
     socket_key = PRESENCE_SOCKET_KEY.format(socket_id=socket_id)
 
     # Store socket metadata
-    await redis.hset(socket_key, mapping={
-        "user_id": str(user_id),
-        "workspace_id": workspace_id,
-        "connected_at": str(time.time()),
-    })
+    await redis.hset(
+        socket_key,
+        mapping={
+            "user_id": str(user_id),
+            "workspace_id": workspace_id,
+            "connected_at": str(time.time()),
+        },
+    )
     await redis.expire(socket_key, 86400)  # 24h TTL as safety net
 
     # Increment socket count and check if first connection
@@ -112,7 +115,9 @@ async def user_online(workspace_id: str, user_id: int, socket_id: str) -> bool:
     if is_first_connection:
         logger.info(
             "User %d came online in workspace %s (socket %s)",
-            user_id, workspace_id, socket_id,
+            user_id,
+            workspace_id,
+            socket_id,
         )
     return is_first_connection
 
@@ -148,7 +153,8 @@ async def user_offline(socket_id: str) -> dict | None:
         await redis.hdel(ws_key, str(user_id))
         logger.info(
             "User %d went fully offline in workspace %s",
-            user_id, workspace_id,
+            user_id,
+            workspace_id,
         )
 
     return {

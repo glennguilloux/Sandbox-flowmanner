@@ -146,7 +146,11 @@ class ToolVersion:
         """Check if this version can still be used"""
         if self.status == VersionStatus.RETIRED:
             return False
-        return not (self.status == VersionStatus.SUNSET and self.sunset_date and datetime.now(UTC) > self.sunset_date)
+        return not (
+            self.status == VersionStatus.SUNSET
+            and self.sunset_date
+            and datetime.now(UTC) > self.sunset_date
+        )
 
     def is_deprecated(self) -> bool:
         """Check if version is deprecated"""
@@ -207,11 +211,19 @@ class ToolVersioningService:
     """
 
     def __init__(self):
-        self._versions: dict[str, dict[str, ToolVersion]] = {}  # tool_id -> version_str -> ToolVersion
-        self._migrations: dict[str, list[Migration]] = {}  # tool_id -> list of migrations
+        self._versions: dict[str, dict[str, ToolVersion]] = (
+            {}
+        )  # tool_id -> version_str -> ToolVersion
+        self._migrations: dict[str, list[Migration]] = (
+            {}
+        )  # tool_id -> list of migrations
         self._deprecations: dict[str, DeprecationNotice] = {}  # key: "tool_id:version"
-        self._active_versions: dict[str, SemanticVersion] = {}  # tool_id -> current active version
-        self._version_history: dict[str, list[SemanticVersion]] = {}  # tool_id -> ordered versions
+        self._active_versions: dict[str, SemanticVersion] = (
+            {}
+        )  # tool_id -> current active version
+        self._version_history: dict[str, list[SemanticVersion]] = (
+            {}
+        )  # tool_id -> ordered versions
         self._rollback_stack: dict[str, list[tuple[SemanticVersion, datetime]]] = {}
         self._lock = asyncio.Lock()
 
@@ -269,10 +281,14 @@ class ToolVersioningService:
             if tool_id not in self._active_versions or status == VersionStatus.ACTIVE:
                 self._active_versions[tool_id] = sem_ver
 
-            logger.info(f"Registered tool version: {tool_id}@{version} with status {status.value}")
+            logger.info(
+                f"Registered tool version: {tool_id}@{version} with status {status.value}"
+            )
             return tool_version
 
-    async def get_version(self, tool_id: str, version: str | None = None) -> ToolVersion | None:
+    async def get_version(
+        self, tool_id: str, version: str | None = None
+    ) -> ToolVersion | None:
         """
         Get a specific version of a tool.
 
@@ -305,7 +321,12 @@ class ToolVersioningService:
         return versions
 
     async def deprecate_version(
-        self, tool_id: str, version: str, reason: str, sunset_days: int = 90, migration_path: str | None = None
+        self,
+        tool_id: str,
+        version: str,
+        reason: str,
+        sunset_days: int = 90,
+        migration_path: str | None = None,
     ) -> DeprecationNotice | None:
         """
         Mark a version as deprecated with a sunset date.
@@ -388,7 +409,9 @@ class ToolVersioningService:
 
         return migration
 
-    async def get_migration(self, tool_id: str, from_version: str, to_version: str) -> Migration | None:
+    async def get_migration(
+        self, tool_id: str, from_version: str, to_version: str
+    ) -> Migration | None:
         """Find a migration path between versions"""
         if tool_id not in self._migrations:
             return None
@@ -420,7 +443,9 @@ class ToolVersioningService:
         migration = await self.get_migration(tool_id, from_version, to_version)
 
         if not migration:
-            logger.warning(f"No migration found: {tool_id} {from_version} -> {to_version}")
+            logger.warning(
+                f"No migration found: {tool_id} {from_version} -> {to_version}"
+            )
             return params
 
         migrated = migration.migrate(params)
@@ -471,11 +496,15 @@ class ToolVersioningService:
             logger.warning(f"Rolled back {tool_id} to version {target}")
             return True
 
-    async def get_deprecation_notices(self, tool_id: str | None = None) -> list[DeprecationNotice]:
+    async def get_deprecation_notices(
+        self, tool_id: str | None = None
+    ) -> list[DeprecationNotice]:
         """Get all active deprecation notices"""
         notices = []
         for notice in self._deprecations.values():
-            if (tool_id is None or notice.tool_id == tool_id) and not notice.is_expired():
+            if (
+                tool_id is None or notice.tool_id == tool_id
+            ) and not notice.is_expired():
                 notices.append(notice)
         return notices
 
@@ -509,7 +538,11 @@ class ToolVersioningService:
             for tool_id in list(self._versions.keys()):
                 for ver_str in list(self._versions[tool_id].keys()):
                     version = self._versions[tool_id][ver_str]
-                    if version.status == VersionStatus.RETIRED and version.retired_at and version.retired_at < cutoff:
+                    if (
+                        version.status == VersionStatus.RETIRED
+                        and version.retired_at
+                        and version.retired_at < cutoff
+                    ):
                         del self._versions[tool_id][ver_str]
                         removed += 1
                         logger.info(f"Cleaned up retired version: {tool_id}@{ver_str}")

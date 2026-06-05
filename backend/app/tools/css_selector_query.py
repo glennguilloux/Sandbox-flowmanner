@@ -23,11 +23,15 @@ class CssSelectorQueryInput(ToolInput):
     """Input schema: html, selector, extract, attribute, limit, format."""
 
     html: str = Field(
-        ..., min_length=1, max_length=500000,
+        ...,
+        min_length=1,
+        max_length=500000,
         description="Raw HTML content to query",
     )
     selectors: list[str] = Field(
-        ..., min_length=1, max_length=50,
+        ...,
+        min_length=1,
+        max_length=50,
         description="CSS selectors to query (e.g., ['div.product > h2.title', 'a.nav-link'])",
     )
     extract: Literal["text", "html", "outer_html", "attribute", "all"] = Field(
@@ -39,7 +43,9 @@ class CssSelectorQueryInput(ToolInput):
         description="Attribute name to extract (e.g., 'href', 'src', 'data-id'). Required when extract='attribute'.",
     )
     max_results_per_selector: int | None = Field(
-        None, ge=1, le=10000,
+        None,
+        ge=1,
+        le=10000,
         description="Maximum number of results to return per selector",
     )
     format: Literal["list", "json"] = Field(
@@ -99,7 +105,9 @@ class CssSelectorQueryTool(BaseTool):
         try:
             validated = CssSelectorQueryInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         if validated.extract == "attribute" and not validated.attribute_name:
             return ToolResult.error_result(
@@ -124,24 +132,35 @@ class CssSelectorQueryTool(BaseTool):
 
                 results = self._extract_results(elements, validated)
                 total_matches += len(results)
-                all_selector_results.append({
-                    "selector": selector,
-                    "match_count": len(results),
-                    "results": results,
-                })
+                all_selector_results.append(
+                    {
+                        "selector": selector,
+                        "match_count": len(results),
+                        "results": results,
+                    }
+                )
 
-            return ToolResult.success_result(tool_id=self.tool_id, result={
-                "selectors": validated.selectors,
-                "total_match_count": total_matches,
-                "per_selector": all_selector_results,
-                "first_match": all_selector_results[0]["results"][0] if all_selector_results and all_selector_results[0]["results"] else None,
-                "success": True,
-            })
+            return ToolResult.success_result(
+                tool_id=self.tool_id,
+                result={
+                    "selectors": validated.selectors,
+                    "total_match_count": total_matches,
+                    "per_selector": all_selector_results,
+                    "first_match": (
+                        all_selector_results[0]["results"][0]
+                        if all_selector_results and all_selector_results[0]["results"]
+                        else None
+                    ),
+                    "success": True,
+                },
+            )
         except Exception as e:
             logger.exception("css_selector_query failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    def _extract_results(self, elements: list, validated: CssSelectorQueryInput) -> list[Any]:
+    def _extract_results(
+        self, elements: list, validated: CssSelectorQueryInput
+    ) -> list[Any]:
         results: list[Any] = []
 
         for el in elements:
@@ -153,13 +172,21 @@ class CssSelectorQueryTool(BaseTool):
                     continue
                 results.append(text)
             elif validated.extract == "html":
-                results.append(el.decode_contents() if hasattr(el, "decode_contents") else str(el))
+                results.append(
+                    el.decode_contents() if hasattr(el, "decode_contents") else str(el)
+                )
             elif validated.extract == "outer_html":
                 results.append(str(el))
             elif validated.extract == "attribute":
                 val = el.get(validated.attribute_name, "")
-                if validated.base_url and validated.attribute_name in ("href", "src") and val and not val.startswith(("http", "data:", "#")):
+                if (
+                    validated.base_url
+                    and validated.attribute_name in ("href", "src")
+                    and val
+                    and not val.startswith(("http", "data:", "#"))
+                ):
                     from urllib.parse import urljoin
+
                     val = urljoin(validated.base_url, val)
                 if not validated.include_empty and not val:
                     continue
@@ -168,8 +195,13 @@ class CssSelectorQueryTool(BaseTool):
                 attrs = dict(el.attrs.items())
                 if validated.base_url:
                     from urllib.parse import urljoin
+
                     for attr in ("href", "src"):
-                        if attr in attrs and attrs[attr] and not attrs[attr].startswith(("http", "data:", "#")):
+                        if (
+                            attr in attrs
+                            and attrs[attr]
+                            and not attrs[attr].startswith(("http", "data:", "#"))
+                        ):
                             attrs[attr] = urljoin(validated.base_url, attrs[attr])
                 attrs["text"] = el.get_text(strip=validated.normalize_text)
                 results.append(attrs)

@@ -29,11 +29,11 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
 
     # Private/internal IP prefixes exempt from rate limiting (Docker, homelab, dev)
     _PRIVATE_NETS = (
-        "127.",      # 127.0.0.0/8 – localhost
-        "10.",       # 10.0.0.0/8 – private
+        "127.",  # 127.0.0.0/8 – localhost
+        "10.",  # 10.0.0.0/8 – private
         "192.168.",  # 192.168.0.0/16 – private
-        "172.",      # 172.16.0.0/12 – private (Docker)
-        "::1",        # IPv6 localhost
+        "172.",  # 172.16.0.0/12 – private (Docker)
+        "::1",  # IPv6 localhost
     )
 
     @classmethod
@@ -69,7 +69,7 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
                     self._windows.keys(),
                     key=lambda k: self._windows[k][-1] if self._windows[k] else 0,
                 )
-                for old_key in sorted_keys[:len(self._windows) - self.MAX_KEYS]:
+                for old_key in sorted_keys[: len(self._windows) - self.MAX_KEYS]:
                     del self._windows[old_key]
 
     async def dispatch(self, request: Request, call_next):
@@ -84,7 +84,9 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
 
         # Phase 8.2: Key by workspace_id when available, fall back to IP
         workspace_id = request.headers.get("X-Workspace-Id")
-        key = f"ratelimit:ws:{workspace_id}" if workspace_id else f"ratelimit:{client_ip}"
+        key = (
+            f"ratelimit:ws:{workspace_id}" if workspace_id else f"ratelimit:{client_ip}"
+        )
         self._cleanup(key)
         limit = self._get_limit(request.url.path)
 
@@ -100,7 +102,9 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
                         "Retry-After": str(max(retry_after, 1)),
                         "X-RateLimit-Limit": str(limit),
                         "X-RateLimit-Remaining": "0",
-                        "X-RateLimit-Reset": str(int(time.time()) + self.WINDOW_SECONDS),
+                        "X-RateLimit-Reset": str(
+                            int(time.time()) + self.WINDOW_SECONDS
+                        ),
                     },
                 )
             self._windows[key].append(time.monotonic())
@@ -109,7 +113,9 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Reset"] = str(int(time.time()) + self.WINDOW_SECONDS)
+        response.headers["X-RateLimit-Reset"] = str(
+            int(time.time()) + self.WINDOW_SECONDS
+        )
         return response
 
 

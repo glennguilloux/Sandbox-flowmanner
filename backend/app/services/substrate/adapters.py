@@ -91,26 +91,29 @@ def mission_to_workflow(
                 getattr(task, "task_type", "llm") or "llm",
                 NodeType.LLM_CALL,
             )
-            nodes.append(WorkflowNode(
-                id=str(task.id) if hasattr(task, "id") else f"task_{len(nodes)}",
-                type=node_type,
-                title=getattr(task, "title", ""),
-                description=getattr(task, "description", ""),
-                config={
-                    "prompt": getattr(task, "description", "") or getattr(task, "title", ""),
-                    "tool_name": getattr(task, "tool_id", None),
-                },
-                dependencies=_resolve_deps(task, tasks or []),
-                assigned_model=getattr(task, "assigned_model", None),
-                assigned_agent_id=getattr(task, "assigned_agent_id", None),
-                max_retries=getattr(task, "max_retries", 3),
-                status=getattr(task, "status", "pending"),
-                output_data=getattr(task, "output_data", None),
-                error_message=getattr(task, "error_message", None),
-                retry_count=getattr(task, "retry_count", 0),
-                tokens_used=getattr(task, "tokens_used", 0),
-                cost=getattr(task, "cost", 0.0),
-            ))
+            nodes.append(
+                WorkflowNode(
+                    id=str(task.id) if hasattr(task, "id") else f"task_{len(nodes)}",
+                    type=node_type,
+                    title=getattr(task, "title", ""),
+                    description=getattr(task, "description", ""),
+                    config={
+                        "prompt": getattr(task, "description", "")
+                        or getattr(task, "title", ""),
+                        "tool_name": getattr(task, "tool_id", None),
+                    },
+                    dependencies=_resolve_deps(task, tasks or []),
+                    assigned_model=getattr(task, "assigned_model", None),
+                    assigned_agent_id=getattr(task, "assigned_agent_id", None),
+                    max_retries=getattr(task, "max_retries", 3),
+                    status=getattr(task, "status", "pending"),
+                    output_data=getattr(task, "output_data", None),
+                    error_message=getattr(task, "error_message", None),
+                    retry_count=getattr(task, "retry_count", 0),
+                    tokens_used=getattr(task, "tokens_used", 0),
+                    cost=getattr(task, "cost", 0.0),
+                )
+            )
 
     # Build edges from dependencies (for DAG and others)
     edges: list[WorkflowEdge] = []
@@ -142,9 +145,13 @@ def mission_to_workflow(
         user_id=str(mission.user_id) if hasattr(mission, "user_id") else None,
         metadata={
             "substrate_run_id": (
-                mission.plan.get("substrate_run_id") if hasattr(mission, "plan") and mission.plan else None
+                mission.plan.get("substrate_run_id")
+                if hasattr(mission, "plan") and mission.plan
+                else None
             ),
-            "fallback_strategy": getattr(mission, "fallback_strategy", "human_escalate"),
+            "fallback_strategy": getattr(
+                mission, "fallback_strategy", "human_escalate"
+            ),
         },
     )
 
@@ -166,21 +173,25 @@ def flow_to_workflow(flow: Any) -> Workflow:
             node_data.get("data", {}).get("nodeType", "llm"),
             NodeType.LLM_CALL,
         )
-        nodes.append(WorkflowNode(
-            id=node_data.get("id", ""),
-            type=node_type,
-            title=node_data.get("data", {}).get("label", ""),
-            config=node_data.get("data", {}),
-        ))
+        nodes.append(
+            WorkflowNode(
+                id=node_data.get("id", ""),
+                type=node_type,
+                title=node_data.get("data", {}).get("label", ""),
+                config=node_data.get("data", {}),
+            )
+        )
 
     edges: list[WorkflowEdge] = []
     for edge_data in flow_def.get("edges", []):
-        edges.append(WorkflowEdge(
-            source=edge_data.get("source", ""),
-            target=edge_data.get("target", ""),
-            condition=edge_data.get("data", {}).get("condition"),
-            label=edge_data.get("data", {}).get("label"),
-        ))
+        edges.append(
+            WorkflowEdge(
+                source=edge_data.get("source", ""),
+                target=edge_data.get("target", ""),
+                condition=edge_data.get("data", {}).get("condition"),
+                label=edge_data.get("data", {}).get("label"),
+            )
+        )
 
     return Workflow(
         id=str(flow.id) if hasattr(flow, "id") else "",
@@ -207,20 +218,24 @@ def graph_to_workflow(graph: Any) -> Workflow:
             node_data.get("data", {}).get("nodeType", "task"),
             NodeType.LLM_CALL,
         )
-        nodes.append(WorkflowNode(
-            id=node_data.get("id", ""),
-            type=node_type,
-            title=node_data.get("data", {}).get("label", ""),
-            config=node_data.get("data", {}),
-        ))
+        nodes.append(
+            WorkflowNode(
+                id=node_data.get("id", ""),
+                type=node_type,
+                title=node_data.get("data", {}).get("label", ""),
+                config=node_data.get("data", {}),
+            )
+        )
 
     edges: list[WorkflowEdge] = []
     for edge_data in graph_def.get("edges", []):
-        edges.append(WorkflowEdge(
-            source=edge_data.get("source", ""),
-            target=edge_data.get("target", ""),
-            label=edge_data.get("label"),
-        ))
+        edges.append(
+            WorkflowEdge(
+                source=edge_data.get("source", ""),
+                target=edge_data.get("target", ""),
+                label=edge_data.get("label"),
+            )
+        )
 
     return Workflow(
         id=str(graph.id) if hasattr(graph, "id") else "",
@@ -294,7 +309,8 @@ def _resolve_deps(task: Any, all_tasks: list[Any]) -> list[str]:
             else:
                 logger.warning(
                     "Dependency index %d out of bounds (task count: %d), using raw value",
-                    dep, len(all_tasks),
+                    dep,
+                    len(all_tasks),
                 )
                 resolved.append(str(dep))
         else:

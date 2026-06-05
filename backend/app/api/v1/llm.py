@@ -57,7 +57,9 @@ async def list_models():
     for provider_id, (_base_url, key_env) in PROVIDER_MAP.items():
         api_key = os.getenv(key_env) if key_env else "no-key-needed"
         if key_env and (
-            not api_key or api_key in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
+            not api_key
+            or api_key
+            in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
         ):
             continue
         for model_name in provider_models.get(provider_id, []):
@@ -65,7 +67,9 @@ async def list_models():
                 ModelInfo(
                     name=f"{provider_id}/{model_name}",
                     provider=provider_id,
-                    is_default=(provider_id == "deepseek" and model_name == "deepseek-v4-flash"),
+                    is_default=(
+                        provider_id == "deepseek" and model_name == "deepseek-v4-flash"
+                    ),
                 )
             )
     return models
@@ -111,7 +115,9 @@ async def list_models_frontend(
     for provider_id, (_base_url, key_env) in PROVIDER_MAP.items():
         api_key = os.getenv(key_env) if key_env else "no-key-needed"
         if key_env and (
-            not api_key or api_key in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
+            not api_key
+            or api_key
+            in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
         ):
             continue
         for model_name in provider_models.get(provider_id, []):
@@ -142,26 +148,30 @@ async def list_models_frontend(
                 for model_id in key_models:
                     # Don't duplicate if already in platform models
                     if not any(m.model_id == model_id for m in models):
-                        models.append(FrontendModelInfo(
-                            model_id=model_id,
-                            display_name=model_id.split("/")[-1],
-                            status="available",
-                            provider=key.provider,
-                            description=f"Your {key.provider.upper()} key · {key.key_label or 'BYOK'}",
-                            is_byok=True,
-                        ))
+                        models.append(
+                            FrontendModelInfo(
+                                model_id=model_id,
+                                display_name=model_id.split("/")[-1],
+                                status="available",
+                                provider=key.provider,
+                                description=f"Your {key.provider.upper()} key · {key.key_label or 'BYOK'}",
+                                is_byok=True,
+                            )
+                        )
             else:
                 # User has a key but no specific models — show the provider
                 wildcard = f"{key.provider}/*"
                 if not any(m.model_id == wildcard for m in models):
-                    models.append(FrontendModelInfo(
-                        model_id=wildcard,
-                        display_name=f"All {key.provider} models",
-                        status="available",
-                        provider=key.provider,
-                        description=f"Your {key.provider.upper()} key · {key.key_label or 'BYOK'}",
-                        is_byok=True,
-                    ))
+                    models.append(
+                        FrontendModelInfo(
+                            model_id=wildcard,
+                            display_name=f"All {key.provider} models",
+                            status="available",
+                            provider=key.provider,
+                            description=f"Your {key.provider.upper()} key · {key.key_label or 'BYOK'}",
+                            is_byok=True,
+                        )
+                    )
 
     return ModelListResponse(models=models, total=len(models))
 

@@ -40,7 +40,9 @@ class TestImportBindingsLogic:
         from scripts.import_bindings import run
 
         agent = _make_agent_row(
-            "tid-1", "general-assistant-v1", "General Assistant",
+            "tid-1",
+            "general-assistant-v1",
+            "General Assistant",
             {
                 "tools": [
                     {"tool_id": "web_search", "enabled": True},
@@ -75,9 +77,15 @@ class TestImportBindingsLogic:
         insert_result.rowcount = 1
 
         mock_conn.execute = AsyncMock(
-            side_effect=[tool_result, cap_result, agent_result,
-                         insert_result, insert_result,  # tool bindings
-                         insert_result, insert_result]   # cap bindings
+            side_effect=[
+                tool_result,
+                cap_result,
+                agent_result,
+                insert_result,
+                insert_result,  # tool bindings
+                insert_result,
+                insert_result,
+            ]  # cap bindings
         )
 
         mock_engine = MagicMock()
@@ -85,8 +93,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with patch("sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine), \
-             patch("app.config.settings") as mock_settings:
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
@@ -95,12 +104,18 @@ class TestImportBindingsLogic:
         insert_calls = []
         for c in mock_conn.execute.call_args_list:
             stmt = c.args[0] if c.args else c.kwargs.get("statement", None)
-            if stmt is not None and hasattr(stmt, "text") and "INSERT INTO" in stmt.text:
+            if (
+                stmt is not None
+                and hasattr(stmt, "text")
+                and "INSERT INTO" in stmt.text
+            ):
                 insert_calls.append(c)
         assert len(insert_calls) == 4
 
         # Verify the tool binding inserts reference the correct IDs
-        tool_inserts = [c for c in insert_calls if "agent_tool_bindings" in c.args[0].text]
+        tool_inserts = [
+            c for c in insert_calls if "agent_tool_bindings" in c.args[0].text
+        ]
         assert len(tool_inserts) == 2
 
     @pytest.mark.asyncio
@@ -109,7 +124,9 @@ class TestImportBindingsLogic:
         from scripts.import_bindings import run
 
         agent = _make_agent_row(
-            "tid-2", "content-writer-v1", "Content Writer",
+            "tid-2",
+            "content-writer-v1",
+            "Content Writer",
             {
                 "tools": [{"tool_id": "seo_analyzer", "enabled": True}],
                 "capabilities": [],
@@ -136,8 +153,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with patch("sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine), \
-             patch("app.config.settings") as mock_settings:
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
@@ -145,7 +163,11 @@ class TestImportBindingsLogic:
         insert_calls = []
         for c in mock_conn.execute.call_args_list:
             stmt = c.args[0] if c.args else None
-            if stmt is not None and hasattr(stmt, "text") and "INSERT INTO" in stmt.text:
+            if (
+                stmt is not None
+                and hasattr(stmt, "text")
+                and "INSERT INTO" in stmt.text
+            ):
                 insert_calls.append(c)
         assert len(insert_calls) == 0
 
@@ -175,8 +197,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with patch("sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine), \
-             patch("app.config.settings") as mock_settings:
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
@@ -189,7 +212,9 @@ class TestImportBindingsLogic:
         from scripts.import_bindings import run
 
         agent = _make_agent_row(
-            "tid-4", "test-agent", "Test Agent",
+            "tid-4",
+            "test-agent",
+            "Test Agent",
             {"tools": ["web_search"], "capabilities": []},
         )
 
@@ -217,14 +242,19 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with patch("sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine), \
-             patch("app.config.settings") as mock_settings:
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
         insert_calls = []
         for c in mock_conn.execute.call_args_list:
             stmt = c.args[0] if c.args else None
-            if stmt is not None and hasattr(stmt, "text") and "INSERT INTO" in stmt.text:
+            if (
+                stmt is not None
+                and hasattr(stmt, "text")
+                and "INSERT INTO" in stmt.text
+            ):
                 insert_calls.append(c)
         assert len(insert_calls) == 1

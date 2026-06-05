@@ -28,29 +28,32 @@ MAX_TIMEOUT = int(os.getenv("SHELL_CMD_MAX_TIMEOUT", "120"))
 MAX_OUTPUT_BYTES = int(os.getenv("SHELL_CMD_MAX_OUTPUT", "102400"))
 WORKING_DIR = os.getenv("SHELL_CMD_WORKDIR", "/tmp")
 SHELL_MEMORY_MB = int(os.getenv("SHELL_CMD_MEMORY_MB", "512"))
-SHELL_MAX_PROCS = int(os.getenv("SHELL_CMD_MAX_PROCS", "10"))  # shell commands may need subshells
+SHELL_MAX_PROCS = int(
+    os.getenv("SHELL_CMD_MAX_PROCS", "10")
+)  # shell commands may need subshells
 
 # Commands/patterns that are always blocked for safety
 _BLOCKED_PATTERNS: list[str] = [
-    r'\brm\s+(-[rRf]+\s+)*[/~]',      # rm -rf / or ~
-    r'\bsudo\b',                         # sudo
-    r'\bchmod\s+777\b',                 # chmod 777
-    r'\bchown\b',                        # chown
-    r'\bdd\s+if=',                       # dd (disk destroyer)
-    r'\bmkfs\.',                         # mkfs (format)
-    r'\bfdisk\b',                        # fdisk
-    r'\breboot\b',                       # reboot
-    r'\bshutdown\b',                     # shutdown
-    r'>\s*/dev/[hs]d',                  # redirect to disk device
-    r'\bcurl.*\|\s*(ba)?sh\b',          # curl pipe sh
-    r'\bwget.*\|\s*(ba)?sh\b',          # wget pipe sh
-    r'\b:\(\)\s*\{\s*:\|:&\s*\}\s*;',   # fork bomb
-    r'\bgit\s+push\s+--force\b',        # git push --force
-    r'\bdocker\s+(rm|prune|system)',     # destructive docker
+    r"\brm\s+(-[rRf]+\s+)*[/~]",  # rm -rf / or ~
+    r"\bsudo\b",  # sudo
+    r"\bchmod\s+777\b",  # chmod 777
+    r"\bchown\b",  # chown
+    r"\bdd\s+if=",  # dd (disk destroyer)
+    r"\bmkfs\.",  # mkfs (format)
+    r"\bfdisk\b",  # fdisk
+    r"\breboot\b",  # reboot
+    r"\bshutdown\b",  # shutdown
+    r">\s*/dev/[hs]d",  # redirect to disk device
+    r"\bcurl.*\|\s*(ba)?sh\b",  # curl pipe sh
+    r"\bwget.*\|\s*(ba)?sh\b",  # wget pipe sh
+    r"\b:\(\)\s*\{\s*:\|:&\s*\}\s*;",  # fork bomb
+    r"\bgit\s+push\s+--force\b",  # git push --force
+    r"\bdocker\s+(rm|prune|system)",  # destructive docker
 ]
 
 
 # ── Input ─────────────────────────────────────────────────────────────
+
 
 class ShellCmdExecutorInput(ToolInput):
     command: str = Field(
@@ -75,6 +78,7 @@ class ShellCmdExecutorInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class ShellCmdExecutorTool(BaseTool):
     """Run bash commands in a secure, resource-limited subprocess.
@@ -170,7 +174,10 @@ class ShellCmdExecutorTool(BaseTool):
         """Prevent access to system directories like /etc, /boot, /sys, /proc."""
         blocked_prefixes = ["/etc", "/boot", "/sys", "/proc", "/dev", "/root"]
         real_path = os.path.realpath(path)
-        return all(not (real_path.startswith(prefix + "/") or real_path == prefix) for prefix in blocked_prefixes)
+        return all(
+            not (real_path.startswith(prefix + "/") or real_path == prefix)
+            for prefix in blocked_prefixes
+        )
 
     # ── run_command ─────────────────────────────────────────────
 

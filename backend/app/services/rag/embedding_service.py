@@ -58,7 +58,10 @@ class EmbeddingService:
             logger.debug("embedding_cache_set_failed", exc_info=True)
 
     def _is_openai_model(self) -> bool:
-        return self.model_name.startswith("text-embedding") or "openai" in self.model_name.lower()
+        return (
+            self.model_name.startswith("text-embedding")
+            or "openai" in self.model_name.lower()
+        )
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -85,7 +88,11 @@ class EmbeddingService:
             else:
                 vectors = await self._embed_local(uncached_texts)
         except Exception as e:
-            logger.error("Embedding failed with %s, falling back to local: %s", self.model_name, e)
+            logger.error(
+                "Embedding failed with %s, falling back to local: %s",
+                self.model_name,
+                e,
+            )
             vectors = await self._embed_local(uncached_texts)
 
         for idx, vec in zip(uncached_indices, vectors, strict=False):
@@ -101,6 +108,7 @@ class EmbeddingService:
     async def _embed_openai(self, texts: list[str]) -> list[list[float]]:
         if self._openai_client is None:
             from openai import AsyncOpenAI
+
             api_key = settings.LLM_API_KEY or "sk-no-key-required"
             self._openai_client = AsyncOpenAI(
                 api_key=api_key,
@@ -116,6 +124,7 @@ class EmbeddingService:
     async def _embed_local(self, texts: list[str]) -> list[list[float]]:
         if self._local_model is None:
             from sentence_transformers import SentenceTransformer
+
             self._local_model = SentenceTransformer(
                 "sentence-transformers/all-MiniLM-L6-v2"
             )

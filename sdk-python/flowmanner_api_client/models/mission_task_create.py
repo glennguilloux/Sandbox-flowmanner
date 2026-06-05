@@ -1,46 +1,43 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-from uuid import UUID
-
 if TYPE_CHECKING:
-  from ..models.mission_task_create_dependencies_type_1 import MissionTaskCreateDependenciesType1
-  from ..models.mission_task_create_input_data_type_0 import MissionTaskCreateInputDataType0
-
-
-
+    from ..models.mission_task_create_dependencies_type_1 import (
+        MissionTaskCreateDependenciesType1,
+    )
+    from ..models.mission_task_create_input_data_type_0 import (
+        MissionTaskCreateInputDataType0,
+    )
 
 
 T = TypeVar("T", bound="MissionTaskCreate")
 
 
-
 @_attrs_define
 class MissionTaskCreate:
-    """ 
-        Attributes:
-            title (str):
-            description (None | str | Unset):
-            task_type (str | Unset):  Default: 'general'.
-            order_index (int | None | Unset):
-            input_data (MissionTaskCreateInputDataType0 | None | Unset):
-            dependencies (list[Any] | MissionTaskCreateDependenciesType1 | None | Unset):
-            assigned_agent_id (None | Unset | UUID):
-            assigned_model (None | str | Unset):
-     """
+    """
+    Attributes:
+        title (str):
+        description (None | str | Unset):
+        task_type (str | Unset):  Default: 'general'.
+        order_index (int | None | Unset):
+        input_data (MissionTaskCreateInputDataType0 | None | Unset):
+        dependencies (list[Any] | MissionTaskCreateDependenciesType1 | None | Unset):
+        assigned_agent_id (None | Unset | UUID):
+        assigned_model (None | str | Unset):
+    """
 
     title: str
     description: None | str | Unset = UNSET
-    task_type: str | Unset = 'general'
+    task_type: str | Unset = "general"
     order_index: int | None | Unset = UNSET
     input_data: MissionTaskCreateInputDataType0 | None | Unset = UNSET
     dependencies: list[Any] | MissionTaskCreateDependenciesType1 | None | Unset = UNSET
@@ -48,13 +45,14 @@ class MissionTaskCreate:
     assigned_model: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_create_dependencies_type_1 import MissionTaskCreateDependenciesType1
-        from ..models.mission_task_create_input_data_type_0 import MissionTaskCreateInputDataType0
+        from ..models.mission_task_create_dependencies_type_1 import (
+            MissionTaskCreateDependenciesType1,
+        )
+        from ..models.mission_task_create_input_data_type_0 import (
+            MissionTaskCreateInputDataType0,
+        )
+
         title = self.title
 
         description: None | str | Unset
@@ -85,7 +83,6 @@ class MissionTaskCreate:
         elif isinstance(self.dependencies, list):
             dependencies = self.dependencies
 
-
         elif isinstance(self.dependencies, MissionTaskCreateDependenciesType1):
             dependencies = self.dependencies.to_dict()
         else:
@@ -105,12 +102,13 @@ class MissionTaskCreate:
         else:
             assigned_model = self.assigned_model
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "title": title,
-        })
+        field_dict.update(
+            {
+                "title": title,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if task_type is not UNSET:
@@ -128,12 +126,15 @@ class MissionTaskCreate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_create_dependencies_type_1 import MissionTaskCreateDependenciesType1
-        from ..models.mission_task_create_input_data_type_0 import MissionTaskCreateInputDataType0
+        from ..models.mission_task_create_dependencies_type_1 import (
+            MissionTaskCreateDependenciesType1,
+        )
+        from ..models.mission_task_create_input_data_type_0 import (
+            MissionTaskCreateInputDataType0,
+        )
+
         d = dict(src_dict)
         title = d.pop("title")
 
@@ -146,7 +147,6 @@ class MissionTaskCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         task_type = d.pop("task_type", UNSET)
 
         def _parse_order_index(data: object) -> int | None | Unset:
@@ -158,8 +158,9 @@ class MissionTaskCreate:
 
         order_index = _parse_order_index(d.pop("order_index", UNSET))
 
-
-        def _parse_input_data(data: object) -> MissionTaskCreateInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> MissionTaskCreateInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -169,8 +170,6 @@ class MissionTaskCreate:
                     raise TypeError()
                 input_data_type_0 = MissionTaskCreateInputDataType0.from_dict(data)
 
-
-
                 return input_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -178,8 +177,9 @@ class MissionTaskCreate:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-
-        def _parse_dependencies(data: object) -> list[Any] | MissionTaskCreateDependenciesType1 | None | Unset:
+        def _parse_dependencies(
+            data: object,
+        ) -> list[Any] | MissionTaskCreateDependenciesType1 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -197,15 +197,14 @@ class MissionTaskCreate:
                     raise TypeError()
                 dependencies_type_1 = MissionTaskCreateDependenciesType1.from_dict(data)
 
-
-
                 return dependencies_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[Any] | MissionTaskCreateDependenciesType1 | None | Unset, data)
+            return cast(
+                list[Any] | MissionTaskCreateDependenciesType1 | None | Unset, data
+            )
 
         dependencies = _parse_dependencies(d.pop("dependencies", UNSET))
-
 
         def _parse_assigned_agent_id(data: object) -> None | Unset | UUID:
             if data is None:
@@ -217,15 +216,12 @@ class MissionTaskCreate:
                     raise TypeError()
                 assigned_agent_id_type_0 = UUID(data)
 
-
-
                 return assigned_agent_id_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | Unset | UUID, data)
 
         assigned_agent_id = _parse_assigned_agent_id(d.pop("assigned_agent_id", UNSET))
-
 
         def _parse_assigned_model(data: object) -> None | str | Unset:
             if data is None:
@@ -235,7 +231,6 @@ class MissionTaskCreate:
             return cast(None | str | Unset, data)
 
         assigned_model = _parse_assigned_model(d.pop("assigned_model", UNSET))
-
 
         mission_task_create = cls(
             title=title,
@@ -247,7 +242,6 @@ class MissionTaskCreate:
             assigned_agent_id=assigned_agent_id,
             assigned_model=assigned_model,
         )
-
 
         mission_task_create.additional_properties = d
         return mission_task_create

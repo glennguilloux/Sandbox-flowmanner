@@ -20,12 +20,24 @@ def upgrade() -> None:
         "agent_memory",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("user_id", sa.Integer, nullable=False, index=True),
-        sa.Column("agent_id", sa.String(255), nullable=False, index=True, server_default="default"),
+        sa.Column(
+            "agent_id",
+            sa.String(255),
+            nullable=False,
+            index=True,
+            server_default="default",
+        ),
         sa.Column("content", sa.Text, nullable=False),
-        sa.Column("content_type", sa.String(100), nullable=False, server_default="note"),
+        sa.Column(
+            "content_type", sa.String(100), nullable=False, server_default="note"
+        ),
         sa.Column("metadata", JSON, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
 
 

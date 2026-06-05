@@ -26,7 +26,9 @@ class UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData:
         d = dict(src_dict)
         update_feature_flag_api_admin_feature_flags_key_patch_data = cls()
 
-        update_feature_flag_api_admin_feature_flags_key_patch_data.additional_properties = d
+        update_feature_flag_api_admin_feature_flags_key_patch_data.additional_properties = (
+            d
+        )
         return update_feature_flag_api_admin_feature_flags_key_patch_data
 
     @property

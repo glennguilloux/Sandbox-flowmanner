@@ -16,15 +16,15 @@ from unittest.mock import AsyncMock, MagicMock
 # ---------------------------------------------------------------------------
 # 1. Set ALL env vars BEFORE any imports
 # ---------------------------------------------------------------------------
-os.environ['OPENAI_API_KEY'] = '***'
-os.environ['LANGFUSE_PUBLIC_KEY'] = 'test-public-key'
-os.environ['LANGFUSE_SECRET_KEY'] = 'test-secret-key'
-os.environ['JWT_SECRET_KEY'] = 'test-jwt-secret-key-123'
-os.environ['SECRET_KEY'] = 'test-secret-key-123'
-os.environ['AES_ENCRYPTION_KEY'] = 'test-aes-key-16-char'
-os.environ['APP_ENV'] = 'test'
-os.environ['LANGFUSE_ENABLED'] = 'false'
-os.environ['USE_NEW_READS'] = '0'
+os.environ["OPENAI_API_KEY"] = "***"
+os.environ["LANGFUSE_PUBLIC_KEY"] = "test-public-key"
+os.environ["LANGFUSE_SECRET_KEY"] = "test-secret-key"
+os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-123"
+os.environ["SECRET_KEY"] = "test-secret-key-123"
+os.environ["AES_ENCRYPTION_KEY"] = "test-aes-key-16-char"
+os.environ["APP_ENV"] = "test"
+os.environ["LANGFUSE_ENABLED"] = "false"
+os.environ["USE_NEW_READS"] = "0"
 
 # ---------------------------------------------------------------------------
 # 2. Mock redis globally BEFORE any imports that use it
@@ -35,33 +35,35 @@ mock_redis.ConnectionError = ConnectionError
 mock_redis.asyncio = MagicMock()
 mock_redis.asyncio.Redis = MagicMock()
 mock_redis.asyncio.Redis.from_url = MagicMock(return_value=MagicMock())
-sys.modules['redis'] = mock_redis
-sys.modules['redis.asyncio'] = mock_redis.asyncio
+sys.modules["redis"] = mock_redis
+sys.modules["redis.asyncio"] = mock_redis.asyncio
 
 # ---------------------------------------------------------------------------
 # 2b. Mock portalocker globally (prevents SyntaxError from redis mock
 #     leaking into portalocker/redis.py type annotations)
 # ---------------------------------------------------------------------------
 mock_portalocker = MagicMock()
-sys.modules['portalocker'] = mock_portalocker
-sys.modules['portalocker.redis'] = mock_portalocker.redis
-sys.modules['portalocker.utils'] = mock_portalocker.utils
+sys.modules["portalocker"] = mock_portalocker
+sys.modules["portalocker.redis"] = mock_portalocker.redis
+sys.modules["portalocker.utils"] = mock_portalocker.utils
 
 # ---------------------------------------------------------------------------
 # 3. Mock stripe globally so partner.py can be imported without stripe installed
 # ---------------------------------------------------------------------------
 mock_stripe = MagicMock()
 mock_stripe.Transfer = MagicMock()
-sys.modules['stripe'] = mock_stripe
+sys.modules["stripe"] = mock_stripe
 
 # ---------------------------------------------------------------------------
 # 4. Mock lifespan BEFORE importing app
 # ---------------------------------------------------------------------------
 import app.lifespan as lifespan_module
 
+
 @asynccontextmanager
 async def mock_lifespan(app_instance):
     yield
+
 
 lifespan_module.lifespan = mock_lifespan
 lifespan_module._validate_production_secrets = lambda: None
@@ -71,9 +73,11 @@ lifespan_module._validate_production_secrets = lambda: None
 # ---------------------------------------------------------------------------
 import app.api.middleware.rate_limit as rl_module
 
+
 async def _noop_dispatch(self, request, call_next):
     """Pass-through dispatch — rate limiting disabled for tests."""
     return await call_next(request)
+
 
 rl_module.GlobalRateLimitMiddleware.dispatch = _noop_dispatch
 
@@ -85,7 +89,9 @@ from fastapi import FastAPI
 from fastapi.routing import APIRouter
 from fastapi.testclient import TestClient
 
-from app.main_fastapi import app as _real_app  # noqa: F401 — side-effect: init app with mocked services
+from app.main_fastapi import (
+    app as _real_app,
+)  # noqa: F401 — side-effect: init app with mocked services
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.swarm import router as swarm_router
 from app.api.v1.swarm_protocol import router as protocol_router
@@ -94,6 +100,7 @@ from app.api.v1.swarm_protocol import router as protocol_router
 # ===========================================================================
 # Original fixtures (minimal app for swarm/dashboard tests)
 # ===========================================================================
+
 
 @pytest.fixture(scope="session")
 def test_app():
@@ -172,6 +179,7 @@ def test_client(test_app, mock_db, mock_user):
 # Auth v3 fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_db_session():
     """Alias for mock_db — used by v3 integration tests."""
@@ -191,6 +199,7 @@ def mock_db_session():
 def sample_user():
     """Mock user with all v3-accessible attributes."""
     from datetime import datetime, timezone
+
     return MagicMock(
         id=1,
         email="test@example.com",

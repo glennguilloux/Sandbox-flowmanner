@@ -1,40 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="TestRequest")
-
 
 
 @_attrs_define
 class TestRequest:
-    """ 
-        Attributes:
-            message (str | Unset):  Default: 'Hello, this is a test.'.
-            model (None | str | Unset):
-     """
+    """
+    Attributes:
+        message (str | Unset):  Default: 'Hello, this is a test.'.
+        model (None | str | Unset):
+    """
 
-    message: str | Unset = 'Hello, this is a test.'
+    message: str | Unset = "Hello, this is a test."
     model: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         message = self.message
@@ -45,19 +32,15 @@ class TestRequest:
         else:
             model = self.model
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if message is not UNSET:
             field_dict["message"] = message
         if model is not UNSET:
             field_dict["model"] = model
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -73,12 +56,10 @@ class TestRequest:
 
         model = _parse_model(d.pop("model", UNSET))
 
-
         test_request = cls(
             message=message,
             model=model,
         )
-
 
         test_request.additional_properties = d
         return test_request

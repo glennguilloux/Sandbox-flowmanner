@@ -79,7 +79,9 @@ def test_list_notifications_success(test_client, mock_db_session):
     mock_user = make_user()
     app.dependency_overrides[get_current_user] = lambda: mock_user
     try:
-        _real_mock_db_session(mock_db_session, notifications=[make_mock_notification()], scalar_value=1)
+        _real_mock_db_session(
+            mock_db_session, notifications=[make_mock_notification()], scalar_value=1
+        )
         response = test_client.get(f"{PREFIX}/")
         assert response.status_code == 200
         data = response.json()
@@ -145,7 +147,9 @@ def test_mark_all_read(test_client, mock_db_session):
     mock_user = make_user()
     app.dependency_overrides[get_current_user] = lambda: mock_user
     try:
-        _real_mock_db_session(mock_db_session, notifications=[make_mock_notification(is_read=True)])
+        _real_mock_db_session(
+            mock_db_session, notifications=[make_mock_notification(is_read=True)]
+        )
         response = test_client.post(f"{PREFIX}/read-all")
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
@@ -265,9 +269,9 @@ def test_notifications_require_auth(test_client):
     ]
     for method, path in endpoints:
         response = test_client.request(method, path)
-        assert response.status_code == 401, (
-            f"Expected 401 for {method} {path}, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 401
+        ), f"Expected 401 for {method} {path}, got {response.status_code}"
 
 
 # ── Settings Tests ──────────────────────────────────────────────────────────

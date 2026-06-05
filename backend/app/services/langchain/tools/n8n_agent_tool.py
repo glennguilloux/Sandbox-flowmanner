@@ -19,9 +19,7 @@ class N8NWorkflowRequest(BaseModel):
     action: str = Field(
         ..., description="Action to perform: list, execute, create, status"
     )
-    workflow_id: str | None = Field(
-        None, description="Workflow ID for execute/status"
-    )
+    workflow_id: str | None = Field(None, description="Workflow ID for execute/status")
     parameters: dict[str, Any] | None = Field(
         None, description="Parameters for workflow execution"
     )

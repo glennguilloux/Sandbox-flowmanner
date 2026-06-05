@@ -28,11 +28,16 @@ class InMemoryRateLimiter:
             self._windows[key] = [t for t in self._windows[key] if t > cutoff]
             # Evict oldest keys if over cap
             if len(self._windows) > self.MAX_KEYS:
-                sorted_keys = sorted(self._windows.keys(), key=lambda k: self._windows[k][-1] if self._windows[k] else 0)
-                for old_key in sorted_keys[:len(self._windows) - self.MAX_KEYS]:
+                sorted_keys = sorted(
+                    self._windows.keys(),
+                    key=lambda k: self._windows[k][-1] if self._windows[k] else 0,
+                )
+                for old_key in sorted_keys[: len(self._windows) - self.MAX_KEYS]:
                     del self._windows[old_key]
 
-    def check(self, key: str, max_requests: int, window_seconds: int) -> tuple[bool, int, int]:
+    def check(
+        self, key: str, max_requests: int, window_seconds: int
+    ) -> tuple[bool, int, int]:
         """Check if request is allowed. Returns (allowed, remaining, retry_after)."""
         self._cleanup(key, window_seconds)
         with self._lock:
@@ -52,7 +57,9 @@ class RedisRateLimiter:
     def __init__(self, redis_url: str):
         self._redis = redis.from_url(redis_url, decode_responses=True)
 
-    def check(self, key: str, max_requests: int, window_seconds: int) -> tuple[bool, int, int]:
+    def check(
+        self, key: str, max_requests: int, window_seconds: int
+    ) -> tuple[bool, int, int]:
         """Check if request is allowed. Returns (allowed, remaining, retry_after)."""
         now = time.monotonic()
         pipe = self._redis.pipeline()
@@ -89,16 +96,18 @@ def get_rate_limiter() -> InMemoryRateLimiter | RedisRateLimiter:
     return _rate_limiter
 
 
-def check_rate_limit(key: str, max_requests: int, window_seconds: int) -> tuple[bool, int, int]:
+def check_rate_limit(
+    key: str, max_requests: int, window_seconds: int
+) -> tuple[bool, int, int]:
     """Check rate limit for a given key. Returns (allowed, remaining, retry_after)."""
     return get_rate_limiter().check(key, max_requests, window_seconds)
 
 
 # Rate limit configurations for auth endpoints
 RATE_LIMITS = {
-    "login": {"max_requests": 5, "window_seconds": 60},      # 5 per minute
+    "login": {"max_requests": 5, "window_seconds": 60},  # 5 per minute
     "register": {"max_requests": 3, "window_seconds": 3600},  # 3 per hour
     "2fa_verify": {"max_requests": 5, "window_seconds": 60},  # 5 per minute
     "social_token": {"max_requests": 5, "window_seconds": 60},  # 5 per minute
-    "default": {"max_requests": 100, "window_seconds": 60},   # 100 per minute
+    "default": {"max_requests": 100, "window_seconds": 60},  # 100 per minute
 }

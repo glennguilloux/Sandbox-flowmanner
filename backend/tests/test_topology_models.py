@@ -56,8 +56,16 @@ class TestTopologySnapshotSchema:
 
         columns = {c.name for c in TopologySnapshot.__table__.columns}
         expected = {
-            "id", "version", "description", "node_count", "edge_count",
-            "community_count", "source", "snapshot_data", "created_at", "updated_at",
+            "id",
+            "version",
+            "description",
+            "node_count",
+            "edge_count",
+            "community_count",
+            "source",
+            "snapshot_data",
+            "created_at",
+            "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -106,10 +114,18 @@ class TestTopologyNodeSchema:
 
         columns = {c.name for c in TopologyNode.__table__.columns}
         expected = {
-            "id", "snapshot_id", "external_id", "label", "node_type",
-            "community_id", "metadata", "derived_from_agent_id",
-            "derived_from_capability_id", "derived_from_workflow_id",
-            "confidence", "evidence",
+            "id",
+            "snapshot_id",
+            "external_id",
+            "label",
+            "node_type",
+            "community_id",
+            "metadata",
+            "derived_from_agent_id",
+            "derived_from_capability_id",
+            "derived_from_workflow_id",
+            "confidence",
+            "evidence",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -118,7 +134,11 @@ class TestTopologyNodeSchema:
 
         indexes = TopologyNode.__table__.indexes
         idx = next(
-            (ix for ix in indexes if set(c.name for c in ix.columns) == {"snapshot_id"}),
+            (
+                ix
+                for ix in indexes
+                if set(c.name for c in ix.columns) == {"snapshot_id"}
+            ),
             None,
         )
         assert idx is not None, "Missing index on snapshot_id"
@@ -184,8 +204,13 @@ class TestTopologyEdgeSchema:
 
         columns = {c.name for c in TopologyEdge.__table__.columns}
         expected = {
-            "id", "snapshot_id", "source_node_id", "target_node_id",
-            "relation", "confidence", "metadata",
+            "id",
+            "snapshot_id",
+            "source_node_id",
+            "target_node_id",
+            "relation",
+            "confidence",
+            "metadata",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -194,7 +219,11 @@ class TestTopologyEdgeSchema:
 
         indexes = TopologyEdge.__table__.indexes
         idx = next(
-            (ix for ix in indexes if set(c.name for c in ix.columns) == {"snapshot_id"}),
+            (
+                ix
+                for ix in indexes
+                if set(c.name for c in ix.columns) == {"snapshot_id"}
+            ),
             None,
         )
         assert idx is not None, "Missing index on snapshot_id"
@@ -238,7 +267,9 @@ class TestTopologyMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_topology.py"
+            / "alembic"
+            / "versions"
+            / "20260603_topology.py"
         )
         assert rev_path.exists(), f"Migration file not found at {rev_path}"
 
@@ -248,7 +279,9 @@ class TestTopologyMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_topology.py"
+            / "alembic"
+            / "versions"
+            / "20260603_topology.py"
         )
         if not rev_path.exists():
             pytest.skip("Migration file not found")
@@ -268,7 +301,9 @@ class TestTopologyMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_topology.py"
+            / "alembic"
+            / "versions"
+            / "20260603_topology.py"
         )
         if not rev_path.exists():
             pytest.skip("Migration file not found")
@@ -287,13 +322,15 @@ class TestTopologyMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_topology.py"
+            / "alembic"
+            / "versions"
+            / "20260603_topology.py"
         )
         if not rev_path.exists():
             pytest.skip("Migration file not found")
 
         source = rev_path.read_text()
         assert source.count("op.create_table(") == 3
-        assert 'topology_snapshots' in source
-        assert 'topology_nodes' in source
-        assert 'topology_edges' in source
+        assert "topology_snapshots" in source
+        assert "topology_nodes" in source
+        assert "topology_edges" in source

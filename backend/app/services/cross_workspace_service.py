@@ -28,16 +28,19 @@ VALID_PERMISSIONS = frozenset(("read", "write"))
 
 class CrossWorkspaceError(Exception):
     """Base error for cross-workspace operations."""
+
     pass
 
 
 class ShareNotFoundError(CrossWorkspaceError):
     """Share grant not found."""
+
     pass
 
 
 class SharePermissionError(CrossWorkspaceError):
     """User lacks permission to manage shares."""
+
     pass
 
 
@@ -57,9 +60,13 @@ async def grant_share(
     Idempotent: if a share already exists for this entity+target, updates it.
     """
     if entity_type not in VALID_ENTITY_TYPES:
-        raise CrossWorkspaceError(f"Invalid entity_type: {entity_type}. Must be one of {VALID_ENTITY_TYPES}")
+        raise CrossWorkspaceError(
+            f"Invalid entity_type: {entity_type}. Must be one of {VALID_ENTITY_TYPES}"
+        )
     if permission not in VALID_PERMISSIONS:
-        raise CrossWorkspaceError(f"Invalid permission: {permission}. Must be one of {VALID_PERMISSIONS}")
+        raise CrossWorkspaceError(
+            f"Invalid permission: {permission}. Must be one of {VALID_PERMISSIONS}"
+        )
     if source_workspace_id == target_workspace_id:
         raise CrossWorkspaceError("Cannot share an entity with its own workspace")
 
@@ -83,7 +90,11 @@ async def grant_share(
         logger.info(
             "cross_workspace_share_updated"
             " source=%s target=%s entity_type=%s entity_id=%s permission=%s",
-            source_workspace_id, target_workspace_id, entity_type, entity_id, permission,
+            source_workspace_id,
+            target_workspace_id,
+            entity_type,
+            entity_id,
+            permission,
         )
         return existing
 
@@ -104,7 +115,12 @@ async def grant_share(
     logger.info(
         "cross_workspace_share_granted"
         " source=%s target=%s entity_type=%s entity_id=%s permission=%s granted_by=%s",
-        source_workspace_id, target_workspace_id, entity_type, entity_id, permission, granted_by,
+        source_workspace_id,
+        target_workspace_id,
+        entity_type,
+        entity_id,
+        permission,
+        granted_by,
     )
     return share
 
@@ -128,7 +144,8 @@ async def revoke_share(
 
     logger.info(
         "cross_workspace_share_revoked share_id=%s revoked_by=%s",
-        share_id, revoked_by,
+        share_id,
+        revoked_by,
     )
     return True
 
@@ -222,7 +239,11 @@ async def list_shares_for_workspace(
     direction='outgoing': shares granted BY this workspace (source).
     direction='incoming': shares granted TO this workspace (target).
     """
-    col = WorkspaceShare.source_workspace_id if direction == "outgoing" else WorkspaceShare.target_workspace_id
+    col = (
+        WorkspaceShare.source_workspace_id
+        if direction == "outgoing"
+        else WorkspaceShare.target_workspace_id
+    )
 
     result = await db.execute(
         select(WorkspaceShare).where(

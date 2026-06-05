@@ -70,7 +70,9 @@ class DecomposeRequest:
                 tasks_type_0 = []
                 _tasks_type_0 = data
                 for tasks_type_0_item_data in _tasks_type_0:
-                    tasks_type_0_item = TaskDecomposition.from_dict(tasks_type_0_item_data)
+                    tasks_type_0_item = TaskDecomposition.from_dict(
+                        tasks_type_0_item_data
+                    )
 
                     tasks_type_0.append(tasks_type_0_item)
 

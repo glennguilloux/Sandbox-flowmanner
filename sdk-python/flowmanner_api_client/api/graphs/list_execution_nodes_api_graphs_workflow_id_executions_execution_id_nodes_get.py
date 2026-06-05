@@ -14,44 +14,37 @@ from typing import cast
 from uuid import UUID
 
 
-
 def _get_kwargs(
     workflow_id: UUID,
     execution_id: UUID,
     *,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/graphs/{workflow_id}/executions/{execution_id}/nodes".format(workflow_id=quote(str(workflow_id), safe=""),execution_id=quote(str(execution_id), safe=""),),
+        "url": "/api/graphs/{workflow_id}/executions/{execution_id}/nodes".format(
+            workflow_id=quote(str(workflow_id), safe=""),
+            execution_id=quote(str(execution_id), safe=""),
+        ),
     }
-
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = response.json()
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -61,7 +54,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -75,10 +70,9 @@ def sync_detailed(
     execution_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
-    """ List Execution Nodes
+    """List Execution Nodes
 
     Args:
         workflow_id (UUID):
@@ -91,14 +85,12 @@ def sync_detailed(
 
     Returns:
         Response[Any | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
-execution_id=execution_id,
-accept_version=accept_version,
-
+        execution_id=execution_id,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,15 +99,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     workflow_id: UUID,
     execution_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
-    """ List Execution Nodes
+    """List Execution Nodes
 
     Args:
         workflow_id (UUID):
@@ -128,26 +120,24 @@ def sync(
 
     Returns:
         Any | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         workflow_id=workflow_id,
-execution_id=execution_id,
-client=client,
-accept_version=accept_version,
-
+        execution_id=execution_id,
+        client=client,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     workflow_id: UUID,
     execution_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
-    """ List Execution Nodes
+    """List Execution Nodes
 
     Args:
         workflow_id (UUID):
@@ -160,31 +150,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[Any | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
-execution_id=execution_id,
-accept_version=accept_version,
-
+        execution_id=execution_id,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     workflow_id: UUID,
     execution_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
-    """ List Execution Nodes
+    """List Execution Nodes
 
     Args:
         workflow_id (UUID):
@@ -197,13 +183,13 @@ async def asyncio(
 
     Returns:
         Any | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        workflow_id=workflow_id,
-execution_id=execution_id,
-client=client,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            workflow_id=workflow_id,
+            execution_id=execution_id,
+            client=client,
+            accept_version=accept_version,
+        )
+    ).parsed

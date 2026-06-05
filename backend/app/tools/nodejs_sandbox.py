@@ -83,18 +83,16 @@ _BLOCKED_CODE_EXEC: list[str] = [
     r"\beval\s*\(",
     r"\bnew\s+Function\s*\(",
     r"\bFunction\s*\(",
-    r"\bsetTimeout\s*\(\s*['\"]",    # setTimeout(string)
-    r"\bsetInterval\s*\(\s*['\"]",   # setInterval(string)
+    r"\bsetTimeout\s*\(\s*['\"]",  # setTimeout(string)
+    r"\bsetInterval\s*\(\s*['\"]",  # setInterval(string)
 ]
 
 # import() and import declarations — flagged if importing blocked modules
-_BLOCKED_IMPORT_PATTERNS: list[str] = [
-    rf"import\s*\(\s*['\"]{re.escape(mod)}" for mod in _BLOCKED_MODULES
-] + [
-    rf"import\s+.*\bfrom\s+['\"]{re.escape(mod)}" for mod in _BLOCKED_MODULES
-] + [
-    rf"import\s+['\"]{re.escape(mod)}" for mod in _BLOCKED_MODULES
-]
+_BLOCKED_IMPORT_PATTERNS: list[str] = (
+    [rf"import\s*\(\s*['\"]{re.escape(mod)}" for mod in _BLOCKED_MODULES]
+    + [rf"import\s+.*\bfrom\s+['\"]{re.escape(mod)}" for mod in _BLOCKED_MODULES]
+    + [rf"import\s+['\"]{re.escape(mod)}" for mod in _BLOCKED_MODULES]
+)
 
 
 def _is_code_allowed(code: str) -> tuple[bool, str | None]:
@@ -112,7 +110,10 @@ def _is_code_allowed(code: str) -> tuple[bool, str | None]:
     # 2. Check require() calls to blocked modules
     for mod in _BLOCKED_MODULES:
         if re.search(rf"require\s*\(\s*['\"]{re.escape(mod)}['\"]", code):
-            return False, f"Blocked module: 'require('{mod}')' is not allowed in sandbox"
+            return (
+                False,
+                f"Blocked module: 'require('{mod}')' is not allowed in sandbox",
+            )
 
     # 3. Check blocked methods
     for pattern in _BLOCKED_METHODS:
@@ -138,8 +139,8 @@ def _is_code_allowed(code: str) -> tuple[bool, str | None]:
     return True, None
 
 
-
 # ── Input ─────────────────────────────────────────────────────────────
+
 
 class NodeJsSandboxInput(ToolInput):
     code: str = Field(
@@ -164,6 +165,7 @@ class NodeJsSandboxInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class NodeJsSandboxTool(BaseTool):
     """Execute JavaScript/TypeScript code in a resource-limited subprocess."""
@@ -213,9 +215,7 @@ class NodeJsSandboxTool(BaseTool):
         # Scan for dangerous imports/requires before running
         allowed, reason = _is_code_allowed(validated.code)
         if not allowed:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=reason
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=reason)
 
         try:
             result = await self._run_node(
@@ -325,7 +325,7 @@ class NodeJsSandboxTool(BaseTool):
 
     def _strip_typescript_types(self, code: str) -> str:
         """Rudimentary TypeScript type annotation stripping.
-        
+
         Handles common patterns: `: Type`, `: Type | Other`, `: Array<T>`,
         `<T>(...)` generics. NOT a full compiler — best-effort for simple scripts.
         """
@@ -333,23 +333,25 @@ class NodeJsSandboxTool(BaseTool):
 
         # Remove type annotations after variable declarations
         # let x: string = "hi" → let x = "hi"
-        code = re.sub(r'\b(let|const|var)\s+(\w+)\s*:\s*[^=;]+(\s*=)', r'\1 \2 \3', code)
+        code = re.sub(
+            r"\b(let|const|var)\s+(\w+)\s*:\s*[^=;]+(\s*=)", r"\1 \2 \3", code
+        )
 
         # Remove parameter type annotations
         # (name: string, age: number) → (name, age)
-        code = re.sub(r'(\w+)\s*:\s*\w+(\s*[,)])', r'\1\2', code)
+        code = re.sub(r"(\w+)\s*:\s*\w+(\s*[,)])", r"\1\2", code)
 
         # Remove return type annotations on functions
         # function foo(): string { → function foo() {
-        code = re.sub(r'\)\s*:\s*\w+(\s*{)', r')\1', code)
+        code = re.sub(r"\)\s*:\s*\w+(\s*{)", r")\1", code)
 
         # Remove interface / type declarations (they're not executable)
-        code = re.sub(r'\binterface\s+\w+\s*{[^}]*}', '', code)
-        code = re.sub(r'\btype\s+\w+\s*=\s*[^;]+;', '', code)
+        code = re.sub(r"\binterface\s+\w+\s*{[^}]*}", "", code)
+        code = re.sub(r"\btype\s+\w+\s*=\s*[^;]+;", "", code)
 
         # Remove generic type parameters
         # <T>(...) → (...)
-        code = re.sub(r'<\w+>', '', code)
+        code = re.sub(r"<\w+>", "", code)
 
         return code
 

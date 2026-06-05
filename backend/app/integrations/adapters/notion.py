@@ -69,7 +69,10 @@ class NotionAdapter(BaseIntegrationAdapter):
         if not parent_page_id:
             return {"success": False, "error": "Missing required param: parent_page_id"}
         if not properties or not isinstance(properties, dict):
-            return {"success": False, "error": "Missing required param: properties (dict)"}
+            return {
+                "success": False,
+                "error": "Missing required param: properties (dict)",
+            }
 
         body: dict = {
             "parent": {"page_id": parent_page_id},

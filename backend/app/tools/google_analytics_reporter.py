@@ -46,16 +46,38 @@ GA_ACTIONS = (
 )
 
 _VALID_METRICS = {
-    "activeUsers", "active1DayUsers", "active7DayUsers", "active28DayUsers",
-    "averageSessionDuration", "bounceRate", "conversions", "engagementRate",
-    "eventCount", "newUsers", "screenPageViews", "sessions",
-    "sessionConversionRate", "totalRevenue", "totalUsers", "userEngagementDuration",
+    "activeUsers",
+    "active1DayUsers",
+    "active7DayUsers",
+    "active28DayUsers",
+    "averageSessionDuration",
+    "bounceRate",
+    "conversions",
+    "engagementRate",
+    "eventCount",
+    "newUsers",
+    "screenPageViews",
+    "sessions",
+    "sessionConversionRate",
+    "totalRevenue",
+    "totalUsers",
+    "userEngagementDuration",
 }
 
 _VALID_DIMENSIONS = {
-    "browser", "city", "country", "date", "deviceCategory", "language",
-    "newVsReturning", "pagePath", "pageTitle", "sessionDefaultChannelGrouping",
-    "sessionMedium", "sessionSource", "userType",
+    "browser",
+    "city",
+    "country",
+    "date",
+    "deviceCategory",
+    "language",
+    "newVsReturning",
+    "pagePath",
+    "pageTitle",
+    "sessionDefaultChannelGrouping",
+    "sessionMedium",
+    "sessionSource",
+    "userType",
 }
 
 
@@ -84,13 +106,21 @@ def _validate_date_range(start_str: str, end_str: str) -> tuple[str, str, str | 
         return start_str, end_str, f"Invalid date format: {e}"
 
     if start > end:
-        return start_str, end_str, f"start_date ({start_str}) is after end_date ({end_str})"
+        return (
+            start_str,
+            end_str,
+            f"start_date ({start_str}) is after end_date ({end_str})",
+        )
 
     delta = (end - start).days
     if delta > GA_MAX_DATE_RANGE_DAYS:
-        return start_str, end_str, (
-            f"Date range ({delta} days) exceeds maximum allowed "
-            f"({GA_MAX_DATE_RANGE_DAYS} days)"
+        return (
+            start_str,
+            end_str,
+            (
+                f"Date range ({delta} days) exceeds maximum allowed "
+                f"({GA_MAX_DATE_RANGE_DAYS} days)"
+            ),
         )
 
     return start_str, end_str, None
@@ -132,7 +162,9 @@ class GoogleAnalyticsReporterInput(ToolInput):
         description=f"Dimensions to group by: {', '.join(sorted(_VALID_DIMENSIONS))}",
     )
     limit: int = Field(
-        100, ge=1, le=100000,
+        100,
+        ge=1,
+        le=100000,
         description="Max rows to return. Default: 100.",
     )
     order_by: str | None = Field(
@@ -166,13 +198,16 @@ class GoogleAnalyticsReporterTool(BaseTool):
             output_schema={
                 "type": "object",
                 "properties": {
-                    "rows": {"type": "array", "items": {
-                        "type": "object",
-                        "properties": {
-                            "dimension_values": {"type": "object"},
-                            "metric_values": {"type": "object"},
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dimension_values": {"type": "object"},
+                                "metric_values": {"type": "object"},
+                            },
                         },
-                    }},
+                    },
                     "totals": {"type": "object"},
                     "query_info": {
                         "type": "object",
@@ -196,6 +231,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
         """Get Redis client for caching."""
         try:
             from app.tools.redis_cache import get_redis
+
             return await get_redis()
         except Exception as e:
             logger.debug("Redis not available for GA caching: %s", e)
@@ -436,12 +472,13 @@ class GoogleAnalyticsReporterTool(BaseTool):
                 params=params,
                 json={
                     "metrics": [
-                        {"name": m}
-                        for m in (validated.metrics or ["activeUsers"])
+                        {"name": m} for m in (validated.metrics or ["activeUsers"])
                     ],
                     "dimensions": [
                         {"name": d}
-                        for d in (validated.dimensions or ["pagePath", "deviceCategory"])
+                        for d in (
+                            validated.dimensions or ["pagePath", "deviceCategory"]
+                        )
                     ],
                     "limit": str(validated.limit),
                 },
@@ -506,11 +543,13 @@ class GoogleAnalyticsReporterTool(BaseTool):
         properties = []
         for account in account_summaries:
             for prop in account.get("propertySummaries", []):
-                properties.append({
-                    "property_id": prop.get("property", "").split("/")[-1],
-                    "property_name": prop.get("displayName", ""),
-                    "account_name": account.get("displayName", ""),
-                })
+                properties.append(
+                    {
+                        "property_id": prop.get("property", "").split("/")[-1],
+                        "property_name": prop.get("displayName", ""),
+                        "account_name": account.get("displayName", ""),
+                    }
+                )
 
         result = {
             "action": "list_properties",
@@ -520,7 +559,9 @@ class GoogleAnalyticsReporterTool(BaseTool):
             "success": True,
         }
 
-        await self._cache_set(cache_key, result, ttl=600)  # 10 min TTL for property list
+        await self._cache_set(
+            cache_key, result, ttl=600
+        )  # 10 min TTL for property list
         return result
 
 

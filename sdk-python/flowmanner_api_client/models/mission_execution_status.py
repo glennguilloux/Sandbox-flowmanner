@@ -1,42 +1,33 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-from uuid import UUID
-import datetime
 
-
-
-
-
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="MissionExecutionStatus")
 
 
-
 @_attrs_define
 class MissionExecutionStatus:
-    """ 
-        Attributes:
-            mission_id (None | Unset | UUID):
-            status (None | str | Unset):
-            current_task_index (int | None | Unset):
-            total_tasks (int | Unset):  Default: 0.
-            completed_tasks (int | Unset):  Default: 0.
-            failed_tasks (int | Unset):  Default: 0.
-            total_tokens_used (int | Unset):  Default: 0.
-            started_at (datetime.datetime | None | Unset):
-            estimated_completion (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        mission_id (None | Unset | UUID):
+        status (None | str | Unset):
+        current_task_index (int | None | Unset):
+        total_tasks (int | Unset):  Default: 0.
+        completed_tasks (int | Unset):  Default: 0.
+        failed_tasks (int | Unset):  Default: 0.
+        total_tokens_used (int | Unset):  Default: 0.
+        started_at (datetime.datetime | None | Unset):
+        estimated_completion (datetime.datetime | None | Unset):
+    """
 
     mission_id: None | Unset | UUID = UNSET
     status: None | str | Unset = UNSET
@@ -48,10 +39,6 @@ class MissionExecutionStatus:
     started_at: datetime.datetime | None | Unset = UNSET
     estimated_completion: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         mission_id: None | str | Unset
@@ -98,11 +85,9 @@ class MissionExecutionStatus:
         else:
             estimated_completion = self.estimated_completion
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if mission_id is not UNSET:
             field_dict["mission_id"] = mission_id
         if status is not UNSET:
@@ -124,11 +109,10 @@ class MissionExecutionStatus:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+
         def _parse_mission_id(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
@@ -139,15 +123,12 @@ class MissionExecutionStatus:
                     raise TypeError()
                 mission_id_type_0 = UUID(data)
 
-
-
                 return mission_id_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | Unset | UUID, data)
 
         mission_id = _parse_mission_id(d.pop("mission_id", UNSET))
-
 
         def _parse_status(data: object) -> None | str | Unset:
             if data is None:
@@ -158,7 +139,6 @@ class MissionExecutionStatus:
 
         status = _parse_status(d.pop("status", UNSET))
 
-
         def _parse_current_task_index(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -166,8 +146,9 @@ class MissionExecutionStatus:
                 return data
             return cast(int | None | Unset, data)
 
-        current_task_index = _parse_current_task_index(d.pop("current_task_index", UNSET))
-
+        current_task_index = _parse_current_task_index(
+            d.pop("current_task_index", UNSET)
+        )
 
         total_tasks = d.pop("total_tasks", UNSET)
 
@@ -187,8 +168,6 @@ class MissionExecutionStatus:
                     raise TypeError()
                 started_at_type_0 = isoparse(data)
 
-
-
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -196,8 +175,9 @@ class MissionExecutionStatus:
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
 
-
-        def _parse_estimated_completion(data: object) -> datetime.datetime | None | Unset:
+        def _parse_estimated_completion(
+            data: object,
+        ) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -207,15 +187,14 @@ class MissionExecutionStatus:
                     raise TypeError()
                 estimated_completion_type_0 = isoparse(data)
 
-
-
                 return estimated_completion_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
-        estimated_completion = _parse_estimated_completion(d.pop("estimated_completion", UNSET))
-
+        estimated_completion = _parse_estimated_completion(
+            d.pop("estimated_completion", UNSET)
+        )
 
         mission_execution_status = cls(
             mission_id=mission_id,
@@ -228,7 +207,6 @@ class MissionExecutionStatus:
             started_at=started_at,
             estimated_completion=estimated_completion,
         )
-
 
         mission_execution_status.additional_properties = d
         return mission_execution_status

@@ -56,7 +56,9 @@ class TestPromptSynthesizer:
         )
 
     @pytest.mark.asyncio
-    async def test_empty_retrieval_returns_error_prompt(self, synthesizer, mock_retrieval_service):
+    async def test_empty_retrieval_returns_error_prompt(
+        self, synthesizer, mock_retrieval_service
+    ):
         """When no chunks found, returns GeneratedPrompt with empty system_prompt and error rationale."""
         mock_retrieval_service.retrieve.return_value = []
         result = await synthesizer.synthesize(user_id=1, goal="build a chatbot")
@@ -155,10 +157,18 @@ class TestPromptSynthesizer:
         ]
         mock_llm_router.route_request.return_value = {
             "response": "## System Prompt\nHi\n\n## Rationale\n\n## Configuration\n- Recommended model: deepseek/deepseek-v4-flash\n- Temperature: 0.7\n",
-            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+            },
         }
         result = await synthesizer.synthesize(user_id=1, goal="test")
-        assert result.usage == {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150}
+        assert result.usage == {
+            "prompt_tokens": 100,
+            "completion_tokens": 50,
+            "total_tokens": 150,
+        }
 
 
 class TestGroupChunksByTopic:

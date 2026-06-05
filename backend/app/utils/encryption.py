@@ -41,10 +41,21 @@ def decrypt_api_key(encrypted_key: str) -> str:
 def validate_provider(provider: str) -> bool:
     """Validate that the provider is supported."""
     is_valid = provider.lower() in [
-        "openai", "openai_compatible", "anthropic", "google",
-        "deepseek", "openrouter", "llamacpp", "zhipuai",
-        "comfyui", "stability",
-        "groq", "together", "fireworks", "deepinfra", "xai",
+        "openai",
+        "openai_compatible",
+        "anthropic",
+        "google",
+        "deepseek",
+        "openrouter",
+        "llamacpp",
+        "zhipuai",
+        "comfyui",
+        "stability",
+        "groq",
+        "together",
+        "fireworks",
+        "deepinfra",
+        "xai",
     ]
     logger.debug("BYOK validate: provider=%s valid=%s", provider, is_valid)
     return is_valid

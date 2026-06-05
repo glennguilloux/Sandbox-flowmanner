@@ -32,6 +32,7 @@ async def track_event(
     """Track an analytics event. Fire-and-forget — never raises."""
     try:
         from app.models.analytics import AnalyticsEvent
+
         event = AnalyticsEvent(
             user_id=user_id,
             event_type=event_type,
@@ -52,6 +53,7 @@ async def track_events_batch(
     """Track multiple events at once."""
     try:
         from app.models.analytics import AnalyticsEvent
+
         for event_data in events:
             event = AnalyticsEvent(
                 user_id=event_data["user_id"],

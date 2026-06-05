@@ -198,4 +198,5 @@ def get_slo_dashboard_config() -> dict:
 def get_slo_dashboard_json() -> str:
     """Return the SLO dashboard configuration as a JSON string."""
     import json
+
     return json.dumps(SLO_DASHBOARD_CONFIG, indent=2)

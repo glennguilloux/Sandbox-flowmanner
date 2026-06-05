@@ -149,7 +149,11 @@ class RunService:
         if result.status in ("completed", "failed", "aborted"):
             run.completed_at = datetime.now(UTC)
         if result.data is not None:
-            run.output_data = result.data if isinstance(result.data, dict) else {"result": result.data}
+            run.output_data = (
+                result.data
+                if isinstance(result.data, dict)
+                else {"result": result.data}
+            )
 
         # Update blueprint stats
         if run.blueprint_id:
@@ -172,14 +176,18 @@ class RunService:
 
         try:
             from app.tasks.mission_execution import dispatch_mission_execution
+
             # Reuse existing Celery infrastructure with run_id
             dispatch_mission_execution(str(run.id), user_id)
         except Exception:
-            logger.warning("Celery dispatch failed for run %s, using background task", run_id)
+            logger.warning(
+                "Celery dispatch failed for run %s, using background task", run_id
+            )
             import asyncio
 
             async def _run():
                 from app.database import AsyncSessionLocal
+
                 async with AsyncSessionLocal() as db:
                     svc = RunService(db)
                     await svc.execute(run_id, user_id)
@@ -251,9 +259,7 @@ class RunService:
 
     async def get(self, run_id: str, user_id: int) -> Run:
         """Get run with ownership/workspace check."""
-        result = await self.db.execute(
-            select(Run).where(Run.id == str(run_id))
-        )
+        result = await self.db.execute(select(Run).where(Run.id == str(run_id)))
         run = result.scalar_one_or_none()
         if run is None:
             raise RunNotFoundError(f"Run {run_id} not found")
@@ -331,9 +337,7 @@ class RunService:
 
     # ── Diff ────────────────────────────────────────────────────────
 
-    async def diff_runs(
-        self, run_a_id: str, run_b_id: str, user_id: int
-    ) -> dict:
+    async def diff_runs(self, run_a_id: str, run_b_id: str, user_id: int) -> dict:
         """Compare two runs of the same blueprint."""
         run_a = await self.get(run_a_id, user_id)
         run_b = await self.get(run_b_id, user_id)

@@ -68,11 +68,10 @@ def _parse_sitemap(xml_str: str) -> tuple[list[dict[str, str]], list[str]]:
         # Check if it's a sitemap index
         tag = root.tag.split("}")[-1] if "}" in root.tag else root.tag
         if tag == "sitemapindex":
-            for sitemap_el in root.findall("sm:sitemap", SITEMAP_NS) or root.findall("sitemap"):
-                loc_el = (
-                    sitemap_el.find("sm:loc", SITEMAP_NS)
-                    or sitemap_el.find("loc")
-                )
+            for sitemap_el in root.findall("sm:sitemap", SITEMAP_NS) or root.findall(
+                "sitemap"
+            ):
+                loc_el = sitemap_el.find("sm:loc", SITEMAP_NS) or sitemap_el.find("loc")
                 if loc_el is not None and loc_el.text:
                     nested.append(loc_el.text.strip())
             return urls, nested
@@ -81,10 +80,7 @@ def _parse_sitemap(xml_str: str) -> tuple[list[dict[str, str]], list[str]]:
         for url_el in root.findall("sm:url", SITEMAP_NS) or root.findall("url"):
             entry: dict[str, str] = {}
             for field in ("loc", "lastmod", "changefreq", "priority"):
-                field_el = (
-                    url_el.find(f"sm:{field}", SITEMAP_NS)
-                    or url_el.find(field)
-                )
+                field_el = url_el.find(f"sm:{field}", SITEMAP_NS) or url_el.find(field)
                 if field_el is not None and field_el.text:
                     entry[field] = field_el.text.strip()
             if "loc" in entry:
@@ -125,7 +121,12 @@ class SitemapCrawlerTool(BaseTool):
 
         try:
             import re as _re
-            filter_re = _re.compile(validated.filter_pattern) if validated.filter_pattern else None
+
+            filter_re = (
+                _re.compile(validated.filter_pattern)
+                if validated.filter_pattern
+                else None
+            )
 
             async with httpx.AsyncClient(
                 timeout=30.0,
@@ -154,16 +155,20 @@ class SitemapCrawlerTool(BaseTool):
                             all_urls.extend(more_urls)
                             next_nested.extend(more_nested)
                         except Exception as e:
-                            logger.warning("Failed to fetch nested sitemap %s: %s", nested_url, e)
+                            logger.warning(
+                                "Failed to fetch nested sitemap %s: %s", nested_url, e
+                            )
                     nested = next_nested
 
                 # Apply filter
                 if filter_re:
-                    all_urls = [u for u in all_urls if filter_re.search(u.get("loc", ""))]
+                    all_urls = [
+                        u for u in all_urls if filter_re.search(u.get("loc", ""))
+                    ]
 
                 # Limit results
                 total_found = len(all_urls)
-                all_urls = all_urls[:validated.max_urls]
+                all_urls = all_urls[: validated.max_urls]
 
                 # Build result entries
                 entries = []
@@ -174,7 +179,9 @@ class SitemapCrawlerTool(BaseTool):
                     if "changefreq" in entry:
                         item["change_frequency"] = entry["changefreq"]
                     if "priority" in entry:
-                        item["priority"] = float(entry["priority"]) if entry["priority"] else None
+                        item["priority"] = (
+                            float(entry["priority"]) if entry["priority"] else None
+                        )
                     entries.append(item)
 
                 return ToolResult.success_result(

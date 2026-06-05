@@ -13,28 +13,66 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-TOPICS = frozenset({
-    "role_definition",
-    "constraints",
-    "output_format",
-    "examples",
-    "frameworks",
-    "anti_patterns",
-    "evaluation",
-    "chain_of_thought",
-    "context_management",
-    "tool_use",
-})
+TOPICS = frozenset(
+    {
+        "role_definition",
+        "constraints",
+        "output_format",
+        "examples",
+        "frameworks",
+        "anti_patterns",
+        "evaluation",
+        "chain_of_thought",
+        "context_management",
+        "tool_use",
+    }
+)
 
 _TOPIC_KEYWORDS: dict[str, set[str]] = {
-    "role_definition": {"you are a", "act as", "your role", "you're a", "persona", "as an ai"},
-    "constraints": {"do not", "must not", "avoid", "never", "don't", "should not", "cannot"},
-    "output_format": {"output", "return", "format", "json", "respond with", "response format"},
+    "role_definition": {
+        "you are a",
+        "act as",
+        "your role",
+        "you're a",
+        "persona",
+        "as an ai",
+    },
+    "constraints": {
+        "do not",
+        "must not",
+        "avoid",
+        "never",
+        "don't",
+        "should not",
+        "cannot",
+    },
+    "output_format": {
+        "output",
+        "return",
+        "format",
+        "json",
+        "respond with",
+        "response format",
+    },
     "examples": {"for example", "e.g.", "example:", "for instance", "such as"},
     "frameworks": {"framework", "methodology", "approach:", "technique"},
-    "anti_patterns": {"common mistake", "anti-pattern", "pitfall", "watch out for", "don't"},
+    "anti_patterns": {
+        "common mistake",
+        "anti-pattern",
+        "pitfall",
+        "watch out for",
+        "don't",
+    },
     "evaluation": {"evaluate", "score", "rate", "judge", "assess", "criteria"},
-    "chain_of_thought": {"step", "first", "then", "think", "reason", "chain of thought", "cot"},
+    "chain_of_thought": {
+        "step",
+        "first",
+        "then",
+        "think",
+        "reason",
+        "chain of thought",
+        "cot",
+    },
     "context_management": {"context", "memory", "conversation", "history", "window"},
     "tool_use": {"tool", "function call", "use the", "invoke", "tool_call"},
 }
@@ -55,6 +93,7 @@ class Chunk:
 def _tiktoken_len(text: str) -> int:
     try:
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except ImportError:
@@ -70,6 +109,7 @@ class ChunkingService:
         if self._splitter is None:
             try:
                 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
                 self._splitter = RecursiveCharacterTextSplitter(
                     chunk_size=settings.RAG_CHUNK_SIZE,
                     chunk_overlap=settings.RAG_CHUNK_OVERLAP,
@@ -86,7 +126,9 @@ class ChunkingService:
         book_title: str,
         llm_router: ModelRouter | None = None,
     ) -> list[Chunk]:
-        raw_chunks = self.splitter.split_text(text) if self.splitter is not None else [text]
+        raw_chunks = (
+            self.splitter.split_text(text) if self.splitter is not None else [text]
+        )
 
         result: list[Chunk] = []
         total = len(raw_chunks)
@@ -102,16 +144,18 @@ class ChunkingService:
             else:
                 topics = self._detect_topics_fast(stripped)
 
-            result.append(Chunk(
-                id=str(uuid.uuid4()),
-                book_title=book_title,
-                text=stripped,
-                topics=topics,
-                relevance_score=self._assign_relevance(topics, stripped),
-                chunk_index=i,
-                total_chunks=total,
-                created_at=now,
-            ))
+            result.append(
+                Chunk(
+                    id=str(uuid.uuid4()),
+                    book_title=book_title,
+                    text=stripped,
+                    topics=topics,
+                    relevance_score=self._assign_relevance(topics, stripped),
+                    chunk_index=i,
+                    total_chunks=total,
+                    created_at=now,
+                )
+            )
 
         return result
 
@@ -123,13 +167,11 @@ class ChunkingService:
                 matched.append(topic)
         return matched
 
-    async def _detect_topics_llm(
-        self, text: str, llm_router: ModelRouter
-    ) -> list[str]:
+    async def _detect_topics_llm(self, text: str, llm_router: ModelRouter) -> list[str]:
         prompt = (
             f"Given this text excerpt, which topics from {sorted(TOPICS)} apply?\n\n"
             f"---\n{text[:1000]}\n---\n\n"
-            f"Return ONLY a JSON array of matching topic strings, e.g. [\"role_definition\", \"constraints\"]. "
+            f'Return ONLY a JSON array of matching topic strings, e.g. ["role_definition", "constraints"]. '
             f"If none match, return []."
         )
         try:
@@ -141,6 +183,7 @@ class ChunkingService:
             )
             content = response.get("response", "")
             import json
+
             parsed = json.loads(content)
             if isinstance(parsed, list):
                 return [t for t in parsed if t in TOPICS]
@@ -151,7 +194,13 @@ class ChunkingService:
     @staticmethod
     def _assign_relevance(topics: list[str], text: str) -> float:
         score = min(len(topics) / 5.0, 1.0)
-        prompt_indicators = ("system prompt", "you are", "instructions", "guidelines", "rules:")
+        prompt_indicators = (
+            "system prompt",
+            "you are",
+            "instructions",
+            "guidelines",
+            "rules:",
+        )
         if any(ind in text.lower() for ind in prompt_indicators):
             score = min(score + 0.3, 1.0)
         return round(score, 2)

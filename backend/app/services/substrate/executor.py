@@ -96,7 +96,9 @@ class UnifiedExecutor:
         self._load_strategies()
         strategy = self._strategies.get(workflow_type)
         if strategy is None:
-            raise ValueError(f"No strategy registered for workflow type: {workflow_type}")
+            raise ValueError(
+                f"No strategy registered for workflow type: {workflow_type}"
+            )
         return strategy
 
     # ── Public API ──────────────────────────────────────────────────
@@ -151,19 +153,26 @@ class UnifiedExecutor:
                     start_node_id = _find_resume_point(workflow, state)
 
             # Record mission.started event
-            await self.event_log.append(db, run_id, [{
-                "type": SubstrateEventType.MISSION_STARTED,
-                "payload": {
-                    "title": workflow.title,
-                    "workflow_type": workflow.type.value,
-                    "user_id": workflow.user_id,
-                    "node_count": len(workflow.nodes),
-                    "blueprint_id": blueprint_id,
-                },
-                "actor": "unified_executor",
-                "mission_id": workflow.id,
-                "blueprint_id": blueprint_id,
-            }], blueprint_id=blueprint_id)
+            await self.event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": SubstrateEventType.MISSION_STARTED,
+                        "payload": {
+                            "title": workflow.title,
+                            "workflow_type": workflow.type.value,
+                            "user_id": workflow.user_id,
+                            "node_count": len(workflow.nodes),
+                            "blueprint_id": blueprint_id,
+                        },
+                        "actor": "unified_executor",
+                        "mission_id": workflow.id,
+                        "blueprint_id": blueprint_id,
+                    }
+                ],
+                blueprint_id=blueprint_id,
+            )
 
             # Set up abort signal
             self._abort_signals[run_id] = asyncio.Event()
@@ -175,8 +184,9 @@ class UnifiedExecutor:
             strategy = self._get_strategy(workflow.type)
             errors = await strategy.validate(workflow)
             if errors:
-                await self._finalize_run(db, workflow, run_id, "failed",
-                                         "; ".join(errors))
+                await self._finalize_run(
+                    db, workflow, run_id, "failed", "; ".join(errors)
+                )
                 return StrategyResult(
                     success=False,
                     status="failed",
@@ -212,9 +222,7 @@ class UnifiedExecutor:
             result.execution_time_ms = (time.monotonic() - start_time) * 1000
 
             # Finalize run
-            await self._finalize_run(
-                db, workflow, run_id, result.status, result.error
-            )
+            await self._finalize_run(db, workflow, run_id, result.status, result.error)
 
             # Post-execution hooks
             await self._run_post_hooks(db, workflow, result)
@@ -340,12 +348,18 @@ class UnifiedExecutor:
         }
         event_type = event_type_map.get(status, SubstrateEventType.MISSION_FAILED)
 
-        await self.event_log.append(db, run_id, [{
-            "type": event_type,
-            "payload": {"status": status, "error": error},
-            "actor": "unified_executor",
-            "mission_id": workflow.id,
-        }])
+        await self.event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": event_type,
+                    "payload": {"status": status, "error": error},
+                    "actor": "unified_executor",
+                    "mission_id": workflow.id,
+                }
+            ],
+        )
 
         logger.info("Run %s finalized: %s", run_id, status)
 
@@ -357,20 +371,26 @@ class UnifiedExecutor:
         reason: str,
     ) -> None:
         """Record a budget exhaustion event."""
-        await self.event_log.append(db, run_id, [{
-            "type": SubstrateEventType.BUDGET_EXHAUSTED,
-            "payload": {
-                "reason": reason,
-                "budget": {
-                    "max_cost_usd": float(workflow.budget.max_cost_usd),
-                    "spent_usd": float(workflow.budget.spent_usd),
-                    "iterations_used": workflow.budget.iterations_used,
-                    "max_iterations": workflow.budget.max_iterations,
-                },
-            },
-            "actor": "unified_executor",
-            "mission_id": workflow.id,
-        }])
+        await self.event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.BUDGET_EXHAUSTED,
+                    "payload": {
+                        "reason": reason,
+                        "budget": {
+                            "max_cost_usd": float(workflow.budget.max_cost_usd),
+                            "spent_usd": float(workflow.budget.spent_usd),
+                            "iterations_used": workflow.budget.iterations_used,
+                            "max_iterations": workflow.budget.max_iterations,
+                        },
+                    },
+                    "actor": "unified_executor",
+                    "mission_id": workflow.id,
+                }
+            ],
+        )
 
     # ── Phase 6.4: Circuit breaker ────────────────────────────────────
 
@@ -380,6 +400,7 @@ class UnifiedExecutor:
         """Lazily create or get a circuit breaker for this mission."""
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
+
             service = CircuitBreakerService(db)
             workspace_id = getattr(workflow, "workspace_id", None)
             # Use a savepoint so a FK failure (e.g. blueprint ID not in missions)
@@ -401,6 +422,7 @@ class UnifiedExecutor:
         """
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
+
             service = CircuitBreakerService(db)
             async with db.begin_nested():
                 breaker = await service.get_breaker(mission_id)
@@ -412,16 +434,23 @@ class UnifiedExecutor:
             return True, ""
 
     async def record_circuit_breaker_call(
-        self, db: AsyncSession, mission_id: str, call_type: str = "llm", cost_usd: float = 0.0
+        self,
+        db: AsyncSession,
+        mission_id: str,
+        call_type: str = "llm",
+        cost_usd: float = 0.0,
     ) -> None:
         """Record a call in the circuit breaker counters."""
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
+
             service = CircuitBreakerService(db)
             async with db.begin_nested():
                 breaker = await service.get_breaker(mission_id)
                 if breaker is not None:
-                    await service.record_call(breaker, call_type=call_type, cost_usd=cost_usd)
+                    await service.record_call(
+                        breaker, call_type=call_type, cost_usd=cost_usd
+                    )
         except Exception as e:
             logger.debug("Circuit breaker record skipped: %s", e)
 
@@ -435,6 +464,7 @@ class UnifiedExecutor:
         # Analytics
         try:
             from app.services.analytics_service import get_analytics_service
+
             analytics = get_analytics_service(db)
             await analytics.calculate_mission_metrics(workflow.id)
         except Exception as e:
@@ -443,6 +473,7 @@ class UnifiedExecutor:
         # Audit log
         try:
             from app.api.middleware.audit import log_event
+
             await log_event(
                 workflow.user_id,
                 f"workflow_{result.status}",
@@ -459,6 +490,7 @@ class UnifiedExecutor:
         # Linear sync
         try:
             from app.services.linear.sync import sync_mission_to_linear
+
             await sync_mission_to_linear(
                 mission_id=workflow.id,
                 status=result.status,
@@ -471,6 +503,7 @@ class UnifiedExecutor:
         # Learning recording
         try:
             from app.services.learning_service import get_learning_service
+
             learning = get_learning_service()
             if learning:
                 await learning.record_execution(
@@ -490,6 +523,7 @@ class UnifiedExecutor:
         # Self-improvement analysis
         try:
             from app.services.improvement import get_improvement_loop
+
             improvement = get_improvement_loop()
             if improvement:
                 await improvement.on_mission_complete(
@@ -509,11 +543,13 @@ class UnifiedExecutor:
         try:
             from app.database import AsyncSessionLocal
             from app.services.episodic_memory_worker import EpisodicMemoryWorker
+
             if result.success:
                 async with AsyncSessionLocal() as ep_db:
                     worker = EpisodicMemoryWorker(ep_db)
                     await worker.consolidate_episode(
-                        mission_id=workflow.id, run_id=result.run_id or "",
+                        mission_id=workflow.id,
+                        run_id=result.run_id or "",
                     )
         except Exception as e:
             logger.debug("Episodic memory consolidation skipped: %s", e)

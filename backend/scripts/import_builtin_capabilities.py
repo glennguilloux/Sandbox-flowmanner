@@ -31,7 +31,10 @@ async def run():
     from app.config import settings
 
     # ── 1. Bootstrap CapabilityRegistry ──────────────────────────────
-    from app.services.nexus.capability_registry import get_capability_registry, Capability
+    from app.services.nexus.capability_registry import (
+        get_capability_registry,
+        Capability,
+    )
 
     registry = get_capability_registry()
 
@@ -50,12 +53,17 @@ async def run():
             db_templates = result.scalars().all()
 
             for tpl in db_templates:
-                slug = (tpl.model_config.get("slug") if tpl.model_config else None) or tpl.name.lower().replace(" ", "-")
+                slug = (
+                    tpl.model_config.get("slug") if tpl.model_config else None
+                ) or tpl.name.lower().replace(" ", "-")
                 cap_id = f"agent:{slug}"
 
                 async def make_handler(template=tpl):
                     async def handler(params: dict):
-                        return {"agent": {"id": template.template_id, "name": template.name}}
+                        return {
+                            "agent": {"id": template.template_id, "name": template.name}
+                        }
+
                     return handler
 
                 capability = Capability(
@@ -64,9 +72,17 @@ async def run():
                     description=tpl.description or f"{tpl.agent_type} agent template",
                     category="agent",
                     handler=await make_handler(),
-                    input_schema={"type": "object", "properties": {"task": {"type": "string"}}},
+                    input_schema={
+                        "type": "object",
+                        "properties": {"task": {"type": "string"}},
+                    },
                     requires_auth=True,
-                    metadata={"template_id": tpl.template_id, "agent_type": tpl.agent_type, "source": "database", "slug": slug},
+                    metadata={
+                        "template_id": tpl.template_id,
+                        "agent_type": tpl.agent_type,
+                        "source": "database",
+                        "slug": slug,
+                    },
                 )
                 registry.register(capability)
 
@@ -77,6 +93,7 @@ async def run():
             async def make_handler(template=tpl):
                 async def handler(params: dict):
                     return {"agent": {"id": template.id, "name": template.name}}
+
                 return handler
 
             tool_ids = [t.tool_id for t in tpl.tools]
@@ -86,9 +103,17 @@ async def run():
                 description=tpl.description,
                 category="agent",
                 handler=await make_handler(),
-                input_schema={"type": "object", "properties": {"task": {"type": "string"}}},
+                input_schema={
+                    "type": "object",
+                    "properties": {"task": {"type": "string"}},
+                },
                 requires_auth=True,
-                metadata={"template_id": tpl.id, "agent_type": tpl.category.value, "source": "python", "tools": tool_ids},
+                metadata={
+                    "template_id": tpl.id,
+                    "agent_type": tpl.category.value,
+                    "source": "python",
+                    "tools": tool_ids,
+                },
             )
             registry.register(capability)
 
@@ -107,10 +132,14 @@ async def run():
 
     async with engine.begin() as conn:
         exists = await conn.execute(
-            sa_text("SELECT 1 FROM information_schema.tables WHERE table_name = 'capabilities_catalog'")
+            sa_text(
+                "SELECT 1 FROM information_schema.tables WHERE table_name = 'capabilities_catalog'"
+            )
         )
         if not exists.fetchone():
-            logger.error("capabilities_catalog table does not exist. Run Alembic migration first.")
+            logger.error(
+                "capabilities_catalog table does not exist. Run Alembic migration first."
+            )
             await engine.dispose()
             return
 
@@ -126,8 +155,12 @@ async def run():
                 "description": cap.description,
                 "category": cap.category,
                 "handler_ref": handler_ref,
-                "input_schema": json.dumps(cap.input_schema) if cap.input_schema else None,
-                "output_schema": json.dumps(cap.output_schema) if cap.output_schema else None,
+                "input_schema": (
+                    json.dumps(cap.input_schema) if cap.input_schema else None
+                ),
+                "output_schema": (
+                    json.dumps(cap.output_schema) if cap.output_schema else None
+                ),
                 "timeout_seconds": cap.timeout_seconds,
                 "rate_limit": cap.rate_limit,
                 "source": cap.metadata.get("source", "builtin_imported"),
@@ -136,7 +169,9 @@ async def run():
             }
 
             result = await conn.execute(
-                sa_text("SELECT id, version FROM capabilities_catalog WHERE slug = :slug"),
+                sa_text(
+                    "SELECT id, version FROM capabilities_catalog WHERE slug = :slug"
+                ),
                 {"slug": slug},
             )
             existing = result.fetchone()
@@ -145,7 +180,8 @@ async def run():
                 cap_id = existing[0]
                 version = existing[1]
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         UPDATE capabilities_catalog SET
                             name = :name, description = :description, category = :category,
                             handler_ref = :handler_ref,
@@ -154,14 +190,17 @@ async def run():
                             source = :source, metadata = CAST(:metadata AS jsonb),
                             version = version + 1, updated_at = :updated_at
                         WHERE slug = :slug
-                    """),
+                    """
+                    ),
                     row_data,
                 )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO capability_versions (id, capability_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :capability_id, :version, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "capability_id": cap_id,
@@ -174,7 +213,8 @@ async def run():
             else:
                 cap_id = str(uuid4())
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO capabilities_catalog (
                             id, slug, name, description, category, handler_ref,
                             input_schema, output_schema, timeout_seconds, rate_limit,
@@ -184,14 +224,17 @@ async def run():
                             CAST(:input_schema AS jsonb), CAST(:output_schema AS jsonb), :timeout_seconds, :rate_limit,
                             :source, CAST(:metadata AS jsonb), 1, :updated_at, :updated_at
                         )
-                    """),
+                    """
+                    ),
                     {**row_data, "id": cap_id},
                 )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO capability_versions (id, capability_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :capability_id, 1, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "capability_id": cap_id,
@@ -204,7 +247,9 @@ async def run():
     await engine.dispose()
     logger.info(
         "Import complete: %d new, %d updated, %d total",
-        new_count, updated_count, new_count + updated_count,
+        new_count,
+        updated_count,
+        new_count + updated_count,
     )
 
 

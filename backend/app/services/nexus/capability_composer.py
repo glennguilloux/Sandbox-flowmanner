@@ -84,7 +84,9 @@ class ComposedCapability:
             "loop_condition": self.loop_condition,
             "loop_max_iterations": self.loop_max_iterations,
             "execution_count": self.execution_count,
-            "last_executed": self.last_executed.isoformat() if self.last_executed else None,
+            "last_executed": (
+                self.last_executed.isoformat() if self.last_executed else None
+            ),
         }
 
 
@@ -158,8 +160,12 @@ class CapabilityComposer:
     def _get_db_session(self) -> Session:
         """Get or create database session"""
         if self._sync_engine is None:
-            sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace("postgresql+asyncpg", "postgresql")
-            self._sync_engine = create_engine(sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
+            sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace(
+                "postgresql+asyncpg", "postgresql"
+            )
+            self._sync_engine = create_engine(
+                sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5
+            )
         factory = sessionmaker(bind=self._sync_engine)
         return factory()
 
@@ -189,7 +195,9 @@ class CapabilityComposer:
                 )
                 self._composed[model.id] = composed
             if models:
-                logger.info(f"Loaded {len(models)} persisted composed capabilities from database")
+                logger.info(
+                    f"Loaded {len(models)} persisted composed capabilities from database"
+                )
         except Exception as e:
             logger.warning(f"Could not load persisted capabilities: {e}")
         finally:
@@ -201,7 +209,11 @@ class CapabilityComposer:
         db = None
         try:
             db = self._get_db_session()
-            existing = db.query(ComposedCapabilityModel).filter(ComposedCapabilityModel.id == composed.id).first()
+            existing = (
+                db.query(ComposedCapabilityModel)
+                .filter(ComposedCapabilityModel.id == composed.id)
+                .first()
+            )
 
             if existing:
                 # Update existing
@@ -253,7 +265,9 @@ class CapabilityComposer:
 
             # Remove from database
             db = self._get_db_session()
-            db.query(ComposedCapabilityModel).filter(ComposedCapabilityModel.id == composed_id).delete()
+            db.query(ComposedCapabilityModel).filter(
+                ComposedCapabilityModel.id == composed_id
+            ).delete()
             db.commit()
 
             logger.info(f"Deleted composed capability: {composed_id}")
@@ -324,6 +338,7 @@ class CapabilityComposer:
             from .capability_lattice import (
                 CompositionType as LatticeCompositionType,
             )
+
             lattice = get_capability_lattice()
 
             # Map CompositionType enum to lattice enum
@@ -350,7 +365,8 @@ class CapabilityComposer:
             )
             logger.debug(
                 "Registered %s in CapabilityLattice (depth=%d)",
-                composed_id, lattice.get_depth(composed_id),
+                composed_id,
+                lattice.get_depth(composed_id),
             )
         except LatticeError as e:
             raise LatticeError(f"Composition rejected: {e}") from e
@@ -360,7 +376,8 @@ class CapabilityComposer:
         composed = ComposedCapability(
             id=composed_id,
             name=name or f"Composed-{comp_type.value}-{len(self._composed)}",
-            description=description or f"{comp_type.value.title()} composition of {len(capability_ids)} capabilities",
+            description=description
+            or f"{comp_type.value.title()} composition of {len(capability_ids)} capabilities",
             capability_ids=capability_ids,
             composition_type=comp_type,
             metadata=metadata or {},
@@ -394,10 +411,16 @@ class CapabilityComposer:
             description=composed.description,
             category="composed",
             handler=composed_handler,
-            input_schema={"type": "object", "properties": {"params": {"type": "object"}}},
+            input_schema={
+                "type": "object",
+                "properties": {"params": {"type": "object"}},
+            },
             output_schema={"type": "object"},
             requires_auth=False,
-            metadata={"composition_type": composed.composition_type.value, **composed.metadata},
+            metadata={
+                "composition_type": composed.composition_type.value,
+                **composed.metadata,
+            },
         )
 
         registry.register(capability)
@@ -427,7 +450,9 @@ class CapabilityComposer:
 
         return len(errors) == 0, errors
 
-    async def execute_composed(self, composed_id: str, params: dict[str, Any]) -> CompositionResult:
+    async def execute_composed(
+        self, composed_id: str, params: dict[str, Any]
+    ) -> CompositionResult:
         """
         Execute a composed capability.
 
@@ -469,9 +494,13 @@ class CapabilityComposer:
                     composed, registry, current_params, outputs, capabilities_executed
                 )
             elif composed.composition_type == CompositionType.LOOP:
-                result = await self._execute_loop(composed, registry, current_params, outputs, capabilities_executed)
+                result = await self._execute_loop(
+                    composed, registry, current_params, outputs, capabilities_executed
+                )
             else:
-                raise ValueError(f"Unknown composition type: {composed.composition_type}")
+                raise ValueError(
+                    f"Unknown composition type: {composed.composition_type}"
+                )
 
             # Update execution tracking
             composed.execution_count += 1
@@ -502,7 +531,12 @@ class CapabilityComposer:
             )
 
     async def _execute_sequential(
-        self, composed: ComposedCapability, registry, params: dict[str, Any], outputs: list, capabilities_executed: list
+        self,
+        composed: ComposedCapability,
+        registry,
+        params: dict[str, Any],
+        outputs: list,
+        capabilities_executed: list,
     ) -> Any:
         """Execute capabilities sequentially, passing output to next"""
         current_output = params
@@ -529,7 +563,12 @@ class CapabilityComposer:
         return current_output
 
     async def _execute_parallel(
-        self, composed: ComposedCapability, registry, params: dict[str, Any], outputs: list, capabilities_executed: list
+        self,
+        composed: ComposedCapability,
+        registry,
+        params: dict[str, Any],
+        outputs: list,
+        capabilities_executed: list,
     ) -> Any:
         """Execute all capabilities in parallel, merge results"""
         tasks = []
@@ -563,7 +602,12 @@ class CapabilityComposer:
         return merged_output
 
     async def _execute_conditional(
-        self, composed: ComposedCapability, registry, params: dict[str, Any], outputs: list, capabilities_executed: list
+        self,
+        composed: ComposedCapability,
+        registry,
+        params: dict[str, Any],
+        outputs: list,
+        capabilities_executed: list,
     ) -> Any:
         """Execute capabilities conditionally based on previous output"""
         # First execute the condition capability
@@ -581,7 +625,11 @@ class CapabilityComposer:
         branch_to_take = None
         if composed.condition_field and isinstance(condition_result, dict):
             field_value = condition_result.get(composed.condition_field)
-            branch_to_take = composed.true_branch if field_value == composed.condition_value else composed.false_branch
+            branch_to_take = (
+                composed.true_branch
+                if field_value == composed.condition_value
+                else composed.false_branch
+            )
         else:
             # Default: truthy check
             if condition_result:
@@ -595,14 +643,21 @@ class CapabilityComposer:
             for cap_id in branch_to_take:
                 cap = registry.get(cap_id)
                 if cap:
-                    result = await cap.execute({**params, "condition_result": condition_result})
+                    result = await cap.execute(
+                        {**params, "condition_result": condition_result}
+                    )
                     outputs.append({"capability_id": cap_id, "output": result})
                     capabilities_executed.append(cap_id)
 
         return result
 
     async def _execute_loop(
-        self, composed: ComposedCapability, registry, params: dict[str, Any], outputs: list, capabilities_executed: list
+        self,
+        composed: ComposedCapability,
+        registry,
+        params: dict[str, Any],
+        outputs: list,
+        capabilities_executed: list,
     ) -> Any:
         """Execute capabilities in a loop until condition is met"""
         current_output = params
@@ -709,7 +764,10 @@ class CapabilityComposer:
         return self._templates.get(template_id)
 
     async def compose_from_template(
-        self, template_id: str, capability_assignments: dict[str, str], params: dict[str, Any] | None = None
+        self,
+        template_id: str,
+        capability_assignments: dict[str, str],
+        params: dict[str, Any] | None = None,
     ) -> ComposedCapability:
         """
         Create a composed capability from a template.
@@ -730,7 +788,10 @@ class CapabilityComposer:
         final_assignments = {**template.default_capabilities, **capability_assignments}
 
         # Build capability list from slots
-        capability_ids = [final_assignments.get(slot, f"unknown:{slot}") for slot in template.capability_slots]
+        capability_ids = [
+            final_assignments.get(slot, f"unknown:{slot}")
+            for slot in template.capability_slots
+        ]
 
         return await self.compose(
             capability_ids=capability_ids,

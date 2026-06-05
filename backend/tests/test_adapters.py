@@ -91,7 +91,9 @@ class TestMissionToWorkflow:
     def test_mission_with_llm_tasks(self):
         mission = _make_mission()
         task1 = _make_task(id="t1", task_type="llm", title="Task 1")
-        task2 = _make_task(id="t2", task_type="tool", title="Task 2", tool_id="web_search")
+        task2 = _make_task(
+            id="t2", task_type="tool", title="Task 2", tool_id="web_search"
+        )
 
         wf = mission_to_workflow(mission, tasks=[task1, task2])
 
@@ -103,7 +105,9 @@ class TestMissionToWorkflow:
     def test_dag_mission_builds_edges(self):
         mission = _make_mission(mission_type="dag")
         task1 = _make_task(id="t1", task_type="llm", title="First")
-        task2 = _make_task(id="t2", task_type="llm", title="Second", dependencies=["t1"])
+        task2 = _make_task(
+            id="t2", task_type="llm", title="Second", dependencies=["t1"]
+        )
 
         wf = mission_to_workflow(mission, tasks=[task1, task2])
 
@@ -124,8 +128,20 @@ class TestMissionToWorkflow:
 
     def test_task_type_mapping_all_types(self):
         mission = _make_mission()
-        types_to_test = ["llm", "tool", "rag", "code", "web_search", "approval", "review", "file_operation"]
-        tasks = [_make_task(id=f"t-{t}", task_type=t, title=f"Task {t}") for t in types_to_test]
+        types_to_test = [
+            "llm",
+            "tool",
+            "rag",
+            "code",
+            "web_search",
+            "approval",
+            "review",
+            "file_operation",
+        ]
+        tasks = [
+            _make_task(id=f"t-{t}", task_type=t, title=f"Task {t}")
+            for t in types_to_test
+        ]
         wf = mission_to_workflow(mission, tasks=tasks)
         assert len(wf.nodes) == len(types_to_test)
 
@@ -143,7 +159,11 @@ class TestFlowToWorkflow:
                 {"id": "n2", "data": {"nodeType": "tool", "label": "Do tool"}},
             ],
             "edges": [
-                {"source": "n1", "target": "n2", "data": {"condition": "ok", "label": "next"}},
+                {
+                    "source": "n1",
+                    "target": "n2",
+                    "data": {"condition": "ok", "label": "next"},
+                },
             ],
         }
 

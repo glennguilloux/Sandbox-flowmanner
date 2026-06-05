@@ -6,15 +6,22 @@ import argparse
 import os
 import sys
 
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="flowmanner", description="Flowmanner CLI")
-    parser.add_argument("--url", default=os.environ.get("FLOWMANNER_URL", "https://flowmanner.com"))
+    parser.add_argument(
+        "--url", default=os.environ.get("FLOWMANNER_URL", "https://flowmanner.com")
+    )
     parser.add_argument("--key", default=os.environ.get("FLOWMANNER_API_KEY"))
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("status", help="Check API connectivity")
-    sub.add_parser("missions", help="List recent missions").add_argument("list", nargs="?", default="list")
-    sub.add_parser("costs", help="Show cost analytics").add_argument("--period", default="month")
+    sub.add_parser("missions", help="List recent missions").add_argument(
+        "list", nargs="?", default="list"
+    )
+    sub.add_parser("costs", help="Show cost analytics").add_argument(
+        "--period", default="month"
+    )
 
     args = parser.parse_args(argv)
 
@@ -42,7 +49,9 @@ def main(argv: list[str] | None = None) -> int:
                     print("No missions found.")
                     return 0
                 for m in missions:
-                    print(f"  {m['id'][:8]}  {m.get('status', '?'):12}  {m.get('title', 'Untitled')}")
+                    print(
+                        f"  {m['id'][:8]}  {m.get('status', '?'):12}  {m.get('title', 'Untitled')}"
+                    )
                 return 0
 
             if args.command == "costs":
@@ -57,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

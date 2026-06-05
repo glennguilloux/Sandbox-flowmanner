@@ -4,7 +4,17 @@ from datetime import UTC, datetime
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Double, ForeignKey, Integer, String, Text, event
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Double,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    event,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +23,7 @@ from app.models import Base, TimestampMixin
 
 class AbortReason(str, Enum):
     """Typed reasons for aborting a mission."""
+
     USER_REQUESTED = "user_requested"
     BUDGET_EXCEEDED = "budget_exceeded"
     TIMEOUT = "timeout"
@@ -28,6 +39,7 @@ class MissionStatus(str, Enum):
     Internal (executor phases): planning, planned, executing
     Deprecated alias: cancelled (mapped to aborted)
     """
+
     DRAFT = "draft"
     PENDING = "pending"
     PLANNING = "planning"
@@ -52,10 +64,10 @@ class MissionStatus(str, Enum):
         QUEUED: {RUNNING, ABORTED},
         RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},
         PAUSED: {RUNNING, ABORTED},
-        COMPLETED: {APPROVED},       # completed can be promoted to approved
-        APPROVED: set(),             # terminal
-        FAILED: set(),               # terminal
-        ABORTED: set(),              # terminal
+        COMPLETED: {APPROVED},  # completed can be promoted to approved
+        APPROVED: set(),  # terminal
+        FAILED: set(),  # terminal
+        ABORTED: set(),  # terminal
     }
 
     @property
@@ -76,6 +88,7 @@ class MissionStatus(str, Enum):
 
 class MissionTaskStatus(str, Enum):
     """Typed task lifecycle states with validated transitions."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -85,8 +98,8 @@ class MissionTaskStatus(str, Enum):
     _TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
         PENDING: {RUNNING},
         RUNNING: {COMPLETED, FAILED},
-        FAILED: {PENDING},       # allow retry
-        COMPLETED: set(),        # terminal
+        FAILED: {PENDING},  # allow retry
+        COMPLETED: set(),  # terminal
     }
 
     @property
@@ -107,7 +120,9 @@ class MissionTaskStatus(str, Enum):
 
 # ── Models ───────────────────────────────────────────────────────────────────
 
-ALL_MISSION_STATUSES = tuple(dict.fromkeys(s.value for s in MissionStatus).keys())  # deduplicated (CANCELLED shares ABORTED value)
+ALL_MISSION_STATUSES = tuple(
+    dict.fromkeys(s.value for s in MissionStatus).keys()
+)  # deduplicated (CANCELLED shares ABORTED value)
 ALL_TASK_STATUSES = tuple(s.value for s in MissionTaskStatus)
 
 
@@ -120,8 +135,12 @@ class Mission(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     mission_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -130,7 +149,9 @@ class Mission(Base, TimestampMixin):
     constraints: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     plan: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[MissionStatus] = mapped_column(
-        String(20), default=MissionStatus.PENDING, index=True,
+        String(20),
+        default=MissionStatus.PENDING,
+        index=True,
     )
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     results: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -142,17 +163,28 @@ class Mission(Base, TimestampMixin):
     tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fallback_strategy: Mapped[str | None] = mapped_column(String(50), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    parent_mission_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=True)
+    parent_mission_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("missions.id"), nullable=True
+    )
     integration_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     deleted_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False, server_default="1")
+    version: Mapped[int] = mapped_column(
+        Integer, default=1, nullable=False, server_default="1"
+    )
     workspace_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
 
 
@@ -165,8 +197,12 @@ class MissionTask(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
+    mission_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True
+    )
     parent_task_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("mission_tasks.id"), nullable=True
     )
@@ -174,31 +210,47 @@ class MissionTask(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     task_type: Mapped[str] = mapped_column(String(50), nullable=False)
     order_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    assigned_agent_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    assigned_agent_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     assigned_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[MissionTaskStatus] = mapped_column(
-        String(20), default=MissionTaskStatus.PENDING, index=True,
+        String(20),
+        default=MissionTaskStatus.PENDING,
+        index=True,
     )
     input_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     output_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     dependencies: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    approval_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    approval_required: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     max_retries: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost: Mapped[float | None] = mapped_column(Double, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class MissionLog(Base):
     __tablename__ = "mission_logs"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
+    mission_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True
+    )
     task_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     level: Mapped[str | None] = mapped_column(String(20), default="info")
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -211,8 +263,12 @@ class MissionLog(Base):
 class MissionImprovement(Base, TimestampMixin):
     __tablename__ = "mission_improvements"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
+    mission_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True
+    )
     suggestion: Mapped[str] = mapped_column(Text, nullable=False)
     priority: Mapped[str] = mapped_column(String(20), default="medium")
     status: Mapped[str] = mapped_column(String(20), default="pending")
@@ -222,6 +278,7 @@ class MissionImprovement(Base, TimestampMixin):
 
 # ── Model-level transition validation via SQLAlchemy events ──────────────────
 
+
 def _validate_mission_transition(mission: Mission, new_status_value: str) -> None:
     """Raise ValueError if the transition is not allowed."""
     old_status = mission.status
@@ -229,7 +286,11 @@ def _validate_mission_transition(mission: Mission, new_status_value: str) -> Non
         return
     try:
         old = MissionStatus(old_status) if isinstance(old_status, str) else old_status
-        new = MissionStatus(new_status_value) if isinstance(new_status_value, str) else new_status_value
+        new = (
+            MissionStatus(new_status_value)
+            if isinstance(new_status_value, str)
+            else new_status_value
+        )
     except ValueError:
         return
 
@@ -245,15 +306,19 @@ def _validate_task_transition(task: MissionTask, new_status_value: str) -> None:
     if old_status is None:
         return
     try:
-        old = MissionTaskStatus(old_status) if isinstance(old_status, str) else old_status
-        new = MissionTaskStatus(new_status_value) if isinstance(new_status_value, str) else new_status_value
+        old = (
+            MissionTaskStatus(old_status) if isinstance(old_status, str) else old_status
+        )
+        new = (
+            MissionTaskStatus(new_status_value)
+            if isinstance(new_status_value, str)
+            else new_status_value
+        )
     except ValueError:
         return
 
     if not old.can_transition_to(new):
-        raise ValueError(
-            f"Invalid task status transition: {old.value} → {new.value}"
-        )
+        raise ValueError(f"Invalid task status transition: {old.value} → {new.value}")
 
 
 @event.listens_for(Mission.status, "set", retval=True)

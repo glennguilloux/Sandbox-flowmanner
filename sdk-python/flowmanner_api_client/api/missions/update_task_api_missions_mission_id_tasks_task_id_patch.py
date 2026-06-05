@@ -1,20 +1,16 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.mission_task_response import MissionTaskResponse
 from ...models.mission_task_update import MissionTaskUpdate
-from ...types import UNSET, Unset
-from typing import cast
-from uuid import UUID
-
+from ...types import Response, Unset
 
 
 def _get_kwargs(
@@ -22,26 +18,21 @@ def _get_kwargs(
     task_id: UUID,
     *,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "patch",
-        "url": "/api/missions/{mission_id}/tasks/{task_id}".format(mission_id=quote(str(mission_id), safe=""),task_id=quote(str(task_id), safe=""),),
+        "url": "/api/missions/{mission_id}/tasks/{task_id}".format(
+            mission_id=quote(str(mission_id), safe=""),
+            task_id=quote(str(task_id), safe=""),
+        ),
     }
 
     _kwargs["json"] = body.to_dict()
-
 
     headers["Content-Type"] = "application/json"
 
@@ -49,19 +40,16 @@ def _get_kwargs(
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | MissionTaskResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | MissionTaskResponse | None:
     if response.status_code == 200:
         response_200 = MissionTaskResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -71,7 +59,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | MissionTaskResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | MissionTaskResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -86,10 +76,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | MissionTaskResponse]:
-    """ Update Task
+    """Update Task
 
     Args:
         mission_id (UUID):
@@ -103,15 +92,13 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | MissionTaskResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-task_id=task_id,
-body=body,
-accept_version=accept_version,
-
+        task_id=task_id,
+        body=body,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -120,16 +107,16 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     mission_id: UUID,
     task_id: UUID,
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | MissionTaskResponse | None:
-    """ Update Task
+    """Update Task
 
     Args:
         mission_id (UUID):
@@ -143,17 +130,16 @@ def sync(
 
     Returns:
         HTTPValidationError | MissionTaskResponse
-     """
-
+    """
 
     return sync_detailed(
         mission_id=mission_id,
-task_id=task_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
+        task_id=task_id,
+        client=client,
+        body=body,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     mission_id: UUID,
@@ -161,10 +147,9 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | MissionTaskResponse]:
-    """ Update Task
+    """Update Task
 
     Args:
         mission_id (UUID):
@@ -178,22 +163,19 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | MissionTaskResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-task_id=task_id,
-body=body,
-accept_version=accept_version,
-
+        task_id=task_id,
+        body=body,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     mission_id: UUID,
@@ -201,10 +183,9 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | MissionTaskResponse | None:
-    """ Update Task
+    """Update Task
 
     Args:
         mission_id (UUID):
@@ -218,14 +199,14 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | MissionTaskResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        mission_id=mission_id,
-task_id=task_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            mission_id=mission_id,
+            task_id=task_id,
+            client=client,
+            body=body,
+            accept_version=accept_version,
+        )
+    ).parsed

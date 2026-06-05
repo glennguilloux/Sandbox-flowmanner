@@ -31,8 +31,8 @@ class OpenWhiskConfig:
     max_retries: int = 3
 
     def __post_init__(self):
-        if not self.api_host.startswith(('http://', 'https://')):
-            raise ValueError('api_host must start with http:// or https://')
+        if not self.api_host.startswith(("http://", "https://")):
+            raise ValueError("api_host must start with http:// or https://")
 
 
 @dataclass
@@ -90,22 +90,20 @@ class OpenWhiskClient:
     @staticmethod
     def _load_config_from_env() -> OpenWhiskConfig:
         """Load configuration from environment variables"""
-        api_key = os.getenv('OPENWHISK_API_KEY')
-        api_host = os.getenv('OPENWHISK_API_HOST', 'https://openwhisk.example.com')
-        namespace = os.getenv('OPENWHISK_NAMESPACE', '_')
-        region = os.getenv('OPENWHISK_REGION', 'eu-de')
-        timeout = int(os.getenv('OPENWHISK_TIMEOUT', '30'))
-        max_retries = int(os.getenv('OPENWHISK_MAX_RETRIES', '3'))
+        api_key = os.getenv("OPENWHISK_API_KEY")
+        api_host = os.getenv("OPENWHISK_API_HOST", "https://openwhisk.example.com")
+        namespace = os.getenv("OPENWHISK_NAMESPACE", "_")
+        region = os.getenv("OPENWHISK_REGION", "eu-de")
+        timeout = int(os.getenv("OPENWHISK_TIMEOUT", "30"))
+        max_retries = int(os.getenv("OPENWHISK_MAX_RETRIES", "3"))
 
         if not api_key:
-            raise ValueError(
-                "OPENWHISK_API_KEY environment variable is required"
-            )
+            raise ValueError("OPENWHISK_API_KEY environment variable is required")
 
         # Validate region
-        if region not in ['eu-de', 'eu-fr']:
+        if region not in ["eu-de", "eu-fr"]:
             logger.warning(f"Unknown region {region}, using eu-de")
-            region = 'eu-de'
+            region = "eu-de"
 
         return OpenWhiskConfig(
             api_key=api_key,
@@ -113,7 +111,7 @@ class OpenWhiskClient:
             namespace=namespace,
             region=region,
             timeout=timeout,
-            max_retries=max_retries
+            max_retries=max_retries,
         )
 
     async def __aenter__(self):
@@ -129,9 +127,9 @@ class OpenWhiskClient:
         """Get or create aiohttp session"""
         if self._session is None or self._session.closed:
             headers = {
-                'Authorization': self.config.api_key,
-                'Content-Type': 'application/json',
-                'User-Agent': 'Workflows-Platform-OpenWhisk-Client/1.0'
+                "Authorization": self.config.api_key,
+                "Content-Type": "application/json",
+                "User-Agent": "Workflows-Platform-OpenWhisk-Client/1.0",
             }
             timeout = aiohttp.ClientTimeout(total=self.config.timeout)
             self._session = aiohttp.ClientSession(headers=headers, timeout=timeout)
@@ -149,7 +147,7 @@ class OpenWhiskClient:
         method: str,
         endpoint: str,
         data: dict[str, Any] | None = None,
-        params: dict[str, Any] | None = None
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Make HTTP request to OpenWhisk API
@@ -176,10 +174,7 @@ class OpenWhiskClient:
         while retry_count < self.config.max_retries:
             try:
                 async with session.request(
-                    method=method,
-                    url=url,
-                    json=data,
-                    params=params
+                    method=method, url=url, json=data, params=params
                 ) as response:
                     if response.status == 200:
                         return await response.json()
@@ -188,14 +183,10 @@ class OpenWhiskClient:
                             "Authentication failed. Check OPENWHISK_API_KEY."
                         )
                     elif response.status == 404:
-                        raise ValueError(
-                            f"Resource not found: {endpoint}"
-                        )
+                        raise ValueError(f"Resource not found: {endpoint}")
                     else:
                         error_text = await response.text()
-                        raise ValueError(
-                            f"API error {response.status}: {error_text}"
-                        )
+                        raise ValueError(f"API error {response.status}: {error_text}")
 
             except (TimeoutError, aiohttp.ClientError) as e:
                 retry_count += 1
@@ -205,7 +196,7 @@ class OpenWhiskClient:
                         f"Request failed (attempt {retry_count}/{self.config.max_retries}), "
                         f"retrying... Error: {e}"
                     )
-                    await asyncio.sleep(2 ** retry_count)  # Exponential backoff
+                    await asyncio.sleep(2**retry_count)  # Exponential backoff
 
         raise ValueError(
             f"Request failed after {self.config.max_retries} retries: {last_error}"
@@ -216,7 +207,7 @@ class OpenWhiskClient:
         action_name: str,
         params: dict[str, Any] | None = None,
         blocking: bool = True,
-        result: bool = True
+        result: bool = True,
     ) -> ActionInvocation:
         """
         Invoke an OpenWhisk action
@@ -238,39 +229,34 @@ class OpenWhiskClient:
         start_time = datetime.now(UTC)
 
         try:
-            payload = {
-                'blocking': blocking,
-                'result': result
-            }
+            payload = {"blocking": blocking, "result": result}
 
             if params:
-                payload['params'] = params
+                payload["params"] = params
 
             response = await self._request(
-                method='POST',
-                endpoint=f'/actions/{action_name}',
-                data=payload
+                method="POST", endpoint=f"/actions/{action_name}", data=payload
             )
 
             end_time = datetime.now(UTC)
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            activation_id = response.get('activationId')
+            activation_id = response.get("activationId")
 
             # Check for errors in response
-            if 'response' in response and 'error' in response['response']:
-                error = response['response']['error']
+            if "response" in response and "error" in response["response"]:
+                error = response["response"]["error"]
                 logger.error(f"Action {action_name} failed: {error}")
                 return ActionInvocation(
                     success=False,
                     error=str(error),
                     duration_ms=duration_ms,
                     activation_id=activation_id,
-                    logs=response.get('logs', [])
+                    logs=response.get("logs", []),
                 )
 
             # Extract result
-            result_data = response.get('response', {}).get('result')
+            result_data = response.get("response", {}).get("result")
 
             logger.info(
                 f"Action {action_name} completed successfully "
@@ -282,7 +268,7 @@ class OpenWhiskClient:
                 result=result_data,
                 duration_ms=duration_ms,
                 activation_id=activation_id,
-                logs=response.get('logs', [])
+                logs=response.get("logs", []),
             )
 
         except Exception as e:
@@ -290,18 +276,20 @@ class OpenWhiskClient:
             return ActionInvocation(
                 success=False,
                 error=str(e),
-                duration_ms=int((datetime.now(UTC) - start_time).total_seconds() * 1000)
+                duration_ms=int(
+                    (datetime.now(UTC) - start_time).total_seconds() * 1000
+                ),
             )
 
     async def create_action(
         self,
         action_name: str,
         code: str,
-        kind: str = 'python:3.11',
-        main: str | None = 'main',
+        kind: str = "python:3.11",
+        main: str | None = "main",
         parameters: dict[str, Any] | None = None,
         limits: dict[str, int] | None = None,
-        description: str = ""
+        description: str = "",
     ) -> dict[str, Any]:
         """
         Create a new OpenWhisk action
@@ -324,34 +312,27 @@ class OpenWhiskClient:
         logger.info(f"Creating action: {action_name}")
 
         payload = {
-            'exec': {
-                'kind': kind,
-                'code': code,
-                'main': main
-            },
-            'description': description
+            "exec": {"kind": kind, "code": code, "main": main},
+            "description": description,
         }
 
         if parameters:
-            payload['parameters'] = parameters
+            payload["parameters"] = parameters
 
         if limits:
-            payload['limits'] = limits
+            payload["limits"] = limits
 
         response = await self._request(
-            method='PUT',
-            endpoint=f'/actions/{action_name}?overwrite=true',
-            data=payload
+            method="PUT",
+            endpoint=f"/actions/{action_name}?overwrite=true",
+            data=payload,
         )
 
         logger.info(f"Action {action_name} created successfully")
         return response
 
     async def update_action(
-        self,
-        action_name: str,
-        code: str | None = None,
-        description: str | None = None
+        self, action_name: str, code: str | None = None, description: str | None = None
     ) -> dict[str, Any]:
         """
         Update an existing OpenWhisk action
@@ -372,14 +353,12 @@ class OpenWhiskClient:
         payload = {}
 
         if code is not None:
-            payload['exec'] = {'code': code}
+            payload["exec"] = {"code": code}
         if description is not None:
-            payload['description'] = description
+            payload["description"] = description
 
         response = await self._request(
-            method='PUT',
-            endpoint=f'/actions/{action_name}',
-            data=payload
+            method="PUT", endpoint=f"/actions/{action_name}", data=payload
         )
 
         logger.info(f"Action {action_name} updated successfully")
@@ -401,10 +380,7 @@ class OpenWhiskClient:
         logger.info(f"Deleting action: {action_name}")
 
         try:
-            await self._request(
-                method='DELETE',
-                endpoint=f'/actions/{action_name}'
-            )
+            await self._request(method="DELETE", endpoint=f"/actions/{action_name}")
             logger.info(f"Action {action_name} deleted successfully")
             return True
         except Exception as e:
@@ -423,24 +399,25 @@ class OpenWhiskClient:
         """
         logger.info("Listing actions")
 
-        response = await self._request(
-            method='GET',
-            endpoint='/actions?limit=100'
-        )
+        response = await self._request(method="GET", endpoint="/actions?limit=100")
 
-        actions = response.get('actions', [])
+        actions = response.get("actions", [])
 
         action_infos = []
         for action in actions:
-            action_infos.append(ActionInfo(
-                name=action.get('name'),
-                version=action.get('version'),
-                namespace=action.get('namespace'),
-                kind=action.get('exec', {}).get('kind'),
-                exec=action.get('exec', {}),
-                limits=action.get('limits', {}),
-                updated=datetime.fromisoformat(action.get('updated', '').replace('Z', '+00:00'))
-            ))
+            action_infos.append(
+                ActionInfo(
+                    name=action.get("name"),
+                    version=action.get("version"),
+                    namespace=action.get("namespace"),
+                    kind=action.get("exec", {}).get("kind"),
+                    exec=action.get("exec", {}),
+                    limits=action.get("limits", {}),
+                    updated=datetime.fromisoformat(
+                        action.get("updated", "").replace("Z", "+00:00")
+                    ),
+                )
+            )
 
         logger.info(f"Found {len(action_infos)} actions")
         return action_infos
@@ -460,27 +437,23 @@ class OpenWhiskClient:
         """
         logger.info(f"Getting action: {action_name}")
 
-        response = await self._request(
-            method='GET',
-            endpoint=f'/actions/{action_name}'
-        )
+        response = await self._request(method="GET", endpoint=f"/actions/{action_name}")
 
         action = response
         return ActionInfo(
-            name=action.get('name'),
-            version=action.get('version'),
-            namespace=action.get('namespace'),
-            kind=action.get('exec', {}).get('kind'),
-            exec=action.get('exec', {}),
-            limits=action.get('limits', {}),
-            updated=datetime.fromisoformat(action.get('updated', '').replace('Z', '+00:00'))
+            name=action.get("name"),
+            version=action.get("version"),
+            namespace=action.get("namespace"),
+            kind=action.get("exec", {}).get("kind"),
+            exec=action.get("exec", {}),
+            limits=action.get("limits", {}),
+            updated=datetime.fromisoformat(
+                action.get("updated", "").replace("Z", "+00:00")
+            ),
         )
 
     async def create_trigger(
-        self,
-        trigger_name: str,
-        feed: str,
-        parameters: dict[str, Any] | None = None
+        self, trigger_name: str, feed: str, parameters: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Create a trigger for events
@@ -498,18 +471,13 @@ class OpenWhiskClient:
         """
         logger.info(f"Creating trigger: {trigger_name}")
 
-        payload = {
-            'name': trigger_name,
-            'feed': feed
-        }
+        payload = {"name": trigger_name, "feed": feed}
 
         if parameters:
-            payload['parameters'] = parameters
+            payload["parameters"] = parameters
 
         response = await self._request(
-            method='PUT',
-            endpoint=f'/triggers/{trigger_name}',
-            data=payload
+            method="PUT", endpoint=f"/triggers/{trigger_name}", data=payload
         )
 
         logger.info(f"Trigger {trigger_name} created successfully")
@@ -527,26 +495,24 @@ class OpenWhiskClient:
         try:
             actions = await self.list_actions()
             return {
-                'status': 'healthy',
-                'region': self.config.region,
-                'namespace': self.config.namespace,
-                'action_count': len(actions),
-                'timestamp': datetime.now(UTC).isoformat()
+                "status": "healthy",
+                "region": self.config.region,
+                "namespace": self.config.namespace,
+                "action_count": len(actions),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return {
-                'status': 'unhealthy',
-                'region': self.config.region,
-                'namespace': self.config.namespace,
-                'error': str(e),
-                'timestamp': datetime.now(UTC).isoformat()
+                "status": "unhealthy",
+                "region": self.config.region,
+                "namespace": self.config.namespace,
+                "error": str(e),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     async def batch_invoke(
-        self,
-        invocations: list[dict[str, Any]],
-        max_concurrent: int = 10
+        self, invocations: list[dict[str, Any]], max_concurrent: int = 10
     ) -> list[ActionInvocation]:
         """
         Invoke multiple actions concurrently
@@ -566,8 +532,8 @@ class OpenWhiskClient:
         async def invoke_with_limit(invocation):
             async with semaphore:
                 return await self.invoke_action(
-                    action_name=invocation['action_name'],
-                    params=invocation.get('params')
+                    action_name=invocation["action_name"],
+                    params=invocation.get("params"),
                 )
 
         for invocation in invocations:
@@ -581,10 +547,7 @@ class OpenWhiskClient:
             if isinstance(result, Exception):
                 logger.error(f"Batch invocation {i} failed: {result}")
                 processed_results.append(
-                    ActionInvocation(
-                        success=False,
-                        error=str(result)
-                    )
+                    ActionInvocation(success=False, error=str(result))
                 )
             else:
                 processed_results.append(result)

@@ -27,8 +27,9 @@ from app.models import Base, TimestampMixin
 
 class CircuitBreakerState(str, Enum):
     """States for circuit breaker lifecycle."""
-    ARMED = "armed"               # Normal operation, limits not yet exceeded
-    TRIGGERED = "triggered"       # A limit was hit; mission paused, can resume
+
+    ARMED = "armed"  # Normal operation, limits not yet exceeded
+    TRIGGERED = "triggered"  # A limit was hit; mission paused, can resume
     CIRCUIT_BROKEN = "circuit_broken"  # Permanent stop; requires manual reset
 
 
@@ -52,60 +53,87 @@ class MissionCircuitBreaker(Base, TimestampMixin):
         String(36), primary_key=True, default=lambda: str(uuid4())
     )
     mission_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("missions.id", ondelete="CASCADE"),
-        nullable=False, unique=True, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("missions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     workspace_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True,
+        String(36),
+        nullable=True,
+        index=True,
     )
 
     # ── Configurable limits ──────────────────────────────────────────
     max_llm_calls: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=100,
+        Integer,
+        nullable=False,
+        default=100,
     )
     max_cost_usd: Mapped[float] = mapped_column(
-        nullable=False, default=10.0,
+        nullable=False,
+        default=10.0,
     )
     max_duration_seconds: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=3600,
+        Integer,
+        nullable=False,
+        default=3600,
     )
     max_tool_calls: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=200,
+        Integer,
+        nullable=False,
+        default=200,
     )
     destructive_actions_require_approval: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True,
+        Boolean,
+        nullable=False,
+        default=True,
     )
 
     # ── Current counters ─────────────────────────────────────────────
     llm_calls_made: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0,
+        Integer,
+        nullable=False,
+        default=0,
     )
     tool_calls_made: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0,
+        Integer,
+        nullable=False,
+        default=0,
     )
     cost_accumulated_usd: Mapped[float] = mapped_column(
-        nullable=False, default=0.0,
+        nullable=False,
+        default=0.0,
     )
     started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # ── State ────────────────────────────────────────────────────────
     state: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=CircuitBreakerState.ARMED.value,
-        server_default="armed", index=True,
+        String(20),
+        nullable=False,
+        default=CircuitBreakerState.ARMED.value,
+        server_default="armed",
+        index=True,
     )
     trigger_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     triggered_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     trigger_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0,
+        Integer,
+        nullable=False,
+        default=0,
     )
 
     # ── Destructive action list ──────────────────────────────────────
     destructive_actions: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="List of tool/action names that require approval when destructive_actions_require_approval=True",
     )
 
@@ -129,12 +157,18 @@ class MissionCircuitBreaker(Base, TimestampMixin):
             return True, f"Tool call limit reached ({tool_made}/{self.max_tool_calls})"
 
         if self.max_cost_usd > 0 and cost_acc >= self.max_cost_usd:
-            return True, f"Cost limit reached (${cost_acc:.4f}/${self.max_cost_usd:.2f})"
+            return (
+                True,
+                f"Cost limit reached (${cost_acc:.4f}/${self.max_cost_usd:.2f})",
+            )
 
         if self.max_duration_seconds > 0 and self.started_at:
             elapsed = (datetime.now(UTC) - self.started_at).total_seconds()
             if elapsed >= self.max_duration_seconds:
-                return True, f"Duration limit reached ({elapsed:.0f}s/{self.max_duration_seconds}s)"
+                return (
+                    True,
+                    f"Duration limit reached ({elapsed:.0f}s/{self.max_duration_seconds}s)",
+                )
 
         return False, ""
 

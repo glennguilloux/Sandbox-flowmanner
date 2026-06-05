@@ -26,7 +26,8 @@ class InfiniscrollExtractorInput(ToolInput):
     """Input schema: url, item_selector, scroll_count, scroll_delay_ms, extract, timeout_seconds."""
 
     url: str = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="URL of the page with infinite scroll content",
     )
     item_selector: str = Field(
@@ -34,11 +35,15 @@ class InfiniscrollExtractorInput(ToolInput):
         description="CSS selector for individual items to extract (e.g., 'div.product-card')",
     )
     scroll_count: int = Field(
-        10, ge=1, le=200,
+        10,
+        ge=1,
+        le=200,
         description="Maximum number of scroll iterations",
     )
     scroll_delay_ms: int = Field(
-        2000, ge=500, le=10000,
+        2000,
+        ge=500,
+        le=10000,
         description="Milliseconds to wait after each scroll for content to load",
     )
     extract: str = Field(
@@ -46,7 +51,9 @@ class InfiniscrollExtractorInput(ToolInput):
         description="What to extract from each item: 'text', 'html', 'attribute:NAME', or 'all'",
     )
     timeout_seconds: int = Field(
-        DEFAULT_TIMEOUT, ge=10, le=300,
+        DEFAULT_TIMEOUT,
+        ge=10,
+        le=300,
         description="Overall timeout in seconds",
     )
     user_agent: str | None = Field(
@@ -58,11 +65,14 @@ class InfiniscrollExtractorInput(ToolInput):
         description="Cookies to send with requests",
     )
     extract_fields: list[str] | None = Field(
-        None, max_length=50,
+        None,
+        max_length=50,
         description="List of attribute names or sub-selectors to extract from each item (e.g., ['data-id', 'img.src', '.price'])",
     )
     max_items: int | None = Field(
-        None, ge=1, le=10000,
+        None,
+        ge=1,
+        le=10000,
         description="Maximum total items to extract across all scrolls",
     )
     scroll_selector: str | None = Field(
@@ -113,7 +123,10 @@ class InfiniscrollExtractorTool(BaseTool):
                     "item_count": {"type": "integer"},
                     "scrolls_performed": {"type": "integer"},
                     "items": {"type": "array"},
-                    "new_items_per_scroll": {"type": "array", "items": {"type": "integer"}},
+                    "new_items_per_scroll": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                    },
                     "success": {"type": "boolean"},
                 },
             },
@@ -127,13 +140,16 @@ class InfiniscrollExtractorTool(BaseTool):
         try:
             validated = InfiniscrollExtractorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             import httpx
 
             headers = {
-                "User-Agent": validated.user_agent or (
+                "User-Agent": validated.user_agent
+                or (
                     "Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"
                 ),
                 "Accept": "text/html,application/xhtml+xml",
@@ -146,21 +162,28 @@ class InfiniscrollExtractorTool(BaseTool):
                 headers=headers,
                 proxy=validated.proxy_url,
             ) as client:
-                items, scrolls, per_scroll = await self._scroll_extract(client, validated)
+                items, scrolls, per_scroll = await self._scroll_extract(
+                    client, validated
+                )
 
-            return ToolResult.success_result(tool_id=self.tool_id, result={
-                "url": validated.url,
-                "item_count": len(items),
-                "scrolls_performed": scrolls,
-                "items": items,
-                "new_items_per_scroll": per_scroll,
-                "success": True,
-            })
+            return ToolResult.success_result(
+                tool_id=self.tool_id,
+                result={
+                    "url": validated.url,
+                    "item_count": len(items),
+                    "scrolls_performed": scrolls,
+                    "items": items,
+                    "new_items_per_scroll": per_scroll,
+                    "success": True,
+                },
+            )
         except Exception as e:
             logger.exception("infiniscroll_extractor failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _scroll_extract(self, client, validated: InfiniscrollExtractorInput) -> tuple[list[dict], int, list[int]]:
+    async def _scroll_extract(
+        self, client, validated: InfiniscrollExtractorInput
+    ) -> tuple[list[dict], int, list[int]]:
         from bs4 import BeautifulSoup
 
         all_items: list[dict] = []
@@ -188,7 +211,9 @@ class InfiniscrollExtractorTool(BaseTool):
 
                 if not validated.deduplicate or content_hash not in seen_hashes:
                     seen_hashes.add(content_hash)
-                    item = self._extract_item(el, validated.extract, validated.extract_fields)
+                    item = self._extract_item(
+                        el, validated.extract, validated.extract_fields
+                    )
                     item["_scroll_index"] = i
                     all_items.append(item)
                     new_in_this_scroll += 1
@@ -209,6 +234,7 @@ class InfiniscrollExtractorTool(BaseTool):
     def _build_scroll_url(self, base_url: str, scroll_index: int) -> str:
         """Build URL for scroll iteration. Supports offset/page params."""
         import urllib.parse
+
         parsed = urllib.parse.urlparse(base_url)
         query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
 
@@ -220,7 +246,9 @@ class InfiniscrollExtractorTool(BaseTool):
         new_query = urllib.parse.urlencode(query, doseq=True)
         return urllib.parse.urlunparse(parsed._replace(query=new_query))
 
-    def _extract_item(self, element, extract_mode: str, extract_fields: list[str] | None = None) -> dict[str, Any]:
+    def _extract_item(
+        self, element, extract_mode: str, extract_fields: list[str] | None = None
+    ) -> dict[str, Any]:
         result: dict[str, Any] = {}
 
         if extract_mode.startswith("attribute:"):

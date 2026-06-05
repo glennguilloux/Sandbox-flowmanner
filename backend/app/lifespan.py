@@ -4,6 +4,7 @@ Application Lifespan Manager
 Handles startup and shutdown events for the FastAPI application.
 Initializes and tears down services that need lifecycle management.
 """
+
 # FAILURE ISOLATION: Langfuse errors must never break application startup.
 # _init_langfuse() and _init_litellm_callbacks() must never raise on failure.
 # If Langfuse is unavailable at startup, the application still serves requests
@@ -98,12 +99,14 @@ async def lifespan(app):
 
 # ── Postgres-native hydration helpers (Phase 1.4) ──────────────────
 
+
 def _resolve_handler_ref(handler_ref: str):
     """Resolve a dotted Python path — delegates to :func:`app.tools.base.resolve_handler_ref`.
 
     Kept for backwards-compatibility with existing tests.
     """
     from app.tools.base import resolve_handler_ref
+
     return resolve_handler_ref(handler_ref)
 
 
@@ -197,9 +200,7 @@ async def _register_agent_capabilities():
             for tpl in db_templates:
                 try:
                     slug = (
-                        tpl.model_config.get("slug")
-                        if tpl.model_config
-                        else None
+                        tpl.model_config.get("slug") if tpl.model_config else None
                     ) or tpl.name.lower().replace(" ", "-")
                     cap_id = f"agent:{slug}"
 
@@ -215,12 +216,14 @@ async def _register_agent_capabilities():
                                     "model_config": template.model_config,
                                 }
                             }
+
                         return handler
 
                     capability = Capability(
                         id=cap_id,
                         name=tpl.name,
-                        description=tpl.description or f"{tpl.agent_type} agent template",
+                        description=tpl.description
+                        or f"{tpl.agent_type} agent template",
                         category="agent",
                         handler=await make_handler(),
                         input_schema={
@@ -268,11 +271,10 @@ async def _register_agent_capabilities():
                                     "temperature": template.model_config.temperature,
                                     "max_tokens": template.model_config.max_tokens,
                                 },
-                                "tools": [
-                                    t.tool_id for t in template.tools
-                                ],
+                                "tools": [t.tool_id for t in template.tools],
                             }
                         }
+
                     return handler
 
                 tool_ids = [t.tool_id for t in tpl.tools]
@@ -331,9 +333,7 @@ async def _register_agent_capabilities():
                 len(all_caps),
             )
         except Exception as e:
-            logger.warning(
-                "TopologyManager registration skipped (non-fatal): %s", e
-            )
+            logger.warning("TopologyManager registration skipped (non-fatal): %s", e)
 
         logger.info(
             "Agent capability registration complete: %d agents registered",
@@ -341,9 +341,7 @@ async def _register_agent_capabilities():
         )
 
     except Exception as e:
-        logger.warning(
-            "Failed to register agent capabilities (non-fatal): %s", e
-        )
+        logger.warning("Failed to register agent capabilities (non-fatal): %s", e)
 
 
 async def _hydrate_topology_from_db():
@@ -379,7 +377,9 @@ def _init_tool_discovery():
         if count > 0:
             logger.info("Tool discovery initialized: %d tools indexed in Qdrant", count)
         else:
-            logger.info("Tool discovery initialized (no tools in registry or Qdrant unavailable)")
+            logger.info(
+                "Tool discovery initialized (no tools in registry or Qdrant unavailable)"
+            )
     except Exception as e:
         logger.warning("Failed to initialize tool discovery (non-fatal): %s", e)
 
@@ -389,7 +389,9 @@ def _validate_production_secrets():
     for w in warnings:
         logger.error(f"SECURITY: {w}")
     if warnings:
-        raise RuntimeError(f"Refusing to start with placeholder secrets: {'; '.join(warnings)}")
+        raise RuntimeError(
+            f"Refusing to start with placeholder secrets: {'; '.join(warnings)}"
+        )
 
 
 def _init_langfuse():
@@ -408,7 +410,9 @@ def _init_langfuse():
         )
 
         if service.enabled:
-            logger.info(f"Langfuse observability enabled (host={settings.LANGFUSE_HOST})")
+            logger.info(
+                f"Langfuse observability enabled (host={settings.LANGFUSE_HOST})"
+            )
         else:
             logger.info("Langfuse observability disabled")
     except Exception as e:
@@ -549,8 +553,16 @@ def _register_core_tools():
             registry.register(tool)
             logger.info(f"{tool.name} tool registered")
 
-        for name in ["browser_ping", "browser_navigate", "browser_screenshot", "browser_close",
-                  "browser_snapshot", "browser_click", "browser_type", "browser_scroll"]:
+        for name in [
+            "browser_ping",
+            "browser_navigate",
+            "browser_screenshot",
+            "browser_close",
+            "browser_snapshot",
+            "browser_click",
+            "browser_type",
+            "browser_scroll",
+        ]:
             if registry.get(name) is None:
                 raise RuntimeError(f"Browser tool not registered: {name}")
     except Exception as e:
@@ -575,10 +587,10 @@ def _discover_and_register_all_tools() -> None:
     from pathlib import Path
 
     _EXCLUDE = {
-        "base.py",          # Registry infrastructure, not a tool
-        "_file_utils.py",    # Utility module
-        "_rlimits.py",       # Resource limit utility
-        "redis_cache.py",    # Redis cache helper, not a tool
+        "base.py",  # Registry infrastructure, not a tool
+        "_file_utils.py",  # Utility module
+        "_rlimits.py",  # Resource limit utility
+        "redis_cache.py",  # Redis cache helper, not a tool
     }
 
     tools_dir = Path(__file__).parent / "tools"
@@ -605,12 +617,14 @@ def _discover_and_register_all_tools() -> None:
             failed += 1
             logger.warning(
                 "Failed to import tool module %s (non-fatal): %s",
-                module_path, e,
+                module_path,
+                e,
             )
 
     logger.info(
         "Tool discovery complete: %d modules imported, %d failed",
-        discovered, failed,
+        discovered,
+        failed,
     )
 
 
@@ -624,6 +638,7 @@ async def _start_trigger_scheduler():
     """
     try:
         from app.services.substrate.trigger_bridge import start_trigger_bridge
+
         await start_trigger_bridge()
         logger.info("TriggerBridge started (2s polling)")
     except Exception as e:
@@ -634,6 +649,7 @@ async def _stop_trigger_scheduler():
     """Stop the trigger dispatcher."""
     try:
         from app.services.substrate.trigger_bridge import stop_trigger_bridge
+
         await stop_trigger_bridge()
     except Exception as e:
         logger.debug("TriggerBridge stop error (non-fatal): %s", e)
@@ -679,9 +695,13 @@ def _init_sentry():
 
         success = do_init_sentry()
         if success:
-            logger.info("Sentry error tracking enabled (env=%s)", settings.SENTRY_ENVIRONMENT)
+            logger.info(
+                "Sentry error tracking enabled (env=%s)", settings.SENTRY_ENVIRONMENT
+            )
         else:
-            logger.warning("Sentry initialization failed — continuing without error tracking")
+            logger.warning(
+                "Sentry initialization failed — continuing without error tracking"
+            )
     except Exception as e:
         logger.warning("Failed to initialize Sentry (non-fatal): %s", e)
 
@@ -836,6 +856,7 @@ async def _register_integration_capabilities():
     """
     try:
         from app.services.integration_bridge import get_integration_bridge
+
         bridge = get_integration_bridge()
         total = await bridge.register_all_active_connections()
         if total > 0:
@@ -844,6 +865,4 @@ async def _register_integration_capabilities():
                 total,
             )
     except Exception as e:
-        logger.warning(
-            "Failed to register integration capabilities (non-fatal): %s", e
-        )
+        logger.warning("Failed to register integration capabilities (non-fatal): %s", e)

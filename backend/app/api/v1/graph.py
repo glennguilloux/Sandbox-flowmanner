@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 
 from typing import TYPE_CHECKING
 
@@ -28,7 +29,6 @@ from app.services.graph_service import (
 from app.services.mission_errors import GraphNotFoundError
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +42,9 @@ def _add_deprecation_headers(response: Response):
     response.headers["Link"] = '</api/v2/blueprints>; rel="successor-version"'
 
 
-router = APIRouter(prefix="/graphs", tags=["graphs"], dependencies=[Depends(_add_deprecation_headers)])
+router = APIRouter(
+    prefix="/graphs", tags=["graphs"], dependencies=[Depends(_add_deprecation_headers)]
+)
 
 
 def _not_found() -> HTTPException:
@@ -50,7 +52,9 @@ def _not_found() -> HTTPException:
 
 
 def _graph_not_found() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Graph workflow not found")
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Graph workflow not found"
+    )
 
 
 @router.get("")
@@ -63,9 +67,17 @@ async def list_items(
     workspace_id: str | None = Depends(get_workspace_id),
 ):
     offset = (page - 1) * per_page
-    items, total = await list_graph_workflows(db, user.id, offset=offset, limit=per_page, workspace_id=workspace_id)
+    items, total = await list_graph_workflows(
+        db, user.id, offset=offset, limit=per_page, workspace_id=workspace_id
+    )
     pages = (total + per_page - 1) // per_page
-    return {"items": items, "total": total, "page": page, "per_page": per_page, "pages": pages}
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -75,7 +87,14 @@ async def create_item(
     user: User = Depends(get_current_user),
     workspace_id: str | None = Depends(get_workspace_id),
 ):
-    return await create_graph_workflow(db, user.id, payload.name, payload.graph_definition, payload.description, workspace_id=workspace_id)
+    return await create_graph_workflow(
+        db,
+        user.id,
+        payload.name,
+        payload.graph_definition,
+        payload.description,
+        workspace_id=workspace_id,
+    )
 
 
 @router.get("/{workflow_id}", response_model=GraphWorkflowResponse)
@@ -150,7 +169,9 @@ async def run_graph(
     return await execute_graph_workflow(db, workflow_id, user.id, payload.input_data)
 
 
-@router.post("/{workflow_id}/resume/{execution_id}", response_model=GraphExecutionResponse)
+@router.post(
+    "/{workflow_id}/resume/{execution_id}", response_model=GraphExecutionResponse
+)
 async def resume_graph(
     workflow_id: uuid.UUID,
     execution_id: uuid.UUID,
@@ -180,12 +201,23 @@ async def list_executions(
     except GraphNotFoundError:
         raise _graph_not_found()
     offset = (page - 1) * per_page
-    items, total = await list_graph_executions(db, workflow_id, user.id, offset=offset, limit=per_page)
+    items, total = await list_graph_executions(
+        db, workflow_id, user.id, offset=offset, limit=per_page
+    )
     pages = (total + per_page - 1) // per_page
-    return {"items": items, "total": total, "page": page, "per_page": per_page, "pages": pages}
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
 
 
-@router.get("/{workflow_id}/executions/{execution_id}", response_model=GraphExecutionDetailResponse)
+@router.get(
+    "/{workflow_id}/executions/{execution_id}",
+    response_model=GraphExecutionDetailResponse,
+)
 async def get_execution(
     workflow_id: uuid.UUID,
     execution_id: uuid.UUID,
@@ -220,7 +252,10 @@ async def get_execution(
 # --- Graph States ---
 
 
-@router.get("/{workflow_id}/executions/{execution_id}/states", response_model=list[GraphStateResponse])
+@router.get(
+    "/{workflow_id}/executions/{execution_id}/states",
+    response_model=list[GraphStateResponse],
+)
 async def list_states(
     workflow_id: uuid.UUID,
     execution_id: uuid.UUID,
@@ -246,6 +281,7 @@ async def list_execution_nodes(
     except GraphNotFoundError:
         raise _graph_not_found()
     states = await get_graph_states(db, execution_id)
+
 
 # H6 — Execution comparison endpoint
 @router.get("/compare/{execution_a_id}/{execution_b_id}")
@@ -287,25 +323,28 @@ async def compare_executions(
 
     async def _get_nodes(execution_id: str):
         result = await db.execute(
-            select(WorkflowState).where(WorkflowState.execution_id == execution_id)
+            select(WorkflowState)
+            .where(WorkflowState.execution_id == execution_id)
             .order_by(WorkflowState.created_at)
         )
         states = []
         for ws in result.scalars().all():
             sd = ws.state_data or {}
             if "node_id" in sd:
-                states.append({
-                    "nodeId": sd.get("node_id", ""),
-                    "nodeLabel": sd.get("label", sd.get("node_id", "")),
-                    "nodeType": sd.get("type", "unknown"),
-                    "status": sd.get("status", "pending"),
-                    "latencyMs": sd.get("latency_ms", 0),
-                    "tokensIn": sd.get("tokens_in", 0),
-                    "tokensOut": sd.get("tokens_out", 0),
-                    "cost": float(sd.get("cost", 0)),
-                    "output": sd.get("output"),
-                    "error": sd.get("error"),
-                })
+                states.append(
+                    {
+                        "nodeId": sd.get("node_id", ""),
+                        "nodeLabel": sd.get("label", sd.get("node_id", "")),
+                        "nodeType": sd.get("type", "unknown"),
+                        "status": sd.get("status", "pending"),
+                        "latencyMs": sd.get("latency_ms", 0),
+                        "tokensIn": sd.get("tokens_in", 0),
+                        "tokensOut": sd.get("tokens_out", 0),
+                        "cost": float(sd.get("cost", 0)),
+                        "output": sd.get("output"),
+                        "error": sd.get("error"),
+                    }
+                )
         return states
 
     nodes_a = await _get_nodes(execution_a_id)
@@ -323,7 +362,10 @@ async def compare_executions(
 
     def _totals(nodes):
         tc = sum(float(n.get("cost", 0) or 0) for n in nodes)
-        tt = sum(int(n.get("tokensIn", 0) or 0) + int(n.get("tokensOut", 0) or 0) for n in nodes)
+        tt = sum(
+            int(n.get("tokensIn", 0) or 0) + int(n.get("tokensOut", 0) or 0)
+            for n in nodes
+        )
         tl = sum(int(n.get("latencyMs", 0) or 0) for n in nodes)
         return tc, tt, tl
 
@@ -334,7 +376,9 @@ async def compare_executions(
         "runA": {
             "runId": exec_a.id,
             "startedAt": exec_a.started_at.isoformat() if exec_a.started_at else None,
-            "completedAt": exec_a.completed_at.isoformat() if exec_a.completed_at else None,
+            "completedAt": (
+                exec_a.completed_at.isoformat() if exec_a.completed_at else None
+            ),
             "totalCost": c_a,
             "totalTokens": tk_a,
             "totalLatencyMs": l_a,
@@ -343,11 +387,12 @@ async def compare_executions(
         "runB": {
             "runId": exec_b.id,
             "startedAt": exec_b.started_at.isoformat() if exec_b.started_at else None,
-            "completedAt": exec_b.completed_at.isoformat() if exec_b.completed_at else None,
+            "completedAt": (
+                exec_b.completed_at.isoformat() if exec_b.completed_at else None
+            ),
             "totalCost": c_b,
             "totalTokens": tk_b,
             "totalLatencyMs": l_b,
             "nodes": nodes_b,
         },
     }
-

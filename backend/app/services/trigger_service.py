@@ -43,7 +43,9 @@ async def create_trigger(db: AsyncSession, user_id: int, payload) -> MissionTrig
     )
 
     if payload.trigger_type == "cron" and payload.cron_expression:
-        trigger.next_fire_at = _compute_next_fire(payload.cron_expression, payload.cron_timezone or "UTC")
+        trigger.next_fire_at = _compute_next_fire(
+            payload.cron_expression, payload.cron_timezone or "UTC"
+        )
 
     db.add(trigger)
     await db.flush()
@@ -53,9 +55,12 @@ async def create_trigger(db: AsyncSession, user_id: int, payload) -> MissionTrig
     if trigger.trigger_type == "cron" and trigger.next_fire_at:
         try:
             from app.services.substrate.trigger_bridge import notify_trigger_due
+
             await notify_trigger_due(trigger.next_fire_at)
         except Exception as e:
-            logger.debug("trigger_notify_create_failed", trigger_id=trigger.id, error=str(e))
+            logger.debug(
+                "trigger_notify_create_failed", trigger_id=trigger.id, error=str(e)
+            )
 
     return trigger
 
@@ -63,14 +68,18 @@ async def create_trigger(db: AsyncSession, user_id: int, payload) -> MissionTrig
 async def list_triggers(db: AsyncSession, user_id: int) -> list[MissionTrigger]:
     """List all non-deleted triggers for a user."""
     result = await db.execute(
-        select(MissionTrigger).where(
+        select(MissionTrigger)
+        .where(
             and_(MissionTrigger.user_id == user_id, MissionTrigger.is_deleted == False)
-        ).order_by(MissionTrigger.created_at.desc())
+        )
+        .order_by(MissionTrigger.created_at.desc())
     )
     return list(result.scalars().all())
 
 
-async def get_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> MissionTrigger | None:
+async def get_trigger(
+    db: AsyncSession, trigger_id: str, user_id: int
+) -> MissionTrigger | None:
     """Get a single trigger with ownership check."""
     result = await db.execute(
         select(MissionTrigger).where(
@@ -84,7 +93,9 @@ async def get_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> Missio
     return result.scalar_one_or_none()
 
 
-async def get_trigger_by_webhook_path(db: AsyncSession, webhook_path: str) -> MissionTrigger | None:
+async def get_trigger_by_webhook_path(
+    db: AsyncSession, webhook_path: str
+) -> MissionTrigger | None:
     """Look up a trigger by its webhook path (public endpoint)."""
     result = await db.execute(
         select(MissionTrigger).where(
@@ -107,7 +118,9 @@ async def get_trigger_any(db: AsyncSession, trigger_id: str) -> MissionTrigger |
     return result.scalar_one_or_none()
 
 
-async def update_trigger(db: AsyncSession, trigger_id: str, user_id: int, payload) -> MissionTrigger | None:
+async def update_trigger(
+    db: AsyncSession, trigger_id: str, user_id: int, payload
+) -> MissionTrigger | None:
     """Update trigger fields. Recomputes next_fire_at if cron_expression changes."""
     trigger = await get_trigger(db, trigger_id, user_id)
     if not trigger:
@@ -130,9 +143,12 @@ async def update_trigger(db: AsyncSession, trigger_id: str, user_id: int, payloa
     if trigger.trigger_type == "cron" and trigger.next_fire_at:
         try:
             from app.services.substrate.trigger_bridge import notify_trigger_due
+
             await notify_trigger_due(trigger.next_fire_at)
         except Exception as e:
-            logger.debug("trigger_notify_update_failed", trigger_id=trigger.id, error=str(e))
+            logger.debug(
+                "trigger_notify_update_failed", trigger_id=trigger.id, error=str(e)
+            )
 
     return trigger
 
@@ -147,7 +163,9 @@ async def delete_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> boo
     return True
 
 
-async def pause_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> MissionTrigger | None:
+async def pause_trigger(
+    db: AsyncSession, trigger_id: str, user_id: int
+) -> MissionTrigger | None:
     """Pause an active trigger."""
     trigger = await get_trigger(db, trigger_id, user_id)
     if not trigger:
@@ -159,14 +177,18 @@ async def pause_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> Miss
     return trigger
 
 
-async def resume_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> MissionTrigger | None:
+async def resume_trigger(
+    db: AsyncSession, trigger_id: str, user_id: int
+) -> MissionTrigger | None:
     """Resume a paused trigger."""
     trigger = await get_trigger(db, trigger_id, user_id)
     if not trigger:
         return None
     trigger.status = "active"
     if trigger.trigger_type == "cron" and trigger.cron_expression:
-        trigger.next_fire_at = _compute_next_fire(trigger.cron_expression, trigger.cron_timezone)
+        trigger.next_fire_at = _compute_next_fire(
+            trigger.cron_expression, trigger.cron_timezone
+        )
     await db.flush()
     await db.refresh(trigger)
 
@@ -174,20 +196,27 @@ async def resume_trigger(db: AsyncSession, trigger_id: str, user_id: int) -> Mis
     if trigger.trigger_type == "cron" and trigger.next_fire_at:
         try:
             from app.services.substrate.trigger_bridge import notify_trigger_due
+
             await notify_trigger_due(trigger.next_fire_at)
         except Exception as e:
-            logger.debug("trigger_notify_resume_failed", trigger_id=trigger.id, error=str(e))
+            logger.debug(
+                "trigger_notify_resume_failed", trigger_id=trigger.id, error=str(e)
+            )
 
     return trigger
 
 
-async def get_trigger_logs(db: AsyncSession, trigger_id: str, user_id: int) -> list[TriggerLog]:
+async def get_trigger_logs(
+    db: AsyncSession, trigger_id: str, user_id: int
+) -> list[TriggerLog]:
     """Get execution history for a trigger (with ownership check)."""
     trigger = await get_trigger(db, trigger_id, user_id)
     if not trigger:
         return []
     result = await db.execute(
-        select(TriggerLog).where(TriggerLog.trigger_id == trigger_id).order_by(TriggerLog.fired_at.desc())
+        select(TriggerLog)
+        .where(TriggerLog.trigger_id == trigger_id)
+        .order_by(TriggerLog.fired_at.desc())
     )
     return list(result.scalars().all())
 
@@ -195,7 +224,9 @@ async def get_trigger_logs(db: AsyncSession, trigger_id: str, user_id: int) -> l
 # ── TRIGGER FIRING ────────────────────────────────────────────────────────────
 
 
-async def fire_trigger(db: AsyncSession, trigger: MissionTrigger, payload: dict | None = None) -> TriggerLog:
+async def fire_trigger(
+    db: AsyncSession, trigger: MissionTrigger, payload: dict | None = None
+) -> TriggerLog:
     """Fire a trigger: log the event and spawn mission execution.
 
     H2.4: After firing, notifies the trigger bridge for the next fire time (if cron).
@@ -214,7 +245,9 @@ async def fire_trigger(db: AsyncSession, trigger: MissionTrigger, payload: dict 
     trigger.fire_count = (trigger.fire_count or 0) + 1
     trigger.last_fired_at = datetime.now(UTC)
     if trigger.trigger_type == "cron" and trigger.cron_expression:
-        trigger.next_fire_at = _compute_next_fire(trigger.cron_expression, trigger.cron_timezone)
+        trigger.next_fire_at = _compute_next_fire(
+            trigger.cron_expression, trigger.cron_timezone
+        )
     await db.flush()
 
     # Spawn mission execution in background
@@ -226,9 +259,12 @@ async def fire_trigger(db: AsyncSession, trigger: MissionTrigger, payload: dict 
     if trigger.trigger_type == "cron" and trigger.next_fire_at:
         try:
             from app.services.substrate.trigger_bridge import notify_trigger_due
+
             asyncio.create_task(notify_trigger_due(trigger.next_fire_at))
         except Exception as e:
-            logger.debug("trigger_notify_fire_failed", trigger_id=trigger.id, error=str(e))
+            logger.debug(
+                "trigger_notify_fire_failed", trigger_id=trigger.id, error=str(e)
+            )
 
     return log
 
@@ -252,7 +288,9 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
                 log.duration_ms = duration_ms
                 log.mission_run_id = mission_id
             await db.commit()
-            logger.info(f"Trigger {trigger_id} fired mission {mission_id} successfully in {duration_ms}ms")
+            logger.info(
+                f"Trigger {trigger_id} fired mission {mission_id} successfully in {duration_ms}ms"
+            )
         except Exception as e:
             duration_ms = int((time.monotonic() - start_time) * 1000)
             log = await db.get(TriggerLog, log_id)
@@ -261,7 +299,9 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
                 log.error_message = str(e)[:1000]
                 log.duration_ms = duration_ms
             await db.commit()
-            logger.error(f"Trigger {trigger_id} failed to fire mission {mission_id}: {e}")
+            logger.error(
+                f"Trigger {trigger_id} failed to fire mission {mission_id}: {e}"
+            )
 
 
 # ── WEBHOOK SIGNATURE VERIFICATION ───────────────────────────────────────────
@@ -301,7 +341,9 @@ async def process_cron_triggers(db: AsyncSession) -> int:
     fired = 0
     for trigger in triggers:
         try:
-            await fire_trigger(db, trigger, payload={"source": "cron", "scheduled_at": now.isoformat()})
+            await fire_trigger(
+                db, trigger, payload={"source": "cron", "scheduled_at": now.isoformat()}
+            )
             fired += 1
         except Exception as e:
             logger.error(f"Failed to fire cron trigger {trigger.id}: {e}")
@@ -320,6 +362,7 @@ def _compute_next_fire(cron_expression: str, timezone_str: str) -> datetime | No
     """Compute the next fire time from a cron expression."""
     try:
         from zoneinfo import ZoneInfo
+
         tz = ZoneInfo(timezone_str)
     except Exception:
         tz = UTC

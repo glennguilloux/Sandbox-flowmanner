@@ -46,22 +46,25 @@ class TestParseDriveResponse:
         assert result["response"]["files"] == []
 
     def test_error_with_dict(self):
-        resp = _json_response(403, {
-            "error": {
-                "code": 403,
-                "message": "Insufficient Permission",
-                "errors": [{"reason": "insufficientFilePermissions"}],
-            }
-        })
+        resp = _json_response(
+            403,
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Insufficient Permission",
+                    "errors": [{"reason": "insufficientFilePermissions"}],
+                }
+            },
+        )
         result = _parse_drive_response(resp)
         assert result["success"] is False
         assert "Insufficient Permission" in result["error"]
         assert result["error_code"] == "permission_denied"
 
     def test_token_expired(self):
-        resp = _json_response(401, {
-            "error": {"code": 401, "message": "Invalid Credentials"}
-        })
+        resp = _json_response(
+            401, {"error": {"code": 401, "message": "Invalid Credentials"}}
+        )
         result = _parse_drive_response(resp)
         assert result["success"] is False
         assert result["error"] == "token_expired"
@@ -75,20 +78,23 @@ class TestParseDriveResponse:
         assert "non-JSON" in result["error"]
 
     def test_rate_limit(self):
-        resp = _json_response(429, {
-            "error": {"code": 429, "message": "Rate limit exceeded"}
-        })
+        resp = _json_response(
+            429, {"error": {"code": 429, "message": "Rate limit exceeded"}}
+        )
         result = _parse_drive_response(resp)
         assert result["success"] is False
         assert result["error_code"] == "rate_limited"
 
     def test_quota_exceeded(self):
-        resp = _json_response(403, {
-            "error": {
-                "code": 403,
-                "message": "The user's Drive storage quota has been exceeded",
-            }
-        })
+        resp = _json_response(
+            403,
+            {
+                "error": {
+                    "code": 403,
+                    "message": "The user's Drive storage quota has been exceeded",
+                }
+            },
+        )
         result = _parse_drive_response(resp)
         assert result["success"] is False
         assert result["error_code"] == "quota_exceeded"
@@ -98,7 +104,9 @@ class TestDriveErrorCode:
     def test_known_codes(self):
         assert _drive_error_code("notFound", "") == "not_found"
         assert _drive_error_code("fileNotFound", "") == "file_not_found"
-        assert _drive_error_code("insufficientFilePermissions", "") == "permission_denied"
+        assert (
+            _drive_error_code("insufficientFilePermissions", "") == "permission_denied"
+        )
         assert _drive_error_code("rateLimitExceeded", "") == "rate_limited"
         assert _drive_error_code("quotaExceeded", "") == "quota_exceeded"
         assert _drive_error_code("userRateLimitExceeded", "") == "rate_limited"
@@ -134,11 +142,18 @@ class TestListFiles:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = GoogleDriveAdapter()
-        mock_resp = _json_response(200, {
-            "files": [
-                {"id": "f1", "name": "Doc 1", "mimeType": "application/vnd.google-apps.document"},
-            ]
-        })
+        mock_resp = _json_response(
+            200,
+            {
+                "files": [
+                    {
+                        "id": "f1",
+                        "name": "Doc 1",
+                        "mimeType": "application/vnd.google-apps.document",
+                    },
+                ]
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
@@ -157,7 +172,9 @@ class TestListFiles:
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
             ctx.get = AsyncMock(return_value=mock_resp)
-            await adapter._list_files({"query": "mimeType='application/pdf'", "page_size": 10}, "token")
+            await adapter._list_files(
+                {"query": "mimeType='application/pdf'", "page_size": 10}, "token"
+            )
 
         call_args = ctx.get.call_args
         assert call_args[1]["params"]["q"] == "mimeType='application/pdf'"
@@ -184,12 +201,15 @@ class TestCreateDoc:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = GoogleDriveAdapter()
-        mock_resp = _json_response(200, {
-            "id": "doc-1",
-            "name": "New Doc",
-            "mimeType": "application/vnd.google-apps.document",
-            "webViewLink": "https://docs.google.com/document/d/doc-1/edit",
-        })
+        mock_resp = _json_response(
+            200,
+            {
+                "id": "doc-1",
+                "name": "New Doc",
+                "mimeType": "application/vnd.google-apps.document",
+                "webViewLink": "https://docs.google.com/document/d/doc-1/edit",
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -215,7 +235,11 @@ class TestCreateDoc:
             ctx = mock_client.return_value.__aenter__.return_value
             ctx.post = AsyncMock(return_value=mock_resp)
             result = await adapter._create_doc(
-                {"title": "In Folder", "folder_id": "folder-1", "content": "Hello world"},
+                {
+                    "title": "In Folder",
+                    "folder_id": "folder-1",
+                    "content": "Hello world",
+                },
                 "token",
             )
 
@@ -235,16 +259,21 @@ class TestSearchFiles:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = GoogleDriveAdapter()
-        mock_resp = _json_response(200, {
-            "files": [
-                {"id": "f1", "name": "report.pdf", "mimeType": "application/pdf"}
-            ]
-        })
+        mock_resp = _json_response(
+            200,
+            {
+                "files": [
+                    {"id": "f1", "name": "report.pdf", "mimeType": "application/pdf"}
+                ]
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
             ctx.get = AsyncMock(return_value=mock_resp)
-            result = await adapter._search_files({"query": "name contains 'report'"}, "token")
+            result = await adapter._search_files(
+                {"query": "name contains 'report'"}, "token"
+            )
 
         assert result["success"] is True
         assert len(result["response"]["files"]) == 1
@@ -277,9 +306,10 @@ class TestReadFile:
     @pytest.mark.asyncio
     async def test_success_text(self):
         adapter = GoogleDriveAdapter()
-        meta_resp = _json_response(200, {
-            "id": "f1", "name": "notes.txt", "mimeType": "text/plain", "size": "100"
-        })
+        meta_resp = _json_response(
+            200,
+            {"id": "f1", "name": "notes.txt", "mimeType": "text/plain", "size": "100"},
+        )
         content_resp = MagicMock()
         content_resp.status_code = 200
         content_resp.content = b"Hello, Drive!"
@@ -297,9 +327,9 @@ class TestReadFile:
     @pytest.mark.asyncio
     async def test_file_too_large(self):
         adapter = GoogleDriveAdapter()
-        meta_resp = _json_response(200, {
-            "id": "big", "name": "huge.zip", "size": str(_MAX_FILE_BYTES + 1)
-        })
+        meta_resp = _json_response(
+            200, {"id": "big", "name": "huge.zip", "size": str(_MAX_FILE_BYTES + 1)}
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -312,9 +342,9 @@ class TestReadFile:
     @pytest.mark.asyncio
     async def test_binary_content(self):
         adapter = GoogleDriveAdapter()
-        meta_resp = _json_response(200, {
-            "id": "img", "name": "photo.png", "size": "512"
-        })
+        meta_resp = _json_response(
+            200, {"id": "img", "name": "photo.png", "size": "512"}
+        )
         content_resp = MagicMock()
         content_resp.status_code = 200
         content_resp.content = b"\x89PNG\r\n\x1a\n"  # Valid PNG header, non-UTF8
@@ -328,6 +358,7 @@ class TestReadFile:
         assert result["response"]["metadata"]["encoding"] == "base64"
         # Content should be valid base64
         import base64
+
         decoded = base64.b64decode(result["response"]["content"])
         assert decoded == b"\x89PNG\r\n\x1a\n"
 
@@ -341,9 +372,9 @@ class TestReadFile:
     @pytest.mark.asyncio
     async def test_metadata_error(self):
         adapter = GoogleDriveAdapter()
-        meta_resp = _json_response(404, {
-            "error": {"code": 404, "message": "File not found: f404"}
-        })
+        meta_resp = _json_response(
+            404, {"error": {"code": 404, "message": "File not found: f404"}}
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -356,12 +387,10 @@ class TestReadFile:
     @pytest.mark.asyncio
     async def test_download_error(self):
         adapter = GoogleDriveAdapter()
-        meta_resp = _json_response(200, {
-            "id": "f1", "name": "notes.txt", "size": "50"
-        })
-        content_resp = _json_response(500, {
-            "error": {"code": 500, "message": "Internal error"}
-        })
+        meta_resp = _json_response(200, {"id": "f1", "name": "notes.txt", "size": "50"})
+        content_resp = _json_response(
+            500, {"error": {"code": 500, "message": "Internal error"}}
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -369,7 +398,9 @@ class TestReadFile:
             result = await adapter._read_file({"file_id": "f1"}, "token")
 
         assert result["success"] is False
-        assert "500" in result.get("error", "") or "Internal error" in result.get("error", "")
+        assert "500" in result.get("error", "") or "Internal error" in result.get(
+            "error", ""
+        )
 
 
 # ── Token refresh ─────────────────────────────────────────────────────────────
@@ -385,19 +416,24 @@ class TestTokenRefresh:
         app.get_client_id.return_value = "cid"
         app.get_client_secret.return_value = "csec"
 
-        token_resp = _json_response(200, {
-            "access_token": "new-token",
-            "expires_in": 3600,
-            "token_type": "Bearer",
-        })
+        token_resp = _json_response(
+            200,
+            {
+                "access_token": "new-token",
+                "expires_in": 3600,
+                "token_type": "Bearer",
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = mock_client_cls.return_value.__aenter__.return_value
             mock_client.post = AsyncMock(return_value=token_resp)
 
-            with patch("sqlalchemy.select"), \
-                 patch("app.database.AsyncSessionLocal") as mock_session_cls, \
-                 patch("app.integrations.oauth.encrypt_token", return_value="encrypted-new"):
+            with patch("sqlalchemy.select"), patch(
+                "app.database.AsyncSessionLocal"
+            ) as mock_session_cls, patch(
+                "app.integrations.oauth.encrypt_token", return_value="encrypted-new"
+            ):
                 mock_db = AsyncMock()
                 mock_db.execute = AsyncMock()
                 mock_result = MagicMock()
@@ -431,8 +467,9 @@ class TestTokenRefresh:
             mock_client = mock_client_cls.return_value.__aenter__.return_value
             mock_client.post = AsyncMock(return_value=error_resp)
 
-            with patch("sqlalchemy.select"), \
-                 patch("app.database.AsyncSessionLocal") as mock_session_cls:
+            with patch("sqlalchemy.select"), patch(
+                "app.database.AsyncSessionLocal"
+            ) as mock_session_cls:
                 mock_db = AsyncMock()
                 mock_result = MagicMock()
                 mock_result.scalars.return_value.first.return_value = app

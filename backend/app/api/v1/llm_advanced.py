@@ -103,34 +103,56 @@ async def get_tradeoff(
     models = []
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
     if deepseek_key:
-        models.append({
-            "id": "deepseek/deepseek-v4-flash",
-            "provider": "deepseek",
-            "cost_per_1m": 0.14,
-            "quality": "good",
-            "speed": "fast",
-        })
-        models.append({
-            "id": "deepseek/deepseek-reasoner",
-            "provider": "deepseek",
-            "cost_per_1m": 0.55,
-            "quality": "excellent",
-            "speed": "slow",
-        })
+        models.append(
+            {
+                "id": "deepseek/deepseek-v4-flash",
+                "provider": "deepseek",
+                "cost_per_1m": 0.14,
+                "quality": "good",
+                "speed": "fast",
+            }
+        )
+        models.append(
+            {
+                "id": "deepseek/deepseek-reasoner",
+                "provider": "deepseek",
+                "cost_per_1m": 0.55,
+                "quality": "excellent",
+                "speed": "slow",
+            }
+        )
 
     llamacpp_url = os.getenv("LLAMACPP_URL")
     if llamacpp_url:
-        models.append({
-            "id": "llamacpp/Qwen3.6-27B",
-            "provider": "llamacpp",
-            "cost_per_1m": 0.0,
-            "quality": "good",
-            "speed": "moderate",
-        })
+        models.append(
+            {
+                "id": "llamacpp/Qwen3.6-27B",
+                "provider": "llamacpp",
+                "cost_per_1m": 0.0,
+                "quality": "good",
+                "speed": "moderate",
+            }
+        )
 
     best_cost = min(models, key=lambda m: m["cost_per_1m"]) if models else None
-    best_quality = max(models, key=lambda m: {"excellent": 3, "good": 2, "moderate": 1}.get(m["quality"], 0)) if models else None
-    best_speed = max(models, key=lambda m: {"fast": 3, "moderate": 2, "slow": 1}.get(m["speed"], 0)) if models else None
+    best_quality = (
+        max(
+            models,
+            key=lambda m: {"excellent": 3, "good": 2, "moderate": 1}.get(
+                m["quality"], 0
+            ),
+        )
+        if models
+        else None
+    )
+    best_speed = (
+        max(
+            models,
+            key=lambda m: {"fast": 3, "moderate": 2, "slow": 1}.get(m["speed"], 0),
+        )
+        if models
+        else None
+    )
 
     return {
         "recommendations": models,
@@ -225,7 +247,9 @@ async def get_health(user: User = Depends(get_current_user)):
     try:
         providers = await router.check_all_providers_health()
         return {
-            "status": "healthy" if any(p.healthy for p in providers.values()) else "degraded",
+            "status": (
+                "healthy" if any(p.healthy for p in providers.values()) else "degraded"
+            ),
             "providers": {
                 name: {"healthy": p.healthy, "error_count": p.error_count}
                 for name, p in providers.items()

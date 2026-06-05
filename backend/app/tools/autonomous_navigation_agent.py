@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class AutonomousNavigationAgentInput(ToolInput):
     task: str = Field(
         ...,
@@ -53,6 +54,7 @@ class AutonomousNavigationAgentInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class AutonomousNavigationAgentTool(BaseTool):
     """LLM-powered browser agent that navigates and interacts with web pages autonomously.

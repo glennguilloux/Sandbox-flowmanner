@@ -17,13 +17,18 @@ pytestmark = pytest.mark.integration
 # Import cleanliness
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestOrchestratorModuleImport:
 
     def test_module_imports_cleanly(self):
         """The orchestrator module imports without NameError."""
         # This import was previously broken due to _nexus_orchestrator
         # being defined inside a class method body instead of module level.
-        from app.services.nexus.orchestrator import NexusOrchestrator, get_nexus_orchestrator
+        from app.services.nexus.orchestrator import (
+            NexusOrchestrator,
+            get_nexus_orchestrator,
+        )
+
         assert callable(get_nexus_orchestrator)
 
     def test_get_nexus_orchestrator_returns_singleton(self):
@@ -35,6 +40,7 @@ class TestOrchestratorModuleImport:
 
         # Reset any cached instance for clean test
         import app.services.nexus.orchestrator as orch_module
+
         orch_module._nexus_orchestrator = None
 
         inst1 = get_nexus_orchestrator()
@@ -51,6 +57,7 @@ class TestOrchestratorModuleImport:
         from app.services.nexus.orchestrator import get_nexus_orchestrator
 
         import app.services.nexus.orchestrator as orch_module
+
         orch_module._nexus_orchestrator = None
 
         inst1 = get_nexus_orchestrator(distributed_mode=True)

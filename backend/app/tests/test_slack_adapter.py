@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.integrations.adapters.slack import SlackAdapter, _parse_slack_response, _slack_error_message
+from app.integrations.adapters.slack import (
+    SlackAdapter,
+    _parse_slack_response,
+    _slack_error_message,
+)
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -32,7 +36,11 @@ def connection():
 class TestSlackResponseParser:
     def test_success(self):
         resp = MagicMock()
-        resp.json.return_value = {"ok": True, "channel": "C123", "ts": "1234567890.0001"}
+        resp.json.return_value = {
+            "ok": True,
+            "channel": "C123",
+            "ts": "1234567890.0001",
+        }
         result = _parse_slack_response(resp)
         assert result["success"] is True
         assert result["response"]["ok"] is True
@@ -135,7 +143,9 @@ class TestSendMessage:
 
     @pytest.mark.asyncio
     async def test_missing_text(self, adapter, connection):
-        result = await adapter.execute("send_message", {"channel": "#general"}, connection)
+        result = await adapter.execute(
+            "send_message", {"channel": "#general"}, connection
+        )
         assert result["success"] is False
         assert "text" in result["error"]
 
@@ -184,9 +194,7 @@ class TestSearchMessages:
         mock_resp.json.return_value = {
             "ok": True,
             "messages": {
-                "matches": [
-                    {"text": "found it", "channel": {"name": "general"}}
-                ]
+                "matches": [{"text": "found it", "channel": {"name": "general"}}]
             },
         }
 

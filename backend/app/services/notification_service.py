@@ -75,8 +75,10 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 # ── Notification Pydantic schema ─────────────────────────────────────────────
 
+
 class NotificationItem(BaseModel):
     """Pydantic schema for notification responses."""
+
     id: int
     user_id: int
     title: str
@@ -120,6 +122,7 @@ async def _add_notification(
 ) -> NotificationItem:
     """Create a notification in the database."""
     from app.models.notification_models import Notification
+
     now = datetime.now(UTC)
     db_item = Notification(
         user_id=user_id,
@@ -154,6 +157,7 @@ async def _add_notification(
 
 # ── Notification list & CRUD ────────────────────────────────────────────────
 
+
 @router.get("/")
 async def list_notifications(
     unread_only: bool = False,
@@ -163,6 +167,7 @@ async def list_notifications(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.notification_models import Notification
+
     query = select(Notification).where(Notification.user_id == user.id)
     if unread_only:
         query = query.where(Notification.is_read == False)
@@ -172,7 +177,12 @@ async def list_notifications(
 
     # Optimized total count using count() instead of fetching all rows
     from sqlalchemy import func as sa_func
-    count_query = select(sa_func.count()).select_from(Notification).where(Notification.user_id == user.id)
+
+    count_query = (
+        select(sa_func.count())
+        .select_from(Notification)
+        .where(Notification.user_id == user.id)
+    )
     if unread_only:
         count_query = count_query.where(Notification.is_read == False)
     count_result = await db.execute(count_query)
@@ -192,8 +202,11 @@ async def unread_count(
     from sqlalchemy import func as sa_func
 
     from app.models.notification_models import Notification
+
     result = await db.execute(
-        select(sa_func.count()).select_from(Notification).where(
+        select(sa_func.count())
+        .select_from(Notification)
+        .where(
             Notification.user_id == user.id,
             Notification.is_read == False,
         )
@@ -209,6 +222,7 @@ async def mark_read(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.notification_models import Notification
+
     result = await db.execute(
         select(Notification).where(
             Notification.id == notification_id,
@@ -231,6 +245,7 @@ async def mark_all_read(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.notification_models import Notification
+
     result = await db.execute(
         select(Notification).where(
             Notification.user_id == user.id,
@@ -253,6 +268,7 @@ async def delete_notification(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.notification_models import Notification
+
     result = await db.execute(
         select(Notification).where(
             Notification.id == notification_id,
@@ -271,6 +287,7 @@ async def delete_notification(
 # Cache for auto-generated VAPID keys to avoid regenerating on every request
 _vapid_keys: dict[str, str] = {}
 
+
 def _get_vapid_keys():
     """Return (public_key, private_key) from config or auto-generate if empty.
 
@@ -281,11 +298,13 @@ def _get_vapid_keys():
     if _vapid_keys.get("public") and _vapid_keys.get("private"):
         return _vapid_keys["public"], _vapid_keys["private"]
     from app.config import settings
+
     pub = settings.VAPID_PUBLIC_KEY
     prv = settings.VAPID_PRIVATE_KEY
     if not pub or not prv:
         try:
             from pywebpush import Vapid
+
             v = Vapid()
             v.generate_keys()
             # private_pem() returns bytes like b'-----BEGIN PRIVATE KEY-----...'
@@ -297,11 +316,13 @@ def _get_vapid_keys():
                 Encoding,
                 PublicFormat,
             )
+
             raw = v.public_key.public_bytes(
                 Encoding.X962, PublicFormat.UncompressedPoint
             )
             pub = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
             import logging
+
             _log = logging.getLogger(__name__)
             _log.warning(
                 "Auto-generated VAPID keys. For production, persist these in .env:\n"
@@ -310,6 +331,7 @@ def _get_vapid_keys():
             )
         except Exception:
             import logging
+
             logging.getLogger(__name__).warning(
                 "Failed to auto-generate VAPID keys — web push notifications disabled. "
                 "Install pywebpush or set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY in .env."
@@ -396,6 +418,7 @@ async def vapid_public_key():
 
 # ── SSE Stream ──────────────────────────────────────────────────────────────
 
+
 @router.get("/stream")
 async def notification_stream(
     token: str = "",
@@ -416,6 +439,7 @@ async def notification_stream(
     # Verify token is valid
     try:
         from app.api.v1.auth import decode_access_token
+
         user_id_str = decode_access_token(token)
         if not user_id_str:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -430,7 +454,9 @@ async def notification_stream(
 
     # Compute initial unread count from DB
     count_result = await db.execute(
-        select(sa_func.count()).select_from(Notification).where(
+        select(sa_func.count())
+        .select_from(Notification)
+        .where(
             Notification.user_id == user_id,
             Notification.is_read == False,
         )
@@ -450,6 +476,7 @@ async def notification_stream(
 
 # ── Settings (preserved) ────────────────────────────────────────────────────
 
+
 @router.get("/settings")
 async def get_notification_settings(
     user: User = Depends(get_current_user),
@@ -462,7 +489,11 @@ async def get_notification_settings(
             )
         )
         settings = result.scalar_one_or_none()
-        s = NotificationSettings() if not settings else NotificationSettings.model_validate(settings)
+        s = (
+            NotificationSettings()
+            if not settings
+            else NotificationSettings.model_validate(settings)
+        )
         # Map backend event_ fields to frontend aliases
         return {
             "mission_completed": s.event_mission_completed,
@@ -511,11 +542,18 @@ async def update_notification_settings(
 
         # Update standard fields
         for field in [
-            "in_app_enabled", "email_enabled", "push_enabled",
-            "event_mission_completed", "event_mission_failed",
-            "event_mention", "event_system", "digest_mode",
-            "digest_time_utc", "digest_day_of_week",
-            "email_address", "push_enabled_channels",
+            "in_app_enabled",
+            "email_enabled",
+            "push_enabled",
+            "event_mission_completed",
+            "event_mission_failed",
+            "event_mention",
+            "event_system",
+            "digest_mode",
+            "digest_time_utc",
+            "digest_day_of_week",
+            "email_address",
+            "push_enabled_channels",
         ]:
             value = getattr(payload, field, None)
             if value is not None:
@@ -558,7 +596,10 @@ async def send_notification(
         settings = NotificationSettings.model_validate(settings)
 
     # Check if this notification type is enabled
-    if notification_type == "mission_completed" and not settings.event_mission_completed:
+    if (
+        notification_type == "mission_completed"
+        and not settings.event_mission_completed
+    ):
         return
     if notification_type == "mission_failed" and not settings.event_mission_failed:
         return
@@ -571,17 +612,23 @@ async def send_notification(
             title=data.get("title", notification_type),
             body=data.get("message", str(data)),
             notification_type=notification_type,
-            severity=notification_type.split("_")[-1] if "_" in notification_type else "info",
+            severity=(
+                notification_type.split("_")[-1] if "_" in notification_type else "info"
+            ),
         )
-        await publish_user_notification(user_id, {
-            "event": "notification",
-            "data": notification_item.model_dump(),
-        })
+        await publish_user_notification(
+            user_id,
+            {
+                "event": "notification",
+                "data": notification_item.model_dump(),
+            },
+        )
 
     # Send web push (via PushSubscription)
     if settings.push_enabled:
         try:
             from app.models.notification_models import PushSubscription
+
             subs_result = await db.execute(
                 select(PushSubscription).where(
                     PushSubscription.user_id == user_id,
@@ -595,12 +642,15 @@ async def send_notification(
                     import json
 
                     from pywebpush import webpush
-                    push_payload = json.dumps({
-                        "title": data.get("title", notification_type),
-                        "body": data.get("message", str(data)),
-                        "icon": "/favicon.ico",
-                        "badge": "/badge.png",
-                    })
+
+                    push_payload = json.dumps(
+                        {
+                            "title": data.get("title", notification_type),
+                            "body": data.get("message", str(data)),
+                            "icon": "/favicon.ico",
+                            "badge": "/badge.png",
+                        }
+                    )
                     for sub in subs:
                         try:
                             webpush(
@@ -620,6 +670,7 @@ async def send_notification(
                 await db.flush()
         except Exception as e:
             import logging
+
             logger.warning(f"Web push error: {e}")
 
     # Send email

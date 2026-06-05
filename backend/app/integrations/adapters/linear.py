@@ -283,7 +283,11 @@ def _parse_linear_response(resp: httpx.Response) -> dict[str, Any]:
     if resp.status_code >= 400:
         error_msg = data.get("message", f"Linear API error (HTTP {resp.status_code})")
         if resp.status_code == 401:
-            return {"success": False, "error": "token_expired", "error_detail": error_msg}
+            return {
+                "success": False,
+                "error": "token_expired",
+                "error_detail": error_msg,
+            }
         return {
             "success": False,
             "error": error_msg,
@@ -296,11 +300,17 @@ def _parse_linear_response(resp: httpx.Response) -> dict[str, Any]:
         first = graphql_errors[0]
         msg = first.get("message", "Unknown GraphQL error")
         extensions = first.get("extensions", {})
-        code = extensions.get("code", first.get("extensions", {}).get("type", "graphql_error"))
+        code = extensions.get(
+            "code", first.get("extensions", {}).get("type", "graphql_error")
+        )
 
         # Detect auth / not-found errors
         err_str = str(first).lower()
-        if "authentication" in err_str or "unauthorized" in err_str or "auth" in err_str:
+        if (
+            "authentication" in err_str
+            or "unauthorized" in err_str
+            or "auth" in err_str
+        ):
             return {"success": False, "error": "token_expired", "error_detail": msg}
 
         return {

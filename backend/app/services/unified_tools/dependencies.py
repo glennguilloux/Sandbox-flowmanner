@@ -29,7 +29,9 @@ def get_tool_bridge(db: Session = Depends(get_db)) -> UnifiedToolBridge:
     return bridge
 
 
-def get_tool_bridge_optional(db: Session | None = Depends(get_db)) -> UnifiedToolBridge | None:
+def get_tool_bridge_optional(
+    db: Session | None = Depends(get_db),
+) -> UnifiedToolBridge | None:
     """
     Optional dependency that returns None if no DB session available.
     Useful for endpoints that can work with in-memory tools only.
@@ -45,6 +47,7 @@ def get_tool_executor():
     Use when you only need execution without DB persistence.
     """
     from app.services.unified_tools import get_tool_executor
+
     return get_tool_executor()
 
 
@@ -54,4 +57,5 @@ def get_tool_registry():
     Use when you only need tool discovery without execution.
     """
     from app.services.unified_tools import get_tool_registry
+
     return get_tool_registry()

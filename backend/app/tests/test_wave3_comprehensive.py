@@ -64,7 +64,11 @@ class TestDashboardCostAnalytics:
         assert resp.by_model == []
 
     def test_cost_analytics_with_data(self):
-        from app.schemas.dashboard_v2 import CostAnalyticsResponse, CostByAgent, CostByModel
+        from app.schemas.dashboard_v2 import (
+            CostAnalyticsResponse,
+            CostByAgent,
+            CostByModel,
+        )
 
         resp = CostAnalyticsResponse(
             total_cost=1.23,
@@ -241,7 +245,9 @@ class TestHttpIntegrationExecutor:
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_client.request = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
+            mock_client.request = AsyncMock(
+                side_effect=httpx.TimeoutException("timed out")
+            )
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             result = await executor.execute(
@@ -344,9 +350,7 @@ class TestTaskExecutorHttpIntegration:
                 "response_body": '{"created": true}',
                 "duration_ms": 150,
             }
-            result = await executor.execute_task(
-                mock_db, mock_mission, mock_task, {}
-            )
+            result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
 
         assert result["success"] is True
         assert result["status_code"] == 201
@@ -371,9 +375,7 @@ class TestTaskExecutorHttpIntegration:
         mock_mission = MagicMock()
         mock_mission.id = uuid4()
 
-        result = await executor.execute_task(
-            mock_db, mock_mission, mock_task, {}
-        )
+        result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
 
         assert result["success"] is False
         assert "integration_config_id" in result["error"]
@@ -421,10 +423,7 @@ class TestApprovalFlow:
     def test_approval_not_required_for_normal(self):
         from app.orchestration.human_interrupt import HITLManager
 
-        assert (
-            HITLManager.approval_required_for("read_data", confidence=0.9)
-            is False
-        )
+        assert HITLManager.approval_required_for("read_data", confidence=0.9) is False
 
     def test_mission_executor_has_hitl_wiring(self):
         """Verify mission_executor imports HITLManager at module level."""
@@ -450,6 +449,7 @@ class TestSchemaConsistency:
             LogEntry,
             MissionHistoryItem,
         )
+
         assert hasattr(MissionHistoryItem, "model_config")
         assert hasattr(LogEntry, "model_config")
         assert hasattr(DashboardStats, "model_config")
@@ -460,5 +460,6 @@ class TestSchemaConsistency:
             HttpIntegrationConfigResponse,
             HttpIntegrationLogResponse,
         )
+
         assert hasattr(HttpIntegrationConfigResponse, "model_config")
         assert hasattr(HttpIntegrationLogResponse, "model_config")

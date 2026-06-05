@@ -25,7 +25,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test"
+)
 
 
 pytestmark = pytest.mark.integration
@@ -49,6 +51,7 @@ def _mission_response(
 ):
     """Build a MissionResponse for use as a mock return value."""
     from app.schemas.mission import MissionResponse
+
     return MissionResponse(
         id=mission_id or uuid4(),
         user_id=user_id,
@@ -99,32 +102,38 @@ class TestFeatureFlag:
     def test_enabled_with_1(self):
         with patch.dict(os.environ, {"USE_NEW_READS": "1"}):
             from app.api._mission_cqrs.compat import use_new_reads
+
             assert use_new_reads() is True
 
     def test_enabled_with_true(self):
         with patch.dict(os.environ, {"USE_NEW_READS": "true"}):
             from app.api._mission_cqrs.compat import use_new_reads
+
             assert use_new_reads() is True
 
     def test_enabled_with_yes(self):
         with patch.dict(os.environ, {"USE_NEW_READS": "yes"}):
             from app.api._mission_cqrs.compat import use_new_reads
+
             assert use_new_reads() is True
 
     def test_disabled_when_empty(self):
         with patch.dict(os.environ, {"USE_NEW_READS": ""}):
             from app.api._mission_cqrs.compat import use_new_reads
+
             assert use_new_reads() is False
 
     def test_disabled_when_unset(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("USE_NEW_READS", None)
             from app.api._mission_cqrs.compat import use_new_reads
+
             assert use_new_reads() is False
 
     def test_disabled_with_random_value(self):
         with patch.dict(os.environ, {"USE_NEW_READS": "nope"}):
             from app.api._mission_cqrs.compat import use_new_reads
+
             assert use_new_reads() is False
 
 
@@ -139,51 +148,61 @@ class TestStatusMapping:
     def test_run_status_completed(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("completed") == MissionStatus.COMPLETED
 
     def test_run_status_executing(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("executing") == MissionStatus.EXECUTING
 
     def test_run_status_failed(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("failed") == MissionStatus.FAILED
 
     def test_run_status_aborted(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("aborted") == MissionStatus.ABORTED
 
     def test_run_status_queued(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("queued") == MissionStatus.QUEUED
 
     def test_run_status_paused(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("paused") == MissionStatus.PAUSED
 
     def test_run_status_unknown_defaults_to_pending(self):
         from app.api._mission_cqrs.compat import _map_run_status
         from app.models.mission_models import MissionStatus
+
         assert _map_run_status("unknown_status") == MissionStatus.PENDING
 
     def test_bp_status_draft(self):
         from app.api._mission_cqrs.compat import _map_bp_status
         from app.models.mission_models import MissionStatus
+
         assert _map_bp_status("draft") == MissionStatus.PENDING
 
     def test_bp_status_published(self):
         from app.api._mission_cqrs.compat import _map_bp_status
         from app.models.mission_models import MissionStatus
+
         assert _map_bp_status("published") == MissionStatus.PLANNED
 
     def test_bp_status_deprecated(self):
         from app.api._mission_cqrs.compat import _map_bp_status
         from app.models.mission_models import MissionStatus
+
         assert _map_bp_status("deprecated") == MissionStatus.FAILED
 
 
@@ -199,10 +218,18 @@ class TestBlueprintRunConverter:
     def _bp(**kwargs):
         """Blueprint-like mock."""
         defaults = dict(
-            id=str(uuid4()), user_id=42, workspace_id=None,
-            title="Test BP", description="desc", blueprint_type="solo",
-            definition={}, status="draft", version=1, deleted_at=None,
-            created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
+            id=str(uuid4()),
+            user_id=42,
+            workspace_id=None,
+            title="Test BP",
+            description="desc",
+            blueprint_type="solo",
+            definition={},
+            status="draft",
+            version=1,
+            deleted_at=None,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         defaults.update(kwargs)
         return MagicMock(**defaults)
@@ -212,10 +239,18 @@ class TestBlueprintRunConverter:
         """Run-like mock."""
         now = datetime.now(timezone.utc)
         defaults = dict(
-            id=str(uuid4()), blueprint_id=blueprint_id, user_id=42,
-            status="completed", total_tokens=100, total_cost_usd=0.002,
-            error_message=None, output_data=None, started_at=now, completed_at=now,
-            created_at=now, updated_at=now,
+            id=str(uuid4()),
+            blueprint_id=blueprint_id,
+            user_id=42,
+            status="completed",
+            total_tokens=100,
+            total_cost_usd=0.002,
+            error_message=None,
+            output_data=None,
+            started_at=now,
+            completed_at=now,
+            created_at=now,
+            updated_at=now,
         )
         defaults.update(kwargs)
         return MagicMock(**defaults)
@@ -240,8 +275,10 @@ class TestBlueprintRunConverter:
 
         bp = self._bp(title="With Run")
         run = self._run(
-            blueprint_id=str(bp.id), status="completed",
-            total_tokens=1000, total_cost_usd=0.1,
+            blueprint_id=str(bp.id),
+            status="completed",
+            total_tokens=1000,
+            total_cost_usd=0.1,
             output_data={"answer": 42},
         )
         result = _blueprint_run_to_mission_response(bp, run)
@@ -269,7 +306,8 @@ class TestBlueprintRunConverter:
 
         bp = self._bp()
         run = self._run(
-            blueprint_id=str(bp.id), status="failed",
+            blueprint_id=str(bp.id),
+            status="failed",
             error_message="LLM timeout",
         )
         result = _blueprint_run_to_mission_response(bp, run)
@@ -303,15 +341,25 @@ class TestMissionShim:
         from app.models.mission_models import MissionStatus
 
         bp = MagicMock(
-            id=str(uuid4()), user_id=42, workspace_id=None,
-            title="Shim Test", description="desc", blueprint_type="solo",
-            definition={"key": "val"}, status="published", version=1,
+            id=str(uuid4()),
+            user_id=42,
+            workspace_id=None,
+            title="Shim Test",
+            description="desc",
+            blueprint_type="solo",
+            definition={"key": "val"},
+            status="published",
+            version=1,
             deleted_at=None,
-            created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         run = MagicMock(
-            status="completed", output_data={"r": 1}, error_message=None,
-            total_tokens=200, total_cost_usd=0.02,
+            status="completed",
+            output_data={"r": 1},
+            error_message=None,
+            total_tokens=200,
+            total_cost_usd=0.02,
             started_at=datetime.now(timezone.utc),
             completed_at=datetime.now(timezone.utc),
         )
@@ -331,10 +379,18 @@ class TestMissionShim:
         from app.models.mission_models import MissionStatus
 
         bp = MagicMock(
-            id=str(uuid4()), user_id=42, workspace_id="ws-1",
-            title="No Run", description="", blueprint_type="dag",
-            definition=None, status="draft", version=1, deleted_at=None,
-            created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
+            id=str(uuid4()),
+            user_id=42,
+            workspace_id="ws-1",
+            title="No Run",
+            description="",
+            blueprint_type="dag",
+            definition=None,
+            status="draft",
+            version=1,
+            deleted_at=None,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         shim = MissionShim.from_blueprint_run(bp, None)
@@ -349,17 +405,34 @@ class TestMissionShim:
         from app.api._mission_cqrs.compat import MissionShim
 
         bp = MagicMock(
-            id=str(uuid4()), user_id=42, workspace_id=None,
-            title="T", description="", blueprint_type="solo",
-            definition=None, status="draft", version=1, deleted_at=None,
-            created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
+            id=str(uuid4()),
+            user_id=42,
+            workspace_id=None,
+            title="T",
+            description="",
+            blueprint_type="solo",
+            definition=None,
+            status="draft",
+            version=1,
+            deleted_at=None,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         shim = MissionShim.from_blueprint_run(bp, None)
 
         # Attributes used by _make_execution_status, stream_status, etc.
-        for attr in ("id", "status", "started_at", "completed_at",
-                      "workspace_id", "deleted_at", "version",
-                      "user_id", "title", "description"):
+        for attr in (
+            "id",
+            "status",
+            "started_at",
+            "completed_at",
+            "workspace_id",
+            "deleted_at",
+            "version",
+            "user_id",
+            "title",
+            "description",
+        ):
             assert hasattr(shim, attr), f"Missing attribute: {attr}"
 
 
@@ -378,14 +451,19 @@ class TestListMissionsNewReads:
         mock_list = AsyncMock(return_value=([], 0))
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ):
             handler = MissionQueryHandlers(db)
             result = await handler.list_missions(user_id=42, page=1, per_page=20)
 
         assert result.items == []
         assert result.total == 0
-        mock_list.assert_awaited_once_with(db, 42, offset=0, limit=20, workspace_id=None)
+        mock_list.assert_awaited_once_with(
+            db, 42, offset=0, limit=20, workspace_id=None
+        )
 
     @pytest.mark.asyncio
     async def test_list_returns_missions(self):
@@ -395,9 +473,13 @@ class TestListMissionsNewReads:
         m2 = _mission_response(title="Mission B", status="running")
         mock_list = AsyncMock(return_value=([m1, m2], 2))
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list), \
-             patch("app.api._mission_cqrs.queries.cache_set_list", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_list", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             result = await handler.list_missions(user_id=42, page=1, per_page=20)
 
@@ -413,12 +495,19 @@ class TestListMissionsNewReads:
         mock_list = AsyncMock(return_value=([], 0))
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ):
             handler = MissionQueryHandlers(db)
-            await handler.list_missions(user_id=42, page=1, per_page=20, workspace_id="ws-abc")
+            await handler.list_missions(
+                user_id=42, page=1, per_page=20, workspace_id="ws-abc"
+            )
 
-        mock_list.assert_awaited_once_with(db, 42, offset=0, limit=20, workspace_id="ws-abc")
+        mock_list.assert_awaited_once_with(
+            db, 42, offset=0, limit=20, workspace_id="ws-abc"
+        )
 
     @pytest.mark.asyncio
     async def test_list_uses_cache_on_hit(self):
@@ -426,15 +515,30 @@ class TestListMissionsNewReads:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         cached = {
-            "items": [{"id": str(uuid4()), "user_id": 42, "title": "Cached",
-                        "description": "", "mission_type": "solo", "status": "completed",
-                        "priority": "medium", "created_at": "2026-01-01T00:00:00"}],
-            "total": 1, "page": 1, "per_page": 20,
+            "items": [
+                {
+                    "id": str(uuid4()),
+                    "user_id": 42,
+                    "title": "Cached",
+                    "description": "",
+                    "mission_type": "solo",
+                    "status": "completed",
+                    "priority": "medium",
+                    "created_at": "2026-01-01T00:00:00",
+                }
+            ],
+            "total": 1,
+            "page": 1,
+            "per_page": 20,
         }
         mock_list = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=cached)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list",
+            new=AsyncMock(return_value=cached),
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             result = await handler.list_missions(user_id=42, page=1, per_page=20)
 
@@ -450,12 +554,17 @@ class TestListMissionsNewReads:
         mock_list = AsyncMock(return_value=([], 0))
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ):
             handler = MissionQueryHandlers(db)
             result = await handler.list_missions(user_id=42, page=3, per_page=10)
 
-        mock_list.assert_awaited_once_with(db, 42, offset=20, limit=10, workspace_id=None)
+        mock_list.assert_awaited_once_with(
+            db, 42, offset=20, limit=10, workspace_id=None
+        )
         assert result.page == 3
         assert result.per_page == 10
 
@@ -469,13 +578,19 @@ class TestListMissionsNewReads:
         mock_cache_set = AsyncMock()
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list), \
-             patch("app.api._mission_cqrs.queries.cache_set_list", new=mock_cache_set):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_list", new=mock_cache_set
+        ):
             handler = MissionQueryHandlers(db)
             await handler.list_missions(user_id=42, page=1, per_page=20)
 
-        mock_list.assert_awaited_once_with(db, 42, offset=0, limit=20, workspace_id=None)
+        mock_list.assert_awaited_once_with(
+            db, 42, offset=0, limit=20, workspace_id=None
+        )
         # cache_set_list is called via asyncio.create_task (fire-and-forget),
         # so the coroutine is invoked but not directly awaited by the caller.
         mock_cache_set.assert_called_once()
@@ -498,9 +613,13 @@ class TestGetMissionResponseNewReads:
         mock_get = AsyncMock(return_value=mr)
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.get_mission_from_blueprint", new=mock_get), \
-             patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_from_blueprint", new=mock_get
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(db)
             result = await handler.get_mission_response(user_id=42, mission_id=bp_id)
 
@@ -516,8 +635,11 @@ class TestGetMissionResponseNewReads:
 
         mock_get = AsyncMock(side_effect=MissionNotFoundError("not found"))
 
-        with patch("app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.get_mission_from_blueprint", new=mock_get):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_from_blueprint", new=mock_get
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             with pytest.raises(MissionNotFoundError):
                 await handler.get_mission_response(user_id=42, mission_id=str(uuid4()))
@@ -529,14 +651,23 @@ class TestGetMissionResponseNewReads:
 
         bp_id = str(uuid4())
         cached = {
-            "id": bp_id, "user_id": 42, "title": "Cached Mission",
-            "description": "", "mission_type": "solo", "status": "completed",
-            "priority": "medium", "created_at": "2026-01-01T00:00:00",
+            "id": bp_id,
+            "user_id": 42,
+            "title": "Cached Mission",
+            "description": "",
+            "mission_type": "solo",
+            "status": "completed",
+            "priority": "medium",
+            "created_at": "2026-01-01T00:00:00",
         }
         mock_get = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=cached)), \
-             patch("app.api._mission_cqrs.queries.get_mission_from_blueprint", new=mock_get):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_get",
+            new=AsyncMock(return_value=cached),
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_from_blueprint", new=mock_get
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             result = await handler.get_mission_response(user_id=42, mission_id=bp_id)
 
@@ -551,7 +682,10 @@ class TestGetMissionResponseNewReads:
 
         cached = {"id": str(uuid4()), "user_id": 999, "title": "Not Yours"}
 
-        with patch("app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=cached)):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_get",
+            new=AsyncMock(return_value=cached),
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             with pytest.raises(MissionNotFoundError):
                 await handler.get_mission_response(user_id=42, mission_id=str(uuid4()))
@@ -564,9 +698,14 @@ class TestGetMissionResponseNewReads:
         mr = _mission_response(title="To Cache")
         mock_cache_set = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.get_mission_from_blueprint", new=AsyncMock(return_value=mr)), \
-             patch("app.api._mission_cqrs.queries.cache_set", new=mock_cache_set):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_get", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_from_blueprint",
+            new=AsyncMock(return_value=mr),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=mock_cache_set
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             await handler.get_mission_response(user_id=42, mission_id=str(uuid4()))
 
@@ -590,18 +729,31 @@ class TestGetMissionShimNewReads:
 
         bp_id = str(uuid4())
         shim = MissionShim(
-            id=bp_id, user_id=42, title="Shim Test", description="",
-            mission_type="solo", status="running", priority="medium",
-            plan=None, results=None, error_message=None, tokens_used=None,
-            estimated_cost=None, actual_cost=None, started_at=None,
-            completed_at=None, created_at=None, updated_at=None,
+            id=bp_id,
+            user_id=42,
+            title="Shim Test",
+            description="",
+            mission_type="solo",
+            status="running",
+            priority="medium",
+            plan=None,
+            results=None,
+            error_message=None,
+            tokens_used=None,
+            estimated_cost=None,
+            actual_cost=None,
+            started_at=None,
+            completed_at=None,
+            created_at=None,
+            updated_at=None,
             workspace_id=None,
         )
         mock_shim = AsyncMock(return_value=shim)
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim), \
-             patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim
+        ), patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
             handler = MissionQueryHandlers(db)
             result = await handler.get_mission(user_id=42, mission_id=bp_id)
 
@@ -616,19 +768,32 @@ class TestGetMissionShimNewReads:
         from app.api._mission_cqrs.compat import MissionShim
 
         shim = MissionShim(
-            id=str(uuid4()), user_id=42, title="T", description="",
-            mission_type="solo", status="pending", priority="medium",
-            plan=None, results=None, error_message=None, tokens_used=None,
-            estimated_cost=None, actual_cost=None, started_at=None,
-            completed_at=None, created_at=None, updated_at=None,
+            id=str(uuid4()),
+            user_id=42,
+            title="T",
+            description="",
+            mission_type="solo",
+            status="pending",
+            priority="medium",
+            plan=None,
+            results=None,
+            error_message=None,
+            tokens_used=None,
+            estimated_cost=None,
+            actual_cost=None,
+            started_at=None,
+            completed_at=None,
+            created_at=None,
+            updated_at=None,
             workspace_id=None,
         )
         mock_cache_set = AsyncMock()
         mock_shim = AsyncMock(return_value=shim)
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim), \
-             patch("app.api._mission_cqrs.queries.cache_set", new=mock_cache_set):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim
+        ), patch("app.api._mission_cqrs.queries.cache_set", new=mock_cache_set):
             handler = MissionQueryHandlers(db)
             await handler.get_mission(user_id=42, mission_id=str(uuid4()))
 
@@ -688,9 +853,13 @@ class TestMissionApiNewReads:
 
         app_with_mission_router.dependency_overrides[get_db_session] = _override_db
 
-        with patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list), \
-             patch("app.api._mission_cqrs.queries.cache_set_list", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ), patch(
+            "app.api._mission_cqrs.queries.list_missions_from_blueprints", new=mock_list
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_list", new=AsyncMock()
+        ):
             with TestClient(app_with_mission_router) as client:
                 resp = client.get("/api/v1/missions?page=1&per_page=20")
 
@@ -712,11 +881,23 @@ class TestMissionApiNewReads:
         # when USE_NEW_READS=1. Must patch in the queries module where it's
         # imported, not in the compat module where it's defined.
         shim = MissionShim(
-            id=bp_id, user_id=42, title="API Single", description="",
-            mission_type="solo", status="completed", priority="medium",
-            plan=None, results=None, error_message=None, tokens_used=None,
-            estimated_cost=None, actual_cost=None, started_at=None,
-            completed_at=None, created_at=None, updated_at=None,
+            id=bp_id,
+            user_id=42,
+            title="API Single",
+            description="",
+            mission_type="solo",
+            status="completed",
+            priority="medium",
+            plan=None,
+            results=None,
+            error_message=None,
+            tokens_used=None,
+            estimated_cost=None,
+            actual_cost=None,
+            started_at=None,
+            completed_at=None,
+            created_at=None,
+            updated_at=None,
             workspace_id=None,
         )
         mock_shim = AsyncMock(return_value=shim)
@@ -726,8 +907,9 @@ class TestMissionApiNewReads:
 
         app_with_mission_router.dependency_overrides[get_db_session] = _override_db
 
-        with patch("app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim), \
-             patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim
+        ), patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
             with TestClient(app_with_mission_router) as client:
                 resp = client.get(f"/api/v1/missions/{bp_id}")
 
@@ -749,8 +931,9 @@ class TestMissionApiNewReads:
         app_with_mission_router.dependency_overrides[get_db_session] = _override_db
 
         # Must patch in the queries module where get_mission_as_shim is imported.
-        with patch("app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim), \
-             patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_as_shim", new=mock_shim
+        ), patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()):
             with TestClient(app_with_mission_router) as client:
                 resp = client.get(f"/api/v1/missions/{uuid4()}")
 
@@ -772,19 +955,36 @@ class TestListActiveNewReads:
         from app.api._mission_cqrs.compat import MissionShim
 
         shim = MissionShim(
-            id=str(uuid4()), user_id=42, title="Active BP", description="",
-            mission_type="solo", status="running", priority="medium",
-            plan=None, results=None, error_message=None, tokens_used=None,
-            estimated_cost=None, actual_cost=None, started_at=None,
-            completed_at=None, created_at=None, updated_at=None,
+            id=str(uuid4()),
+            user_id=42,
+            title="Active BP",
+            description="",
+            mission_type="solo",
+            status="running",
+            priority="medium",
+            plan=None,
+            results=None,
+            error_message=None,
+            tokens_used=None,
+            estimated_cost=None,
+            actual_cost=None,
+            started_at=None,
+            completed_at=None,
+            created_at=None,
+            updated_at=None,
             workspace_id=None,
         )
         mock_active = AsyncMock(return_value=[shim])
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_active_from_blueprints", new=mock_active), \
-             patch("app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.list_active_from_blueprints", new=mock_active
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(db)
             result = await handler.list_active(user_id=42)
 
@@ -800,9 +1000,14 @@ class TestListActiveNewReads:
         mock_active = AsyncMock(return_value=[])
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_active_from_blueprints", new=mock_active), \
-             patch("app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.list_active_from_blueprints", new=mock_active
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(db)
             result = await handler.list_active(user_id=42, workspace_id="ws-1")
 
@@ -816,9 +1021,12 @@ class TestListActiveNewReads:
 
         mock_active = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active",
-                   new=AsyncMock(return_value={"active_ids": []})), \
-             patch("app.api._mission_cqrs.queries.list_active_from_blueprints", new=mock_active):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value={"active_ids": []}),
+        ), patch(
+            "app.api._mission_cqrs.queries.list_active_from_blueprints", new=mock_active
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             # Empty active_ids → returns [] without touching compat layer
             result = await handler.list_active(user_id=42)
@@ -833,20 +1041,37 @@ class TestListActiveNewReads:
         from app.api._mission_cqrs.compat import MissionShim
 
         shim = MissionShim(
-            id=str(uuid4()), user_id=42, title="T", description="",
-            mission_type="solo", status="queued", priority="medium",
-            plan=None, results=None, error_message=None, tokens_used=None,
-            estimated_cost=None, actual_cost=None, started_at=None,
-            completed_at=None, created_at=None, updated_at=None,
+            id=str(uuid4()),
+            user_id=42,
+            title="T",
+            description="",
+            mission_type="solo",
+            status="queued",
+            priority="medium",
+            plan=None,
+            results=None,
+            error_message=None,
+            tokens_used=None,
+            estimated_cost=None,
+            actual_cost=None,
+            started_at=None,
+            completed_at=None,
+            created_at=None,
+            updated_at=None,
             workspace_id=None,
         )
         mock_cache_set = AsyncMock()
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.list_active_from_blueprints",
-                   new=AsyncMock(return_value=[shim])), \
-             patch("app.api._mission_cqrs.queries.cache_set_active", new=mock_cache_set):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.list_active_from_blueprints",
+            new=AsyncMock(return_value=[shim]),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new=mock_cache_set
+        ):
             handler = MissionQueryHandlers(db)
             await handler.list_active(user_id=42)
 
@@ -872,11 +1097,19 @@ class TestActiveMissionsNewReads:
         mock_active = AsyncMock(return_value=([mr], 1))
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.active_missions_from_blueprints", new=mock_active), \
-             patch("app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.active_missions_from_blueprints",
+            new=mock_active,
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(db)
-            result = await handler.active_missions(user_id=42, user_role="pro", is_pro=True)
+            result = await handler.active_missions(
+                user_id=42, user_role="pro", is_pro=True
+            )
 
         assert result.total == 1
         assert len(result.missions) == 1
@@ -890,12 +1123,21 @@ class TestActiveMissionsNewReads:
         mock_active = AsyncMock(return_value=([], 0))
         db = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.active_missions_from_blueprints", new=mock_active), \
-             patch("app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.active_missions_from_blueprints",
+            new=mock_active,
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(db)
             result = await handler.active_missions(
-                user_id=42, user_role="pro", is_pro=True, workspace_id="ws-xyz",
+                user_id=42,
+                user_role="pro",
+                is_pro=True,
+                workspace_id="ws-xyz",
             )
 
         assert result.total == 0
@@ -909,10 +1151,15 @@ class TestActiveMissionsNewReads:
 
         mock_active = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.active_missions_from_blueprints", new=mock_active):
+        with patch(
+            "app.api._mission_cqrs.queries.active_missions_from_blueprints",
+            new=mock_active,
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             with pytest.raises(MissionForbiddenError):
-                await handler.active_missions(user_id=42, user_role="member", is_pro=False)
+                await handler.active_missions(
+                    user_id=42, user_role="member", is_pro=False
+                )
 
         mock_active.assert_not_awaited()
 
@@ -925,10 +1172,17 @@ class TestActiveMissionsNewReads:
         cached = {"missions": [mr.model_dump()], "total": 1}
         mock_active = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=cached)), \
-             patch("app.api._mission_cqrs.queries.active_missions_from_blueprints", new=mock_active):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=cached),
+        ), patch(
+            "app.api._mission_cqrs.queries.active_missions_from_blueprints",
+            new=mock_active,
+        ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = await handler.active_missions(user_id=42, user_role="pro", is_pro=True)
+            result = await handler.active_missions(
+                user_id=42, user_role="pro", is_pro=True
+            )
 
         assert result.total == 1
         mock_active.assert_not_awaited()
@@ -941,10 +1195,15 @@ class TestActiveMissionsNewReads:
         mr = _mission_response(title="To Cache")
         mock_cache_set = AsyncMock()
 
-        with patch("app.api._mission_cqrs.queries.cache_active", new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.active_missions_from_blueprints",
-                   new=AsyncMock(return_value=([mr], 1))), \
-             patch("app.api._mission_cqrs.queries.cache_set_active", new=mock_cache_set):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.active_missions_from_blueprints",
+            new=AsyncMock(return_value=([mr], 1)),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new=mock_cache_set
+        ):
             handler = MissionQueryHandlers(AsyncMock())
             await handler.active_missions(user_id=42, user_role="pro", is_pro=True)
 
@@ -961,25 +1220,40 @@ class TestMissionToRunStatusMapping:
 
     def test_running_maps_to_executing(self):
         from app.api._mission_cqrs.compat import _mission_status_to_run_status
+
         assert _mission_status_to_run_status("running") == "executing"
 
     def test_planning_maps_to_pending(self):
         from app.api._mission_cqrs.compat import _mission_status_to_run_status
+
         assert _mission_status_to_run_status("planning") == "pending"
 
     def test_planned_maps_to_pending(self):
         from app.api._mission_cqrs.compat import _mission_status_to_run_status
+
         assert _mission_status_to_run_status("planned") == "pending"
 
     def test_approved_maps_to_completed(self):
         from app.api._mission_cqrs.compat import _mission_status_to_run_status
+
         assert _mission_status_to_run_status("approved") == "completed"
 
     def test_passthrough_statuses(self):
         """Statuses that exist in both MissionStatus and RunStatus pass through."""
         from app.api._mission_cqrs.compat import _mission_status_to_run_status
-        for status in ("pending", "queued", "executing", "paused", "completed", "failed", "aborted"):
-            assert _mission_status_to_run_status(status) == status, f"{status} should pass through"
+
+        for status in (
+            "pending",
+            "queued",
+            "executing",
+            "paused",
+            "completed",
+            "failed",
+            "aborted",
+        ):
+            assert (
+                _mission_status_to_run_status(status) == status
+            ), f"{status} should pass through"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1005,19 +1279,28 @@ class TestDualWriteSyncRunStatus:
         mock_bp.deleted_at = None
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(side_effect=[
-            MagicMock(scalar_one_or_none=MagicMock(return_value=mock_bp)),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=mock_run)),
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                MagicMock(scalar_one_or_none=MagicMock(return_value=mock_bp)),
+                MagicMock(scalar_one_or_none=MagicMock(return_value=mock_run)),
+            ]
+        )
         mock_db.commit = AsyncMock()
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
-            await dual_write_sync_run_status(mission_id, 42, "aborted",
-                                             error_message="User aborted",
-                                             completed_at=datetime.now(timezone.utc))
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
+            await dual_write_sync_run_status(
+                mission_id,
+                42,
+                "aborted",
+                error_message="User aborted",
+                completed_at=datetime.now(timezone.utc),
+            )
 
         assert mock_run.status == "aborted"
         assert mock_run.error_message == "User aborted"
@@ -1037,16 +1320,21 @@ class TestDualWriteSyncRunStatus:
         mock_bp.id = str(uuid4())
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(side_effect=[
-            MagicMock(scalar_one_or_none=MagicMock(return_value=mock_bp)),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=mock_run)),
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                MagicMock(scalar_one_or_none=MagicMock(return_value=mock_bp)),
+                MagicMock(scalar_one_or_none=MagicMock(return_value=mock_run)),
+            ]
+        )
         mock_db.commit = AsyncMock()
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_sync_run_status(str(uuid4()), 42, "running")
 
         assert mock_run.status == "executing"
@@ -1057,15 +1345,22 @@ class TestDualWriteSyncRunStatus:
         from app.api._mission_cqrs.compat import dual_write_sync_run_status
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalar_one_or_none=MagicMock(return_value=None),
-            scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=None))),
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalar_one_or_none=MagicMock(return_value=None),
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=None))
+                ),
+            )
+        )
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_sync_run_status(str(uuid4()), 42, "completed")
 
     @pytest.mark.asyncio
@@ -1078,18 +1373,23 @@ class TestDualWriteSyncRunStatus:
 
         mock_db = AsyncMock()
         call_count = 0
+
         async def _execute(stmt):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 return MagicMock(scalar_one_or_none=MagicMock(return_value=mock_bp))
             return MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+
         mock_db.execute = _execute
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_sync_run_status(str(uuid4()), 42, "completed")
 
     @pytest.mark.asyncio
@@ -1097,7 +1397,9 @@ class TestDualWriteSyncRunStatus:
         """Exceptions are caught and logged (fire-and-forget)."""
         from app.api._mission_cqrs.compat import dual_write_sync_run_status
 
-        with patch("app.database.AsyncSessionLocal", side_effect=RuntimeError("db down")):
+        with patch(
+            "app.database.AsyncSessionLocal", side_effect=RuntimeError("db down")
+        ):
             await dual_write_sync_run_status(str(uuid4()), 42, "completed")
 
 
@@ -1113,16 +1415,23 @@ class TestDualWriteSyncBlueprint:
         mock_bp.updated_at = None
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalar_one_or_none=MagicMock(return_value=mock_bp),
-            scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=mock_bp))),
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalar_one_or_none=MagicMock(return_value=mock_bp),
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=mock_bp))
+                ),
+            )
+        )
         mock_db.commit = AsyncMock()
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_sync_blueprint(str(uuid4()), 42, title="New Title")
 
         assert mock_bp.title == "New Title"
@@ -1134,22 +1443,31 @@ class TestDualWriteSyncBlueprint:
         from app.api._mission_cqrs.compat import dual_write_sync_blueprint
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalar_one_or_none=MagicMock(return_value=None),
-            scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=None))),
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalar_one_or_none=MagicMock(return_value=None),
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=None))
+                ),
+            )
+        )
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_sync_blueprint(str(uuid4()), 42, title="Ignored")
 
     @pytest.mark.asyncio
     async def test_sync_blueprint_exception_is_swallowed(self):
         from app.api._mission_cqrs.compat import dual_write_sync_blueprint
 
-        with patch("app.database.AsyncSessionLocal", side_effect=RuntimeError("db down")):
+        with patch(
+            "app.database.AsyncSessionLocal", side_effect=RuntimeError("db down")
+        ):
             await dual_write_sync_blueprint(str(uuid4()), 42, title="Nope")
 
 
@@ -1165,16 +1483,23 @@ class TestDualWriteSoftDeleteBlueprint:
         mock_bp.deleted_by = None
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalar_one_or_none=MagicMock(return_value=mock_bp),
-            scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=mock_bp))),
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalar_one_or_none=MagicMock(return_value=mock_bp),
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=mock_bp))
+                ),
+            )
+        )
         mock_db.commit = AsyncMock()
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_soft_delete_blueprint(str(uuid4()), 42)
 
         assert mock_bp.deleted_at is not None
@@ -1186,20 +1511,29 @@ class TestDualWriteSoftDeleteBlueprint:
         from app.api._mission_cqrs.compat import dual_write_soft_delete_blueprint
 
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalar_one_or_none=MagicMock(return_value=None),
-            scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=None))),
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalar_one_or_none=MagicMock(return_value=None),
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=None))
+                ),
+            )
+        )
 
-        with patch("app.database.AsyncSessionLocal", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_db),
-            __aexit__=AsyncMock(return_value=False),
-        )):
+        with patch(
+            "app.database.AsyncSessionLocal",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_db),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ):
             await dual_write_soft_delete_blueprint(str(uuid4()), 42)
 
     @pytest.mark.asyncio
     async def test_soft_delete_exception_is_swallowed(self):
         from app.api._mission_cqrs.compat import dual_write_soft_delete_blueprint
 
-        with patch("app.database.AsyncSessionLocal", side_effect=RuntimeError("db down")):
+        with patch(
+            "app.database.AsyncSessionLocal", side_effect=RuntimeError("db down")
+        ):
             await dual_write_soft_delete_blueprint(str(uuid4()), 42)

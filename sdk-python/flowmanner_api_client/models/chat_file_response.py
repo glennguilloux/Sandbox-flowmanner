@@ -1,39 +1,30 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
 
-
-
-
-
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="ChatFileResponse")
 
 
-
 @_attrs_define
 class ChatFileResponse:
-    """ 
-        Attributes:
-            id (int):
-            chat_id (int):
-            filename (str):
-            path (str):
-            mime_type (None | str | Unset):
-            size_bytes (int | None | Unset):
-            uploaded_at (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (int):
+        chat_id (int):
+        filename (str):
+        path (str):
+        mime_type (None | str | Unset):
+        size_bytes (int | None | Unset):
+        uploaded_at (datetime.datetime | None | Unset):
+    """
 
     id: int
     chat_id: int
@@ -43,10 +34,6 @@ class ChatFileResponse:
     size_bytes: int | None | Unset = UNSET
     uploaded_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -77,15 +64,16 @@ class ChatFileResponse:
         else:
             uploaded_at = self.uploaded_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "chat_id": chat_id,
-            "filename": filename,
-            "path": path,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "chat_id": chat_id,
+                "filename": filename,
+                "path": path,
+            }
+        )
         if mime_type is not UNSET:
             field_dict["mime_type"] = mime_type
         if size_bytes is not UNSET:
@@ -94,8 +82,6 @@ class ChatFileResponse:
             field_dict["uploaded_at"] = uploaded_at
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -117,7 +103,6 @@ class ChatFileResponse:
 
         mime_type = _parse_mime_type(d.pop("mime_type", UNSET))
 
-
         def _parse_size_bytes(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -126,7 +111,6 @@ class ChatFileResponse:
             return cast(int | None | Unset, data)
 
         size_bytes = _parse_size_bytes(d.pop("size_bytes", UNSET))
-
 
         def _parse_uploaded_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -138,15 +122,12 @@ class ChatFileResponse:
                     raise TypeError()
                 uploaded_at_type_0 = isoparse(data)
 
-
-
                 return uploaded_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         uploaded_at = _parse_uploaded_at(d.pop("uploaded_at", UNSET))
-
 
         chat_file_response = cls(
             id=id,
@@ -157,7 +138,6 @@ class ChatFileResponse:
             size_bytes=size_bytes,
             uploaded_at=uploaded_at,
         )
-
 
         chat_file_response.additional_properties = d
         return chat_file_response

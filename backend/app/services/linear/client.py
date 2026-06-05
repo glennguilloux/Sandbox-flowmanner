@@ -19,6 +19,7 @@ LINEAR_API_URL = "https://api.linear.app/graphql"
 
 class LinearError(Exception):
     """Linear API error."""
+
     pass
 
 
@@ -41,7 +42,9 @@ class LinearClient:
             )
         return self._client
 
-    async def _execute(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _execute(
+        self, query: str, variables: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Execute a GraphQL query/mutation."""
         client = await self._get_client()
         payload = {"query": query}
@@ -54,7 +57,9 @@ class LinearClient:
             data = resp.json()
 
             if "errors" in data:
-                error_msg = "; ".join(e.get("message", "Unknown") for e in data["errors"])
+                error_msg = "; ".join(
+                    e.get("message", "Unknown") for e in data["errors"]
+                )
                 raise LinearError(f"GraphQL errors: {error_msg}")
 
             return data.get("data", {})
@@ -255,7 +260,9 @@ def get_linear_client() -> LinearClient | None:
 
         api_key = settings.LINEAR_API_KEY
         if not api_key:
-            logger.warning("LINEAR_API_KEY not configured — Linear integration disabled")
+            logger.warning(
+                "LINEAR_API_KEY not configured — Linear integration disabled"
+            )
             return None
         _linear_client = LinearClient(api_key)
     return _linear_client

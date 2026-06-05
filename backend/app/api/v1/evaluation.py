@@ -31,7 +31,8 @@ class CreateTestCaseRequest(BaseModel):
     input_prompt: str
     expected_behavior: str
     task_type: str = Field(
-        ..., description="code_generation, rag_accuracy, agent_reasoning, creative, general"
+        ...,
+        description="code_generation, rag_accuracy, agent_reasoning, creative, general",
     )
     difficulty: str = Field("medium", pattern="^(easy|medium|hard)$")
     tags: list[str] = Field(default_factory=list)
@@ -83,7 +84,12 @@ async def create_dataset(
     ds = await builder.create_dataset(
         name=body.name, category=body.category, description=body.description
     )
-    return {"id": ds.id, "name": ds.name, "category": ds.category, "version": ds.version}
+    return {
+        "id": ds.id,
+        "name": ds.name,
+        "category": ds.category,
+        "version": ds.version,
+    }
 
 
 @router.get("/datasets")
@@ -138,7 +144,9 @@ async def delete_dataset(
 
     from app.models.evaluation_models import GoldenDataset
 
-    result = await db.execute(select(GoldenDataset).where(GoldenDataset.id == dataset_id))
+    result = await db.execute(
+        select(GoldenDataset).where(GoldenDataset.id == dataset_id)
+    )
     ds = result.scalar_one_or_none()
     if not ds:
         raise HTTPException(404, "Dataset not found")
@@ -260,7 +268,9 @@ async def run_evaluation(
         "aggregate_score": eval_run.aggregate_score,
         "scores_by_category": eval_run.scores_by_category,
         "started_at": eval_run.started_at.isoformat() if eval_run.started_at else None,
-        "completed_at": eval_run.completed_at.isoformat() if eval_run.completed_at else None,
+        "completed_at": (
+            eval_run.completed_at.isoformat() if eval_run.completed_at else None
+        ),
     }
 
 
@@ -382,6 +392,7 @@ async def detect_regressions(
 
     # Group by model+dataset and find consecutive pairs
     from collections import defaultdict
+
     grouped: dict[str, list] = defaultdict(list)
     for run in runs:
         key = f"{run.model_name}:{run.dataset_id}"
@@ -390,7 +401,9 @@ async def detect_regressions(
     regressions = []
     for key, group_runs in grouped.items():
         # Sort oldest first
-        group_runs.sort(key=lambda r: r.created_at or datetime.min.replace(tzinfo=timezone.utc))
+        group_runs.sort(
+            key=lambda r: r.created_at or datetime.min.replace(tzinfo=timezone.utc)
+        )
         for i in range(1, len(group_runs)):
             prev = group_runs[i - 1]
             curr = group_runs[i]
@@ -398,20 +411,24 @@ async def detect_regressions(
             curr_score = curr.aggregate_score or 0.0
             delta = curr_score - prev_score
             if delta < -threshold:
-                regressions.append({
-                    "model_name": curr.model_name,
-                    "dataset_id": curr.dataset_id,
-                    "current_run_id": curr.id,
-                    "previous_run_id": prev.id,
-                    "current_score": curr_score,
-                    "previous_score": prev_score,
-                    "delta": round(delta, 2),
-                    "detected_at": curr.completed_at.isoformat() if curr.completed_at else None,
-                    "category_deltas": _compute_category_deltas(
-                        prev.scores_by_category or {},
-                        curr.scores_by_category or {},
-                    ),
-                })
+                regressions.append(
+                    {
+                        "model_name": curr.model_name,
+                        "dataset_id": curr.dataset_id,
+                        "current_run_id": curr.id,
+                        "previous_run_id": prev.id,
+                        "current_score": curr_score,
+                        "previous_score": prev_score,
+                        "delta": round(delta, 2),
+                        "detected_at": (
+                            curr.completed_at.isoformat() if curr.completed_at else None
+                        ),
+                        "category_deltas": _compute_category_deltas(
+                            prev.scores_by_category or {},
+                            curr.scores_by_category or {},
+                        ),
+                    }
+                )
 
     # Sort by severity (largest drop first)
     regressions.sort(key=lambda r: r["delta"])
@@ -447,8 +464,12 @@ async def eval_stats(
 
     stmt = select(
         func.count(EvalRunModel.id).label("total_runs"),
-        func.count(EvalRunModel.id).filter(EvalRunModel.status == "completed").label("completed_runs"),
-        func.count(EvalRunModel.id).filter(EvalRunModel.status == "failed").label("failed_runs"),
+        func.count(EvalRunModel.id)
+        .filter(EvalRunModel.status == "completed")
+        .label("completed_runs"),
+        func.count(EvalRunModel.id)
+        .filter(EvalRunModel.status == "failed")
+        .label("failed_runs"),
         func.avg(EvalRunModel.aggregate_score).label("avg_score"),
         func.min(EvalRunModel.aggregate_score).label("min_score"),
         func.max(EvalRunModel.aggregate_score).label("max_score"),
@@ -479,11 +500,26 @@ EVAL_TEMPLATES = [
         "description": "Evaluate code quality, correctness, and adherence to best practices",
         "default_rubric": {
             "criteria": {
-                "correctness": {"weight": 0.30, "description": "Code produces correct output for all cases"},
-                "readability": {"weight": 0.25, "description": "Clear naming, structure, and comments"},
-                "efficiency": {"weight": 0.20, "description": "Appropriate time/space complexity"},
-                "safety": {"weight": 0.15, "description": "No security vulnerabilities or unsafe patterns"},
-                "style": {"weight": 0.10, "description": "Follows language conventions and project standards"},
+                "correctness": {
+                    "weight": 0.30,
+                    "description": "Code produces correct output for all cases",
+                },
+                "readability": {
+                    "weight": 0.25,
+                    "description": "Clear naming, structure, and comments",
+                },
+                "efficiency": {
+                    "weight": 0.20,
+                    "description": "Appropriate time/space complexity",
+                },
+                "safety": {
+                    "weight": 0.15,
+                    "description": "No security vulnerabilities or unsafe patterns",
+                },
+                "style": {
+                    "weight": 0.10,
+                    "description": "Follows language conventions and project standards",
+                },
             },
             "scale": {"min": 1, "max": 5},
         },
@@ -505,10 +541,22 @@ EVAL_TEMPLATES = [
         "description": "Evaluate retrieval-augmented generation answers for factual accuracy and grounding",
         "default_rubric": {
             "criteria": {
-                "groundedness": {"weight": 0.35, "description": "Answer is supported by the provided context"},
-                "completeness": {"weight": 0.25, "description": "Covers all relevant information from context"},
-                "relevance": {"weight": 0.25, "description": "Directly answers the question asked"},
-                "no_hallucination": {"weight": 0.15, "description": "Does not invent information not in the context"},
+                "groundedness": {
+                    "weight": 0.35,
+                    "description": "Answer is supported by the provided context",
+                },
+                "completeness": {
+                    "weight": 0.25,
+                    "description": "Covers all relevant information from context",
+                },
+                "relevance": {
+                    "weight": 0.25,
+                    "description": "Directly answers the question asked",
+                },
+                "no_hallucination": {
+                    "weight": 0.15,
+                    "description": "Does not invent information not in the context",
+                },
             },
             "scale": {"min": 1, "max": 5},
         },
@@ -526,10 +574,22 @@ EVAL_TEMPLATES = [
         "description": "Evaluate agent reasoning and task completion quality",
         "default_rubric": {
             "criteria": {
-                "task_completion": {"weight": 0.35, "description": "Successfully completes the requested task"},
-                "reasoning_quality": {"weight": 0.25, "description": "Logical steps, correct diagnosis, sound conclusions"},
-                "tool_usage": {"weight": 0.20, "description": "Appropriate selection and use of available tools"},
-                "error_handling": {"weight": 0.20, "description": "Gracefully handles edge cases and failures"},
+                "task_completion": {
+                    "weight": 0.35,
+                    "description": "Successfully completes the requested task",
+                },
+                "reasoning_quality": {
+                    "weight": 0.25,
+                    "description": "Logical steps, correct diagnosis, sound conclusions",
+                },
+                "tool_usage": {
+                    "weight": 0.20,
+                    "description": "Appropriate selection and use of available tools",
+                },
+                "error_handling": {
+                    "weight": 0.20,
+                    "description": "Gracefully handles edge cases and failures",
+                },
             },
             "scale": {"min": 1, "max": 5},
         },
@@ -547,10 +607,22 @@ EVAL_TEMPLATES = [
         "description": "Evaluate creative content quality, tone, and audience fit",
         "default_rubric": {
             "criteria": {
-                "clarity": {"weight": 0.30, "description": "Message is clear and easy to understand"},
-                "tone": {"weight": 0.25, "description": "Appropriate tone for the target audience"},
-                "engagement": {"weight": 0.25, "description": "Compelling and holds reader attention"},
-                "accuracy": {"weight": 0.20, "description": "Factually correct and consistent"},
+                "clarity": {
+                    "weight": 0.30,
+                    "description": "Message is clear and easy to understand",
+                },
+                "tone": {
+                    "weight": 0.25,
+                    "description": "Appropriate tone for the target audience",
+                },
+                "engagement": {
+                    "weight": 0.25,
+                    "description": "Compelling and holds reader attention",
+                },
+                "accuracy": {
+                    "weight": 0.20,
+                    "description": "Factually correct and consistent",
+                },
             },
             "scale": {"min": 1, "max": 5},
         },
@@ -606,14 +678,16 @@ async def create_dataset_from_template(
 
     cases = []
     for sc in template.get("sample_cases", []):
-        cases.append({
-            "input_prompt": sc["input_prompt"],
-            "expected_behavior": sc["expected_behavior"],
-            "task_type": f"{template['category']}_generation",
-            "difficulty": "medium",
-            "tags": [template["category"]],
-            "rubric": template["default_rubric"],
-        })
+        cases.append(
+            {
+                "input_prompt": sc["input_prompt"],
+                "expected_behavior": sc["expected_behavior"],
+                "task_type": f"{template['category']}_generation",
+                "difficulty": "medium",
+                "tags": [template["category"]],
+                "rubric": template["default_rubric"],
+            }
+        )
     if cases:
         await builder.add_test_cases_bulk(ds.id, cases)
 
@@ -653,20 +727,24 @@ async def run_benchmark(
                 system_prompt=body.system_prompt,
                 temperature=body.temperature,
             )
-            results.append({
-                "model": model_name,
-                "run_id": eval_run.id,
-                "aggregate_score": eval_run.aggregate_score,
-                "scores_by_category": eval_run.scores_by_category,
-                "status": eval_run.status,
-                "test_cases_evaluated": len(eval_run.per_case_scores or []),
-            })
+            results.append(
+                {
+                    "model": model_name,
+                    "run_id": eval_run.id,
+                    "aggregate_score": eval_run.aggregate_score,
+                    "scores_by_category": eval_run.scores_by_category,
+                    "status": eval_run.status,
+                    "test_cases_evaluated": len(eval_run.per_case_scores or []),
+                }
+            )
         except ValueError as e:
-            results.append({
-                "model": model_name,
-                "status": "error",
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "model": model_name,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
 
     # Sort by aggregate score descending
     scored = [r for r in results if r.get("aggregate_score") is not None]
@@ -721,12 +799,14 @@ async def get_leaderboard(
 
     entries = []
     for i, row in enumerate(rows):
-        entries.append({
-            "rank": i + 1,
-            "model_name": row.model_name,
-            "dataset_id": row.dataset_id,
-            "best_score": round(row.best_score, 2),
-            "run_count": row.run_count,
-        })
+        entries.append(
+            {
+                "rank": i + 1,
+                "model_name": row.model_name,
+                "dataset_id": row.dataset_id,
+                "best_score": round(row.best_score, 2),
+                "run_count": row.run_count,
+            }
+        )
 
     return {"leaderboard": entries, "total": len(entries)}

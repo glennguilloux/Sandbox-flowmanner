@@ -40,6 +40,7 @@ def _get_local_whisper():
     global _local_whisper_model
     if _local_whisper_model is None:
         import whisper
+
         _local_whisper_model = whisper.load_model(
             os.getenv("WHISPER_LOCAL_MODEL", "base")
         )
@@ -157,6 +158,7 @@ class SpeechToTextTranscriberTool(BaseTool):
             # Fall back to local if available
             try:
                 import whisper
+
                 return await self._transcribe_local(audio_bytes, validated)
             except ImportError:
                 return {
@@ -248,12 +250,14 @@ class SpeechToTextTranscriberTool(BaseTool):
 
             segments = []
             for seg in result.get("segments", []):
-                segments.append({
-                    "start": round(seg.get("start", 0), 2),
-                    "end": round(seg.get("end", 0), 2),
-                    "text": seg.get("text", "").strip(),
-                    "confidence": round(seg.get("confidence", 0), 2),
-                })
+                segments.append(
+                    {
+                        "start": round(seg.get("start", 0), 2),
+                        "end": round(seg.get("end", 0), 2),
+                        "text": seg.get("text", "").strip(),
+                        "confidence": round(seg.get("confidence", 0), 2),
+                    }
+                )
 
             return {
                 "text": result.get("text", "").strip(),

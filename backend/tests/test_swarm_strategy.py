@@ -19,6 +19,7 @@ from app.services.substrate.workflow_models import (
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def _make_swarm_workflow(
     fan_out_count=1,
     fan_in_count=1,
@@ -27,9 +28,13 @@ def _make_swarm_workflow(
 ):
     nodes = []
     for i in range(fan_out_count):
-        nodes.append(WorkflowNode(id=f"fo{i}", type=NodeType.FAN_OUT, title=f"Fan Out {i}"))
+        nodes.append(
+            WorkflowNode(id=f"fo{i}", type=NodeType.FAN_OUT, title=f"Fan Out {i}")
+        )
     for i in range(fan_in_count):
-        nodes.append(WorkflowNode(id=f"fi{i}", type=NodeType.FAN_IN, title=f"Fan In {i}"))
+        nodes.append(
+            WorkflowNode(id=f"fi{i}", type=NodeType.FAN_IN, title=f"Fan In {i}")
+        )
     if extra_nodes:
         nodes.extend(extra_nodes)
     return Workflow(
@@ -47,26 +52,41 @@ def _make_swarm_workflow(
 def _make_executor():
     executor = MagicMock()
     executor.is_aborted = MagicMock(return_value=False)
-    executor.execute_node = AsyncMock(return_value={
-        "success": True,
-        "output": {"text": "Agent output"},
-        "tokens": 50,
-        "cost": 0.05,
-    })
-    executor.call_llm = AsyncMock(return_value={
-        "success": True,
-        "response": json.dumps({
-            "subtasks": [
-                {"id": "task_1", "description": "Research phase", "task_type": "research"},
-                {"id": "task_2", "description": "Analysis phase", "task_type": "analysis"},
-            ]
-        }),
-        "tokens": 100,
-    })
+    executor.execute_node = AsyncMock(
+        return_value={
+            "success": True,
+            "output": {"text": "Agent output"},
+            "tokens": 50,
+            "cost": 0.05,
+        }
+    )
+    executor.call_llm = AsyncMock(
+        return_value={
+            "success": True,
+            "response": json.dumps(
+                {
+                    "subtasks": [
+                        {
+                            "id": "task_1",
+                            "description": "Research phase",
+                            "task_type": "research",
+                        },
+                        {
+                            "id": "task_2",
+                            "description": "Analysis phase",
+                            "task_type": "analysis",
+                        },
+                    ]
+                }
+            ),
+            "tokens": 100,
+        }
+    )
     return executor
 
 
 # ── can_handle ───────────────────────────────────────────────────────
+
 
 class TestSwarmCanHandle:
     def test_handles_swarm(self):
@@ -87,6 +107,7 @@ class TestSwarmCanHandle:
 
 
 # ── validate ─────────────────────────────────────────────────────────
+
 
 class TestSwarmValidate:
     @pytest.mark.asyncio
@@ -125,6 +146,7 @@ class TestSwarmValidate:
 
 
 # ── execute ──────────────────────────────────────────────────────────
+
 
 class TestSwarmExecute:
     @pytest.mark.asyncio
@@ -204,10 +226,12 @@ class TestSwarmExecute:
         db = AsyncMock()
         executor = _make_executor()
         # First call (decompose) fails, second (synthesis) succeeds
-        executor.call_llm = AsyncMock(side_effect=[
-            {"success": False, "error": "LLM unavailable"},
-            {"success": True, "response": "Synthesized result", "tokens": 50},
-        ])
+        executor.call_llm = AsyncMock(
+            side_effect=[
+                {"success": False, "error": "LLM unavailable"},
+                {"success": True, "response": "Synthesized result", "tokens": 50},
+            ]
+        )
 
         result = await s.execute(wf, {"goal": "Test goal"}, executor, db)
 
@@ -222,10 +246,12 @@ class TestSwarmExecute:
         wf = _make_swarm_workflow()
         db = AsyncMock()
         executor = _make_executor()
-        executor.call_llm = AsyncMock(side_effect=[
-            {"success": True, "response": "not valid json at all", "tokens": 10},
-            {"success": True, "response": "Done", "tokens": 20},
-        ])
+        executor.call_llm = AsyncMock(
+            side_effect=[
+                {"success": True, "response": "not valid json at all", "tokens": 10},
+                {"success": True, "response": "Done", "tokens": 20},
+            ]
+        )
 
         result = await s.execute(wf, {"goal": "Test"}, executor, db)
 
@@ -239,10 +265,16 @@ class TestSwarmExecute:
         wf = _make_swarm_workflow()
         db = AsyncMock()
         executor = _make_executor()
-        executor.call_llm = AsyncMock(side_effect=[
-            {"success": True, "response": '```json\n{"subtasks": [{"id": "t1", "description": "A"}]}\n```', "tokens": 10},
-            {"success": True, "response": "Done", "tokens": 20},
-        ])
+        executor.call_llm = AsyncMock(
+            side_effect=[
+                {
+                    "success": True,
+                    "response": '```json\n{"subtasks": [{"id": "t1", "description": "A"}]}\n```',
+                    "tokens": 10,
+                },
+                {"success": True, "response": "Done", "tokens": 20},
+            ]
+        )
 
         result = await s.execute(wf, {"goal": "Test"}, executor, db)
 
@@ -271,9 +303,12 @@ class TestSwarmExecute:
         wf = _make_swarm_workflow()
         db = AsyncMock()
         executor = _make_executor()
-        executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "Agent failed",
-        })
+        executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Agent failed",
+            }
+        )
 
         result = await s.execute(wf, {"goal": "Test"}, executor, db)
 
@@ -291,10 +326,18 @@ class TestSwarmExecute:
         wf = _make_swarm_workflow()
         db = AsyncMock()
         executor = _make_executor()
-        executor.call_llm = AsyncMock(side_effect=[
-            {"success": True, "response": json.dumps({"subtasks": [{"id": "t1", "description": "A"}]}), "tokens": 10},
-            {"success": False, "error": "Synthesis failed"},
-        ])
+        executor.call_llm = AsyncMock(
+            side_effect=[
+                {
+                    "success": True,
+                    "response": json.dumps(
+                        {"subtasks": [{"id": "t1", "description": "A"}]}
+                    ),
+                    "tokens": 10,
+                },
+                {"success": False, "error": "Synthesis failed"},
+            ]
+        )
 
         result = await s.execute(wf, {"goal": "Test"}, executor, db)
 
@@ -308,16 +351,32 @@ class TestSwarmExecute:
         wf = _make_swarm_workflow()
         db = AsyncMock()
         executor = _make_executor()
-        executor.call_llm = AsyncMock(side_effect=[
-            {"success": True, "response": json.dumps({
-                "subtasks": [
-                    {"id": "t1", "description": "Research", "agent_name": "Researcher"},
-                    {"id": "t2", "description": "Analysis"},
-                    {"id": "t3", "description": "Review", "task_type": "review"},
-                ]
-            }), "tokens": 50},
-            {"success": True, "response": "Synthesis done", "tokens": 100},
-        ])
+        executor.call_llm = AsyncMock(
+            side_effect=[
+                {
+                    "success": True,
+                    "response": json.dumps(
+                        {
+                            "subtasks": [
+                                {
+                                    "id": "t1",
+                                    "description": "Research",
+                                    "agent_name": "Researcher",
+                                },
+                                {"id": "t2", "description": "Analysis"},
+                                {
+                                    "id": "t3",
+                                    "description": "Review",
+                                    "task_type": "review",
+                                },
+                            ]
+                        }
+                    ),
+                    "tokens": 50,
+                },
+                {"success": True, "response": "Synthesis done", "tokens": 100},
+            ]
+        )
 
         result = await s.execute(wf, {"goal": "Multi-task goal"}, executor, db)
 
@@ -344,19 +403,30 @@ class TestSwarmExecute:
 
 # ── _decompose ───────────────────────────────────────────────────────
 
+
 class TestSwarmDecompose:
     @pytest.mark.asyncio
     async def test_decompose_success(self):
         s = SwarmStrategy()
         wf = _make_swarm_workflow()
         executor = MagicMock()
-        executor.call_llm = AsyncMock(return_value={
-            "success": True,
-            "response": json.dumps({
-                "subtasks": [{"id": "t1", "description": "First task", "task_type": "research"}]
-            }),
-            "tokens": 50,
-        })
+        executor.call_llm = AsyncMock(
+            return_value={
+                "success": True,
+                "response": json.dumps(
+                    {
+                        "subtasks": [
+                            {
+                                "id": "t1",
+                                "description": "First task",
+                                "task_type": "research",
+                            }
+                        ]
+                    }
+                ),
+                "tokens": 50,
+            }
+        )
 
         result = await s._decompose("Test goal", executor, wf, "run-1")
 
@@ -368,9 +438,12 @@ class TestSwarmDecompose:
         s = SwarmStrategy()
         wf = _make_swarm_workflow()
         executor = MagicMock()
-        executor.call_llm = AsyncMock(return_value={
-            "success": False, "error": "Rate limited",
-        })
+        executor.call_llm = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Rate limited",
+            }
+        )
 
         result = await s._decompose("Goal", executor, wf, "run-1")
 
@@ -383,11 +456,13 @@ class TestSwarmDecompose:
         s = SwarmStrategy()
         wf = _make_swarm_workflow()
         executor = MagicMock()
-        executor.call_llm = AsyncMock(return_value={
-            "success": True,
-            "response": "I can't parse this as JSON",
-            "tokens": 10,
-        })
+        executor.call_llm = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "I can't parse this as JSON",
+                "tokens": 10,
+            }
+        )
 
         result = await s._decompose("Goal", executor, wf, "run-1")
 
@@ -399,11 +474,13 @@ class TestSwarmDecompose:
         s = SwarmStrategy()
         wf = _make_swarm_workflow()
         executor = MagicMock()
-        executor.call_llm = AsyncMock(return_value={
-            "success": True,
-            "response": '```json\n{"subtasks": [{"id": "t1", "description": "A"}]}\n```',
-            "tokens": 10,
-        })
+        executor.call_llm = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '```json\n{"subtasks": [{"id": "t1", "description": "A"}]}\n```',
+                "tokens": 10,
+            }
+        )
 
         result = await s._decompose("Goal", executor, wf, "run-1")
 
@@ -415,11 +492,13 @@ class TestSwarmDecompose:
         s = SwarmStrategy()
         wf = _make_swarm_workflow()
         executor = MagicMock()
-        executor.call_llm = AsyncMock(return_value={
-            "success": True,
-            "response": '{"subtasks": [{"id": "t1", "description": "A"}]}\n```',
-            "tokens": 10,
-        })
+        executor.call_llm = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"subtasks": [{"id": "t1", "description": "A"}]}\n```',
+                "tokens": 10,
+            }
+        )
 
         result = await s._decompose("Goal", executor, wf, "run-1")
 
@@ -430,11 +509,13 @@ class TestSwarmDecompose:
         s = SwarmStrategy()
         wf = _make_swarm_workflow()
         executor = MagicMock()
-        executor.call_llm = AsyncMock(return_value={
-            "success": True,
-            "response": json.dumps({"subtasks": []}),
-            "tokens": 10,
-        })
+        executor.call_llm = AsyncMock(
+            return_value={
+                "success": True,
+                "response": json.dumps({"subtasks": []}),
+                "tokens": 10,
+            }
+        )
 
         result = await s._decompose("Goal", executor, wf, "run-1")
 

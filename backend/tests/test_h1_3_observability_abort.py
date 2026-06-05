@@ -80,10 +80,8 @@ class TestTransitionStatus:
         mock_db.add.assert_called()
         args = mock_db.add.call_args_list
         from app.models.mission_models import MissionLog
-        log_entries = [
-            a[0][0] for a in args
-            if isinstance(a[0][0], MissionLog)
-        ]
+
+        log_entries = [a[0][0] for a in args if isinstance(a[0][0], MissionLog)]
         assert len(log_entries) >= 1, "_transition_status must create a MissionLog"
 
         log = log_entries[0]
@@ -94,7 +92,9 @@ class TestTransitionStatus:
         assert "Test failure" in log.data["cause"]
 
     @pytest.mark.asyncio
-    async def test_transition_status_sets_completed_at_for_terminal_states(self, mock_db, mock_mission):
+    async def test_transition_status_sets_completed_at_for_terminal_states(
+        self, mock_db, mock_mission
+    ):
         """Terminal states (completed, failed, aborted) must set completed_at."""
         from app.services.mission_executor import MissionExecutor
 
@@ -105,12 +105,14 @@ class TestTransitionStatus:
             await executor._transition_status(
                 mock_db, mock_mission, terminal_state, cause=f"Test {terminal_state}"
             )
-            assert mock_mission.completed_at is not None, (
-                f"Terminal state '{terminal_state}' must set completed_at"
-            )
+            assert (
+                mock_mission.completed_at is not None
+            ), f"Terminal state '{terminal_state}' must set completed_at"
 
     @pytest.mark.asyncio
-    async def test_transition_status_does_not_set_completed_at_for_non_terminal(self, mock_db, mock_mission):
+    async def test_transition_status_does_not_set_completed_at_for_non_terminal(
+        self, mock_db, mock_mission
+    ):
         """Non-terminal states should NOT set completed_at."""
         from app.services.mission_executor import MissionExecutor
 
@@ -121,9 +123,9 @@ class TestTransitionStatus:
             await executor._transition_status(
                 mock_db, mock_mission, non_terminal, cause=f"Test {non_terminal}"
             )
-            assert mock_mission.completed_at is None, (
-                f"Non-terminal state '{non_terminal}' must NOT set completed_at"
-            )
+            assert (
+                mock_mission.completed_at is None
+            ), f"Non-terminal state '{non_terminal}' must NOT set completed_at"
 
 
 class TestMissionStatusTransitionsAreLogged:
@@ -137,7 +139,9 @@ class TestMissionStatusTransitionsAreLogged:
         executor = MissionExecutor()
 
         # Simulate plan_mission's PermanentMissionError path
-        with patch.object(executor, "_transition_status", new_callable=AsyncMock) as mock_transition:
+        with patch.object(
+            executor, "_transition_status", new_callable=AsyncMock
+        ) as mock_transition:
             mock_transition.side_effect = None  # successful transition
 
             # The plan_mission method catches PermanentMissionError and calls
@@ -146,7 +150,9 @@ class TestMissionStatusTransitionsAreLogged:
             executor._transition_status = mock_transition
 
             await executor._transition_status(
-                AsyncMock(), mock_mission, "failed",
+                AsyncMock(),
+                mock_mission,
+                "failed",
                 cause="Test",
                 error_message="Test error",
                 level="error",
@@ -164,11 +170,15 @@ class TestMissionStatusTransitionsAreLogged:
 
         executor = MissionExecutor()
 
-        with patch.object(executor, "_transition_status", new_callable=AsyncMock) as mock_transition:
+        with patch.object(
+            executor, "_transition_status", new_callable=AsyncMock
+        ) as mock_transition:
             executor._transition_status = mock_transition
 
             await executor._transition_status(
-                AsyncMock(), mock_mission, "failed",
+                AsyncMock(),
+                mock_mission,
+                "failed",
                 cause="Permanent error: Test",
                 error_message="Test permanent error",
                 level="error",
@@ -191,14 +201,18 @@ class TestLlmCallRecording:
 
         # Mock the router to return success
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "# Report\n\nContent here.",
-            "cost": {"input_tokens": 50, "output_tokens": 100},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "# Report\n\nContent here.",
+                "cost": {"input_tokens": 50, "output_tokens": 100},
+            }
+        )
         executor.model_router = mock_router
 
-        with patch.object(executor, "_record_llm_call", new_callable=AsyncMock) as mock_record:
+        with patch.object(
+            executor, "_record_llm_call", new_callable=AsyncMock
+        ) as mock_record:
             executor._record_llm_call = mock_record
 
             mock_mission = MagicMock()
@@ -278,9 +292,9 @@ class TestSwarmOrchestratorObservability:
         """SwarmOrchestrator must have _transition_execution_status."""
         from app.services.swarm.orchestrator import SwarmOrchestrator
 
-        assert hasattr(SwarmOrchestrator, "_transition_execution_status"), (
-            "SwarmOrchestrator is missing _transition_execution_status"
-        )
+        assert hasattr(
+            SwarmOrchestrator, "_transition_execution_status"
+        ), "SwarmOrchestrator is missing _transition_execution_status"
 
     @pytest.mark.asyncio
     async def test_transition_execution_status_logs(self):

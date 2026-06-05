@@ -18,6 +18,7 @@ from app.services.substrate.workflow_models import (
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def _make_graph_workflow(
     nodes=None,
     edges=None,
@@ -48,13 +49,19 @@ def _make_graph_workflow(
 def _mock_executor(is_aborted=False):
     executor = MagicMock()
     executor.is_aborted = MagicMock(return_value=is_aborted)
-    executor.execute_node = AsyncMock(return_value={
-        "success": True, "output": {"text": "ok"}, "tokens": 10, "cost": 0.01,
-    })
+    executor.execute_node = AsyncMock(
+        return_value={
+            "success": True,
+            "output": {"text": "ok"},
+            "tokens": 10,
+            "cost": 0.01,
+        }
+    )
     return executor
 
 
 # ── can_handle ───────────────────────────────────────────────────────
+
 
 class TestGraphCanHandle:
     def test_handles_graph(self):
@@ -75,6 +82,7 @@ class TestGraphCanHandle:
 
 
 # ── validate ─────────────────────────────────────────────────────────
+
 
 class TestGraphValidate:
     @pytest.mark.asyncio
@@ -130,6 +138,7 @@ class TestGraphValidate:
 
 
 # ── execute ──────────────────────────────────────────────────────────
+
 
 class TestGraphExecute:
     @pytest.mark.asyncio
@@ -187,9 +196,12 @@ class TestGraphExecute:
         )
         db = AsyncMock()
         executor = _mock_executor()
-        executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "boom",
-        })
+        executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "boom",
+            }
+        )
 
         result = await s.execute(wf, {}, executor, db)
 
@@ -242,12 +254,14 @@ class TestGraphExecute:
         )
         db = AsyncMock()
         executor = _mock_executor()
-        executor.execute_node = AsyncMock(return_value={
-            "success": True,
-            "output": {"pause": True, "reason": "needs approval"},
-            "tokens": 5,
-            "cost": 0.005,
-        })
+        executor.execute_node = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {"pause": True, "reason": "needs approval"},
+                "tokens": 5,
+                "cost": 0.005,
+            }
+        )
 
         result = await s.execute(wf, {}, executor, db)
 
@@ -299,10 +313,13 @@ class TestGraphExecute:
             WorkflowNode(id="check", type="llm_call", title="Check"),
             WorkflowNode(id="next", type="llm_call", title="Next"),
         ]
-        edges = [WorkflowEdge(
-            source="check", target="next",
-            condition="{{check.status}}",
-        )]
+        edges = [
+            WorkflowEdge(
+                source="check",
+                target="next",
+                condition="{{check.status}}",
+            )
+        ]
         wf = _make_graph_workflow(nodes=nodes, edges=edges)
         db = AsyncMock()
         executor = _mock_executor()
@@ -314,8 +331,18 @@ class TestGraphExecute:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return {"success": True, "output": {"status": "success"}, "tokens": 5, "cost": 0.005}
-            return {"success": True, "output": {"text": "done"}, "tokens": 5, "cost": 0.005}
+                return {
+                    "success": True,
+                    "output": {"status": "success"},
+                    "tokens": 5,
+                    "cost": 0.005,
+                }
+            return {
+                "success": True,
+                "output": {"text": "done"},
+                "tokens": 5,
+                "cost": 0.005,
+            }
 
         executor.execute_node = AsyncMock(side_effect=mock_execute)
 
@@ -376,8 +403,10 @@ class TestGraphExecute:
         executor = _mock_executor()
 
         result = await s.execute(
-            wf, {"previous_outputs": {"prior": {"text": "cached"}}, "start_node_id": None},
-            executor, db,
+            wf,
+            {"previous_outputs": {"prior": {"text": "cached"}}, "start_node_id": None},
+            executor,
+            db,
         )
 
         assert result.success is True
@@ -410,6 +439,7 @@ class TestGraphExecute:
 
 
 # ── _get_subgraph_ids ────────────────────────────────────────────────
+
 
 class TestGraphSubgraphIds:
     def test_subgraph_from_root(self):
@@ -449,6 +479,7 @@ class TestGraphSubgraphIds:
 
 # ── _evaluate_condition ──────────────────────────────────────────────
 
+
 class TestEvaluateCondition:
     def test_no_condition_returns_true(self):
         s = GraphStrategy()
@@ -465,7 +496,9 @@ class TestEvaluateCondition:
         s = GraphStrategy()
         for val in ("true", "success", "completed", "True", "SUCCESS"):
             edge = WorkflowEdge(source="a", target="b", condition="{{a.output.s}}")
-            assert s._evaluate_condition(edge, {"a": {"output": {"s": val}}}) is True, f"Failed for {val}"
+            assert (
+                s._evaluate_condition(edge, {"a": {"output": {"s": val}}}) is True
+            ), f"Failed for {val}"
 
     def test_string_false(self):
         s = GraphStrategy()
@@ -482,11 +515,14 @@ class TestEvaluateCondition:
         """If condition resolution raises, default to True."""
         s = GraphStrategy()
         edge = WorkflowEdge(source="a", target="b", condition="always")
-        with patch.object(s, "_resolve_interpolation", side_effect=RuntimeError("boom")):
+        with patch.object(
+            s, "_resolve_interpolation", side_effect=RuntimeError("boom")
+        ):
             assert s._evaluate_condition(edge, {}) is True
 
 
 # ── _resolve_interpolation ───────────────────────────────────────────
+
 
 class TestResolveInterpolation:
     def test_non_string_passthrough(self):
@@ -524,6 +560,7 @@ class TestResolveInterpolation:
 
 # ── _resolve_ref ─────────────────────────────────────────────────────
 
+
 class TestResolveRef:
     def test_simple_ref(self):
         s = GraphStrategy()
@@ -531,7 +568,9 @@ class TestResolveRef:
 
     def test_nested_ref(self):
         s = GraphStrategy()
-        assert s._resolve_ref("n1.output.text", {"n1": {"output": {"text": "hi"}}}) == "hi"
+        assert (
+            s._resolve_ref("n1.output.text", {"n1": {"output": {"text": "hi"}}}) == "hi"
+        )
 
     def test_missing_node(self):
         s = GraphStrategy()
@@ -539,10 +578,13 @@ class TestResolveRef:
 
     def test_traversal_through_non_dict(self):
         s = GraphStrategy()
-        assert s._resolve_ref("n1.output.text.deep", {"n1": {"output": "scalar"}}) is None
+        assert (
+            s._resolve_ref("n1.output.text.deep", {"n1": {"output": "scalar"}}) is None
+        )
 
 
 # ── _topological_sort_for_ids ────────────────────────────────────────
+
 
 class TestGraphTopologicalSort:
     def test_single_node(self):
@@ -606,7 +648,8 @@ class TestGraphTopologicalSort:
         ]
         wf = _make_graph_workflow(nodes=nodes, edges=edges)
         # Only sort {b, c}
-        layers = s._topological_sort_for_ids(wf, {"b", "c"},
-            [WorkflowEdge(source="b", target="c")])
+        layers = s._topological_sort_for_ids(
+            wf, {"b", "c"}, [WorkflowEdge(source="b", target="c")]
+        )
         assert layers[0] == ["b"]
         assert layers[1] == ["c"]

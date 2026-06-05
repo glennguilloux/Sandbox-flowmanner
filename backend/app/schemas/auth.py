@@ -35,10 +35,12 @@ class LoginRequest(BaseModel):
     username_or_email: str | None = None
     password: str
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_email_or_username(self):
         if not self.email and not self.username and not self.username_or_email:
-            raise ValueError('Either email, username, or username_or_email must be provided')
+            raise ValueError(
+                "Either email, username, or username_or_email must be provided"
+            )
         return self
 
 

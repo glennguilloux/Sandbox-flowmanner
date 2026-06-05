@@ -20,6 +20,7 @@ from app.services.memory_service import MemoryService, _MISSING
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def _make_entry(**overrides):
     """Build a mock MemoryEntry row."""
     from app.models.memory_models import MemoryEntry
@@ -357,6 +358,7 @@ class TestSingleton:
 
         # Reset singleton for test isolation
         import app.services.memory_service as mod
+
         mod._memory_service_instance = None
 
         svc = get_memory_service()

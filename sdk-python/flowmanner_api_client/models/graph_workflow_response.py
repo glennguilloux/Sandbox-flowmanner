@@ -1,42 +1,37 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
-
-
-
+    from ..models.graph_workflow_response_graph_definition_type_0 import (
+        GraphWorkflowResponseGraphDefinitionType0,
+    )
 
 
 T = TypeVar("T", bound="GraphWorkflowResponse")
 
 
-
 @_attrs_define
 class GraphWorkflowResponse:
-    """ 
-        Attributes:
-            id (str):
-            name (str):
-            created_at (datetime.datetime):
-            updated_at (datetime.datetime):
-            description (None | str | Unset):
-            graph_definition (GraphWorkflowResponseGraphDefinitionType0 | None | Unset):
-            status (str | Unset):  Default: 'draft'.
-            user_id (int | None | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        name (str):
+        created_at (datetime.datetime):
+        updated_at (datetime.datetime):
+        description (None | str | Unset):
+        graph_definition (GraphWorkflowResponseGraphDefinitionType0 | None | Unset):
+        status (str | Unset):  Default: 'draft'.
+        user_id (int | None | Unset):
+    """
 
     id: str
     name: str
@@ -44,16 +39,15 @@ class GraphWorkflowResponse:
     updated_at: datetime.datetime
     description: None | str | Unset = UNSET
     graph_definition: GraphWorkflowResponseGraphDefinitionType0 | None | Unset = UNSET
-    status: str | Unset = 'draft'
+    status: str | Unset = "draft"
     user_id: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
+        from ..models.graph_workflow_response_graph_definition_type_0 import (
+            GraphWorkflowResponseGraphDefinitionType0,
+        )
+
         id = self.id
 
         name = self.name
@@ -71,7 +65,9 @@ class GraphWorkflowResponse:
         graph_definition: dict[str, Any] | None | Unset
         if isinstance(self.graph_definition, Unset):
             graph_definition = UNSET
-        elif isinstance(self.graph_definition, GraphWorkflowResponseGraphDefinitionType0):
+        elif isinstance(
+            self.graph_definition, GraphWorkflowResponseGraphDefinitionType0
+        ):
             graph_definition = self.graph_definition.to_dict()
         else:
             graph_definition = self.graph_definition
@@ -84,15 +80,16 @@ class GraphWorkflowResponse:
         else:
             user_id = self.user_id
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "name": name,
-            "created_at": created_at,
-            "updated_at": updated_at,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "name": name,
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if graph_definition is not UNSET:
@@ -104,11 +101,12 @@ class GraphWorkflowResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
+        from ..models.graph_workflow_response_graph_definition_type_0 import (
+            GraphWorkflowResponseGraphDefinitionType0,
+        )
+
         d = dict(src_dict)
         id = d.pop("id")
 
@@ -116,13 +114,7 @@ class GraphWorkflowResponse:
 
         created_at = isoparse(d.pop("created_at"))
 
-
-
-
         updated_at = isoparse(d.pop("updated_at"))
-
-
-
 
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
@@ -133,8 +125,9 @@ class GraphWorkflowResponse:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
-        def _parse_graph_definition(data: object) -> GraphWorkflowResponseGraphDefinitionType0 | None | Unset:
+        def _parse_graph_definition(
+            data: object,
+        ) -> GraphWorkflowResponseGraphDefinitionType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -142,9 +135,9 @@ class GraphWorkflowResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                graph_definition_type_0 = GraphWorkflowResponseGraphDefinitionType0.from_dict(data)
-
-
+                graph_definition_type_0 = (
+                    GraphWorkflowResponseGraphDefinitionType0.from_dict(data)
+                )
 
                 return graph_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -152,7 +145,6 @@ class GraphWorkflowResponse:
             return cast(GraphWorkflowResponseGraphDefinitionType0 | None | Unset, data)
 
         graph_definition = _parse_graph_definition(d.pop("graph_definition", UNSET))
-
 
         status = d.pop("status", UNSET)
 
@@ -165,7 +157,6 @@ class GraphWorkflowResponse:
 
         user_id = _parse_user_id(d.pop("user_id", UNSET))
 
-
         graph_workflow_response = cls(
             id=id,
             name=name,
@@ -176,7 +167,6 @@ class GraphWorkflowResponse:
             status=status,
             user_id=user_id,
         )
-
 
         graph_workflow_response.additional_properties = d
         return graph_workflow_response

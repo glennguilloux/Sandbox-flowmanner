@@ -1,41 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
 T = TypeVar("T", bound="SynthesizeRequest")
-
 
 
 @_attrs_define
 class SynthesizeRequest:
-    """ 
-        Attributes:
-            mode (str | Unset):  Default: 'auto'.
-            include_task_analysis (bool | Unset):  Default: True.
-            include_patterns (bool | Unset):  Default: True.
-     """
+    """
+    Attributes:
+        mode (str | Unset):  Default: 'auto'.
+        include_task_analysis (bool | Unset):  Default: True.
+        include_patterns (bool | Unset):  Default: True.
+    """
 
-    mode: str | Unset = 'auto'
+    mode: str | Unset = "auto"
     include_task_analysis: bool | Unset = True
     include_patterns: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         mode = self.mode
@@ -44,11 +32,9 @@ class SynthesizeRequest:
 
         include_patterns = self.include_patterns
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if mode is not UNSET:
             field_dict["mode"] = mode
         if include_task_analysis is not UNSET:
@@ -57,8 +43,6 @@ class SynthesizeRequest:
             field_dict["include_patterns"] = include_patterns
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -74,7 +58,6 @@ class SynthesizeRequest:
             include_task_analysis=include_task_analysis,
             include_patterns=include_patterns,
         )
-
 
         synthesize_request.additional_properties = d
         return synthesize_request

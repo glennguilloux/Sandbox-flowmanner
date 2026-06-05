@@ -68,15 +68,19 @@ class WikipediaFetcherInput(ToolInput):
         description="Section index to fetch content from (for get_section_content)",
     )
     language: str = Field(
-        'en',
+        "en",
         description=f"Wikipedia language code (default: en)",
     )
     max_results: int = Field(
-        10, ge=1, le=50,
+        10,
+        ge=1,
+        le=50,
         description="Maximum search results to return",
     )
     max_chars: int = Field(
-        50000, ge=100, le=200000,
+        50000,
+        ge=100,
+        le=200000,
         description="Maximum characters to return for article content",
     )
 
@@ -179,6 +183,7 @@ class WikipediaFetcherTool(BaseTool):
         text = soup.get_text(separator="\n", strip=True)
         # Collapse blank lines
         import re
+
         text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()
 
@@ -199,7 +204,8 @@ class WikipediaFetcherTool(BaseTool):
 
         async with httpx.AsyncClient(timeout=WIKI_TIMEOUT) as client:
             resp = await client.get(
-                _wiki_api_base(validated.language), params=params,
+                _wiki_api_base(validated.language),
+                params=params,
                 headers={"User-Agent": "Flowmanner/1.0"},
             )
             resp.raise_for_status()
@@ -222,7 +228,7 @@ class WikipediaFetcherTool(BaseTool):
             "title": parse.get("title", validated.title),
             "page_id": parse.get("pageid"),
             "url": self._build_article_url(validated.title, validated.language),
-            "content": content[:validated.max_chars],
+            "content": content[: validated.max_chars],
             "content_length": len(content),
             "truncated": len(content) > validated.max_chars,
         }
@@ -245,7 +251,8 @@ class WikipediaFetcherTool(BaseTool):
 
         async with httpx.AsyncClient(timeout=WIKI_TIMEOUT) as client:
             resp = await client.get(
-                _wiki_api_base(validated.language), params=params,
+                _wiki_api_base(validated.language),
+                params=params,
                 headers={"User-Agent": "Flowmanner/1.0"},
             )
             resp.raise_for_status()
@@ -265,7 +272,7 @@ class WikipediaFetcherTool(BaseTool):
             "title": page.get("title", validated.title),
             "page_id": page.get("pageid"),
             "url": self._build_article_url(validated.title, validated.language),
-            "summary": page.get("extract", "")[:validated.max_chars],
+            "summary": page.get("extract", "")[: validated.max_chars],
         }
 
     async def _search(self, validated: WikipediaFetcherInput) -> dict[str, Any]:
@@ -284,7 +291,8 @@ class WikipediaFetcherTool(BaseTool):
 
         async with httpx.AsyncClient(timeout=WIKI_TIMEOUT) as client:
             resp = await client.get(
-                _wiki_api_base(validated.language), params=params,
+                _wiki_api_base(validated.language),
+                params=params,
                 headers={"User-Agent": "Flowmanner/1.0"},
             )
             resp.raise_for_status()
@@ -293,19 +301,27 @@ class WikipediaFetcherTool(BaseTool):
         results = data.get("query", {}).get("search", [])
         articles = []
         for r in results:
-            articles.append({
-                "title": r.get("title", ""),
-                "page_id": r.get("pageid"),
-                "snippet": BeautifulSoup(r.get("snippet", ""), "html.parser").get_text(),
-                "word_count": r.get("wordcount", 0),
-                "url": self._build_article_url(r.get("title", ""), validated.language),
-            })
+            articles.append(
+                {
+                    "title": r.get("title", ""),
+                    "page_id": r.get("pageid"),
+                    "snippet": BeautifulSoup(
+                        r.get("snippet", ""), "html.parser"
+                    ).get_text(),
+                    "word_count": r.get("wordcount", 0),
+                    "url": self._build_article_url(
+                        r.get("title", ""), validated.language
+                    ),
+                }
+            )
 
         return {
             "action": "search",
             "query": validated.query,
             "language": validated.language or DEFAULT_LANGUAGE,
-            "total_hits": data.get("query", {}).get("searchinfo", {}).get("totalhits", 0),
+            "total_hits": data.get("query", {})
+            .get("searchinfo", {})
+            .get("totalhits", 0),
             "result_count": len(articles),
             "results": articles,
         }
@@ -325,7 +341,8 @@ class WikipediaFetcherTool(BaseTool):
 
         async with httpx.AsyncClient(timeout=WIKI_TIMEOUT) as client:
             resp = await client.get(
-                _wiki_api_base(validated.language), params=params,
+                _wiki_api_base(validated.language),
+                params=params,
                 headers={"User-Agent": "Flowmanner/1.0"},
             )
             resp.raise_for_status()
@@ -375,7 +392,8 @@ class WikipediaFetcherTool(BaseTool):
 
         async with httpx.AsyncClient(timeout=WIKI_TIMEOUT) as client:
             resp = await client.get(
-                _wiki_api_base(validated.language), params=params,
+                _wiki_api_base(validated.language),
+                params=params,
                 headers={"User-Agent": "Flowmanner/1.0"},
             )
             resp.raise_for_status()
@@ -397,7 +415,7 @@ class WikipediaFetcherTool(BaseTool):
             "action": "get_section_content",
             "title": parse.get("title", validated.title),
             "section_index": validated.section_index,
-            "content": content[:validated.max_chars],
+            "content": content[: validated.max_chars],
             "content_length": len(content),
         }
 

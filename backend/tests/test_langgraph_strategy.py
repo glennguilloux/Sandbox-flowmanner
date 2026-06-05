@@ -17,6 +17,7 @@ from app.services.substrate.workflow_models import (
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def _make_langgraph_workflow(
     node_count=1,
     graph_name="test_graph",
@@ -45,16 +46,19 @@ def _make_langgraph_workflow(
 def _make_executor():
     executor = MagicMock()
     executor.is_aborted = MagicMock(return_value=False)
-    executor.execute_node = AsyncMock(return_value={
-        "success": True,
-        "output": {"text": "Fallback output"},
-        "tokens": 30,
-        "cost": 0.03,
-    })
+    executor.execute_node = AsyncMock(
+        return_value={
+            "success": True,
+            "output": {"text": "Fallback output"},
+            "tokens": 30,
+            "cost": 0.03,
+        }
+    )
     return executor
 
 
 # ── can_handle ───────────────────────────────────────────────────────
+
 
 class TestLangGraphCanHandle:
     def test_handles_langgraph(self):
@@ -88,6 +92,7 @@ class TestLangGraphCanHandle:
 
 # ── validate ─────────────────────────────────────────────────────────
 
+
 class TestLangGraphValidate:
     @pytest.mark.asyncio
     async def test_valid_workflow(self):
@@ -110,7 +115,9 @@ class TestLangGraphValidate:
             id=str(uuid4()),
             type=WorkflowType.LANGGRAPH,
             title="Bad",
-            nodes=[WorkflowNode(id="n1", type="llm_call", title="No graph name", config={})],
+            nodes=[
+                WorkflowNode(id="n1", type="llm_call", title="No graph name", config={})
+            ],
             user_id="1",
         )
         errors = await s.validate(wf)
@@ -127,7 +134,9 @@ class TestLangGraphValidate:
     async def test_one_node_missing_graph_name(self):
         s = LangGraphStrategy()
         nodes = [
-            WorkflowNode(id="good", type="llm_call", title="Good", config={"graph_name": "g"}),
+            WorkflowNode(
+                id="good", type="llm_call", title="Good", config={"graph_name": "g"}
+            ),
             WorkflowNode(id="bad", type="llm_call", title="Bad", config={}),
         ]
         wf = Workflow(
@@ -143,6 +152,7 @@ class TestLangGraphValidate:
 
 
 # ── execute ──────────────────────────────────────────────────────────
+
 
 class TestLangGraphExecute:
     @pytest.mark.asyncio
@@ -169,9 +179,12 @@ class TestLangGraphExecute:
         wf = _make_langgraph_workflow(node_count=1)
         db = AsyncMock()
         executor = _make_executor()
-        executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "Fallback also failed",
-        })
+        executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Fallback also failed",
+            }
+        )
 
         result = await s.execute(wf, {}, executor, db)
 
@@ -224,7 +237,12 @@ class TestLangGraphExecute:
             call_count += 1
             if call_count == 2:
                 return {"success": False, "error": "Node 1 failed"}
-            return {"success": True, "output": {"text": "ok"}, "tokens": 10, "cost": 0.01}
+            return {
+                "success": True,
+                "output": {"text": "ok"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
 
         executor.execute_node = AsyncMock(side_effect=alternating)
 
@@ -272,7 +290,12 @@ class TestLangGraphExecute:
 
         async def track_and_succeed(*args, **kwargs):
             nodes_executed.append("x")
-            return {"success": True, "output": {"text": "ok"}, "tokens": 10, "cost": 0.01}
+            return {
+                "success": True,
+                "output": {"text": "ok"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
 
         executor.execute_node = AsyncMock(side_effect=track_and_succeed)
 
@@ -293,33 +316,50 @@ class TestLangGraphExecute:
 
 # ── _execute_langgraph_node ─────────────────────────────────────────
 
+
 class TestExecuteLangGraphNode:
     @pytest.mark.asyncio
     async def test_import_error_returns_not_available(self):
         """When LangGraph module is not importable, returns error."""
         s = LangGraphStrategy()
         node = WorkflowNode(
-            id="n1", type="llm_call", title="N1",
+            id="n1",
+            type="llm_call",
+            title="N1",
             config={"graph_name": "test"},
         )
         wf = _make_langgraph_workflow()
         executor = MagicMock()
         db = AsyncMock()
 
-        with patch.dict("sys.modules", {"app.services.langgraph": None, "app.services.langgraph.agent": None}):
+        with patch.dict(
+            "sys.modules",
+            {"app.services.langgraph": None, "app.services.langgraph.agent": None},
+        ):
             result = await s._execute_langgraph_node(
-                node, {}, executor, db, "run-1", wf,
+                node,
+                {},
+                executor,
+                db,
+                "run-1",
+                wf,
             )
 
         assert result["success"] is False
-        assert "not available" in result["error"].lower() or "import" in result["error"].lower() or "module" in result["error"].lower()
+        assert (
+            "not available" in result["error"].lower()
+            or "import" in result["error"].lower()
+            or "module" in result["error"].lower()
+        )
 
     @pytest.mark.asyncio
     async def test_native_not_wired_returns_error(self):
         """When LangGraph module is available but native execution isn't wired."""
         s = LangGraphStrategy()
         node = WorkflowNode(
-            id="n1", type="llm_call", title="N1",
+            id="n1",
+            type="llm_call",
+            title="N1",
             config={"graph_name": "test"},
         )
         wf = _make_langgraph_workflow()
@@ -328,13 +368,24 @@ class TestExecuteLangGraphNode:
 
         # Mock the import to succeed (LangGraphAgent exists)
         mock_module = MagicMock()
-        with patch.dict("sys.modules", {
-            "app.services.langgraph": mock_module,
-            "app.services.langgraph.agent": mock_module,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "app.services.langgraph": mock_module,
+                "app.services.langgraph.agent": mock_module,
+            },
+        ):
             result = await s._execute_langgraph_node(
-                node, {}, executor, db, "run-1", wf,
+                node,
+                {},
+                executor,
+                db,
+                "run-1",
+                wf,
             )
 
         assert result["success"] is False
-        assert "not yet wired" in result["error"].lower() or "shared executor" in result["error"].lower()
+        assert (
+            "not yet wired" in result["error"].lower()
+            or "shared executor" in result["error"].lower()
+        )

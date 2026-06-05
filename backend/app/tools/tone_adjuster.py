@@ -83,9 +83,7 @@ class ToneAdjusterTool(BaseTool):
         tone_description = TONES[target_tone]
         text = validated.text.strip()
         if not text:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="Text is empty"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="Text is empty")
 
         try:
             import openai
@@ -108,7 +106,9 @@ class ToneAdjusterTool(BaseTool):
                     "Keep the output approximately the same length as the input. "
                 )
             if validated.custom_instructions:
-                system_prompt += f"Additional instructions: {validated.custom_instructions}"
+                system_prompt += (
+                    f"Additional instructions: {validated.custom_instructions}"
+                )
 
             response = await client.chat.completions.create(
                 model=model,

@@ -42,6 +42,7 @@ async def get_reliability_report():
     # Enrich with Langfuse trace stats
     try:
         from app.services.langfuse_service import get_langfuse_service
+
         langfuse = get_langfuse_service()
         report["langfuse_trace_stats"] = langfuse.get_trace_stats()
     except Exception as e:

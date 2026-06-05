@@ -57,7 +57,9 @@ class EscalateRequest(BaseModel):
     error_message: str
     current_agent_id: str | None = None
     current_agent_name: str | None = None
-    policy: str = Field("default", pattern="^(default|aggressive|conservative|never_escalate)$")
+    policy: str = Field(
+        "default", pattern="^(default|aggressive|conservative|never_escalate)$"
+    )
 
 
 class ResolveEscalationRequest(BaseModel):

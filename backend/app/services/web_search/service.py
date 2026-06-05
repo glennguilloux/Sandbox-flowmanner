@@ -2,6 +2,7 @@
 Web Search Service - Main Orchestrator
 Coordinates providers, extraction, and caching
 """
+
 import asyncio
 import logging
 import os
@@ -40,7 +41,7 @@ class WebSearchService:
         self,
         provider_configs: dict[SearchProvider, ProviderConfig] | None = None,
         enable_cache: bool = True,
-        enable_extraction: bool = True
+        enable_extraction: bool = True,
     ):
         self.provider_configs = provider_configs or self._default_configs()
         self.providers: dict[SearchProvider, BaseSearchProvider] = {}
@@ -63,24 +64,22 @@ class WebSearchService:
                 provider=SearchProvider.SEARXNG,
                 base_url=os.getenv("SEARXNG_URL", "http://localhost:55510"),
                 enabled=True,
-                priority=0
+                priority=0,
             ),
             SearchProvider.TAVILY: ProviderConfig(
                 provider=SearchProvider.TAVILY,
                 api_key=os.getenv("TAVILY_API_KEY"),
                 enabled=bool(os.getenv("TAVILY_API_KEY")),
-                priority=1
+                priority=1,
             ),
             SearchProvider.EXA: ProviderConfig(
                 provider=SearchProvider.EXA,
                 api_key=os.getenv("EXA_API_KEY"),
                 enabled=bool(os.getenv("EXA_API_KEY")),
-                priority=2
+                priority=2,
             ),
             SearchProvider.DUCKDUCKGO: ProviderConfig(
-                provider=SearchProvider.DUCKDUCKGO,
-                enabled=True,
-                priority=3
+                provider=SearchProvider.DUCKDUCKGO, enabled=True, priority=3
             ),
         }
 
@@ -93,7 +92,7 @@ class WebSearchService:
                     self._provider_stats[provider_type] = {
                         "requests": 0,
                         "errors": 0,
-                        "total_latency": 0.0
+                        "total_latency": 0.0,
                     }
                     logger.info(f"Initialized provider: {provider_type.value}")
                 except Exception as e:
@@ -127,8 +126,7 @@ class WebSearchService:
         # Deduplicate results
         if response.results:
             response.results = self.deduplicator.deduplicate(
-                response.results,
-                request.max_results
+                response.results, request.max_results
             )
             response.total_results = len(response.results)
 
@@ -167,9 +165,7 @@ class WebSearchService:
         return available[:2]  # Max 2 providers for aggregation
 
     async def _search_single(
-        self,
-        request: SearchRequest,
-        provider: SearchProvider
+        self, request: SearchRequest, provider: SearchProvider
     ) -> SearchResponse:
         """Execute search with single provider"""
         provider_instance = self.providers.get(provider)
@@ -181,13 +177,11 @@ class WebSearchService:
                 search_type=request.search_type,
                 total_results=0,
                 latency_ms=0,
-                error=f"Provider {provider.value} not available"
+                error=f"Provider {provider.value} not available",
             )
 
         response = await provider_instance.search(
-            request.query,
-            request.search_type,
-            request.max_results
+            request.query, request.search_type, request.max_results
         )
 
         self._update_provider_stats(provider, response.latency_ms, bool(response.error))
@@ -195,19 +189,17 @@ class WebSearchService:
         return response
 
     async def _search_aggregated(
-        self,
-        request: SearchRequest,
-        providers: list[SearchProvider]
+        self, request: SearchRequest, providers: list[SearchProvider]
     ) -> SearchResponse:
         """Execute parallel search across multiple providers"""
         tasks = []
         for provider in providers:
             if provider in self.providers:
-                tasks.append(self.providers[provider].search(
-                    request.query,
-                    request.search_type,
-                    request.max_results
-                ))
+                tasks.append(
+                    self.providers[provider].search(
+                        request.query, request.search_type, request.max_results
+                    )
+                )
 
         if not tasks:
             return SearchResponse(
@@ -217,7 +209,7 @@ class WebSearchService:
                 search_type=request.search_type,
                 total_results=0,
                 latency_ms=0,
-                error="No providers available"
+                error="No providers available",
             )
 
         # Execute in parallel
@@ -244,9 +236,7 @@ class WebSearchService:
                 all_results.extend(response.results)
 
                 self._update_provider_stats(
-                    response.provider,
-                    response.latency_ms,
-                    False
+                    response.provider, response.latency_ms, False
                 )
 
         return SearchResponse(
@@ -256,7 +246,7 @@ class WebSearchService:
             search_type=request.search_type,
             total_results=len(all_results),
             latency_ms=0,
-            error="; ".join(errors) if errors and not all_results else None
+            error="; ".join(errors) if errors and not all_results else None,
         )
 
     def _score_results(self, results: list[SearchResult]):
@@ -280,9 +270,7 @@ class WebSearchService:
             result.score = min(1.0, max(0.0, score))
 
     async def _extract_content(
-        self,
-        results: list[SearchResult],
-        depth: ExtractionDepth
+        self, results: list[SearchResult], depth: ExtractionDepth
     ):
         """Extract content for top results"""
         # Extract for top 3 results
@@ -297,10 +285,7 @@ class WebSearchService:
                     logger.warning(f"Content extraction failed for {result.url}: {e}")
 
     def _update_provider_stats(
-        self,
-        provider: SearchProvider,
-        latency: float,
-        error: bool
+        self, provider: SearchProvider, latency: float, error: bool
     ):
         """Update provider statistics"""
         if provider in self._provider_stats:
@@ -312,36 +297,38 @@ class WebSearchService:
     @property
     def stats(self) -> dict[str, Any]:
         """Get service statistics"""
-        avg_latency = self._total_latency / self._search_count if self._search_count > 0 else 0
+        avg_latency = (
+            self._total_latency / self._search_count if self._search_count > 0 else 0
+        )
 
         provider_stats = {}
         for provider, stats in self._provider_stats.items():
-            avg = stats["total_latency"] / stats["requests"] if stats["requests"] > 0 else 0
+            avg = (
+                stats["total_latency"] / stats["requests"]
+                if stats["requests"] > 0
+                else 0
+            )
             provider_stats[provider.value] = {
                 "requests": stats["requests"],
                 "errors": stats["errors"],
-                "avg_latency_ms": round(avg, 2)
+                "avg_latency_ms": round(avg, 2),
             }
 
         return {
             "total_searches": self._search_count,
             "avg_latency_ms": round(avg_latency, 2),
             "providers": provider_stats,
-            "cache": self.cache.stats if self.cache else None
+            "cache": self.cache.stats if self.cache else None,
         }
 
     async def health_check(self) -> dict[str, Any]:
         """Check health of all providers"""
-        health = {
-            "status": "healthy",
-            "providers": {},
-            "cache": None
-        }
+        health = {"status": "healthy", "providers": {}, "cache": None}
 
         for provider_type, provider in self.providers.items():
             health["providers"][provider_type.value] = {
                 "available": provider.is_available,
-                "enabled": self.provider_configs[provider_type].enabled
+                "enabled": self.provider_configs[provider_type].enabled,
             }
 
         if self.cache:

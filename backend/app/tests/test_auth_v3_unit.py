@@ -115,6 +115,7 @@ class TestInviteTokenGeneration:
 class TestAccessTokenCreation:
     def test_create_and_decode(self):
         from app.config import settings
+
         settings.JWT_SECRET_KEY = "test-secret-key-for-unit-tests-32chars!!"
 
         token = create_access_token(
@@ -133,6 +134,7 @@ class TestAccessTokenCreation:
 
     def test_invalid_token_returns_none(self):
         from app.config import settings
+
         settings.JWT_SECRET_KEY = "test-secret-key-for-unit-tests-32chars!!"
 
         result = decode_access_token("invalid.token.here")

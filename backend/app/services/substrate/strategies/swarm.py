@@ -84,10 +84,16 @@ class SwarmStrategy(ExecutionStrategy):
                     "system_prompt": f"You are {st.get('agent_name', 'a specialist agent')}.",
                 },
             )
-            tasks.append(executor.execute_node(
-                db=db, node=task_node, context=context,
-                budget=workflow.budget, run_id=run_id, workflow=workflow,
-            ))
+            tasks.append(
+                executor.execute_node(
+                    db=db,
+                    node=task_node,
+                    context=context,
+                    budget=workflow.budget,
+                    run_id=run_id,
+                    workflow=workflow,
+                )
+            )
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -104,9 +110,13 @@ class SwarmStrategy(ExecutionStrategy):
                 outputs.append(f"[Failed] Agent {i}: {result.get('error')}")
 
         if not outputs:
-            return StrategyResult(success=False, status="failed", error="No agent outputs")
+            return StrategyResult(
+                success=False, status="failed", error="No agent outputs"
+            )
 
-        prompt = f"Original goal: {goal}\n\nAgent outputs:\n\n" + "\n\n---\n\n".join(outputs)
+        prompt = f"Original goal: {goal}\n\nAgent outputs:\n\n" + "\n\n---\n\n".join(
+            outputs
+        )
         synthesis = await executor.call_llm(
             budget=workflow.budget,
             model_id="deepseek-chat",
@@ -119,7 +129,9 @@ class SwarmStrategy(ExecutionStrategy):
             mission_id=workflow.id,
         )
 
-        synthesis_text = synthesis.get("response", "") if synthesis.get("success") else ""
+        synthesis_text = (
+            synthesis.get("response", "") if synthesis.get("success") else ""
+        )
         total_tokens = sum(r.get("tokens", 0) for r in results if isinstance(r, dict))
 
         return StrategyResult(

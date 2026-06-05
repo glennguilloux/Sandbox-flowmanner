@@ -1,43 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="DAGNode")
-
 
 
 @_attrs_define
 class DAGNode:
-    """ 
-        Attributes:
-            id (str):
-            title (str):
-            status (str):
-            dependencies (list[str]):
-     """
+    """
+    Attributes:
+        id (str):
+        title (str):
+        status (str):
+        dependencies (list[str]):
+    """
 
     id: str
     title: str
     status: str
     dependencies: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -48,21 +34,18 @@ class DAGNode:
 
         dependencies = self.dependencies
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "title": title,
-            "status": status,
-            "dependencies": dependencies,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "title": title,
+                "status": status,
+                "dependencies": dependencies,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -75,14 +58,12 @@ class DAGNode:
 
         dependencies = cast(list[str], d.pop("dependencies"))
 
-
         dag_node = cls(
             id=id,
             title=title,
             status=status,
             dependencies=dependencies,
         )
-
 
         dag_node.additional_properties = d
         return dag_node

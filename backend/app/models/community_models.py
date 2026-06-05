@@ -30,9 +30,7 @@ class CommunityComment(Base, TimestampMixin):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False
     )
-    author_name: Mapped[str] = mapped_column(
-        String(100), nullable=False, default=""
-    )
+    author_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     parent_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("community_comments.id", ondelete="CASCADE"),

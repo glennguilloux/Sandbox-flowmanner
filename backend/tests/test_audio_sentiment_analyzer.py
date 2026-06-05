@@ -25,6 +25,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def generate_tiny_wav_bytes(duration_ms=2000, freq=440, sample_rate=16000):
     """Generate raw WAV bytes for sentiment analysis."""
     num_samples = int(sample_rate * duration_ms / 1000)
@@ -32,8 +33,7 @@ def generate_tiny_wav_bytes(duration_ms=2000, freq=440, sample_rate=16000):
     buf.write(b"RIFF")
     buf.write(struct.pack("<I", 36 + num_samples * 2))
     buf.write(b"WAVEfmt ")
-    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate,
-                          sample_rate * 2, 2, 16))
+    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16))
     buf.write(b"data")
     buf.write(struct.pack("<I", num_samples * 2))
     for i in range(num_samples):
@@ -49,8 +49,7 @@ def generate_chirp_wav_b64(duration_ms=2000, sample_rate=16000):
     buf.write(b"RIFF")
     buf.write(struct.pack("<I", 36 + num_samples * 2))
     buf.write(b"WAVEfmt ")
-    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate,
-                          sample_rate * 2, 2, 16))
+    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16))
     buf.write(b"data")
     buf.write(struct.pack("<I", num_samples * 2))
     for i in range(num_samples):
@@ -73,6 +72,7 @@ def chirp_b64():
 @pytest.fixture
 def analyzer():
     from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
     return AudioSentimentAnalyzerTool()
 
 
@@ -87,14 +87,17 @@ def mock_librosa_features():
         "tempo_bpm": 120.0,
         "speech_rate_zcr_var": 0.01,
         "spectral": {
-            "centroid": 2000.0, "bandwidth": 1000.0,
-            "rolloff": 4000.0, "zero_crossing_rate": 0.05,
+            "centroid": 2000.0,
+            "bandwidth": 1000.0,
+            "rolloff": 4000.0,
+            "zero_crossing_rate": 0.05,
         },
         "mfcc_means": {f"mfcc_{i}": 0.0 for i in range(13)},
     }
 
 
 # ── Input Validation ─────────────────────────────────────────────────
+
 
 class TestInputValidation:
     """Test input parsing and validation."""
@@ -108,17 +111,20 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_include_transcript_default_false(self, analyzer):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerInput
+
         inp = AudioSentimentAnalyzerInput(data="Zm9v")
         assert inp.include_transcript == False
 
     @pytest.mark.asyncio
     async def test_include_transcript_true(self, analyzer):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerInput
+
         inp = AudioSentimentAnalyzerInput(data="Zm9v", include_transcript=True)
         assert inp.include_transcript == True
 
 
 # ── Acoustic Feature Extraction ──────────────────────────────────────
+
 
 class TestAcousticFeatures:
     """Test acoustic feature extraction with real audio."""
@@ -173,6 +179,7 @@ class TestAcousticFeatures:
 
 # ── Emotion Mapping ──────────────────────────────────────────────────
 
+
 class TestEmotionMapping:
     """Test the heuristic emotion mapping."""
 
@@ -203,19 +210,33 @@ class TestEmotionMapping:
         r = await analyzer.execute({"data": chirp_b64})
         assert "primary_emotion" in r.result
         assert r.result["primary_emotion"] in [
-            "neutral", "happy", "sad", "angry", "fearful",
-            "surprised", "disgusted", "calm", "excited", "anxious",
+            "neutral",
+            "happy",
+            "sad",
+            "angry",
+            "fearful",
+            "surprised",
+            "disgusted",
+            "calm",
+            "excited",
+            "anxious",
         ]
 
     def test_high_energy_excited(self, analyzer):
         """Very high energy should map to high excited score."""
         features = {
-            "duration_seconds": 2.0, "sample_rate": 16000,
+            "duration_seconds": 2.0,
+            "sample_rate": 16000,
             "energy": {"mean": 0.5, "std": 0.1, "range": 0.2, "level": "high"},
             "pitch": {"mean_hz": 250.0, "std_hz": 80.0, "level": "high"},
-            "tempo_bpm": 180.0, "speech_rate_zcr_var": 0.02,
-            "spectral": {"centroid": 4000.0, "bandwidth": 2000.0,
-                         "rolloff": 6000.0, "zero_crossing_rate": 0.1},
+            "tempo_bpm": 180.0,
+            "speech_rate_zcr_var": 0.02,
+            "spectral": {
+                "centroid": 4000.0,
+                "bandwidth": 2000.0,
+                "rolloff": 6000.0,
+                "zero_crossing_rate": 0.1,
+            },
             "mfcc_means": {f"mfcc_{i}": 0.0 for i in range(13)},
         }
         scores = analyzer._map_features_to_emotion(features)
@@ -225,45 +246,57 @@ class TestEmotionMapping:
 
 # ── Helper Methods ───────────────────────────────────────────────────
 
+
 class TestHelperMethods:
     """Test static helper methods."""
 
     def test_categorize_energy_low(self):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         assert AudioSentimentAnalyzerTool._categorize_energy(0.01) == "low"
 
     def test_categorize_energy_medium(self):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         assert AudioSentimentAnalyzerTool._categorize_energy(0.05) == "medium"
 
     def test_categorize_energy_high(self):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         assert AudioSentimentAnalyzerTool._categorize_energy(0.10) == "high"
 
     def test_categorize_pitch_low(self):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         assert AudioSentimentAnalyzerTool._categorize_pitch(100) == "low"
 
     def test_categorize_pitch_medium(self):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         assert AudioSentimentAnalyzerTool._categorize_pitch(150) == "medium"
 
     def test_categorize_pitch_high(self):
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         assert AudioSentimentAnalyzerTool._categorize_pitch(250) == "high"
 
 
 # ── Text Sentiment (Optional) ────────────────────────────────────────
 
+
 class TestTextSentiment:
     """Test optional text sentiment analysis path."""
 
     @pytest.mark.asyncio
-    async def test_include_transcript_false_no_text_sentiment(self, analyzer, chirp_b64):
-        r = await analyzer.execute({
-            "data": chirp_b64,
-            "include_transcript": False,
-        })
+    async def test_include_transcript_false_no_text_sentiment(
+        self, analyzer, chirp_b64
+    ):
+        r = await analyzer.execute(
+            {
+                "data": chirp_b64,
+                "include_transcript": False,
+            }
+        )
         assert r.success
         assert "text_sentiment" not in r.result
 
@@ -271,10 +304,12 @@ class TestTextSentiment:
     async def test_include_transcript_true_no_api_key(self, analyzer, chirp_b64):
         """When include_transcript=True but no API key, should still succeed."""
         with patch("app.tools.audio_sentiment_analyzer.OPENAI_API_KEY", ""):
-            r = await analyzer.execute({
-                "data": chirp_b64,
-                "include_transcript": True,
-            })
+            r = await analyzer.execute(
+                {
+                    "data": chirp_b64,
+                    "include_transcript": True,
+                }
+            )
         # Should succeed (acoustic features) but no text sentiment
         assert r.success
         # text_sentiment might be absent or contain error
@@ -291,10 +326,14 @@ class TestTextSentiment:
 
         mock_sentiment_resp = MagicMock()
         mock_sentiment_resp.json.return_value = {
-            "choices": [{"message": {
-                "content": '{"sentiment": "positive", "confidence": 0.95, '
-                           '"emotion": "happy", "explanation": "Positive tone"}'
-            }}]
+            "choices": [
+                {
+                    "message": {
+                        "content": '{"sentiment": "positive", "confidence": 0.95, '
+                        '"emotion": "happy", "explanation": "Positive tone"}'
+                    }
+                }
+            ]
         }
         mock_sentiment_resp.raise_for_status = MagicMock()
 
@@ -304,10 +343,12 @@ class TestTextSentiment:
 
         with patch("httpx.AsyncClient", return_value=mock_client):
             with patch("app.tools.audio_sentiment_analyzer.OPENAI_API_KEY", "sk-test"):
-                r = await analyzer.execute({
-                    "data": chirp_b64,
-                    "include_transcript": True,
-                })
+                r = await analyzer.execute(
+                    {
+                        "data": chirp_b64,
+                        "include_transcript": True,
+                    }
+                )
         assert r.success
         ts = r.result.get("text_sentiment")
         if ts and "transcript" in ts:
@@ -315,6 +356,7 @@ class TestTextSentiment:
 
 
 # ── Tool Metadata ────────────────────────────────────────────────────
+
 
 class TestToolMetadata:
     """Test tool metadata and registration."""
@@ -336,12 +378,14 @@ class TestToolMetadata:
 
     def test_tool_registered(self, analyzer):
         from app.tools.base import get_tool_registry
+
         registry = get_tool_registry()
         tool = registry.get("audio_sentiment_analyzer")
         assert tool is not None
 
     def test_emotion_labels_complete(self, analyzer):
         from app.tools.audio_sentiment_analyzer import _EMOTION_LABELS
+
         assert len(_EMOTION_LABELS) == 10
         assert "neutral" in _EMOTION_LABELS
         assert "happy" in _EMOTION_LABELS
@@ -349,11 +393,13 @@ class TestToolMetadata:
 
     def test_affective_dimensions(self, analyzer):
         from app.tools.audio_sentiment_analyzer import _AFFECTIVE_DIMENSIONS
+
         assert "valence" in _AFFECTIVE_DIMENSIONS
         assert "arousal" in _AFFECTIVE_DIMENSIONS
 
 
 # ── Edge Cases ────────────────────────────────────────────────────────
+
 
 class TestEdgeCases:
     """Test edge cases and error conditions."""
@@ -367,6 +413,7 @@ class TestEdgeCases:
     async def test_very_short_audio(self, analyzer):
         """Very short audio should not crash."""
         from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
+
         # Test the internal method directly with a tiny signal
         import tempfile
         import numpy as np
@@ -374,9 +421,12 @@ class TestEdgeCases:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             try:
                 import soundfile as sf
-                y = np.sin(2 * np.pi * 440 * np.arange(0, 0.05, 1/16000))
+
+                y = np.sin(2 * np.pi * 440 * np.arange(0, 0.05, 1 / 16000))
                 sf.write(tmp.name, y, 16000)
-                features = AudioSentimentAnalyzerTool()._extract_acoustic_features(tmp.name)
+                features = AudioSentimentAnalyzerTool()._extract_acoustic_features(
+                    tmp.name
+                )
                 assert "error" in features or "duration_seconds" in features
             except ImportError:
                 pass  # soundfile not available

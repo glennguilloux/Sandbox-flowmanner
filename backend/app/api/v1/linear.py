@@ -54,12 +54,16 @@ async def linear_webhook(
     # Verify signature
     signature = request.headers.get("Linear-Signature", "")
     if not _verify_linear_signature(body, signature, settings.LINEAR_WEBHOOK_SECRET):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
+        )
 
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON"
+        )
 
     action = payload.get("action")
     event_type = payload.get("type")
@@ -83,7 +87,9 @@ async def linear_webhook(
         return {"status": "ok", "action": action}
     except Exception as e:
         logger.error(f"Error handling Linear webhook: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 async def _find_system_user(db: AsyncSession) -> int | None:
@@ -116,9 +122,9 @@ async def _handle_issue_created(db: AsyncSession, data: dict[str, Any]):
 
     # Idempotency: check if already imported (Linear may retry webhooks)
     existing = await db.execute(
-        select(Mission).where(
-            Mission.plan["linear"]["issue_id"].astext == issue_id
-        ).limit(1)
+        select(Mission)
+        .where(Mission.plan["linear"]["issue_id"].astext == issue_id)
+        .limit(1)
     )
     if existing.scalars().first():
         logger.info(f"Linear issue {issue_id} already imported — skipping")
@@ -170,9 +176,9 @@ async def _handle_issue_updated(db: AsyncSession, data: dict[str, Any]):
     # Find mission linked to this Linear issue
     # We search in plan->linear->issue_id (JSONB)
     result = await db.execute(
-        select(Mission).where(
-            Mission.plan["linear"]["issue_id"].astext == issue_id
-        ).limit(1)
+        select(Mission)
+        .where(Mission.plan["linear"]["issue_id"].astext == issue_id)
+        .limit(1)
     )
     mission = result.scalars().first()
     if not mission:
@@ -187,11 +193,19 @@ async def _handle_issue_updated(db: AsyncSession, data: dict[str, Any]):
         if mission.status not in ("completed", "failed", "cancelled"):
             mission.status = "completed"
             await db.commit()
-            logger.info(f"Marked mission {mission.id} as completed (Linear issue {issue_id} → {state_name})")
-    elif state_name in ("cancelled",) and mission.status not in ("completed", "failed", "cancelled"):
+            logger.info(
+                f"Marked mission {mission.id} as completed (Linear issue {issue_id} → {state_name})"
+            )
+    elif state_name in ("cancelled",) and mission.status not in (
+        "completed",
+        "failed",
+        "cancelled",
+    ):
         mission.status = "cancelled"
         await db.commit()
-        logger.info(f"Cancelled mission {mission.id} (Linear issue {issue_id} → {state_name})")
+        logger.info(
+            f"Cancelled mission {mission.id} (Linear issue {issue_id} → {state_name})"
+        )
 
 
 async def _handle_issue_deleted(db: AsyncSession, data: dict[str, Any]):
@@ -203,9 +217,9 @@ async def _handle_issue_deleted(db: AsyncSession, data: dict[str, Any]):
     issue_id = data.get("id")
 
     result = await db.execute(
-        select(Mission).where(
-            Mission.plan["linear"]["issue_id"].astext == issue_id
-        ).limit(1)
+        select(Mission)
+        .where(Mission.plan["linear"]["issue_id"].astext == issue_id)
+        .limit(1)
     )
     mission = result.scalars().first()
     if not mission:
@@ -221,7 +235,12 @@ def _map_linear_priority(linear_priority) -> str | None:
     if linear_priority is None:
         return None
     if isinstance(linear_priority, str):
-        mapping = {"urgent": "critical", "high": "high", "medium": "medium", "low": "low"}
+        mapping = {
+            "urgent": "critical",
+            "high": "high",
+            "medium": "medium",
+            "low": "low",
+        }
         return mapping.get(linear_priority.lower(), "medium")
     # Numeric: 0=no priority, 1=urgent, 2=high, 3=medium, 4=low
     if linear_priority == 0:

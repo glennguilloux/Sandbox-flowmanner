@@ -81,7 +81,13 @@ def make_version(version=1):
         id=VERSION_ID,
         mission_id=MISSION_ID,
         version=version,
-        snapshot={"title": "Snapshotted", "description": "desc", "status": "draft", "nodes": [], "edges": []},
+        snapshot={
+            "title": "Snapshotted",
+            "description": "desc",
+            "status": "draft",
+            "nodes": [],
+            "edges": [],
+        },
         change_summary="Initial version",
         created_at="2026-01-01T00:00:00",
         updated_at="2026-01-01T00:00:00",
@@ -205,7 +211,9 @@ class TestTemplateList:
             _mock_scalar_result(1),
         ]
 
-        response = auth_client.get("/api/missions/advanced/templates?category=automation")
+        response = auth_client.get(
+            "/api/missions/advanced/templates?category=automation"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -241,9 +249,11 @@ class TestTemplateCreate:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -267,9 +277,11 @@ class TestTemplateCreate:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -311,7 +323,9 @@ class TestTemplateGet:
 
         assert response.status_code == 200
 
-    def test_get_private_template_of_other_user_returns_404(self, auth_client, mock_db_session):
+    def test_get_private_template_of_other_user_returns_404(
+        self, auth_client, mock_db_session
+    ):
         """Cannot see another user's private template."""
         tpl = make_template(user_id=2, is_public=False)
         mock_db_session.execute.return_value = _mock_scalar_one(tpl)
@@ -419,7 +433,9 @@ class TestTemplateDelete:
 
     def test_delete_requires_auth(self, unauth_client):
         """Returns 401/403 without authentication."""
-        response = unauth_client.delete(f"/api/missions/advanced/templates/{TEMPLATE_ID}")
+        response = unauth_client.delete(
+            f"/api/missions/advanced/templates/{TEMPLATE_ID}"
+        )
         assert response.status_code in (401, 403)
 
 
@@ -433,12 +449,16 @@ class TestTemplateUse:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
-        response = auth_client.post(f"/api/missions/advanced/templates/{TEMPLATE_ID}/use")
+        response = auth_client.post(
+            f"/api/missions/advanced/templates/{TEMPLATE_ID}/use"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -452,21 +472,29 @@ class TestTemplateUse:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
-        response = auth_client.post(f"/api/missions/advanced/templates/{TEMPLATE_ID}/use")
+        response = auth_client.post(
+            f"/api/missions/advanced/templates/{TEMPLATE_ID}/use"
+        )
 
         assert response.status_code == 200
 
-    def test_use_private_template_of_other_user_returns_404(self, auth_client, mock_db_session):
+    def test_use_private_template_of_other_user_returns_404(
+        self, auth_client, mock_db_session
+    ):
         """Cannot use another user's private template."""
         tpl = make_template(user_id=2, is_public=False)
         mock_db_session.execute.return_value = _mock_scalar_one(tpl)
 
-        response = auth_client.post(f"/api/missions/advanced/templates/{TEMPLATE_ID}/use")
+        response = auth_client.post(
+            f"/api/missions/advanced/templates/{TEMPLATE_ID}/use"
+        )
 
         assert response.status_code == 404
 
@@ -474,13 +502,17 @@ class TestTemplateUse:
         """Returns 404 for non-existent template."""
         mock_db_session.execute.return_value = _mock_scalar_one(None)
 
-        response = auth_client.post(f"/api/missions/advanced/templates/{TEMPLATE_ID}/use")
+        response = auth_client.post(
+            f"/api/missions/advanced/templates/{TEMPLATE_ID}/use"
+        )
 
         assert response.status_code == 404
 
     def test_use_requires_auth(self, unauth_client):
         """Returns 401/403 without authentication."""
-        response = unauth_client.post(f"/api/missions/advanced/templates/{TEMPLATE_ID}/use")
+        response = unauth_client.post(
+            f"/api/missions/advanced/templates/{TEMPLATE_ID}/use"
+        )
         assert response.status_code in (401, 403)
 
 
@@ -500,12 +532,14 @@ class TestVersionList:
         v2.id = uuid4()
 
         mock_db_session.execute.side_effect = [
-            _mock_scalar_one(mission),      # mission ownership check
-            _mock_scalars_all([v2, v1]),    # versions query
-            _mock_scalar_result(2),         # count query
+            _mock_scalar_one(mission),  # mission ownership check
+            _mock_scalars_all([v2, v1]),  # versions query
+            _mock_scalar_result(2),  # count query
         ]
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/versions")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/versions"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -520,7 +554,9 @@ class TestVersionList:
         mission = make_mission(user_id=2)
         mock_db_session.execute.return_value = _mock_scalar_one(mission)
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/versions")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/versions"
+        )
 
         assert response.status_code == 404
 
@@ -528,7 +564,9 @@ class TestVersionList:
         """Returns 404 for non-existent mission."""
         mock_db_session.execute.return_value = _mock_scalar_one(None)
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/versions")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/versions"
+        )
 
         assert response.status_code == 404
 
@@ -541,7 +579,9 @@ class TestVersionList:
             _mock_scalar_result(0),
         ]
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/versions")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/versions"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -550,7 +590,9 @@ class TestVersionList:
 
     def test_list_versions_requires_auth(self, unauth_client):
         """Returns 401/403 without authentication."""
-        response = unauth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/versions")
+        response = unauth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/versions"
+        )
         assert response.status_code in (401, 403)
 
 
@@ -562,19 +604,26 @@ class TestVersionCreate:
         mission = make_mission(user_id=1)
         mock_db_session.execute.side_effect = [
             _mock_scalar_one(mission),  # mission ownership check
-            _mock_scalar_result(None),  # max version_number → None (no previous versions)
+            _mock_scalar_result(
+                None
+            ),  # max version_number → None (no previous versions)
         ]
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
             f"/api/missions/advanced/missions/{MISSION_ID}/versions",
-            json={"change_summary": "First snapshot", "flow_data": {"nodes": [], "edges": []}},
+            json={
+                "change_summary": "First snapshot",
+                "flow_data": {"nodes": [], "edges": []},
+            },
         )
 
         assert response.status_code == 201
@@ -586,14 +635,16 @@ class TestVersionCreate:
         mission = make_mission(user_id=1)
         mock_db_session.execute.side_effect = [
             _mock_scalar_one(mission),  # mission check
-            _mock_scalar_result(5),     # max version = 5
+            _mock_scalar_result(5),  # max version = 5
         ]
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -644,8 +695,8 @@ class TestVersionRestore:
         mission = make_mission(user_id=1)
         version = make_version(3)
         mock_db_session.execute.side_effect = [
-            _mock_scalar_one(mission),   # mission check
-            _mock_scalar_one(version),   # version lookup
+            _mock_scalar_one(mission),  # mission check
+            _mock_scalar_one(version),  # version lookup
         ]
         mock_db_session.commit = AsyncMock()
 
@@ -734,7 +785,9 @@ class TestExport:
         mission = make_mission(user_id=1)
         mock_db_session.execute.return_value = _mock_scalar_one(mission)
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/export")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/export"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -749,7 +802,9 @@ class TestExport:
         mission = make_mission(user_id=2)
         mock_db_session.execute.return_value = _mock_scalar_one(mission)
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/export")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/export"
+        )
 
         assert response.status_code == 404
 
@@ -757,13 +812,17 @@ class TestExport:
         """Returns 404 for non-existent mission."""
         mock_db_session.execute.return_value = _mock_scalar_one(None)
 
-        response = auth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/export")
+        response = auth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/export"
+        )
 
         assert response.status_code == 404
 
     def test_export_requires_auth(self, unauth_client):
         """Returns 401/403 without authentication."""
-        response = unauth_client.get(f"/api/missions/advanced/missions/{MISSION_ID}/export")
+        response = unauth_client.get(
+            f"/api/missions/advanced/missions/{MISSION_ID}/export"
+        )
         assert response.status_code in (401, 403)
 
 
@@ -775,9 +834,11 @@ class TestImport:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -791,7 +852,10 @@ class TestImport:
                         "description": "From export",
                         "status": "completed",
                     },
-                    "tasks": [{"id": "t1", "name": "Task 1"}, {"id": "t2", "name": "Task 2"}],
+                    "tasks": [
+                        {"id": "t1", "name": "Task 1"},
+                        {"id": "t2", "name": "Task 2"},
+                    ],
                 },
             },
         )
@@ -808,9 +872,11 @@ class TestImport:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -833,9 +899,11 @@ class TestImport:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -854,9 +922,11 @@ class TestImport:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -919,9 +989,11 @@ class TestNodeGroupCreate:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -944,9 +1016,11 @@ class TestNodeGroupCreate:
         mock_db_session.add = MagicMock()
         mock_db_session.commit = AsyncMock()
         mock_db_session.refresh = AsyncMock(
-            side_effect=lambda obj: setattr(obj, "id", uuid4())
-            if getattr(obj, "id", None) is None
-            else None
+            side_effect=lambda obj: (
+                setattr(obj, "id", uuid4())
+                if getattr(obj, "id", None) is None
+                else None
+            )
         )
 
         response = auth_client.post(
@@ -1089,5 +1163,7 @@ class TestNodeGroupDelete:
 
     def test_delete_requires_auth(self, unauth_client):
         """Returns 401/403 without authentication."""
-        response = unauth_client.delete(f"/api/missions/advanced/node-groups/{GROUP_ID}")
+        response = unauth_client.delete(
+            f"/api/missions/advanced/node-groups/{GROUP_ID}"
+        )
         assert response.status_code in (401, 403)

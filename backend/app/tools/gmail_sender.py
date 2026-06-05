@@ -16,7 +16,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +142,9 @@ class GmailSenderTool(BaseTool):
                 ),
             )
 
-        if is_placeholder(GMAIL_SERVICE_ACCOUNT_FILE) or is_placeholder(GMAIL_DELEGATED_ACCOUNT):
+        if is_placeholder(GMAIL_SERVICE_ACCOUNT_FILE) or is_placeholder(
+            GMAIL_DELEGATED_ACCOUNT
+        ):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
@@ -198,6 +207,7 @@ class GmailSenderTool(BaseTool):
 
         # Run the blocking google-auth refresh in a thread
         import asyncio
+
         await asyncio.to_thread(credentials.refresh, Request())
         return credentials.token
 
@@ -230,7 +240,9 @@ class GmailSenderTool(BaseTool):
         """Send an email via the Gmail API."""
         sender = validated.sender or GMAIL_DELEGATED_ACCOUNT
         if not sender:
-            return {"error": "No sender address. Set sender or GMAIL_DELEGATED_ACCOUNT."}
+            return {
+                "error": "No sender address. Set sender or GMAIL_DELEGATED_ACCOUNT."
+            }
 
         token = await self._get_access_token()
         raw_base64 = self._build_mime_message(validated)

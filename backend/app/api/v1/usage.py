@@ -48,7 +48,9 @@ async def get_usage_summary(
     usage_service: UsageService = Depends(get_usage_service),
 ) -> UsageSummaryResponse:
     service_period = _PERIOD_MAP.get(period, "month")
-    return usage_service.get_summary(user_id=str(current_user.id), period=service_period)
+    return usage_service.get_summary(
+        user_id=str(current_user.id), period=service_period
+    )
 
 
 @router.get("/timeseries", response_model=list[UsageTimeseriesPoint])
@@ -75,7 +77,9 @@ async def get_usage_breakdown(
     usage_service: UsageService = Depends(get_usage_service),
 ) -> list[UsageBreakdown]:
     service_period = _PERIOD_MAP.get(period, "month")
-    summary = usage_service.get_summary(user_id=str(current_user.id), period=service_period)
+    summary = usage_service.get_summary(
+        user_id=str(current_user.id), period=service_period
+    )
     breakdown = summary.breakdown
 
     if provider:

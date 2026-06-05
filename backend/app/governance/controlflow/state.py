@@ -53,7 +53,7 @@ def create_initial_state(
     require_approval_for_all: bool = False,
 ) -> AgentState:
     now = datetime.now(UTC).isoformat()
-    
+
     return AgentState(
         messages=[],
         current_message="",
@@ -85,10 +85,10 @@ def add_message_to_state(
         "tool_calls": tool_calls,
         "tool_outputs": tool_outputs,
     }
-    
+
     state["messages"] = state["messages"] + [message]
     state["updated_at"] = datetime.now(UTC).isoformat()
-    
+
     return state
 
 
@@ -121,20 +121,20 @@ def update_tool_execution(
     approved_by: int | None = None,
 ) -> ToolExecution:
     tool["status"] = status
-    
+
     if result is not None:
         tool["result"] = result
-    
+
     if error is not None:
         tool["error"] = error
-    
+
     if status == "approved" and approved_by:
         tool["approved_at"] = datetime.now(UTC).isoformat()
         tool["approved_by"] = approved_by
-    
+
     if status in ["completed", "failed"]:
         tool["completed_at"] = datetime.now(UTC).isoformat()
-    
+
     return tool
 
 

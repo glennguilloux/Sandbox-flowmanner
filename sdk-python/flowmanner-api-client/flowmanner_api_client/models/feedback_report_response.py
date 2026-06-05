@@ -11,12 +11,24 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.feedback_report_response_error_summary_type_0 import FeedbackReportResponseErrorSummaryType0
-    from ..models.feedback_report_response_strengths_type_0 import FeedbackReportResponseStrengthsType0
-    from ..models.feedback_report_response_suggestions_type_0 import FeedbackReportResponseSuggestionsType0
-    from ..models.feedback_report_response_task_analysis_type_0 import FeedbackReportResponseTaskAnalysisType0
-    from ..models.feedback_report_response_token_efficiency_type_0 import FeedbackReportResponseTokenEfficiencyType0
-    from ..models.feedback_report_response_weaknesses_type_0 import FeedbackReportResponseWeaknessesType0
+    from ..models.feedback_report_response_error_summary_type_0 import (
+        FeedbackReportResponseErrorSummaryType0,
+    )
+    from ..models.feedback_report_response_strengths_type_0 import (
+        FeedbackReportResponseStrengthsType0,
+    )
+    from ..models.feedback_report_response_suggestions_type_0 import (
+        FeedbackReportResponseSuggestionsType0,
+    )
+    from ..models.feedback_report_response_task_analysis_type_0 import (
+        FeedbackReportResponseTaskAnalysisType0,
+    )
+    from ..models.feedback_report_response_token_efficiency_type_0 import (
+        FeedbackReportResponseTokenEfficiencyType0,
+    )
+    from ..models.feedback_report_response_weaknesses_type_0 import (
+        FeedbackReportResponseWeaknessesType0,
+    )
 
 
 T = TypeVar("T", bound="FeedbackReportResponse")
@@ -59,12 +71,24 @@ class FeedbackReportResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.feedback_report_response_error_summary_type_0 import FeedbackReportResponseErrorSummaryType0
-        from ..models.feedback_report_response_strengths_type_0 import FeedbackReportResponseStrengthsType0
-        from ..models.feedback_report_response_suggestions_type_0 import FeedbackReportResponseSuggestionsType0
-        from ..models.feedback_report_response_task_analysis_type_0 import FeedbackReportResponseTaskAnalysisType0
-        from ..models.feedback_report_response_token_efficiency_type_0 import FeedbackReportResponseTokenEfficiencyType0
-        from ..models.feedback_report_response_weaknesses_type_0 import FeedbackReportResponseWeaknessesType0
+        from ..models.feedback_report_response_error_summary_type_0 import (
+            FeedbackReportResponseErrorSummaryType0,
+        )
+        from ..models.feedback_report_response_strengths_type_0 import (
+            FeedbackReportResponseStrengthsType0,
+        )
+        from ..models.feedback_report_response_suggestions_type_0 import (
+            FeedbackReportResponseSuggestionsType0,
+        )
+        from ..models.feedback_report_response_task_analysis_type_0 import (
+            FeedbackReportResponseTaskAnalysisType0,
+        )
+        from ..models.feedback_report_response_token_efficiency_type_0 import (
+            FeedbackReportResponseTokenEfficiencyType0,
+        )
+        from ..models.feedback_report_response_weaknesses_type_0 import (
+            FeedbackReportResponseWeaknessesType0,
+        )
 
         id = self.id
 
@@ -127,7 +151,9 @@ class FeedbackReportResponse:
         token_efficiency: dict[str, Any] | None | Unset
         if isinstance(self.token_efficiency, Unset):
             token_efficiency = UNSET
-        elif isinstance(self.token_efficiency, FeedbackReportResponseTokenEfficiencyType0):
+        elif isinstance(
+            self.token_efficiency, FeedbackReportResponseTokenEfficiencyType0
+        ):
             token_efficiency = self.token_efficiency.to_dict()
         else:
             token_efficiency = self.token_efficiency
@@ -180,12 +206,24 @@ class FeedbackReportResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.feedback_report_response_error_summary_type_0 import FeedbackReportResponseErrorSummaryType0
-        from ..models.feedback_report_response_strengths_type_0 import FeedbackReportResponseStrengthsType0
-        from ..models.feedback_report_response_suggestions_type_0 import FeedbackReportResponseSuggestionsType0
-        from ..models.feedback_report_response_task_analysis_type_0 import FeedbackReportResponseTaskAnalysisType0
-        from ..models.feedback_report_response_token_efficiency_type_0 import FeedbackReportResponseTokenEfficiencyType0
-        from ..models.feedback_report_response_weaknesses_type_0 import FeedbackReportResponseWeaknessesType0
+        from ..models.feedback_report_response_error_summary_type_0 import (
+            FeedbackReportResponseErrorSummaryType0,
+        )
+        from ..models.feedback_report_response_strengths_type_0 import (
+            FeedbackReportResponseStrengthsType0,
+        )
+        from ..models.feedback_report_response_suggestions_type_0 import (
+            FeedbackReportResponseSuggestionsType0,
+        )
+        from ..models.feedback_report_response_task_analysis_type_0 import (
+            FeedbackReportResponseTaskAnalysisType0,
+        )
+        from ..models.feedback_report_response_token_efficiency_type_0 import (
+            FeedbackReportResponseTokenEfficiencyType0,
+        )
+        from ..models.feedback_report_response_weaknesses_type_0 import (
+            FeedbackReportResponseWeaknessesType0,
+        )
 
         d = dict(src_dict)
         id = d.pop("id")
@@ -212,7 +250,9 @@ class FeedbackReportResponse:
 
         quality_score = _parse_quality_score(d.pop("quality_score", UNSET))
 
-        def _parse_strengths(data: object) -> FeedbackReportResponseStrengthsType0 | None | Unset:
+        def _parse_strengths(
+            data: object,
+        ) -> FeedbackReportResponseStrengthsType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -229,7 +269,9 @@ class FeedbackReportResponse:
 
         strengths = _parse_strengths(d.pop("strengths", UNSET))
 
-        def _parse_weaknesses(data: object) -> FeedbackReportResponseWeaknessesType0 | None | Unset:
+        def _parse_weaknesses(
+            data: object,
+        ) -> FeedbackReportResponseWeaknessesType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -237,7 +279,9 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                weaknesses_type_0 = FeedbackReportResponseWeaknessesType0.from_dict(data)
+                weaknesses_type_0 = FeedbackReportResponseWeaknessesType0.from_dict(
+                    data
+                )
 
                 return weaknesses_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -246,7 +290,9 @@ class FeedbackReportResponse:
 
         weaknesses = _parse_weaknesses(d.pop("weaknesses", UNSET))
 
-        def _parse_suggestions(data: object) -> FeedbackReportResponseSuggestionsType0 | None | Unset:
+        def _parse_suggestions(
+            data: object,
+        ) -> FeedbackReportResponseSuggestionsType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -254,7 +300,9 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                suggestions_type_0 = FeedbackReportResponseSuggestionsType0.from_dict(data)
+                suggestions_type_0 = FeedbackReportResponseSuggestionsType0.from_dict(
+                    data
+                )
 
                 return suggestions_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -263,7 +311,9 @@ class FeedbackReportResponse:
 
         suggestions = _parse_suggestions(d.pop("suggestions", UNSET))
 
-        def _parse_task_analysis(data: object) -> FeedbackReportResponseTaskAnalysisType0 | None | Unset:
+        def _parse_task_analysis(
+            data: object,
+        ) -> FeedbackReportResponseTaskAnalysisType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -271,7 +321,9 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                task_analysis_type_0 = FeedbackReportResponseTaskAnalysisType0.from_dict(data)
+                task_analysis_type_0 = (
+                    FeedbackReportResponseTaskAnalysisType0.from_dict(data)
+                )
 
                 return task_analysis_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -280,7 +332,9 @@ class FeedbackReportResponse:
 
         task_analysis = _parse_task_analysis(d.pop("task_analysis", UNSET))
 
-        def _parse_error_summary(data: object) -> FeedbackReportResponseErrorSummaryType0 | None | Unset:
+        def _parse_error_summary(
+            data: object,
+        ) -> FeedbackReportResponseErrorSummaryType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -288,7 +342,9 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                error_summary_type_0 = FeedbackReportResponseErrorSummaryType0.from_dict(data)
+                error_summary_type_0 = (
+                    FeedbackReportResponseErrorSummaryType0.from_dict(data)
+                )
 
                 return error_summary_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -297,7 +353,9 @@ class FeedbackReportResponse:
 
         error_summary = _parse_error_summary(d.pop("error_summary", UNSET))
 
-        def _parse_token_efficiency(data: object) -> FeedbackReportResponseTokenEfficiencyType0 | None | Unset:
+        def _parse_token_efficiency(
+            data: object,
+        ) -> FeedbackReportResponseTokenEfficiencyType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -305,7 +363,9 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                token_efficiency_type_0 = FeedbackReportResponseTokenEfficiencyType0.from_dict(data)
+                token_efficiency_type_0 = (
+                    FeedbackReportResponseTokenEfficiencyType0.from_dict(data)
+                )
 
                 return token_efficiency_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

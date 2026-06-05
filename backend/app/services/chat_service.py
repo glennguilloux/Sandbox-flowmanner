@@ -24,19 +24,19 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 PROVIDER_MAP = {
-    "deepseek":        ("https://api.deepseek.com/v1",                   "DEEPSEEK_API_KEY"),
-    "zhipuai":         ("https://open.bigmodel.cn/api/paas/v4",          "ZHIPUAI_API_KEY"),
-    "llamacpp":        (f"{settings.LLAMACPP_URL}/v1",                    None),
-    "openrouter":      ("https://openrouter.ai/api/v1",                  "OPENROUTER_API_KEY"),
-    "openai":          ("https://api.openai.com/v1",                     "OPENAI_API_KEY"),
-    "anthropic":       ("https://api.anthropic.com/v1",                  "ANTHROPIC_API_KEY"),
-    "groq":            ("https://api.groq.com/openai/v1",                "GROQ_API_KEY"),
-    "together":        ("https://api.together.xyz/v1",                   "TOGETHER_API_KEY"),
-    "fireworks":       ("https://api.fireworks.ai/inference/v1",         "FIREWORKS_API_KEY"),
-    "deepinfra":       ("https://api.deepinfra.com/v1/openai",           "DEEPINFRA_API_KEY"),
-    "xai":             ("https://api.x.ai/v1",                           "XAI_API_KEY"),
-    "google":          ("https://generativelanguage.googleapis.com/v1beta","GOOGLE_API_KEY"),
-    "openai_compatible":("https://api.openai.com/v1",                     None),
+    "deepseek": ("https://api.deepseek.com/v1", "DEEPSEEK_API_KEY"),
+    "zhipuai": ("https://open.bigmodel.cn/api/paas/v4", "ZHIPUAI_API_KEY"),
+    "llamacpp": (f"{settings.LLAMACPP_URL}/v1", None),
+    "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+    "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY"),
+    "anthropic": ("https://api.anthropic.com/v1", "ANTHROPIC_API_KEY"),
+    "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
+    "together": ("https://api.together.xyz/v1", "TOGETHER_API_KEY"),
+    "fireworks": ("https://api.fireworks.ai/inference/v1", "FIREWORKS_API_KEY"),
+    "deepinfra": ("https://api.deepinfra.com/v1/openai", "DEEPINFRA_API_KEY"),
+    "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
+    "google": ("https://generativelanguage.googleapis.com/v1beta", "GOOGLE_API_KEY"),
+    "openai_compatible": ("https://api.openai.com/v1", None),
 }
 
 OPENAI_PROVIDER_FAMILIES = frozenset(("openai", "openai_compatible"))
@@ -157,7 +157,9 @@ def _providers_compatible(key_provider: str | None, model_provider: str | None) 
         return True
     if key_p == model_p:
         return True
-    return bool(model_p in OPENAI_PROVIDER_FAMILIES and key_p in OPENAI_PROVIDER_FAMILIES)
+    return bool(
+        model_p in OPENAI_PROVIDER_FAMILIES and key_p in OPENAI_PROVIDER_FAMILIES
+    )
 
 
 async def _lookup_stored_byok_key(
@@ -192,20 +194,35 @@ async def _lookup_stored_byok_key(
             normalized_hint = _normalize_provider(provider_hint)
             for k in keys:
                 if _normalize_provider(k.provider) == normalized_hint:
-                    logger.info("BYOK lookup FOUND: user=%s provider=%s key_id=%s",
-                        user_id, provider_hint, k.id)
+                    logger.info(
+                        "BYOK lookup FOUND: user=%s provider=%s key_id=%s",
+                        user_id,
+                        provider_hint,
+                        k.id,
+                    )
             return k.get_api_key(), k.base_url
 
         # Fall back to the first active key
-        logger.debug("BYOK lookup FALLBACK: user=%s provider=%s -> using first key key_id=%s",
-                     user_id, provider_hint, keys[0].id)
+        logger.debug(
+            "BYOK lookup FALLBACK: user=%s provider=%s -> using first key key_id=%s",
+            user_id,
+            provider_hint,
+            keys[0].id,
+        )
         return keys[0].get_api_key(), keys[0].base_url
     except Exception:
-        logger.warning("BYOK lookup ERROR: user=%s provider=%s", user_id, provider_hint, exc_info=True)
+        logger.warning(
+            "BYOK lookup ERROR: user=%s provider=%s",
+            user_id,
+            provider_hint,
+            exc_info=True,
+        )
         return None, None
 
 
-def _validate_byok_key_matches_model(user_api_key: str | None, model_id: str) -> str | None:
+def _validate_byok_key_matches_model(
+    user_api_key: str | None, model_id: str
+) -> str | None:
     """Validate that BYOK key matches the requested model provider.
 
     Returns None if valid.
@@ -229,9 +246,14 @@ def _validate_byok_key_matches_model(user_api_key: str | None, model_id: str) ->
 
     return None
 
+
 # LLM configuration from environment
 _LLM_API_KEY = os.getenv("LLM_API_KEY")
-_LLM_API_BASE = os.getenv("LLM_API_BASE") or os.getenv("LLM_BASE_URL") or "https://api.deepseek.com/v1"
+_LLM_API_BASE = (
+    os.getenv("LLM_API_BASE")
+    or os.getenv("LLM_BASE_URL")
+    or "https://api.deepseek.com/v1"
+)
 _LLM_MODEL = os.getenv("LLM_MODEL_NAME", "deepseek/deepseek-v4-flash")
 
 # Initialize AsyncOpenAI client for ZhipuAI (OpenAI-compatible)
@@ -298,6 +320,7 @@ async def require_chat_thread_access(
 
     if thread.workspace_id:
         from app.models.workspace_models import WorkspaceMember
+
         result = await db.execute(
             select(WorkspaceMember).where(
                 WorkspaceMember.workspace_id == thread.workspace_id,
@@ -307,7 +330,11 @@ async def require_chat_thread_access(
         )
         if result.scalar_one_or_none() is None:
             # Check cross-workspace grants across all user's workspaces
-            from app.services.cross_workspace_service import check_entity_access, find_user_workspaces
+            from app.services.cross_workspace_service import (
+                check_entity_access,
+                find_user_workspaces,
+            )
+
             user_workspaces = await find_user_workspaces(db, user_id)
             has_cross_access = False
             for ws_id in user_workspaces:
@@ -329,22 +356,27 @@ async def require_chat_thread_access(
                     "entity_access_denied"
                     " user_id=%s entity_type=chat_thread entity_id=%s"
                     " workspace_id=%s reason=no_membership",
-                    user_id, thread_id, thread.workspace_id,
+                    user_id,
+                    thread_id,
+                    thread.workspace_id,
                 )
                 try:
                     import asyncio
 
                     from app.api.middleware.audit import log_event
-                    asyncio.create_task(log_event(
-                        user_id=user_id,
-                        action="entity.access_denied",
-                        details={
-                            "entity_type": "chat_thread",
-                            "entity_id": str(thread_id),
-                            "workspace_id": str(thread.workspace_id),
-                            "reason": "no_membership",
-                        },
-                    ))
+
+                    asyncio.create_task(
+                        log_event(
+                            user_id=user_id,
+                            action="entity.access_denied",
+                            details={
+                                "entity_type": "chat_thread",
+                                "entity_id": str(thread_id),
+                                "workspace_id": str(thread.workspace_id),
+                                "reason": "no_membership",
+                            },
+                        )
+                    )
                 except Exception:
                     pass
                 raise HTTPException(status_code=404, detail="Not found")
@@ -354,21 +386,26 @@ async def require_chat_thread_access(
                 "entity_access_denied"
                 " user_id=%s entity_type=chat_thread entity_id=%s"
                 " owner_user_id=%s reason=owner_mismatch",
-                user_id, thread_id, thread.user_id,
+                user_id,
+                thread_id,
+                thread.user_id,
             )
             try:
                 import asyncio
 
                 from app.api.middleware.audit import log_event
-                asyncio.create_task(log_event(
-                    user_id=user_id,
-                    action="entity.access_denied",
-                    details={
-                        "entity_type": "chat_thread",
-                        "entity_id": str(thread_id),
-                        "reason": "owner_mismatch",
-                    },
-                ))
+
+                asyncio.create_task(
+                    log_event(
+                        user_id=user_id,
+                        action="entity.access_denied",
+                        details={
+                            "entity_type": "chat_thread",
+                            "entity_id": str(thread_id),
+                            "reason": "owner_mismatch",
+                        },
+                    )
+                )
             except Exception:
                 pass
             raise HTTPException(status_code=404, detail="Not found")
@@ -384,7 +421,11 @@ async def list_chat_threads(
     limit: int = 20,
     workspace_id: str | None = None,
 ) -> tuple[list[ChatThread], int]:
-    base_filter = ChatThread.workspace_id == workspace_id if workspace_id is not None else ChatThread.user_id == user_id
+    base_filter = (
+        ChatThread.workspace_id == workspace_id
+        if workspace_id is not None
+        else ChatThread.user_id == user_id
+    )
     count_q = select(func.count()).select_from(ChatThread).where(base_filter)
     total = (await db.execute(count_q)).scalar() or 0
     items_q = (
@@ -443,7 +484,6 @@ async def create_chat_message(
     return msg
 
 
-
 async def update_chat_message(
     db: AsyncSession,
     message_id: int,
@@ -451,6 +491,7 @@ async def update_chat_message(
 ) -> ChatMessage | None:
     """Update a chat message's content and set edited_at timestamp."""
     from datetime import datetime
+
     result = await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))
     message = result.scalar_one_or_none()
     if message is None:
@@ -480,7 +521,11 @@ async def get_chat_messages(
     offset: int = 0,
     limit: int = 50,
 ) -> tuple[list[ChatMessage], int]:
-    count_q = select(func.count()).select_from(ChatMessage).where(ChatMessage.thread_id == thread_id)
+    count_q = (
+        select(func.count())
+        .select_from(ChatMessage)
+        .where(ChatMessage.thread_id == thread_id)
+    )
     total = (await db.execute(count_q)).scalar() or 0
     items_q = (
         select(ChatMessage)
@@ -528,7 +573,9 @@ def _get_model_preference(thread: ChatThread) -> str | None:
     return None
 
 
-async def _process_attachments(db: AsyncSession, messages: list[dict], attachments: list[dict], model: str) -> list[dict]:
+async def _process_attachments(
+    db: AsyncSession, messages: list[dict], attachments: list[dict], model: str
+) -> list[dict]:
     is_vision_model = not model.startswith("llamacpp/")
 
     for att in attachments:
@@ -538,7 +585,11 @@ async def _process_attachments(db: AsyncSession, messages: list[dict], attachmen
 
         result = await db.execute(select(UserFile).where(UserFile.id == file_id))
         db_file = result.scalar_one_or_none()
-        if not db_file or not db_file.storage_path or not os.path.exists(db_file.storage_path):
+        if (
+            not db_file
+            or not db_file.storage_path
+            or not os.path.exists(db_file.storage_path)
+        ):
             continue
 
         if att_type == "image" and is_vision_model:
@@ -551,11 +602,17 @@ async def _process_attachments(db: AsyncSession, messages: list[dict], attachmen
                 if isinstance(existing, str):
                     messages[-1]["content"] = [
                         {"type": "text", "text": existing},
-                        {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{b64}"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{content_type};base64,{b64}"},
+                        },
                     ]
                 else:
                     messages[-1]["content"].append(
-                        {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{b64}"}}
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{content_type};base64,{b64}"},
+                        }
                     )
 
         elif att_type == "image" and not is_vision_model:
@@ -571,6 +628,7 @@ async def _process_attachments(db: AsyncSession, messages: list[dict], attachmen
 
                 if "pdf" in content_type:
                     import pdfplumber
+
                     with pdfplumber.open(db_file.storage_path) as pdf:
                         pages_text = []
                         for page in pdf.pages:
@@ -578,27 +636,46 @@ async def _process_attachments(db: AsyncSession, messages: list[dict], attachmen
                             pages_text.append(t)
                         file_text = "\n\n".join(pages_text)
 
-                elif "wordprocessingml" in content_type or ".docx" in filename_lower or "msword" in content_type:
+                elif (
+                    "wordprocessingml" in content_type
+                    or ".docx" in filename_lower
+                    or "msword" in content_type
+                ):
                     from docx import Document
+
                     doc = Document(db_file.storage_path)
                     file_text = "\n".join(p.text for p in doc.paragraphs)
 
-                elif "spreadsheetml" in content_type or ".xlsx" in filename_lower or "excel" in content_type:
+                elif (
+                    "spreadsheetml" in content_type
+                    or ".xlsx" in filename_lower
+                    or "excel" in content_type
+                ):
                     import openpyxl
-                    wb = openpyxl.load_workbook(db_file.storage_path, read_only=True, data_only=True)
+
+                    wb = openpyxl.load_workbook(
+                        db_file.storage_path, read_only=True, data_only=True
+                    )
                     rows = []
                     for sheet in wb.sheetnames:
                         ws = wb[sheet]
                         sheet_rows = []
                         for row in ws.iter_rows(values_only=True):
-                            line = "\t".join(str(c) if c is not None else "" for c in row)
+                            line = "\t".join(
+                                str(c) if c is not None else "" for c in row
+                            )
                             sheet_rows.append(line)
                         rows.append(f"=== Sheet: {sheet} ===\n" + "\n".join(sheet_rows))
                     file_text = "\n\n".join(rows)
                     wb.close()
 
-                elif "presentationml" in content_type or ".pptx" in filename_lower or "powerpoint" in content_type:
+                elif (
+                    "presentationml" in content_type
+                    or ".pptx" in filename_lower
+                    or "powerpoint" in content_type
+                ):
                     from pptx import Presentation
+
                     prs = Presentation(db_file.storage_path)
                     slides_text = []
                     for i, slide in enumerate(prs.slides, 1):
@@ -609,19 +686,27 @@ async def _process_attachments(db: AsyncSession, messages: list[dict], attachmen
                             elif shape.has_table:
                                 table = shape.table
                                 for row in table.rows:
-                                    slide_texts.append("\t".join(cell.text for cell in row.cells))
-                        slides_text.append(f"=== Slide {i} ===\n" + "\n".join(slide_texts))
+                                    slide_texts.append(
+                                        "\t".join(cell.text for cell in row.cells)
+                                    )
+                        slides_text.append(
+                            f"=== Slide {i} ===\n" + "\n".join(slide_texts)
+                        )
                     file_text = "\n\n".join(slides_text)
 
                 else:
-                    file_text = Path(db_file.storage_path).read_text(encoding="utf-8", errors="replace")
+                    file_text = Path(db_file.storage_path).read_text(
+                        encoding="utf-8", errors="replace"
+                    )
             except Exception:
                 continue
             limit = 10000
             truncated = file_text[:limit]
             if len(file_text) > limit:
                 truncated += "\n... (truncated)"
-            context_msg = f"[Attached file: {filename}]\n{truncated}\n[End of attached file]"
+            context_msg = (
+                f"[Attached file: {filename}]\n{truncated}\n[End of attached file]"
+            )
             messages.insert(-1, {"role": "user", "content": context_msg})
 
     return messages
@@ -632,28 +717,50 @@ async def _inject_web_search(messages: list[dict], query: str) -> list[dict]:
         from app.services.web_search.models import SearchConfig
         from app.services.web_search.service_enhanced import EnhancedWebSearchService
 
-        config = SearchConfig(duckduckgo_enabled=True, searxng_enabled=True, searxng_url="http://searxng:8080")
+        config = SearchConfig(
+            duckduckgo_enabled=True,
+            searxng_enabled=True,
+            searxng_url="http://searxng:8080",
+        )
         service = EnhancedWebSearchService(config)
         # Extract key search terms for better results
         search_query = query
-        for prefix in ["what is", "what's", "what are", "tell me", "can you", "do you know",
-                        "how much is", "how much does", "current", "latest", "find", "search"]:
+        for prefix in [
+            "what is",
+            "what's",
+            "what are",
+            "tell me",
+            "can you",
+            "do you know",
+            "how much is",
+            "how much does",
+            "current",
+            "latest",
+            "find",
+            "search",
+        ]:
             if search_query.lower().startswith(prefix):
-                search_query = search_query[len(prefix):].strip(" ?!,.;:")
+                search_query = search_query[len(prefix) :].strip(" ?!,.;:")
                 break
         if not search_query.strip():
             search_query = query
-        search_result = await service.search(query=search_query, max_results=5, use_cache=False, use_reranking=False, use_query_understanding=False)
+        search_result = await service.search(
+            query=search_query,
+            max_results=5,
+            use_cache=False,
+            use_reranking=False,
+            use_query_understanding=False,
+        )
 
         results = search_result.get("results", [])
         if not results:
             return messages
 
         lines = [
-            'IMPORTANT: The following web search results contain CURRENT, FACTUAL information.',
+            "IMPORTANT: The following web search results contain CURRENT, FACTUAL information.",
             f'Use these results to answer the user\'s question about: "{query}"',
-            'Do NOT say you lack access to live data — you have the data right here.',
-            'If the results contain a price, date, or figure, cite it directly.',
+            "Do NOT say you lack access to live data — you have the data right here.",
+            "If the results contain a price, date, or figure, cite it directly.",
             "",
             "Search results:",
         ]
@@ -665,7 +772,9 @@ async def _inject_web_search(messages: list[dict], query: str) -> list[dict]:
             else:
                 title = getattr(r, "title", "Untitled") or "Untitled"
                 url = getattr(r, "url", "") or ""
-                snippet = (getattr(r, "snippet", "") or getattr(r, "content", "") or "")[:200]
+                snippet = (
+                    getattr(r, "snippet", "") or getattr(r, "content", "") or ""
+                )[:200]
             lines.append(f"{i}. {title} — {url}")
             if snippet:
                 lines.append(f"   {snippet}")
@@ -746,14 +855,21 @@ async def send_message_to_llm(
 
     mismatch_error = _validate_byok_key_matches_model(user_api_key, raw_model)
     if mismatch_error:
-        return {"success": False, "content": mismatch_error, "tokens": 0, "model": model}
+        return {
+            "success": False,
+            "content": mismatch_error,
+            "tokens": 0,
+            "model": model,
+        }
 
     # --- Stored-key fallback: if no per-request key, look up user's stored key ---
     effective_user_key = user_api_key
     effective_base_url = user_base_url
     if not effective_user_key and db is not None:
         model_provider = _get_provider_for_model(raw_model)
-        stored_key, stored_base = await _lookup_stored_byok_key(db, user_id, provider_hint=model_provider)
+        stored_key, stored_base = await _lookup_stored_byok_key(
+            db, user_id, provider_hint=model_provider
+        )
         if stored_key:
             effective_user_key = stored_key
             effective_base_url = stored_base
@@ -782,7 +898,9 @@ async def send_message_to_llm(
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
             if attachments:
-                messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
+                messages_for_llm = await _process_attachments(
+                    db, messages_for_llm, attachments, raw_model
+                )
 
             if web_search:
                 messages_for_llm = await _inject_web_search(messages_for_llm, content)
@@ -830,12 +948,21 @@ async def send_message_to_llm(
         }
     except CircuitOpenError as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
+        record_llm_request(
+            provider=provider_name, duration_seconds=llm_duration, success=False
+        )
         logger.warning("Circuit breaker open for %s: %s", provider_name, e)
-        return {"success": False, "content": f"Service temporarily unavailable ({provider_name}). Please try again later.", "tokens": 0, "model": model}
+        return {
+            "success": False,
+            "content": f"Service temporarily unavailable ({provider_name}). Please try again later.",
+            "tokens": 0,
+            "model": model,
+        }
     except Exception as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
+        record_llm_request(
+            provider=provider_name, duration_seconds=llm_duration, success=False
+        )
         logger.error("send_message_to_llm failed: %s", e)
         return {"success": False, "content": str(e), "tokens": 0, "model": model}
 
@@ -876,7 +1003,9 @@ async def stream_message_to_llm(
     effective_base_url = user_base_url
     if not effective_user_key and db is not None:
         model_provider = _get_provider_for_model(raw_model)
-        stored_key, stored_base = await _lookup_stored_byok_key(db, user_id, provider_hint=model_provider)
+        stored_key, stored_base = await _lookup_stored_byok_key(
+            db, user_id, provider_hint=model_provider
+        )
         if stored_key:
             effective_user_key = stored_key
             effective_base_url = stored_base
@@ -905,7 +1034,9 @@ async def stream_message_to_llm(
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
             if attachments:
-                messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
+                messages_for_llm = await _process_attachments(
+                    db, messages_for_llm, attachments, raw_model
+                )
 
             if web_search:
                 messages_for_llm = await _inject_web_search(messages_for_llm, content)
@@ -932,7 +1063,9 @@ async def stream_message_to_llm(
             success=True,
         )
 
-        assistant_msg = await create_chat_message(db, thread_id, "assistant", full_response)
+        assistant_msg = await create_chat_message(
+            db, thread_id, "assistant", full_response
+        )
 
         try:
             from app.services.usage_service import get_usage_service
@@ -960,12 +1093,21 @@ async def stream_message_to_llm(
 
     except CircuitOpenError as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
+        record_llm_request(
+            provider=provider_name, duration_seconds=llm_duration, success=False
+        )
         logger.warning("Circuit breaker open for %s: %s", provider_name, e)
-        yield json.dumps({"type": "error", "error": f"Service temporarily unavailable ({provider_name}). Please try again later."})
+        yield json.dumps(
+            {
+                "type": "error",
+                "error": f"Service temporarily unavailable ({provider_name}). Please try again later.",
+            }
+        )
     except Exception as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
+        record_llm_request(
+            provider=provider_name, duration_seconds=llm_duration, success=False
+        )
         logger.error("stream_message_to_llm failed: %s", e)
         yield json.dumps({"type": "error", "error": str(e)})
 
@@ -1029,13 +1171,16 @@ async def generate_thread_title(
         title = response.choices[0].message.content
         if title:
             # Clean up: strip quotes, newlines, extra whitespace
-            title = title.strip().strip('"\'').strip()
+            title = title.strip().strip("\"'").strip()
             # Take first line only
             title = title.split("\n")[0].strip()
             # Strip common model prefixes like "Title:", "Subject:", or markdown bold
             import re
-            title = re.sub(r'^(Title|Subject|Topic):?\s*', '', title, flags=re.IGNORECASE)
-            title = title.strip('*').strip()
+
+            title = re.sub(
+                r"^(Title|Subject|Topic):?\s*", "", title, flags=re.IGNORECASE
+            )
+            title = title.strip("*").strip()
             # Truncate to reasonable length
             if len(title) > 100:
                 title = title[:97] + "..."
@@ -1074,7 +1219,9 @@ async def create_chat_branch(
     all_msgs, _ = await get_chat_messages(db, parent_thread_id)
     msgs_to_copy = [m for m in all_msgs if m.id <= parent_message_id]
     for msg in msgs_to_copy:
-        await create_chat_message(db, branch_thread.id, msg.role, msg.content, user_id=msg.user_id)
+        await create_chat_message(
+            db, branch_thread.id, msg.role, msg.content, user_id=msg.user_id
+        )
 
     # Create branch record
     branch = ChatBranch(

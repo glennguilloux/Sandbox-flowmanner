@@ -91,7 +91,15 @@ class TestInboxItemModel:
 
     def test_status_enum_values(self):
         """All expected status values should exist."""
-        expected = {"pending", "approved", "rejected", "clarified", "escalated", "expired", "cancelled"}
+        expected = {
+            "pending",
+            "approved",
+            "rejected",
+            "clarified",
+            "escalated",
+            "expired",
+            "cancelled",
+        }
         actual = {s.value for s in InboxItemStatus}
         assert expected == actual
 
@@ -306,12 +314,21 @@ class TestHITLServiceLogic:
 
 def test_imports():
     """Verify all Phase 6 models and services can be imported."""
-    from app.models.hitl_models import InboxItem, HumanInterrupt, HumanInterruptType, InboxItemStatus
-    from app.models.circuit_breaker_models import MissionCircuitBreaker, CircuitBreakerState
+    from app.models.hitl_models import (
+        InboxItem,
+        HumanInterrupt,
+        HumanInterruptType,
+        InboxItemStatus,
+    )
+    from app.models.circuit_breaker_models import (
+        MissionCircuitBreaker,
+        CircuitBreakerState,
+    )
     from app.services.hitl_service import HITLService
     from app.services.circuit_breaker_service import CircuitBreakerService
     from app.services.cost_attribution_service import CostAttributionService
     from app.services.episodic_memory_worker import EpisodicMemoryWorker
+
     assert InboxItem is not None
     assert HumanInterrupt is not None
     assert MissionCircuitBreaker is not None

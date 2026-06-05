@@ -68,11 +68,21 @@ class BootstrapReport:
     def summary(self) -> str:
         lines = []
         for s in self.steps:
-            icon = {"ok": "✅", "skipped": "⏭️", "failed": "❌", "running": "⏳", "pending": "⏸️"}
-            lines.append(f"  {icon.get(s.status.value, '?')} {s.name} — {s.status.value} ({s.duration_ms:.0f}ms)")
+            icon = {
+                "ok": "✅",
+                "skipped": "⏭️",
+                "failed": "❌",
+                "running": "⏳",
+                "pending": "⏸️",
+            }
+            lines.append(
+                f"  {icon.get(s.status.value, '?')} {s.name} — {s.status.value} ({s.duration_ms:.0f}ms)"
+            )
             if s.message:
                 lines.append(f"      {s.message}")
-        lines.append(f"\n  Total: {self.total_duration_ms:.0f}ms — {'ALL OK' if self.all_ok else 'FAILURES DETECTED'}")
+        lines.append(
+            f"\n  Total: {self.total_duration_ms:.0f}ms — {'ALL OK' if self.all_ok else 'FAILURES DETECTED'}"
+        )
         return "\n".join(lines)
 
 
@@ -160,10 +170,14 @@ async def _step_verify_db() -> str:
         assert result.scalar() == 1
 
         # Count key tables
-        result = await session.execute(text("""
+        result = await session.execute(
+            text(
+                """
             SELECT count(*) FROM information_schema.tables
             WHERE table_schema = 'public'
-        """))
+        """
+            )
+        )
         table_count = result.scalar()
 
     return f"DB connected, {table_count} tables found"
@@ -181,7 +195,9 @@ async def _step_migrations() -> str:
     backend_root = _get_backend_root()
     proc = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True,
+        text=True,
+        timeout=120,
         cwd=backend_root,
     )
     if proc.returncode != 0:
@@ -221,7 +237,9 @@ async def _run_script(module_name: str) -> str:
 
     proc = subprocess.run(
         [sys.executable, script_path],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True,
+        text=True,
+        timeout=120,
         cwd=backend_root,
     )
     if proc.returncode != 0:
@@ -287,6 +305,7 @@ async def _step_verify_health() -> str:
         import redis.asyncio as aioredis
 
         from app.config import settings
+
         r = aioredis.from_url(settings.REDIS_URL)
         await r.ping()
         await r.aclose()
@@ -299,6 +318,7 @@ async def _step_verify_health() -> str:
         import httpx
 
         from app.config import settings
+
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(f"{settings.QDRANT_URL}/healthz")
             if resp.status_code == 200:
@@ -313,11 +333,15 @@ async def _step_verify_health() -> str:
         async with AsyncSessionLocal() as session:
             result = await session.execute(text("SELECT count(*) FROM tools_catalog"))
             tools = result.scalar()
-            result = await session.execute(text("SELECT count(*) FROM capabilities_catalog"))
+            result = await session.execute(
+                text("SELECT count(*) FROM capabilities_catalog")
+            )
             caps = result.scalar()
             result = await session.execute(text("SELECT count(*) FROM agent_templates"))
             templates = result.scalar()
-        checks.append(f"Catalogs: {tools} tools, {caps} capabilities, {templates} templates")
+        checks.append(
+            f"Catalogs: {tools} tools, {caps} capabilities, {templates} templates"
+        )
     except Exception as e:
         checks.append(f"Catalogs: FAILED ({e})")
 
@@ -344,17 +368,25 @@ Examples:
   python -m app.cli.bootstrap --skip-qdrant  # Skip Qdrant reindex
         """,
     )
-    parser.add_argument("--skip-migrations", action="store_true", help="Skip Alembic migration step")
-    parser.add_argument("--skip-qdrant", action="store_true", help="Skip Qdrant reindex step")
-    parser.add_argument("--dry-run", action="store_true", help="Report steps without executing")
+    parser.add_argument(
+        "--skip-migrations", action="store_true", help="Skip Alembic migration step"
+    )
+    parser.add_argument(
+        "--skip-qdrant", action="store_true", help="Skip Qdrant reindex step"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Report steps without executing"
+    )
 
     args = parser.parse_args()
 
-    report = asyncio.run(bootstrap(
-        skip_migrations=args.skip_migrations,
-        skip_qdrant=args.skip_qdrant,
-        dry_run=args.dry_run,
-    ))
+    report = asyncio.run(
+        bootstrap(
+            skip_migrations=args.skip_migrations,
+            skip_qdrant=args.skip_qdrant,
+            dry_run=args.dry_run,
+        )
+    )
 
     print("\n" + "=" * 60)
     print("  FLOWMANNER BOOTSTRAP REPORT")

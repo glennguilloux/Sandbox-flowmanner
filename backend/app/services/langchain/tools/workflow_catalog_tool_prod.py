@@ -116,9 +116,7 @@ class HTTPClient:
         except Exception as e:
             raise CatalogError(f"GET request failed: {e}")
 
-    def post(
-        self, endpoint: str, json_data: dict | None = None
-    ) -> requests.Response:
+    def post(self, endpoint: str, json_data: dict | None = None) -> requests.Response:
         """POST request with retry logic"""
         url = f"{self.base_url}{endpoint}"
         try:

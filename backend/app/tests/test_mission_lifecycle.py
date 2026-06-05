@@ -43,14 +43,19 @@ def make_mission(status="running", error_message=None):
 
 def make_user():
     return SimpleNamespace(
-        id=1, email="user@example.com", username="test-user",
-        full_name="Test User", is_active=True, role="user",
+        id=1,
+        email="user@example.com",
+        username="test-user",
+        full_name="Test User",
+        is_active=True,
+        role="user",
     )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Pause
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandlePauseMission:
     @pytest.mark.asyncio
@@ -63,10 +68,13 @@ class TestHandlePauseMission:
         mock_db.add = MagicMock()
         mock_mission = make_mission(status="running")
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
             mock_task_result = MagicMock()
             mock_task_result.scalars().all.return_value = []
             mock_db.execute = AsyncMock(return_value=mock_task_result)
@@ -81,8 +89,10 @@ class TestHandlePauseMission:
         from app.services.mission_errors import MissionTransitionConflictError
 
         mock_mission = make_mission(status="completed")
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionTransitionConflictError):
                 await handler.pause_mission(make_user(), MISSION_ID)
@@ -102,10 +112,13 @@ class TestHandlePauseMission:
         mock_task_result = MagicMock()
         mock_task_result.scalars().all.return_value = [mock_task]
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
             mock_db.execute = AsyncMock(return_value=mock_task_result)
             handler = MissionCommandHandlers(mock_db)
             await handler.pause_mission(make_user(), MISSION_ID)
@@ -115,6 +128,7 @@ class TestHandlePauseMission:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Resume
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleResumeMission:
     @pytest.mark.asyncio
@@ -127,10 +141,13 @@ class TestHandleResumeMission:
         mock_db.add = MagicMock()
         mock_mission = make_mission(status="paused")
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.resume_mission(make_user(), MISSION_ID)
             assert result.status == MissionStatus.QUEUED
@@ -141,8 +158,10 @@ class TestHandleResumeMission:
         from app.services.mission_errors import MissionTransitionConflictError
 
         mock_mission = make_mission(status="completed")
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionTransitionConflictError):
                 await handler.resume_mission(make_user(), MISSION_ID)
@@ -151,6 +170,7 @@ class TestHandleResumeMission:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Retry
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleRetryMission:
     @pytest.mark.asyncio
@@ -166,12 +186,15 @@ class TestHandleRetryMission:
         mock_exec = MagicMock()
         mock_exec.plan_mission = AsyncMock(return_value={"success": True})
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.api._mission_cqrs.commands.MissionExecutor",
-                   return_value=mock_exec):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
+        ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.retry_mission(make_user(), MISSION_ID)
             assert mock_mission.status == MissionStatus.PENDING
@@ -183,8 +206,10 @@ class TestHandleRetryMission:
         from app.services.mission_errors import MissionTransitionConflictError
 
         mock_mission = make_mission(status="completed")
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionTransitionConflictError):
                 await handler.retry_mission(make_user(), MISSION_ID)
@@ -193,6 +218,7 @@ class TestHandleRetryMission:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Batch Abort
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleBatchAbort:
     @pytest.mark.asyncio
@@ -261,6 +287,7 @@ class TestHandleBatchAbort:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Create from Template
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleCreateFromTemplate:
     @pytest.mark.asyncio

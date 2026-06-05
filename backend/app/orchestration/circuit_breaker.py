@@ -48,7 +48,8 @@ class MissionLimits:
             max_duration_seconds=constraints.get("max_duration_seconds", 3600),
             max_tool_calls_per_agent=constraints.get("max_tool_calls_per_agent", 50),
             destructive_actions_allowed=constraints.get(
-                "destructive_actions_allowed", False,
+                "destructive_actions_allowed",
+                False,
             ),
         )
 
@@ -146,9 +147,11 @@ class MissionCircuitBreaker:
             )
 
     def _check_destructive(self, action_type: str, agent_id: str) -> None:
-        is_destructive = (
-            action_type.startswith("destructive_")
-            or action_type in ("delete_file", "drop_table", "transfer_funds", "send_email")
+        is_destructive = action_type.startswith("destructive_") or action_type in (
+            "delete_file",
+            "drop_table",
+            "transfer_funds",
+            "send_email",
         )
         if is_destructive and not self.limits.destructive_actions_allowed:
             raise CircuitBreakerTrip(

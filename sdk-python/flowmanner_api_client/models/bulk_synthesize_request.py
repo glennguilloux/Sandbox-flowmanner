@@ -1,66 +1,49 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="BulkSynthesizeRequest")
-
 
 
 @_attrs_define
 class BulkSynthesizeRequest:
-    """ 
-        Attributes:
-            mission_ids (list[str]):
-            mode (str | Unset):  Default: 'auto'.
-     """
+    """
+    Attributes:
+        mission_ids (list[str]):
+        mode (str | Unset):  Default: 'auto'.
+    """
 
     mission_ids: list[str]
-    mode: str | Unset = 'auto'
+    mode: str | Unset = "auto"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         mission_ids = self.mission_ids
 
-
-
         mode = self.mode
-
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "mission_ids": mission_ids,
-        })
+        field_dict.update(
+            {
+                "mission_ids": mission_ids,
+            }
+        )
         if mode is not UNSET:
             field_dict["mode"] = mode
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         mission_ids = cast(list[str], d.pop("mission_ids"))
-
 
         mode = d.pop("mode", UNSET)
 
@@ -68,7 +51,6 @@ class BulkSynthesizeRequest:
             mission_ids=mission_ids,
             mode=mode,
         )
-
 
         bulk_synthesize_request.additional_properties = d
         return bulk_synthesize_request

@@ -27,12 +27,18 @@ class TestRouteRequest:
     @pytest.mark.asyncio
     async def test_route_request_success(self):
         with patch("app.services.llm_router._resolve_provider") as mock_resolve:
-            mock_resolve.return_value = ("https://api.example.com", "sk-test-key", "gpt-4")
+            mock_resolve.return_value = (
+                "https://api.example.com",
+                "sk-test-key",
+                "gpt-4",
+            )
             with patch("app.services.llm_router.AsyncOpenAI") as mock_client_class:
                 mock_client = AsyncMock()
                 mock_response = AsyncMock()
                 mock_response.choices = [MagicMock(message=MagicMock(content="Hello"))]
-                mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
+                mock_response.usage = MagicMock(
+                    prompt_tokens=10, completion_tokens=5, total_tokens=15
+                )
                 mock_client.chat.completions.create.return_value = mock_response
                 mock_client_class.return_value = mock_client
 
@@ -50,7 +56,11 @@ class TestRouteRequest:
     @pytest.mark.asyncio
     async def test_route_request_failure(self):
         with patch("app.services.llm_router._resolve_provider") as mock_resolve:
-            mock_resolve.return_value = ("https://api.example.com", "sk-test-key", "gpt-4")
+            mock_resolve.return_value = (
+                "https://api.example.com",
+                "sk-test-key",
+                "gpt-4",
+            )
             with patch("app.services.llm_router.AsyncOpenAI") as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.chat.completions.create.side_effect = Exception("API error")
@@ -69,11 +79,19 @@ class TestCheckAllProvidersHealth:
     @pytest.mark.asyncio
     async def test_health_check_all_providers(self):
         import os
+
         os.environ["DEEPSEEK_API_KEY"] = "sk-test"
-        with patch("app.services.llm_router.PROVIDER_MAP", {"deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY")}), \
-             patch("app.services.llm_router._resolve_provider") as mock_resolve, \
-             patch("app.services.llm_router.AsyncOpenAI") as mock_client_class:
-            mock_resolve.return_value = ("https://api.deepseek.com", "sk-test", "deepseek-v4-flash")
+        with patch(
+            "app.services.llm_router.PROVIDER_MAP",
+            {"deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY")},
+        ), patch("app.services.llm_router._resolve_provider") as mock_resolve, patch(
+            "app.services.llm_router.AsyncOpenAI"
+        ) as mock_client_class:
+            mock_resolve.return_value = (
+                "https://api.deepseek.com",
+                "sk-test",
+                "deepseek-v4-flash",
+            )
             mock_client = AsyncMock()
             mock_client.chat.completions.create.return_value = MagicMock()
             mock_client_class.return_value = mock_client

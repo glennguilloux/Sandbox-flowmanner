@@ -26,7 +26,9 @@ class AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload:
         d = dict(src_dict)
         add_team_member_api_teams_workspace_id_team_id_members_post_payload = cls()
 
-        add_team_member_api_teams_workspace_id_team_id_members_post_payload.additional_properties = d
+        add_team_member_api_teams_workspace_id_team_id_members_post_payload.additional_properties = (
+            d
+        )
         return add_team_member_api_teams_workspace_id_team_id_members_post_payload
 
     @property

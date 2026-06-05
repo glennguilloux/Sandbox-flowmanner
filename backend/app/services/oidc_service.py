@@ -47,6 +47,7 @@ _state_store: dict[str, dict[str, Any]] = {}
 STATE_TTL = 600  # 10 minutes
 MAX_STATE_KEYS = 5000
 
+
 def _cleanup_state_store() -> None:
     """Remove expired entries and enforce max size."""
     now = time.time()
@@ -54,8 +55,10 @@ def _cleanup_state_store() -> None:
     for k in expired:
         del _state_store[k]
     if len(_state_store) > MAX_STATE_KEYS:
-        sorted_keys = sorted(_state_store.keys(), key=lambda k: _state_store[k].get("_ts", 0))
-        for old_key in sorted_keys[:len(_state_store) - MAX_STATE_KEYS]:
+        sorted_keys = sorted(
+            _state_store.keys(), key=lambda k: _state_store[k].get("_ts", 0)
+        )
+        for old_key in sorted_keys[: len(_state_store) - MAX_STATE_KEYS]:
             del _state_store[old_key]
 
 
@@ -195,8 +198,7 @@ def _cleanup_expired_states() -> None:
     """Remove expired state entries."""
     now = time.time()
     expired = [
-        k for k, v in _state_store.items()
-        if now - v.get("created_at", 0) > STATE_TTL
+        k for k, v in _state_store.items() if now - v.get("created_at", 0) > STATE_TTL
     ]
     for k in expired:
         del _state_store[k]
@@ -405,9 +407,7 @@ async def find_or_create_user(
 
     if account:
         # Update account tokens
-        user_result = await db.execute(
-            select(User).where(User.id == account.user_id)
-        )
+        user_result = await db.execute(select(User).where(User.id == account.user_id))
         user = user_result.scalar_one_or_none()
         if user:
             _update_user_from_claims(user, userinfo)
@@ -437,7 +437,9 @@ async def find_or_create_user(
             _update_user_from_claims(user, userinfo)
             await db.flush()
             await db.refresh(user)
-            logger.info(f"Linked existing user {user.id} to OIDC provider {provider.name}")
+            logger.info(
+                f"Linked existing user {user.id} to OIDC provider {provider.name}"
+            )
             return user
 
     # Create new user
@@ -447,7 +449,9 @@ async def find_or_create_user(
     user = User(
         email=email or f"{oidc_sub}@{provider.name}.local",
         username=username,
-        password_hash=hash_password(secrets.token_urlsafe(32)),  # Random password for OIDC users
+        password_hash=hash_password(
+            secrets.token_urlsafe(32)
+        ),  # Random password for OIDC users
         full_name=full_name,
         avatar_url=userinfo.get("picture"),
         is_active=True,
@@ -467,7 +471,9 @@ async def find_or_create_user(
     db.add(account)
     await db.flush()
 
-    logger.info(f"Created new OIDC user: {user.id} ({user.email}) from provider {provider.name}")
+    logger.info(
+        f"Created new OIDC user: {user.id} ({user.email}) from provider {provider.name}"
+    )
     return user
 
 
@@ -774,4 +780,5 @@ def _generate_username(userinfo: dict[str, Any]) -> str:
 def _get_frontend_base_url() -> str:
     """Get frontend base URL from environment."""
     import os
+
     return os.getenv("FRONTEND_URL", "http://localhost:3000")

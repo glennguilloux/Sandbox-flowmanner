@@ -32,6 +32,7 @@ async def _get_redis():
     if _redis is None:
         try:
             from redis.asyncio import Redis as _AsyncRedis
+
             AsyncRedis = _AsyncRedis
             _redis = AsyncRedis.from_url(settings.REDIS_URL, decode_responses=True)
             await _redis.ping()
@@ -46,7 +47,9 @@ async def _get_redis():
 # ── Cache keys ────────────────────────────────────────────────────────────────
 
 
-def _list_key(user_id: int, page: int, per_page: int, workspace_id: str | None = None) -> str:
+def _list_key(
+    user_id: int, page: int, per_page: int, workspace_id: str | None = None
+) -> str:
     ws_part = f":ws:{workspace_id}" if workspace_id else ""
     return f"mission:list:{user_id}{ws_part}:p{page}:pp{per_page}"
 
@@ -90,7 +93,9 @@ async def cache_get(user_id: int, mission_id: str) -> dict | None:
         return None
 
 
-async def cache_set(user_id: int, mission_id: str, data: dict, ttl: int | None = None) -> None:
+async def cache_set(
+    user_id: int, mission_id: str, data: dict, ttl: int | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
@@ -101,7 +106,9 @@ async def cache_set(user_id: int, mission_id: str, data: dict, ttl: int | None =
         logger.debug("mission_cache_set_failed", mission_id=mission_id)
 
 
-async def cache_list(user_id: int, page: int, per_page: int, workspace_id: str | None = None) -> dict | None:
+async def cache_list(
+    user_id: int, page: int, per_page: int, workspace_id: str | None = None
+) -> dict | None:
     r = await _get_redis()
     if r is None:
         return None
@@ -112,12 +119,18 @@ async def cache_list(user_id: int, page: int, per_page: int, workspace_id: str |
         return None
 
 
-async def cache_set_list(user_id: int, page: int, per_page: int, data: dict, workspace_id: str | None = None) -> None:
+async def cache_set_list(
+    user_id: int, page: int, per_page: int, data: dict, workspace_id: str | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
     try:
-        await r.setex(_list_key(user_id, page, per_page, workspace_id), settings.MISSION_CACHE_LIST_TTL, json.dumps(data))
+        await r.setex(
+            _list_key(user_id, page, per_page, workspace_id),
+            settings.MISSION_CACHE_LIST_TTL,
+            json.dumps(data),
+        )
     except Exception as e:
         logger.debug("mission_cache_set_list_failed", user_id=user_id, error=str(e))
 
@@ -133,12 +146,18 @@ async def cache_active(user_id: int, workspace_id: str | None = None) -> dict | 
         return None
 
 
-async def cache_set_active(user_id: int, data: dict, workspace_id: str | None = None) -> None:
+async def cache_set_active(
+    user_id: int, data: dict, workspace_id: str | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
     try:
-        await r.setex(_active_key(user_id, workspace_id), settings.MISSION_CACHE_ACTIVE_TTL, json.dumps(data))
+        await r.setex(
+            _active_key(user_id, workspace_id),
+            settings.MISSION_CACHE_ACTIVE_TTL,
+            json.dumps(data),
+        )
     except Exception as e:
         logger.debug("mission_cache_set_active_failed", user_id=user_id, error=str(e))
 
@@ -154,11 +173,15 @@ async def cache_get_tasks(user_id: int, mission_id: str) -> dict | None:
         raw = await r.get(_tasks_key(user_id, mission_id))
         return json.loads(raw) if raw else None
     except Exception as e:
-        logger.debug("mission_cache_get_tasks_failed", mission_id=mission_id, error=str(e))
+        logger.debug(
+            "mission_cache_get_tasks_failed", mission_id=mission_id, error=str(e)
+        )
         return None
 
 
-async def cache_set_tasks(user_id: int, mission_id: str, data: dict, ttl: int | None = None) -> None:
+async def cache_set_tasks(
+    user_id: int, mission_id: str, data: dict, ttl: int | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
@@ -166,7 +189,9 @@ async def cache_set_tasks(user_id: int, mission_id: str, data: dict, ttl: int | 
         ttl = ttl or settings.MISSION_CACHE_GET_TTL
         await r.setex(_tasks_key(user_id, mission_id), ttl, json.dumps(data))
     except Exception as e:
-        logger.debug("mission_cache_set_tasks_failed", mission_id=mission_id, error=str(e))
+        logger.debug(
+            "mission_cache_set_tasks_failed", mission_id=mission_id, error=str(e)
+        )
 
 
 # ── Logs cache ─────────────────────────────────────────────────────────────────
@@ -183,7 +208,9 @@ async def cache_get_logs(user_id: int, mission_id: str) -> dict | None:
         return None
 
 
-async def cache_set_logs(user_id: int, mission_id: str, data: dict, ttl: int | None = None) -> None:
+async def cache_set_logs(
+    user_id: int, mission_id: str, data: dict, ttl: int | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
@@ -191,7 +218,9 @@ async def cache_set_logs(user_id: int, mission_id: str, data: dict, ttl: int | N
         ttl = ttl or settings.MISSION_CACHE_GET_TTL
         await r.setex(_logs_key(user_id, mission_id), ttl, json.dumps(data))
     except Exception as e:
-        logger.debug("mission_cache_set_logs_failed", mission_id=mission_id, error=str(e))
+        logger.debug(
+            "mission_cache_set_logs_failed", mission_id=mission_id, error=str(e)
+        )
 
 
 # ── Status cache ───────────────────────────────────────────────────────────────
@@ -208,7 +237,9 @@ async def cache_get_status(user_id: int, mission_id: str) -> dict | None:
         return None
 
 
-async def cache_set_status(user_id: int, mission_id: str, data: dict, ttl: int | None = None) -> None:
+async def cache_set_status(
+    user_id: int, mission_id: str, data: dict, ttl: int | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
@@ -216,7 +247,9 @@ async def cache_set_status(user_id: int, mission_id: str, data: dict, ttl: int |
         ttl = ttl or settings.MISSION_CACHE_ACTIVE_TTL
         await r.setex(_status_key(user_id, mission_id), ttl, json.dumps(data))
     except Exception as e:
-        logger.debug("mission_cache_set_status_failed", mission_id=mission_id, error=str(e))
+        logger.debug(
+            "mission_cache_set_status_failed", mission_id=mission_id, error=str(e)
+        )
 
 
 # ── Improvements cache ────────────────────────────────────────────────────────
@@ -233,7 +266,9 @@ async def cache_get_improvements(user_id: int, mission_id: str) -> dict | None:
         return None
 
 
-async def cache_set_improvements(user_id: int, mission_id: str, data: dict, ttl: int | None = None) -> None:
+async def cache_set_improvements(
+    user_id: int, mission_id: str, data: dict, ttl: int | None = None
+) -> None:
     r = await _get_redis()
     if r is None:
         return
@@ -241,7 +276,9 @@ async def cache_set_improvements(user_id: int, mission_id: str, data: dict, ttl:
         ttl = ttl or settings.MISSION_CACHE_GET_TTL
         await r.setex(_improvements_key(user_id, mission_id), ttl, json.dumps(data))
     except Exception as e:
-        logger.debug("mission_cache_set_improvements_failed", mission_id=mission_id, error=str(e))
+        logger.debug(
+            "mission_cache_set_improvements_failed", mission_id=mission_id, error=str(e)
+        )
 
 
 # ── Invalidation (called after mutations) ─────────────────────────────────────
@@ -266,7 +303,9 @@ async def invalidate_user_caches(user_id: int) -> None:
         active_ws_pattern = f"mission:active:{user_id}:ws:*"
         ws_cursor = 0
         while True:
-            ws_cursor, ws_keys = await r.scan(ws_cursor, match=active_ws_pattern, count=100)
+            ws_cursor, ws_keys = await r.scan(
+                ws_cursor, match=active_ws_pattern, count=100
+            )
             if ws_keys:
                 await r.delete(*ws_keys)
             if ws_cursor == 0:
@@ -290,4 +329,6 @@ async def invalidate_mission_cache(user_id: int, mission_id: str) -> None:
             _active_key(user_id),  # no-workspace variant
         )
     except Exception as e:
-        logger.debug("mission_cache_invalidate_failed", mission_id=mission_id, error=str(e))
+        logger.debug(
+            "mission_cache_invalidate_failed", mission_id=mission_id, error=str(e)
+        )

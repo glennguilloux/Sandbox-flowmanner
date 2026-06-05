@@ -44,8 +44,18 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default="true"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
         sa.UniqueConstraint(
             "source_workspace_id",
             "target_workspace_id",
@@ -54,8 +64,12 @@ def upgrade() -> None:
             name="uq_workspace_share",
         ),
     )
-    op.create_index("ix_ws_share_target", "workspace_shares", ["target_workspace_id", "is_active"])
-    op.create_index("ix_ws_share_entity", "workspace_shares", ["entity_type", "entity_id"])
+    op.create_index(
+        "ix_ws_share_target", "workspace_shares", ["target_workspace_id", "is_active"]
+    )
+    op.create_index(
+        "ix_ws_share_entity", "workspace_shares", ["entity_type", "entity_id"]
+    )
 
 
 def downgrade() -> None:

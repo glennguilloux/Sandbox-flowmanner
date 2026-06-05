@@ -11,6 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class RuntimeSDK:
     """SDK for runtime operations"""
 
@@ -30,11 +31,7 @@ class RuntimeSDK:
         return {
             "status": "healthy",
             "timestamp": datetime.now(UTC).isoformat(),
-            "components": {
-                "database": "healthy",
-                "redis": "healthy",
-                "api": "healthy"
-            }
+            "components": {"database": "healthy", "redis": "healthy", "api": "healthy"},
         }
 
     async def execute(
@@ -44,7 +41,7 @@ class RuntimeSDK:
         priority: str = "normal",
         timeout: float | None = None,
         metadata: dict[str, Any] = None,
-        async_exec: bool = False
+        async_exec: bool = False,
     ) -> dict[str, Any]:
         """Execute a tool"""
         execution_id = str(uuid.uuid4())
@@ -61,28 +58,33 @@ class RuntimeSDK:
             "result": {"output": f"Tool {tool_name} executed successfully"},
             "started_at": datetime.now(UTC).isoformat(),
             "completed_at": datetime.now(UTC).isoformat(),
-            "duration_ms": 500
+            "duration_ms": 500,
         }
 
     async def get_predictions(self) -> dict[str, Any]:
         """Get resource predictions"""
         from app.services.runtime.predictive_scaler import predictive_scaler
+
         return await predictive_scaler.get_predictions()
 
     async def get_scaling_status(self) -> dict[str, Any]:
         """Get scaling status"""
         from app.services.runtime.predictive_scaler import predictive_scaler
+
         return await predictive_scaler.get_status()
 
     async def scale_up(self, count: int = 1) -> dict[str, Any]:
         """Scale up workers"""
         from app.services.runtime.predictive_scaler import predictive_scaler
+
         return await predictive_scaler.scale_up(count)
 
     async def scale_down(self, count: int = 1) -> dict[str, Any]:
         """Scale down workers"""
         from app.services.runtime.predictive_scaler import predictive_scaler
+
         return await predictive_scaler.scale_down(count)
+
 
 # Singleton instance
 runtime_sdk = RuntimeSDK()

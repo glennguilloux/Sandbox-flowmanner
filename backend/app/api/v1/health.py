@@ -42,6 +42,7 @@ async def health():
         import time
 
         from app.database import engine
+
         start = time.time()
         async with engine.connect() as conn:
             await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
@@ -54,6 +55,7 @@ async def health():
         import time
 
         from redis.asyncio import Redis
+
         start = time.time()
         r = Redis.from_url(settings.REDIS_URL)
         await r.ping()
@@ -65,6 +67,7 @@ async def health():
 
     try:
         from qdrant_client import AsyncQdrantClient
+
         qdrant = AsyncQdrantClient(url=settings.QDRANT_URL)
         await qdrant.get_collections()
         await qdrant.close()
@@ -78,6 +81,7 @@ async def health():
     langfuse_caused_failures = 0
     try:
         from app.services.reliability_assertions import get_reliability_report
+
         report = get_reliability_report()
         llm_success_rate = report.get("llm_success_rate")
         langfuse_caused_failures = report.get("langfuse_caused_failures", 0)
@@ -87,8 +91,11 @@ async def health():
     circuit_state = "CLOSED"
     try:
         from app.services.langfuse_service import get_langfuse_service
+
         lf = get_langfuse_service()
-        circuit_state = lf.circuit_breaker.state.value if lf.circuit_breaker else "CLOSED"
+        circuit_state = (
+            lf.circuit_breaker.state.value if lf.circuit_breaker else "CLOSED"
+        )
     except Exception:
         logger.debug("circuit_breaker_state_failed", exc_info=True)
 
@@ -99,25 +106,37 @@ async def health():
         app=settings.APP_NAME,
         env=settings.APP_ENV,
         components={
-            "database": {"status": db_status, "latency_ms": db_latency, "detail": "PostgreSQL connected"},
-            "redis": {"status": redis_status, "latency_ms": redis_latency, "detail": "Redis connected"},
+            "database": {
+                "status": db_status,
+                "latency_ms": db_latency,
+                "detail": "PostgreSQL connected",
+            },
+            "redis": {
+                "status": redis_status,
+                "latency_ms": redis_latency,
+                "detail": "Redis connected",
+            },
             "langfuse": {
                 "status": "healthy" if settings.LANGFUSE_ENABLED else "unhealthy",
                 "latency_ms": 0,
                 "circuit_state": circuit_state,
-                "detail": "Langfuse observability" if settings.LANGFUSE_ENABLED else "Langfuse disabled"
+                "detail": (
+                    "Langfuse observability"
+                    if settings.LANGFUSE_ENABLED
+                    else "Langfuse disabled"
+                ),
             },
             "reliability": {
                 "llm_success_rate": llm_success_rate,
                 "langfuse_caused_failures": langfuse_caused_failures,
-                "detail": None
+                "detail": None,
             },
             "llm_provider": {
                 "status": "healthy" if llm_configured else "unhealthy",
                 "model": settings.LLM_MODEL_NAME,
                 "base_url": settings.LLM_API_BASE,
                 "key_configured": llm_configured,
-                "detail": "LLM API"
+                "detail": "LLM API",
             },
         },
     )
@@ -131,6 +150,7 @@ async def health_full():
 
     try:
         from app.database import engine
+
         async with engine.connect() as conn:
             await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
         db_status = "ok"
@@ -139,6 +159,7 @@ async def health_full():
 
     try:
         from redis.asyncio import Redis
+
         r = Redis.from_url(settings.REDIS_URL)
         await r.ping()
         await r.close()
@@ -148,6 +169,7 @@ async def health_full():
 
     try:
         from qdrant_client import AsyncQdrantClient
+
         qdrant = AsyncQdrantClient(url=settings.QDRANT_URL)
         await qdrant.get_collections()
         await qdrant.close()
@@ -166,8 +188,17 @@ async def health_full():
             "database": {"status": db_status, "latency_ms": None, "detail": None},
             "redis": {"status": redis_status, "latency_ms": None, "detail": None},
             "langfuse": {"status": "ok", "latency_ms": None, "circuit_state": "closed"},
-            "reliability": {"llm_success_rate": 0.95, "langfuse_caused_failures": 0, "detail": None},
-            "llm_provider": {"model": settings.LLM_MODEL_NAME, "base_url": settings.LLM_API_BASE, "key_configured": llm_configured, "status": llm_status},
+            "reliability": {
+                "llm_success_rate": 0.95,
+                "langfuse_caused_failures": 0,
+                "detail": None,
+            },
+            "llm_provider": {
+                "model": settings.LLM_MODEL_NAME,
+                "base_url": settings.LLM_API_BASE,
+                "key_configured": llm_configured,
+                "status": llm_status,
+            },
         },
     }
 

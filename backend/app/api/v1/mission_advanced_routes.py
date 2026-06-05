@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,12 +12,14 @@ from sqlalchemy import func, select
 
 from app.api.deps import get_current_user
 from app.database import get_db
-from app.models.mission_advanced_models import MissionTemplate, MissionVersion, NodeGroup
+from app.models.mission_advanced_models import (
+    MissionTemplate,
+    MissionVersion,
+    NodeGroup,
+)
 from app.models.mission_models import Mission
 
 if TYPE_CHECKING:
-    import uuid
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -26,11 +29,13 @@ router = APIRouter(prefix="/missions/advanced", tags=["mission_advanced"])
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _not_found() -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
+
 
 class TemplateCreate(BaseModel):
     name: str
@@ -135,6 +140,7 @@ class UseTemplateResponse(BaseModel):
 
 # ─── Templates ────────────────────────────────────────────────────────────────
 
+
 @router.get("/templates")
 async def list_templates(
     category: str | None = None,
@@ -163,7 +169,9 @@ async def list_templates(
         query = query.where(MissionTemplate.category == category)
         count_query = count_query.where(MissionTemplate.category == category)
 
-    query = query.order_by(MissionTemplate.created_at.desc()).offset(offset).limit(per_page)
+    query = (
+        query.order_by(MissionTemplate.created_at.desc()).offset(offset).limit(per_page)
+    )
     result = await db.execute(query)
     items = result.scalars().all()
 
@@ -180,7 +188,9 @@ async def list_templates(
     }
 
 
-@router.post("/templates", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/templates", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_template(
     payload: TemplateCreate,
     db: AsyncSession = Depends(get_db),
@@ -208,7 +218,9 @@ async def get_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(MissionTemplate).where(MissionTemplate.id == template_id))
+    result = await db.execute(
+        select(MissionTemplate).where(MissionTemplate.id == template_id)
+    )
     tpl = result.scalar_one_or_none()
     if tpl is None or (tpl.user_id != user.id and not tpl.is_public):
         raise _not_found()
@@ -222,7 +234,9 @@ async def update_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(MissionTemplate).where(MissionTemplate.id == template_id))
+    result = await db.execute(
+        select(MissionTemplate).where(MissionTemplate.id == template_id)
+    )
     tpl = result.scalar_one_or_none()
     if tpl is None or tpl.user_id != user.id:
         raise _not_found()
@@ -242,7 +256,9 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(MissionTemplate).where(MissionTemplate.id == template_id))
+    result = await db.execute(
+        select(MissionTemplate).where(MissionTemplate.id == template_id)
+    )
     tpl = result.scalar_one_or_none()
     if tpl is None or tpl.user_id != user.id:
         raise _not_found()
@@ -256,7 +272,9 @@ async def use_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(MissionTemplate).where(MissionTemplate.id == template_id))
+    result = await db.execute(
+        select(MissionTemplate).where(MissionTemplate.id == template_id)
+    )
     tpl = result.scalar_one_or_none()
     if tpl is None or (tpl.user_id != user.id and not tpl.is_public):
         raise _not_found()
@@ -274,6 +292,7 @@ async def use_template(
 
 
 # ─── Node Groups ──────────────────────────────────────────────────────────────
+
 
 @router.get("/node-groups")
 async def list_node_groups(
@@ -313,7 +332,11 @@ async def list_node_groups(
     }
 
 
-@router.post("/node-groups", response_model=NodeGroupResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/node-groups",
+    response_model=NodeGroupResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_node_group(
     payload: NodeGroupCreate,
     db: AsyncSession = Depends(get_db),
@@ -382,6 +405,7 @@ async def delete_node_group(
 
 # ─── Versions ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/missions/{mission_id}/versions")
 async def list_versions(
     mission_id: uuid.UUID,
@@ -408,7 +432,9 @@ async def list_versions(
     items = result.scalars().all()
 
     count_result = await db.execute(
-        select(func.count(MissionVersion.id)).where(MissionVersion.mission_id == mission_id)
+        select(func.count(MissionVersion.id)).where(
+            MissionVersion.mission_id == mission_id
+        )
     )
     total = count_result.scalar() or 0
     pages = (total + per_page - 1) // per_page
@@ -422,7 +448,11 @@ async def list_versions(
     }
 
 
-@router.post("/missions/{mission_id}/versions", response_model=VersionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/missions/{mission_id}/versions",
+    response_model=VersionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_version(
     mission_id: uuid.UUID,
     payload: VersionCreate,
@@ -437,7 +467,9 @@ async def create_version(
 
     # Get next version number
     max_ver_result = await db.execute(
-        select(func.max(MissionVersion.version)).where(MissionVersion.mission_id == mission_id)
+        select(func.max(MissionVersion.version)).where(
+            MissionVersion.mission_id == mission_id
+        )
     )
     next_version = (max_ver_result.scalar() or 0) + 1
 
@@ -455,7 +487,10 @@ async def create_version(
     return version
 
 
-@router.post("/missions/{mission_id}/versions/{version_id}/restore", response_model=RestoreResponse)
+@router.post(
+    "/missions/{mission_id}/versions/{version_id}/restore",
+    response_model=RestoreResponse,
+)
 async def restore_version(
     mission_id: uuid.UUID,
     version_id: uuid.UUID,
@@ -496,6 +531,7 @@ async def restore_version(
 
 # ─── Export / Import ──────────────────────────────────────────────────────────
 
+
 @router.get("/missions/{mission_id}/export")
 async def export_mission(
     mission_id: uuid.UUID,
@@ -520,7 +556,11 @@ async def export_mission(
     }
 
 
-@router.post("/missions/import", response_model=ImportResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/missions/import",
+    response_model=ImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def import_mission(
     payload: ImportPayload,
     db: AsyncSession = Depends(get_db),

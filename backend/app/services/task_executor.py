@@ -114,9 +114,7 @@ class TaskExecutor:
         task.started_at = datetime.now(UTC)
         await db.commit()
 
-        await self._log(
-            db, mission.id, task.id, "info", f"Executing: {task.title}"
-        )
+        await self._log(db, mission.id, task.id, "info", f"Executing: {task.title}")
 
         input_data = self._resolve_input(task, task_map)
 
@@ -145,9 +143,13 @@ class TaskExecutor:
                 case "review" | "human_review":
                     result = await self._request_human_input(db, mission, task)
                 case "http_integration" | "http_request":
-                    result = await self._execute_http_integration(task, input_data, mission, db)
+                    result = await self._execute_http_integration(
+                        task, input_data, mission, db
+                    )
                 case "integration_action":
-                    result = await self._execute_integration_action(task, input_data, mission, db)
+                    result = await self._execute_integration_action(
+                        task, input_data, mission, db
+                    )
                 case _ if task.task_type in BROWSER_TASK_TYPES:
                     result = await self.browser_runner.execute_browser_tool(
                         task, input_data, mission
@@ -264,9 +266,7 @@ class TaskExecutor:
         if not query:
             return {"success": False, "error": "No query provided"}
 
-        return await self._execute_rag_query(
-            query, params.get("collection", "default")
-        )
+        return await self._execute_rag_query(query, params.get("collection", "default"))
 
     async def _tool_api_caller(
         self, params: dict[str, Any], input_data: dict[str, Any]
@@ -331,9 +331,7 @@ class TaskExecutor:
         completion_tokens = 0
 
         try:
-            user_id = (
-                str(mission.user_id) if mission and mission.user_id else "system"
-            )
+            user_id = str(mission.user_id) if mission and mission.user_id else "system"
             response = await model_router.route_request(
                 model_preference="deepseek-chat",
                 messages=[{"role": "user", "content": prompt}],
@@ -382,9 +380,7 @@ class TaskExecutor:
 
     # ── RAG execution ──────────────────────────────────────────────────────
 
-    async def _execute_rag(
-        self, task, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _execute_rag(self, task, input_data: dict[str, Any]) -> dict[str, Any]:
         """Execute a RAG (retrieval-augmented generation) task.
 
         Args:
@@ -458,9 +454,7 @@ class TaskExecutor:
             return await self._execute_web_scrape(url)
         else:
             logger.info(f"Task {task.id}: No url/search API, falling back to LLM")
-            return await self.llm_executor.execute_llm(
-                task, input_data, mission, db
-            )
+            return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
     async def _execute_web_request(
         self,
@@ -501,12 +495,8 @@ class TaskExecutor:
         code = input_data.get("code")
 
         if not code:
-            logger.info(
-                f"Task {task.id}: No code in input_data, falling back to LLM"
-            )
-            return await self.llm_executor.execute_llm(
-                task, input_data, mission, db
-            )
+            logger.info(f"Task {task.id}: No code in input_data, falling back to LLM")
+            return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
         return await self._execute_code_from_string(code)
 
@@ -547,12 +537,8 @@ class TaskExecutor:
         path = input_data.get("path")
 
         if not path:
-            logger.info(
-                f"Task {task.id}: No path in input_data, falling back to LLM"
-            )
-            return await self.llm_executor.execute_llm(
-                task, input_data, mission, db
-            )
+            logger.info(f"Task {task.id}: No path in input_data, falling back to LLM")
+            return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
         full_path = os.path.join(self.workspace, path)
 
@@ -611,6 +597,7 @@ class TaskExecutor:
 
         try:
             from app.services.action_registry import execute_action
+
             return await execute_action(
                 user_id=str(mission.user_id),
                 connection_id=connection_id,
@@ -646,7 +633,9 @@ class TaskExecutor:
             from sqlalchemy import select
 
             from app.models.integration_models import HttpIntegrationConfig
-            from app.services.http_integration_executor import get_http_integration_executor
+            from app.services.http_integration_executor import (
+                get_http_integration_executor,
+            )
 
             result = await db.execute(
                 select(HttpIntegrationConfig).where(
@@ -656,7 +645,10 @@ class TaskExecutor:
             )
             config = result.scalars().first()
             if not config:
-                return {"success": False, "error": "Integration config not found or inactive"}
+                return {
+                    "success": False,
+                    "error": "Integration config not found or inactive",
+                }
 
             executor = get_http_integration_executor()
             return await executor.execute(
@@ -671,7 +663,9 @@ class TaskExecutor:
                 task_id=str(task.id) if task and hasattr(task, "id") else None,
             )
         except Exception as e:
-            logger.exception(f"HTTP integration execution failed for task {task.id}: {e}")
+            logger.exception(
+                f"HTTP integration execution failed for task {task.id}: {e}"
+            )
             return {"success": False, "error": f"HTTP integration error: {e!s}"}
 
     # ── Human input / fallback ─────────────────────────────────────────────
@@ -692,9 +686,7 @@ class TaskExecutor:
         task.status = "waiting_input"
         await db.commit()
 
-        await self._log(
-            db, mission.id, task.id, "info", "Waiting for human input"
-        )
+        await self._log(db, mission.id, task.id, "info", "Waiting for human input")
 
         return {
             "success": False,
@@ -746,9 +738,7 @@ class TaskExecutor:
 
     # ── Input resolution / aggregation ─────────────────────────────────────
 
-    def _resolve_input(
-        self, task, task_map: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _resolve_input(self, task, task_map: dict[str, Any]) -> dict[str, Any]:
         """Merge a task's input_data with resolved dependency outputs.
 
         For each index in ``task.dependencies``, looks up the corresponding
@@ -787,9 +777,7 @@ class TaskExecutor:
         """
         from app.models.mission_models import MissionTaskStatus
 
-        completed_tasks = [
-            t for t in tasks if t.status == MissionTaskStatus.COMPLETED
-        ]
+        completed_tasks = [t for t in tasks if t.status == MissionTaskStatus.COMPLETED]
 
         return {
             "summary": {
@@ -813,8 +801,6 @@ class TaskExecutor:
         }
 
 
-async def _nop_log(
-    db, mission_id, task_id, level, message, extra_data=None
-):
+async def _nop_log(db, mission_id, task_id, level, message, extra_data=None):
     """No-op log callback used when none is provided to TaskExecutor."""
     pass

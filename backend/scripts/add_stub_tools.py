@@ -169,7 +169,8 @@ async def run():
             try:
                 tool_id = str(uuid4())
                 result = await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO tools_catalog (
                             id, slug, name, description, category, tool_type,
                             handler_ref, tags, source, version,
@@ -182,7 +183,8 @@ async def run():
                             :now, :now
                         )
                         ON CONFLICT (slug) DO NOTHING
-                    """),
+                    """
+                    ),
                     {
                         "id": tool_id,
                         "slug": tool["slug"],
@@ -196,21 +198,26 @@ async def run():
                 )
                 if result.rowcount > 0:
                     # Create version snapshot (matches Phase 1 pattern)
-                    snapshot = json.dumps({
-                        "slug": tool["slug"],
-                        "name": tool["name"],
-                        "description": tool["description"],
-                        "category": tool["category"],
-                        "tool_type": "stub",
-                        "handler_ref": tool["handler_ref"],
-                        "tags": tool["tags"],
-                        "source": "stub_imported",
-                    }, default=str)
+                    snapshot = json.dumps(
+                        {
+                            "slug": tool["slug"],
+                            "name": tool["name"],
+                            "description": tool["description"],
+                            "category": tool["category"],
+                            "tool_type": "stub",
+                            "handler_ref": tool["handler_ref"],
+                            "tags": tool["tags"],
+                            "source": "stub_imported",
+                        },
+                        default=str,
+                    )
                     await conn.execute(
-                        sa_text("""
+                        sa_text(
+                            """
                             INSERT INTO tool_versions (id, tool_id, version, snapshot, created_at, updated_at)
                             VALUES (:id, :tool_id, 1, CAST(:snapshot AS jsonb), :now, :now)
-                        """),
+                        """
+                        ),
                         {
                             "id": str(uuid4()),
                             "tool_id": tool_id,
@@ -227,7 +234,11 @@ async def run():
                 logger.warning("Failed to insert %s: %s", tool["slug"], exc)
 
     await engine.dispose()
-    logger.info("Stub tools import: %d inserted, %d skipped (already existed)", inserted, skipped)
+    logger.info(
+        "Stub tools import: %d inserted, %d skipped (already existed)",
+        inserted,
+        skipped,
+    )
 
 
 if __name__ == "__main__":

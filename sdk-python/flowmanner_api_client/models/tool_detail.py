@@ -1,43 +1,36 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.tool_detail_input_schema import ToolDetailInputSchema
-  from ..models.tool_detail_output_schema import ToolDetailOutputSchema
-
-
-
+    from ..models.tool_detail_input_schema import ToolDetailInputSchema
+    from ..models.tool_detail_output_schema import ToolDetailOutputSchema
 
 
 T = TypeVar("T", bound="ToolDetail")
 
 
-
 @_attrs_define
 class ToolDetail:
-    """ 
-        Attributes:
-            tool_id (str):
-            name (str):
-            description (str):
-            category (str):
-            tags (list[str]):
-            input_schema (ToolDetailInputSchema):
-            output_schema (ToolDetailOutputSchema):
-            requires_auth (bool):
-            timeout_seconds (int):
-            rate_limit (int | None | Unset):
-     """
+    """
+    Attributes:
+        tool_id (str):
+        name (str):
+        description (str):
+        category (str):
+        tags (list[str]):
+        input_schema (ToolDetailInputSchema):
+        output_schema (ToolDetailOutputSchema):
+        requires_auth (bool):
+        timeout_seconds (int):
+        rate_limit (int | None | Unset):
+    """
 
     tool_id: str
     name: str
@@ -51,13 +44,7 @@ class ToolDetail:
     rate_limit: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.tool_detail_input_schema import ToolDetailInputSchema
-        from ..models.tool_detail_output_schema import ToolDetailOutputSchema
         tool_id = self.tool_id
 
         name = self.name
@@ -67,8 +54,6 @@ class ToolDetail:
         category = self.category
 
         tags = self.tags
-
-
 
         input_schema = self.input_schema.to_dict()
 
@@ -84,31 +69,31 @@ class ToolDetail:
         else:
             rate_limit = self.rate_limit
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "tool_id": tool_id,
-            "name": name,
-            "description": description,
-            "category": category,
-            "tags": tags,
-            "input_schema": input_schema,
-            "output_schema": output_schema,
-            "requires_auth": requires_auth,
-            "timeout_seconds": timeout_seconds,
-        })
+        field_dict.update(
+            {
+                "tool_id": tool_id,
+                "name": name,
+                "description": description,
+                "category": category,
+                "tags": tags,
+                "input_schema": input_schema,
+                "output_schema": output_schema,
+                "requires_auth": requires_auth,
+                "timeout_seconds": timeout_seconds,
+            }
+        )
         if rate_limit is not UNSET:
             field_dict["rate_limit"] = rate_limit
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.tool_detail_input_schema import ToolDetailInputSchema
         from ..models.tool_detail_output_schema import ToolDetailOutputSchema
+
         d = dict(src_dict)
         tool_id = d.pop("tool_id")
 
@@ -120,16 +105,9 @@ class ToolDetail:
 
         tags = cast(list[str], d.pop("tags"))
 
-
         input_schema = ToolDetailInputSchema.from_dict(d.pop("input_schema"))
 
-
-
-
         output_schema = ToolDetailOutputSchema.from_dict(d.pop("output_schema"))
-
-
-
 
         requires_auth = d.pop("requires_auth")
 
@@ -144,7 +122,6 @@ class ToolDetail:
 
         rate_limit = _parse_rate_limit(d.pop("rate_limit", UNSET))
 
-
         tool_detail = cls(
             tool_id=tool_id,
             name=name,
@@ -157,7 +134,6 @@ class ToolDetail:
             timeout_seconds=timeout_seconds,
             rate_limit=rate_limit,
         )
-
 
         tool_detail.additional_properties = d
         return tool_detail

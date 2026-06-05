@@ -46,7 +46,9 @@ class MetaLoopOrchestrator:
     BUDGET_RESET_ON_NEW_MISSION = True
 
     def __init__(
-        self, nexus_orchestrator: NexusOrchestrator | None = None, failure_analyzer: FailureAnalyzer | None = None
+        self,
+        nexus_orchestrator: NexusOrchestrator | None = None,
+        failure_analyzer: FailureAnalyzer | None = None,
     ):
         self.nexus = nexus_orchestrator or get_nexus_orchestrator()
         self.analyzer = failure_analyzer or get_failure_analyzer()
@@ -67,6 +69,7 @@ class MetaLoopOrchestrator:
         """
         try:
             from .capability_lattice import get_capability_lattice
+
             lattice = get_capability_lattice()
             return min(requested_max_depth, lattice.max_depth)
         except ImportError:
@@ -84,7 +87,9 @@ class MetaLoopOrchestrator:
 
         H2.2: Resets error-class budgets when a new mission starts.
         """
-        logger.info(f"MetaLoop: Starting plan_execute_observe for goal: {goal[:100]}...")
+        logger.info(
+            f"MetaLoop: Starting plan_execute_observe for goal: {goal[:100]}..."
+        )
 
         # H2.2: Reset budgets for new mission
         if mission_id:
@@ -117,7 +122,9 @@ class MetaLoopOrchestrator:
         effective_max = self._get_effective_max_depth(max_depth)
 
         if current_depth >= effective_max:
-            logger.warning(f"MetaLoop: Max depth ({effective_max}) reached for goal: {goal[:80]}...")
+            logger.warning(
+                f"MetaLoop: Max depth ({effective_max}) reached for goal: {goal[:80]}..."
+            )
             return MetaLoopResult(
                 success=False,
                 error=f"Max recursion depth ({max_depth}) reached",
@@ -231,7 +238,9 @@ class MetaLoopOrchestrator:
         merged_context = {**context_updates, **analysis.context_updates}
 
         if analysis.is_recoverable and analysis.retry_recommended:
-            logger.info(f"MetaLoop: Retrying with context updates at depth {current_depth + 1}")
+            logger.info(
+                f"MetaLoop: Retrying with context updates at depth {current_depth + 1}"
+            )
             return await self._run_recursive_cycle(
                 goal=goal,
                 ctx=ctx,
@@ -242,7 +251,9 @@ class MetaLoopOrchestrator:
             )
 
         if analysis.is_recoverable and analysis.alternative_tools:
-            logger.info(f"MetaLoop: Trying alternative tools: {analysis.alternative_tools}")
+            logger.info(
+                f"MetaLoop: Trying alternative tools: {analysis.alternative_tools}"
+            )
             alt_goal = f"{goal} (using alternative approach: {', '.join(analysis.alternative_tools)})"
             return await self._run_recursive_cycle(
                 goal=alt_goal,
@@ -254,7 +265,11 @@ class MetaLoopOrchestrator:
             )
 
         logger.warning(f"MetaLoop: Failure not recoverable: {analysis.root_cause}")
-        execution_time = (datetime.now(UTC) - execution_log[0].timestamp).total_seconds() * 1000 if execution_log else 0
+        execution_time = (
+            (datetime.now(UTC) - execution_log[0].timestamp).total_seconds() * 1000
+            if execution_log
+            else 0
+        )
 
         return MetaLoopResult(
             success=False,

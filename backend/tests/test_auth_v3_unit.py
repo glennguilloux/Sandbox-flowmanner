@@ -37,6 +37,7 @@ from app.services.auth_v3_service import (
 # LoginRequest Schema Tests
 # ═══════════════════════════════════════════════
 
+
 class TestLoginRequestSchema:
     def test_valid_email_login(self):
         req = LoginRequest(login="user@example.com", password="securePass1!")
@@ -65,13 +66,16 @@ class TestLoginRequestSchema:
         assert req.provider == "credentials"
 
     def test_oidc_provider_accepted(self):
-        req = LoginRequest(login="user@example.com", password="oidc-code", provider="oidc")
+        req = LoginRequest(
+            login="user@example.com", password="oidc-code", provider="oidc"
+        )
         assert req.provider == "oidc"
 
 
 # ═══════════════════════════════════════════════
 # RegisterRequest Schema Tests
 # ═══════════════════════════════════════════════
+
 
 class TestRegisterRequestSchema:
     def test_valid_registration(self):
@@ -104,6 +108,7 @@ class TestRegisterRequestSchema:
 # Verify2FARequest Schema Tests
 # ═══════════════════════════════════════════════
 
+
 class TestVerify2FARequestSchema:
     def test_valid_2fa_request(self):
         req = Verify2FARequest(temp_token="eyJ...", code="123456")
@@ -118,6 +123,7 @@ class TestVerify2FARequestSchema:
 # ═══════════════════════════════════════════════
 # UpdateUserRequest Schema Tests
 # ═══════════════════════════════════════════════
+
 
 class TestUpdateUserRequestSchema:
     def test_valid_update(self):
@@ -137,6 +143,7 @@ class TestUpdateUserRequestSchema:
 # ═══════════════════════════════════════════════
 # SessionResponse Schema Tests
 # ═══════════════════════════════════════════════
+
 
 class TestSessionResponseSchema:
     def test_serialization(self):
@@ -180,9 +187,12 @@ class TestSessionResponseSchema:
 # CreateApiKeyRequest Schema Tests
 # ═══════════════════════════════════════════════
 
+
 class TestCreateApiKeyRequest:
     def test_valid_request(self):
-        req = CreateApiKeyRequest(name="CI Key", scopes=["missions:read", "missions:write"])
+        req = CreateApiKeyRequest(
+            name="CI Key", scopes=["missions:read", "missions:write"]
+        )
         assert req.name == "CI Key"
         assert req.scopes == ["missions:read", "missions:write"]
 
@@ -205,6 +215,7 @@ class TestCreateApiKeyRequest:
 # ═══════════════════════════════════════════════
 # API Key Generation Tests
 # ═══════════════════════════════════════════════
+
 
 class TestApiKeyGeneration:
     def test_generate_produces_valid_key(self):
@@ -231,6 +242,7 @@ class TestApiKeyGeneration:
 # Refresh Token Hashing Tests
 # ═══════════════════════════════════════════════
 
+
 class TestRefreshTokenHashing:
     def test_hash_is_sha256_hex(self):
         token = "test-token-abcdef123456"
@@ -250,6 +262,7 @@ class TestRefreshTokenHashing:
 # Refresh Token Generation Tests
 # ═══════════════════════════════════════════════
 
+
 class TestRefreshTokenGeneration:
     def test_token_is_64_chars(self):
         token = AuthSession.generate_refresh_token()
@@ -263,6 +276,7 @@ class TestRefreshTokenGeneration:
 # ═══════════════════════════════════════════════
 # Scope Validation Tests
 # ═══════════════════════════════════════════════
+
 
 class TestScopeValidation:
     def test_valid_scopes_pass(self):
@@ -284,20 +298,29 @@ class TestScopeValidation:
 
     def test_all_valid_scopes(self):
         valid = [
-            "missions:read", "missions:write",
-            "sessions:read", "sessions:write",
-            "api_keys:read", "api_keys:write",
-            "webhooks:read", "webhooks:write",
-            "workspaces:read", "workspaces:write",
-            "agents:read", "agents:write",
+            "missions:read",
+            "missions:write",
+            "sessions:read",
+            "sessions:write",
+            "api_keys:read",
+            "api_keys:write",
+            "webhooks:read",
+            "webhooks:write",
+            "workspaces:read",
+            "workspaces:write",
+            "agents:read",
+            "agents:write",
         ]
         for scope in valid:
-            assert validate_api_key_scopes([scope]) is True, f"Scope {scope} should be valid"
+            assert (
+                validate_api_key_scopes([scope]) is True
+            ), f"Scope {scope} should be valid"
 
 
 # ═══════════════════════════════════════════════
 # Role Validation Tests
 # ═══════════════════════════════════════════════
+
 
 class TestRoleValidation:
     def test_valid_roles(self):
@@ -314,6 +337,7 @@ class TestRoleValidation:
 # Invite Token Generation Tests
 # ═══════════════════════════════════════════════
 
+
 class TestInviteTokenGeneration:
     def test_token_is_64_chars(self):
         token = generate_invite_token()
@@ -329,6 +353,7 @@ class TestInviteTokenGeneration:
 # ═══════════════════════════════════════════════
 # Webhook Secret Tests
 # ═══════════════════════════════════════════════
+
 
 class TestWebhookSecretGeneration:
     def test_secret_is_64_chars(self):

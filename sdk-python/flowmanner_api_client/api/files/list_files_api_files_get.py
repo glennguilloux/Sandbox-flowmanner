@@ -14,21 +14,15 @@ from ...types import UNSET, Unset
 from typing import cast
 
 
-
 def _get_kwargs(
     *,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
-
-
-
-    
 
     params: dict[str, Any] = {}
 
@@ -36,9 +30,7 @@ def _get_kwargs(
 
     params["limit"] = limit
 
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -46,24 +38,20 @@ def _get_kwargs(
         "params": params,
     }
 
-
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> FileListResponse | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> FileListResponse | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = FileListResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -73,7 +61,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[FileListResponse | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[FileListResponse | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -87,10 +77,9 @@ def sync_detailed(
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[FileListResponse | HTTPValidationError]:
-    """ List Files
+    """List Files
 
     Args:
         offset (int | Unset):  Default: 0.
@@ -103,14 +92,12 @@ def sync_detailed(
 
     Returns:
         Response[FileListResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        limit=limit,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -119,15 +106,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> FileListResponse | HTTPValidationError | None:
-    """ List Files
+    """List Files
 
     Args:
         offset (int | Unset):  Default: 0.
@@ -140,26 +127,24 @@ def sync(
 
     Returns:
         FileListResponse | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[FileListResponse | HTTPValidationError]:
-    """ List Files
+    """List Files
 
     Args:
         offset (int | Unset):  Default: 0.
@@ -172,31 +157,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[FileListResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        limit=limit,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> FileListResponse | HTTPValidationError | None:
-    """ List Files
+    """List Files
 
     Args:
         offset (int | Unset):  Default: 0.
@@ -209,13 +190,13 @@ async def asyncio(
 
     Returns:
         FileListResponse | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            offset=offset,
+            limit=limit,
+            accept_version=accept_version,
+        )
+    ).parsed

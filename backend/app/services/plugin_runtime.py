@@ -162,14 +162,18 @@ class PluginRuntime:
             except Exception as e:
                 logger.error(
                     "Failed to load plugin '%s' v%s: %s",
-                    plugin_row.name, plugin_row.version, e,
+                    plugin_row.name,
+                    plugin_row.version,
+                    e,
                 )
                 # Mark as error state
                 plugin_row.status = PluginStatus.ERROR
                 plugin_row.last_error = str(e)
 
         await db.commit()
-        logger.info("Plugin runtime: loaded %d/%d enabled plugins", loaded, len(plugins))
+        logger.info(
+            "Plugin runtime: loaded %d/%d enabled plugins", loaded, len(plugins)
+        )
         return loaded
 
     async def install(
@@ -199,6 +203,7 @@ class PluginRuntime:
         scan_result = None
         try:
             from app.services.plugin_scanner import get_plugin_scanner
+
             scanner = get_plugin_scanner()
             scan_result = scanner.scan(
                 unpack_dir,
@@ -207,7 +212,8 @@ class PluginRuntime:
             if not scan_result.passed:
                 logger.warning(
                     "Plugin '%s' failed security scan (risk_score=%d). Installing with pending review.",
-                    manifest.name, scan_result.risk_score,
+                    manifest.name,
+                    scan_result.risk_score,
                 )
         except Exception as e:
             logger.debug("Plugin scan failed (non-blocking): %s", e)
@@ -230,10 +236,12 @@ class PluginRuntime:
             install_path=str(unpack_dir),
             status=PluginStatus.ENABLED,
             permissions_json=json.dumps(manifest.permissions),
-            node_types_json=json.dumps([
-                {"id": nt.id, "label": nt.label, "category": nt.category}
-                for nt in manifest.node_types
-            ]),
+            node_types_json=json.dumps(
+                [
+                    {"id": nt.id, "label": nt.label, "category": nt.category}
+                    for nt in manifest.node_types
+                ]
+            ),
             review_status=review_status,
             scan_risk_score=scan_result.risk_score if scan_result else 0,
             scan_result_json=json.dumps(scan_result.to_dict()) if scan_result else None,
@@ -246,7 +254,9 @@ class PluginRuntime:
 
         logger.info(
             "Installed plugin '%s' v%s (%d node types)",
-            manifest.name, manifest.version, len(manifest.node_types),
+            manifest.name,
+            manifest.version,
+            len(manifest.node_types),
         )
         return plugin_row
 
@@ -310,12 +320,14 @@ class PluginRuntime:
         types = []
         for node_type_id, handler in self._handlers.items():
             manifest = self._manifests.get(handler._plugin_name)
-            types.append({
-                "node_type_id": node_type_id,
-                "plugin_name": handler._plugin_name,
-                "permissions": list(handler._permissions),
-                "manifest": manifest.model_dump() if manifest else None,
-            })
+            types.append(
+                {
+                    "node_type_id": node_type_id,
+                    "plugin_name": handler._plugin_name,
+                    "permissions": list(handler._permissions),
+                    "manifest": manifest.model_dump() if manifest else None,
+                }
+            )
         return types
 
     def is_plugin_node(self, node_type_id: str) -> bool:
@@ -323,7 +335,13 @@ class PluginRuntime:
         return node_type_id in self._handlers
 
     async def record_execution(
-        self, db: AsyncSession, plugin_name: str, *, success: bool, error: str | None = None, elapsed_ms: float = 0.0
+        self,
+        db: AsyncSession,
+        plugin_name: str,
+        *,
+        success: bool,
+        error: str | None = None,
+        elapsed_ms: float = 0.0,
     ) -> None:
         """Persist execution stats to the installed_plugins table."""
         try:
@@ -411,7 +429,8 @@ class PluginRuntime:
             self._handlers[handler_instance.node_type_id] = adapter
             logger.info(
                 "Registered plugin node type '%s' from '%s'",
-                handler_instance.node_type_id, plugin_name,
+                handler_instance.node_type_id,
+                plugin_name,
             )
 
     def _unload(self, plugin_name: str) -> None:
@@ -422,8 +441,7 @@ class PluginRuntime:
 
         # Find and remove all handlers belonging to this plugin
         to_remove = [
-            nid for nid, h in self._handlers.items()
-            if h._plugin_name == plugin_name
+            nid for nid, h in self._handlers.items() if h._plugin_name == plugin_name
         ]
         for nid in to_remove:
             del self._handlers[nid]

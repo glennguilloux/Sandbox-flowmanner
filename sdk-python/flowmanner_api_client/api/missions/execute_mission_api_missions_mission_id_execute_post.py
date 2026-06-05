@@ -1,50 +1,39 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.mission_execute_request import MissionExecuteRequest
 from ...models.mission_execution_status import MissionExecutionStatus
-from ...types import UNSET, Unset
-from typing import cast
-from uuid import UUID
-
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     mission_id: UUID,
     *,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/api/missions/{mission_id}/execute".format(mission_id=quote(str(mission_id), safe=""),),
+        "url": "/api/missions/{mission_id}/execute".format(
+            mission_id=quote(str(mission_id), safe=""),
+        ),
     }
 
-    
     if isinstance(body, MissionExecuteRequest):
         _kwargs["json"] = body.to_dict()
     else:
         _kwargs["json"] = body
-
 
     headers["Content-Type"] = "application/json"
 
@@ -52,19 +41,16 @@ def _get_kwargs(
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | MissionExecutionStatus | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | MissionExecutionStatus | None:
     if response.status_code == 200:
         response_200 = MissionExecutionStatus.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -74,7 +60,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | MissionExecutionStatus]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | MissionExecutionStatus]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -88,10 +76,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | MissionExecutionStatus]:
-    """ Execute Mission
+    """Execute Mission
 
     Args:
         mission_id (UUID):
@@ -104,14 +91,12 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | MissionExecutionStatus]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -120,15 +105,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | MissionExecutionStatus | None:
-    """ Execute Mission
+    """Execute Mission
 
     Args:
         mission_id (UUID):
@@ -141,26 +126,24 @@ def sync(
 
     Returns:
         HTTPValidationError | MissionExecutionStatus
-     """
-
+    """
 
     return sync_detailed(
         mission_id=mission_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
+        client=client,
+        body=body,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | MissionExecutionStatus]:
-    """ Execute Mission
+    """Execute Mission
 
     Args:
         mission_id (UUID):
@@ -173,31 +156,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | MissionExecutionStatus]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | MissionExecutionStatus | None:
-    """ Execute Mission
+    """Execute Mission
 
     Args:
         mission_id (UUID):
@@ -210,13 +189,13 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | MissionExecutionStatus
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        mission_id=mission_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            mission_id=mission_id,
+            client=client,
+            body=body,
+            accept_version=accept_version,
+        )
+    ).parsed

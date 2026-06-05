@@ -1,58 +1,57 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-from uuid import UUID
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.mission_task_response_dependencies_type_1 import MissionTaskResponseDependenciesType1
-  from ..models.mission_task_response_input_data_type_0 import MissionTaskResponseInputDataType0
-  from ..models.mission_task_response_output_data_type_0 import MissionTaskResponseOutputDataType0
-
-
-
+    from ..models.mission_task_response_dependencies_type_1 import (
+        MissionTaskResponseDependenciesType1,
+    )
+    from ..models.mission_task_response_input_data_type_0 import (
+        MissionTaskResponseInputDataType0,
+    )
+    from ..models.mission_task_response_output_data_type_0 import (
+        MissionTaskResponseOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="MissionTaskResponse")
 
 
-
 @_attrs_define
 class MissionTaskResponse:
-    """ 
-        Attributes:
-            id (UUID):
-            mission_id (UUID):
-            title (str):
-            task_type (str):
-            description (None | str | Unset):
-            order_index (int | None | Unset):
-            assigned_agent_id (None | str | Unset):
-            assigned_model (None | str | Unset):
-            status (None | str | Unset):
-            input_data (MissionTaskResponseInputDataType0 | None | Unset):
-            output_data (MissionTaskResponseOutputDataType0 | None | Unset):
-            dependencies (list[Any] | MissionTaskResponseDependenciesType1 | None | Unset):
-            retry_count (int | None | Unset):
-            max_retries (int | None | Unset):
-            timeout_seconds (int | None | Unset):
-            tokens_used (int | None | Unset):
-            cost (float | None | Unset):
-            error_message (None | str | Unset):
-            started_at (datetime.datetime | None | Unset):
-            completed_at (datetime.datetime | None | Unset):
-            created_at (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (UUID):
+        mission_id (UUID):
+        title (str):
+        task_type (str):
+        description (None | str | Unset):
+        order_index (int | None | Unset):
+        assigned_agent_id (None | str | Unset):
+        assigned_model (None | str | Unset):
+        status (None | str | Unset):
+        input_data (MissionTaskResponseInputDataType0 | None | Unset):
+        output_data (MissionTaskResponseOutputDataType0 | None | Unset):
+        dependencies (list[Any] | MissionTaskResponseDependenciesType1 | None | Unset):
+        retry_count (int | None | Unset):
+        max_retries (int | None | Unset):
+        timeout_seconds (int | None | Unset):
+        tokens_used (int | None | Unset):
+        cost (float | None | Unset):
+        error_message (None | str | Unset):
+        started_at (datetime.datetime | None | Unset):
+        completed_at (datetime.datetime | None | Unset):
+        created_at (datetime.datetime | None | Unset):
+    """
 
     id: UUID
     mission_id: UUID
@@ -65,7 +64,9 @@ class MissionTaskResponse:
     status: None | str | Unset = UNSET
     input_data: MissionTaskResponseInputDataType0 | None | Unset = UNSET
     output_data: MissionTaskResponseOutputDataType0 | None | Unset = UNSET
-    dependencies: list[Any] | MissionTaskResponseDependenciesType1 | None | Unset = UNSET
+    dependencies: list[Any] | MissionTaskResponseDependenciesType1 | None | Unset = (
+        UNSET
+    )
     retry_count: int | None | Unset = UNSET
     max_retries: int | None | Unset = UNSET
     timeout_seconds: int | None | Unset = UNSET
@@ -77,14 +78,17 @@ class MissionTaskResponse:
     created_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_response_dependencies_type_1 import MissionTaskResponseDependenciesType1
-        from ..models.mission_task_response_input_data_type_0 import MissionTaskResponseInputDataType0
-        from ..models.mission_task_response_output_data_type_0 import MissionTaskResponseOutputDataType0
+        from ..models.mission_task_response_dependencies_type_1 import (
+            MissionTaskResponseDependenciesType1,
+        )
+        from ..models.mission_task_response_input_data_type_0 import (
+            MissionTaskResponseInputDataType0,
+        )
+        from ..models.mission_task_response_output_data_type_0 import (
+            MissionTaskResponseOutputDataType0,
+        )
+
         id = str(self.id)
 
         mission_id = str(self.mission_id)
@@ -144,7 +148,6 @@ class MissionTaskResponse:
             dependencies = UNSET
         elif isinstance(self.dependencies, list):
             dependencies = self.dependencies
-
 
         elif isinstance(self.dependencies, MissionTaskResponseDependenciesType1):
             dependencies = self.dependencies.to_dict()
@@ -211,15 +214,16 @@ class MissionTaskResponse:
         else:
             created_at = self.created_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "mission_id": mission_id,
-            "title": title,
-            "task_type": task_type,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "mission_id": mission_id,
+                "title": title,
+                "task_type": task_type,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if order_index is not UNSET:
@@ -257,23 +261,22 @@ class MissionTaskResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_response_dependencies_type_1 import MissionTaskResponseDependenciesType1
-        from ..models.mission_task_response_input_data_type_0 import MissionTaskResponseInputDataType0
-        from ..models.mission_task_response_output_data_type_0 import MissionTaskResponseOutputDataType0
+        from ..models.mission_task_response_dependencies_type_1 import (
+            MissionTaskResponseDependenciesType1,
+        )
+        from ..models.mission_task_response_input_data_type_0 import (
+            MissionTaskResponseInputDataType0,
+        )
+        from ..models.mission_task_response_output_data_type_0 import (
+            MissionTaskResponseOutputDataType0,
+        )
+
         d = dict(src_dict)
         id = UUID(d.pop("id"))
 
-
-
-
         mission_id = UUID(d.pop("mission_id"))
-
-
-
 
         title = d.pop("title")
 
@@ -288,7 +291,6 @@ class MissionTaskResponse:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_order_index(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -297,7 +299,6 @@ class MissionTaskResponse:
             return cast(int | None | Unset, data)
 
         order_index = _parse_order_index(d.pop("order_index", UNSET))
-
 
         def _parse_assigned_agent_id(data: object) -> None | str | Unset:
             if data is None:
@@ -308,7 +309,6 @@ class MissionTaskResponse:
 
         assigned_agent_id = _parse_assigned_agent_id(d.pop("assigned_agent_id", UNSET))
 
-
         def _parse_assigned_model(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -317,7 +317,6 @@ class MissionTaskResponse:
             return cast(None | str | Unset, data)
 
         assigned_model = _parse_assigned_model(d.pop("assigned_model", UNSET))
-
 
         def _parse_status(data: object) -> None | str | Unset:
             if data is None:
@@ -328,8 +327,9 @@ class MissionTaskResponse:
 
         status = _parse_status(d.pop("status", UNSET))
 
-
-        def _parse_input_data(data: object) -> MissionTaskResponseInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> MissionTaskResponseInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -339,8 +339,6 @@ class MissionTaskResponse:
                     raise TypeError()
                 input_data_type_0 = MissionTaskResponseInputDataType0.from_dict(data)
 
-
-
                 return input_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -348,8 +346,9 @@ class MissionTaskResponse:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-
-        def _parse_output_data(data: object) -> MissionTaskResponseOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> MissionTaskResponseOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -359,8 +358,6 @@ class MissionTaskResponse:
                     raise TypeError()
                 output_data_type_0 = MissionTaskResponseOutputDataType0.from_dict(data)
 
-
-
                 return output_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -368,8 +365,9 @@ class MissionTaskResponse:
 
         output_data = _parse_output_data(d.pop("output_data", UNSET))
 
-
-        def _parse_dependencies(data: object) -> list[Any] | MissionTaskResponseDependenciesType1 | None | Unset:
+        def _parse_dependencies(
+            data: object,
+        ) -> list[Any] | MissionTaskResponseDependenciesType1 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -385,17 +383,18 @@ class MissionTaskResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                dependencies_type_1 = MissionTaskResponseDependenciesType1.from_dict(data)
-
-
+                dependencies_type_1 = MissionTaskResponseDependenciesType1.from_dict(
+                    data
+                )
 
                 return dependencies_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[Any] | MissionTaskResponseDependenciesType1 | None | Unset, data)
+            return cast(
+                list[Any] | MissionTaskResponseDependenciesType1 | None | Unset, data
+            )
 
         dependencies = _parse_dependencies(d.pop("dependencies", UNSET))
-
 
         def _parse_retry_count(data: object) -> int | None | Unset:
             if data is None:
@@ -406,7 +405,6 @@ class MissionTaskResponse:
 
         retry_count = _parse_retry_count(d.pop("retry_count", UNSET))
 
-
         def _parse_max_retries(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -415,7 +413,6 @@ class MissionTaskResponse:
             return cast(int | None | Unset, data)
 
         max_retries = _parse_max_retries(d.pop("max_retries", UNSET))
-
 
         def _parse_timeout_seconds(data: object) -> int | None | Unset:
             if data is None:
@@ -426,7 +423,6 @@ class MissionTaskResponse:
 
         timeout_seconds = _parse_timeout_seconds(d.pop("timeout_seconds", UNSET))
 
-
         def _parse_tokens_used(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -435,7 +431,6 @@ class MissionTaskResponse:
             return cast(int | None | Unset, data)
 
         tokens_used = _parse_tokens_used(d.pop("tokens_used", UNSET))
-
 
         def _parse_cost(data: object) -> float | None | Unset:
             if data is None:
@@ -446,7 +441,6 @@ class MissionTaskResponse:
 
         cost = _parse_cost(d.pop("cost", UNSET))
 
-
         def _parse_error_message(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -455,7 +449,6 @@ class MissionTaskResponse:
             return cast(None | str | Unset, data)
 
         error_message = _parse_error_message(d.pop("error_message", UNSET))
-
 
         def _parse_started_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -467,15 +460,12 @@ class MissionTaskResponse:
                     raise TypeError()
                 started_at_type_0 = isoparse(data)
 
-
-
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
-
 
         def _parse_completed_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -487,15 +477,12 @@ class MissionTaskResponse:
                     raise TypeError()
                 completed_at_type_0 = isoparse(data)
 
-
-
                 return completed_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         completed_at = _parse_completed_at(d.pop("completed_at", UNSET))
-
 
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -507,15 +494,12 @@ class MissionTaskResponse:
                     raise TypeError()
                 created_at_type_0 = isoparse(data)
 
-
-
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         mission_task_response = cls(
             id=id,
@@ -540,7 +524,6 @@ class MissionTaskResponse:
             completed_at=completed_at,
             created_at=created_at,
         )
-
 
         mission_task_response.additional_properties = d
         return mission_task_response

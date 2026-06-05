@@ -20,7 +20,9 @@ def upgrade() -> None:
     columns = [c["name"] for c in inspector.get_columns("marketplace_listings")]
 
     if "integrations" not in columns:
-        op.add_column("marketplace_listings", sa.Column("integrations", sa.Text, nullable=True))
+        op.add_column(
+            "marketplace_listings", sa.Column("integrations", sa.Text, nullable=True)
+        )
     if "tags" not in columns:
         op.add_column("marketplace_listings", sa.Column("tags", sa.Text, nullable=True))
 

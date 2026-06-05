@@ -28,7 +28,7 @@ class OpenWhiskAuthManager:
             api_key: OpenWhisk API key or None (load from env)
         """
         if api_key is None:
-            api_key = os.getenv('OPENWHISK_API_KEY')
+            api_key = os.getenv("OPENWHISK_API_KEY")
 
         if not api_key:
             raise ValueError(
@@ -38,7 +38,7 @@ class OpenWhiskAuthManager:
 
         self.api_key = api_key
         self.auth_header = self._build_auth_header(api_key)
-        self.namespace = os.getenv('OPENWHISK_NAMESPACE', '_')
+        self.namespace = os.getenv("OPENWHISK_NAMESPACE", "_")
 
         logger.info("OpenWhiskAuthManager initialized")
 
@@ -69,7 +69,7 @@ class OpenWhiskAuthManager:
         """
         return self.auth_header
 
-    def get_headers(self, content_type: str = 'application/json') -> dict:
+    def get_headers(self, content_type: str = "application/json") -> dict:
         """
         Get full headers for HTTP requests
 
@@ -80,9 +80,9 @@ class OpenWhiskAuthManager:
             Dictionary of headers
         """
         return {
-            'Authorization': self.auth_header,
-            'Content-Type': content_type,
-            'User-Agent': 'Workflows-Platform-OpenWhisk-Auth/1.0'
+            "Authorization": self.auth_header,
+            "Content-Type": content_type,
+            "User-Agent": "Workflows-Platform-OpenWhisk-Auth/1.0",
         }
 
     def validate_api_key(self) -> tuple[bool, str | None]:
@@ -100,11 +100,14 @@ class OpenWhiskAuthManager:
             return False, "API key is too short"
 
         # API keys typically are alphanumeric with colons
-        if ':' in self.api_key:
+        if ":" in self.api_key:
             # It might be a username:password format
-            parts = self.api_key.split(':')
+            parts = self.api_key.split(":")
             if len(parts) != 2:
-                return False, "Invalid API key format (should be key or username:password)"
+                return (
+                    False,
+                    "Invalid API key format (should be key or username:password)",
+                )
 
         return True, None
 
@@ -134,7 +137,7 @@ class OpenWhiskAuthManager:
             return self.api_key
 
         visible = self.api_key[-show_chars:]
-        masked = '*' * (len(self.api_key) - show_chars)
+        masked = "*" * (len(self.api_key) - show_chars)
         return f"{masked}{visible}"
 
 

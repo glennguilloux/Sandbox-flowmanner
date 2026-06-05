@@ -24,10 +24,10 @@ class Route:
         self,
         path: str,
         action_name: str,
-        method: str = 'POST',
+        method: str = "POST",
         auth_required: bool = True,
         rate_limit: int | None = None,
-        timeout: int = 30
+        timeout: int = 30,
     ):
         self.path = path
         self.action_name = action_name
@@ -62,13 +62,14 @@ class RequestLimiter:
 
         # Remove old requests
         self.requests[key] = [
-            req_time for req_time in self.requests[key]
-            if req_time > minute_ago
+            req_time for req_time in self.requests[key] if req_time > minute_ago
         ]
 
         # Check if under limit
         if len(self.requests[key]) >= limit:
-            logger.warning(f"Rate limit exceeded for {key}: {len(self.requests[key])} >= {limit}")
+            logger.warning(
+                f"Rate limit exceeded for {key}: {len(self.requests[key])} >= {limit}"
+            )
             return False
 
         # Add current request
@@ -92,7 +93,7 @@ class OpenWhiskAPIGateway:
         self,
         client: OpenWhiskClient,
         auth_manager: OpenWhiskAuthManager,
-        enable_rate_limiting: bool = True
+        enable_rate_limiting: bool = True,
     ):
         """
         Initialize API gateway
@@ -107,11 +108,11 @@ class OpenWhiskAPIGateway:
         self.routes: dict[str, Route] = {}
         self.rate_limiter = RequestLimiter() if enable_rate_limiting else None
         self.metrics = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'rate_limited': 0,
-            'start_time': datetime.now(UTC)
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "rate_limited": 0,
+            "start_time": datetime.now(UTC),
         }
 
         logger.info("OpenWhiskAPIGateway initialized")
@@ -120,10 +121,10 @@ class OpenWhiskAPIGateway:
         self,
         path: str,
         action_name: str,
-        method: str = 'POST',
+        method: str = "POST",
         auth_required: bool = True,
         rate_limit: int | None = None,
-        timeout: int = 30
+        timeout: int = 30,
     ) -> None:
         """
         Register an API route to an OpenWhisk action
@@ -150,13 +151,11 @@ class OpenWhiskAPIGateway:
             method=method,
             auth_required=auth_required,
             rate_limit=rate_limit,
-            timeout=timeout
+            timeout=timeout,
         )
 
         self.routes[path] = route
-        logger.info(
-            f"Route registered: {method} {path} -> action: {action_name}"
-        )
+        logger.info(f"Route registered: {method} {path} -> action: {action_name}")
 
     def get_route(self, path: str, method: str) -> Route | None:
         """
@@ -180,7 +179,7 @@ class OpenWhiskAPIGateway:
         method: str,
         payload: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
-        client_ip: str | None = None
+        client_ip: str | None = None,
     ) -> dict[str, Any]:
         """
         Handle incoming API request
@@ -202,44 +201,44 @@ class OpenWhiskAPIGateway:
             ...     {'workflow_id': 'test-123'}
             ... )
         """
-        self.metrics['total_requests'] += 1
+        self.metrics["total_requests"] += 1
 
         try:
             # Find route
             route = self.get_route(path, method)
             if not route:
-                self.metrics['failed_requests'] += 1
+                self.metrics["failed_requests"] += 1
                 return {
-                    'success': False,
-                    'status': 404,
-                    'error': f"Route not found: {method} {path}",
-                    'timestamp': datetime.now(UTC).isoformat()
+                    "success": False,
+                    "status": 404,
+                    "error": f"Route not found: {method} {path}",
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             # Rate limiting
             if self.rate_limiter and route.rate_limit:
-                limit_key = client_ip or headers.get('X-API-Key', 'default')
+                limit_key = client_ip or headers.get("X-API-Key", "default")
                 if not self.rate_limiter.is_allowed(limit_key, route.rate_limit):
-                    self.metrics['rate_limited'] += 1
-                    self.metrics['failed_requests'] += 1
+                    self.metrics["rate_limited"] += 1
+                    self.metrics["failed_requests"] += 1
                     return {
-                        'success': False,
-                        'status': 429,
-                        'error': 'Rate limit exceeded',
-                        'retry_after': 60,
-                        'timestamp': datetime.now(UTC).isoformat()
+                        "success": False,
+                        "status": 429,
+                        "error": "Rate limit exceeded",
+                        "retry_after": 60,
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
             # Authentication
             if route.auth_required:
-                auth_header = headers.get('Authorization') if headers else None
+                auth_header = headers.get("Authorization") if headers else None
                 if not auth_header:
-                    self.metrics['failed_requests'] += 1
+                    self.metrics["failed_requests"] += 1
                     return {
-                        'success': False,
-                        'status': 401,
-                        'error': 'Authentication required',
-                        'timestamp': datetime.now(UTC).isoformat()
+                        "success": False,
+                        "status": 401,
+                        "error": "Authentication required",
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 # Validate auth (simplified - in production use proper JWT/OAuth)
@@ -251,44 +250,41 @@ class OpenWhiskAPIGateway:
 
             # Invoke OpenWhisk action
             invocation = await self.client.invoke_action(
-                action_name=route.action_name,
-                params=payload
+                action_name=route.action_name, params=payload
             )
 
             if invocation.success:
-                self.metrics['successful_requests'] += 1
+                self.metrics["successful_requests"] += 1
                 return {
-                    'success': True,
-                    'status': 200,
-                    'data': invocation.result,
-                    'duration_ms': invocation.duration_ms,
-                    'activation_id': invocation.activation_id,
-                    'logs': invocation.logs,
-                    'timestamp': datetime.now(UTC).isoformat()
+                    "success": True,
+                    "status": 200,
+                    "data": invocation.result,
+                    "duration_ms": invocation.duration_ms,
+                    "activation_id": invocation.activation_id,
+                    "logs": invocation.logs,
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             else:
-                self.metrics['failed_requests'] += 1
+                self.metrics["failed_requests"] += 1
                 return {
-                    'success': False,
-                    'status': 500,
-                    'error': invocation.error,
-                    'timestamp': datetime.now(UTC).isoformat()
+                    "success": False,
+                    "status": 500,
+                    "error": invocation.error,
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
         except Exception as e:
             logger.error(f"Error handling request {method} {path}: {e}")
-            self.metrics['failed_requests'] += 1
+            self.metrics["failed_requests"] += 1
             return {
-                'success': False,
-                'status': 500,
-                'error': f"Internal server error: {e!s}",
-                'timestamp': datetime.now(UTC).isoformat()
+                "success": False,
+                "status": 500,
+                "error": f"Internal server error: {e!s}",
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     async def batch_handle(
-        self,
-        requests: list[dict[str, Any]],
-        max_concurrent: int = 10
+        self, requests: list[dict[str, Any]], max_concurrent: int = 10
     ) -> list[dict[str, Any]]:
         """
         Handle multiple requests concurrently
@@ -308,11 +304,11 @@ class OpenWhiskAPIGateway:
         async def handle_with_limit(req):
             async with semaphore:
                 return await self.handle_request(
-                    path=req['path'],
-                    method=req.get('method', 'POST'),
-                    payload=req.get('payload'),
-                    headers=req.get('headers'),
-                    client_ip=req.get('client_ip')
+                    path=req["path"],
+                    method=req.get("method", "POST"),
+                    payload=req.get("payload"),
+                    headers=req.get("headers"),
+                    client_ip=req.get("client_ip"),
                 )
 
         for req in requests:
@@ -325,12 +321,14 @@ class OpenWhiskAPIGateway:
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Batch request {i} failed: {result}")
-                processed_results.append({
-                    'success': False,
-                    'status': 500,
-                    'error': str(result),
-                    'timestamp': datetime.now(UTC).isoformat()
-                })
+                processed_results.append(
+                    {
+                        "success": False,
+                        "status": 500,
+                        "error": str(result),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
             else:
                 processed_results.append(result)
 
@@ -343,30 +341,33 @@ class OpenWhiskAPIGateway:
         Returns:
             Metrics dictionary
         """
-        uptime = datetime.now(UTC) - self.metrics['start_time']
+        uptime = datetime.now(UTC) - self.metrics["start_time"]
 
         return {
-            'uptime_seconds': int(uptime.total_seconds()),
-            'total_requests': self.metrics['total_requests'],
-            'successful_requests': self.metrics['successful_requests'],
-            'failed_requests': self.metrics['failed_requests'],
-            'rate_limited': self.metrics['rate_limited'],
-            'success_rate': (
-                self.metrics['successful_requests'] / self.metrics['total_requests'] * 100
-                if self.metrics['total_requests'] > 0 else 0
+            "uptime_seconds": int(uptime.total_seconds()),
+            "total_requests": self.metrics["total_requests"],
+            "successful_requests": self.metrics["successful_requests"],
+            "failed_requests": self.metrics["failed_requests"],
+            "rate_limited": self.metrics["rate_limited"],
+            "success_rate": (
+                self.metrics["successful_requests"]
+                / self.metrics["total_requests"]
+                * 100
+                if self.metrics["total_requests"] > 0
+                else 0
             ),
-            'registered_routes': len(self.routes),
-            'timestamp': datetime.now(UTC).isoformat()
+            "registered_routes": len(self.routes),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     def reset_metrics(self) -> None:
         """Reset metrics counters"""
         self.metrics = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'rate_limited': 0,
-            'start_time': datetime.now(UTC)
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "rate_limited": 0,
+            "start_time": datetime.now(UTC),
         }
         logger.info("Metrics reset")
 
@@ -379,20 +380,22 @@ class OpenWhiskAPIGateway:
         """
         routes_info = []
         for path, route in self.routes.items():
-            routes_info.append({
-                'path': path,
-                'method': route.method,
-                'action': route.action_name,
-                'auth_required': route.auth_required,
-                'rate_limit': route.rate_limit,
-                'timeout': route.timeout
-            })
+            routes_info.append(
+                {
+                    "path": path,
+                    "method": route.method,
+                    "action": route.action_name,
+                    "auth_required": route.auth_required,
+                    "rate_limit": route.rate_limit,
+                    "timeout": route.timeout,
+                }
+            )
         return routes_info
 
 
 def create_gateway(
     client: OpenWhiskClient | None = None,
-    auth_manager: OpenWhiskAuthManager | None = None
+    auth_manager: OpenWhiskAuthManager | None = None,
 ) -> OpenWhiskAPIGateway | None:
     """
     Factory function to create API gateway
@@ -413,10 +416,12 @@ def create_gateway(
     try:
         if client is None:
             from .client import get_openwhisk_client
+
             client = get_openwhisk_client()
 
         if auth_manager is None:
             from .auth import get_auth_manager
+
             auth_manager = get_auth_manager()
 
         if not client or not auth_manager:
@@ -424,9 +429,7 @@ def create_gateway(
             return None
 
         gateway = OpenWhiskAPIGateway(
-            client=client,
-            auth_manager=auth_manager,
-            enable_rate_limiting=True
+            client=client, auth_manager=auth_manager, enable_rate_limiting=True
         )
 
         logger.info("API gateway created successfully")

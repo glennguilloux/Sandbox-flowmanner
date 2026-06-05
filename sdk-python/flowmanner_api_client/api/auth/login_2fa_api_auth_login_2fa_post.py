@@ -12,31 +12,21 @@ from ...models.token_response import TokenResponse
 from typing import cast
 
 
-
-def _get_kwargs(
-    
-) -> dict[str, Any]:
-    
-
-    
-
-    
+def _get_kwargs() -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/api/auth/login/2fa",
     }
 
-
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> TokenResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> TokenResponse | None:
     if response.status_code == 200:
         response_200 = TokenResponse.from_dict(response.json())
-
-
 
         return response_200
 
@@ -46,7 +36,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[TokenResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[TokenResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,9 +50,8 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-
 ) -> Response[TokenResponse]:
-    """ Login 2Fa
+    """Login 2Fa
 
      Complete login with 2FA code.
 
@@ -70,12 +61,9 @@ def sync_detailed(
 
     Returns:
         Response[TokenResponse]
-     """
+    """
 
-
-    kwargs = _get_kwargs(
-        
-    )
+    kwargs = _get_kwargs()
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -83,12 +71,12 @@ def sync_detailed(
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient | Client,
-
 ) -> TokenResponse | None:
-    """ Login 2Fa
+    """Login 2Fa
 
      Complete login with 2FA code.
 
@@ -98,20 +86,18 @@ def sync(
 
     Returns:
         TokenResponse
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-
 ) -> Response[TokenResponse]:
-    """ Login 2Fa
+    """Login 2Fa
 
      Complete login with 2FA code.
 
@@ -121,25 +107,20 @@ async def asyncio_detailed(
 
     Returns:
         Response[TokenResponse]
-     """
+    """
 
+    kwargs = _get_kwargs()
 
-    kwargs = _get_kwargs(
-        
-    )
-
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-
 ) -> TokenResponse | None:
-    """ Login 2Fa
+    """Login 2Fa
 
      Complete login with 2FA code.
 
@@ -149,10 +130,10 @@ async def asyncio(
 
     Returns:
         TokenResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+        )
+    ).parsed

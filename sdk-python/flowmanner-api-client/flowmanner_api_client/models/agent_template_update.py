@@ -9,7 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.agent_template_update_config_data_type_0 import AgentTemplateUpdateConfigDataType0
+    from ..models.agent_template_update_config_data_type_0 import (
+        AgentTemplateUpdateConfigDataType0,
+    )
 
 
 T = TypeVar("T", bound="AgentTemplateUpdate")
@@ -36,7 +38,9 @@ class AgentTemplateUpdate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.agent_template_update_config_data_type_0 import AgentTemplateUpdateConfigDataType0
+        from ..models.agent_template_update_config_data_type_0 import (
+            AgentTemplateUpdateConfigDataType0,
+        )
 
         name: None | str | Unset
         if isinstance(self.name, Unset):
@@ -96,7 +100,9 @@ class AgentTemplateUpdate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.agent_template_update_config_data_type_0 import AgentTemplateUpdateConfigDataType0
+        from ..models.agent_template_update_config_data_type_0 import (
+            AgentTemplateUpdateConfigDataType0,
+        )
 
         d = dict(src_dict)
 
@@ -136,7 +142,9 @@ class AgentTemplateUpdate:
 
         agent_type = _parse_agent_type(d.pop("agent_type", UNSET))
 
-        def _parse_config_data(data: object) -> AgentTemplateUpdateConfigDataType0 | None | Unset:
+        def _parse_config_data(
+            data: object,
+        ) -> AgentTemplateUpdateConfigDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

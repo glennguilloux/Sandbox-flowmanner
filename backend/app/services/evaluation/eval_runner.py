@@ -82,6 +82,7 @@ class EvaluationRunner:
 
         try:
             from app.services.langfuse_service import get_langfuse_service
+
             langfuse = get_langfuse_service()
             if langfuse.enabled:
                 langfuse.trace(
@@ -103,7 +104,9 @@ class EvaluationRunner:
             # Run model against test cases with concurrency limit
             semaphore = asyncio.Semaphore(max_concurrency)
             tasks = [
-                self._run_single_case(semaphore, tc, model_name, system_prompt, temperature)
+                self._run_single_case(
+                    semaphore, tc, model_name, system_prompt, temperature
+                )
                 for tc in test_cases
             ]
             case_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -116,12 +119,14 @@ class EvaluationRunner:
             for i, result in enumerate(case_results):
                 tc = test_cases[i]
                 if isinstance(result, Exception):
-                    scored_results.append({
-                        "test_case_id": tc.id,
-                        "task_type": tc.task_type,
-                        "error": str(result),
-                        "overall_score": 0.0,
-                    })
+                    scored_results.append(
+                        {
+                            "test_case_id": tc.id,
+                            "task_type": tc.task_type,
+                            "error": str(result),
+                            "overall_score": 0.0,
+                        }
+                    )
                     record_eval_test_case(model_name, tc.task_type, False)
                 else:
                     score = await judge.score(
@@ -131,15 +136,17 @@ class EvaluationRunner:
                         rubric=tc.rubric,
                     )
                     case_score = score.get("overall_score", 0.0)
-                    scored_results.append({
-                        "test_case_id": tc.id,
-                        "task_type": tc.task_type,
-                        "input_preview": tc.input_prompt[:100],
-                        "output_preview": result[:200],
-                        "scores": score.get("scores", {}),
-                        "overall_score": case_score,
-                        "summary": score.get("summary", ""),
-                    })
+                    scored_results.append(
+                        {
+                            "test_case_id": tc.id,
+                            "task_type": tc.task_type,
+                            "input_preview": tc.input_prompt[:100],
+                            "output_preview": result[:200],
+                            "scores": score.get("scores", {}),
+                            "overall_score": case_score,
+                            "summary": score.get("summary", ""),
+                        }
+                    )
 
                     # Track per-category scores
                     cat = tc.task_type
@@ -151,7 +158,9 @@ class EvaluationRunner:
                     record_eval_test_case(model_name, tc.task_type, case_score >= 3.0)
 
             # Compute aggregates
-            all_scores = [r["overall_score"] for r in scored_results if "error" not in r]
+            all_scores = [
+                r["overall_score"] for r in scored_results if "error" not in r
+            ]
             aggregate = sum(all_scores) / len(all_scores) if all_scores else 0.0
 
             avg_by_category = {
@@ -231,14 +240,18 @@ class EvaluationRunner:
                 "scores_by_category": run_b.scores_by_category,
                 "status": run_b.status,
             },
-            "delta": round((run_b.aggregate_score or 0) - (run_a.aggregate_score or 0), 2),
-            "winner": model_b if (run_b.aggregate_score or 0) > (run_a.aggregate_score or 0) else model_a,
+            "delta": round(
+                (run_b.aggregate_score or 0) - (run_a.aggregate_score or 0), 2
+            ),
+            "winner": (
+                model_b
+                if (run_b.aggregate_score or 0) > (run_a.aggregate_score or 0)
+                else model_a
+            ),
         }
 
     async def get_run(self, run_id: str) -> EvalRun | None:
-        result = await self.db.execute(
-            select(EvalRun).where(EvalRun.id == run_id)
-        )
+        result = await self.db.execute(select(EvalRun).where(EvalRun.id == run_id))
         return result.scalar_one_or_none()
 
     async def list_runs(

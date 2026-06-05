@@ -1,36 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.node_group_update_config_type_0 import NodeGroupUpdateConfigType0
-
-
-
+    from ..models.node_group_update_config_type_0 import NodeGroupUpdateConfigType0
 
 
 T = TypeVar("T", bound="NodeGroupUpdate")
 
 
-
 @_attrs_define
 class NodeGroupUpdate:
-    """ 
-        Attributes:
-            name (None | str | Unset):
-            description (None | str | Unset):
-            group_type (None | str | Unset):
-            config (NodeGroupUpdateConfigType0 | None | Unset):
-     """
+    """
+    Attributes:
+        name (None | str | Unset):
+        description (None | str | Unset):
+        group_type (None | str | Unset):
+        config (NodeGroupUpdateConfigType0 | None | Unset):
+    """
 
     name: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
@@ -38,12 +31,9 @@ class NodeGroupUpdate:
     config: NodeGroupUpdateConfigType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.node_group_update_config_type_0 import NodeGroupUpdateConfigType0
+
         name: None | str | Unset
         if isinstance(self.name, Unset):
             name = UNSET
@@ -70,11 +60,9 @@ class NodeGroupUpdate:
         else:
             config = self.config
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if name is not UNSET:
             field_dict["name"] = name
         if description is not UNSET:
@@ -86,12 +74,12 @@ class NodeGroupUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.node_group_update_config_type_0 import NodeGroupUpdateConfigType0
+
         d = dict(src_dict)
+
         def _parse_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -100,7 +88,6 @@ class NodeGroupUpdate:
             return cast(None | str | Unset, data)
 
         name = _parse_name(d.pop("name", UNSET))
-
 
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
@@ -111,7 +98,6 @@ class NodeGroupUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_group_type(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -120,7 +106,6 @@ class NodeGroupUpdate:
             return cast(None | str | Unset, data)
 
         group_type = _parse_group_type(d.pop("group_type", UNSET))
-
 
         def _parse_config(data: object) -> NodeGroupUpdateConfigType0 | None | Unset:
             if data is None:
@@ -132,8 +117,6 @@ class NodeGroupUpdate:
                     raise TypeError()
                 config_type_0 = NodeGroupUpdateConfigType0.from_dict(data)
 
-
-
                 return config_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -141,14 +124,12 @@ class NodeGroupUpdate:
 
         config = _parse_config(d.pop("config", UNSET))
 
-
         node_group_update = cls(
             name=name,
             description=description,
             group_type=group_type,
             config=config,
         )
-
 
         node_group_update.additional_properties = d
         return node_group_update

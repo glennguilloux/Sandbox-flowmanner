@@ -16,18 +16,44 @@ depends_on = None
 
 def upgrade() -> None:
     # Security review columns
-    op.add_column("installed_plugins", sa.Column("review_status", sa.String(20), nullable=False, server_default="pending"))
-    op.create_index("ix_installed_plugins_review_status", "installed_plugins", ["review_status"])
-    op.add_column("installed_plugins", sa.Column("scan_risk_score", sa.Integer, server_default="0"))
-    op.add_column("installed_plugins", sa.Column("scan_result_json", sa.Text, nullable=True))
-    op.add_column("installed_plugins", sa.Column("reviewed_by", sa.String(36), nullable=True))
-    op.add_column("installed_plugins", sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("installed_plugins", sa.Column("rejection_reason", sa.Text, nullable=True))
+    op.add_column(
+        "installed_plugins",
+        sa.Column(
+            "review_status", sa.String(20), nullable=False, server_default="pending"
+        ),
+    )
+    op.create_index(
+        "ix_installed_plugins_review_status", "installed_plugins", ["review_status"]
+    )
+    op.add_column(
+        "installed_plugins",
+        sa.Column("scan_risk_score", sa.Integer, server_default="0"),
+    )
+    op.add_column(
+        "installed_plugins", sa.Column("scan_result_json", sa.Text, nullable=True)
+    )
+    op.add_column(
+        "installed_plugins", sa.Column("reviewed_by", sa.String(36), nullable=True)
+    )
+    op.add_column(
+        "installed_plugins",
+        sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
+    )
+    op.add_column(
+        "installed_plugins", sa.Column("rejection_reason", sa.Text, nullable=True)
+    )
 
     # Runtime monitoring columns
-    op.add_column("installed_plugins", sa.Column("p99_latency_ms", sa.Float, server_default="0"))
-    op.add_column("installed_plugins", sa.Column("crash_count", sa.Integer, server_default="0"))
-    op.add_column("installed_plugins", sa.Column("last_health_check_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "installed_plugins", sa.Column("p99_latency_ms", sa.Float, server_default="0")
+    )
+    op.add_column(
+        "installed_plugins", sa.Column("crash_count", sa.Integer, server_default="0")
+    )
+    op.add_column(
+        "installed_plugins",
+        sa.Column("last_health_check_at", sa.DateTime(timezone=True), nullable=True),
+    )
 
 
 def downgrade() -> None:

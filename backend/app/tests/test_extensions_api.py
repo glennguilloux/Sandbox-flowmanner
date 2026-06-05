@@ -13,6 +13,7 @@ from app.main_fastapi import app
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_extension(**overrides):
     """Return a mock Extension model instance."""
     defaults = {
@@ -53,14 +54,13 @@ def _mock_scalar_one(item):
 # Tests: GET /api/extensions (list)
 # ---------------------------------------------------------------------------
 
+
 class TestListExtensions:
     def test_list_empty(self, test_client, mock_db_session, sample_user):
         """GET /api/extensions returns empty list when no extensions exist."""
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalars([])
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalars([]))
             response = test_client.get("/api/extensions")
             assert response.status_code == 200
             data = response.json()
@@ -97,6 +97,7 @@ class TestListExtensions:
 # Tests: POST /api/extensions (create)
 # ---------------------------------------------------------------------------
 
+
 class TestCreateExtension:
     def test_create_success(self, test_client, mock_db_session, sample_user):
         """POST /api/extensions with valid body returns 201."""
@@ -107,21 +108,22 @@ class TestCreateExtension:
                 name="greeting-ext",
                 status="disabled",
             )
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalars([])
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalars([]))
             mock_db_session.flush = AsyncMock()
             mock_db_session.refresh = AsyncMock(side_effect=lambda obj: None)
 
             # Patch Extension constructor to return our mock
             with patch("app.api.v1.extensions.Extension", return_value=created):
-                response = test_client.post("/api/extensions", json={
-                    "name": "greeting-ext",
-                    "version": "1.0.0",
-                    "description": "Says hello",
-                    "author": "TestSuite",
-                    "manifest": {"tools": [{"name": "greet"}]},
-                })
+                response = test_client.post(
+                    "/api/extensions",
+                    json={
+                        "name": "greeting-ext",
+                        "version": "1.0.0",
+                        "description": "Says hello",
+                        "author": "TestSuite",
+                        "manifest": {"tools": [{"name": "greet"}]},
+                    },
+                )
             assert response.status_code == 201
             data = response.json()
             assert data["name"] == "greeting-ext"
@@ -139,9 +141,12 @@ class TestCreateExtension:
             mock_db_session.refresh = AsyncMock(side_effect=lambda obj: None)
 
             with patch("app.api.v1.extensions.Extension", return_value=created):
-                response = test_client.post("/api/extensions", json={
-                    "name": "minimal-ext",
-                })
+                response = test_client.post(
+                    "/api/extensions",
+                    json={
+                        "name": "minimal-ext",
+                    },
+                )
             assert response.status_code == 201
             data = response.json()
             assert data["version"] == "1.0.0"
@@ -152,18 +157,24 @@ class TestCreateExtension:
         """POST /api/extensions without name returns 422 validation error."""
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
-            response = test_client.post("/api/extensions", json={
-                "version": "1.0.0",
-            })
+            response = test_client.post(
+                "/api/extensions",
+                json={
+                    "version": "1.0.0",
+                },
+            )
             assert response.status_code == 422
         finally:
             app.dependency_overrides.pop(get_current_user, None)
 
     def test_create_unauthenticated(self, test_client):
         """POST /api/extensions without auth returns 401."""
-        response = test_client.post("/api/extensions", json={
-            "name": "no-auth-ext",
-        })
+        response = test_client.post(
+            "/api/extensions",
+            json={
+                "name": "no-auth-ext",
+            },
+        )
         assert response.status_code == 401
 
 
@@ -171,21 +182,23 @@ class TestCreateExtension:
 # Tests: PATCH /api/extensions/{extension_id} (update)
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateExtension:
     def test_update_status(self, test_client, mock_db_session, sample_user):
         """PATCH /api/extensions/{id} with status='enabled' returns 200."""
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
             ext = _make_extension(id="ext-upd-001", status="disabled")
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalar_one(ext)
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalar_one(ext))
             mock_db_session.flush = AsyncMock()
             mock_db_session.refresh = AsyncMock(side_effect=lambda obj: None)
 
-            response = test_client.patch("/api/extensions/ext-upd-001", json={
-                "status": "enabled",
-            })
+            response = test_client.patch(
+                "/api/extensions/ext-upd-001",
+                json={
+                    "status": "enabled",
+                },
+            )
             assert response.status_code == 200
             data = response.json()
             assert data["id"] == "ext-upd-001"
@@ -198,15 +211,16 @@ class TestUpdateExtension:
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
             ext = _make_extension(id="ext-upd-002")
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalar_one(ext)
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalar_one(ext))
             mock_db_session.flush = AsyncMock()
             mock_db_session.refresh = AsyncMock(side_effect=lambda obj: None)
 
-            response = test_client.patch("/api/extensions/ext-upd-002", json={
-                "config": {"api_key": "sk-test-123"},
-            })
+            response = test_client.patch(
+                "/api/extensions/ext-upd-002",
+                json={
+                    "config": {"api_key": "sk-test-123"},
+                },
+            )
             assert response.status_code == 200
             assert ext.config == {"api_key": "sk-test-123"}
         finally:
@@ -216,12 +230,13 @@ class TestUpdateExtension:
         """PATCH /api/extensions/{id} with invalid id returns 404."""
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalar_one(None)
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalar_one(None))
+            response = test_client.patch(
+                "/api/extensions/nonexistent",
+                json={
+                    "status": "enabled",
+                },
             )
-            response = test_client.patch("/api/extensions/nonexistent", json={
-                "status": "enabled",
-            })
             assert response.status_code == 404
             assert response.json()["detail"] == "Extension not found"
         finally:
@@ -229,9 +244,12 @@ class TestUpdateExtension:
 
     def test_update_unauthenticated(self, test_client):
         """PATCH /api/extensions/{id} without auth returns 401."""
-        response = test_client.patch("/api/extensions/ext-001", json={
-            "status": "enabled",
-        })
+        response = test_client.patch(
+            "/api/extensions/ext-001",
+            json={
+                "status": "enabled",
+            },
+        )
         assert response.status_code == 401
 
 
@@ -239,15 +257,14 @@ class TestUpdateExtension:
 # Tests: DELETE /api/extensions/{extension_id}
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteExtension:
     def test_delete_success(self, test_client, mock_db_session, sample_user):
         """DELETE /api/extensions/{id} returns 204."""
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
             ext = _make_extension(id="ext-del-001")
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalar_one(ext)
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalar_one(ext))
             mock_db_session.delete = AsyncMock()
 
             response = test_client.delete("/api/extensions/ext-del-001")
@@ -260,9 +277,7 @@ class TestDeleteExtension:
         """DELETE /api/extensions/{id} with invalid id returns 404."""
         app.dependency_overrides[get_current_user] = lambda: sample_user
         try:
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalar_one(None)
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalar_one(None))
             response = test_client.delete("/api/extensions/nonexistent")
             assert response.status_code == 404
         finally:

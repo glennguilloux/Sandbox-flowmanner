@@ -30,6 +30,7 @@ from app.models import Base, TimestampMixin, UUIDMixin
 # AuthSession — explicit session tracking (replaces refresh_tokens)
 # ──────────────────────────────────────────────────────────────
 
+
 class AuthSession(Base, UUIDMixin, TimestampMixin):
     """A user login session tracked explicitly with device metadata and token hashing.
 
@@ -43,7 +44,9 @@ class AuthSession(Base, UUIDMixin, TimestampMixin):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     refresh_token_hash: Mapped[str] = mapped_column(
-        String(64), nullable=False, comment="SHA-256 of the refresh token — never store plaintext"
+        String(64),
+        nullable=False,
+        comment="SHA-256 of the refresh token — never store plaintext",
     )
     device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     device_os: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -52,8 +55,9 @@ class AuthSession(Base, UUIDMixin, TimestampMixin):
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
-        comment="Updated ONLY on token refresh, NOT on every access-token validation"
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Updated ONLY on token refresh, NOT on every access-token validation",
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -62,17 +66,14 @@ class AuthSession(Base, UUIDMixin, TimestampMixin):
         DateTime(timezone=True), nullable=True
     )
     revoke_reason: Mapped[str | None] = mapped_column(
-        String(100), nullable=True,
-        comment="user_logout, password_change, admin_revoke, reuse_detected"
+        String(100),
+        nullable=True,
+        comment="user_logout, password_change, admin_revoke, reuse_detected",
     )
-    family_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True
-    )
+    family_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     family_generation: Mapped[int] = mapped_column(Integer, default=0)
 
-    __table_args__ = (
-        Index("ix_auth_sessions_user_active", "user_id", "is_active"),
-    )
+    __table_args__ = (Index("ix_auth_sessions_user_active", "user_id", "is_active"),)
 
     # Relationship — the user this session belongs to
     user: Mapped[User] = relationship("User", lazy="selectin")
@@ -92,6 +93,7 @@ class AuthSession(Base, UUIDMixin, TimestampMixin):
 # ApiKey — scoped, expirable API keys for programmatic access
 # ──────────────────────────────────────────────────────────────
 
+
 class ApiKey(Base, UUIDMixin):
     """User-created API key with granular scopes, stored encrypted at rest.
 
@@ -109,7 +111,9 @@ class ApiKey(Base, UUIDMixin):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     key_prefix: Mapped[str] = mapped_column(
-        String(8), nullable=False, comment="First 8 chars of the full key — visible to user"
+        String(8),
+        nullable=False,
+        comment="First 8 chars of the full key — visible to user",
     )
     key_hash: Mapped[str] = mapped_column(
         String(64), nullable=False, unique=True, comment="SHA-256 of full API key"
@@ -128,9 +132,7 @@ class ApiKey(Base, UUIDMixin):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
-    __table_args__ = (
-        Index("ix_api_keys_user", "user_id", "is_active"),
-    )
+    __table_args__ = (Index("ix_api_keys_user", "user_id", "is_active"),)
 
     # Relationship
     user: Mapped[User] = relationship("User", lazy="selectin")
@@ -159,6 +161,7 @@ class ApiKey(Base, UUIDMixin):
 # AuthWebhookSubscription — auth event webhook delivery targets
 # ──────────────────────────────────────────────────────────────
 
+
 class AuthWebhookSubscription(Base, UUIDMixin):
     """Webhook subscription for auth events (login, logout, session revoked, etc.).
 
@@ -169,15 +172,19 @@ class AuthWebhookSubscription(Base, UUIDMixin):
     __tablename__ = "auth_webhook_subscriptions"
 
     workspace_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     url: Mapped[str] = mapped_column(String(2000), nullable=False)
     secret: Mapped[str] = mapped_column(
         String(64), nullable=False, comment="HMAC-SHA256 signing secret (64 hex chars)"
     )
     events: Mapped[str] = mapped_column(
-        Text, nullable=False, comment='JSON array of event types: ["session.created", "session.revoked"]'
+        Text,
+        nullable=False,
+        comment='JSON array of event types: ["session.created", "session.revoked"]',
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -191,9 +198,7 @@ class AuthWebhookSubscription(Base, UUIDMixin):
     )
     failure_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    __table_args__ = (
-        Index("ix_webhook_sub_workspace", "workspace_id", "is_active"),
-    )
+    __table_args__ = (Index("ix_webhook_sub_workspace", "workspace_id", "is_active"),)
 
     @staticmethod
     def generate_secret() -> str:
@@ -205,6 +210,7 @@ class AuthWebhookSubscription(Base, UUIDMixin):
 # OIDCProviderConfig — workspace-scoped OIDC SSO configuration
 # ──────────────────────────────────────────────────────────────
 
+
 class OIDCProviderConfig(Base, UUIDMixin):
     """Workspace-scoped OIDC identity provider for Enterprise SSO.
 
@@ -215,12 +221,13 @@ class OIDCProviderConfig(Base, UUIDMixin):
     __tablename__ = "oidc_provider_configs"
 
     workspace_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     provider_type: Mapped[str] = mapped_column(
-        String(50), nullable=False,
-        comment="google, github, microsoft, okta, custom"
+        String(50), nullable=False, comment="google, github, microsoft, okta, custom"
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     issuer_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -228,9 +235,7 @@ class OIDCProviderConfig(Base, UUIDMixin):
     client_secret_encrypted: Mapped[bytes] = mapped_column(
         LargeBinary(), nullable=False, comment="AES-256 encrypted client secret"
     )
-    scopes: Mapped[str] = mapped_column(
-        String(500), default="openid email profile"
-    )
+    scopes: Mapped[str] = mapped_column(String(500), default="openid email profile")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)

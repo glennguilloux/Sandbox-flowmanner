@@ -39,11 +39,13 @@ class TestMissionLimits:
         assert limits.destructive_actions_allowed is False
 
     def test_from_constraints(self):
-        limits = MissionLimits.from_constraints({
-            "max_llm_calls": 10,
-            "max_cost_usd": 1.00,
-            "destructive_actions_allowed": True,
-        })
+        limits = MissionLimits.from_constraints(
+            {
+                "max_llm_calls": 10,
+                "max_cost_usd": 1.00,
+                "destructive_actions_allowed": True,
+            }
+        )
         assert limits.max_llm_calls == 10
         assert limits.max_cost_usd == 1.00
         assert limits.destructive_actions_allowed is True
@@ -216,7 +218,7 @@ class TestDestructiveActionGate:
         limits = MissionLimits(destructive_actions_allowed=False)
         breaker = MissionCircuitBreaker(limits=limits)
         breaker.check(action_type="read_file")  # no exception
-        breaker.check(action_type="search")     # no exception
+        breaker.check(action_type="search")  # no exception
 
 
 # ═══════════════════════════════════════════════════════════════════

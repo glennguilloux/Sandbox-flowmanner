@@ -1,6 +1,7 @@
 """Integrations v2 API — OAuth app management and connection flow."""
 
 from __future__ import annotations
+import uuid
 
 import json
 import logging
@@ -26,7 +27,6 @@ from app.schemas.integration_v2 import (
 )
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +41,7 @@ _ALLOWED_PROVIDERS = set(OAUTH_PROVIDERS.keys())
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _app_to_response(app: UserOAuthApp) -> dict:
     return OAuthAppResponse(
@@ -71,11 +72,13 @@ def _connection_to_response(conn: UserOAuthConnection) -> dict:
 
 def _build_state(app_id: str, user_id: int) -> str:
     """Build an encrypted OAuth state parameter containing app_id and user_id."""
-    payload = json.dumps({
-        "app_id": app_id,
-        "user_id": user_id,
-        "nonce": secrets.token_hex(16),
-    })
+    payload = json.dumps(
+        {
+            "app_id": app_id,
+            "user_id": user_id,
+            "nonce": secrets.token_hex(16),
+        }
+    )
     return encrypt_token(payload)
 
 
@@ -148,7 +151,9 @@ async def _exchange_code(
             error_body = resp.text[:500]
             logger.error(
                 "Token exchange failed for %s: HTTP %s — %s",
-                provider_slug, resp.status_code, error_body,
+                provider_slug,
+                resp.status_code,
+                error_body,
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -162,7 +167,9 @@ async def _exchange_code(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to parse token exchange response: {resp.text[:200]}",
             )
-        logger.debug("Token exchange response for %s: keys=%s", provider_slug, list(data.keys()))
+        logger.debug(
+            "Token exchange response for %s: keys=%s", provider_slug, list(data.keys())
+        )
 
         # Extract common fields
         access_token = data.get("access_token")
@@ -188,7 +195,9 @@ async def _exchange_code(
             provider_account_id = authed_user.get("id") or data.get("user_id")
             team = data.get("team", {})
             provider_account_name = team.get("name") or authed_user.get("name")
-            granted_scopes = data.get("scope", "").split(",") if data.get("scope") else None
+            granted_scopes = (
+                data.get("scope", "").split(",") if data.get("scope") else None
+            )
 
         elif provider_slug == "github":
             # GitHub we may need an extra API call to get user info
@@ -203,8 +212,12 @@ async def _exchange_code(
             # Notion returns workspace info
             workspace = data.get("workspace")
             if workspace:
-                provider_account_id = workspace.get("workspace_id") or data.get("workspace_id")
-                provider_account_name = workspace.get("workspace_name") or data.get("workspace_name")
+                provider_account_id = workspace.get("workspace_id") or data.get(
+                    "workspace_id"
+                )
+                provider_account_name = workspace.get("workspace_name") or data.get(
+                    "workspace_name"
+                )
 
         elif provider_slug == "linear":
             pass  # Linear doesn't return extra info in token exchange
@@ -393,6 +406,7 @@ async def initiate_oauth(
 
     # Determine and validate the redirect_uri
     from urllib.parse import urlparse
+
     if payload.redirect_uri:
         redirect_uri = payload.redirect_uri
         # Validate: must point to our own callback endpoint to prevent open redirect attacks
@@ -432,7 +446,7 @@ async def initiate_oauth(
         params["scope"] = " ".join(scopes) if scopes else ""
         params["response_type"] = "code"
         params["access_type"] = "offline"  # to get refresh_token
-        params["prompt"] = "consent"       # always ask for consent
+        params["prompt"] = "consent"  # always ask for consent
     else:
         params["scope"] = " ".join(scopes) if scopes else ""
 
@@ -441,12 +455,15 @@ async def initiate_oauth(
 
     # Build URL with query parameters
     from urllib.parse import urlencode
+
     authorization_url = f"{provider_config.authorize_url}?{urlencode(params)}"
 
-    return ok({
-        "authorization_url": authorization_url,
-        "state": state,
-    })
+    return ok(
+        {
+            "authorization_url": authorization_url,
+            "state": state,
+        }
+    )
 
 
 @router.get("/callback")
@@ -526,6 +543,7 @@ async def oauth_callback(
 
     # Calculate expires_at from expires_in
     from datetime import datetime, timedelta
+
     expires_at = None
     expires_in = token_data.get("expires_in")
     if expires_in:

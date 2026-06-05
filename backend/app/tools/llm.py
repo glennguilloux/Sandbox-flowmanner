@@ -52,7 +52,9 @@ async def _call_llm(messages: list[dict], temperature: float = 0.3) -> str:
 
 class LLMSummarizeInput(ToolInput):
     text: str = Field(..., description="Text to summarize")
-    max_sentences: int = Field(3, description="Maximum number of sentences in the summary")
+    max_sentences: int = Field(
+        3, description="Maximum number of sentences in the summary"
+    )
 
 
 class LLMSummarizeTool(BaseTool):
@@ -73,7 +75,9 @@ class LLMSummarizeTool(BaseTool):
         try:
             validated = LLMSummarizeInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             messages = [
@@ -107,7 +111,9 @@ class LLMSummarizeTool(BaseTool):
 
 class LLMTranslateInput(ToolInput):
     text: str = Field(..., description="Text to translate")
-    target_language: str = Field(..., description="Target language name or code (e.g. 'French', 'ja', 'German')")
+    target_language: str = Field(
+        ..., description="Target language name or code (e.g. 'French', 'ja', 'German')"
+    )
 
 
 class LLMTranslateTool(BaseTool):
@@ -128,7 +134,9 @@ class LLMTranslateTool(BaseTool):
         try:
             validated = LLMTranslateInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             messages = [
@@ -166,7 +174,9 @@ class LLMTranslateTool(BaseTool):
 
 class LLMClassifyInput(ToolInput):
     text: str = Field(..., description="Text to classify")
-    categories: list[str] = Field(..., description="List of possible category labels", min_length=2)
+    categories: list[str] = Field(
+        ..., description="List of possible category labels", min_length=2
+    )
 
 
 class LLMClassifyTool(BaseTool):
@@ -187,7 +197,9 @@ class LLMClassifyTool(BaseTool):
         try:
             validated = LLMClassifyInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             cat_list = ", ".join(validated.categories)
@@ -212,7 +224,10 @@ class LLMClassifyTool(BaseTool):
 
             # Normalise: strip quotes / whitespace, match against original list
             label_clean = label.strip().strip('"').strip("'")
-            matched = next((c for c in validated.categories if c.lower() == label_clean.lower()), label_clean)
+            matched = next(
+                (c for c in validated.categories if c.lower() == label_clean.lower()),
+                label_clean,
+            )
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,

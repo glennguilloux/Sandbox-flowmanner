@@ -144,9 +144,7 @@ class GhostMediumPublisherTool(BaseTool):
             logger.exception("ghost_medium_publisher failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _publish(
-        self, validated: GhostMediumPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish(self, validated: GhostMediumPublisherInput) -> dict[str, Any]:
         """Publish to selected platform(s)."""
         results: dict[str, Any] = {"title": validated.title, "platforms": {}}
         has_any_creds = False
@@ -172,9 +170,7 @@ class GhostMediumPublisherTool(BaseTool):
             else:
                 results["platforms"]["medium"] = {
                     "status": "not_configured",
-                    "message": (
-                        "Medium not configured. Set MEDIUM_ACCESS_TOKEN."
-                    ),
+                    "message": ("Medium not configured. Set MEDIUM_ACCESS_TOKEN."),
                 }
 
         if not has_any_creds:
@@ -196,10 +192,16 @@ class GhostMediumPublisherTool(BaseTool):
         try:
             key_id, key_secret = GHOST_ADMIN_API_KEY.split(":", 1)
         except ValueError:
-            return {"status": "error", "error": "Invalid GHOST_ADMIN_API_KEY format (expected 'id:secret')"}
+            return {
+                "status": "error",
+                "error": "Invalid GHOST_ADMIN_API_KEY format (expected 'id:secret')",
+            }
 
         if jwk is None or jw_jwt is None:
-            return {"status": "error", "error": "jwcrypto is not installed. Install with: pip install jwcrypto"}
+            return {
+                "status": "error",
+                "error": "jwcrypto is not installed. Install with: pip install jwcrypto",
+            }
 
         import time as _time
 
@@ -217,24 +219,44 @@ class GhostMediumPublisherTool(BaseTool):
         token.make_signed_token(key)
 
         body: dict[str, Any] = {
-            "posts": [{
-                "title": validated.title,
-                "mobiledoc": json.dumps({
-                    "version": "0.3.1",
-                    "markups": [],
-                    "atoms": [],
-                    "cards": [[
-                        "html",
-                        {"html": validated.content if validated.content_format == "html" else f"<p>{validated.content}</p>"}
-                    ]],
-                    "sections": [[1, "p", [[0, [], 0, validated.content[:5000]]]]] if validated.content_format != "html" else [[10, 0]],
-                }),
-                "status": validated.status,
-                "feature_image": validated.featured_image_url or None,
-                "excerpt": validated.excerpt or None,
-                "tags": [{"name": t} for t in (validated.tags or [])] if validated.tags else None,
-                "canonical_url": validated.canonical_url or None,
-            }]
+            "posts": [
+                {
+                    "title": validated.title,
+                    "mobiledoc": json.dumps(
+                        {
+                            "version": "0.3.1",
+                            "markups": [],
+                            "atoms": [],
+                            "cards": [
+                                [
+                                    "html",
+                                    {
+                                        "html": (
+                                            validated.content
+                                            if validated.content_format == "html"
+                                            else f"<p>{validated.content}</p>"
+                                        )
+                                    },
+                                ]
+                            ],
+                            "sections": (
+                                [[1, "p", [[0, [], 0, validated.content[:5000]]]]]
+                                if validated.content_format != "html"
+                                else [[10, 0]]
+                            ),
+                        }
+                    ),
+                    "status": validated.status,
+                    "feature_image": validated.featured_image_url or None,
+                    "excerpt": validated.excerpt or None,
+                    "tags": (
+                        [{"name": t} for t in (validated.tags or [])]
+                        if validated.tags
+                        else None
+                    ),
+                    "canonical_url": validated.canonical_url or None,
+                }
+            ]
         }
 
         async with httpx.AsyncClient(timeout=CMS_TIMEOUT) as client:
@@ -251,7 +273,9 @@ class GhostMediumPublisherTool(BaseTool):
                 data = resp.json()
                 post = data.get("posts", [{}])[0]
                 return {
-                    "status": "published" if validated.status == "published" else "draft",
+                    "status": (
+                        "published" if validated.status == "published" else "draft"
+                    ),
                     "message_id": post.get("id", "unknown"),
                     "url": post.get("url"),
                     "ghost_url": GHOST_URL,
@@ -272,9 +296,7 @@ class GhostMediumPublisherTool(BaseTool):
 
         # Get user ID first
         async with httpx.AsyncClient(timeout=CMS_TIMEOUT) as client:
-            resp = await client.get(
-                f"{MEDIUM_API_BASE}/me", headers=headers
-            )
+            resp = await client.get(f"{MEDIUM_API_BASE}/me", headers=headers)
             if resp.status_code != 200:
                 return {
                     "status": "error",
@@ -302,7 +324,9 @@ class GhostMediumPublisherTool(BaseTool):
             if resp.status_code in (200, 201):
                 data = resp.json()["data"]
                 return {
-                    "status": "published" if validated.status == "published" else "draft",
+                    "status": (
+                        "published" if validated.status == "published" else "draft"
+                    ),
                     "message_id": data.get("id", "unknown"),
                     "url": data.get("url"),
                 }

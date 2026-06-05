@@ -1,55 +1,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="TopFailedMission")
-
 
 
 @_attrs_define
 class TopFailedMission:
-    """ 
-        Attributes:
-            mission_name (str):
-            failure_count (int):
-     """
+    """
+    Attributes:
+        mission_name (str):
+        failure_count (int):
+    """
 
     mission_name: str
     failure_count: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         mission_name = self.mission_name
 
         failure_count = self.failure_count
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "missionName": mission_name,
-            "failureCount": failure_count,
-        })
+        field_dict.update(
+            {
+                "missionName": mission_name,
+                "failureCount": failure_count,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -62,7 +48,6 @@ class TopFailedMission:
             mission_name=mission_name,
             failure_count=failure_count,
         )
-
 
         top_failed_mission.additional_properties = d
         return top_failed_mission

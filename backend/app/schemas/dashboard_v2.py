@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class MissionHistoryItem(BaseModel):
     """Single mission in the execution history list."""
+
     id: str
     title: str
     status: str
@@ -28,6 +29,7 @@ class MissionHistoryItem(BaseModel):
 
 class MissionHistoryResponse(BaseModel):
     """Paginated mission history response."""
+
     items: list[MissionHistoryItem] = Field(default_factory=list)
     total: int = 0
     page: int = 1
@@ -37,18 +39,21 @@ class MissionHistoryResponse(BaseModel):
 
 class CostByAgent(BaseModel):
     """Cost breakdown for a single agent."""
+
     agent_id: str
     cost_usd: float = 0.0
 
 
 class CostByModel(BaseModel):
     """Cost breakdown for a single model."""
+
     model_id: str
     cost_usd: float = 0.0
 
 
 class CostAnalyticsResponse(BaseModel):
     """Aggregated cost analytics for a user."""
+
     total_cost: float = 0.0
     previous_period_cost: float | None = None
     trend_pct: float | None = None
@@ -58,6 +63,7 @@ class CostAnalyticsResponse(BaseModel):
 
 class LogEntry(BaseModel):
     """Single mission log entry."""
+
     id: str
     mission_id: str
     task_id: str | None = None
@@ -73,6 +79,7 @@ class LogEntry(BaseModel):
 
 class LogSearchResponse(BaseModel):
     """Paginated log search results."""
+
     items: list[LogEntry] = Field(default_factory=list)
     total: int = 0
     page: int = 1
@@ -82,6 +89,7 @@ class LogSearchResponse(BaseModel):
 
 class DashboardStats(BaseModel):
     """Aggregate dashboard statistics for a user."""
+
     total_missions: int = 0
     completed_missions: int = 0
     failed_missions: int = 0

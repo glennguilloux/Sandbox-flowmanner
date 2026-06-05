@@ -83,13 +83,15 @@ def mission_service_mocks():
     # ── Build mock MissionQueryHandlers ────────────────────────────────
     mock_queries = MagicMock()
     mock_queries.get_mission = AsyncMock(return_value=mission)
-    mock_queries.get_status = AsyncMock(return_value={
-        "mission_id": str(MISSION_ID),
-        "status": "pending",
-        "total_tasks": 0,
-        "completed_tasks": 0,
-        "progress_pct": 0,
-    })
+    mock_queries.get_status = AsyncMock(
+        return_value={
+            "mission_id": str(MISSION_ID),
+            "status": "pending",
+            "total_tasks": 0,
+            "completed_tasks": 0,
+            "progress_pct": 0,
+        }
+    )
     mock_queries.list_tasks = AsyncMock(return_value=[])
     mock_queries.list_logs = AsyncMock(return_value=[])
     mock_queries.list_improvements = AsyncMock(return_value=[])
@@ -112,14 +114,18 @@ def mission_service_mocks():
 
     # ── Build mock MissionCommandHandlers ──────────────────────────────
     mock_commands = MagicMock()
-    mock_commands.plan_mission = AsyncMock(return_value={
-        "mission_id": str(MISSION_ID),
-        "status": "planned",
-    })
-    mock_commands.execute_mission = AsyncMock(return_value={
-        "mission_id": str(MISSION_ID),
-        "status": "completed",
-    })
+    mock_commands.plan_mission = AsyncMock(
+        return_value={
+            "mission_id": str(MISSION_ID),
+            "status": "planned",
+        }
+    )
+    mock_commands.execute_mission = AsyncMock(
+        return_value={
+            "mission_id": str(MISSION_ID),
+            "status": "completed",
+        }
+    )
     mock_commands.create_mission = AsyncMock(return_value=mission)
     mock_commands.update_mission = AsyncMock(return_value=mission)
     mock_commands.delete_mission = AsyncMock(return_value=True)
@@ -235,13 +241,27 @@ class TestMissionSlashCompatibility:
             (f"/api/missions/{MISSION_ID}", f"/api/missions/{MISSION_ID}/"),
             (f"/api/missions/{MISSION_ID}/tasks", f"/api/missions/{MISSION_ID}/tasks/"),
             (f"/api/missions/{MISSION_ID}/logs", f"/api/missions/{MISSION_ID}/logs/"),
-            (f"/api/missions/{MISSION_ID}/status", f"/api/missions/{MISSION_ID}/status/"),
-            (f"/api/missions/{MISSION_ID}/improvements", f"/api/missions/{MISSION_ID}/improvements/"),
-            (f"/api/missions/{MISSION_ID}/analytics", f"/api/missions/{MISSION_ID}/analytics/"),
-            (f"/api/missions/{MISSION_ID}/stream", f"/api/missions/{MISSION_ID}/stream/"),
+            (
+                f"/api/missions/{MISSION_ID}/status",
+                f"/api/missions/{MISSION_ID}/status/",
+            ),
+            (
+                f"/api/missions/{MISSION_ID}/improvements",
+                f"/api/missions/{MISSION_ID}/improvements/",
+            ),
+            (
+                f"/api/missions/{MISSION_ID}/analytics",
+                f"/api/missions/{MISSION_ID}/analytics/",
+            ),
+            (
+                f"/api/missions/{MISSION_ID}/stream",
+                f"/api/missions/{MISSION_ID}/stream/",
+            ),
         ],
     )
-    def test_dual_routes_return_200(self, auth_client, mission_service_mocks, path_a, path_b):
+    def test_dual_routes_return_200(
+        self, auth_client, mission_service_mocks, path_a, path_b
+    ):
         if "/stream" in path_a:
             # stream uses async generator — already set up in fixture
             pass

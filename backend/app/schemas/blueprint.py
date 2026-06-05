@@ -7,13 +7,11 @@ runtime fields (status, output_data, retry_count on nodes).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 # ── Blueprint definition (declarative subset of Workflow) ────────────
 
@@ -166,7 +164,9 @@ class RunResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator("id", "blueprint_id", "workspace_id", "parent_run_id", mode="before")
+    @field_validator(
+        "id", "blueprint_id", "workspace_id", "parent_run_id", mode="before"
+    )
     @classmethod
     def _coerce_uuid(cls, v: Any) -> Any:
         return str(v) if isinstance(v, UUID) else v

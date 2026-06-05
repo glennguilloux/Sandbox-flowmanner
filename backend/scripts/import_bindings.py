@@ -51,7 +51,9 @@ async def run():
 
         # agent_templates
         agent_rows = await conn.execute(
-            sa_text("SELECT template_id, slug, name, definition FROM agent_templates WHERE is_active = true")
+            sa_text(
+                "SELECT template_id, slug, name, definition FROM agent_templates WHERE is_active = true"
+            )
         )
         agents = agent_rows.fetchall()
         logger.info("agent_templates: %d active templates", len(agents))
@@ -98,19 +100,22 @@ async def run():
                         tool_bindings_skipped += 1
                         logger.debug(
                             "Agent %s references tool '%s' not found in tools_catalog",
-                            agent_slug, tool_id_slug,
+                            agent_slug,
+                            tool_id_slug,
                         )
                         continue
 
                     # Upsert with ON CONFLICT DO NOTHING
                     try:
                         result = await conn.execute(
-                            sa_text("""
+                            sa_text(
+                                """
                                 INSERT INTO agent_tool_bindings
                                     (id, agent_id, tool_id, enabled, priority, created_at, updated_at)
                                 VALUES (:id, :agent_id, :tool_id, true, 0, :now, :now)
                                 ON CONFLICT (agent_id, tool_id) DO NOTHING
-                            """),
+                            """
+                            ),
                             {
                                 "id": str(uuid4()),
                                 "agent_id": template_id,
@@ -126,7 +131,9 @@ async def run():
                         tool_bindings_skipped += 1
                         logger.warning(
                             "Failed to insert tool binding %s→%s: %s",
-                            agent_slug, tool_id_slug, exc,
+                            agent_slug,
+                            tool_id_slug,
+                            exc,
                         )
 
             # ── 2b. Extract capabilities from definition ────────────
@@ -143,18 +150,21 @@ async def run():
                         cap_bindings_skipped += 1
                         logger.debug(
                             "Agent %s references capability '%s' not found in capabilities_catalog",
-                            agent_slug, cap_slug,
+                            agent_slug,
+                            cap_slug,
                         )
                         continue
 
                     try:
                         result = await conn.execute(
-                            sa_text("""
+                            sa_text(
+                                """
                                 INSERT INTO agent_capability_bindings
                                     (id, agent_id, capability_id, enabled, priority, created_at, updated_at)
                                 VALUES (:id, :agent_id, :capability_id, true, 0, :now, :now)
                                 ON CONFLICT (agent_id, capability_id) DO NOTHING
-                            """),
+                            """
+                            ),
                             {
                                 "id": str(uuid4()),
                                 "agent_id": template_id,
@@ -170,7 +180,9 @@ async def run():
                         cap_bindings_skipped += 1
                         logger.warning(
                             "Failed to insert capability binding %s→%s: %s",
-                            agent_slug, cap_slug, exc,
+                            agent_slug,
+                            cap_slug,
+                            exc,
                         )
 
     await engine.dispose()
@@ -178,8 +190,10 @@ async def run():
         "Binding import complete: "
         "tool_bindings=%d inserted / %d skipped, "
         "capability_bindings=%d inserted / %d skipped",
-        tool_bindings_inserted, tool_bindings_skipped,
-        cap_bindings_inserted, cap_bindings_skipped,
+        tool_bindings_inserted,
+        tool_bindings_skipped,
+        cap_bindings_inserted,
+        cap_bindings_skipped,
     )
 
 

@@ -182,6 +182,7 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
     if success:
         model_fallback_success.labels(provider=provider).inc()
 
+
 def record_mission_success(duration_seconds: float, tokens: int = 0) -> None:
     mission_total.labels(status="success").inc()
     mission_duration.observe(duration_seconds)
@@ -237,9 +238,7 @@ def record_eval_run(
             eval_score.labels(model=model, category=cat).observe(score)
 
 
-def record_eval_test_case(
-    model: str, task_type: str, passed: bool
-) -> None:
+def record_eval_test_case(model: str, task_type: str, passed: bool) -> None:
     """Record a single test case result."""
     result = "pass" if passed else "fail"
     eval_test_cases_total.labels(model=model, task_type=task_type, result=result).inc()

@@ -105,6 +105,7 @@ def _build_v2_openapi(request: Request) -> dict[str, Any]:
 
     # Collect all $ref references from v2 paths
     import json
+
     v2_paths_str = json.dumps(v2_paths)
     for schema_name in full_schemas:
         if f"#/components/schemas/{schema_name}" in v2_paths_str:
@@ -114,7 +115,10 @@ def _build_v2_openapi(request: Request) -> dict[str, Any]:
     for schema_name in list(v2_referenced):
         schema_str = json.dumps(full_schemas.get(schema_name, {}))
         for other_name in full_schemas:
-            if other_name not in v2_referenced and f"#/components/schemas/{other_name}" in schema_str:
+            if (
+                other_name not in v2_referenced
+                and f"#/components/schemas/{other_name}" in schema_str
+            ):
                 v2_referenced.add(other_name)
 
     for name in v2_referenced:
@@ -171,16 +175,43 @@ def _build_v2_openapi(request: Request) -> dict[str, Any]:
         },
         "security": [{"BearerAuth": []}],
         "tags": [
-            {"name": "v2-auth", "description": "Authentication — login, register, token refresh, 2FA"},
-            {"name": "v2-missions", "description": "Mission lifecycle — create, execute, plan, abort, retry"},
-            {"name": "v2-agents", "description": "Agent registry and template management"},
-            {"name": "v2-chat", "description": "Chat threads, messages, LLM streaming, branches"},
-            {"name": "v2-workspaces", "description": "Workspace, team, and member management"},
+            {
+                "name": "v2-auth",
+                "description": "Authentication — login, register, token refresh, 2FA",
+            },
+            {
+                "name": "v2-missions",
+                "description": "Mission lifecycle — create, execute, plan, abort, retry",
+            },
+            {
+                "name": "v2-agents",
+                "description": "Agent registry and template management",
+            },
+            {
+                "name": "v2-chat",
+                "description": "Chat threads, messages, LLM streaming, branches",
+            },
+            {
+                "name": "v2-workspaces",
+                "description": "Workspace, team, and member management",
+            },
             {"name": "v2-search", "description": "Unified cross-entity search"},
-            {"name": "v2-dashboard", "description": "Mission history, cost analytics, execution logs, stats"},
-            {"name": "v2-integrations", "description": "HTTP outbound integration configs and execution logs"},
-            {"name": "v2-integrations-oauth", "description": "OAuth app registration and connection flow"},
-            {"name": "v2-integrations-actions", "description": "Discover and execute integration actions"},
+            {
+                "name": "v2-dashboard",
+                "description": "Mission history, cost analytics, execution logs, stats",
+            },
+            {
+                "name": "v2-integrations",
+                "description": "HTTP outbound integration configs and execution logs",
+            },
+            {
+                "name": "v2-integrations-oauth",
+                "description": "OAuth app registration and connection flow",
+            },
+            {
+                "name": "v2-integrations-actions",
+                "description": "Discover and execute integration actions",
+            },
         ],
     }
 
@@ -208,10 +239,13 @@ async def get_v2_openapi(request: Request):
         if _v2_spec_cache is None or _v2_spec_server_url != current_base:
             _v2_spec_cache = _build_v2_openapi(request)
             _v2_spec_server_url = current_base
-        return JSONResponse(content=_v2_spec_cache, headers={
-            "Cache-Control": "public, max-age=300",
-            "Access-Control-Allow-Origin": "*",
-        })
+        return JSONResponse(
+            content=_v2_spec_cache,
+            headers={
+                "Cache-Control": "public, max-age=300",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
     except Exception as e:
         logger.error("v2_openapi_build_failed", error=str(e), exc_info=True)
         return JSONResponse(

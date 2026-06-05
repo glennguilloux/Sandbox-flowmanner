@@ -13,11 +13,14 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from app.models import Base
+
 target_metadata = Base.metadata
+
 
 def include_object(object, name, type_, reflected, compare_to):
     # Include all tables registered with Base.metadata
     return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
@@ -33,6 +36,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def do_run_migrations(connection) -> None:
     context.configure(
         connection=connection,
@@ -43,6 +47,7 @@ def do_run_migrations(connection) -> None:
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 async def run_async_migrations() -> None:
     from sqlalchemy.ext.asyncio import create_async_engine
@@ -58,9 +63,11 @@ async def run_async_migrations() -> None:
 
     await connectable.dispose()
 
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode (async entry point)."""
     asyncio.run(run_async_migrations())
+
 
 if context.is_offline_mode():
     run_migrations_offline()

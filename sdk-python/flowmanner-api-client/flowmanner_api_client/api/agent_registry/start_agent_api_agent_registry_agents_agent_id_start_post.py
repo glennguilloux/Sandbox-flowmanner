@@ -17,7 +17,9 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     agent_id: UUID,
     *,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
     accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
@@ -75,7 +77,9 @@ def sync_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
     accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Start Agent
@@ -112,7 +116,9 @@ def sync(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
     accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Start Agent
@@ -144,7 +150,9 @@ async def asyncio_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
     accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Start Agent
@@ -179,7 +187,9 @@ async def asyncio(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
     accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Start Agent

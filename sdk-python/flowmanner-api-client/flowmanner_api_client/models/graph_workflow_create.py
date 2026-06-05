@@ -9,7 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_workflow_create_graph_definition_type_0 import GraphWorkflowCreateGraphDefinitionType0
+    from ..models.graph_workflow_create_graph_definition_type_0 import (
+        GraphWorkflowCreateGraphDefinitionType0,
+    )
 
 
 T = TypeVar("T", bound="GraphWorkflowCreate")
@@ -30,7 +32,9 @@ class GraphWorkflowCreate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_workflow_create_graph_definition_type_0 import GraphWorkflowCreateGraphDefinitionType0
+        from ..models.graph_workflow_create_graph_definition_type_0 import (
+            GraphWorkflowCreateGraphDefinitionType0,
+        )
 
         name = self.name
 
@@ -64,7 +68,9 @@ class GraphWorkflowCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_workflow_create_graph_definition_type_0 import GraphWorkflowCreateGraphDefinitionType0
+        from ..models.graph_workflow_create_graph_definition_type_0 import (
+            GraphWorkflowCreateGraphDefinitionType0,
+        )
 
         d = dict(src_dict)
         name = d.pop("name")
@@ -78,7 +84,9 @@ class GraphWorkflowCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_graph_definition(data: object) -> GraphWorkflowCreateGraphDefinitionType0 | None | Unset:
+        def _parse_graph_definition(
+            data: object,
+        ) -> GraphWorkflowCreateGraphDefinitionType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -86,7 +94,9 @@ class GraphWorkflowCreate:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                graph_definition_type_0 = GraphWorkflowCreateGraphDefinitionType0.from_dict(data)
+                graph_definition_type_0 = (
+                    GraphWorkflowCreateGraphDefinitionType0.from_dict(data)
+                )
 
                 return graph_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

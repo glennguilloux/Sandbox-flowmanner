@@ -65,6 +65,7 @@ class TestSoloValidate:
     async def test_rejects_edges(self):
         strategy = SoloStrategy()
         from app.services.substrate.workflow_models import WorkflowEdge
+
         wf = _make_solo_workflow(node_count=1)
         wf.edges = [WorkflowEdge(source="n0", target="n0")]
         errors = await strategy.validate(wf)
@@ -81,12 +82,14 @@ class TestSoloExecute:
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": True,
-            "output": {"text": "Done"},
-            "tokens": 42,
-            "cost": 0.03,
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {"text": "Done"},
+                "tokens": 42,
+                "cost": 0.03,
+            }
+        )
 
         result = await strategy.execute(wf, {}, mock_executor, db)
 
@@ -105,10 +108,12 @@ class TestSoloExecute:
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": False,
-            "error": "LLM call failed",
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "LLM call failed",
+            }
+        )
 
         result = await strategy.execute(wf, {}, mock_executor, db)
 
@@ -141,7 +146,9 @@ class TestSoloExecute:
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
-        mock_executor.execute_node = AsyncMock(return_value={"success": True, "output": "ok"})
+        mock_executor.execute_node = AsyncMock(
+            return_value={"success": True, "output": "ok"}
+        )
 
         await strategy.execute(wf, {}, mock_executor, db)
 

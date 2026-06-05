@@ -31,19 +31,27 @@ async def list_runs(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     blueprint_id: str | None = Query(None, description="Filter by blueprint ID"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by status"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status"
+    ),
     user: User = Depends(get_current_user),
     workspace_id: str | None = Depends(get_workspace_id),
     q: RunQueryHandlers = Depends(get_run_queries),
 ):
     """List all runs, filterable by blueprint and status."""
     r = await q.list_runs(
-        user.id, page=page, per_page=per_page,
-        workspace_id=workspace_id, blueprint_id=blueprint_id, status=status_filter,
+        user.id,
+        page=page,
+        per_page=per_page,
+        workspace_id=workspace_id,
+        blueprint_id=blueprint_id,
+        status=status_filter,
     )
     return paginated(
         items=[run.model_dump() for run in r.items],
-        total=r.total, page=r.page, per_page=r.per_page,
+        total=r.total,
+        page=r.page,
+        per_page=r.per_page,
     )
 
 
@@ -104,12 +112,16 @@ async def get_run_events(
     q: RunQueryHandlers = Depends(get_run_queries),
 ):
     """Get substrate event stream for this run."""
-    events = await q.get_events(user.id, run_id, from_sequence=from_sequence, limit=limit)
-    return ok({
-        "run_id": run_id,
-        "events": [e.model_dump() for e in events],
-        "count": len(events),
-    })
+    events = await q.get_events(
+        user.id, run_id, from_sequence=from_sequence, limit=limit
+    )
+    return ok(
+        {
+            "run_id": run_id,
+            "events": [e.model_dump() for e in events],
+            "count": len(events),
+        }
+    )
 
 
 # ── Replay ─────────────────────────────────────────────────────────────────────

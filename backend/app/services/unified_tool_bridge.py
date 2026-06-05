@@ -8,6 +8,7 @@ H3.2: Tool execution now requires a valid CapabilityToken.
 Callers must pass a capability_token parameter or the bridge will
 attempt to verify and require one via the CapabilityEngine.
 """
+
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -18,6 +19,7 @@ from app.tools.base import get_tool_registry
 logger = logging.getLogger(__name__)
 
 # ── H3.2 OCap error class ─────────────────────────────────────────
+
 
 class CapabilityRequiredError(PermissionError):
     """Raised when a tool invocation lacks a required capability token."""
@@ -52,7 +54,9 @@ class UnifiedToolBridge:
 
         try:
             self._tool_registry = get_tool_registry()
-            logger.info(f"Tool registry initialized with {len(self._tool_registry.list_all())} tools")
+            logger.info(
+                f"Tool registry initialized with {len(self._tool_registry.list_all())} tools"
+            )
         except Exception as e:
             logger.warning(f"Could not initialize tool registry: {e}")
             self._tool_registry = None
@@ -66,12 +70,14 @@ class UnifiedToolBridge:
         tools = []
         if self._tool_registry:
             for tool in self._tool_registry.list_all():
-                tools.append({
-                    "name": tool.tool_id,
-                    "description": tool.description,
-                    "tier": getattr(tool.metadata, 'tier', 0),
-                    "input_schema": tool.metadata.input_schema,
-                })
+                tools.append(
+                    {
+                        "name": tool.tool_id,
+                        "description": tool.description,
+                        "tier": getattr(tool.metadata, "tier", 0),
+                        "input_schema": tool.metadata.input_schema,
+                    }
+                )
         return tools
 
     async def execute_tool(
@@ -113,7 +119,7 @@ class UnifiedToolBridge:
             return {
                 "success": False,
                 "error": "Tool registry not available",
-                "tool_name": tool_name
+                "tool_name": tool_name,
             }
 
         tool = self._tool_registry.get(tool_name)
@@ -121,26 +127,18 @@ class UnifiedToolBridge:
             return {
                 "success": False,
                 "error": f"Tool not found: {tool_name}",
-                "tool_name": tool_name
+                "tool_name": tool_name,
             }
 
         try:
-            if effective_user_id and 'user_id' in str(tool.metadata.input_schema):
-                parameters = {**parameters, 'user_id': effective_user_id}
+            if effective_user_id and "user_id" in str(tool.metadata.input_schema):
+                parameters = {**parameters, "user_id": effective_user_id}
 
             result = await tool.execute(parameters)
-            return {
-                "success": True,
-                "tool_name": tool_name,
-                "result": result
-            }
+            return {"success": True, "tool_name": tool_name, "result": result}
         except Exception as e:
             logger.error(f"Error executing tool {tool_name}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "tool_name": tool_name
-            }
+            return {"success": False, "error": str(e), "tool_name": tool_name}
 
     async def verify_capability(
         self, tool_name: str, capability_token_id: UUID | None
@@ -159,7 +157,8 @@ class UnifiedToolBridge:
         except ImportError as e:
             logger.warning(
                 "Capability engine not available, cannot enforce OCap for %s: %s",
-                tool_name, e,
+                tool_name,
+                e,
             )
             return  # Graceful degradation when capability engine is unavailable
 
@@ -172,10 +171,13 @@ class UnifiedToolBridge:
         engine.verify_and_require(token, Action.EXECUTE)
         logger.debug(
             "Capability verified: token %s for tool %s",
-            capability_token_id, tool_name,
+            capability_token_id,
+            tool_name,
         )
 
-    async def discover_tools_for_task(self, task_description: str) -> list[dict[str, Any]]:
+    async def discover_tools_for_task(
+        self, task_description: str
+    ) -> list[dict[str, Any]]:
         """Use semantic discovery to find relevant tools for a task."""
         self._ensure_initialized()
 
@@ -191,11 +193,17 @@ class UnifiedToolBridge:
 
     def get_tool_handler(self, tool_name: str) -> Callable | None:
         """Get a callable handler for a tool that can be registered with LangGraph."""
-        async def handler(state: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+
+        async def handler(
+            state: dict[str, Any], params: dict[str, Any]
+        ) -> dict[str, Any]:
             return await self.execute_tool(tool_name, params)
+
         return handler
 
+
 _unified_bridge: UnifiedToolBridge | None = None
+
 
 def get_unified_tool_bridge(user_id: int | None = None) -> UnifiedToolBridge:
     """Get or create the unified tool bridge"""

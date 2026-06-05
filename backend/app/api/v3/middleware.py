@@ -44,6 +44,7 @@ def register_v3_exception_handlers(app: FastAPI) -> None:
         if not request.url.path.startswith("/api/v3"):
             # Let the v2 handler or default handler deal with it
             from fastapi.responses import JSONResponse as PlainJSON
+
             return PlainJSON(
                 status_code=exc.status_code,
                 content={"detail": exc.detail},
@@ -63,13 +64,16 @@ def register_v3_exception_handlers(app: FastAPI) -> None:
     async def v3_general_exception_handler(request: Request, exc: Exception):
         if not request.url.path.startswith("/api/v3"):
             from fastapi.responses import JSONResponse as PlainJSON
+
             return PlainJSON(
                 status_code=500,
                 content={"detail": "An error occurred. Please try again later."},
             )
 
         trace_id = getattr(request.state, "trace_id", None)
-        logger.error("Unhandled v3 exception", error=str(exc), exc_info=True, trace_id=trace_id)
+        logger.error(
+            "Unhandled v3 exception", error=str(exc), exc_info=True, trace_id=trace_id
+        )
         return _make_error_response(
             status_code=500,
             code="INTERNAL_ERROR",

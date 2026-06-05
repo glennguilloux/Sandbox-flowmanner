@@ -29,7 +29,9 @@ router = APIRouter(prefix="/costs", tags=["cost-attribution"])
 
 @router.get("/summary")
 async def cost_summary(
-    group_by: str = Query("day", description="Group by: day, agent, mission, model, provider, workspace"),
+    group_by: str = Query(
+        "day", description="Group by: day, agent, mission, model, provider, workspace"
+    ),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     agent_id: str | None = Query(None),
     mission_id: str | None = Query(None),
@@ -82,13 +84,19 @@ async def cost_dashboard(
     service = CostAttributionService(db)
 
     daily = await service.get_aggregates(
-        workspace_id=workspace_id, group_by="day", days=days,
+        workspace_id=workspace_id,
+        group_by="day",
+        days=days,
     )
     by_agent = await service.get_aggregates(
-        workspace_id=workspace_id, group_by="agent", days=days,
+        workspace_id=workspace_id,
+        group_by="agent",
+        days=days,
     )
     by_model = await service.get_aggregates(
-        workspace_id=workspace_id, group_by="model", days=days,
+        workspace_id=workspace_id,
+        group_by="model",
+        days=days,
     )
 
     return {

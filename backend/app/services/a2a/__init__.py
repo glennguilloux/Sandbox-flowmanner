@@ -14,7 +14,14 @@ from .a2a_agent_wrapper import (
     create_agent_wrapper,
     register_default_agents,
 )
-from .a2a_server import A2AMessage, A2AServer, A2ASession, MessageType, SessionState, get_a2a_server
+from .a2a_server import (
+    A2AMessage,
+    A2AServer,
+    A2ASession,
+    MessageType,
+    SessionState,
+    get_a2a_server,
+)
 
 __all__ = [
     # Wrappers
@@ -31,5 +38,5 @@ __all__ = [
     "SessionState",
     "create_agent_wrapper",
     "get_a2a_server",
-    "register_default_agents"
+    "register_default_agents",
 ]

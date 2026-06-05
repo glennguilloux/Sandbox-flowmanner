@@ -98,6 +98,7 @@ class GoogleConnector(BaseConnector):
             return False
 
         import httpx
+
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://www.googleapis.com/oauth2/v1/tokeninfo",
@@ -330,7 +331,10 @@ class GoogleConnector(BaseConnector):
             "POST",
             "files",
             service="drive",
-            params={"uploadType": "multipart", "fields": "id, name, mimeType, size, webViewLink"},
+            params={
+                "uploadType": "multipart",
+                "fields": "id, name, mimeType, size, webViewLink",
+            },
             data=body,
             headers=headers,
         )
@@ -456,7 +460,9 @@ class GoogleConnector(BaseConnector):
                 data={
                     "messages": detailed,
                     "next_page_token": list_response.data.get("nextPageToken"),
-                    "result_size_estimate": list_response.data.get("resultSizeEstimate"),
+                    "result_size_estimate": list_response.data.get(
+                        "resultSizeEstimate"
+                    ),
                 },
                 status_code=200,
             )
@@ -473,11 +479,13 @@ class GoogleConnector(BaseConnector):
                 status_code=400,
             )
 
-        return await self._gmail_list({
-            "q": q,
-            "max_results": params.get("max_results", 20),
-            "include_details": params.get("include_details", True),
-        })
+        return await self._gmail_list(
+            {
+                "q": q,
+                "max_results": params.get("max_results", 20),
+                "include_details": params.get("include_details", True),
+            }
+        )
 
     async def _gmail_get(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get a specific email by ID."""
@@ -571,12 +579,18 @@ class GoogleConnector(BaseConnector):
 
         if start:
             if "dateTime" in start:
-                event["start"] = {"dateTime": start["dateTime"], "timeZone": start.get("timeZone", "UTC")}
+                event["start"] = {
+                    "dateTime": start["dateTime"],
+                    "timeZone": start.get("timeZone", "UTC"),
+                }
             elif "date" in start:
                 event["start"] = {"date": start["date"]}
         if end:
             if "dateTime" in end:
-                event["end"] = {"dateTime": end["dateTime"], "timeZone": end.get("timeZone", "UTC")}
+                event["end"] = {
+                    "dateTime": end["dateTime"],
+                    "timeZone": end.get("timeZone", "UTC"),
+                }
             elif "date" in end:
                 event["end"] = {"date": end["date"]}
 
@@ -605,7 +619,15 @@ class GoogleConnector(BaseConnector):
             )
 
         event: dict[str, Any] = {}
-        for field in ("summary", "description", "location", "start", "end", "attendees", "reminders"):
+        for field in (
+            "summary",
+            "description",
+            "location",
+            "start",
+            "end",
+            "attendees",
+            "reminders",
+        ):
             if field in params:
                 event[field] = params[field]
 

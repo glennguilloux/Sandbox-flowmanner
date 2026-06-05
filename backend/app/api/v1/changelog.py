@@ -44,14 +44,16 @@ async def list_changelog(
 ):
     """List published changelog entries."""
     result = await db.execute(
-        text("""
+        text(
+            """
             SELECT id, version, title, content, entry_type, published_at, created_at
             FROM changelog_entries
             WHERE published = true
             ORDER BY published_at DESC
             LIMIT :limit
-        """),
-        {"limit": limit}
+        """
+        ),
+        {"limit": limit},
     )
     entries = result.fetchall()
 
@@ -80,24 +82,28 @@ async def latest_changelog(
     """Get latest changelog entries, optionally since a date."""
     if since:
         result = await db.execute(
-            text("""
+            text(
+                """
                 SELECT id, version, title, content, entry_type, published_at
                 FROM changelog_entries
                 WHERE published = true AND published_at > :since
                 ORDER BY published_at DESC
                 LIMIT 10
-            """),
-            {"since": since}
+            """
+            ),
+            {"since": since},
         )
     else:
         result = await db.execute(
-            text("""
+            text(
+                """
                 SELECT id, version, title, content, entry_type, published_at
                 FROM changelog_entries
                 WHERE published = true
                 ORDER BY published_at DESC
                 LIMIT 5
-            """)
+            """
+            )
         )
 
     entries = result.fetchall()
@@ -126,18 +132,20 @@ async def create_changelog_entry(
     published_at = "NOW()" if payload.published else "NULL"
 
     result = await db.execute(
-        text(f"""
+        text(
+            f"""
             INSERT INTO changelog_entries (version, title, content, entry_type, published, published_at, created_at)
             VALUES (:version, :title, :content, :entry_type, :published, {published_at}, NOW())
             RETURNING id, version, title, content, entry_type, published, published_at, created_at
-        """),
+        """
+        ),
         {
             "version": payload.version,
             "title": payload.title,
             "content": payload.content,
             "entry_type": payload.entry_type,
             "published": payload.published,
-        }
+        },
     )
     entry = result.fetchone()
     await db.commit()
@@ -187,13 +195,15 @@ async def update_changelog_entry(
         raise HTTPException(status_code=400, detail="No fields to update")
 
     result = await db.execute(
-        text(f"""
+        text(
+            f"""
             UPDATE changelog_entries
             SET {', '.join(updates)}
             WHERE id = :id
             RETURNING id, version, title, content, entry_type, published, published_at, created_at
-        """),
-        params
+        """
+        ),
+        params,
     )
     entry = result.fetchone()
     if not entry:
@@ -222,7 +232,7 @@ async def delete_changelog_entry(
     """Delete a changelog entry."""
     result = await db.execute(
         text("DELETE FROM changelog_entries WHERE id = :id RETURNING id"),
-        {"id": entry_id}
+        {"id": entry_id},
     )
     if not result.scalar():
         raise HTTPException(status_code=404, detail="Entry not found")

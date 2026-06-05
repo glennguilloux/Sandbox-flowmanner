@@ -59,6 +59,7 @@ async def get_current_active_user(
 
 def require_role(*roles: str):
     """Dependency factory that requires the user to have one of the given roles."""
+
     async def role_checker(user: User = Depends(get_current_user)) -> User:
         if user.role not in roles and not user.is_admin:
             raise HTTPException(
@@ -66,6 +67,7 @@ def require_role(*roles: str):
                 detail=f"Role required: {', '.join(roles)}",
             )
         return user
+
     return role_checker
 
 
@@ -88,7 +90,7 @@ async def get_workspace_context(
         (WorkspaceMember.role == "owner", 3),
         (WorkspaceMember.role == "admin", 2),
         (WorkspaceMember.role == "member", 1),
-        else_=0
+        else_=0,
     ).label("priority")
 
     result = await db.execute(
@@ -100,8 +102,7 @@ async def get_workspace_context(
     rows = result.all()
 
     workspaces = [
-        {"workspace": row.Workspace, "role": row.WorkspaceMember.role}
-        for row in rows
+        {"workspace": row.Workspace, "role": row.WorkspaceMember.role} for row in rows
     ]
 
     primary = workspaces[0] if workspaces else None  # highest priority first
@@ -113,7 +114,9 @@ async def get_workspace_context(
         "primary_workspace_id": primary["workspace"].id if primary else None,
         "primary_role": primary["role"] if primary else None,
         "is_workspace_owner": primary["role"] == "owner" if primary else False,
-        "is_workspace_admin": primary["role"] in ("owner", "admin") if primary else False,
+        "is_workspace_admin": (
+            primary["role"] in ("owner", "admin") if primary else False
+        ),
         # Deprecated compat keys (H4 Phase 3 will remove)
         "tenant": None,
         "tenant_id": None,
@@ -128,6 +131,7 @@ def require_tenant_admin():
 
     H4 Phase 2: now checks workspace membership instead of tenant membership.
     """
+
     async def checker(
         ctx: dict = Depends(get_workspace_context),
     ) -> dict:
@@ -142,7 +146,9 @@ def require_tenant_admin():
                 detail="Workspace admin access required",
             )
         return ctx
+
     return checker
+
 
 async def get_current_user_optional(
     request: Request,
@@ -188,11 +194,12 @@ def require_permission(permission_key: str) -> Callable:
         workspace_id = (
             request.query_params.get("workspace_id")
             or request.headers.get("X-Workspace-Id")
-            or request.query_params.get("tenant_id")       # H4 Phase 3 backward compat
-            or request.headers.get("X-Tenant-Id")           # H4 Phase 3 backward compat
+            or request.query_params.get("tenant_id")  # H4 Phase 3 backward compat
+            or request.headers.get("X-Tenant-Id")  # H4 Phase 3 backward compat
         )
 
         from app.services.permission_service import PermissionService
+
         has = await PermissionService.check(db, user.id, workspace_id, permission_key)
         if not has:
             raise HTTPException(
@@ -254,7 +261,11 @@ async def get_current_session(
         AuthSession.user_id == int(user_id),
         AuthSession.is_active == True,
     )
-    query = query.where(AuthSession.id == session_id) if session_id else query.where(AuthSession.revoked_at.is_(None))
+    query = (
+        query.where(AuthSession.id == session_id)
+        if session_id
+        else query.where(AuthSession.revoked_at.is_(None))
+    )
 
     query = query.order_by(AuthSession.created_at.desc()).limit(1)
     result = await db.execute(query)
@@ -294,9 +305,8 @@ async def get_workspace_id(
 
     from app.models.workspace_models import WorkspaceMember
 
-    workspace_id = (
-        request.headers.get("X-Workspace-Id")
-        or request.query_params.get("workspace_id")
+    workspace_id = request.headers.get("X-Workspace-Id") or request.query_params.get(
+        "workspace_id"
     )
 
     if workspace_id:
@@ -316,17 +326,21 @@ async def get_workspace_id(
         logger.warning(
             "workspace_access_denied"
             " user_id=%s workspace_id=%s reason=no_membership",
-            user.id, workspace_id,
+            user.id,
+            workspace_id,
         )
         try:
             import asyncio
 
             from app.api.middleware.audit import log_event
-            asyncio.create_task(log_event(
-                user_id=user.id,
-                action="workspace.access_denied",
-                details={"workspace_id": workspace_id, "reason": "no_membership"},
-            ))
+
+            asyncio.create_task(
+                log_event(
+                    user_id=user.id,
+                    action="workspace.access_denied",
+                    details={"workspace_id": workspace_id, "reason": "no_membership"},
+                )
+            )
         except Exception:
             pass  # audit logging must never break the request
         return None
@@ -362,6 +376,7 @@ def require_scope(*required_scopes: str):
         ):
             ...
     """
+
     async def _check(
         session: AuthSession = Depends(get_current_session),
     ) -> AuthSession:

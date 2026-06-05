@@ -26,7 +26,8 @@ def upgrade() -> None:
     # ── Add missing columns to agents ──────────────────────────────
     # The Agent model defines 'state' but the original agents table
     # was created before the H4.3 consolidation.  Add it if missing.
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -36,7 +37,8 @@ def upgrade() -> None:
                 ALTER TABLE agents ADD COLUMN state VARCHAR(30) NOT NULL DEFAULT 'defined';
             END IF;
         END $$;
-    """)
+    """
+    )
 
     op.add_column(
         "agents",
@@ -48,15 +50,20 @@ def upgrade() -> None:
         "agent_versions",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "agent_id", sa.String(36),
+            "agent_id",
+            sa.String(36),
             sa.ForeignKey("agents.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("snapshot", postgresql.JSONB(), nullable=False),
         sa.Column("change_summary", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_agent_versions_agent_id", "agent_versions", ["agent_id"])
     op.create_index(
@@ -77,17 +84,24 @@ def upgrade() -> None:
         "workspace_versions",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "workspace_id", sa.String(36),
+            "workspace_id",
+            sa.String(36),
             sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("snapshot", postgresql.JSONB(), nullable=False),
         sa.Column("change_summary", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
-    op.create_index("ix_workspace_versions_workspace_id", "workspace_versions", ["workspace_id"])
+    op.create_index(
+        "ix_workspace_versions_workspace_id", "workspace_versions", ["workspace_id"]
+    )
     op.create_index(
         "ix_workspace_versions_ws_version",
         "workspace_versions",
@@ -105,14 +119,17 @@ def upgrade() -> None:
     # Rename version_number → version for consistency with all other
     # version tables (tool_versions, capability_versions, etc.)
     op.alter_column(
-        "mission_versions", "version_number",
+        "mission_versions",
+        "version_number",
         new_column_name="version",
         existing_type=sa.Integer(),
     )
 
     # Add cascade to mission_id FK (was missing)
     op.drop_constraint(
-        "mission_versions_mission_id_fkey", "mission_versions", type_="foreignkey",
+        "mission_versions_mission_id_fkey",
+        "mission_versions",
+        type_="foreignkey",
     )
     op.create_foreign_key(
         "mission_versions_mission_id_fkey",
@@ -134,7 +151,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # ── agents: remove state column if it was added by this migration ──
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             IF EXISTS (
@@ -144,12 +162,15 @@ def downgrade() -> None:
                 ALTER TABLE agents DROP COLUMN state;
             END IF;
         END $$;
-    """)
+    """
+    )
 
     # ── mission_versions ───────────────────────────────────────────
     op.drop_index("ix_mission_versions_mission_version", table_name="mission_versions")
     op.drop_constraint(
-        "mission_versions_mission_id_fkey", "mission_versions", type_="foreignkey",
+        "mission_versions_mission_id_fkey",
+        "mission_versions",
+        type_="foreignkey",
     )
     op.create_foreign_key(
         "mission_versions_mission_id_fkey",
@@ -159,7 +180,8 @@ def downgrade() -> None:
         ["id"],
     )
     op.alter_column(
-        "mission_versions", "version",
+        "mission_versions",
+        "version",
         new_column_name="version_number",
         existing_type=sa.Integer(),
     )

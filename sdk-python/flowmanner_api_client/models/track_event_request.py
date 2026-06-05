@@ -1,36 +1,31 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.track_event_request_properties_type_0 import TrackEventRequestPropertiesType0
-
-
-
+    from ..models.track_event_request_properties_type_0 import (
+        TrackEventRequestPropertiesType0,
+    )
 
 
 T = TypeVar("T", bound="TrackEventRequest")
 
 
-
 @_attrs_define
 class TrackEventRequest:
-    """ 
-        Attributes:
-            user_id (str):
-            event_type (str):
-            properties (None | TrackEventRequestPropertiesType0 | Unset):
-            session_id (None | str | Unset):
-     """
+    """
+    Attributes:
+        user_id (str):
+        event_type (str):
+        properties (None | TrackEventRequestPropertiesType0 | Unset):
+        session_id (None | str | Unset):
+    """
 
     user_id: str
     event_type: str
@@ -38,12 +33,11 @@ class TrackEventRequest:
     session_id: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.track_event_request_properties_type_0 import TrackEventRequestPropertiesType0
+        from ..models.track_event_request_properties_type_0 import (
+            TrackEventRequestPropertiesType0,
+        )
+
         user_id = self.user_id
 
         event_type = self.event_type
@@ -62,13 +56,14 @@ class TrackEventRequest:
         else:
             session_id = self.session_id
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "user_id": user_id,
-            "event_type": event_type,
-        })
+        field_dict.update(
+            {
+                "user_id": user_id,
+                "event_type": event_type,
+            }
+        )
         if properties is not UNSET:
             field_dict["properties"] = properties
         if session_id is not UNSET:
@@ -76,17 +71,20 @@ class TrackEventRequest:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.track_event_request_properties_type_0 import TrackEventRequestPropertiesType0
+        from ..models.track_event_request_properties_type_0 import (
+            TrackEventRequestPropertiesType0,
+        )
+
         d = dict(src_dict)
         user_id = d.pop("user_id")
 
         event_type = d.pop("event_type")
 
-        def _parse_properties(data: object) -> None | TrackEventRequestPropertiesType0 | Unset:
+        def _parse_properties(
+            data: object,
+        ) -> None | TrackEventRequestPropertiesType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -96,15 +94,12 @@ class TrackEventRequest:
                     raise TypeError()
                 properties_type_0 = TrackEventRequestPropertiesType0.from_dict(data)
 
-
-
                 return properties_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | TrackEventRequestPropertiesType0 | Unset, data)
 
         properties = _parse_properties(d.pop("properties", UNSET))
-
 
         def _parse_session_id(data: object) -> None | str | Unset:
             if data is None:
@@ -115,14 +110,12 @@ class TrackEventRequest:
 
         session_id = _parse_session_id(d.pop("session_id", UNSET))
 
-
         track_event_request = cls(
             user_id=user_id,
             event_type=event_type,
             properties=properties,
             session_id=session_id,
         )
-
 
         track_event_request.additional_properties = d
         return track_event_request

@@ -1,33 +1,24 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="UsageByModel")
-
 
 
 @_attrs_define
 class UsageByModel:
-    """ 
-        Attributes:
-            model_id (str):
-            provider (str):
-            prompt_tokens (int):
-            completion_tokens (int):
-            cost (float):
-     """
+    """
+    Attributes:
+        model_id (str):
+        provider (str):
+        prompt_tokens (int):
+        completion_tokens (int):
+        cost (float):
+    """
 
     model_id: str
     provider: str
@@ -35,10 +26,6 @@ class UsageByModel:
     completion_tokens: int
     cost: float
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         model_id = self.model_id
@@ -51,20 +38,19 @@ class UsageByModel:
 
         cost = self.cost
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "model_id": model_id,
-            "provider": provider,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "cost": cost,
-        })
+        field_dict.update(
+            {
+                "model_id": model_id,
+                "provider": provider,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "cost": cost,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -86,7 +72,6 @@ class UsageByModel:
             completion_tokens=completion_tokens,
             cost=cost,
         )
-
 
         usage_by_model.additional_properties = d
         return usage_by_model

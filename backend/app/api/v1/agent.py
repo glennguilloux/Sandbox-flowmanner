@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 
 from typing import TYPE_CHECKING
 
@@ -28,7 +29,6 @@ from app.services.agent_service import (
 )
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,11 +41,26 @@ def _not_found() -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-async def _list_agents(db: AsyncSession, user: User, page: int, per_page: int, workspace_id: str | None = None):
+async def _list_agents(
+    db: AsyncSession,
+    user: User,
+    page: int,
+    per_page: int,
+    workspace_id: str | None = None,
+):
     offset = (page - 1) * per_page
-    items, total = await list_agents(db, str(user.id), offset=offset, limit=per_page, workspace_id=workspace_id)
+    items, total = await list_agents(
+        db, str(user.id), offset=offset, limit=per_page, workspace_id=workspace_id
+    )
     pages = (total + per_page - 1) // per_page
-    return {"items": items, "agents": items, "total": total, "page": page, "per_page": per_page, "pages": pages}
+    return {
+        "items": items,
+        "agents": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
 
 
 @router.get("")
@@ -90,13 +105,19 @@ async def list_templates(
     return items
 
 
-@router.post("/templates", response_model=AgentTemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/templates",
+    response_model=AgentTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_template(
     payload: AgentTemplateCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await create_agent_template(db, payload.name, payload.description, payload.config, payload.is_public)
+    return await create_agent_template(
+        db, payload.name, payload.description, payload.config, payload.is_public
+    )
 
 
 @router.patch("/templates/{template_id}", response_model=AgentTemplateResponse)
@@ -120,6 +141,7 @@ async def patch_template(
     if updated is None:
         raise _not_found()
     return updated
+
 
 @router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_template(

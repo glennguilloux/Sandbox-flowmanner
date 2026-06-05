@@ -58,12 +58,18 @@ class BlueprintQueryHandlers(QueryHandlerBase):
     ) -> PaginatedBlueprints:
         svc = BlueprintService(self.session)
         items, total = await svc.list(
-            user_id, page=page, per_page=per_page,
-            workspace_id=workspace_id, blueprint_type=blueprint_type, status=status,
+            user_id,
+            page=page,
+            per_page=per_page,
+            workspace_id=workspace_id,
+            blueprint_type=blueprint_type,
+            status=status,
         )
         return PaginatedBlueprints(
             items=[BlueprintResponse.model_validate(b) for b in items],
-            total=total, page=page, per_page=per_page,
+            total=total,
+            page=page,
+            per_page=per_page,
         )
 
     async def get_blueprint(self, user_id: int, blueprint_id: str) -> BlueprintResponse:
@@ -71,7 +77,9 @@ class BlueprintQueryHandlers(QueryHandlerBase):
         bp = await svc.get(blueprint_id, user_id)
         return BlueprintResponse.model_validate(bp)
 
-    async def list_versions(self, user_id: int, blueprint_id: str) -> list[BlueprintVersionResponse]:
+    async def list_versions(
+        self, user_id: int, blueprint_id: str
+    ) -> list[BlueprintVersionResponse]:
         svc = BlueprintService(self.session)
         versions = await svc.get_versions(blueprint_id, user_id)
         return [BlueprintVersionResponse.model_validate(v) for v in versions]
@@ -90,12 +98,18 @@ class RunQueryHandlers(QueryHandlerBase):
     ) -> PaginatedRuns:
         svc = RunService(self.session)
         items, total = await svc.list(
-            user_id, page=page, per_page=per_page,
-            workspace_id=workspace_id, blueprint_id=blueprint_id, status=status,
+            user_id,
+            page=page,
+            per_page=per_page,
+            workspace_id=workspace_id,
+            blueprint_id=blueprint_id,
+            status=status,
         )
         return PaginatedRuns(
             items=[RunResponse.model_validate(r) for r in items],
-            total=total, page=page, per_page=per_page,
+            total=total,
+            page=page,
+            per_page=per_page,
         )
 
     async def get_run(self, user_id: int, run_id: str) -> RunResponse:
@@ -103,9 +117,13 @@ class RunQueryHandlers(QueryHandlerBase):
         run = await svc.get(run_id, user_id)
         return RunResponse.model_validate(run)
 
-    async def get_events(self, user_id: int, run_id: str, from_sequence: int = 0, limit: int = 1000) -> list[RunEventResponse]:
+    async def get_events(
+        self, user_id: int, run_id: str, from_sequence: int = 0, limit: int = 1000
+    ) -> list[RunEventResponse]:
         svc = RunService(self.session)
-        events = await svc.get_events(run_id, user_id, from_sequence=from_sequence, limit=limit)
+        events = await svc.get_events(
+            run_id, user_id, from_sequence=from_sequence, limit=limit
+        )
         return [RunEventResponse.model_validate(e) for e in events]
 
     async def replay_state(self, user_id: int, run_id: str) -> dict:

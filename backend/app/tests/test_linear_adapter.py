@@ -34,25 +34,26 @@ class TestParseLinearResponse:
         assert result["response"]["issues"]["nodes"] == []
 
     def test_graphql_error(self):
-        resp = _json_response(200, {
-            "errors": [
-                {
-                    "message": "Could not find team",
-                    "extensions": {"code": "not_found"},
-                }
-            ]
-        })
+        resp = _json_response(
+            200,
+            {
+                "errors": [
+                    {
+                        "message": "Could not find team",
+                        "extensions": {"code": "not_found"},
+                    }
+                ]
+            },
+        )
         result = _parse_linear_response(resp)
         assert result["success"] is False
         assert "Could not find team" in result["error"]
         assert result["error_code"] == "not_found"
 
     def test_auth_error(self):
-        resp = _json_response(200, {
-            "errors": [
-                {"message": "Authentication required", "extensions": {}}
-            ]
-        })
+        resp = _json_response(
+            200, {"errors": [{"message": "Authentication required", "extensions": {}}]}
+        )
         result = _parse_linear_response(resp)
         assert result["success"] is False
         assert result["error"] == "token_expired"
@@ -86,7 +87,11 @@ class TestUnwrapMutation:
             "response": {
                 "issueCreate": {
                     "success": True,
-                    "issue": {"id": "i1", "identifier": "TEAM-1", "url": "https://linear.app/issue/TEAM-1"},
+                    "issue": {
+                        "id": "i1",
+                        "identifier": "TEAM-1",
+                        "url": "https://linear.app/issue/TEAM-1",
+                    },
                 }
             },
         }
@@ -97,9 +102,7 @@ class TestUnwrapMutation:
     def test_mutation_failed(self):
         result = {
             "success": True,
-            "response": {
-                "issueCreate": {"success": False}
-            },
+            "response": {"issueCreate": {"success": False}},
         }
         unwrapped = _unwrap_mutation(result, "issueCreate")
         assert unwrapped["success"] is False
@@ -148,21 +151,24 @@ class TestCreateIssue:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "issueCreate": {
-                    "success": True,
-                    "issue": {
-                        "id": "abc-123",
-                        "identifier": "TEAM-42",
-                        "title": "Fix login bug",
-                        "url": "https://linear.app/issue/TEAM-42",
-                        "priority": 2,
-                        "state": {"id": "state-1", "name": "Todo"},
-                    },
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "issueCreate": {
+                        "success": True,
+                        "issue": {
+                            "id": "abc-123",
+                            "identifier": "TEAM-42",
+                            "title": "Fix login bug",
+                            "url": "https://linear.app/issue/TEAM-42",
+                            "priority": 2,
+                            "state": {"id": "state-1", "name": "Todo"},
+                        },
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -193,14 +199,21 @@ class TestCreateIssue:
     @pytest.mark.asyncio
     async def test_with_description_and_assignee(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "issueCreate": {
-                    "success": True,
-                    "issue": {"id": "i2", "identifier": "T-2", "url": "https://linear.app/issue/T-2"},
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "issueCreate": {
+                        "success": True,
+                        "issue": {
+                            "id": "i2",
+                            "identifier": "T-2",
+                            "url": "https://linear.app/issue/T-2",
+                        },
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -224,20 +237,33 @@ class TestCreateIssue:
     @pytest.mark.asyncio
     async def test_none_values_stripped(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "issueCreate": {
-                    "success": True,
-                    "issue": {"id": "i3", "identifier": "T-3", "url": "https://linear.app/issue/T-3"},
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "issueCreate": {
+                        "success": True,
+                        "issue": {
+                            "id": "i3",
+                            "identifier": "T-3",
+                            "url": "https://linear.app/issue/T-3",
+                        },
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
             ctx.post = AsyncMock(return_value=resp)
             await adapter._create_issue(
-                {"team_id": "t1", "title": "Task", "priority": None, "assignee_id": None, "description": None},
+                {
+                    "team_id": "t1",
+                    "title": "Task",
+                    "priority": None,
+                    "assignee_id": None,
+                    "description": None,
+                },
                 "key",
             )
 
@@ -253,21 +279,24 @@ class TestUpdateIssue:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "issueUpdate": {
-                    "success": True,
-                    "issue": {
-                        "id": "abc-123",
-                        "identifier": "TEAM-42",
-                        "title": "Updated title",
-                        "url": "https://linear.app/issue/TEAM-42",
-                        "priority": 1,
-                        "state": {"id": "done", "name": "Done"},
-                    },
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "issueUpdate": {
+                        "success": True,
+                        "issue": {
+                            "id": "abc-123",
+                            "identifier": "TEAM-42",
+                            "title": "Updated title",
+                            "url": "https://linear.app/issue/TEAM-42",
+                            "priority": 1,
+                            "state": {"id": "done", "name": "Done"},
+                        },
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -297,14 +326,22 @@ class TestUpdateIssue:
     @pytest.mark.asyncio
     async def test_update_priority(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "issueUpdate": {
-                    "success": True,
-                    "issue": {"id": "abc", "identifier": "T-1", "url": "https://linear.app/issue/T-1", "priority": 1},
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "issueUpdate": {
+                        "success": True,
+                        "issue": {
+                            "id": "abc",
+                            "identifier": "T-1",
+                            "url": "https://linear.app/issue/T-1",
+                            "priority": 1,
+                        },
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -326,22 +363,25 @@ class TestSearchIssues:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "issueSearch": {
-                    "nodes": [
-                        {
-                            "id": "i1",
-                            "identifier": "TEAM-1",
-                            "title": "Login fails",
-                            "url": "https://linear.app/issue/TEAM-1",
-                            "state": {"id": "s1", "name": "Todo"},
-                            "team": {"id": "t1", "name": "Engineering"},
-                        }
-                    ]
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "issueSearch": {
+                        "nodes": [
+                            {
+                                "id": "i1",
+                                "identifier": "TEAM-1",
+                                "title": "Login fails",
+                                "url": "https://linear.app/issue/TEAM-1",
+                                "state": {"id": "s1", "name": "Todo"},
+                                "team": {"id": "t1", "name": "Engineering"},
+                            }
+                        ]
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value
@@ -379,23 +419,26 @@ class TestListProjects:
     @pytest.mark.asyncio
     async def test_success(self):
         adapter = LinearAdapter()
-        resp = _json_response(200, {
-            "data": {
-                "projects": {
-                    "nodes": [
-                        {
-                            "id": "p1",
-                            "name": "Q4 Platform",
-                            "description": "Platform work",
-                            "url": "https://linear.app/project/Q4-Platform",
-                            "state": "started",
-                            "progress": 0.45,
-                            "team": {"id": "t1", "name": "Engineering"},
-                        }
-                    ]
+        resp = _json_response(
+            200,
+            {
+                "data": {
+                    "projects": {
+                        "nodes": [
+                            {
+                                "id": "p1",
+                                "name": "Q4 Platform",
+                                "description": "Platform work",
+                                "url": "https://linear.app/project/Q4-Platform",
+                                "state": "started",
+                                "progress": 0.45,
+                                "team": {"id": "t1", "name": "Engineering"},
+                            }
+                        ]
+                    }
                 }
-            }
-        })
+            },
+        )
 
         with patch("httpx.AsyncClient") as mock_client:
             ctx = mock_client.return_value.__aenter__.return_value

@@ -4,6 +4,7 @@ Revision ID: h4_6_drop_cancelled_status
 Revises: h4_5_mission_status_constraints
 Create Date: 2026-06-02
 """
+
 from alembic import op
 import sqlalchemy as sa
 

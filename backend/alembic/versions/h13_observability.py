@@ -23,15 +23,21 @@ def upgrade() -> None:
     op.create_table(
         "llm_call_records",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("mission_id", postgresql.UUID(as_uuid=True), nullable=True, index=True),
+        sa.Column(
+            "mission_id", postgresql.UUID(as_uuid=True), nullable=True, index=True
+        ),
         sa.Column("task_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("model_id", sa.String(100), nullable=False, index=True),
         sa.Column("provider", sa.String(50), nullable=False, server_default="unknown"),
         sa.Column("prompt_tokens", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("completion_tokens", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "completion_tokens", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("cost_usd", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("latency_ms", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("success", sa.Boolean(), nullable=False, server_default="true", index=True),
+        sa.Column(
+            "success", sa.Boolean(), nullable=False, server_default="true", index=True
+        ),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column(
             "timestamp",
@@ -43,7 +49,8 @@ def upgrade() -> None:
     )
 
     # ── mission_logs append-only trigger (H1.3: append-only enforcement) ────
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION mission_logs_append_only()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -56,13 +63,16 @@ def upgrade() -> None:
             RETURN NEW;
         END;
         $$ LANGUAGE plpgsql;
-    """)
+    """
+    )
     op.execute("DROP TRIGGER IF EXISTS trg_mission_logs_append_only ON mission_logs")
-    op.execute("""
+    op.execute(
+        """
         CREATE TRIGGER trg_mission_logs_append_only
         BEFORE DELETE OR UPDATE ON mission_logs
         FOR EACH ROW EXECUTE FUNCTION mission_logs_append_only();
-    """)
+    """
+    )
 
 
 def downgrade() -> None:

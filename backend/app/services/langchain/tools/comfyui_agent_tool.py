@@ -184,7 +184,9 @@ class ComfyUIClient:
         try:
             return int(resolution.split("x")[0])
         except Exception:
-            logger.debug("Invalid resolution format, using default width: %s", resolution)
+            logger.debug(
+                "Invalid resolution format, using default width: %s", resolution
+            )
             return 1920
 
     def _get_height(self, resolution: str) -> int:
@@ -192,7 +194,9 @@ class ComfyUIClient:
         try:
             return int(resolution.split("x")[1])
         except Exception:
-            logger.debug("Invalid resolution format, using default height: %s", resolution)
+            logger.debug(
+                "Invalid resolution format, using default height: %s", resolution
+            )
             return 1080
 
     def _build_prompt(self, request: ComfyUIRequest) -> str:

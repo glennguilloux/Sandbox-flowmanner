@@ -22,8 +22,12 @@ class GraphqlFetcherInput(ToolInput):
     endpoint: str = Field(..., description="GraphQL endpoint URL")
     query: str = Field(..., description="GraphQL query or mutation string")
     variables: dict | None = Field(None, description="Query variables as a dict")
-    headers: dict | None = Field(None, description="Additional HTTP headers (e.g., Authorization)")
-    operation_name: str | None = Field(None, description="Operation name for multi-operation documents")
+    headers: dict | None = Field(
+        None, description="Additional HTTP headers (e.g., Authorization)"
+    )
+    operation_name: str | None = Field(
+        None, description="Operation name for multi-operation documents"
+    )
 
 
 class GraphqlFetcherTool(BaseTool):
@@ -81,9 +85,7 @@ class GraphqlFetcherTool(BaseTool):
 
                 # Check for GraphQL errors
                 if "errors" in data:
-                    error_messages = [
-                        e.get("message", str(e)) for e in data["errors"]
-                    ]
+                    error_messages = [e.get("message", str(e)) for e in data["errors"]]
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
                         error=f"GraphQL errors: {'; '.join(error_messages[:3])}",
@@ -104,7 +106,8 @@ class GraphqlFetcherTool(BaseTool):
             )
         except json.JSONDecodeError:
             return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid JSON response from {validated.endpoint}"
+                tool_id=self.tool_id,
+                error=f"Invalid JSON response from {validated.endpoint}",
             )
         except Exception as e:
             logger.exception("graphql_fetcher failed")

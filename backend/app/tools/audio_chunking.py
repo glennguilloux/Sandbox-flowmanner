@@ -112,8 +112,10 @@ class AudioChunkingTool(BaseTool):
         try:
             try:
                 audio_bytes = await resolve_input(
-                    validated.data, validated.url,
-                    label="audio", fetch_timeout=60,
+                    validated.data,
+                    validated.url,
+                    label="audio",
+                    fetch_timeout=60,
                 )
             except ValueError as e:
                 return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -154,14 +156,16 @@ class AudioChunkingTool(BaseTool):
                 chunk_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
                 chunk_size = buf.tell()
 
-                chunks.append({
-                    "index": chunk_idx,
-                    "start_seconds": round(start_ms / 1000.0, 3),
-                    "end_seconds": round(end_ms / 1000.0, 3),
-                    "duration_seconds": round((end_ms - start_ms) / 1000.0, 3),
-                    "size_bytes": chunk_size,
-                    "data": chunk_b64,
-                })
+                chunks.append(
+                    {
+                        "index": chunk_idx,
+                        "start_seconds": round(start_ms / 1000.0, 3),
+                        "end_seconds": round(end_ms / 1000.0, 3),
+                        "duration_seconds": round((end_ms - start_ms) / 1000.0, 3),
+                        "size_bytes": chunk_size,
+                        "data": chunk_b64,
+                    }
+                )
 
                 chunk_idx += 1
                 start_ms += advance_ms

@@ -17,14 +17,18 @@ logger = logging.getLogger(__name__)
 # Try to import pyotp and qrcode; provide fallback if not available
 try:
     import pyotp
+
     HAS_PYOTP = True
 except ImportError:
     HAS_PYOTP = False
-    logger.warning("pyotp not installed — TOTP features will use fallback implementation")
+    logger.warning(
+        "pyotp not installed — TOTP features will use fallback implementation"
+    )
 
 try:
     import qrcode
     from qrcode.image.pil import PilImage
+
     HAS_QRCODE = True
 except ImportError:
     HAS_QRCODE = False
@@ -34,12 +38,14 @@ except ImportError:
 def _base32_encode(data: bytes) -> str:
     """Encode bytes to base32 string."""
     import base64
+
     return base64.b32encode(data).decode("ascii").rstrip("=")
 
 
 def _base32_decode(data: str) -> bytes:
     """Decode base32 string to bytes."""
     import base64
+
     # Add padding
     padding = 8 - len(data) % 8
     if padding != 8:
@@ -52,11 +58,13 @@ def _hotp(secret: bytes, counter: int, digits: int = 6) -> str:
     msg = struct.pack(">Q", counter)
     h = hmac.new(secret, msg, hashlib.sha1).digest()
     offset = h[-1] & 0x0F
-    binary = ((h[offset] & 0x7F) << 24 |
-              (h[offset + 1] << 16) |
-              (h[offset + 2] << 8) |
-              h[offset + 3])
-    return str(binary % (10 ** digits)).zfill(digits)
+    binary = (
+        (h[offset] & 0x7F) << 24
+        | (h[offset + 1] << 16)
+        | (h[offset + 2] << 8)
+        | h[offset + 3]
+    )
+    return str(binary % (10**digits)).zfill(digits)
 
 
 def _totp_counter(period: int = 30) -> int:
@@ -67,6 +75,7 @@ def _totp_counter(period: int = 30) -> int:
 def generate_secret(length: int = 20) -> str:
     """Generate a random base32-encoded TOTP secret."""
     import os
+
     random_bytes = os.urandom(length)
     return _base32_encode(random_bytes)
 
@@ -127,13 +136,16 @@ def generate_backup_codes(count: int = 10) -> tuple[list[str], list[str]]:
         Tuple of (plain_codes, hashed_codes) — plain for display, hashed for storage.
     """
     import secrets
+
     plain_codes = []
     hashed_codes = []
     for _ in range(count):
         code = secrets.token_hex(4)  # 8 hex chars
         formatted = f"{code[:4]}-{code[4:]}"
         plain_codes.append(formatted)
-        hashed = _bcrypt.hashpw(formatted.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+        hashed = _bcrypt.hashpw(formatted.encode("utf-8"), _bcrypt.gensalt()).decode(
+            "utf-8"
+        )
         hashed_codes.append(hashed)
     return plain_codes, hashed_codes
 

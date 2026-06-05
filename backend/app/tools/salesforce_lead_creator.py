@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +33,15 @@ SALESFORCE_API_VERSION = os.getenv("SALESFORCE_API_VERSION", "58.0")
 SALESFORCE_TIMEOUT = int(os.getenv("SALESFORCE_TIMEOUT", "30"))
 
 
-
 # ── Input ─────────────────────────────────────────────────────────────
 
 SALESFORCE_ACTIONS = (
-    "create_lead", "update_lead", "get_lead", "search_leads",
-    "convert_lead", "soql_query",
+    "create_lead",
+    "update_lead",
+    "get_lead",
+    "search_leads",
+    "convert_lead",
+    "soql_query",
 )
 
 
@@ -123,7 +133,9 @@ class SalesforceLeadCreatorTool(BaseTool):
                 ),
             )
 
-        if is_placeholder(SALESFORCE_INSTANCE_URL) or is_placeholder(SALESFORCE_ACCESS_TOKEN):
+        if is_placeholder(SALESFORCE_INSTANCE_URL) or is_placeholder(
+            SALESFORCE_ACCESS_TOKEN
+        ):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
@@ -159,7 +171,8 @@ class SalesforceLeadCreatorTool(BaseTool):
         }
 
         async with httpx.AsyncClient(
-            timeout=SALESFORCE_TIMEOUT, headers=headers,
+            timeout=SALESFORCE_TIMEOUT,
+            headers=headers,
         ) as client:
             base = f"{SALESFORCE_INSTANCE_URL}/services/data/v{SALESFORCE_API_VERSION}"
 
@@ -192,9 +205,7 @@ class SalesforceLeadCreatorTool(BaseTool):
     ) -> dict[str, Any]:
         if not lead_data:
             return {"error": "lead_data is required for create_lead"}
-        resp = await client.post(
-            f"{base}/sobjects/Lead", json=lead_data
-        )
+        resp = await client.post(f"{base}/sobjects/Lead", json=lead_data)
         if resp.status_code == 201:
             data = resp.json()
             return {
@@ -216,9 +227,7 @@ class SalesforceLeadCreatorTool(BaseTool):
             return {"error": "lead_id is required for update_lead"}
         if not lead_data:
             return {"error": "lead_data is required for update_lead"}
-        resp = await client.patch(
-            f"{base}/sobjects/Lead/{lead_id}", json=lead_data
-        )
+        resp = await client.patch(f"{base}/sobjects/Lead/{lead_id}", json=lead_data)
         if resp.status_code == 204:
             return {
                 "action": "update_lead",
@@ -237,16 +246,16 @@ class SalesforceLeadCreatorTool(BaseTool):
             return {"error": "lead_id is required for get_lead"}
         resp = await client.get(
             f"{base}/sobjects/Lead/{lead_id}",
-            params={"fields": "Id,FirstName,LastName,Company,Email,Phone,"
-                    "Title,LeadSource,Status,Description,CreatedDate"},
+            params={
+                "fields": "Id,FirstName,LastName,Company,Email,Phone,"
+                "Title,LeadSource,Status,Description,CreatedDate"
+            },
         )
         resp.raise_for_status()
         data = resp.json()
         return {
             "action": "get_lead",
-            "lead": {
-                k: v for k, v in data.items() if k != "attributes"
-            },
+            "lead": {k: v for k, v in data.items() if k != "attributes"},
         }
 
     # ── Search ───────────────────────────────────────────────────
@@ -265,9 +274,7 @@ class SalesforceLeadCreatorTool(BaseTool):
             "IN ALL FIELDS RETURNING Lead("
             "Id, FirstName, LastName, Company, Email, Status LIMIT 25)"
         )
-        resp = await client.get(
-            f"{base}/search", params={"q": sosl}
-        )
+        resp = await client.get(f"{base}/search", params={"q": sosl})
         resp.raise_for_status()
         data = resp.json()
         records = data.get("searchRecords", [])
@@ -304,9 +311,7 @@ class SalesforceLeadCreatorTool(BaseTool):
             "convertedStatus": converted_status or "Qualified",
             "doNotCreateOpportunity": False,
         }
-        resp = await client.post(
-            f"{base}/sobjects/Lead", json=payload
-        )
+        resp = await client.post(f"{base}/sobjects/Lead", json=payload)
         # Convert returns 200 on success with the new IDs
         if resp.status_code == 200:
             data = resp.json()
@@ -330,9 +335,7 @@ class SalesforceLeadCreatorTool(BaseTool):
     ) -> dict[str, Any]:
         if not query:
             return {"error": "soql_query is required for soql_query action"}
-        resp = await client.get(
-            f"{base}/query", params={"q": query}
-        )
+        resp = await client.get(f"{base}/query", params={"q": query})
         resp.raise_for_status()
         data = resp.json()
         records = data.get("records", [])
@@ -343,8 +346,7 @@ class SalesforceLeadCreatorTool(BaseTool):
             "done": data.get("done", True),
             "count": len(records),
             "records": [
-                {k: v for k, v in r.items() if k != "attributes"}
-                for r in records
+                {k: v for k, v in r.items() if k != "attributes"} for r in records
             ],
         }
 

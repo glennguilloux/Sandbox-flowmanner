@@ -8,24 +8,19 @@ from ...client import AuthenticatedClient, Client
 from ...types import Response, UNSET
 from ... import errors
 
-from ...models.create_feature_flag_api_admin_feature_flags_post_data import CreateFeatureFlagApiAdminFeatureFlagsPostData
+from ...models.create_feature_flag_api_admin_feature_flags_post_data import (
+    CreateFeatureFlagApiAdminFeatureFlagsPostData,
+)
 from ...models.feature_flag import FeatureFlag
 from ...models.http_validation_error import HTTPValidationError
 from typing import cast
 
 
-
 def _get_kwargs(
     *,
     body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
-
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-
-
-    
-
-    
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -34,26 +29,22 @@ def _get_kwargs(
 
     _kwargs["json"] = body.to_dict()
 
-
     headers["Content-Type"] = "application/json"
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> FeatureFlag | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> FeatureFlag | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = FeatureFlag.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -63,7 +54,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[FeatureFlag | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[FeatureFlag | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -76,9 +69,8 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
-
 ) -> Response[FeatureFlag | HTTPValidationError]:
-    """ Create Feature Flag
+    """Create Feature Flag
 
     Args:
         body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
@@ -89,12 +81,10 @@ def sync_detailed(
 
     Returns:
         Response[FeatureFlag | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         body=body,
-
     )
 
     response = client.get_httpx_client().request(
@@ -103,13 +93,13 @@ def sync_detailed(
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
     body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
-
 ) -> FeatureFlag | HTTPValidationError | None:
-    """ Create Feature Flag
+    """Create Feature Flag
 
     Args:
         body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
@@ -120,22 +110,20 @@ def sync(
 
     Returns:
         FeatureFlag | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-body=body,
-
+        body=body,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
-
 ) -> Response[FeatureFlag | HTTPValidationError]:
-    """ Create Feature Flag
+    """Create Feature Flag
 
     Args:
         body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
@@ -146,27 +134,23 @@ async def asyncio_detailed(
 
     Returns:
         Response[FeatureFlag | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         body=body,
-
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient,
     body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
-
 ) -> FeatureFlag | HTTPValidationError | None:
-    """ Create Feature Flag
+    """Create Feature Flag
 
     Args:
         body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
@@ -177,11 +161,11 @@ async def asyncio(
 
     Returns:
         FeatureFlag | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-body=body,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            body=body,
+        )
+    ).parsed

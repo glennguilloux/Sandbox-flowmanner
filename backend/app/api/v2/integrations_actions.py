@@ -63,16 +63,21 @@ async def list_available_actions(
     OAuth connections are included.
     """
     actions = await get_available_actions(str(user.id), db)
-    return ok([{
-        "provider": a["provider"],
-        "name": a["name"],
-        "label": a["label"],
-        "description": a["description"],
-        "required_params": a["required_params"],
-        "optional_params": a["optional_params"],
-        "connection_id": a["connection_id"],
-        "provider_account_name": a["provider_account_name"],
-    } for a in actions])
+    return ok(
+        [
+            {
+                "provider": a["provider"],
+                "name": a["name"],
+                "label": a["label"],
+                "description": a["description"],
+                "required_params": a["required_params"],
+                "optional_params": a["optional_params"],
+                "connection_id": a["connection_id"],
+                "provider_account_name": a["provider_account_name"],
+            }
+            for a in actions
+        ]
+    )
 
 
 @router.post("/execute")
@@ -96,9 +101,11 @@ async def execute_integration_action(
 
     if not result.get("success"):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST
-            if "not found" not in str(result.get("error", "")).lower()
-            else status.HTTP_404_NOT_FOUND,
+            status_code=(
+                status.HTTP_400_BAD_REQUEST
+                if "not found" not in str(result.get("error", "")).lower()
+                else status.HTTP_404_NOT_FOUND
+            ),
             detail=result.get("error", "Action execution failed"),
         )
 

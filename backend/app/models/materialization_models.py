@@ -36,38 +36,49 @@ class MaterializationState(Base, TimestampMixin):
         default=lambda: str(uuid.uuid4()),
     )
     object_type: Mapped[str] = mapped_column(
-        String(100), nullable=False,
+        String(100),
+        nullable=False,
         comment="'tool', 'capability', 'agent_template', 'memory', 'topology'",
     )
     object_id: Mapped[str] = mapped_column(
-        String(36), nullable=False,
+        String(36),
+        nullable=False,
         comment="UUID of the object in its canonical table",
     )
     target: Mapped[str] = mapped_column(
-        String(50), nullable=False,
+        String(50),
+        nullable=False,
         comment="'redis', 'qdrant', 'inproc', 'all'",
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="pending",
+        String(50),
+        nullable=False,
+        default="pending",
         comment="'pending', 'materializing', 'materialized', 'stale', 'failed'",
     )
     checksum: Mapped[str | None] = mapped_column(
-        String(64), nullable=True,
+        String(64),
+        nullable=True,
         comment="SHA-256 of the object's canonical JSON, used for staleness detection",
     )
     last_materialized_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True,
+        TIMESTAMP(timezone=True),
+        nullable=True,
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_: Mapped[dict | None] = mapped_column(
-        "metadata", JSONB, nullable=True,
+        "metadata",
+        JSONB,
+        nullable=True,
     )
 
     __table_args__ = (
         Index(
             "ix_mat_state_object_type_id_target",
-            "object_type", "object_id", "target",
+            "object_type",
+            "object_id",
+            "target",
             unique=True,
         ),
         Index("ix_mat_state_status", "status"),

@@ -23,7 +23,7 @@ class LinearTasksInput(ToolInput):
     action: str = Field(
         ...,
         description="Action: 'list_issues', 'get_issue', 'create_issue', 'update_issue', "
-                    "'list_teams', 'search_issues', 'get_workflow_states'",
+        "'list_teams', 'search_issues', 'get_workflow_states'",
     )
     team_id: str | None = Field(None, description="Linear team ID")
     issue_id: str | None = Field(None, description="Linear issue ID")
@@ -31,10 +31,17 @@ class LinearTasksInput(ToolInput):
     description: str | None = Field(None, description="Issue description")
     state_id: str | None = Field(None, description="Workflow state ID (for update)")
     assignee_id: str | None = Field(None, description="Assignee user ID")
-    priority: int | None = Field(None, ge=0, le=4, description="Priority: 0=no priority, 1=urgent, 2=high, 3=medium, 4=low")
+    priority: int | None = Field(
+        None,
+        ge=0,
+        le=4,
+        description="Priority: 0=no priority, 1=urgent, 2=high, 3=medium, 4=low",
+    )
     query: str | None = Field(None, description="Search query for issues")
     limit: int = Field(25, ge=1, le=250)
-    api_key: str | None = Field(None, description="Linear API key (uses LINEAR_API_KEY env var if omitted)")
+    api_key: str | None = Field(
+        None, description="Linear API key (uses LINEAR_API_KEY env var if omitted)"
+    )
 
 
 class LinearTasksTool(BaseTool):
@@ -50,7 +57,9 @@ class LinearTasksTool(BaseTool):
         )
         super().__init__(metadata=metadata)
 
-    async def _graphql(self, client: httpx.AsyncClient, query: str, variables: dict | None = None) -> dict:
+    async def _graphql(
+        self, client: httpx.AsyncClient, query: str, variables: dict | None = None
+    ) -> dict:
         """Execute a GraphQL query against the Linear API."""
         payload: dict = {"query": query}
         if variables:
@@ -68,11 +77,16 @@ class LinearTasksTool(BaseTool):
         try:
             validated = LinearTasksInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         api_key = validated.api_key or os.getenv("LINEAR_API_KEY", "")
         if not api_key:
-            return ToolResult.error_result(tool_id=self.tool_id, error="No Linear API key. Set LINEAR_API_KEY or pass api_key.")
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="No Linear API key. Set LINEAR_API_KEY or pass api_key.",
+            )
 
         headers = {
             "Authorization": api_key,
@@ -97,7 +111,9 @@ class LinearTasksTool(BaseTool):
                 elif action == "get_workflow_states":
                     return await self._get_workflow_states(client, validated)
                 else:
-                    return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error=f"Unknown action: {action}"
+                    )
         except RuntimeError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
@@ -105,7 +121,11 @@ class LinearTasksTool(BaseTool):
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
     async def _list_issues(self, client, v) -> ToolResult:
-        team_filter = f'(filter: {{ team: {{ id: {{ eq: "{v.team_id}" }} }} }})' if v.team_id else ""
+        team_filter = (
+            f'(filter: {{ team: {{ id: {{ eq: "{v.team_id}" }} }} }})'
+            if v.team_id
+            else ""
+        )
         query = f"""
         query {{
           issues(first: {v.limit}{team_filter}) {{
@@ -125,20 +145,36 @@ class LinearTasksTool(BaseTool):
         }}
         """
         data = await self._graphql(client, query)
-        issues = [{
-            "id": i["id"], "identifier": i["identifier"], "title": i["title"],
-            "state": i.get("state", {}).get("name"), "priority": i.get("priority"),
-            "assignee": i.get("assignee", {}).get("name") if i.get("assignee") else None,
-            "team": i.get("team", {}).get("name"), "url": i.get("url"),
-            "created_at": i.get("createdAt"),
-        } for i in data.get("issues", {}).get("nodes", [])]
-        return ToolResult.success_result(tool_id=self.tool_id, result={
-            "action": "list_issues", "count": len(issues), "issues": issues,
-        })
+        issues = [
+            {
+                "id": i["id"],
+                "identifier": i["identifier"],
+                "title": i["title"],
+                "state": i.get("state", {}).get("name"),
+                "priority": i.get("priority"),
+                "assignee": (
+                    i.get("assignee", {}).get("name") if i.get("assignee") else None
+                ),
+                "team": i.get("team", {}).get("name"),
+                "url": i.get("url"),
+                "created_at": i.get("createdAt"),
+            }
+            for i in data.get("issues", {}).get("nodes", [])
+        ]
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "action": "list_issues",
+                "count": len(issues),
+                "issues": issues,
+            },
+        )
 
     async def _get_issue(self, client, v) -> ToolResult:
         if not v.issue_id:
-            return ToolResult.error_result(tool_id=self.tool_id, error="issue_id required")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="issue_id required"
+            )
         query = f"""
         query {{
           issue(id: "{v.issue_id}") {{
@@ -156,16 +192,22 @@ class LinearTasksTool(BaseTool):
         data = await self._graphql(client, query)
         issue = data.get("issue")
         if not issue:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Issue {v.issue_id} not found")
-        return ToolResult.success_result(tool_id=self.tool_id, result={"action": "get_issue", "issue": issue})
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Issue {v.issue_id} not found"
+            )
+        return ToolResult.success_result(
+            tool_id=self.tool_id, result={"action": "get_issue", "issue": issue}
+        )
 
     async def _create_issue(self, client, v) -> ToolResult:
         if not v.team_id or not v.title:
-            return ToolResult.error_result(tool_id=self.tool_id, error="team_id and title required")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="team_id and title required"
+            )
         escaped_title = v.title.replace('"', '\\"')
         input_fields = f"""teamId: "{v.team_id}", title: "{escaped_title}" """
         if v.description:
-            escaped_desc = v.description.replace('"', '\\"').replace('\n', '\\n')
+            escaped_desc = v.description.replace('"', '\\"').replace("\n", "\\n")
             input_fields += f""", description: "{escaped_desc}" """
         if v.state_id:
             input_fields += f""", stateId: "{v.state_id}" """
@@ -188,22 +230,34 @@ class LinearTasksTool(BaseTool):
         data = await self._graphql(client, query)
         result = data.get("issueCreate", {})
         if not result.get("success"):
-            return ToolResult.error_result(tool_id=self.tool_id, error="Failed to create issue")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="Failed to create issue"
+            )
         i = result["issue"]
-        return ToolResult.success_result(tool_id=self.tool_id, result={
-            "action": "create_issue", "issue": {"id": i["id"], "identifier": i["identifier"],
-                                                "title": i["title"], "url": i["url"]},
-        })
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "action": "create_issue",
+                "issue": {
+                    "id": i["id"],
+                    "identifier": i["identifier"],
+                    "title": i["title"],
+                    "url": i["url"],
+                },
+            },
+        )
 
     async def _update_issue(self, client, v) -> ToolResult:
         if not v.issue_id:
-            return ToolResult.error_result(tool_id=self.tool_id, error="issue_id required")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="issue_id required"
+            )
         input_fields = f'id: "{v.issue_id}"'
         if v.title:
             escaped_title = v.title.replace('"', '\\"')
             input_fields += f""", title: "{escaped_title}" """
         if v.description:
-            escaped_desc = v.description.replace('"', '\\"').replace('\n', '\\n')
+            escaped_desc = v.description.replace('"', '\\"').replace("\n", "\\n")
             input_fields += f""", description: "{escaped_desc}" """
         if v.state_id:
             input_fields += f""", stateId: "{v.state_id}" """
@@ -225,10 +279,17 @@ class LinearTasksTool(BaseTool):
         data = await self._graphql(client, query)
         result = data.get("issueUpdate", {})
         if not result.get("success"):
-            return ToolResult.error_result(tool_id=self.tool_id, error="Failed to update issue")
-        return ToolResult.success_result(tool_id=self.tool_id, result={
-            "action": "update_issue", "ok": True, "issue": result["issue"],
-        })
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="Failed to update issue"
+            )
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "action": "update_issue",
+                "ok": True,
+                "issue": result["issue"],
+            },
+        )
 
     async def _list_teams(self, client, v) -> ToolResult:
         query = """
@@ -240,9 +301,14 @@ class LinearTasksTool(BaseTool):
         """
         data = await self._graphql(client, query)
         teams = data.get("teams", {}).get("nodes", [])
-        return ToolResult.success_result(tool_id=self.tool_id, result={
-            "action": "list_teams", "count": len(teams), "teams": teams,
-        })
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "action": "list_teams",
+                "count": len(teams),
+                "teams": teams,
+            },
+        )
 
     async def _search_issues(self, client, v) -> ToolResult:
         if not v.query:
@@ -262,12 +328,22 @@ class LinearTasksTool(BaseTool):
         """
         data = await self._graphql(client, query)
         issues = data.get("searchIssues", {}).get("nodes", [])
-        return ToolResult.success_result(tool_id=self.tool_id, result={
-            "action": "search_issues", "query": v.query, "count": len(issues), "issues": issues,
-        })
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "action": "search_issues",
+                "query": v.query,
+                "count": len(issues),
+                "issues": issues,
+            },
+        )
 
     async def _get_workflow_states(self, client, v) -> ToolResult:
-        team_filter = f'(filter: {{ team: {{ id: {{ eq: "{v.team_id}" }} }} }})' if v.team_id else ""
+        team_filter = (
+            f'(filter: {{ team: {{ id: {{ eq: "{v.team_id}" }} }} }})'
+            if v.team_id
+            else ""
+        )
         query = f"""
         query {{
           workflowStates(first: 100{team_filter}) {{
@@ -277,9 +353,14 @@ class LinearTasksTool(BaseTool):
         """
         data = await self._graphql(client, query)
         states = data.get("workflowStates", {}).get("nodes", [])
-        return ToolResult.success_result(tool_id=self.tool_id, result={
-            "action": "get_workflow_states", "count": len(states), "states": states,
-        })
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "action": "get_workflow_states",
+                "count": len(states),
+                "states": states,
+            },
+        )
 
 
 register_tool(LinearTasksTool())

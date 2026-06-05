@@ -23,6 +23,7 @@ def _make_router():
 
 # ── Route-request failure behaviour ──────────────────────────────────────────
 
+
 class TestModelRouterSuccessFlagNotSwallowed:
     """route_request must return success=False (never True with empty output)."""
 
@@ -74,6 +75,7 @@ class TestModelRouterSuccessFlagNotSwallowed:
 
 
 # ── BYOK / model-preference behaviour ────────────────────────────────────────
+
 
 class TestModelRouterBYOKPath:
     """BYOK preference and _is_model_available checks."""
@@ -127,6 +129,7 @@ class TestModelRouterBYOKPath:
 
 
 # ── MissionExecutor error propagation ────────────────────────────────────────
+
 
 class TestMissionExecutorErrorPropagation:
     """LlmExecutor.execute_llm propagates route_request errors correctly."""
@@ -211,15 +214,14 @@ class TestMissionExecutorErrorPropagation:
             mock_task.description = "Test"
             mock_task.title = "Test"
 
-            result = await executor.llm_exec.execute_llm(
-                mock_task, {"prompt": "Hello"}
-            )
+            result = await executor.llm_exec.execute_llm(mock_task, {"prompt": "Hello"})
 
         assert result["success"] is False
         assert "ModelRouter" in result.get("error", "")
 
 
 # ── Bogus model-id handling ──────────────────────────────────────────────────
+
 
 class TestModelRouterBogusModelId:
     """A bogus model_id returns success=False with typed error."""
@@ -250,13 +252,13 @@ class TestModelRouterBogusModelId:
             f"output={result.get('output')}, error={result.get('error')}"
         )
         assert "error" in result, "Result must contain an 'error' key"
-        assert result.get("error") is not None and result["error"] != "", (
-            f"Error must be non-empty for bogus model, got: {result.get('error')}"
-        )
+        assert (
+            result.get("error") is not None and result["error"] != ""
+        ), f"Error must be non-empty for bogus model, got: {result.get('error')}"
         # Failed LLM tasks should not have meaningful output
-        assert result.get("output") is None or result.get("output") == {}, (
-            "Failed task should not have meaningful output"
-        )
+        assert (
+            result.get("output") is None or result.get("output") == {}
+        ), "Failed task should not have meaningful output"
 
     @pytest.mark.asyncio
     async def test_bogus_model_id_plan_generation_fails_gracefully(self):
@@ -272,7 +274,9 @@ class TestModelRouterBogusModelId:
 
         # planner._generate_plan calls model_router.route_request internally
         # via the same _get_model_router() callback
-        with patch.object(executor.planner, "_get_model_router", return_value=mock_router):
+        with patch.object(
+            executor.planner, "_get_model_router", return_value=mock_router
+        ):
             plan_tasks = await executor.planner._generate_plan(
                 "Plan this mission",
                 db=None,
@@ -287,12 +291,13 @@ class TestModelRouterBogusModelId:
         else:
             # If tasks were generated (fallback), they should not have model assignment
             for task in plan_tasks:
-                assert "assigned_model" not in task or task.get("assigned_model") is None, (
-                    "Fallback tasks should not have bogus model assignments"
-                )
+                assert (
+                    "assigned_model" not in task or task.get("assigned_model") is None
+                ), "Fallback tasks should not have bogus model assignments"
 
 
 # ── Mission abort (CQRS handler) ─────────────────────────────────────────────
+
 
 class TestMissionAbortEndpoint:
     """MissionCommandHandlers.abort_mission endpoint tests."""
@@ -396,6 +401,7 @@ class TestMissionAbortEndpoint:
 
 
 # ── User-ID propagation ──────────────────────────────────────────────────────
+
 
 class TestModelRouterUserIdPropagation:
     """user_id is forwarded through _is_model_available and route_request."""

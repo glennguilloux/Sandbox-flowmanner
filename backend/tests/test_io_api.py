@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 
 # ── Test app setup ───────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def io_test_app():
     """Create a minimal FastAPI app with only the io router mounted."""
@@ -56,6 +57,7 @@ def io_client(io_test_app, mock_user):
 
 # ── Reusable mock helpers ────────────────────────────────────────
 
+
 def _mock_tool_result(status="success", error=None, data=None):
     """Create a mock ToolResult with the given status/data."""
     result = MagicMock()
@@ -74,6 +76,7 @@ def _patch_tool(tool_path: str, status="success", data=None, error=None):
 
 # ── Voice Transcribe Tests ───────────────────────────────────────
 
+
 class TestVoiceTranscribe:
     """POST /api/v1/chat/voice/transcribe"""
 
@@ -90,14 +93,22 @@ class TestVoiceTranscribe:
                 "language": "en",
                 "duration": 2.5,
                 "segments": [
-                    {"start": 0.0, "end": 2.5, "text": "Hello world", "confidence": 0.98}
+                    {
+                        "start": 0.0,
+                        "end": 2.5,
+                        "text": "Hello world",
+                        "confidence": 0.98,
+                    }
                 ],
             },
         ):
-            response = io_client.post(self.TRANS_URL, json={
-                "audio_data": audio_b64,
-                "language": "en",
-            })
+            response = io_client.post(
+                self.TRANS_URL,
+                json={
+                    "audio_data": audio_b64,
+                    "language": "en",
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -112,10 +123,13 @@ class TestVoiceTranscribe:
             "app.tools.speech_to_text_transcriber.SpeechToTextTranscriberTool.execute",
             data={"text": "From URL", "language": "fr", "segments": []},
         ):
-            response = io_client.post(self.TRANS_URL, json={
-                "audio_url": "https://example.com/audio.wav",
-                "language": "fr",
-            })
+            response = io_client.post(
+                self.TRANS_URL,
+                json={
+                    "audio_url": "https://example.com/audio.wav",
+                    "language": "fr",
+                },
+            )
 
         assert response.status_code == 200
         assert response.json()["text"] == "From URL"
@@ -128,9 +142,12 @@ class TestVoiceTranscribe:
             status="error",
             error="Audio too short",
         ):
-            response = io_client.post(self.TRANS_URL, json={
-                "audio_data": base64.b64encode(b"tiny").decode(),
-            })
+            response = io_client.post(
+                self.TRANS_URL,
+                json={
+                    "audio_data": base64.b64encode(b"tiny").decode(),
+                },
+            )
 
         assert response.status_code == 422
         assert "Audio too short" in response.json()["detail"]
@@ -138,14 +155,18 @@ class TestVoiceTranscribe:
     def test_transcribe_requires_auth(self, io_test_app):
         """Without auth override, endpoint requires authentication."""
         client = TestClient(io_test_app)
-        response = client.post(self.TRANS_URL, json={
-            "audio_data": base64.b64encode(b"x").decode(),
-        })
+        response = client.post(
+            self.TRANS_URL,
+            json={
+                "audio_data": base64.b64encode(b"x").decode(),
+            },
+        )
         # FastAPI dependency resolution fails → 500 (not 404, not 403)
         assert response.status_code != 404
 
 
 # ── Voice Synthesize Tests ───────────────────────────────────────
+
 
 class TestVoiceSynthesize:
     """POST /api/v1/chat/voice/synthesize"""
@@ -155,6 +176,7 @@ class TestVoiceSynthesize:
     def test_synthesize_speech(self, io_client):
         """Convert text to speech via ElevenLabs TTS."""
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmpf:
             fake_mp3_path = tmpf.name
             tmpf.write(b"\xff\xfb\x90\x00" * 10)  # minimal MP3 frames
@@ -171,10 +193,13 @@ class TestVoiceSynthesize:
                 "voice_id": "test-voice",
             },
         ):
-            response = io_client.post(self.SYNTH_URL, json={
-                "text": "Hello, this is a test.",
-                "voice_id": "test-voice",
-            })
+            response = io_client.post(
+                self.SYNTH_URL,
+                json={
+                    "text": "Hello, this is a test.",
+                    "voice_id": "test-voice",
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -186,10 +211,13 @@ class TestVoiceSynthesize:
 
     def test_synthesize_text_too_long(self, io_client):
         """Text exceeding 5000 chars should fail Pydantic validation."""
-        response = io_client.post(self.SYNTH_URL, json={
-            "text": "x" * 5001,
-            "voice_id": "test-voice",
-        })
+        response = io_client.post(
+            self.SYNTH_URL,
+            json={
+                "text": "x" * 5001,
+                "voice_id": "test-voice",
+            },
+        )
         assert response.status_code == 422
 
     def test_synthesize_tool_failure(self, io_client):
@@ -199,16 +227,20 @@ class TestVoiceSynthesize:
             status="error",
             error="Voice not found",
         ):
-            response = io_client.post(self.SYNTH_URL, json={
-                "text": "Hello",
-                "voice_id": "nonexistent",
-            })
+            response = io_client.post(
+                self.SYNTH_URL,
+                json={
+                    "text": "Hello",
+                    "voice_id": "nonexistent",
+                },
+            )
 
         assert response.status_code == 422
         assert "Voice not found" in response.json()["detail"]
 
 
 # ── Document Parse Tests ─────────────────────────────────────────
+
 
 class TestDocumentParse:
     """POST /api/v1/chat/documents/parse"""
@@ -220,11 +252,14 @@ class TestDocumentParse:
         json_content = json.dumps({"name": "test", "value": 42})
         json_b64 = base64.b64encode(json_content.encode()).decode()
 
-        response = io_client.post(self.PARSE_URL, json={
-            "file_data": json_b64,
-            "filename": "data.json",
-            "mime_type": "application/json",
-        })
+        response = io_client.post(
+            self.PARSE_URL,
+            json={
+                "file_data": json_b64,
+                "filename": "data.json",
+                "mime_type": "application/json",
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -239,11 +274,14 @@ class TestDocumentParse:
         csv_content = "name,age,city\nAlice,30,NYC\nBob,25,LA"
         csv_b64 = base64.b64encode(csv_content.encode()).decode()
 
-        response = io_client.post(self.PARSE_URL, json={
-            "file_data": csv_b64,
-            "filename": "people.csv",
-            "mime_type": "text/csv",
-        })
+        response = io_client.post(
+            self.PARSE_URL,
+            json={
+                "file_data": csv_b64,
+                "filename": "people.csv",
+                "mime_type": "text/csv",
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -257,7 +295,7 @@ class TestDocumentParse:
 
     def test_parse_pdf(self, io_client):
         """Parse a PDF — if PyPDF2 works, verify structured response.
-        
+
         If PyPDF2 fails to parse, the endpoint falls through to the
         fallback path and returns text content with an error note.
         """
@@ -284,11 +322,14 @@ startxref
 %%EOF"""
         pdf_b64 = base64.b64encode(pdf_bytes).decode()
 
-        response = io_client.post(self.PARSE_URL, json={
-            "file_data": pdf_b64,
-            "filename": "test.pdf",
-            "mime_type": "application/pdf",
-        })
+        response = io_client.post(
+            self.PARSE_URL,
+            json={
+                "file_data": pdf_b64,
+                "filename": "test.pdf",
+                "mime_type": "application/pdf",
+            },
+        )
 
         # PyPDF2 may or may not parse this minimal PDF successfully.
         # Either way, the endpoint should return a valid response.
@@ -302,10 +343,13 @@ startxref
 
     def test_parse_missing_file_data(self, io_client):
         """Missing file_data and file_url → 400."""
-        response = io_client.post(self.PARSE_URL, json={
-            "filename": "empty.csv",
-            "mime_type": "text/csv",
-        })
+        response = io_client.post(
+            self.PARSE_URL,
+            json={
+                "filename": "empty.csv",
+                "mime_type": "text/csv",
+            },
+        )
         assert response.status_code == 400
         assert "file data" in response.json()["detail"].lower()
 
@@ -317,11 +361,14 @@ startxref
         csv_content = "a,b\n1,2"
         csv_b64 = base64.b64encode(csv_content.encode()).decode()
 
-        response = io_client.post(self.PARSE_URL, json={
-            "file_data": csv_b64,
-            "filename": "small.csv",
-            "mime_type": "text/csv",
-        })
+        response = io_client.post(
+            self.PARSE_URL,
+            json={
+                "file_data": csv_b64,
+                "filename": "small.csv",
+                "mime_type": "text/csv",
+            },
+        )
         # Small file should parse normally (200), not be rejected
         assert response.status_code == 200
 
@@ -330,11 +377,14 @@ startxref
         text = "Hello, this is plain text"
         b64 = base64.b64encode(text.encode()).decode()
 
-        response = io_client.post(self.PARSE_URL, json={
-            "file_data": b64,
-            "filename": "notes.txt",
-            "mime_type": "text/plain",
-        })
+        response = io_client.post(
+            self.PARSE_URL,
+            json={
+                "file_data": b64,
+                "filename": "notes.txt",
+                "mime_type": "text/plain",
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -343,6 +393,7 @@ startxref
 
 
 # ── Code Execute Tests ───────────────────────────────────────────
+
 
 class TestCodeExecute:
     """POST /api/v1/chat/code/execute"""
@@ -355,11 +406,14 @@ class TestCodeExecute:
             "app.tools.python_sandbox.PythonSandboxTool.execute",
             data={"stdout": "42\n", "stderr": "", "return_code": 0},
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "print(42)",
-                "language": "python",
-                "timeout_seconds": 10,
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "print(42)",
+                    "language": "python",
+                    "timeout_seconds": 10,
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -374,11 +428,14 @@ class TestCodeExecute:
             "app.tools.nodejs_sandbox.NodeJsSandboxTool.execute",
             data={"stdout": "hello\n", "stderr": "", "return_code": 0},
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "console.log('hello')",
-                "language": "javascript",
-                "timeout_seconds": 10,
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "console.log('hello')",
+                    "language": "javascript",
+                    "timeout_seconds": 10,
+                },
+            )
 
         assert response.status_code == 200
         assert response.json()["success"] is True
@@ -389,10 +446,13 @@ class TestCodeExecute:
             "app.tools.nodejs_sandbox.NodeJsSandboxTool.execute",
             data={"stdout": "ok", "stderr": "", "return_code": 0},
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "const x: number = 1",
-                "language": "typescript",
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "const x: number = 1",
+                    "language": "typescript",
+                },
+            )
 
         assert response.status_code == 200
 
@@ -403,10 +463,13 @@ class TestCodeExecute:
             status="error",
             error="SyntaxError: invalid syntax",
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "invalid python !!!",
-                "language": "python",
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "invalid python !!!",
+                    "language": "python",
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -420,11 +483,14 @@ class TestCodeExecute:
             new_callable=AsyncMock,
             side_effect=OSError("Sandbox crashed"),
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "while True: pass",
-                "language": "python",
-                "timeout_seconds": 1,
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "while True: pass",
+                    "language": "python",
+                    "timeout_seconds": 1,
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -437,37 +503,49 @@ class TestCodeExecute:
             "app.tools.python_sandbox.PythonSandboxTool",
             side_effect=ImportError("No sandbox module"),
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "print(1)",
-                "language": "python",
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "print(1)",
+                    "language": "python",
+                },
+            )
 
         assert response.status_code == 501
 
     def test_execute_empty_code_rejected(self, io_client):
         """Empty code → 422 (Pydantic min_length=1)."""
-        response = io_client.post(self.EXEC_URL, json={
-            "code": "",
-            "language": "python",
-        })
+        response = io_client.post(
+            self.EXEC_URL,
+            json={
+                "code": "",
+                "language": "python",
+            },
+        )
         assert response.status_code == 422
 
     def test_execute_timeout_out_of_range(self, io_client):
         """Timeout > 120s → 422."""
-        response = io_client.post(self.EXEC_URL, json={
-            "code": "print(1)",
-            "language": "python",
-            "timeout_seconds": 999,
-        })
+        response = io_client.post(
+            self.EXEC_URL,
+            json={
+                "code": "print(1)",
+                "language": "python",
+                "timeout_seconds": 999,
+            },
+        )
         assert response.status_code == 422
 
     def test_execute_negative_timeout(self, io_client):
         """Negative timeout → 422."""
-        response = io_client.post(self.EXEC_URL, json={
-            "code": "print(1)",
-            "language": "python",
-            "timeout_seconds": -1,
-        })
+        response = io_client.post(
+            self.EXEC_URL,
+            json={
+                "code": "print(1)",
+                "language": "python",
+                "timeout_seconds": -1,
+            },
+        )
         assert response.status_code == 422
 
     def test_execute_stderr_with_clean_exit(self, io_client):
@@ -480,10 +558,13 @@ class TestCodeExecute:
                 "return_code": 0,
             },
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "import warnings; warnings.warn('deprecated'); print('output')",
-                "language": "python",
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "import warnings; warnings.warn('deprecated'); print('output')",
+                    "language": "python",
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -502,10 +583,13 @@ class TestCodeExecute:
                 "return_code": 1,
             },
         ):
-            response = io_client.post(self.EXEC_URL, json={
-                "code": "print(x)",
-                "language": "python",
-            })
+            response = io_client.post(
+                self.EXEC_URL,
+                json={
+                    "code": "print(x)",
+                    "language": "python",
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()

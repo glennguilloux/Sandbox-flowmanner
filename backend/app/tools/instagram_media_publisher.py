@@ -15,7 +15,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +128,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
 
         if validated.media_type == "carousel":
-            total_items = len(validated.media_urls or []) + len(validated.media_data or [])
+            total_items = len(validated.media_urls or []) + len(
+                validated.media_data or []
+            )
             if total_items < 2:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
@@ -140,12 +149,12 @@ class InstagramMediaPublisherTool(BaseTool):
             logger.exception("instagram_media_publisher failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _publish(
-        self, validated: InstagramMediaPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish(self, validated: InstagramMediaPublisherInput) -> dict[str, Any]:
         """Validate credentials and publish to Instagram."""
         if not INSTAGRAM_ACCESS_TOKEN:
-            media_count = len(validated.media_urls or []) + len(validated.media_data or [])
+            media_count = len(validated.media_urls or []) + len(
+                validated.media_data or []
+            )
             return {
                 "status": "not_configured",
                 "message": (
@@ -156,14 +165,19 @@ class InstagramMediaPublisherTool(BaseTool):
                 "preview": {
                     "type": validated.media_type,
                     "media_count": media_count,
-                    "caption": (validated.caption or "")[:200] + (
-                        "..." if validated.caption and len(validated.caption) > 200 else ""
+                    "caption": (validated.caption or "")[:200]
+                    + (
+                        "..."
+                        if validated.caption and len(validated.caption) > 200
+                        else ""
                     ),
                 },
             }
 
         if is_placeholder(INSTAGRAM_ACCESS_TOKEN):
-            media_count = len(validated.media_urls or []) + len(validated.media_data or [])
+            media_count = len(validated.media_urls or []) + len(
+                validated.media_data or []
+            )
             return {
                 "status": "not_configured",
                 "message": (
@@ -175,8 +189,11 @@ class InstagramMediaPublisherTool(BaseTool):
                 "preview": {
                     "type": validated.media_type,
                     "media_count": media_count,
-                    "caption": (validated.caption or "")[:200] + (
-                        "..." if validated.caption and len(validated.caption) > 200 else ""
+                    "caption": (validated.caption or "")[:200]
+                    + (
+                        "..."
+                        if validated.caption and len(validated.caption) > 200
+                        else ""
                     ),
                 },
             }
@@ -191,7 +208,10 @@ class InstagramMediaPublisherTool(BaseTool):
                 media_sources, validated.caption or "", validated.hashtags
             )
         return await self._publish_single(
-            validated.media_type, media_sources[0], validated.caption or "", validated.hashtags
+            validated.media_type,
+            media_sources[0],
+            validated.caption or "",
+            validated.hashtags,
         )
 
     async def _publish_single(
@@ -238,10 +258,12 @@ class InstagramMediaPublisherTool(BaseTool):
         # Step 1: Create individual media containers
         for i, source in enumerate(media_sources):
             is_url = source.startswith("http://") or source.startswith("https://")
-            media_type = "video" if is_url and source.lower().rsplit("?", 1)[0].endswith(".mp4") else "photo"
-            container_id = await self._create_media_container(
-                media_type, source, ""
+            media_type = (
+                "video"
+                if is_url and source.lower().rsplit("?", 1)[0].endswith(".mp4")
+                else "photo"
             )
+            container_id = await self._create_media_container(media_type, source, "")
             if not container_id:
                 return {
                     "status": "partial",
@@ -296,7 +318,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error(f"Instagram container error: {resp.status_code} {resp.text[:300]}")
+            logger.error(
+                f"Instagram container error: {resp.status_code} {resp.text[:300]}"
+            )
             return None
 
     async def _create_carousel_container(
@@ -319,7 +343,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error(f"Instagram carousel error: {resp.status_code} {resp.text[:300]}")
+            logger.error(
+                f"Instagram carousel error: {resp.status_code} {resp.text[:300]}"
+            )
             return None
 
     async def _publish_container(self, container_id: str) -> str | None:
@@ -334,7 +360,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error(f"Instagram publish error: {resp.status_code} {resp.text[:300]}")
+            logger.error(
+                f"Instagram publish error: {resp.status_code} {resp.text[:300]}"
+            )
             return None
 
     async def _wait_for_ready(self, creation_id: str) -> str | None:
@@ -358,7 +386,9 @@ class InstagramMediaPublisherTool(BaseTool):
                 if status == "ERROR":
                     logger.error(f"Instagram processing error: {data}")
                     return None
-        logger.warning(f"Instagram media {creation_id} still processing after {INSTAGRAM_MAX_POLLS} polls")
+        logger.warning(
+            f"Instagram media {creation_id} still processing after {INSTAGRAM_MAX_POLLS} polls"
+        )
         return None
 
     def _build_caption(self, caption: str, hashtags: list[str] | None) -> str:

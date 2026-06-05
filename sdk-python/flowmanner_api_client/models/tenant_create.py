@@ -1,35 +1,26 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="TenantCreate")
-
 
 
 @_attrs_define
 class TenantCreate:
-    """ 
-        Attributes:
-            name (str):
-            slug (str):
-            description (None | str | Unset):
-            max_members (int | Unset):  Default: 10.
-            max_missions_per_day (int | Unset):  Default: 100.
-     """
+    """
+    Attributes:
+        name (str):
+        slug (str):
+        description (None | str | Unset):
+        max_members (int | Unset):  Default: 10.
+        max_missions_per_day (int | Unset):  Default: 100.
+    """
 
     name: str
     slug: str
@@ -37,10 +28,6 @@ class TenantCreate:
     max_members: int | Unset = 10
     max_missions_per_day: int | Unset = 100
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
@@ -57,13 +44,14 @@ class TenantCreate:
 
         max_missions_per_day = self.max_missions_per_day
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "name": name,
-            "slug": slug,
-        })
+        field_dict.update(
+            {
+                "name": name,
+                "slug": slug,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if max_members is not UNSET:
@@ -72,8 +60,6 @@ class TenantCreate:
             field_dict["max_missions_per_day"] = max_missions_per_day
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -91,7 +77,6 @@ class TenantCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         max_members = d.pop("max_members", UNSET)
 
         max_missions_per_day = d.pop("max_missions_per_day", UNSET)
@@ -103,7 +88,6 @@ class TenantCreate:
             max_members=max_members,
             max_missions_per_day=max_missions_per_day,
         )
-
 
         tenant_create.additional_properties = d
         return tenant_create

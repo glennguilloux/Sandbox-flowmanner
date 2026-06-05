@@ -29,7 +29,6 @@ ignore = [
     "RUF006", # asyncio-dangling-task — intentional fire-and-forget in FastAPI
     "RUF012", # mutable-class-default — Pydantic models use class attributes
     "RUF013", # implicit-optional — too noisy with X | None already in use
-    "RUF059", # unused-unpacked-variable — false positives in for-loop unpacking
     "PT028",  # pytest-parameter-with-default-argument — intentional in parametrize
     "F821",   # undefined-name — ~97 from TCH refactor (FastAPI/Strawberry runtime deps). Fix per-file.
 ]

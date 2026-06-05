@@ -223,7 +223,11 @@ async def _llm_evaluate(text: str, style_guide: dict) -> EvaluationResult | None
         content = response.get("response", "")
         parsed = json.loads(content)
         issues = [
-            StyleIssue(type=i["type"], excerpt=i.get("excerpt", ""), suggestion=i.get("suggestion", ""))
+            StyleIssue(
+                type=i["type"],
+                excerpt=i.get("excerpt", ""),
+                suggestion=i.get("suggestion", ""),
+            )
             for i in parsed.get("issues", [])
         ]
         return EvaluationResult(

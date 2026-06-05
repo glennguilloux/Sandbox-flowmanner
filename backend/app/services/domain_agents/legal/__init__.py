@@ -1,3 +1,3 @@
 from .agent import LegalAgent
 
-__all__ = ['LegalAgent']
+__all__ = ["LegalAgent"]

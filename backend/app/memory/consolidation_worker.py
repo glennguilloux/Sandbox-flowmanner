@@ -58,7 +58,9 @@ class MemoryConsolidationWorker:
         Returns a dict with ``session_id`` and ``memory_id``.
         """
         success_flag = payload.get("status") in (
-            "completed", "approved", MissionStatus.COMPLETED,
+            "completed",
+            "approved",
+            MissionStatus.COMPLETED,
             MissionStatus.APPROVED,
         )
 
@@ -96,12 +98,15 @@ class MemoryConsolidationWorker:
 
         logger.info(
             "Consolidated episode for mission %s (success=%s)",
-            mission_id, success_flag,
+            mission_id,
+            success_flag,
         )
         return {"session_id": session.id, "memory_id": memory.id}
 
     async def retrieve_by_mission(
-        self, db: AsyncSession, mission_id: str,
+        self,
+        db: AsyncSession,
+        mission_id: str,
     ) -> list[dict[str, Any]]:
         """Retrieve all episode memories for a given mission."""
         result = await db.execute(
@@ -120,7 +125,10 @@ class MemoryConsolidationWorker:
         ]
 
     async def retrieve_by_agent(
-        self, db: AsyncSession, agent_id: str, limit: int = 20,
+        self,
+        db: AsyncSession,
+        agent_id: str,
+        limit: int = 20,
     ) -> list[dict[str, Any]]:
         """Retrieve episode memories whose metadata references ``agent_id``."""
         result = await db.execute(
@@ -160,7 +168,11 @@ class MemoryConsolidationWorker:
 
         deleted = result.rowcount
         if deleted:
-            logger.info("Retention pruned %d old memory sessions (cutoff=%s)", deleted, cutoff.isoformat())
+            logger.info(
+                "Retention pruned %d old memory sessions (cutoff=%s)",
+                deleted,
+                cutoff.isoformat(),
+            )
         return deleted
 
 

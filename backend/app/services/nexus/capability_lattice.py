@@ -74,7 +74,9 @@ class CapabilityNode:
             "capability_id": self.capability_id,
             "name": self.name,
             "depth": self.depth,
-            "composition_type": self.composition_type.value if self.composition_type else None,
+            "composition_type": (
+                self.composition_type.value if self.composition_type else None
+            ),
             "children": self.children,
             "parents": self.parents,
             "max_iterations": self.max_iterations,
@@ -84,6 +86,7 @@ class CapabilityNode:
 
 class LatticeError(ValueError):
     """Raised when a composition violates lattice invariants."""
+
     pass
 
 
@@ -161,7 +164,10 @@ class CapabilityLattice:
 
         # Compute depth
         child_depths = [self._nodes[c].depth for c in children]
-        if composition_type == CompositionType.PARALLEL or composition_type == CompositionType.CONDITIONAL:
+        if (
+            composition_type == CompositionType.PARALLEL
+            or composition_type == CompositionType.CONDITIONAL
+        ):
             new_depth = 1 + max(child_depths) if child_depths else 1
         elif composition_type == CompositionType.LOOP:
             # Loop depth is bounded by max_iterations + body depth
@@ -198,7 +204,10 @@ class CapabilityLattice:
 
         logger.info(
             "Registered composed capability: %s (depth=%d, type=%s, children=%s)",
-            capability_id, new_depth, composition_type.value, children,
+            capability_id,
+            new_depth,
+            composition_type.value,
+            children,
         )
         return node
 
@@ -240,9 +249,7 @@ class CapabilityLattice:
             f"String-based exit conditions with no type constraint are rejected."
         )
 
-    def _validate_no_cycles(
-        self, capability_id: str, children: list[str]
-    ) -> None:
+    def _validate_no_cycles(self, capability_id: str, children: list[str]) -> None:
         """Check that adding edges from children → capability_id creates no cycle.
 
         Performs a DFS from capability_id through the children's descendants.
@@ -282,9 +289,7 @@ class CapabilityLattice:
         """Get a node by capability ID."""
         return self._nodes.get(capability_id)
 
-    def is_within_budget(
-        self, capability_id: str, remaining_depth: int
-    ) -> bool:
+    def is_within_budget(self, capability_id: str, remaining_depth: int) -> bool:
         """Check if a capability can be executed within the remaining depth budget."""
         node = self._nodes.get(capability_id)
         if node is None:
@@ -350,7 +355,11 @@ def get_capability_lattice(max_depth: int | None = None) -> CapabilityLattice:
     global _lattice
     if _lattice is None:
         _lattice = CapabilityLattice(
-            max_depth=max_depth if max_depth is not None else CapabilityLattice.DEFAULT_MAX_DEPTH
+            max_depth=(
+                max_depth
+                if max_depth is not None
+                else CapabilityLattice.DEFAULT_MAX_DEPTH
+            )
         )
     return _lattice
 

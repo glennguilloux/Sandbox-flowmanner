@@ -12,9 +12,15 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.mission_task_response_dependencies_type_1 import MissionTaskResponseDependenciesType1
-    from ..models.mission_task_response_input_data_type_0 import MissionTaskResponseInputDataType0
-    from ..models.mission_task_response_output_data_type_0 import MissionTaskResponseOutputDataType0
+    from ..models.mission_task_response_dependencies_type_1 import (
+        MissionTaskResponseDependenciesType1,
+    )
+    from ..models.mission_task_response_input_data_type_0 import (
+        MissionTaskResponseInputDataType0,
+    )
+    from ..models.mission_task_response_output_data_type_0 import (
+        MissionTaskResponseOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="MissionTaskResponse")
@@ -58,7 +64,9 @@ class MissionTaskResponse:
     status: None | str | Unset = UNSET
     input_data: MissionTaskResponseInputDataType0 | None | Unset = UNSET
     output_data: MissionTaskResponseOutputDataType0 | None | Unset = UNSET
-    dependencies: list[Any] | MissionTaskResponseDependenciesType1 | None | Unset = UNSET
+    dependencies: list[Any] | MissionTaskResponseDependenciesType1 | None | Unset = (
+        UNSET
+    )
     retry_count: int | None | Unset = UNSET
     max_retries: int | None | Unset = UNSET
     timeout_seconds: int | None | Unset = UNSET
@@ -71,9 +79,15 @@ class MissionTaskResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_response_dependencies_type_1 import MissionTaskResponseDependenciesType1
-        from ..models.mission_task_response_input_data_type_0 import MissionTaskResponseInputDataType0
-        from ..models.mission_task_response_output_data_type_0 import MissionTaskResponseOutputDataType0
+        from ..models.mission_task_response_dependencies_type_1 import (
+            MissionTaskResponseDependenciesType1,
+        )
+        from ..models.mission_task_response_input_data_type_0 import (
+            MissionTaskResponseInputDataType0,
+        )
+        from ..models.mission_task_response_output_data_type_0 import (
+            MissionTaskResponseOutputDataType0,
+        )
 
         id = str(self.id)
 
@@ -249,9 +263,15 @@ class MissionTaskResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_response_dependencies_type_1 import MissionTaskResponseDependenciesType1
-        from ..models.mission_task_response_input_data_type_0 import MissionTaskResponseInputDataType0
-        from ..models.mission_task_response_output_data_type_0 import MissionTaskResponseOutputDataType0
+        from ..models.mission_task_response_dependencies_type_1 import (
+            MissionTaskResponseDependenciesType1,
+        )
+        from ..models.mission_task_response_input_data_type_0 import (
+            MissionTaskResponseInputDataType0,
+        )
+        from ..models.mission_task_response_output_data_type_0 import (
+            MissionTaskResponseOutputDataType0,
+        )
 
         d = dict(src_dict)
         id = UUID(d.pop("id"))
@@ -307,7 +327,9 @@ class MissionTaskResponse:
 
         status = _parse_status(d.pop("status", UNSET))
 
-        def _parse_input_data(data: object) -> MissionTaskResponseInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> MissionTaskResponseInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -324,7 +346,9 @@ class MissionTaskResponse:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-        def _parse_output_data(data: object) -> MissionTaskResponseOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> MissionTaskResponseOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -341,7 +365,9 @@ class MissionTaskResponse:
 
         output_data = _parse_output_data(d.pop("output_data", UNSET))
 
-        def _parse_dependencies(data: object) -> list[Any] | MissionTaskResponseDependenciesType1 | None | Unset:
+        def _parse_dependencies(
+            data: object,
+        ) -> list[Any] | MissionTaskResponseDependenciesType1 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -357,12 +383,16 @@ class MissionTaskResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                dependencies_type_1 = MissionTaskResponseDependenciesType1.from_dict(data)
+                dependencies_type_1 = MissionTaskResponseDependenciesType1.from_dict(
+                    data
+                )
 
                 return dependencies_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[Any] | MissionTaskResponseDependenciesType1 | None | Unset, data)
+            return cast(
+                list[Any] | MissionTaskResponseDependenciesType1 | None | Unset, data
+            )
 
         dependencies = _parse_dependencies(d.pop("dependencies", UNSET))
 

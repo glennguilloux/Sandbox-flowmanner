@@ -25,7 +25,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test"
+)
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -101,8 +103,16 @@ def _run(
         total_tokens=total_tokens,
         total_cost_usd=total_cost_usd,
         budget_limit_usd=budget_limit_usd,
-        started_at=datetime.now(timezone.utc) if status in ("executing", "completed", "failed", "aborted") else None,
-        completed_at=datetime.now(timezone.utc) if status in ("completed", "failed", "aborted") else None,
+        started_at=(
+            datetime.now(timezone.utc)
+            if status in ("executing", "completed", "failed", "aborted")
+            else None
+        ),
+        completed_at=(
+            datetime.now(timezone.utc)
+            if status in ("completed", "failed", "aborted")
+            else None
+        ),
         parent_run_id=None,
         input_data=input_data,
         meta=None,
@@ -141,7 +151,9 @@ def _mock_db_result(scalar_value=None, scalars_list=None):
         result.scalar_one_or_none.return_value = scalar_value
     if scalars_list is not None:
         result.scalars.return_value.all.return_value = scalars_list
-    result.scalar.return_value = len(scalars_list) if scalars_list is not None else (1 if scalar_value else 0)
+    result.scalar.return_value = (
+        len(scalars_list) if scalars_list is not None else (1 if scalar_value else 0)
+    )
     return result
 
 
@@ -183,7 +195,10 @@ def app(mock_db, mock_user):
     from app.database import get_db_session
 
     from fastapi.responses import JSONResponse
-    from app.services.blueprint_service import BlueprintNotFoundError, BlueprintValidationError
+    from app.services.blueprint_service import (
+        BlueprintNotFoundError,
+        BlueprintValidationError,
+    )
     from app.services.run_service import RunNotFoundError, RunValidationError
 
     _app = FastAPI()
@@ -251,10 +266,13 @@ class TestCreateBlueprint:
             instance = MockSvc.return_value
             instance.create = AsyncMock(return_value=bp_obj)
 
-            resp = client.post("/api/v2/blueprints", json={
-                "title": "My Blueprint",
-                "blueprint_type": "solo",
-            })
+            resp = client.post(
+                "/api/v2/blueprints",
+                json={
+                    "title": "My Blueprint",
+                    "blueprint_type": "solo",
+                },
+            )
 
         assert resp.status_code == 201
         body = resp.json()
@@ -269,16 +287,19 @@ class TestCreateBlueprint:
         with patch("app.api._blueprint_cqrs.commands.BlueprintService") as MockSvc:
             MockSvc.return_value.create = AsyncMock(return_value=bp_obj)
 
-            resp = client.post("/api/v2/blueprints", json={
-                "title": "DAG BP",
-                "blueprint_type": "dag",
-                "definition": {
+            resp = client.post(
+                "/api/v2/blueprints",
+                json={
+                    "title": "DAG BP",
                     "blueprint_type": "dag",
-                    "nodes": [{"id": "n1", "type": "llm_call", "title": "Test"}],
-                    "edges": [],
-                    "budget": {"max_cost_usd": 5.0},
+                    "definition": {
+                        "blueprint_type": "dag",
+                        "nodes": [{"id": "n1", "type": "llm_call", "title": "Test"}],
+                        "edges": [],
+                        "budget": {"max_cost_usd": 5.0},
+                    },
                 },
-            })
+            )
 
         assert resp.status_code == 201
         assert resp.json()["data"]["blueprint_type"] == "dag"
@@ -313,8 +334,12 @@ class TestListBlueprints:
 
         assert resp.status_code == 200
         MockSvc.return_value.list.assert_called_once_with(
-            42, page=1, per_page=20,
-            workspace_id=None, blueprint_type="solo", status=None,
+            42,
+            page=1,
+            per_page=20,
+            workspace_id=None,
+            blueprint_type="solo",
+            status=None,
         )
 
     def test_list_filters_by_status(self, client, mock_db):
@@ -325,7 +350,10 @@ class TestListBlueprints:
 
         assert resp.status_code == 200
         call_kwargs = MockSvc.return_value.list.call_args
-        assert call_kwargs.kwargs.get("status") == "published" or call_kwargs[1].get("status") == "published"
+        assert (
+            call_kwargs.kwargs.get("status") == "published"
+            or call_kwargs[1].get("status") == "published"
+        )
 
 
 class TestGetBlueprint:
@@ -364,9 +392,12 @@ class TestUpdateBlueprint:
         with patch("app.api._blueprint_cqrs.commands.BlueprintService") as MockSvc:
             MockSvc.return_value.update = AsyncMock(return_value=bp_obj)
 
-            resp = client.patch(f"/api/v2/blueprints/{bp_obj.id}", json={
-                "title": "Updated",
-            })
+            resp = client.patch(
+                f"/api/v2/blueprints/{bp_obj.id}",
+                json={
+                    "title": "Updated",
+                },
+            )
 
         assert resp.status_code == 200
         assert resp.json()["data"]["title"] == "Updated"
@@ -416,8 +447,12 @@ class TestRunBlueprint:
 
     def test_run_returns_executed_run(self, client, mock_db):
         bp_id = str(uuid4())
-        run_obj = _run(blueprint_id=bp_id, status="completed",
-                       total_tokens=100, total_cost_usd=0.002)
+        run_obj = _run(
+            blueprint_id=bp_id,
+            status="completed",
+            total_tokens=100,
+            total_cost_usd=0.002,
+        )
 
         with patch("app.api._blueprint_cqrs.commands.RunService") as MockSvc:
             instance = MockSvc.return_value
@@ -426,9 +461,12 @@ class TestRunBlueprint:
             )
             instance.execute = AsyncMock(return_value=run_obj)
 
-            resp = client.post(f"/api/v2/blueprints/{bp_id}/run", json={
-                "input_data": {"text": "Hello"},
-            })
+            resp = client.post(
+                f"/api/v2/blueprints/{bp_id}/run",
+                json={
+                    "input_data": {"text": "Hello"},
+                },
+            )
 
         assert resp.status_code == 201
         body = resp.json()
@@ -447,14 +485,19 @@ class TestRunBlueprint:
             )
             instance.execute = AsyncMock(return_value=run_obj)
 
-            resp = client.post(f"/api/v2/blueprints/{bp_id}/run", json={
-                "budget_override": {"max_cost_usd": 1.0},
-            })
+            resp = client.post(
+                f"/api/v2/blueprints/{bp_id}/run",
+                json={
+                    "budget_override": {"max_cost_usd": 1.0},
+                },
+            )
 
         assert resp.status_code == 201
         # Verify budget_override was passed through to create_from_blueprint
         create_call = instance.create_from_blueprint.call_args
-        budget = create_call.kwargs.get("budget_override") or create_call[1].get("budget_override")
+        budget = create_call.kwargs.get("budget_override") or create_call[1].get(
+            "budget_override"
+        )
         assert budget is not None
         assert budget["max_cost_usd"] == 1.0
 
@@ -464,12 +507,24 @@ class TestListVersions:
 
     def test_list_versions(self, client, mock_db):
         versions = [
-            MagicMock(id=str(uuid4()), blueprint_id=str(uuid4()), version=2,
-                      snapshot={}, description="Updated", created_by=42,
-                      created_at=datetime.now(timezone.utc)),
-            MagicMock(id=str(uuid4()), blueprint_id=str(uuid4()), version=1,
-                      snapshot={}, description="Initial", created_by=42,
-                      created_at=datetime.now(timezone.utc)),
+            MagicMock(
+                id=str(uuid4()),
+                blueprint_id=str(uuid4()),
+                version=2,
+                snapshot={},
+                description="Updated",
+                created_by=42,
+                created_at=datetime.now(timezone.utc),
+            ),
+            MagicMock(
+                id=str(uuid4()),
+                blueprint_id=str(uuid4()),
+                version=1,
+                snapshot={},
+                description="Initial",
+                created_by=42,
+                created_at=datetime.now(timezone.utc),
+            ),
         ]
 
         with patch("app.api._blueprint_cqrs.queries.BlueprintService") as MockSvc:
@@ -515,8 +570,10 @@ class TestListRuns:
 
         assert resp.status_code == 200
         call_kwargs = MockSvc.return_value.list.call_args
-        assert call_kwargs.kwargs.get("blueprint_id") == bp_id or \
-               call_kwargs[1].get("blueprint_id") == bp_id
+        assert (
+            call_kwargs.kwargs.get("blueprint_id") == bp_id
+            or call_kwargs[1].get("blueprint_id") == bp_id
+        )
 
 
 class TestGetRun:
@@ -552,7 +609,11 @@ class TestAbortRun:
 
     def test_abort_returns_aborted(self, client, mock_db):
         bp_id = str(uuid4())
-        run_obj = _run(blueprint_id=bp_id, status="aborted", error_message="Aborted: user_requested")
+        run_obj = _run(
+            blueprint_id=bp_id,
+            status="aborted",
+            error_message="Aborted: user_requested",
+        )
 
         with patch("app.api._blueprint_cqrs.commands.RunService") as MockSvc:
             MockSvc.return_value.abort = AsyncMock(return_value=run_obj)
@@ -564,18 +625,26 @@ class TestAbortRun:
 
     def test_abort_with_custom_reason(self, client, mock_db):
         bp_id = str(uuid4())
-        run_obj = _run(blueprint_id=bp_id, status="aborted", error_message="Aborted: budget_exceeded")
+        run_obj = _run(
+            blueprint_id=bp_id,
+            status="aborted",
+            error_message="Aborted: budget_exceeded",
+        )
 
         with patch("app.api._blueprint_cqrs.commands.RunService") as MockSvc:
             MockSvc.return_value.abort = AsyncMock(return_value=run_obj)
 
-            resp = client.post(f"/api/v2/runs/{run_obj.id}/abort?reason=budget_exceeded")
+            resp = client.post(
+                f"/api/v2/runs/{run_obj.id}/abort?reason=budget_exceeded"
+            )
 
         assert resp.status_code == 200
         MockSvc.return_value.abort.assert_called_once()
         call_args = MockSvc.return_value.abort.call_args
-        assert call_args.kwargs.get("reason") == "budget_exceeded" or \
-               call_args[0][2] == "budget_exceeded"
+        assert (
+            call_args.kwargs.get("reason") == "budget_exceeded"
+            or call_args[0][2] == "budget_exceeded"
+        )
 
 
 class TestRetryRun:
@@ -623,15 +692,27 @@ class TestRunEvents:
         run_id = str(uuid4())
         events = [
             MagicMock(
-                id=str(uuid4()), sequence=1, run_id=run_id, mission_id=None,
-                type="mission.started", payload={"title": "Test"}, actor="system",
-                task_id=None, causal_parent=None,
+                id=str(uuid4()),
+                sequence=1,
+                run_id=run_id,
+                mission_id=None,
+                type="mission.started",
+                payload={"title": "Test"},
+                actor="system",
+                task_id=None,
+                causal_parent=None,
                 timestamp=datetime.now(timezone.utc),
             ),
             MagicMock(
-                id=str(uuid4()), sequence=2, run_id=run_id, mission_id=None,
-                type="mission.completed", payload={"status": "completed"}, actor="system",
-                task_id=None, causal_parent=None,
+                id=str(uuid4()),
+                sequence=2,
+                run_id=run_id,
+                mission_id=None,
+                type="mission.completed",
+                payload={"status": "completed"},
+                actor="system",
+                task_id=None,
+                causal_parent=None,
                 timestamp=datetime.now(timezone.utc),
             ),
         ]
@@ -785,7 +866,9 @@ class TestFullApiLifecycle:
         bp_updated = _bp(bp_id=bp_id, title="Updated BP", status="draft", version=2)
         with patch("app.api._blueprint_cqrs.commands.BlueprintService") as MockSvc:
             MockSvc.return_value.update = AsyncMock(return_value=bp_updated)
-            resp = client.patch(f"/api/v2/blueprints/{bp_id}", json={"title": "Updated BP"})
+            resp = client.patch(
+                f"/api/v2/blueprints/{bp_id}", json={"title": "Updated BP"}
+            )
         assert resp.status_code == 200
         assert resp.json()["data"]["title"] == "Updated BP"
 
@@ -798,8 +881,13 @@ class TestFullApiLifecycle:
         assert resp.json()["data"]["status"] == "published"
 
         # Step 5: Run blueprint
-        run_obj = _run(run_id=run_id, blueprint_id=bp_id, status="completed",
-                       total_tokens=100, total_cost_usd=0.002)
+        run_obj = _run(
+            run_id=run_id,
+            blueprint_id=bp_id,
+            status="completed",
+            total_tokens=100,
+            total_cost_usd=0.002,
+        )
         with patch("app.api._blueprint_cqrs.commands.RunService") as MockSvc:
             instance = MockSvc.return_value
             instance.create_from_blueprint = AsyncMock(
@@ -826,8 +914,12 @@ class TestFullApiLifecycle:
 
         # Step 8: Abort (simulate running state)
         running = _run(run_id=run_id, blueprint_id=bp_id, status="executing")
-        aborted = _run(run_id=run_id, blueprint_id=bp_id, status="aborted",
-                       error_message="Aborted: user_requested")
+        aborted = _run(
+            run_id=run_id,
+            blueprint_id=bp_id,
+            status="aborted",
+            error_message="Aborted: user_requested",
+        )
         with patch("app.api._blueprint_cqrs.commands.RunService") as MockSvc:
             MockSvc.return_value.abort = AsyncMock(return_value=aborted)
             resp = client.post(f"/api/v2/runs/{run_id}/abort?reason=user_requested")

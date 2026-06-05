@@ -16,6 +16,7 @@ def _make_mock_import_browser():
 
 # ── BROWSER_TASK_TYPES ────────────────────────────────────────────────────────
 
+
 class TestBrowserTaskTypes:
     """BROWSER_TASK_TYPES: ensure all expected types are present."""
 
@@ -43,6 +44,7 @@ class TestBrowserTaskTypes:
 
 
 # ── execute_browser_tool ──────────────────────────────────────────────────────
+
 
 class TestExecuteBrowserTool:
     """BrowserTaskRunner.execute_browser_tool: browser tool dispatch.
@@ -94,7 +96,9 @@ class TestExecuteBrowserTool:
         patcher, mock_registry = self._patch_and_get_registry()
         mock_registry.get.return_value = mock_tool
         with patcher:
-            result = await runner.execute_browser_tool(mock_task, {"url": "https://example.com"})
+            result = await runner.execute_browser_tool(
+                mock_task, {"url": "https://example.com"}
+            )
 
         assert result["success"] is True
         assert result["output"] == {"url": "https://example.com"}
@@ -162,9 +166,9 @@ class TestExecuteBrowserTool:
         patcher, mock_registry = self._patch_and_get_registry()
         mock_registry.get.return_value = mock_tool
         with patcher:
-            result = await runner.execute_browser_tool(mock_task, {
-                "ref": "e10", "text": "hello", "submit": True
-            })
+            result = await runner.execute_browser_tool(
+                mock_task, {"ref": "e10", "text": "hello", "submit": True}
+            )
 
         assert result["success"] is True
         call_input = mock_tool.run.call_args[0][0]
@@ -259,7 +263,9 @@ class TestExecuteBrowserTool:
         patcher, mock_registry = self._patch_and_get_registry()
         mock_registry.get.return_value = mock_tool
         with patcher:
-            await runner.execute_browser_tool(mock_task, {"url": "http://x"}, mission=mock_mission)
+            await runner.execute_browser_tool(
+                mock_task, {"url": "http://x"}, mission=mock_mission
+            )
 
         context = mock_tool.run.call_args[0][1]
         assert context["user_id"] == "42"
@@ -281,7 +287,9 @@ class TestExecuteBrowserTool:
         patcher, mock_registry = self._patch_and_get_registry()
         mock_registry.get.return_value = mock_tool
         with patcher:
-            await runner.execute_browser_tool(mock_task, {"url": "http://x"}, mission=None)
+            await runner.execute_browser_tool(
+                mock_task, {"url": "http://x"}, mission=None
+            )
 
         context = mock_tool.run.call_args[0][1]
         assert context["user_id"] == "system"

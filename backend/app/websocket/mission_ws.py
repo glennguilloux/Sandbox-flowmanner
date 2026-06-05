@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import socketio
+
     _sio_available = True
 except ImportError:
     _sio_available = False
@@ -31,8 +32,10 @@ if _sio_available:
 
     class _StripWSPrefix:
         """ASGI wrapper that strips /ws prefix so Engine.IO sees /socket.io/..."""
+
         def __init__(self, app):
             self.app = app
+
         async def __call__(self, scope, receive, send):
             if scope["type"] in ("http", "websocket"):
                 path = scope.get("path", "")
@@ -68,7 +71,9 @@ if _sio_available:
             skip_sid=skip_sid,
         )
 
-    async def _handle_presence_connect(workspace_id: str, user_id: int, sid: str) -> None:
+    async def _handle_presence_connect(
+        workspace_id: str, user_id: int, sid: str
+    ) -> None:
         """Track presence when a user connects to a workspace."""
         try:
             from app.websocket.presence import user_online
@@ -80,6 +85,7 @@ if _sio_available:
                 try:
                     from app.api.v1.workspace_activity import record_workspace_activity
                     from app.database import AsyncSessionLocal
+
                     async with AsyncSessionLocal() as session:
                         await record_workspace_activity(
                             session,
@@ -92,8 +98,12 @@ if _sio_available:
                 except Exception:
                     logger.debug("presence_activity_record_failed", exc_info=True)
         except Exception as e:
-            logger.warning("Presence connect failed for user %d in ws %s: %s",
-                           user_id, workspace_id, e)
+            logger.warning(
+                "Presence connect failed for user %d in ws %s: %s",
+                user_id,
+                workspace_id,
+                e,
+            )
 
     async def _handle_presence_disconnect(sid: str) -> None:
         """Track presence when a socket disconnects."""
@@ -146,9 +156,7 @@ if _sio_available:
 
             if user_id:
                 await sio.save_session(sid, {"user_id": user_id})
-                logger.debug(
-                    "WebSocket authenticated: user %d (sid=%s)", user_id, sid
-                )
+                logger.debug("WebSocket authenticated: user %d (sid=%s)", user_id, sid)
             else:
                 logger.debug("WebSocket connect: no valid JWT (sid=%s)", sid)
                 # Don't reject — allow anonymous for mission/graph subscriptions
@@ -223,7 +231,8 @@ if _sio_available:
                 if not result.scalar_one_or_none():
                     logger.warning(
                         "workspace:subscribe rejected: user %d not a member of %s",
-                        user_id, workspace_id,
+                        user_id,
+                        workspace_id,
                     )
                     return
         except Exception as e:
@@ -233,7 +242,9 @@ if _sio_available:
         # Join the workspace room
         room = f"workspace_{workspace_id}"
         await sio.enter_room(sid, room)
-        logger.info("User %d subscribed to workspace %s (sid=%s)", user_id, workspace_id, sid)
+        logger.info(
+            "User %d subscribed to workspace %s (sid=%s)", user_id, workspace_id, sid
+        )
 
         # Track presence and broadcast
         await _handle_presence_connect(workspace_id, user_id, sid)
@@ -337,6 +348,7 @@ if _sio_available:
             },
             room=f"workspace_{workspace_id}",
         )
+
 else:
     # Fallback: no-op ASGI app
     from starlette.applications import Starlette
@@ -345,7 +357,9 @@ else:
 
     async def noop_endpoint(request):
         return JSONResponse(
-            {"detail": "WebSocket not available. Use SSE endpoint /api/v1/missions/{id}/stream"},
+            {
+                "detail": "WebSocket not available. Use SSE endpoint /api/v1/missions/{id}/stream"
+            },
             status_code=200,
         )
 

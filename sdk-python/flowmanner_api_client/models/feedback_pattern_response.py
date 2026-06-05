@@ -1,61 +1,57 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.feedback_pattern_response_example_mission_ids_type_0 import FeedbackPatternResponseExampleMissionIdsType0
-
-
-
+    from ..models.feedback_pattern_response_example_mission_ids_type_0 import (
+        FeedbackPatternResponseExampleMissionIdsType0,
+    )
 
 
 T = TypeVar("T", bound="FeedbackPatternResponse")
 
 
-
 @_attrs_define
 class FeedbackPatternResponse:
-    """ 
-        Attributes:
-            id (str):
-            pattern_type (str):
-            description (str):
-            frequency (int):
-            severity (str):
-            example_mission_ids (FeedbackPatternResponseExampleMissionIdsType0 | None | Unset):
-            suggested_fix (None | str | Unset):
-            status (str | Unset):  Default: 'active'.
-            created_at (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        pattern_type (str):
+        description (str):
+        frequency (int):
+        severity (str):
+        example_mission_ids (FeedbackPatternResponseExampleMissionIdsType0 | None | Unset):
+        suggested_fix (None | str | Unset):
+        status (str | Unset):  Default: 'active'.
+        created_at (datetime.datetime | None | Unset):
+    """
 
     id: str
     pattern_type: str
     description: str
     frequency: int
     severity: str
-    example_mission_ids: FeedbackPatternResponseExampleMissionIdsType0 | None | Unset = UNSET
+    example_mission_ids: (
+        FeedbackPatternResponseExampleMissionIdsType0 | None | Unset
+    ) = UNSET
     suggested_fix: None | str | Unset = UNSET
-    status: str | Unset = 'active'
+    status: str | Unset = "active"
     created_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.feedback_pattern_response_example_mission_ids_type_0 import FeedbackPatternResponseExampleMissionIdsType0
+        from ..models.feedback_pattern_response_example_mission_ids_type_0 import (
+            FeedbackPatternResponseExampleMissionIdsType0,
+        )
+
         id = self.id
 
         pattern_type = self.pattern_type
@@ -69,7 +65,9 @@ class FeedbackPatternResponse:
         example_mission_ids: dict[str, Any] | None | Unset
         if isinstance(self.example_mission_ids, Unset):
             example_mission_ids = UNSET
-        elif isinstance(self.example_mission_ids, FeedbackPatternResponseExampleMissionIdsType0):
+        elif isinstance(
+            self.example_mission_ids, FeedbackPatternResponseExampleMissionIdsType0
+        ):
             example_mission_ids = self.example_mission_ids.to_dict()
         else:
             example_mission_ids = self.example_mission_ids
@@ -90,16 +88,17 @@ class FeedbackPatternResponse:
         else:
             created_at = self.created_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "pattern_type": pattern_type,
-            "description": description,
-            "frequency": frequency,
-            "severity": severity,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "pattern_type": pattern_type,
+                "description": description,
+                "frequency": frequency,
+                "severity": severity,
+            }
+        )
         if example_mission_ids is not UNSET:
             field_dict["example_mission_ids"] = example_mission_ids
         if suggested_fix is not UNSET:
@@ -111,11 +110,12 @@ class FeedbackPatternResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.feedback_pattern_response_example_mission_ids_type_0 import FeedbackPatternResponseExampleMissionIdsType0
+        from ..models.feedback_pattern_response_example_mission_ids_type_0 import (
+            FeedbackPatternResponseExampleMissionIdsType0,
+        )
+
         d = dict(src_dict)
         id = d.pop("id")
 
@@ -127,7 +127,9 @@ class FeedbackPatternResponse:
 
         severity = d.pop("severity")
 
-        def _parse_example_mission_ids(data: object) -> FeedbackPatternResponseExampleMissionIdsType0 | None | Unset:
+        def _parse_example_mission_ids(
+            data: object,
+        ) -> FeedbackPatternResponseExampleMissionIdsType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -135,17 +137,20 @@ class FeedbackPatternResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                example_mission_ids_type_0 = FeedbackPatternResponseExampleMissionIdsType0.from_dict(data)
-
-
+                example_mission_ids_type_0 = (
+                    FeedbackPatternResponseExampleMissionIdsType0.from_dict(data)
+                )
 
                 return example_mission_ids_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(FeedbackPatternResponseExampleMissionIdsType0 | None | Unset, data)
+            return cast(
+                FeedbackPatternResponseExampleMissionIdsType0 | None | Unset, data
+            )
 
-        example_mission_ids = _parse_example_mission_ids(d.pop("example_mission_ids", UNSET))
-
+        example_mission_ids = _parse_example_mission_ids(
+            d.pop("example_mission_ids", UNSET)
+        )
 
         def _parse_suggested_fix(data: object) -> None | str | Unset:
             if data is None:
@@ -155,7 +160,6 @@ class FeedbackPatternResponse:
             return cast(None | str | Unset, data)
 
         suggested_fix = _parse_suggested_fix(d.pop("suggested_fix", UNSET))
-
 
         status = d.pop("status", UNSET)
 
@@ -169,15 +173,12 @@ class FeedbackPatternResponse:
                     raise TypeError()
                 created_at_type_0 = isoparse(data)
 
-
-
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         feedback_pattern_response = cls(
             id=id,
@@ -190,7 +191,6 @@ class FeedbackPatternResponse:
             status=status,
             created_at=created_at,
         )
-
 
         feedback_pattern_response.additional_properties = d
         return feedback_pattern_response

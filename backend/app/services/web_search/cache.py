@@ -2,6 +2,7 @@
 Web Search Cache Service
 Multi-layer caching with semantic deduplication
 """
+
 import asyncio
 import hashlib
 import json
@@ -29,7 +30,7 @@ class SearchCache:
         self,
         redis_url: str | None = None,
         max_memory_items: int = 1000,
-        default_ttl: int = 86400  # 1 day
+        default_ttl: int = 86400,  # 1 day
     ):
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
         self.max_memory_items = max_memory_items
@@ -64,11 +65,7 @@ class SearchCache:
         normalized = query.lower().strip()
         return f"search:{search_type.value}:{hashlib.sha256(normalized.encode()).hexdigest()[:16]}"
 
-    async def get(
-        self,
-        query: str,
-        search_type: SearchType
-    ) -> SearchResponse | None:
+    async def get(self, query: str, search_type: SearchType) -> SearchResponse | None:
         """Get cached search response"""
         cache_key = self._query_hash(query, search_type)
 
@@ -84,8 +81,7 @@ class SearchCache:
         if redis_client:
             try:
                 cached = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: redis_client.get(cache_key)
+                    None, lambda: redis_client.get(cache_key)
                 )
                 if cached:
                     response = self._deserialize_response(cached)
@@ -100,11 +96,7 @@ class SearchCache:
         self._misses += 1
         return None
 
-    async def set(
-        self,
-        response: SearchResponse,
-        ttl: int | None = None
-    ) -> bool:
+    async def set(self, response: SearchResponse, ttl: int | None = None) -> bool:
         """Cache search response"""
         cache_key = self._query_hash(response.query, response.search_type)
 
@@ -123,8 +115,7 @@ class SearchCache:
             try:
                 serialized = self._serialize_response(response)
                 await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: redis_client.setex(cache_key, ttl, serialized)
+                    None, lambda: redis_client.setex(cache_key, ttl, serialized)
                 )
                 logger.debug(f"Cached response for: {response.query[:50]}")
             except Exception as e:
@@ -165,7 +156,7 @@ class SearchCache:
                     "rank": r.rank,
                     "score": r.score,
                     "content": r.content,
-                    "metadata": r.metadata
+                    "metadata": r.metadata,
                 }
                 for r in response.results
             ],
@@ -173,7 +164,7 @@ class SearchCache:
             "search_type": response.search_type.value,
             "total_results": response.total_results,
             "latency_ms": response.latency_ms,
-            "query_hash": response.query_hash
+            "query_hash": response.query_hash,
         }
         return json.dumps(data)
 
@@ -191,7 +182,7 @@ class SearchCache:
                     rank=r["rank"],
                     score=r["score"],
                     content=r.get("content"),
-                    metadata=r.get("metadata", {})
+                    metadata=r.get("metadata", {}),
                 )
                 for r in obj["results"]
             ],
@@ -200,7 +191,7 @@ class SearchCache:
             total_results=obj["total_results"],
             latency_ms=obj["latency_ms"],
             cached=True,
-            query_hash=obj.get("query_hash", "")
+            query_hash=obj.get("query_hash", ""),
         )
 
     def _evict_if_needed(self):
@@ -208,7 +199,9 @@ class SearchCache:
         if len(self._memory_cache) >= self.max_memory_items:
             # Remove oldest 10%
             items_to_remove = self.max_memory_items // 10
-            sorted_keys = sorted(self._access_times.keys(), key=lambda k: self._access_times[k])
+            sorted_keys = sorted(
+                self._access_times.keys(), key=lambda k: self._access_times[k]
+            )
 
             for key in sorted_keys[:items_to_remove]:
                 del self._memory_cache[key]
@@ -229,8 +222,7 @@ class SearchCache:
         if redis_client:
             try:
                 await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: redis_client.delete(cache_key)
+                    None, lambda: redis_client.delete(cache_key)
                 )
             except Exception as e:
                 logger.warning(f"Redis delete error: {e}")
@@ -246,7 +238,7 @@ class SearchCache:
             "misses": self._misses,
             "hit_rate": round(hit_rate, 3),
             "memory_items": len(self._memory_cache),
-            "redis_available": self._redis_available
+            "redis_available": self._redis_available,
         }
 
 
@@ -260,9 +252,7 @@ class ResultDeduplicator:
         self.similarity_threshold = similarity_threshold
 
     def deduplicate(
-        self,
-        results: list[SearchResult],
-        max_results: int = 10
+        self, results: list[SearchResult], max_results: int = 10
     ) -> list[SearchResult]:
         """
         Remove duplicate/near-duplicate results
@@ -283,7 +273,10 @@ class ResultDeduplicator:
             # Check for duplicates
             is_duplicate = False
             for seen_hash in seen_hashes:
-                if self._similarity(content_hash, seen_hash) >= self.similarity_threshold:
+                if (
+                    self._similarity(content_hash, seen_hash)
+                    >= self.similarity_threshold
+                ):
                     is_duplicate = True
                     break
 

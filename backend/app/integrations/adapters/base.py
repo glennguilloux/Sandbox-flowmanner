@@ -110,9 +110,7 @@ class BaseIntegrationAdapter(ABC):
 
     # ── Token refresh (override in subclasses that support refresh) ────────
 
-    async def _refresh_token(
-        self, connection: UserOAuthConnection
-    ) -> str | None:
+    async def _refresh_token(self, connection: UserOAuthConnection) -> str | None:
         """Attempt to refresh the OAuth access token.
 
         Subclasses override this if the provider supports refresh tokens

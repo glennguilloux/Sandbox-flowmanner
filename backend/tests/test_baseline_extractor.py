@@ -27,7 +27,9 @@ def _make_state(
     state = MagicMock()
     state.total_cost_usd = total_cost_usd
     state.started_at = started_at or datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    state.last_event_at = last_event_at or datetime(2026, 1, 1, 0, 0, 30, tzinfo=timezone.utc)
+    state.last_event_at = last_event_at or datetime(
+        2026, 1, 1, 0, 0, 30, tzinfo=timezone.utc
+    )
     state.completed_tasks = set(completed_tasks or ["task_1", "task_2"])
     state.failed_tasks = set()
     return state
@@ -36,8 +38,12 @@ def _make_state(
 class TestBaselineExtractorInit:
     def test_init_uses_defaults(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
-        with patch("app.services.substrate.baseline_extractor.get_event_log") as mock_el, \
-             patch("app.services.substrate.baseline_extractor.get_replay_engine") as mock_re:
+
+        with patch(
+            "app.services.substrate.baseline_extractor.get_event_log"
+        ) as mock_el, patch(
+            "app.services.substrate.baseline_extractor.get_replay_engine"
+        ) as mock_re:
             mock_el.return_value = MagicMock()
             mock_re.return_value = MagicMock()
             extractor = BaselineExtractor()
@@ -49,6 +55,7 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_extract_returns_five_behavior_types(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
@@ -68,16 +75,21 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_extract_with_tool_events_generates_tool_sequence(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
 
         extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state())
-        extractor._event_log.get_events = AsyncMock(return_value=[
-            _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "web_search"}),
-            _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "code_executor"}),
-            _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "web_search"}),
-        ])
+        extractor._event_log.get_events = AsyncMock(
+            return_value=[
+                _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "web_search"}),
+                _make_event(
+                    SubstrateEventType.TOOL_CALL, {"tool_name": "code_executor"}
+                ),
+                _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "web_search"}),
+            ]
+        )
 
         db = AsyncMock()
         behaviors = await extractor.extract_from_run(db, "run-1")
@@ -91,15 +103,18 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_extract_no_tools_omits_tool_sequence(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
 
         extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state())
         # Only non-tool events
-        extractor._event_log.get_events = AsyncMock(return_value=[
-            _make_event(SubstrateEventType.MISSION_STARTED, {}),
-        ])
+        extractor._event_log.get_events = AsyncMock(
+            return_value=[
+                _make_event(SubstrateEventType.MISSION_STARTED, {}),
+            ]
+        )
 
         db = AsyncMock()
         behaviors = await extractor.extract_from_run(db, "run-1")
@@ -110,6 +125,7 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_cost_ceiling_uses_headroom_multiplier(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
@@ -129,6 +145,7 @@ class TestExtractFromRun:
     async def test_latency_ceiling_uses_headroom_multiplier(self):
         from datetime import timedelta
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
@@ -148,6 +165,7 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_latency_defaults_to_300_when_no_timestamps(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
@@ -167,6 +185,7 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_task_completion_reflects_completed_count(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
@@ -186,6 +205,7 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_no_circuit_breaker_always_present(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
+
         extractor = BaselineExtractor()
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
@@ -208,8 +228,9 @@ class TestGetBaselineExtractor:
         original = mod._extractor
         try:
             mod._extractor = None  # reset singleton
-            with patch("app.services.substrate.baseline_extractor.get_event_log"), \
-                 patch("app.services.substrate.baseline_extractor.get_replay_engine"):
+            with patch(
+                "app.services.substrate.baseline_extractor.get_event_log"
+            ), patch("app.services.substrate.baseline_extractor.get_replay_engine"):
                 e1 = get_baseline_extractor()
                 e2 = get_baseline_extractor()
                 assert e1 is e2

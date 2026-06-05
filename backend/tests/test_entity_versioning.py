@@ -26,11 +26,15 @@ class TestModelSchema:
 
     def test_agent_has_version_column(self):
         from app.models.agent import Agent
+
         cols = {c.name for c in Agent.__table__.columns}
-        assert "version" in cols, f"Agent missing 'version' column. Columns: {sorted(cols)}"
+        assert (
+            "version" in cols
+        ), f"Agent missing 'version' column. Columns: {sorted(cols)}"
 
     def test_agent_version_table_exists(self):
         from app.models.agent import AgentVersion
+
         assert AgentVersion.__tablename__ == "agent_versions"
         cols = {c.name for c in AgentVersion.__table__.columns}
         assert "agent_id" in cols
@@ -40,11 +44,15 @@ class TestModelSchema:
 
     def test_workspace_has_version_column(self):
         from app.models.workspace_models import Workspace
+
         cols = {c.name for c in Workspace.__table__.columns}
-        assert "version" in cols, f"Workspace missing 'version' column. Columns: {sorted(cols)}"
+        assert (
+            "version" in cols
+        ), f"Workspace missing 'version' column. Columns: {sorted(cols)}"
 
     def test_workspace_version_table_exists(self):
         from app.models.workspace_models import WorkspaceVersion
+
         assert WorkspaceVersion.__tablename__ == "workspace_versions"
         cols = {c.name for c in WorkspaceVersion.__table__.columns}
         assert "workspace_id" in cols
@@ -54,16 +62,24 @@ class TestModelSchema:
 
     def test_mission_has_version_column(self):
         from app.models.mission_models import Mission
+
         cols = {c.name for c in Mission.__table__.columns}
-        assert "version" in cols, f"Mission missing 'version' column. Columns: {sorted(cols)}"
+        assert (
+            "version" in cols
+        ), f"Mission missing 'version' column. Columns: {sorted(cols)}"
 
     def test_mission_version_table_normalized(self):
         from app.models.mission_advanced_models import MissionVersion
+
         assert MissionVersion.__tablename__ == "mission_versions"
         cols = {c.name for c in MissionVersion.__table__.columns}
         # Should use 'version' not 'version_number'
-        assert "version" in cols, f"MissionVersion should have 'version' column, has: {sorted(cols)}"
-        assert "version_number" not in cols, "MissionVersion should not have legacy 'version_number'"
+        assert (
+            "version" in cols
+        ), f"MissionVersion should have 'version' column, has: {sorted(cols)}"
+        assert (
+            "version_number" not in cols
+        ), "MissionVersion should not have legacy 'version_number'"
         assert "mission_id" in cols
         assert "title" in cols  # individual columns, not snapshot JSONB
         assert "plan" in cols
@@ -74,12 +90,14 @@ class TestModelSchema:
     def test_version_models_registered_with_base(self):
         """Verify all version models are importable via __init__.py."""
         from app.models import AgentVersion, WorkspaceVersion, MissionVersion
+
         assert AgentVersion.__tablename__ == "agent_versions"
         assert WorkspaceVersion.__tablename__ == "workspace_versions"
         assert MissionVersion.__tablename__ == "mission_versions"
 
     def test_agent_version_defaults(self):
         from app.models.agent import Agent, AgentVersion
+
         # Agent version defaults to 1
         a = Agent.__table__
         version_col = a.columns["version"]
@@ -87,6 +105,7 @@ class TestModelSchema:
 
     def test_workspace_version_defaults(self):
         from app.models.workspace_models import Workspace
+
         ws = Workspace.__table__
         version_col = ws.columns["version"]
         # server_default is "1"
@@ -101,12 +120,14 @@ class TestVersioningService:
 
     def test_entity_registry_covers_all_types(self):
         from app.services.versioning import _ENTITY_REGISTRY
+
         assert "agent" in _ENTITY_REGISTRY
         assert "workspace" in _ENTITY_REGISTRY
         assert "mission" in _ENTITY_REGISTRY
 
     def test_snapshot_agent(self):
         from app.services.versioning import _snapshot_agent
+
         agent = MagicMock()
         agent.id = "test-id"
         agent.name = "Test Agent"
@@ -124,6 +145,7 @@ class TestVersioningService:
 
     def test_snapshot_workspace(self):
         from app.services.versioning import _snapshot_workspace
+
         ws = MagicMock()
         ws.id = "ws-1"
         ws.name = "My Workspace"
@@ -142,6 +164,7 @@ class TestVersioningService:
 
     def test_snapshot_mission(self):
         from app.services.versioning import _snapshot_mission
+
         mission = MagicMock()
         mission.id = uuid4()
         mission.user_id = 1
@@ -164,6 +187,7 @@ class TestVersioningService:
     @pytest.mark.asyncio
     async def test_create_version_snapshot_unknown_type(self):
         from app.services.versioning import create_version_snapshot
+
         db = AsyncMock()
 
         entity = MagicMock()
@@ -175,6 +199,7 @@ class TestVersioningService:
     @pytest.mark.asyncio
     async def test_create_version_snapshot_increments_version(self):
         from app.services.versioning import create_version_snapshot
+
         db = AsyncMock()
         db.add = MagicMock()
 
@@ -191,7 +216,10 @@ class TestVersioningService:
         agent.state = "active"
 
         new_version = await create_version_snapshot(
-            db, "agent", agent, change_summary="initial config",
+            db,
+            "agent",
+            agent,
+            change_summary="initial config",
         )
 
         assert new_version == 2
@@ -201,6 +229,7 @@ class TestVersioningService:
     @pytest.mark.asyncio
     async def test_create_version_snapshot_first_version(self):
         from app.services.versioning import create_version_snapshot
+
         db = AsyncMock()
         db.add = MagicMock()
 
@@ -234,6 +263,7 @@ class TestVersionRetrieval:
     @pytest.mark.asyncio
     async def test_get_version_history_unknown_type(self):
         from app.services.versioning import get_version_history
+
         db = AsyncMock()
         with pytest.raises(ValueError, match="Unknown entity_type"):
             await get_version_history(db, "nope", "id-1")
@@ -241,6 +271,7 @@ class TestVersionRetrieval:
     @pytest.mark.asyncio
     async def test_get_version_snapshot_unknown_type(self):
         from app.services.versioning import get_version_snapshot
+
         db = AsyncMock()
         with pytest.raises(ValueError, match="Unknown entity_type"):
             await get_version_snapshot(db, "nope", "id-1", 1)
@@ -318,7 +349,12 @@ class TestMigrationStructure:
         from pathlib import Path
         import importlib.util
 
-        migration_path = Path(__file__).parent.parent / "alembic" / "versions" / "20260605_entity_versioning.py"
+        migration_path = (
+            Path(__file__).parent.parent
+            / "alembic"
+            / "versions"
+            / "20260605_entity_versioning.py"
+        )
         spec = importlib.util.spec_from_file_location(
             "20260605_entity_versioning",
             str(migration_path),

@@ -11,7 +11,9 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.agent_template_response_config_data_type_0 import AgentTemplateResponseConfigDataType0
+    from ..models.agent_template_response_config_data_type_0 import (
+        AgentTemplateResponseConfigDataType0,
+    )
 
 
 T = TypeVar("T", bound="AgentTemplateResponse")
@@ -46,7 +48,9 @@ class AgentTemplateResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.agent_template_response_config_data_type_0 import AgentTemplateResponseConfigDataType0
+        from ..models.agent_template_response_config_data_type_0 import (
+            AgentTemplateResponseConfigDataType0,
+        )
 
         id = self.id
 
@@ -107,7 +111,9 @@ class AgentTemplateResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.agent_template_response_config_data_type_0 import AgentTemplateResponseConfigDataType0
+        from ..models.agent_template_response_config_data_type_0 import (
+            AgentTemplateResponseConfigDataType0,
+        )
 
         d = dict(src_dict)
         id = d.pop("id")
@@ -169,7 +175,9 @@ class AgentTemplateResponse:
 
         updated_at = _parse_updated_at(d.pop("updated_at"))
 
-        def _parse_config_data(data: object) -> AgentTemplateResponseConfigDataType0 | None | Unset:
+        def _parse_config_data(
+            data: object,
+        ) -> AgentTemplateResponseConfigDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -177,7 +185,9 @@ class AgentTemplateResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                config_data_type_0 = AgentTemplateResponseConfigDataType0.from_dict(data)
+                config_data_type_0 = AgentTemplateResponseConfigDataType0.from_dict(
+                    data
+                )
 
                 return config_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

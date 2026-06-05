@@ -59,7 +59,8 @@ def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS):
 
         if not _validate_key(key):
             return _make_error_response(
-                400, "INVALID_IDEMPOTENCY_KEY",
+                400,
+                "INVALID_IDEMPOTENCY_KEY",
                 "Idempotency-Key must be 1-255 alphanumeric/dash/underscore chars",
             )
 
@@ -87,9 +88,13 @@ def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS):
             else:
                 if existing.request_hash != request_hash:
                     return _make_error_response(
-                        409, "IDEMPOTENCY_CONFLICT",
+                        409,
+                        "IDEMPOTENCY_CONFLICT",
                         "Idempotency key reused with different request payload",
-                        details={"idempotency_key": key, "original_endpoint": existing.endpoint},
+                        details={
+                            "idempotency_key": key,
+                            "original_endpoint": existing.endpoint,
+                        },
                     )
 
                 existing.cache_hits = (existing.cache_hits or 0) + 1
@@ -123,7 +128,8 @@ def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS):
 
 def _validate_key(key: str) -> bool:
     import re
-    return bool(key and 1 <= len(key) <= 255 and re.match(r'^[\w\-]+$', key))
+
+    return bool(key and 1 <= len(key) <= 255 and re.match(r"^[\w\-]+$", key))
 
 
 def _hash_request(method: str, path: str, body: str) -> str:
@@ -134,7 +140,9 @@ def _is_204_no_content(status: int) -> bool:
     return status == 204
 
 
-def _make_error_response(status: int, code: str, msg: str, details: dict | None = None) -> JSONResponse:
+def _make_error_response(
+    status: int, code: str, msg: str, details: dict | None = None
+) -> JSONResponse:
     return JSONResponse(
         status_code=status,
         content={
@@ -192,14 +200,22 @@ class IdempotencyFinalizationMiddleware:
         # Finalize idempotency record if one was stashed
         record = getattr(request.state, "_idempotency_record", None)
         if record is not None:
-            await self._finalize(record, response_status[0], response_headers[0], b"".join(response_body_chunks))
+            await self._finalize(
+                record,
+                response_status[0],
+                response_headers[0],
+                b"".join(response_body_chunks),
+            )
 
-    async def _finalize(self, record: IdempotencyKey, status: int, headers: list, body_bytes: bytes):
+    async def _finalize(
+        self, record: IdempotencyKey, status: int, headers: list, body_bytes: bytes
+    ):
         try:
             from app.database import AsyncSessionLocal
 
             async with AsyncSessionLocal() as session:
                 from sqlalchemy import select as sa_select
+
                 result = await session.execute(
                     sa_select(IdempotencyKey).where(IdempotencyKey.id == record.id)
                 )
@@ -219,7 +235,9 @@ class IdempotencyFinalizationMiddleware:
                 fresh.last_accessed_at = datetime.now(UTC)
                 await session.commit()
         except Exception:
-            logger.warning("idempotency_finalize_failed", record_id=record.id, exc_info=True)
+            logger.warning(
+                "idempotency_finalize_failed", record_id=record.id, exc_info=True
+            )
 
 
 def _safe_headers(headers: list) -> dict[str, str]:

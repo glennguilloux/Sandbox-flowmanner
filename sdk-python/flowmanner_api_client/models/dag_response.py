@@ -1,102 +1,77 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.dag_node import DAGNode
-  from ..models.dag_response_edges_item import DAGResponseEdgesItem
-
-
-
+    from ..models.dag_node import DAGNode
+    from ..models.dag_response_edges_item import DAGResponseEdgesItem
 
 
 T = TypeVar("T", bound="DAGResponse")
 
 
-
 @_attrs_define
 class DAGResponse:
-    """ 
-        Attributes:
-            nodes (list[DAGNode]):
-            edges (list[DAGResponseEdgesItem]):
-     """
+    """
+    Attributes:
+        nodes (list[DAGNode]):
+        edges (list[DAGResponseEdgesItem]):
+    """
 
     nodes: list[DAGNode]
     edges: list[DAGResponseEdgesItem]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.dag_node import DAGNode
-        from ..models.dag_response_edges_item import DAGResponseEdgesItem
         nodes = []
         for nodes_item_data in self.nodes:
             nodes_item = nodes_item_data.to_dict()
             nodes.append(nodes_item)
-
-
 
         edges = []
         for edges_item_data in self.edges:
             edges_item = edges_item_data.to_dict()
             edges.append(edges_item)
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "nodes": nodes,
-            "edges": edges,
-        })
+        field_dict.update(
+            {
+                "nodes": nodes,
+                "edges": edges,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.dag_node import DAGNode
         from ..models.dag_response_edges_item import DAGResponseEdgesItem
+
         d = dict(src_dict)
         nodes = []
         _nodes = d.pop("nodes")
-        for nodes_item_data in (_nodes):
+        for nodes_item_data in _nodes:
             nodes_item = DAGNode.from_dict(nodes_item_data)
-
-
 
             nodes.append(nodes_item)
 
-
         edges = []
         _edges = d.pop("edges")
-        for edges_item_data in (_edges):
+        for edges_item_data in _edges:
             edges_item = DAGResponseEdgesItem.from_dict(edges_item_data)
 
-
-
             edges.append(edges_item)
-
 
         dag_response = cls(
             nodes=nodes,
             edges=edges,
         )
-
 
         dag_response.additional_properties = d
         return dag_response

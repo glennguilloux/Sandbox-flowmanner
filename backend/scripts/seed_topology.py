@@ -52,9 +52,11 @@ async def run():
             try:
                 data = json.loads(GRAPH_JSON_PATH.read_text())
                 source = "imported"
-                logger.info("Loaded graph.json: %d nodes, %d links",
-                            len(data.get("nodes", [])),
-                            len(data.get("links", data.get("edges", []))))
+                logger.info(
+                    "Loaded graph.json: %d nodes, %d links",
+                    len(data.get("nodes", [])),
+                    len(data.get("links", data.get("edges", []))),
+                )
             except Exception as exc:
                 logger.warning("Failed to read graph.json: %s", exc)
                 data = None
@@ -63,9 +65,11 @@ async def run():
         if data is None:
             data = await _build_synthetic_topology(conn)
             source = "computed"
-            logger.info("Built synthetic topology: %d nodes, %d edges",
-                        len(data.get("nodes", [])),
-                        len(data.get("edges", [])))
+            logger.info(
+                "Built synthetic topology: %d nodes, %d edges",
+                len(data.get("nodes", [])),
+                len(data.get("edges", [])),
+            )
 
         # Insert snapshot
         snapshot_id = str(uuid4())
@@ -77,14 +81,16 @@ async def run():
             data["edges"] = data.pop("links")
 
         await conn.execute(
-            sa_text("""
+            sa_text(
+                """
                 INSERT INTO topology_snapshots
                     (id, version, description, node_count, edge_count,
                      community_count, source, snapshot_data, created_at, updated_at)
                 VALUES
                     (:id, 1, :description, :node_count, :edge_count,
                      0, :source, CAST(:snapshot_data AS jsonb), :now, :now)
-            """),
+            """
+            ),
             {
                 "id": snapshot_id,
                 "description": f"Initial topology snapshot from {source}",
@@ -97,8 +103,13 @@ async def run():
         )
 
     await engine.dispose()
-    logger.info("Topology snapshot seeded: id=%s, source=%s, %d nodes, %d edges",
-                snapshot_id, source, len(nodes), len(edges))
+    logger.info(
+        "Topology snapshot seeded: id=%s, source=%s, %d nodes, %d edges",
+        snapshot_id,
+        source,
+        len(nodes),
+        len(edges),
+    )
 
 
 async def _build_synthetic_topology(conn) -> dict:
@@ -113,61 +124,81 @@ async def _build_synthetic_topology(conn) -> dict:
     edges = []
 
     # Agent template nodes
-    r = await conn.execute(sa_text(
-        "SELECT template_id, slug, name, agent_type FROM agent_templates WHERE is_active = true"
-    ))
+    r = await conn.execute(
+        sa_text(
+            "SELECT template_id, slug, name, agent_type FROM agent_templates WHERE is_active = true"
+        )
+    )
     agents = r.fetchall()
     for agent in agents:
-        nodes.append({
-            "id": agent.slug,
-            "label": agent.name,
-            "stack": agent.agent_type or "agent",
-            "type": "agent",
-        })
+        nodes.append(
+            {
+                "id": agent.slug,
+                "label": agent.name,
+                "stack": agent.agent_type or "agent",
+                "type": "agent",
+            }
+        )
 
     # Tool nodes (from bindings)
-    r = await conn.execute(sa_text("""
+    r = await conn.execute(
+        sa_text(
+            """
         SELECT DISTINCT tc.slug, tc.name, tc.category
         FROM agent_tool_bindings atb
         JOIN tools_catalog tc ON atb.tool_id = tc.id
-    """))
+    """
+        )
+    )
     tools = r.fetchall()
     for tool in tools:
-        nodes.append({
-            "id": tool.slug,
-            "label": tool.name,
-            "stack": tool.category or "tool",
-            "type": "tool",
-        })
+        nodes.append(
+            {
+                "id": tool.slug,
+                "label": tool.name,
+                "stack": tool.category or "tool",
+                "type": "tool",
+            }
+        )
 
     # Edges: agent → tool (from bindings)
-    r = await conn.execute(sa_text("""
+    r = await conn.execute(
+        sa_text(
+            """
         SELECT at.slug as agent_slug, tc.slug as tool_slug
         FROM agent_tool_bindings atb
         JOIN agent_templates at ON atb.agent_id = at.template_id
         JOIN tools_catalog tc ON atb.tool_id = tc.id
-    """))
+    """
+        )
+    )
     bindings = r.fetchall()
     for b in bindings:
-        edges.append({
-            "source": b.agent_slug,
-            "target": b.tool_slug,
-            "relation": "uses",
-            "confidence": "DECLARED",
-        })
+        edges.append(
+            {
+                "source": b.agent_slug,
+                "target": b.tool_slug,
+                "relation": "uses",
+                "confidence": "DECLARED",
+            }
+        )
 
     # Capability nodes (from catalog, top-level only)
-    r = await conn.execute(sa_text(
-        "SELECT slug, name, category FROM capabilities_catalog WHERE enabled = true LIMIT 50"
-    ))
+    r = await conn.execute(
+        sa_text(
+            "SELECT slug, name, category FROM capabilities_catalog WHERE enabled = true LIMIT 50"
+        )
+    )
     caps = r.fetchall()
     for cap in caps:
-        nodes.append({
-            "id": cap.slug,
-            "label": cap.name,
-            "stack": cap.category or "capability",
-            "type": "capability",
-        })
+        nodes.append(
+            {
+                "id": cap.slug,
+                "label": cap.name,
+                "stack": cap.category or "capability",
+                "type": "capability",
+            }
+        )
 
     return {"nodes": nodes, "edges": edges}
 

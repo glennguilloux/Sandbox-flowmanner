@@ -16,11 +16,12 @@ Base = declarative_base()
 class WorkflowConfig(Base):
     """
     Workflow configuration model.
-    
+
     Stores workflow configurations with metadata for reuse.
     """
+
     __tablename__ = "workflow_configs"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     config_id = Column(String(255), unique=True, nullable=False, index=True)
     workflow_id = Column(String(255), nullable=False, index=True)
@@ -31,13 +32,13 @@ class WorkflowConfig(Base):
     is_active = Column(String(10), default="true")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Indexes
     __table_args__ = (
-        Index('idx_workflow_configs_workflow_id', 'workflow_id'),
-        Index('idx_workflow_configs_user_id', 'user_id'),
+        Index("idx_workflow_configs_workflow_id", "workflow_id"),
+        Index("idx_workflow_configs_user_id", "user_id"),
     )
-    
+
     def to_dict(self):
         return {
             "config_id": self.config_id,
@@ -55,11 +56,12 @@ class WorkflowConfig(Base):
 class SessionState(Base):
     """
     Agent session state model.
-    
+
     Stores LangGraph agent session states for persistence.
     """
+
     __tablename__ = "session_states"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(255), unique=True, nullable=False, index=True)
     state_data = Column(JSON, nullable=False)
@@ -67,13 +69,13 @@ class SessionState(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at = Column(DateTime)
-    
+
     # Indexes
     __table_args__ = (
-        Index('idx_session_states_user_id', 'user_id'),
-        Index('idx_session_states_expires_at', 'expires_at'),
+        Index("idx_session_states_user_id", "user_id"),
+        Index("idx_session_states_expires_at", "expires_at"),
     )
-    
+
     def to_dict(self):
         return {
             "session_id": self.session_id,

@@ -34,8 +34,6 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 logger = logging.getLogger(__name__)
 
 
-
-
 # -- persistent_agent_memory ------------------------------------------
 
 
@@ -44,9 +42,15 @@ class PersistentAgentMemoryInput(ToolInput):
 
     action: str = Field(..., description="Action: 'save', 'recall', or 'list'")
     agent_id: str = Field("default", description="Agent session identifier")
-    user_id: int | None = Field(None, description="User ID (auto-set from auth context if omitted)")
-    content: str | None = Field(None, description="Content to save (required for 'save')")
-    content_type: str = Field("note", description="Type of content: 'note', 'summary', 'context'")
+    user_id: int | None = Field(
+        None, description="User ID (auto-set from auth context if omitted)"
+    )
+    content: str | None = Field(
+        None, description="Content to save (required for 'save')"
+    )
+    content_type: str = Field(
+        "note", description="Type of content: 'note', 'summary', 'context'"
+    )
     query: str | None = Field(None, description="Search query (required for 'recall')")
     limit: int = Field(10, ge=1, le=100, description="Max results for recall/list")
     metadata: dict | None = Field(None, description="Optional key-value metadata")
@@ -76,7 +80,11 @@ class PersistentAgentMemoryTool(BaseTool):
 
         # Resolve user_id: explicit input > auth context > default
         context = input_data.get("context", {}) or {}
-        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
+        user_id = (
+            validated.user_id
+            if validated.user_id is not None
+            else context.get("user_id")
+        )
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -126,7 +134,9 @@ class PersistentAgentMemoryTool(BaseTool):
 
         logger.info(
             "Agent memory saved: id=%s agent=%s user=%s",
-            entry.id, agent_id, user_id,
+            entry.id,
+            agent_id,
+            user_id,
         )
         return ToolResult.success_result(
             tool_id=self.tool_id,
@@ -135,7 +145,9 @@ class PersistentAgentMemoryTool(BaseTool):
                 "id": entry.id,
                 "agent_id": agent_id,
                 "content_type": validated.content_type,
-                "created_at": entry.created_at.isoformat() if entry.created_at else None,
+                "created_at": (
+                    entry.created_at.isoformat() if entry.created_at else None
+                ),
             },
         )
 
@@ -171,7 +183,9 @@ class PersistentAgentMemoryTool(BaseTool):
                         "id": r.id,
                         "content": r.content,
                         "content_type": r.content_type,
-                        "created_at": r.created_at.isoformat() if r.created_at else None,
+                        "created_at": (
+                            r.created_at.isoformat() if r.created_at else None
+                        ),
                     }
                     for r in rows
                 ],
@@ -203,7 +217,9 @@ class PersistentAgentMemoryTool(BaseTool):
                         "id": r.id,
                         "content": r.content,
                         "content_type": r.content_type,
-                        "created_at": r.created_at.isoformat() if r.created_at else None,
+                        "created_at": (
+                            r.created_at.isoformat() if r.created_at else None
+                        ),
                     }
                     for r in rows
                 ],
@@ -240,7 +256,9 @@ class SemanticMemoryIndexTool(BaseTool):
         try:
             validated = SemanticMemoryIndexInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         context = input_data.get("context", {}) or {}
         user_id = context.get("user_id", 0)
@@ -258,19 +276,22 @@ class SemanticMemoryIndexTool(BaseTool):
 
             # Chunk the text
             chunks = await chunker.chunk_book(
-                validated.text, book_title=f"memory:{validated.conversation_id}",
+                validated.text,
+                book_title=f"memory:{validated.conversation_id}",
             )
             if not chunks:
-                chunks = [Chunk(
-                    id=str(uuid.uuid4()),
-                    book_title=f"memory:{validated.conversation_id}",
-                    text=validated.text,
-                    topics=[],
-                    relevance_score=0.5,
-                    chunk_index=0,
-                    total_chunks=1,
-                    created_at=datetime.now(UTC).isoformat(),
-                )]
+                chunks = [
+                    Chunk(
+                        id=str(uuid.uuid4()),
+                        book_title=f"memory:{validated.conversation_id}",
+                        text=validated.text,
+                        topics=[],
+                        relevance_score=0.5,
+                        chunk_index=0,
+                        total_chunks=1,
+                        created_at=datetime.now(UTC).isoformat(),
+                    )
+                ]
 
             # Make IDs deterministic for idempotency
             for chunk in chunks:
@@ -284,7 +305,11 @@ class SemanticMemoryIndexTool(BaseTool):
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
-                result={"indexed": True, "chunk_count": count, "collection": collection},
+                result={
+                    "indexed": True,
+                    "chunk_count": count,
+                    "collection": collection,
+                },
             )
         except Exception as e:
             logger.exception("semantic_memory_index failed")
@@ -321,7 +346,9 @@ class KnowledgeBaseConnectorTool(BaseTool):
         try:
             validated = KnowledgeBaseConnectorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         context = input_data.get("context", {}) or {}
         user_id = validated.user_id or context.get("user_id")
@@ -334,19 +361,30 @@ class KnowledgeBaseConnectorTool(BaseTool):
 
             if action == "search":
                 if not validated.query:
-                    return ToolResult.error_result(tool_id=self.tool_id, error="query is required for 'search'")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="query is required for 'search'"
+                    )
                 async with AsyncSessionLocal() as session:
                     pattern = f"%{validated.query}%"
                     result = await session.execute(
-                        text("SELECT id, title, description FROM community_templates WHERE title ILIKE :q OR description ILIKE :q OR content ILIKE :q LIMIT 10"),
+                        text(
+                            "SELECT id, title, description FROM community_templates WHERE title ILIKE :q OR description ILIKE :q OR content ILIKE :q LIMIT 10"
+                        ),
                         {"q": pattern},
                     )
                     rows = result.fetchall()
                     await session.close()
-                results = [{"id": str(r[0]), "title": r[1], "description": r[2]} for r in rows]
+                results = [
+                    {"id": str(r[0]), "title": r[1], "description": r[2]} for r in rows
+                ]
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
-                    result={"action": "search", "query": validated.query, "results": results, "count": len(results)},
+                    result={
+                        "action": "search",
+                        "query": validated.query,
+                        "results": results,
+                        "count": len(results),
+                    },
                 )
 
             elif action == "sync":
@@ -361,26 +399,44 @@ class KnowledgeBaseConnectorTool(BaseTool):
                 chunker = ChunkingService()
                 uid = user_id or 0
 
-                chunks = await chunker.chunk_book(validated.page_id, book_title=f"kb:{validated.page_id}")
+                chunks = await chunker.chunk_book(
+                    validated.page_id, book_title=f"kb:{validated.page_id}"
+                )
                 if not chunks:
-                    chunks = [Chunk(
-                        id=str(uuid.uuid4()), book_title=f"kb:{validated.page_id}",
-                        text=validated.page_id, topics=[], relevance_score=0.5,
-                        chunk_index=0, total_chunks=1, created_at=datetime.now(UTC).isoformat(),
-                    )]
+                    chunks = [
+                        Chunk(
+                            id=str(uuid.uuid4()),
+                            book_title=f"kb:{validated.page_id}",
+                            text=validated.page_id,
+                            topics=[],
+                            relevance_score=0.5,
+                            chunk_index=0,
+                            total_chunks=1,
+                            created_at=datetime.now(UTC).isoformat(),
+                        )
+                    ]
                 for c in chunks:
-                    c.id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"kb:{validated.page_id}:{c.text[:100]}"))
+                    c.id = str(
+                        uuid.uuid5(
+                            uuid.NAMESPACE_URL, f"kb:{validated.page_id}:{c.text[:100]}"
+                        )
+                    )
                 vectors = await embedder.embed([c.text for c in chunks])
                 count = await store.upsert_chunks(uid, chunks, vectors)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
-                    result={"action": "sync", "page_id": validated.page_id, "indexed_chunks": count},
+                    result={
+                        "action": "sync",
+                        "page_id": validated.page_id,
+                        "indexed_chunks": count,
+                    },
                 )
 
             elif action == "link":
                 from redis.asyncio import Redis
 
                 from app.config import settings
+
                 try:
                     r = Redis.from_url(settings.REDIS_URL, decode_responses=True)
                     key = f"kb_link:{validated.page_id}"
@@ -388,13 +444,22 @@ class KnowledgeBaseConnectorTool(BaseTool):
                     await r.expire(key, 86400 * 30)
                     await r.aclose()
                 except Exception:
-                    logger.debug("kb link: Redis unavailable, returning success without persistence")
+                    logger.debug(
+                        "kb link: Redis unavailable, returning success without persistence"
+                    )
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
-                    result={"action": "link", "page_id": validated.page_id, "linked": True},
+                    result={
+                        "action": "link",
+                        "page_id": validated.page_id,
+                        "linked": True,
+                    },
                 )
             else:
-                return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}. Use 'sync', 'search', or 'link'.")
+                return ToolResult.error_result(
+                    tool_id=self.tool_id,
+                    error=f"Unknown action: {action}. Use 'sync', 'search', or 'link'.",
+                )
         except Exception as e:
             logger.exception("knowledge_base_connector failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -429,7 +494,9 @@ class BrandVoiceEnforcerTool(BaseTool):
         try:
             validated = BrandVoiceEnforcerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             from app.services.brand_voice import evaluate_text, rewrite_text
@@ -440,7 +507,14 @@ class BrandVoiceEnforcerTool(BaseTool):
                     tool_id=self.tool_id,
                     result={
                         "score": result.score,
-                        "issues": [{"type": i.type, "excerpt": i.excerpt, "suggestion": i.suggestion} for i in result.issues],
+                        "issues": [
+                            {
+                                "type": i.type,
+                                "excerpt": i.excerpt,
+                                "suggestion": i.suggestion,
+                            }
+                            for i in result.issues
+                        ],
                         "passed": result.passed,
                     },
                 )
@@ -454,7 +528,10 @@ class BrandVoiceEnforcerTool(BaseTool):
                     },
                 )
             else:
-                return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {validated.action}. Use 'evaluate' or 'rewrite'.")
+                return ToolResult.error_result(
+                    tool_id=self.tool_id,
+                    error=f"Unknown action: {validated.action}. Use 'evaluate' or 'rewrite'.",
+                )
         except Exception as e:
             logger.exception("brand_voice_enforcer failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -467,8 +544,12 @@ class CollaborativeTeamSpaceInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
     space_id: str = Field(..., description="Space identifier")
-    action: str = Field("read", description="Action: 'create', 'join', 'post', 'read', or 'leave'")
-    content: str | None = Field(None, description="Content to post (required for 'post')")
+    action: str = Field(
+        "read", description="Action: 'create', 'join', 'post', 'read', or 'leave'"
+    )
+    content: str | None = Field(
+        None, description="Content to post (required for 'post')"
+    )
     agent_id: str = Field("default", description="Agent identifier")
 
 
@@ -490,7 +571,9 @@ class CollaborativeTeamSpaceTool(BaseTool):
         try:
             validated = CollaborativeTeamSpaceInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             from app.services.team_space import (
@@ -509,23 +592,41 @@ class CollaborativeTeamSpaceTool(BaseTool):
                 info = await create_space(space_id)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
-                    result={"action": "create", "space_id": info.space_id, "created_at": info.created_at},
+                    result={
+                        "action": "create",
+                        "space_id": info.space_id,
+                        "created_at": info.created_at,
+                    },
                 )
             elif action == "join":
                 info = await join_space(space_id, agent_id)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
-                    result={"action": "join", "space_id": space_id, "members": info.members},
+                    result={
+                        "action": "join",
+                        "space_id": space_id,
+                        "members": info.members,
+                    },
                 )
             elif action == "post":
                 if not validated.content:
-                    return ToolResult.error_result(tool_id=self.tool_id, error="content is required for 'post'")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id, error="content is required for 'post'"
+                    )
                 info = await post_message(space_id, agent_id, validated.content)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
-                        "action": "post", "space_id": space_id,
-                        "messages": [{"agent_id": m.agent_id, "content": m.content, "timestamp": m.timestamp} for m in info.messages],
+                        "action": "post",
+                        "space_id": space_id,
+                        "messages": [
+                            {
+                                "agent_id": m.agent_id,
+                                "content": m.content,
+                                "timestamp": m.timestamp,
+                            }
+                            for m in info.messages
+                        ],
                         "members": info.members,
                     },
                 )
@@ -534,16 +635,29 @@ class CollaborativeTeamSpaceTool(BaseTool):
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
-                        "action": "read", "space_id": space_id,
-                        "messages": [{"agent_id": m.agent_id, "content": m.content, "timestamp": m.timestamp} for m in info.messages],
-                        "members": info.members, "created_at": info.created_at,
+                        "action": "read",
+                        "space_id": space_id,
+                        "messages": [
+                            {
+                                "agent_id": m.agent_id,
+                                "content": m.content,
+                                "timestamp": m.timestamp,
+                            }
+                            for m in info.messages
+                        ],
+                        "members": info.members,
+                        "created_at": info.created_at,
                     },
                 )
             elif action == "leave":
                 info = await leave_space(space_id, agent_id)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
-                    result={"action": "leave", "space_id": space_id, "members": info.members},
+                    result={
+                        "action": "leave",
+                        "space_id": space_id,
+                        "members": info.members,
+                    },
                 )
             else:
                 return ToolResult.error_result(
@@ -560,7 +674,9 @@ class CollaborativeTeamSpaceTool(BaseTool):
 
 class PIIRedactorInput(ToolInput):
     text: str = Field(..., description="Text containing potentially sensitive data")
-    level: str = Field("standard", description="Redaction level: 'standard', 'strict', or 'custom'")
+    level: str = Field(
+        "standard", description="Redaction level: 'standard', 'strict', or 'custom'"
+    )
     redact_types: list[str] | None = Field(
         None,
         description="Specific PII types to redact: name, email, phone, ssn, credit_card, address",
@@ -585,7 +701,9 @@ class PIIRedactorTool(BaseTool):
         try:
             validated = PIIRedactorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             from app.services.pii_redactor import redact_pii
@@ -599,7 +717,15 @@ class PIIRedactorTool(BaseTool):
                 tool_id=self.tool_id,
                 result={
                     "redacted_text": result.redacted_text,
-                    "found": [{"type": h.type, "start": h.start, "end": h.end, "masked_value": h.masked_value} for h in result.found],
+                    "found": [
+                        {
+                            "type": h.type,
+                            "start": h.start,
+                            "end": h.end,
+                            "masked_value": h.masked_value,
+                        }
+                        for h in result.found
+                    ],
                     "count": result.count,
                 },
             )
@@ -615,7 +741,9 @@ class SemanticChunkingInput(ToolInput):
     text: str = Field(..., description="Document text to chunk")
     max_chunk_size: int = Field(512, description="Maximum tokens per chunk")
     overlap: int = Field(64, description="Token overlap between chunks")
-    strategy: str = Field("semantic", description="Strategy: 'semantic', 'paragraph', or 'sentence'")
+    strategy: str = Field(
+        "semantic", description="Strategy: 'semantic', 'paragraph', or 'sentence'"
+    )
 
 
 class SemanticChunkingTool(BaseTool):
@@ -636,12 +764,18 @@ class SemanticChunkingTool(BaseTool):
         try:
             validated = SemanticChunkingInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         if not validated.text or not validated.text.strip():
             return ToolResult.success_result(
                 tool_id=self.tool_id,
-                result={"chunks": [], "total_chunks": 0, "strategy": validated.strategy},
+                result={
+                    "chunks": [],
+                    "total_chunks": 0,
+                    "strategy": validated.strategy,
+                },
             )
 
         try:
@@ -657,6 +791,7 @@ class SemanticChunkingTool(BaseTool):
                 def _token_len(text: str) -> int:
                     try:
                         import tiktoken
+
                         return len(tiktoken.get_encoding("cl100k_base").encode(text))
                     except ImportError:
                         return len(text) // 4
@@ -671,20 +806,32 @@ class SemanticChunkingTool(BaseTool):
                 from datetime import datetime
 
                 from app.services.rag.chunking_service import Chunk
+
                 chunks = [
                     Chunk(
-                        id=str(uuid.uuid4()), book_title="user_input", text=t.strip(),
-                        topics=[], relevance_score=0.5, chunk_index=i, total_chunks=len(raw),
+                        id=str(uuid.uuid4()),
+                        book_title="user_input",
+                        text=t.strip(),
+                        topics=[],
+                        relevance_score=0.5,
+                        chunk_index=i,
+                        total_chunks=len(raw),
                         created_at=datetime.now(UTC).isoformat(),
                     )
-                    for i, t in enumerate(raw) if t.strip()
+                    for i, t in enumerate(raw)
+                    if t.strip()
                 ]
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={
                     "chunks": [
-                        {"id": c.id, "text": c.text, "topics": c.topics, "relevance_score": c.relevance_score}
+                        {
+                            "id": c.id,
+                            "text": c.text,
+                            "topics": c.topics,
+                            "relevance_score": c.relevance_score,
+                        }
                         for c in chunks
                     ],
                     "total_chunks": len(chunks),
@@ -701,8 +848,12 @@ class SemanticChunkingTool(BaseTool):
 
 class SubAgentRouterInput(ToolInput):
     task: str = Field(..., description="Task description to route")
-    available_agents: list[str] | None = Field(None, description="List of available agent IDs")
-    strategy: str = Field("auto", description="Routing strategy: 'auto', 'round_robin', or 'llm_select'")
+    available_agents: list[str] | None = Field(
+        None, description="List of available agent IDs"
+    )
+    strategy: str = Field(
+        "auto", description="Routing strategy: 'auto', 'round_robin', or 'llm_select'"
+    )
 
 
 class SubAgentRouterTool(BaseTool):
@@ -736,10 +887,15 @@ class SubAgentRouterTool(BaseTool):
             if not candidates:
                 try:
                     from app.services.agent_registry_service import AgentRegistry
+
                     registry = AgentRegistry()
                     agents = await registry.search_by_capability(validated.task)
                     candidates = [
-                        {"id": a.template_id, "name": a.name, "description": a.description or ""}
+                        {
+                            "id": a.template_id,
+                            "name": a.name,
+                            "description": a.description or "",
+                        }
                         for a in (agents or [])
                     ]
                 except Exception:
@@ -778,16 +934,19 @@ class SubAgentRouterTool(BaseTool):
             response = await enforcer.call(
                 budget=Budget(max_cost_usd=0.01),
                 model_id="deepseek-chat",
-                messages=[{
-                    "role": "system",
-                    "content": (
-                        "You are an agent router. Select the single best agent "
-                        "for the given task. Respond with ONLY the agent name."
-                    ),
-                }, {
-                    "role": "user",
-                    "content": f"Task: {validated.task}\n\nAvailable agents:\n{agent_list}",
-                }],
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an agent router. Select the single best agent "
+                            "for the given task. Respond with ONLY the agent name."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Task: {validated.task}\n\nAvailable agents:\n{agent_list}",
+                    },
+                ],
                 temperature=0.1,
                 max_tokens=50,
             )
@@ -855,18 +1014,21 @@ class TaskPlannerTool(BaseTool):
             response = await enforcer.call(
                 budget=Budget(max_cost_usd=0.02),
                 model_id="deepseek-chat",
-                messages=[{
-                    "role": "system",
-                    "content": (
-                        "You are a task planner. Decompose the objective into "
-                        "subtasks. Output a JSON array of objects with keys: "
-                        '"title", "description", "depends_on" (list of indices). '
-                        f"Produce at most {validated.max_steps} subtasks."
-                    ),
-                }, {
-                    "role": "user",
-                    "content": f"Objective: {validated.objective}{ctx}",
-                }],
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a task planner. Decompose the objective into "
+                            "subtasks. Output a JSON array of objects with keys: "
+                            '"title", "description", "depends_on" (list of indices). '
+                            f"Produce at most {validated.max_steps} subtasks."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Objective: {validated.objective}{ctx}",
+                    },
+                ],
                 temperature=0.2,
                 max_tokens=2000,
             )
@@ -888,13 +1050,15 @@ class TaskPlannerTool(BaseTool):
                     tasks = []
             if not isinstance(tasks, list):
                 # Fallback: return raw text as a single task
-                tasks = [{"title": validated.objective[:80], "description": content[:200]}]
+                tasks = [
+                    {"title": validated.objective[:80], "description": content[:200]}
+                ]
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={
                     "objective": validated.objective,
-                    "tasks": tasks[:validated.max_steps],
+                    "tasks": tasks[: validated.max_steps],
                     "total_tasks": len(tasks),
                     "model": response.get("model", "unknown"),
                 },
@@ -934,7 +1098,9 @@ class RAGContextBuilderTool(BaseTool):
         try:
             validated = RAGContextBuilderInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         context = input_data.get("context", {}) or {}
         user_id = validated.user_id or context.get("user_id", 0)
@@ -948,10 +1114,14 @@ class RAGContextBuilderTool(BaseTool):
             vector_store = QdrantVectorStore()
             embedding_service = EmbeddingService()
             router = get_model_router()
-            retrieval = RetrievalService(vector_store, embedding_service, llm_router=router)
+            retrieval = RetrievalService(
+                vector_store, embedding_service, llm_router=router
+            )
 
             # Retrieve relevant chunks
-            chunks = await retrieval.retrieve(user_id=user_id, query=validated.query, limit=validated.top_k)
+            chunks = await retrieval.retrieve(
+                user_id=user_id, query=validated.query, limit=validated.top_k
+            )
 
             if not chunks:
                 return ToolResult.success_result(
@@ -970,12 +1140,14 @@ class RAGContextBuilderTool(BaseTool):
                     break
                 context_parts.append(text)
                 token_count += est_tokens
-                sources.append({
-                    "chunk_id": chunk.id,
-                    "score": round(chunk.score, 4),
-                    "preview": text[:200],
-                    "book_title": chunk.book_title,
-                })
+                sources.append(
+                    {
+                        "chunk_id": chunk.id,
+                        "score": round(chunk.score, 4),
+                        "preview": text[:200],
+                        "book_title": chunk.book_title,
+                    }
+                )
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,

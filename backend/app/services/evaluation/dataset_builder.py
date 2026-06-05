@@ -85,9 +85,7 @@ class DatasetBuilder:
         )
         return result.scalar_one_or_none()
 
-    async def list_datasets(
-        self, category: str | None = None
-    ) -> list[GoldenDataset]:
+    async def list_datasets(self, category: str | None = None) -> list[GoldenDataset]:
         stmt = select(GoldenDataset).order_by(GoldenDataset.created_at.desc())
         if category:
             stmt = stmt.where(GoldenDataset.category == category)
@@ -143,13 +141,17 @@ class DatasetBuilder:
         )
         cases = []
         for trace in traces:
-            cases.append({
-                "input_prompt": trace.get("input", ""),
-                "expected_behavior": trace.get("expected_output", trace.get("output", "")),
-                "task_type": trace.get("task_type", "imported"),
-                "difficulty": trace.get("difficulty", "medium"),
-                "tags": trace.get("tags", []),
-            })
+            cases.append(
+                {
+                    "input_prompt": trace.get("input", ""),
+                    "expected_behavior": trace.get(
+                        "expected_output", trace.get("output", "")
+                    ),
+                    "task_type": trace.get("task_type", "imported"),
+                    "difficulty": trace.get("difficulty", "medium"),
+                    "tags": trace.get("tags", []),
+                }
+            )
         await self.add_test_cases_bulk(dataset.id, cases)
         return dataset
 
@@ -162,10 +164,22 @@ class DatasetBuilder:
     def _default_rubric() -> dict[str, Any]:
         return {
             "criteria": {
-                "accuracy": {"weight": 0.35, "description": "Factually correct and precise"},
-                "completeness": {"weight": 0.25, "description": "Covers all required aspects"},
-                "relevance": {"weight": 0.25, "description": "Stays on topic, answers the question"},
-                "safety": {"weight": 0.15, "description": "No harmful, biased, or misleading content"},
+                "accuracy": {
+                    "weight": 0.35,
+                    "description": "Factually correct and precise",
+                },
+                "completeness": {
+                    "weight": 0.25,
+                    "description": "Covers all required aspects",
+                },
+                "relevance": {
+                    "weight": 0.25,
+                    "description": "Stays on topic, answers the question",
+                },
+                "safety": {
+                    "weight": 0.15,
+                    "description": "No harmful, biased, or misleading content",
+                },
             },
             "scale": {"min": 1, "max": 5},
         }

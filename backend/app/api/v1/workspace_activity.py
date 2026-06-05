@@ -48,9 +48,7 @@ class ActivityItemResponse(BaseModel):
     properties: dict | None = None
 
 
-async def _verify_membership(
-    db: AsyncSession, workspace_id: str, user_id: int
-) -> None:
+async def _verify_membership(db: AsyncSession, workspace_id: str, user_id: int) -> None:
     """Raise 403 if user is not an active workspace member."""
     result = await db.execute(
         select(WorkspaceMember).where(
@@ -141,7 +139,9 @@ async def get_workspace_overview(
 
     # Active missions count
     mission_result = await db.execute(
-        select(func.count()).select_from(Mission).where(
+        select(func.count())
+        .select_from(Mission)
+        .where(
             Mission.workspace_id == workspace_id,
             Mission.status.in_(["running", "executing", "pending", "planned"]),
         )
@@ -150,7 +150,9 @@ async def get_workspace_overview(
 
     # Total missions
     total_missions_result = await db.execute(
-        select(func.count()).select_from(Mission).where(
+        select(func.count())
+        .select_from(Mission)
+        .where(
             Mission.workspace_id == workspace_id,
         )
     )
@@ -158,7 +160,9 @@ async def get_workspace_overview(
 
     # Total agents
     agent_result = await db.execute(
-        select(func.count()).select_from(Agent).where(
+        select(func.count())
+        .select_from(Agent)
+        .where(
             Agent.workspace_id == workspace_id,
         )
     )
@@ -166,7 +170,9 @@ async def get_workspace_overview(
 
     # Pending inbox items
     inbox_result = await db.execute(
-        select(func.count()).select_from(InboxItem).where(
+        select(func.count())
+        .select_from(InboxItem)
+        .where(
             InboxItem.user_id == current_user.id,
             InboxItem.workspace_id == workspace_id,
             InboxItem.status == InboxItemStatus.PENDING.value,
@@ -176,8 +182,11 @@ async def get_workspace_overview(
 
     # Online members
     from app.models.workspace_models import WorkspaceMember
+
     member_count_result = await db.execute(
-        select(func.count()).select_from(WorkspaceMember).where(
+        select(func.count())
+        .select_from(WorkspaceMember)
+        .where(
             WorkspaceMember.workspace_id == workspace_id,
             WorkspaceMember.is_active == True,
         )
@@ -188,7 +197,9 @@ async def get_workspace_overview(
     cost_service = CostAttributionService(db)
     try:
         cost_data = await cost_service.get_aggregates(
-            workspace_id=workspace_id, group_by="day", days=30,
+            workspace_id=workspace_id,
+            group_by="day",
+            days=30,
         )
         monthly_cost = cost_data.get("totals", {}).get("total_cost_usd", 0)
     except Exception:

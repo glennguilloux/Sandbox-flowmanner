@@ -1,37 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.trigger_update_config_type_0 import TriggerUpdateConfigType0
-
-
-
+    from ..models.trigger_update_config_type_0 import TriggerUpdateConfigType0
 
 
 T = TypeVar("T", bound="TriggerUpdate")
 
 
-
 @_attrs_define
 class TriggerUpdate:
-    """ 
-        Attributes:
-            name (None | str | Unset):
-            cron_expression (None | str | Unset):
-            cron_timezone (None | str | Unset):
-            config (None | TriggerUpdateConfigType0 | Unset):
-            status (None | str | Unset):
-     """
+    """
+    Attributes:
+        name (None | str | Unset):
+        cron_expression (None | str | Unset):
+        cron_timezone (None | str | Unset):
+        config (None | TriggerUpdateConfigType0 | Unset):
+        status (None | str | Unset):
+    """
 
     name: None | str | Unset = UNSET
     cron_expression: None | str | Unset = UNSET
@@ -40,12 +33,9 @@ class TriggerUpdate:
     status: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.trigger_update_config_type_0 import TriggerUpdateConfigType0
+
         name: None | str | Unset
         if isinstance(self.name, Unset):
             name = UNSET
@@ -78,11 +68,9 @@ class TriggerUpdate:
         else:
             status = self.status
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if name is not UNSET:
             field_dict["name"] = name
         if cron_expression is not UNSET:
@@ -96,12 +84,12 @@ class TriggerUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.trigger_update_config_type_0 import TriggerUpdateConfigType0
+
         d = dict(src_dict)
+
         def _parse_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -110,7 +98,6 @@ class TriggerUpdate:
             return cast(None | str | Unset, data)
 
         name = _parse_name(d.pop("name", UNSET))
-
 
         def _parse_cron_expression(data: object) -> None | str | Unset:
             if data is None:
@@ -121,7 +108,6 @@ class TriggerUpdate:
 
         cron_expression = _parse_cron_expression(d.pop("cron_expression", UNSET))
 
-
         def _parse_cron_timezone(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -130,7 +116,6 @@ class TriggerUpdate:
             return cast(None | str | Unset, data)
 
         cron_timezone = _parse_cron_timezone(d.pop("cron_timezone", UNSET))
-
 
         def _parse_config(data: object) -> None | TriggerUpdateConfigType0 | Unset:
             if data is None:
@@ -142,15 +127,12 @@ class TriggerUpdate:
                     raise TypeError()
                 config_type_0 = TriggerUpdateConfigType0.from_dict(data)
 
-
-
                 return config_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | TriggerUpdateConfigType0 | Unset, data)
 
         config = _parse_config(d.pop("config", UNSET))
-
 
         def _parse_status(data: object) -> None | str | Unset:
             if data is None:
@@ -161,7 +143,6 @@ class TriggerUpdate:
 
         status = _parse_status(d.pop("status", UNSET))
 
-
         trigger_update = cls(
             name=name,
             cron_expression=cron_expression,
@@ -169,7 +150,6 @@ class TriggerUpdate:
             config=config,
             status=status,
         )
-
 
         trigger_update.additional_properties = d
         return trigger_update

@@ -46,12 +46,14 @@ async def publish_user_notification(user_id: int, notification_data: dict) -> No
         await redis.aclose()
 
 
-async def user_notification_sse_stream(user_id: int, initial_unread_count: int = 0) -> AsyncGenerator[str, None]:
+async def user_notification_sse_stream(
+    user_id: int, initial_unread_count: int = 0
+) -> AsyncGenerator[str, None]:
     """
     SSE event stream for user notifications.
     Subscribes to Redis channel and yields events with proper SSE format
     for the frontend EventSource (notification and unread_count events).
-    
+
     Sends an initial unread_count event on connect so the frontend
     has the current count immediately.
     """

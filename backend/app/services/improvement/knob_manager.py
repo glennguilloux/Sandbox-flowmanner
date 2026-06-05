@@ -31,36 +31,39 @@ logger = logging.getLogger(__name__)
 # KNOB DATA STRUCTURES
 # ============================================================================
 
+
 @dataclass
 class ImprovementKnob:
     """
     Represents an improvement knob stored in AdaptationRuleDB.
-    
+
     Knobs are configuration values that can be adjusted to improve agent behavior.
     They are stored in the action_params JSON column of adaptation_rules table.
     """
-    
+
     knob_name: str
     knob_type: KnobType
     current_value: Any
     default_value: Any
-    
+
     # Value constraints
-    value_range: dict[str, Any] | None = None  # {"min": x, "max": y} or ["option1", "option2"]
-    
+    value_range: dict[str, Any] | None = (
+        None  # {"min": x, "max": y} or ["option1", "option2"]
+    )
+
     # Auto-tuning configuration
     auto_tune_enabled: bool = True
     tuning_source: str = "manual"  # "manual", "causal_decomposer", "ab_test"
-    
+
     # History tracking
     modification_history: list[dict[str, Any]] = field(default_factory=list)
     last_modified: datetime = field(default_factory=datetime.utcnow)
-    
+
     # Metadata
     agent_id: str | None = None  # None = system-wide knob
     rule_id: str | None = None  # Database rule ID
     description: str = ""
-    
+
     def to_action_params(self) -> dict[str, Any]:
         """Convert to action_params format for storage"""
         return {
@@ -75,9 +78,11 @@ class ImprovementKnob:
             "last_modified": self.last_modified.isoformat(),
             "description": self.description,
         }
-    
+
     @classmethod
-    def from_action_params(cls, params: dict[str, Any], rule_id: str = None, agent_id: str = None) -> "ImprovementKnob":
+    def from_action_params(
+        cls, params: dict[str, Any], rule_id: str = None, agent_id: str = None
+    ) -> "ImprovementKnob":
         """Create from action_params dictionary"""
         return cls(
             knob_name=params.get("knob_name", "unknown"),
@@ -88,28 +93,34 @@ class ImprovementKnob:
             auto_tune_enabled=params.get("auto_tune_enabled", True),
             tuning_source=params.get("tuning_source", "manual"),
             modification_history=params.get("modification_history", []),
-            last_modified=datetime.fromisoformat(params["last_modified"]) if "last_modified" in params else datetime.now(UTC),
+            last_modified=(
+                datetime.fromisoformat(params["last_modified"])
+                if "last_modified" in params
+                else datetime.now(UTC)
+            ),
             agent_id=agent_id,
             rule_id=rule_id,
             description=params.get("description", ""),
         )
-    
+
     def record_modification(self, old_value: Any, reason: str, strategy_id: str = None):
         """Record a modification in history"""
-        self.modification_history.append({
-            "timestamp": datetime.now(UTC).isoformat(),
-            "old_value": old_value,
-            "new_value": self.current_value,
-            "reason": reason,
-            "strategy_id": strategy_id,
-        })
+        self.modification_history.append(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "old_value": old_value,
+                "new_value": self.current_value,
+                "reason": reason,
+                "strategy_id": strategy_id,
+            }
+        )
         self.last_modified = datetime.now(UTC)
 
 
 @dataclass
 class KnobAdjustment:
     """Represents a planned or applied knob adjustment"""
-    
+
     knob: ImprovementKnob
     old_value: Any
     new_value: Any
@@ -117,11 +128,11 @@ class KnobAdjustment:
     applied_at: datetime | None = None
     rollback_at: datetime | None = None
     success: bool | None = None  # None = not yet evaluated
-    
+
     @property
     def is_applied(self) -> bool:
         return self.applied_at is not None
-    
+
     @property
     def is_rolled_back(self) -> bool:
         return self.rollback_at is not None
@@ -131,10 +142,11 @@ class KnobAdjustment:
 # KNOB MANAGER - Main class for knob operations
 # ============================================================================
 
+
 class KnobManager:
     """
     Manages improvement knobs via the existing AdaptationRuleDB table.
-    
+
     This class provides:
     - Reading knobs from the database
     - Writing/updating knobs
@@ -142,10 +154,10 @@ class KnobManager:
     - Rollback support
     - Oscillation detection
     """
-    
+
     # Rule type for improvement knobs in adaptation_rules table
     RULE_TYPE_KNOB = "improvement_knob"
-    
+
     def __init__(
         self,
         db_session: AsyncSession,
@@ -155,10 +167,10 @@ class KnobManager:
         self.db_session = db_session
         self.oscillation_window_hours = oscillation_window_hours
         self.max_modifications_per_knob = max_modifications_per_knob
-        
+
         # Cache for knobs (reduces DB queries)
         self._knob_cache: dict[str, ImprovementKnob] = {}
-    
+
     async def get_knob(
         self,
         knob_type: KnobType,
@@ -166,32 +178,36 @@ class KnobManager:
     ) -> ImprovementKnob | None:
         """
         Get a knob by type and optional agent_id.
-        
+
         Args:
             knob_type: The type of knob to retrieve
             agent_id: Optional agent ID (None for system-wide knobs)
-            
+
         Returns:
             ImprovementKnob or None if not found
         """
         cache_key = f"{knob_type.value}:{agent_id or 'system'}"
-        
+
         # Check cache first
         if cache_key in self._knob_cache:
             return self._knob_cache[cache_key]
-        
+
         # Query database
         try:
             from app.models.learning_models import AdaptationRuleDB
-            
+
             stmt = select(AdaptationRuleDB).where(
                 AdaptationRuleDB.rule_type == self.RULE_TYPE_KNOB,
-                AdaptationRuleDB.agent_id == agent_id if agent_id else AdaptationRuleDB.agent_id.is_(None),
+                (
+                    AdaptationRuleDB.agent_id == agent_id
+                    if agent_id
+                    else AdaptationRuleDB.agent_id.is_(None)
+                ),
             )
-            
+
             result = await self.db_session.execute(stmt)
             rules = result.scalars().all()
-            
+
             # Find the matching knob
             for rule in rules:
                 params = rule.action_params or {}
@@ -203,41 +219,41 @@ class KnobManager:
                     )
                     self._knob_cache[cache_key] = knob
                     return knob
-            
+
             return None
-            
+
         except Exception as e:
             logger.error(f"Error getting knob {knob_type.value}: {e}")
             return None
-    
+
     async def get_all_knobs(
         self,
         agent_id: str | None = None,
     ) -> list[ImprovementKnob]:
         """
         Get all knobs for an agent or system-wide.
-        
+
         Args:
             agent_id: Optional agent ID (None for system-wide knobs)
-            
+
         Returns:
             List of ImprovementKnob objects
         """
         try:
             from app.models.learning_models import AdaptationRuleDB
-            
+
             stmt = select(AdaptationRuleDB).where(
                 AdaptationRuleDB.rule_type == self.RULE_TYPE_KNOB,
             )
-            
+
             if agent_id:
                 stmt = stmt.where(AdaptationRuleDB.agent_id == agent_id)
             else:
                 stmt = stmt.where(AdaptationRuleDB.agent_id.is_(None))
-            
+
             result = await self.db_session.execute(stmt)
             rules = result.scalars().all()
-            
+
             knobs = []
             for rule in rules:
                 params = rule.action_params or {}
@@ -247,13 +263,13 @@ class KnobManager:
                     agent_id=agent_id,
                 )
                 knobs.append(knob)
-            
+
             return knobs
-            
+
         except Exception as e:
             logger.error(f"Error getting all knobs: {e}")
             return []
-    
+
     async def set_knob(
         self,
         knob: ImprovementKnob,
@@ -262,30 +278,32 @@ class KnobManager:
     ) -> bool:
         """
         Set/update a knob value.
-        
+
         Args:
             knob: The knob to set
             reason: Reason for the change
             strategy_id: Optional strategy ID that triggered this change
-            
+
         Returns:
             True if successful, False otherwise
         """
         try:
             from app.models.learning_models import AdaptationRuleDB
-            
+
             # Check for oscillation
             if await self._would_cause_oscillation(knob):
-                logger.warning(f"Oscillation detected for knob {knob.knob_name}, skipping update")
+                logger.warning(
+                    f"Oscillation detected for knob {knob.knob_name}, skipping update"
+                )
                 return False
-            
+
             # Get existing knob to record history
             existing = await self.get_knob(knob.knob_type, knob.agent_id)
             old_value = existing.current_value if existing else knob.default_value
-            
+
             # Record modification
             knob.record_modification(old_value, reason, strategy_id)
-            
+
             if existing and existing.rule_id:
                 # Update existing rule
                 stmt = (
@@ -309,21 +327,23 @@ class KnobManager:
                     enabled=True,
                 )
                 self.db_session.add(new_rule)
-            
+
             await self.db_session.commit()
-            
+
             # Update cache
             cache_key = f"{knob.knob_type.value}:{knob.agent_id or 'system'}"
             self._knob_cache[cache_key] = knob
-            
-            logger.info(f"Set knob {knob.knob_name} to {knob.current_value} (reason: {reason})")
+
+            logger.info(
+                f"Set knob {knob.knob_name} to {knob.current_value} (reason: {reason})"
+            )
             return True
-            
+
         except Exception as e:
             logger.error(f"Error setting knob {knob.knob_name}: {e}")
             await self.db_session.rollback()
             return False
-    
+
     async def apply_strategy(
         self,
         strategy: ImprovementStrategy,
@@ -331,17 +351,17 @@ class KnobManager:
     ) -> KnobAdjustment | None:
         """
         Apply an improvement strategy as a knob adjustment.
-        
+
         Args:
             strategy: The strategy to apply
             agent_id: Optional agent ID
-            
+
         Returns:
             KnobAdjustment if successful, None otherwise
         """
         # Get or create the knob
         knob = await self.get_knob(strategy.knob, agent_id)
-        
+
         if not knob:
             # Create new knob with default values
             knob = ImprovementKnob(
@@ -359,14 +379,14 @@ class KnobManager:
             old_value = knob.current_value
             knob.current_value = strategy.knob_value
             knob.tuning_source = "causal_decomposer"
-        
+
         # Set the knob
         success = await self.set_knob(
             knob,
             reason=f"Strategy: {strategy.strategy_type.value}",
             strategy_id=strategy.strategy_id,
         )
-        
+
         if success:
             return KnobAdjustment(
                 knob=knob,
@@ -375,9 +395,9 @@ class KnobManager:
                 strategy=strategy,
                 applied_at=datetime.now(UTC),
             )
-        
+
         return None
-    
+
     async def rollback_knob(
         self,
         knob_type: KnobType,
@@ -386,56 +406,61 @@ class KnobManager:
     ) -> bool:
         """
         Rollback a knob to its default value.
-        
+
         Args:
             knob_type: The type of knob to rollback
             agent_id: Optional agent ID
             reason: Reason for rollback
-            
+
         Returns:
             True if successful, False otherwise
         """
         knob = await self.get_knob(knob_type, agent_id)
-        
+
         if not knob:
             logger.warning(f"Knob {knob_type.value} not found for rollback")
             return False
-        
+
         old_value = knob.current_value
         knob.current_value = knob.default_value
-        
+
         success = await self.set_knob(knob, reason=f"Rollback: {reason}")
-        
+
         if success:
-            logger.info(f"Rolled back knob {knob.knob_name} from {old_value} to {knob.default_value}")
+            logger.info(
+                f"Rolled back knob {knob.knob_name} from {old_value} to {knob.default_value}"
+            )
             return True
-        
+
         return False
-    
+
     async def _would_cause_oscillation(self, knob: ImprovementKnob) -> bool:
         """
         Check if a knob change would cause oscillation.
-        
+
         Oscillation is detected when:
         1. The same knob has been modified multiple times recently
         2. The new value is close to a recently reverted value
-        
+
         Args:
             knob: The knob to check
-            
+
         Returns:
             True if oscillation would occur, False otherwise
         """
         if not knob.modification_history:
             return False
-        
+
         # Check recent modifications within the window
-        window_start = datetime.now(UTC) - timedelta(hours=self.oscillation_window_hours)
+        window_start = datetime.now(UTC) - timedelta(
+            hours=self.oscillation_window_hours
+        )
         recent_mods = [
-            m for m in knob.modification_history
+            m
+            for m in knob.modification_history
             if datetime.fromisoformat(m["timestamp"]) > window_start
         ]
-        
+
         # Too many recent modifications
         if len(recent_mods) >= self.max_modifications_per_knob:
             logger.warning(
@@ -443,17 +468,19 @@ class KnobManager:
                 f"in last {self.oscillation_window_hours} hours"
             )
             return True
-        
+
         # Check if we're oscillating between values
         if len(recent_mods) >= 2:
             values = [m["new_value"] for m in recent_mods[-3:]]
             # If we're going back to a value we just left
             if knob.current_value in values[:-1]:
-                logger.warning(f"Oscillation detected: {knob.knob_name} returning to recent value")
+                logger.warning(
+                    f"Oscillation detected: {knob.knob_name} returning to recent value"
+                )
                 return True
-        
+
         return False
-    
+
     def clear_cache(self):
         """Clear the knob cache"""
         self._knob_cache.clear()
@@ -462,6 +489,7 @@ class KnobManager:
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 async def get_knob_manager(db_session: AsyncSession) -> KnobManager:
     """Factory function to get a KnobManager instance"""
@@ -479,7 +507,10 @@ DEFAULT_KNOBS: list[dict[str, Any]] = [
         "knob_type": KnobType.RETRY_CONFIG,
         "current_value": {"max_retries": 2, "backoff_factor": 1.5},
         "default_value": {"max_retries": 2, "backoff_factor": 1.5},
-        "value_range": {"max_retries": {"min": 0, "max": 5}, "backoff_factor": {"min": 1.0, "max": 5.0}},
+        "value_range": {
+            "max_retries": {"min": 0, "max": 5},
+            "backoff_factor": {"min": 1.0, "max": 5.0},
+        },
         "description": "Default retry configuration for tool calls",
     },
     {
@@ -497,7 +528,6 @@ DEFAULT_KNOBS: list[dict[str, Any]] = [
         "default_value": {"requests_per_second": 100, "burst": 200},
         "description": "Default rate limiting configuration",
     },
-    
     # RAG knobs
     {
         "knob_name": "default_rag_top_k",
@@ -515,7 +545,6 @@ DEFAULT_KNOBS: list[dict[str, Any]] = [
         "value_range": {"min": 0.3, "max": 0.95},
         "description": "Default similarity threshold for RAG retrieval",
     },
-    
     # LLM knobs
     {
         "knob_name": "default_temperature",
@@ -536,20 +565,22 @@ DEFAULT_KNOBS: list[dict[str, Any]] = [
 ]
 
 
-async def initialize_default_knobs(db_session: AsyncSession, agent_id: str | None = None) -> int:
+async def initialize_default_knobs(
+    db_session: AsyncSession, agent_id: str | None = None
+) -> int:
     """
     Initialize default knobs for an agent or system-wide.
-    
+
     Args:
         db_session: Database session
         agent_id: Optional agent ID (None for system-wide)
-        
+
     Returns:
         Number of knobs initialized
     """
     manager = KnobManager(db_session=db_session)
     initialized = 0
-    
+
     for knob_data in DEFAULT_KNOBS:
         knob = ImprovementKnob(
             knob_name=knob_data["knob_name"],
@@ -560,14 +591,14 @@ async def initialize_default_knobs(db_session: AsyncSession, agent_id: str | Non
             description=knob_data.get("description", ""),
             agent_id=agent_id,
         )
-        
+
         # Check if already exists
         existing = await manager.get_knob(knob.knob_type, agent_id)
         if not existing:
             success = await manager.set_knob(knob, reason="initialization")
             if success:
                 initialized += 1
-    
+
     return initialized
 
 

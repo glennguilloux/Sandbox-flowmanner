@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class CookieManagerInput(ToolInput):
     action: str = Field(
         ...,
@@ -46,6 +47,7 @@ class CookieManagerInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class CookieManagerTool(BaseTool):
     """Manage browser cookies for authentication persistence."""
@@ -147,28 +149,49 @@ class CookieManagerTool(BaseTool):
             analytics_cookies = []
 
             auth_names = {
-                "session", "token", "auth", "jwt", "sid", "csrf",
-                "access_token", "refresh_token", "id_token", "bearer",
-                "JSESSIONID", "PHPSESSID", "connect.sid",
+                "session",
+                "token",
+                "auth",
+                "jwt",
+                "sid",
+                "csrf",
+                "access_token",
+                "refresh_token",
+                "id_token",
+                "bearer",
+                "JSESSIONID",
+                "PHPSESSID",
+                "connect.sid",
             }
 
             for cookie in all_cookies:
                 cookie_info = {
                     "name": cookie["name"],
-                    "value": cookie["value"][:20] + "..." if len(cookie.get("value", "")) > 20 else cookie.get("value", ""),
+                    "value": (
+                        cookie["value"][:20] + "..."
+                        if len(cookie.get("value", "")) > 20
+                        else cookie.get("value", "")
+                    ),
                     "domain": cookie.get("domain", ""),
                     "path": cookie.get("path", "/"),
                     "httpOnly": cookie.get("httpOnly", False),
                     "secure": cookie.get("secure", False),
                     "sameSite": cookie.get("sameSite", "Lax"),
-                    "expires": cookie.get("expires", -1) if cookie.get("expires", -1) != -1 else None,
+                    "expires": (
+                        cookie.get("expires", -1)
+                        if cookie.get("expires", -1) != -1
+                        else None
+                    ),
                 }
                 name_lower = cookie["name"].lower()
                 if any(auth in name_lower for auth in auth_names):
                     auth_cookies.append(cookie_info)
                 elif "session" in name_lower or "sid" in name_lower:
                     session_cookies.append(cookie_info)
-                elif any(g in name_lower for g in ("ga", "gtm", "analytics", "pixel", "track")):
+                elif any(
+                    g in name_lower
+                    for g in ("ga", "gtm", "analytics", "pixel", "track")
+                ):
                     analytics_cookies.append(cookie_info)
                 else:
                     session_cookies.append(cookie_info)
@@ -221,7 +244,10 @@ class CookieManagerTool(BaseTool):
     # ── delete ──────────────────────────────────────────────────
 
     async def _delete_cookies(
-        self, session, validated: CookieManagerInput, urls: list[str],
+        self,
+        session,
+        validated: CookieManagerInput,
+        urls: list[str],
     ) -> ToolResult:
         if not validated.names:
             return ToolResult.error_result(
@@ -238,13 +264,17 @@ class CookieManagerTool(BaseTool):
                 for cookie in existing:
                     if cookie["name"] == name:
                         # Delete by clearing value and setting expiry in past
-                        await session.context.add_cookies([{
-                            "name": name,
-                            "value": "",
-                            "domain": cookie.get("domain", ""),
-                            "path": cookie.get("path", "/"),
-                            "expires": 0,
-                        }])
+                        await session.context.add_cookies(
+                            [
+                                {
+                                    "name": name,
+                                    "value": "",
+                                    "domain": cookie.get("domain", ""),
+                                    "path": cookie.get("path", "/"),
+                                    "expires": 0,
+                                }
+                            ]
+                        )
                         deleted_count += 1
                         break
 

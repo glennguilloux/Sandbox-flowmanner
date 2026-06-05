@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +51,15 @@ class GoogleSearchApiInput(ToolInput):
         description="Search query string",
     )
     num_results: int = Field(
-        10, ge=1, le=10,
+        10,
+        ge=1,
+        le=10,
         description="Number of results to return (1-10)",
     )
     start_index: int = Field(
-        1, ge=1, le=91,
+        1,
+        ge=1,
+        le=91,
         description="Result start index for pagination (1, 11, 21, ...)",
     )
     language: str | None = Field(
@@ -177,12 +188,14 @@ class GoogleSearchApiTool(BaseTool):
         items = data.get("items", [])
         results = []
         for item in items:
-            results.append({
-                "title": item.get("title", ""),
-                "link": item.get("link", ""),
-                "snippet": item.get("snippet", ""),
-                "display_link": item.get("displayLink", ""),
-            })
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "link": item.get("link", ""),
+                    "snippet": item.get("snippet", ""),
+                    "display_link": item.get("displayLink", ""),
+                }
+            )
 
         search_info = data.get("searchInformation", {})
         return {
@@ -216,15 +229,17 @@ class GoogleSearchApiTool(BaseTool):
         results = []
         for item in items:
             image = item.get("image", {})
-            results.append({
-                "title": item.get("title", ""),
-                "link": item.get("image", {}).get("contextLink", ""),
-                "thumbnail": image.get("thumbnailLink", ""),
-                "image_url": item.get("link", ""),
-                "width": image.get("width", 0),
-                "height": image.get("height", 0),
-                "size_bytes": image.get("byteSize", 0),
-            })
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "link": item.get("image", {}).get("contextLink", ""),
+                    "thumbnail": image.get("thumbnailLink", ""),
+                    "image_url": item.get("link", ""),
+                    "width": image.get("width", 0),
+                    "height": image.get("height", 0),
+                    "size_bytes": image.get("byteSize", 0),
+                }
+            )
 
         return {
             "action": "search_images",

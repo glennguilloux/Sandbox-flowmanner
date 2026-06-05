@@ -1,55 +1,48 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-from uuid import UUID
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.mission_response_plan_type_0 import MissionResponsePlanType0
-  from ..models.mission_response_results_type_0 import MissionResponseResultsType0
-
-
-
+    from ..models.mission_response_plan_type_0 import MissionResponsePlanType0
+    from ..models.mission_response_results_type_0 import MissionResponseResultsType0
 
 
 T = TypeVar("T", bound="MissionResponse")
 
 
-
 @_attrs_define
 class MissionResponse:
-    """ 
-        Attributes:
-            id (UUID):
-            user_id (int):
-            title (str):
-            description (str):
-            mission_type (None | str | Unset):
-            status (None | str | Unset):
-            priority (None | str | Unset):
-            plan (MissionResponsePlanType0 | None | Unset):
-            results (MissionResponseResultsType0 | None | Unset):
-            error_message (None | str | Unset):
-            tokens_used (int | None | Unset):
-            estimated_cost (float | None | Unset):
-            actual_cost (float | None | Unset):
-            started_at (datetime.datetime | None | Unset):
-            completed_at (datetime.datetime | None | Unset):
-            created_at (datetime.datetime | None | Unset):
-            updated_at (datetime.datetime | None | Unset):
-            progress (int | None | Unset):
-            eta (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (UUID):
+        user_id (int):
+        title (str):
+        description (str):
+        mission_type (None | str | Unset):
+        status (None | str | Unset):
+        priority (None | str | Unset):
+        plan (MissionResponsePlanType0 | None | Unset):
+        results (MissionResponseResultsType0 | None | Unset):
+        error_message (None | str | Unset):
+        tokens_used (int | None | Unset):
+        estimated_cost (float | None | Unset):
+        actual_cost (float | None | Unset):
+        started_at (datetime.datetime | None | Unset):
+        completed_at (datetime.datetime | None | Unset):
+        created_at (datetime.datetime | None | Unset):
+        updated_at (datetime.datetime | None | Unset):
+        progress (int | None | Unset):
+        eta (datetime.datetime | None | Unset):
+    """
 
     id: UUID
     user_id: int
@@ -72,13 +65,10 @@ class MissionResponse:
     eta: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.mission_response_plan_type_0 import MissionResponsePlanType0
         from ..models.mission_response_results_type_0 import MissionResponseResultsType0
+
         id = str(self.id)
 
         user_id = self.user_id
@@ -191,15 +181,16 @@ class MissionResponse:
         else:
             eta = self.eta
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "user_id": user_id,
-            "title": title,
-            "description": description,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "user_id": user_id,
+                "title": title,
+                "description": description,
+            }
+        )
         if mission_type is not UNSET:
             field_dict["mission_type"] = mission_type
         if status is not UNSET:
@@ -233,17 +224,13 @@ class MissionResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.mission_response_plan_type_0 import MissionResponsePlanType0
         from ..models.mission_response_results_type_0 import MissionResponseResultsType0
+
         d = dict(src_dict)
         id = UUID(d.pop("id"))
-
-
-
 
         user_id = d.pop("user_id")
 
@@ -260,7 +247,6 @@ class MissionResponse:
 
         mission_type = _parse_mission_type(d.pop("mission_type", UNSET))
 
-
         def _parse_status(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -270,7 +256,6 @@ class MissionResponse:
 
         status = _parse_status(d.pop("status", UNSET))
 
-
         def _parse_priority(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -279,7 +264,6 @@ class MissionResponse:
             return cast(None | str | Unset, data)
 
         priority = _parse_priority(d.pop("priority", UNSET))
-
 
         def _parse_plan(data: object) -> MissionResponsePlanType0 | None | Unset:
             if data is None:
@@ -291,15 +275,12 @@ class MissionResponse:
                     raise TypeError()
                 plan_type_0 = MissionResponsePlanType0.from_dict(data)
 
-
-
                 return plan_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(MissionResponsePlanType0 | None | Unset, data)
 
         plan = _parse_plan(d.pop("plan", UNSET))
-
 
         def _parse_results(data: object) -> MissionResponseResultsType0 | None | Unset:
             if data is None:
@@ -311,15 +292,12 @@ class MissionResponse:
                     raise TypeError()
                 results_type_0 = MissionResponseResultsType0.from_dict(data)
 
-
-
                 return results_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(MissionResponseResultsType0 | None | Unset, data)
 
         results = _parse_results(d.pop("results", UNSET))
-
 
         def _parse_error_message(data: object) -> None | str | Unset:
             if data is None:
@@ -330,7 +308,6 @@ class MissionResponse:
 
         error_message = _parse_error_message(d.pop("error_message", UNSET))
 
-
         def _parse_tokens_used(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -339,7 +316,6 @@ class MissionResponse:
             return cast(int | None | Unset, data)
 
         tokens_used = _parse_tokens_used(d.pop("tokens_used", UNSET))
-
 
         def _parse_estimated_cost(data: object) -> float | None | Unset:
             if data is None:
@@ -350,7 +326,6 @@ class MissionResponse:
 
         estimated_cost = _parse_estimated_cost(d.pop("estimated_cost", UNSET))
 
-
         def _parse_actual_cost(data: object) -> float | None | Unset:
             if data is None:
                 return data
@@ -359,7 +334,6 @@ class MissionResponse:
             return cast(float | None | Unset, data)
 
         actual_cost = _parse_actual_cost(d.pop("actual_cost", UNSET))
-
 
         def _parse_started_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -371,15 +345,12 @@ class MissionResponse:
                     raise TypeError()
                 started_at_type_0 = isoparse(data)
 
-
-
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
-
 
         def _parse_completed_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -391,15 +362,12 @@ class MissionResponse:
                     raise TypeError()
                 completed_at_type_0 = isoparse(data)
 
-
-
                 return completed_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         completed_at = _parse_completed_at(d.pop("completed_at", UNSET))
-
 
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -411,15 +379,12 @@ class MissionResponse:
                     raise TypeError()
                 created_at_type_0 = isoparse(data)
 
-
-
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         def _parse_updated_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -431,15 +396,12 @@ class MissionResponse:
                     raise TypeError()
                 updated_at_type_0 = isoparse(data)
 
-
-
                 return updated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         updated_at = _parse_updated_at(d.pop("updated_at", UNSET))
-
 
         def _parse_progress(data: object) -> int | None | Unset:
             if data is None:
@@ -449,7 +411,6 @@ class MissionResponse:
             return cast(int | None | Unset, data)
 
         progress = _parse_progress(d.pop("progress", UNSET))
-
 
         def _parse_eta(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -461,15 +422,12 @@ class MissionResponse:
                     raise TypeError()
                 eta_type_0 = isoparse(data)
 
-
-
                 return eta_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         eta = _parse_eta(d.pop("eta", UNSET))
-
 
         mission_response = cls(
             id=id,
@@ -492,7 +450,6 @@ class MissionResponse:
             progress=progress,
             eta=eta,
         )
-
 
         mission_response.additional_properties = d
         return mission_response

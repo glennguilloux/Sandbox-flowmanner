@@ -13,6 +13,7 @@ from app.main_fastapi import app
 
 pytestmark = pytest.mark.integration
 
+
 def _make_thread(user_id: int = 1):
     return SimpleNamespace(
         id=42,
@@ -96,7 +97,10 @@ def sample_user():
 @pytest.fixture
 def auth_client(sample_user):
     mock_db = AsyncMock()
-    async def _execute(*a, **kw): return MagicMock()
+
+    async def _execute(*a, **kw):
+        return MagicMock()
+
     mock_db.execute = _execute
     mock_db.commit = AsyncMock()
     mock_db.rollback = AsyncMock()
@@ -126,7 +130,10 @@ class TestBYOKValidateFlow:
         }
         mock_resp = _mock_httpx_response(200, provider_response)
 
-        with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+        with patch(
+            "app.api.v1.api_keys.httpx.AsyncClient",
+            return_value=_FakeAsyncClient(mock_resp),
+        ):
             response = auth_client.post(
                 "/api/api-keys/validate",
                 json={"provider": "openai", "api_key": "sk-byok-valid-key"},
@@ -142,7 +149,10 @@ class TestBYOKValidateFlow:
     def test_validate_bad_key_returns_invalid(self, auth_client):
         mock_resp = _mock_httpx_response(401, {"error": {"message": "Invalid API key"}})
 
-        with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+        with patch(
+            "app.api.v1.api_keys.httpx.AsyncClient",
+            return_value=_FakeAsyncClient(mock_resp),
+        ):
             response = auth_client.post(
                 "/api/api-keys/validate",
                 json={"provider": "openai", "api_key": "sk-bad-key"},
@@ -158,7 +168,9 @@ class TestBYOKStreamingHeaderAccepted:
     def test_byok_header_accepted_returns_200(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch(
+                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
+            ),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Hello", " world"),
@@ -176,7 +188,9 @@ class TestBYOKStreamingHeaderAccepted:
     def test_byok_header_stream_returns_token_events(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch(
+                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
+            ),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Hello", " world"),
@@ -197,7 +211,9 @@ class TestBYOKStreamingHeaderAccepted:
     def test_no_byok_header_also_works(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch(
+                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
+            ),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("ok"),
@@ -215,7 +231,9 @@ class TestStreamingCompleteEvent:
     def test_complete_event_present_with_usage(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch(
+                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
+            ),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Test"),
@@ -236,7 +254,9 @@ class TestStreamingCompleteEvent:
     def test_sse_format_has_data_prefix_and_double_newline(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch(
+                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
+            ),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("x"),

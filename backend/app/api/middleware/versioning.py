@@ -89,6 +89,7 @@ class APIVersioningMiddleware(BaseHTTPMiddleware):
         # Handle invalid version
         if version is None:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=400,
                 content={
@@ -101,6 +102,7 @@ class APIVersioningMiddleware(BaseHTTPMiddleware):
         # Handle version not in supported or deprecated
         if version not in SUPPORTED_VERSIONS and version not in DEPRECATED_VERSIONS:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=400,
                 content={
@@ -141,9 +143,11 @@ def get_api_version(request: Request) -> str:
 
 def deprecated(sunset_date: datetime, replacement: str = ""):
     """Decorator to mark an endpoint as deprecated."""
+
     def decorator(func):
         func._deprecated = True
         func._sunset_date = sunset_date
         func._replacement = replacement
         return func
+
     return decorator

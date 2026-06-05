@@ -40,7 +40,9 @@ class HttpIntegrationExecutor:
         try:
             auth_config = json.loads(decrypt_api_key(config.auth_config_encrypted))
         except Exception as e:
-            logger.warning("Failed to decrypt auth config for integration %s: %s", config.id, e)
+            logger.warning(
+                "Failed to decrypt auth config for integration %s: %s", config.id, e
+            )
             return {}
 
         if config.auth_type == "bearer":
@@ -99,7 +101,11 @@ class HttpIntegrationExecutor:
 
         # Redact sensitive headers for logging
         safe_headers = {
-            k: ("[REDACTED]" if k.lower() in ("authorization",) or "key" in k.lower() else v)
+            k: (
+                "[REDACTED]"
+                if k.lower() in ("authorization",) or "key" in k.lower()
+                else v
+            )
             for k, v in request_headers.items()
         }
 
@@ -163,7 +169,9 @@ class HttpIntegrationExecutor:
                         }
                     else:
                         log_entry.status = "failed"
-                        log_entry.error_message = f"HTTP {response.status_code}: {response_body[:200]}"
+                        log_entry.error_message = (
+                            f"HTTP {response.status_code}: {response_body[:200]}"
+                        )
                         await db.commit()
                         return {
                             "success": False,
@@ -177,7 +185,10 @@ class HttpIntegrationExecutor:
                 last_error = f"Timeout after {config.timeout_seconds}s"
                 logger.warning(
                     "HTTP integration timeout (attempt %d/%d): %s %s",
-                    attempt + 1, max_retries + 1, method, url,
+                    attempt + 1,
+                    max_retries + 1,
+                    method,
+                    url,
                 )
                 if attempt >= max_retries:
                     duration_ms = int((time.monotonic() - start_time) * 1000)
@@ -196,7 +207,11 @@ class HttpIntegrationExecutor:
                 last_error = str(e)
                 logger.error(
                     "HTTP integration error (attempt %d/%d): %s %s — %s",
-                    attempt + 1, max_retries + 1, method, url, e,
+                    attempt + 1,
+                    max_retries + 1,
+                    method,
+                    url,
+                    e,
                 )
                 if attempt >= max_retries:
                     duration_ms = int((time.monotonic() - start_time) * 1000)

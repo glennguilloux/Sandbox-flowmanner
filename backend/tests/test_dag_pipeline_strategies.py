@@ -38,8 +38,12 @@ def _make_dag_workflow(nodes=None, edges=None):
 
 def _make_pipeline_workflow():
     nodes = [
-        WorkflowNode(id=f"p-{phase}", type="phase_gate", title=f"Phase: {phase}",
-                      config={"phase": phase})
+        WorkflowNode(
+            id=f"p-{phase}",
+            type="phase_gate",
+            title=f"Phase: {phase}",
+            config={"phase": phase},
+        )
         for phase in PHASES
     ]
     return Workflow(
@@ -113,9 +117,14 @@ class TestDAGExecute:
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": True, "output": "ok", "tokens": 10, "cost": 0.01,
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": True,
+                "output": "ok",
+                "tokens": 10,
+                "cost": 0.01,
+            }
+        )
 
         result = await s.execute(wf, {}, mock_executor, db)
 
@@ -164,9 +173,12 @@ class TestDAGExecute:
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "boom",
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "boom",
+            }
+        )
 
         result = await s.execute(wf, {}, mock_executor, db)
 
@@ -179,9 +191,12 @@ class TestDAGTopologicalSort:
     def test_single_node(self):
         s = DAGStrategy()
         wf = Workflow(
-            id="x", type=WorkflowType.DAG, title="T",
+            id="x",
+            type=WorkflowType.DAG,
+            title="T",
             nodes=[WorkflowNode(id="solo", type="llm_call", title="S")],
-            edges=[], user_id="1",
+            edges=[],
+            user_id="1",
         )
         layers = s._topological_sort(wf)
         assert layers == [["solo"]]
@@ -231,8 +246,12 @@ class TestPipelineValidate:
     async def test_empty_nodes(self):
         s = PipelineStrategy()
         wf = Workflow(
-            id="x", type=WorkflowType.PIPELINE, title="T",
-            nodes=[], edges=[], user_id="1",
+            id="x",
+            type=WorkflowType.PIPELINE,
+            title="T",
+            nodes=[],
+            edges=[],
+            user_id="1",
         )
         errors = await s.validate(wf)
         assert any("at least 1 node" in e for e in errors)
@@ -241,9 +260,12 @@ class TestPipelineValidate:
     async def test_non_phase_gate_rejected(self):
         s = PipelineStrategy()
         wf = Workflow(
-            id="x", type=WorkflowType.PIPELINE, title="T",
+            id="x",
+            type=WorkflowType.PIPELINE,
+            title="T",
             nodes=[WorkflowNode(id="n1", type="llm_call", title="Bad")],
-            edges=[], user_id="1",
+            edges=[],
+            user_id="1",
         )
         errors = await s.validate(wf)
         assert any("PHASE_GATE" in e for e in errors)
@@ -253,13 +275,21 @@ class TestPipelineValidate:
         s = PipelineStrategy()
         # Only include 6 of 7 phases
         nodes = [
-            WorkflowNode(id=f"p-{phase}", type="phase_gate", title=f"Phase: {phase}",
-                          config={"phase": phase})
+            WorkflowNode(
+                id=f"p-{phase}",
+                type="phase_gate",
+                title=f"Phase: {phase}",
+                config={"phase": phase},
+            )
             for phase in PHASES[:-1]  # drop "review"
         ]
         wf = Workflow(
-            id="x", type=WorkflowType.PIPELINE, title="T",
-            nodes=nodes, edges=[], user_id="1",
+            id="x",
+            type=WorkflowType.PIPELINE,
+            title="T",
+            nodes=nodes,
+            edges=[],
+            user_id="1",
         )
         errors = await s.validate(wf)
         assert any("review" in e for e in errors)
@@ -276,9 +306,14 @@ class TestPipelineExecute:
         mock_executor.is_aborted = MagicMock(return_value=False)
         mock_executor.ws_manager = MagicMock()
         mock_executor.ws_manager.broadcast_phase = AsyncMock()
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": True, "output": {"verdict": "PASS"}, "tokens": 10, "cost": 0.01,
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {"verdict": "PASS"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
+        )
 
         result = await s.execute(wf, {}, mock_executor, db)
 
@@ -299,8 +334,18 @@ class TestPipelineExecute:
             call_count += 1
             # First review: FAIL with feedback, second review: PASS
             if call_count <= 7:
-                return {"success": True, "output": {"verdict": "FAIL", "feedback": "needs work"}, "tokens": 10, "cost": 0.01}
-            return {"success": True, "output": {"verdict": "PASS"}, "tokens": 10, "cost": 0.01}
+                return {
+                    "success": True,
+                    "output": {"verdict": "FAIL", "feedback": "needs work"},
+                    "tokens": 10,
+                    "cost": 0.01,
+                }
+            return {
+                "success": True,
+                "output": {"verdict": "PASS"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
@@ -336,9 +381,12 @@ class TestPipelineExecute:
         mock_executor.is_aborted = MagicMock(return_value=False)
         mock_executor.ws_manager = MagicMock()
         mock_executor.ws_manager.broadcast_phase = AsyncMock()
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "LLM unavailable",
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "LLM unavailable",
+            }
+        )
 
         result = await s.execute(wf, {}, mock_executor, db)
 
@@ -356,12 +404,14 @@ class TestPipelineExecute:
         mock_executor.ws_manager = MagicMock()
         mock_executor.ws_manager.broadcast_phase = AsyncMock()
         # Always return FAIL verdict
-        mock_executor.execute_node = AsyncMock(return_value={
-            "success": True,
-            "output": {"verdict": "FAIL", "feedback": "still wrong"},
-            "tokens": 10,
-            "cost": 0.01,
-        })
+        mock_executor.execute_node = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {"verdict": "FAIL", "feedback": "still wrong"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
+        )
 
         result = await s.execute(wf, {}, mock_executor, db)
 

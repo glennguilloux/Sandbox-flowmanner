@@ -63,6 +63,7 @@ ENTITY_TYPES = {
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class EntityTrackerInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
@@ -110,6 +111,7 @@ class EntityTrackerInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class EntityTrackerTool(BaseTool):
     """Automatically extract and track people, projects, and concepts.
@@ -338,8 +340,12 @@ class EntityTrackerTool(BaseTool):
         }
 
         saved = await self._save_entity(
-            validated.namespace, entity_name, entity_type,
-            context, user_id, metadata,
+            validated.namespace,
+            entity_name,
+            entity_type,
+            context,
+            user_id,
+            metadata,
         )
 
         result = {
@@ -389,18 +395,20 @@ class EntityTrackerTool(BaseTool):
                         else r.agent_id
                     )
                     meta = r.metadata_json or {}
-                    entities.append({
-                        "name": entity_name,
-                        "type": meta.get("entity_type", "concept"),
-                        "context": r.content,
-                        "mention_count": meta.get("mention_count", 1),
-                        "first_seen": (
-                            r.created_at.isoformat() if r.created_at else None
-                        ),
-                        "last_seen": (
-                            r.updated_at.isoformat() if r.updated_at else None
-                        ),
-                    })
+                    entities.append(
+                        {
+                            "name": entity_name,
+                            "type": meta.get("entity_type", "concept"),
+                            "context": r.content,
+                            "mention_count": meta.get("mention_count", 1),
+                            "first_seen": (
+                                r.created_at.isoformat() if r.created_at else None
+                            ),
+                            "last_seen": (
+                                r.updated_at.isoformat() if r.updated_at else None
+                            ),
+                        }
+                    )
 
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
@@ -496,7 +504,8 @@ class EntityTrackerTool(BaseTool):
                         "namespace": namespace,
                         "first_seen": (
                             entity_row.created_at.isoformat()
-                            if entity_row.created_at else None
+                            if entity_row.created_at
+                            else None
                         ),
                         "mention_count": len(mentions),
                         "mentions": mentions,
@@ -536,7 +545,8 @@ class EntityTrackerTool(BaseTool):
                     deleted_pg = True
                     logger.info(
                         "Deleted entity tracker entry: name=%s namespace=%s",
-                        entity_name, namespace,
+                        entity_name,
+                        namespace,
                     )
         except Exception as e:
             logger.error("PostgreSQL delete failed: %s", e)
@@ -643,9 +653,9 @@ class EntityTrackerTool(BaseTool):
         # ── Projects (before people — "Phoenix Project" is a project, not a person)
         # ── Projects: words near "project", "initiative", "sprint", "epic", "milestone"
         project_patterns = [
-            r'\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,3})\s+(?i:project|initiative|sprint|epic|milestone)\b',
+            r"\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,3})\s+(?i:project|initiative|sprint|epic|milestone)\b",
             r'\b(?i:project|initiative|sprint|epic|milestone)\s+["\u201C]?([A-Za-z0-9\s-]+)["\u201D]?\b',
-            r'\b(?i:Project|Initiative)\s+([A-Z][a-zA-Z0-9]+)\b',
+            r"\b(?i:Project|Initiative)\s+([A-Z][a-zA-Z0-9]+)\b",
         ]
         for pattern in project_patterns:
             for match in re.finditer(pattern, text):
@@ -653,18 +663,22 @@ class EntityTrackerTool(BaseTool):
                 if proj.lower() not in seen and len(proj) > 2:
                     seen.add(proj.lower())
                     seen.add(match.group(0).strip().lower())  # block person re-match
-                    entities.append({
-                        "name": proj,
-                        "type": "project",
-                        "context": _surrounding_text(
-                            text, match.start(), match.end(),
-                        ),
-                    })
+                    entities.append(
+                        {
+                            "name": proj,
+                            "type": "project",
+                            "context": _surrounding_text(
+                                text,
+                                match.start(),
+                                match.end(),
+                            ),
+                        }
+                    )
 
         # ── Organizations: "Corp", "Inc", "LLC", "Ltd", "Company", "Team"
         org_patterns = [
-            r'\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,3})\s+(?i:Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|Company)\b',
-            r'\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2})\s+(?i:Team|Department|Division|Group)\b',
+            r"\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,3})\s+(?i:Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|Company)\b",
+            r"\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2})\s+(?i:Team|Department|Division|Group)\b",
         ]
         for pattern in org_patterns:
             for match in re.finditer(pattern, text):
@@ -672,13 +686,17 @@ class EntityTrackerTool(BaseTool):
                 if org.lower() not in seen and len(org) > 2:
                     seen.add(org.lower())
                     seen.add(match.group(0).strip().lower())  # block person re-match
-                    entities.append({
-                        "name": org,
-                        "type": "organization",
-                        "context": _surrounding_text(
-                            text, match.start(), match.end(),
-                        ),
-                    })
+                    entities.append(
+                        {
+                            "name": org,
+                            "type": "organization",
+                            "context": _surrounding_text(
+                                text,
+                                match.start(),
+                                match.end(),
+                            ),
+                        }
+                    )
 
         # ── People (after projects/orgs — only unmatched capitalized pairs)
         # ── People: capitalized two-word names (Mr./Ms./Dr. prefix or typical patterns)
@@ -689,11 +707,13 @@ class EntityTrackerTool(BaseTool):
             name = match.group(0).strip()
             if name.lower() not in seen:
                 seen.add(name.lower())
-                entities.append({
-                    "name": name,
-                    "type": "person",
-                    "context": _surrounding_text(text, match.start(), match.end()),
-                })
+                entities.append(
+                    {
+                        "name": name,
+                        "type": "person",
+                        "context": _surrounding_text(text, match.start(), match.end()),
+                    }
+                )
 
         # Also catch "FirstName LastName" capitalized pairs not already matched
         for match in re.finditer(r"\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b", text):
@@ -703,22 +723,46 @@ class EntityTrackerTool(BaseTool):
                 # Filter out common false positives (days, months, common words)
                 if first not in _FALSE_POSITIVES and last not in _FALSE_POSITIVES:
                     seen.add(full.lower())
-                    entities.append({
-                        "name": full,
-                        "type": "person",
-                        "context": _surrounding_text(
-                            text, match.start(), match.end(),
-                        ),
-                    })
+                    entities.append(
+                        {
+                            "name": full,
+                            "type": "person",
+                            "context": _surrounding_text(
+                                text,
+                                match.start(),
+                                match.end(),
+                            ),
+                        }
+                    )
 
         # ── Concepts: key nouns/phrases detected by frequency and context
         concept_keywords = [
-            "architecture", "design", "deployment", "pipeline", "security",
-            "performance", "scalability", "reliability", "monitoring",
-            "authentication", "authorization", "database", "migration",
-            "refactoring", "integration", "testing", "documentation",
-            "strategy", "roadmap", "budget", "deadline", "dependency",
-            "workflow", "automation", "optimization", "compliance",
+            "architecture",
+            "design",
+            "deployment",
+            "pipeline",
+            "security",
+            "performance",
+            "scalability",
+            "reliability",
+            "monitoring",
+            "authentication",
+            "authorization",
+            "database",
+            "migration",
+            "refactoring",
+            "integration",
+            "testing",
+            "documentation",
+            "strategy",
+            "roadmap",
+            "budget",
+            "deadline",
+            "dependency",
+            "workflow",
+            "automation",
+            "optimization",
+            "compliance",
         ]
         text_lower = text.lower()
         for keyword in concept_keywords:
@@ -726,25 +770,29 @@ class EntityTrackerTool(BaseTool):
                 seen.add(keyword)
                 # Find the surrounding phrase for context
                 idx = text_lower.find(keyword)
-                entities.append({
-                    "name": keyword.title(),
-                    "type": "concept",
-                    "context": _surrounding_text(text, idx, idx + len(keyword)),
-                })
+                entities.append(
+                    {
+                        "name": keyword.title(),
+                        "type": "concept",
+                        "context": _surrounding_text(text, idx, idx + len(keyword)),
+                    }
+                )
 
         # ── Locations: "in City", "at Place", "based in X", "located in X"
         loc_pattern = re.compile(
-            r'\b(?:in|at|from|based\sin|located\sin)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b'
+            r"\b(?:in|at|from|based\sin|located\sin)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b"
         )
         for match in loc_pattern.finditer(text):
             loc = match.group(1).strip()
             if loc.lower() not in seen and loc.lower() not in _FALSE_POSITIVES:
                 seen.add(loc.lower())
-                entities.append({
-                    "name": loc,
-                    "type": "location",
-                    "context": _surrounding_text(text, match.start(), match.end()),
-                })
+                entities.append(
+                    {
+                        "name": loc,
+                        "type": "location",
+                        "context": _surrounding_text(text, match.start(), match.end()),
+                    }
+                )
 
         # Deduplicate by name+type
         keyed: dict[str, dict] = {}
@@ -763,19 +811,81 @@ class EntityTrackerTool(BaseTool):
 
 # Words that are commonly capitalized but not names
 _FALSE_POSITIVES: set[str] = {
-    "The", "This", "That", "These", "Those", "There", "Here",
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-    "Saturday", "Sunday", "Today", "Tomorrow", "Yesterday",
-    "First", "Second", "Third", "Last", "Next", "Final",
-    "After", "Before", "During", "While", "Since", "Until",
-    "Because", "However", "Therefore", "Although", "Unless",
-    "Would", "Could", "Should", "Might", "Shall", "Cannot",
-    "Other", "Another", "Every", "Several", "Various",
-    "About", "Above", "Across", "Against", "Along", "Among",
-    "Around", "Behind", "Below", "Beneath", "Beside", "Between",
-    "Beyond", "Inside", "Outside", "Under", "Within", "Without",
+    "The",
+    "This",
+    "That",
+    "These",
+    "Those",
+    "There",
+    "Here",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+    "Today",
+    "Tomorrow",
+    "Yesterday",
+    "First",
+    "Second",
+    "Third",
+    "Last",
+    "Next",
+    "Final",
+    "After",
+    "Before",
+    "During",
+    "While",
+    "Since",
+    "Until",
+    "Because",
+    "However",
+    "Therefore",
+    "Although",
+    "Unless",
+    "Would",
+    "Could",
+    "Should",
+    "Might",
+    "Shall",
+    "Cannot",
+    "Other",
+    "Another",
+    "Every",
+    "Several",
+    "Various",
+    "About",
+    "Above",
+    "Across",
+    "Against",
+    "Along",
+    "Among",
+    "Around",
+    "Behind",
+    "Below",
+    "Beneath",
+    "Beside",
+    "Between",
+    "Beyond",
+    "Inside",
+    "Outside",
+    "Under",
+    "Within",
+    "Without",
 }
 
 
@@ -795,7 +905,7 @@ def _extract_snippet(text: str, query: str, window: int = 80) -> str:
     """Extract a snippet of text around a query match for mention display."""
     idx = text.lower().find(query.lower())
     if idx == -1:
-        return text[:window * 2] + ("…" if len(text) > window * 2 else "")
+        return text[: window * 2] + ("…" if len(text) > window * 2 else "")
     start = max(0, idx - window)
     end = min(len(text), idx + len(query) + window)
     snippet = text[start:end].replace("\n", " ")

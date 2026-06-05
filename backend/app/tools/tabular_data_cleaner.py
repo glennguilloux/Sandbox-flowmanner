@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # tabular_data_cleaner
 # ---------------------------------------------------------------------------
 
+
 class TabularDataCleanerInput(ToolInput):
     data: str | None = Field(
         None,
@@ -112,6 +113,7 @@ def _fill_missing_column(
         elif non_nulls:
             # Mode
             from collections import Counter
+
             fill = Counter(str(v) for v in non_nulls).most_common(1)[0][0]
             return [fill if v is None else v for v in values]
         return values
@@ -130,6 +132,7 @@ def _fill_missing_column(
         return values
     elif strategy == "mode":
         from collections import Counter
+
         if non_nulls:
             fill = Counter(str(v) for v in non_nulls).most_common(1)[0][0]
             return [fill if v is None else v for v in values]
@@ -189,7 +192,7 @@ class TabularDataCleanerTool(BaseTool):
 
             # Limit rows
             if validated.max_rows > 0:
-                data_rows = data_rows[:validated.max_rows]
+                data_rows = data_rows[: validated.max_rows]
 
             total_rows = len(data_rows)
             stats: dict[str, Any] = {
@@ -210,7 +213,9 @@ class TabularDataCleanerTool(BaseTool):
 
             # Detect types
             if validated.detect_types:
-                data_rows = [[_detect_and_cast(cell) for cell in row] for row in data_rows]
+                data_rows = [
+                    [_detect_and_cast(cell) for cell in row] for row in data_rows
+                ]
                 stats["actions"].append("detected_types")
 
             # Count missing values before filling
@@ -230,7 +235,9 @@ class TabularDataCleanerTool(BaseTool):
                         for row in data_rows
                     ]
                     columns.append(
-                        _fill_missing_column(col_values, validated.fill_missing, headers[col_idx])
+                        _fill_missing_column(
+                            col_values, validated.fill_missing, headers[col_idx]
+                        )
                     )
 
                 # Transpose back to rows
@@ -240,7 +247,8 @@ class TabularDataCleanerTool(BaseTool):
             # Remove rows where ALL values are None (if drop strategy)
             if validated.fill_missing == "drop":
                 data_rows = [
-                    row for row in data_rows
+                    row
+                    for row in data_rows
                     if not all(cell is None or cell == "" for cell in row)
                 ]
                 stats["actions"].append("dropped_empty_rows")

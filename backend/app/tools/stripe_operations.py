@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +32,17 @@ STRIPE_API_VERSION = os.getenv("STRIPE_API_VERSION", "2023-10-16")
 STRIPE_TIMEOUT = int(os.getenv("STRIPE_TIMEOUT", "30"))
 
 
-
 # ── Input ─────────────────────────────────────────────────────────────
 
 STRIPE_ACTIONS = (
-    "get_payment", "list_payments",
-    "get_invoice", "list_invoices",
-    "get_subscription", "list_subscriptions",
-    "get_customer", "list_customers",
+    "get_payment",
+    "list_payments",
+    "get_invoice",
+    "list_invoices",
+    "get_subscription",
+    "list_subscriptions",
+    "get_customer",
+    "list_customers",
     "create_refund",
 )
 
@@ -142,9 +152,7 @@ class StripeOperationsTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: StripeOperationsInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: StripeOperationsInput) -> dict[str, Any]:
         """Route to the appropriate Stripe API endpoint."""
         headers = {
             "Authorization": f"Bearer {STRIPE_SECRET_KEY}",
@@ -152,7 +160,8 @@ class StripeOperationsTool(BaseTool):
         }
 
         async with httpx.AsyncClient(
-            timeout=STRIPE_TIMEOUT, headers=headers,
+            timeout=STRIPE_TIMEOUT,
+            headers=headers,
             base_url="https://api.stripe.com",
         ) as client:
             action = validated.action
@@ -243,9 +252,7 @@ class StripeOperationsTool(BaseTool):
 
     # ── Response formatting ──────────────────────────────────────
 
-    def _sanitize_response(
-        self, action: str, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _sanitize_response(self, action: str, data: dict[str, Any]) -> dict[str, Any]:
         """Extract key fields from a single Stripe resource response."""
         result: dict[str, Any] = {
             "action": action,
@@ -256,54 +263,62 @@ class StripeOperationsTool(BaseTool):
         }
 
         if action == "get_payment":
-            result.update({
-                "amount": data.get("amount"),
-                "currency": data.get("currency"),
-                "status": data.get("status"),
-                "description": data.get("description"),
-                "customer": data.get("customer"),
-            })
+            result.update(
+                {
+                    "amount": data.get("amount"),
+                    "currency": data.get("currency"),
+                    "status": data.get("status"),
+                    "description": data.get("description"),
+                    "customer": data.get("customer"),
+                }
+            )
         elif action == "get_invoice":
-            result.update({
-                "amount_due": data.get("amount_due"),
-                "amount_paid": data.get("amount_paid"),
-                "currency": data.get("currency"),
-                "status": data.get("status"),
-                "customer": data.get("customer"),
-                "hosted_invoice_url": data.get("hosted_invoice_url"),
-            })
+            result.update(
+                {
+                    "amount_due": data.get("amount_due"),
+                    "amount_paid": data.get("amount_paid"),
+                    "currency": data.get("currency"),
+                    "status": data.get("status"),
+                    "customer": data.get("customer"),
+                    "hosted_invoice_url": data.get("hosted_invoice_url"),
+                }
+            )
         elif action == "get_subscription":
             plan = data.get("plan", {}) or data.get("items", {}).get("data", [{}])[0]
-            result.update({
-                "status": data.get("status"),
-                "customer": data.get("customer"),
-                "current_period_end": data.get("current_period_end"),
-                "plan_name": plan.get("nickname") or plan.get("id", ""),
-                "plan_amount": plan.get("amount"),
-                "plan_currency": plan.get("currency"),
-                "cancel_at_period_end": data.get("cancel_at_period_end"),
-            })
+            result.update(
+                {
+                    "status": data.get("status"),
+                    "customer": data.get("customer"),
+                    "current_period_end": data.get("current_period_end"),
+                    "plan_name": plan.get("nickname") or plan.get("id", ""),
+                    "plan_amount": plan.get("amount"),
+                    "plan_currency": plan.get("currency"),
+                    "cancel_at_period_end": data.get("cancel_at_period_end"),
+                }
+            )
         elif action == "get_customer":
-            result.update({
-                "email": data.get("email"),
-                "name": data.get("name"),
-                "balance": data.get("balance"),
-                "delinquent": data.get("delinquent"),
-            })
+            result.update(
+                {
+                    "email": data.get("email"),
+                    "name": data.get("name"),
+                    "balance": data.get("balance"),
+                    "delinquent": data.get("delinquent"),
+                }
+            )
         elif action == "create_refund":
-            result.update({
-                "amount": data.get("amount"),
-                "currency": data.get("currency"),
-                "status": data.get("status"),
-                "charge": data.get("charge"),
-                "reason": data.get("reason"),
-            })
+            result.update(
+                {
+                    "amount": data.get("amount"),
+                    "currency": data.get("currency"),
+                    "status": data.get("status"),
+                    "charge": data.get("charge"),
+                    "reason": data.get("reason"),
+                }
+            )
 
         return result
 
-    def _summarize_item(
-        self, action: str, item: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _summarize_item(self, action: str, item: dict[str, Any]) -> dict[str, Any]:
         """Create a summary per list item."""
         summary: dict[str, Any] = {
             "id": item.get("id"),
@@ -311,28 +326,36 @@ class StripeOperationsTool(BaseTool):
         }
 
         if action in ("list_payments",):
-            summary.update({
-                "amount": item.get("amount"),
-                "currency": item.get("currency"),
-                "status": item.get("status"),
-                "customer": item.get("customer"),
-            })
+            summary.update(
+                {
+                    "amount": item.get("amount"),
+                    "currency": item.get("currency"),
+                    "status": item.get("status"),
+                    "customer": item.get("customer"),
+                }
+            )
         elif action in ("list_invoices",):
-            summary.update({
-                "amount_due": item.get("amount_due"),
-                "status": item.get("status"),
-                "customer": item.get("customer"),
-            })
+            summary.update(
+                {
+                    "amount_due": item.get("amount_due"),
+                    "status": item.get("status"),
+                    "customer": item.get("customer"),
+                }
+            )
         elif action in ("list_subscriptions",):
-            summary.update({
-                "status": item.get("status"),
-                "customer": item.get("customer"),
-            })
+            summary.update(
+                {
+                    "status": item.get("status"),
+                    "customer": item.get("customer"),
+                }
+            )
         elif action in ("list_customers",):
-            summary.update({
-                "email": item.get("email"),
-                "name": item.get("name"),
-            })
+            summary.update(
+                {
+                    "email": item.get("email"),
+                    "name": item.get("name"),
+                }
+            )
 
         return summary
 

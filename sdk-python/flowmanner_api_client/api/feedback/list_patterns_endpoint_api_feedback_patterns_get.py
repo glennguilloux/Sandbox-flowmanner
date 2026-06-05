@@ -14,23 +14,17 @@ from ...types import UNSET, Unset
 from typing import cast
 
 
-
 def _get_kwargs(
     *,
     pattern_type: None | str | Unset = UNSET,
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
-
-
-
-    
 
     params: dict[str, Any] = {}
 
@@ -52,9 +46,7 @@ def _get_kwargs(
 
     params["limit"] = limit
 
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -62,20 +54,20 @@ def _get_kwargs(
         "params": params,
     }
 
-
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | list[FeedbackPatternResponse] | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | list[FeedbackPatternResponse] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
-        for response_200_item_data in (_response_200):
-            response_200_item = FeedbackPatternResponse.from_dict(response_200_item_data)
-
-
+        for response_200_item_data in _response_200:
+            response_200_item = FeedbackPatternResponse.from_dict(
+                response_200_item_data
+            )
 
             response_200.append(response_200_item)
 
@@ -83,8 +75,6 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -94,7 +84,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | list[FeedbackPatternResponse]]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | list[FeedbackPatternResponse]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -110,10 +102,9 @@ def sync_detailed(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[FeedbackPatternResponse]]:
-    """ List Patterns Endpoint
+    """List Patterns Endpoint
 
      List feedback patterns for the current user.
 
@@ -130,16 +121,14 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | list[FeedbackPatternResponse]]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         pattern_type=pattern_type,
-status=status,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        status=status,
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -148,6 +137,7 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
@@ -155,10 +145,9 @@ def sync(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[FeedbackPatternResponse] | None:
-    """ List Patterns Endpoint
+    """List Patterns Endpoint
 
      List feedback patterns for the current user.
 
@@ -175,18 +164,17 @@ def sync(
 
     Returns:
         HTTPValidationError | list[FeedbackPatternResponse]
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-pattern_type=pattern_type,
-status=status,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        pattern_type=pattern_type,
+        status=status,
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
@@ -195,10 +183,9 @@ async def asyncio_detailed(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[FeedbackPatternResponse]]:
-    """ List Patterns Endpoint
+    """List Patterns Endpoint
 
      List feedback patterns for the current user.
 
@@ -215,23 +202,20 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | list[FeedbackPatternResponse]]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         pattern_type=pattern_type,
-status=status,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        status=status,
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
@@ -240,10 +224,9 @@ async def asyncio(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[FeedbackPatternResponse] | None:
-    """ List Patterns Endpoint
+    """List Patterns Endpoint
 
      List feedback patterns for the current user.
 
@@ -260,15 +243,15 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | list[FeedbackPatternResponse]
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-pattern_type=pattern_type,
-status=status,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            pattern_type=pattern_type,
+            status=status,
+            offset=offset,
+            limit=limit,
+            accept_version=accept_version,
+        )
+    ).parsed

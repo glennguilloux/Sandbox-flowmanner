@@ -4,6 +4,7 @@ Revision ID: h4_5_mission_status_constraints
 Revises: h4_4_delete_tenant
 Create Date: 2026-06-02
 """
+
 from alembic import op
 import sqlalchemy as sa
 

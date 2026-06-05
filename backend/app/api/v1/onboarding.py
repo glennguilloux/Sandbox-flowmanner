@@ -24,7 +24,9 @@ async def _get_or_create_state(user_id: int) -> dict:
     """Get existing onboarding state or create a default one."""
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            text("SELECT id, user_id, current_step, milestones, is_completed, completed_at FROM onboarding_state WHERE user_id = :uid"),
+            text(
+                "SELECT id, user_id, current_step, milestones, is_completed, completed_at FROM onboarding_state WHERE user_id = :uid"
+            ),
             {"uid": user_id},
         )
         row = result.mappings().first()
@@ -35,11 +37,13 @@ async def _get_or_create_state(user_id: int) -> dict:
         # Create default state
         now = datetime.now(UTC)
         result = await db.execute(
-            text("""
+            text(
+                """
                 INSERT INTO onboarding_state (user_id, current_step, milestones, is_completed, created_at, updated_at)
                 VALUES (:uid, 'welcome', '{}', false, :now, :now)
                 RETURNING id, user_id, current_step, milestones, is_completed, completed_at
-            """),
+            """
+            ),
             {"uid": user_id, "now": now},
         )
         await db.commit()
@@ -51,13 +55,19 @@ async def get_status(user=Depends(get_current_user)):
     """Get current user's onboarding state."""
     state = await _get_or_create_state(user.id)
     step_ids = [s["id"] for s in ONBOARDING_STEPS]
-    current_idx = step_ids.index(state["current_step"]) if state["current_step"] in step_ids else 0
+    current_idx = (
+        step_ids.index(state["current_step"])
+        if state["current_step"] in step_ids
+        else 0
+    )
 
     return {
         "currentStep": state["current_step"],
         "currentStepIndex": current_idx,
         "isCompleted": state["is_completed"],
-        "completedAt": state["completed_at"].isoformat() if state["completed_at"] else None,
+        "completedAt": (
+            state["completed_at"].isoformat() if state["completed_at"] else None
+        ),
         "milestones": state["milestones"],
         "steps": ONBOARDING_STEPS,
     }
@@ -72,12 +82,16 @@ async def advance_step(update: StepUpdate, user=Depends(get_current_user)):
     """Advance to a specific onboarding step."""
     valid_ids = {s["id"] for s in ONBOARDING_STEPS}
     if update.step not in valid_ids:
-        raise HTTPException(status_code=400, detail=f"Invalid step: {update.step}. Valid: {valid_ids}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid step: {update.step}. Valid: {valid_ids}"
+        )
 
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as db:
         await db.execute(
-            text("UPDATE onboarding_state SET current_step = :step, updated_at = :now WHERE user_id = :uid"),
+            text(
+                "UPDATE onboarding_state SET current_step = :step, updated_at = :now WHERE user_id = :uid"
+            ),
             {"step": update.step, "now": now, "uid": user.id},
         )
         await db.commit()
@@ -91,7 +105,9 @@ async def complete_onboarding(user=Depends(get_current_user)):
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as db:
         await db.execute(
-            text("UPDATE onboarding_state SET is_completed = true, completed_at = :now, updated_at = :now WHERE user_id = :uid"),
+            text(
+                "UPDATE onboarding_state SET is_completed = true, completed_at = :now, updated_at = :now WHERE user_id = :uid"
+            ),
             {"now": now, "uid": user.id},
         )
         await db.commit()
@@ -105,11 +121,13 @@ async def skip_onboarding(user=Depends(get_current_user)):
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as db:
         await db.execute(
-            text("""
+            text(
+                """
                 INSERT INTO onboarding_state (user_id, current_step, is_completed, completed_at, created_at, updated_at)
                 VALUES (:uid, 'skipped', true, :now, :now, :now)
                 ON CONFLICT (user_id) DO UPDATE SET current_step = 'skipped', is_completed = true, completed_at = :now, updated_at = :now
-            """),
+            """
+            ),
             {"uid": user.id, "now": now},
         )
         await db.commit()
@@ -161,10 +179,12 @@ async def generate_sample_data(user=Depends(get_current_user)):
         for mission_data in sample_missions:
             mission_id = str(uuid.uuid4())
             await db.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO missions (id, user_id, title, description, mission_type, status, results, tokens_used, started_at, completed_at, created_at, updated_at)
                     VALUES (:id, :uid, :title, :desc, :type, 'completed', :results, :tokens, :now, :now, :now, :now)
-                """),
+                """
+                ),
                 {
                     "id": mission_id,
                     "uid": user.id,

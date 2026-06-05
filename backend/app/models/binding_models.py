@@ -110,6 +110,8 @@ class CapabilityDependency(Base, TimestampMixin):
         index=True,
     )
     dependency_type: Mapped[str] = mapped_column(
-        String(20), default="required", nullable=False,
+        String(20),
+        default="required",
+        nullable=False,
     )
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)

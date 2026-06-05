@@ -27,12 +27,14 @@ def upgrade() -> None:
         "agent_tool_bindings",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "agent_id", sa.String(36),
+            "agent_id",
+            sa.String(36),
             sa.ForeignKey("agent_templates.template_id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
-            "tool_id", sa.String(36),
+            "tool_id",
+            sa.String(36),
             sa.ForeignKey("tools_catalog.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -40,14 +42,20 @@ def upgrade() -> None:
         sa.Column("priority", sa.Integer(), server_default=sa.text("0")),
         sa.Column("config_override", postgresql.JSONB(), nullable=True),
         sa.Column("metadata", postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_atb_agent_id", "agent_tool_bindings", ["agent_id"])
     op.create_index("ix_atb_tool_id", "agent_tool_bindings", ["tool_id"])
     op.create_index(
-        "ix_atb_agent_tool_unique", "agent_tool_bindings",
-        ["agent_id", "tool_id"], unique=True,
+        "ix_atb_agent_tool_unique",
+        "agent_tool_bindings",
+        ["agent_id", "tool_id"],
+        unique=True,
     )
 
     # ── agent_capability_bindings ────────────────────────────────────
@@ -55,12 +63,14 @@ def upgrade() -> None:
         "agent_capability_bindings",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "agent_id", sa.String(36),
+            "agent_id",
+            sa.String(36),
             sa.ForeignKey("agent_templates.template_id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
-            "capability_id", sa.String(36),
+            "capability_id",
+            sa.String(36),
             sa.ForeignKey("capabilities_catalog.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -68,14 +78,22 @@ def upgrade() -> None:
         sa.Column("priority", sa.Integer(), server_default=sa.text("0")),
         sa.Column("config_override", postgresql.JSONB(), nullable=True),
         sa.Column("metadata", postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_acb_agent_id", "agent_capability_bindings", ["agent_id"])
-    op.create_index("ix_acb_capability_id", "agent_capability_bindings", ["capability_id"])
     op.create_index(
-        "ix_acb_agent_cap_unique", "agent_capability_bindings",
-        ["agent_id", "capability_id"], unique=True,
+        "ix_acb_capability_id", "agent_capability_bindings", ["capability_id"]
+    )
+    op.create_index(
+        "ix_acb_agent_cap_unique",
+        "agent_capability_bindings",
+        ["agent_id", "capability_id"],
+        unique=True,
     )
 
     # ── capability_dependencies ──────────────────────────────────────
@@ -83,28 +101,38 @@ def upgrade() -> None:
         "capability_dependencies",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "capability_id", sa.String(36),
+            "capability_id",
+            sa.String(36),
             sa.ForeignKey("capabilities_catalog.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
-            "depends_on_id", sa.String(36),
+            "depends_on_id",
+            sa.String(36),
             sa.ForeignKey("capabilities_catalog.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
-            "dependency_type", sa.String(20), nullable=False,
+            "dependency_type",
+            sa.String(20),
+            nullable=False,
             server_default="required",
         ),
         sa.Column("metadata", postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_cd_capability_id", "capability_dependencies", ["capability_id"])
     op.create_index("ix_cd_depends_on_id", "capability_dependencies", ["depends_on_id"])
     op.create_index(
-        "ix_cd_cap_dep_unique", "capability_dependencies",
-        ["capability_id", "depends_on_id"], unique=True,
+        "ix_cd_cap_dep_unique",
+        "capability_dependencies",
+        ["capability_id", "depends_on_id"],
+        unique=True,
     )
     # Prevent self-referencing dependency
     op.execute(

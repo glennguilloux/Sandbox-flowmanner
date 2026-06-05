@@ -124,7 +124,9 @@ class TestRAGApiIngest:
         mocks["vector_store"].upsert_chunks.return_value = 2
         _auth()
 
-        resp = client.post(f"{BASE}/ingest", json={"book_title": "my book", "text": "some long text"})
+        resp = client.post(
+            f"{BASE}/ingest", json={"book_title": "my book", "text": "some long text"}
+        )
         assert resp.status_code == 202
         data = resp.json()
         assert data["status"] == "accepted"
@@ -178,7 +180,15 @@ class TestRAGApiChunks:
         """Chunks endpoint returns paginated chunk list with total."""
         mocks = mock_rag_api_services
         mocks["vector_store"].list_chunks.return_value = (
-            [{"id": "1", "text": "hello", "topics": ["role_definition"], "relevance_score": 0.8, "chunk_index": 0}],
+            [
+                {
+                    "id": "1",
+                    "text": "hello",
+                    "topics": ["role_definition"],
+                    "relevance_score": 0.8,
+                    "chunk_index": 0,
+                }
+            ],
             1,
         )
         _auth()

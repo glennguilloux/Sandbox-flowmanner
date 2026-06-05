@@ -20,8 +20,16 @@ def upgrade() -> None:
     op.create_table(
         "feedback_reports",
         sa.Column("id", UUID(as_uuid=False), primary_key=True),
-        sa.Column("mission_id", UUID(as_uuid=False), sa.ForeignKey("missions.id"), nullable=False, index=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
+        sa.Column(
+            "mission_id",
+            UUID(as_uuid=False),
+            sa.ForeignKey("missions.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
+        ),
         sa.Column("overall_score", sa.Float, nullable=False, server_default="0.0"),
         sa.Column("efficiency_score", sa.Float, nullable=True),
         sa.Column("quality_score", sa.Float, nullable=True),
@@ -31,16 +39,27 @@ def upgrade() -> None:
         sa.Column("task_analysis", JSONB, nullable=True),
         sa.Column("error_summary", JSONB, nullable=True),
         sa.Column("token_efficiency", JSONB, nullable=True),
-        sa.Column("synthesis_mode", sa.String(20), nullable=False, server_default="auto"),
+        sa.Column(
+            "synthesis_mode", sa.String(20), nullable=False, server_default="auto"
+        ),
         sa.Column("status", sa.String(20), nullable=False, server_default="completed"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
     )
 
     op.create_table(
         "feedback_patterns",
         sa.Column("id", UUID(as_uuid=False), primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
+        sa.Column(
+            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
+        ),
         sa.Column("pattern_type", sa.String(50), nullable=False, index=True),
         sa.Column("description", sa.Text, nullable=False),
         sa.Column("frequency", sa.Integer, nullable=False, server_default="1"),
@@ -48,8 +67,15 @@ def upgrade() -> None:
         sa.Column("example_mission_ids", JSONB, nullable=True),
         sa.Column("suggested_fix", sa.Text, nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="active"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
     )
 
 

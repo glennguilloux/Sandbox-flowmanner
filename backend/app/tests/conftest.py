@@ -5,15 +5,15 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 # 1. Set ALL env vars BEFORE any imports
-os.environ['OPENAI_API_KEY'] = '***'
-os.environ['LANGFUSE_PUBLIC_KEY'] = 'test-public-key'
-os.environ['LANGFUSE_SECRET_KEY'] = 'test-secret-key'
-os.environ['JWT_SECRET_KEY'] = 'test-jwt-secret-key-123'
-os.environ['SECRET_KEY'] = 'test-secret-key-123'
-os.environ['AES_ENCRYPTION_KEY'] = 'test-aes-key-16-char'
-os.environ['APP_ENV'] = 'test'
-os.environ['LANGFUSE_ENABLED'] = 'false'
-os.environ['USE_NEW_READS'] = '0'
+os.environ["OPENAI_API_KEY"] = "***"
+os.environ["LANGFUSE_PUBLIC_KEY"] = "test-public-key"
+os.environ["LANGFUSE_SECRET_KEY"] = "test-secret-key"
+os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-123"
+os.environ["SECRET_KEY"] = "test-secret-key-123"
+os.environ["AES_ENCRYPTION_KEY"] = "test-aes-key-16-char"
+os.environ["APP_ENV"] = "test"
+os.environ["LANGFUSE_ENABLED"] = "false"
+os.environ["USE_NEW_READS"] = "0"
 
 # 2. Mock redis globally BEFORE any imports that use it
 #    This ensures auth_rate_limiter falls back to InMemoryRateLimiter
@@ -26,8 +26,8 @@ mock_redis.ConnectionError = ConnectionError
 mock_redis.asyncio = MagicMock()
 mock_redis.asyncio.Redis = MagicMock()
 mock_redis.asyncio.Redis.from_url = MagicMock(return_value=MagicMock())
-sys.modules['redis'] = mock_redis
-sys.modules['redis.asyncio'] = mock_redis.asyncio
+sys.modules["redis"] = mock_redis
+sys.modules["redis.asyncio"] = mock_redis.asyncio
 
 # 2b. Mock portalocker globally so portalocker/redis.py is never evaluated.
 #     portalocker/redis.py subclasses redis.client.PubSubWorkerThread and uses it
@@ -35,14 +35,14 @@ sys.modules['redis.asyncio'] = mock_redis.asyncio
 #     mocked above, that inheritance produces a MagicMock which then blows up
 #     typing.ForwardRef with SyntaxError: "Forward reference must be an expression".
 mock_portalocker = MagicMock()
-sys.modules['portalocker'] = mock_portalocker
-sys.modules['portalocker.redis'] = mock_portalocker.redis
-sys.modules['portalocker.utils'] = mock_portalocker.utils
+sys.modules["portalocker"] = mock_portalocker
+sys.modules["portalocker.redis"] = mock_portalocker.redis
+sys.modules["portalocker.utils"] = mock_portalocker.utils
 
 # 3. Mock stripe globally so partner.py can be imported without stripe installed
 mock_stripe = MagicMock()
 mock_stripe.Transfer = MagicMock()
-sys.modules['stripe'] = mock_stripe
+sys.modules["stripe"] = mock_stripe
 
 # 4. Mock lifespan BEFORE importing app
 import app.lifespan as lifespan_module
@@ -51,6 +51,7 @@ import app.lifespan as lifespan_module
 @asynccontextmanager
 async def mock_lifespan(app_instance):
     yield
+
 
 # Replace lifespan in module (affects subsequent import of main_fastapi)
 lifespan_module.lifespan = mock_lifespan
@@ -64,9 +65,11 @@ import app.api.middleware.rate_limit as rl_module
 
 _original_dispatch = rl_module.GlobalRateLimitMiddleware.dispatch
 
+
 async def _noop_dispatch(self, request, call_next):
     """Pass-through dispatch — rate limiting disabled for tests."""
     return await call_next(request)
+
 
 rl_module.GlobalRateLimitMiddleware.dispatch = _noop_dispatch
 
@@ -99,6 +102,7 @@ def mock_db_session():
     session.refresh = AsyncMock()
     return session
 
+
 @pytest.fixture
 def sample_user():
     """Standard test user as SimpleNamespace (supports attribute access)."""
@@ -115,12 +119,15 @@ def sample_user():
         partner_id=None,
     )
 
+
 @pytest.fixture
 def test_client(mock_db_session):
     async def override_get_db():
         yield mock_db_session
+
     async def override_get_db_session():
         yield mock_db_session
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_db_session] = override_get_db_session
     with TestClient(app) as client:

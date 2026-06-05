@@ -27,6 +27,7 @@ from app.models import Base, TimestampMixin
 
 class HumanInterruptType(str, Enum):
     """Types of human interrupts."""
+
     APPROVAL = "approval"
     CLARIFICATION = "clarification"
     ESCALATION = "escalation"
@@ -34,6 +35,7 @@ class HumanInterruptType(str, Enum):
 
 class InboxItemStatus(str, Enum):
     """Lifecycle states for inbox items."""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -61,28 +63,40 @@ class InboxItem(Base, TimestampMixin):
     workspace_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True,
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
     )
     mission_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("missions.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        String(36),
+        ForeignKey("missions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     run_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True,
+        String(36),
+        nullable=True,
+        index=True,
     )
     task_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True,
+        String(36),
+        nullable=True,
     )
     node_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True,
+        String(36),
+        nullable=True,
     )
 
     # Interrupt details
     interrupt_type: Mapped[str] = mapped_column(
-        String(30), nullable=False, index=True,
+        String(30),
+        nullable=False,
+        index=True,
     )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -91,21 +105,28 @@ class InboxItem(Base, TimestampMixin):
 
     # Status and resolution
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=InboxItemStatus.PENDING.value,
-        server_default="pending", index=True,
+        String(20),
+        nullable=False,
+        default=InboxItemStatus.PENDING.value,
+        server_default="pending",
+        index=True,
     )
     resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     resolved_by: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=True,
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
     )
     resolution_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Expiration
     expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
 

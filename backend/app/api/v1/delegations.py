@@ -86,7 +86,9 @@ async def list_all_delegations(
         delegatee_delegations, _ = await list_delegations(
             db, delegatee_id=user.id, active_only=active_only, offset=0, limit=1000
         )
-        all_delegations = {d.id: d for d in delegator_delegations + delegatee_delegations}
+        all_delegations = {
+            d.id: d for d in delegator_delegations + delegatee_delegations
+        }
         delegations = list(all_delegations.values())
         total = len(delegations)
         delegations = delegations[offset : offset + limit]
@@ -116,11 +118,18 @@ async def get_delegation_by_id(
     """Get delegation details by ID."""
     delegation = await get_delegation(db, delegation_id)
     if not delegation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delegation not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Delegation not found"
+        )
 
     # Only delegator, delegatee, or admin can view
-    if not user.is_admin and user.id not in (delegation.delegator_id, delegation.delegatee_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if not user.is_admin and user.id not in (
+        delegation.delegator_id,
+        delegation.delegatee_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
 
     return DelegationResponse.model_validate(delegation)
 
@@ -139,13 +148,21 @@ async def revoke_delegation_by_id(
     """
     delegation = await get_delegation(db, delegation_id)
     if not delegation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delegation not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Delegation not found"
+        )
 
     if not user.is_admin and user.id != delegation.delegator_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only delegator or admin can revoke")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only delegator or admin can revoke",
+        )
 
     success = await revoke_delegation(
         db, delegation_id, revoked_by=user.id, audit_notes=audit_notes
     )
     if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to revoke delegation")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to revoke delegation",
+        )

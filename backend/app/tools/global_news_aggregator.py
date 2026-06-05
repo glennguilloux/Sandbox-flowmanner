@@ -15,7 +15,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +35,70 @@ NEWS_DEFAULT_COUNTRY = os.getenv("NEWS_DEFAULT_COUNTRY", "us")
 
 # Supported countries and categories for the /top-headlines endpoint
 _SUPPORTED_COUNTRIES = {
-    "ae", "ar", "at", "au", "be", "bg", "br", "ca", "ch", "cn", "co", "cu",
-    "cz", "de", "eg", "fr", "gb", "gr", "hk", "hu", "id", "ie", "il", "in",
-    "it", "jp", "kr", "lt", "lv", "ma", "mx", "my", "ng", "nl", "no", "nz",
-    "ph", "pl", "pt", "ro", "rs", "ru", "sa", "se", "sg", "si", "sk", "th",
-    "tr", "tw", "ua", "us", "ve", "za",
+    "ae",
+    "ar",
+    "at",
+    "au",
+    "be",
+    "bg",
+    "br",
+    "ca",
+    "ch",
+    "cn",
+    "co",
+    "cu",
+    "cz",
+    "de",
+    "eg",
+    "fr",
+    "gb",
+    "gr",
+    "hk",
+    "hu",
+    "id",
+    "ie",
+    "il",
+    "in",
+    "it",
+    "jp",
+    "kr",
+    "lt",
+    "lv",
+    "ma",
+    "mx",
+    "my",
+    "ng",
+    "nl",
+    "no",
+    "nz",
+    "ph",
+    "pl",
+    "pt",
+    "ro",
+    "rs",
+    "ru",
+    "sa",
+    "se",
+    "sg",
+    "si",
+    "sk",
+    "th",
+    "tr",
+    "tw",
+    "ua",
+    "us",
+    "ve",
+    "za",
 }
 
 _SUPPORTED_CATEGORIES = {
-    "business", "entertainment", "general", "health", "science", "sports", "technology",
+    "business",
+    "entertainment",
+    "general",
+    "health",
+    "science",
+    "sports",
+    "technology",
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -73,7 +135,9 @@ class GlobalNewsAggregatorInput(ToolInput):
         description="News source IDs (e.g., ['bbc-news', 'cnn']). Overrides country/category.",
     )
     max_results: int = Field(
-        20, ge=1, le=100,
+        20,
+        ge=1,
+        le=100,
         description="Maximum number of articles to return",
     )
     language: str | None = Field(
@@ -174,7 +238,9 @@ class GlobalNewsAggregatorTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(self, validated: GlobalNewsAggregatorInput) -> dict[str, Any]:
+    async def _execute_action(
+        self, validated: GlobalNewsAggregatorInput
+    ) -> dict[str, Any]:
         if validated.action == "top_headlines":
             return await self._top_headlines(validated)
         elif validated.action == "search":
@@ -203,7 +269,9 @@ class GlobalNewsAggregatorTool(BaseTool):
     def _get_date_range(self, validated: GlobalNewsAggregatorInput) -> dict[str, str]:
         """Resolve from_date and to_date with defaults."""
         to_date = validated.to_date or date.today().isoformat()
-        from_date = validated.from_date or (date.today() - timedelta(days=30)).isoformat()
+        from_date = (
+            validated.from_date or (date.today() - timedelta(days=30)).isoformat()
+        )
         return {"from": from_date, "to": to_date}
 
     # ── Action handlers ──────────────────────────────────────────
@@ -310,7 +378,9 @@ class GlobalNewsAggregatorTool(BaseTool):
         }
 
         async with httpx.AsyncClient(timeout=NEWS_TIMEOUT) as client:
-            resp = await client.get(f"{NEWS_API_BASE}/top-headlines/sources", params=params)
+            resp = await client.get(
+                f"{NEWS_API_BASE}/top-headlines/sources", params=params
+            )
             resp.raise_for_status()
             data = resp.json()
 

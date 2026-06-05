@@ -14,11 +14,13 @@ class TestMigrateModule:
 
     def test_importable(self):
         import scripts.migrate_redis_memories
+
         assert hasattr(scripts.migrate_redis_memories, "run")
 
     def test_dry_run_default(self):
         """--apply flag should default to False."""
         import sys
+
         argv_backup = sys.argv
         sys.argv = ["migrate_redis_memories.py"]
         try:
@@ -31,6 +33,7 @@ class TestMigrateModule:
     def test_apply_flag(self):
         """--apply flag should be detected."""
         import sys
+
         argv_backup = sys.argv
         sys.argv = ["migrate_redis_memories.py", "--apply"]
         try:

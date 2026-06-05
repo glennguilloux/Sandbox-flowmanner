@@ -85,9 +85,11 @@ def _format_paragraph_markdown(para) -> str:
     if prefix:
         # Strip the matched prefix characters from formatted text
         # Match leading whitespace + bullet/number + whitespace
-        m = re.match(r"^\s*(?:[-\u2022\u2023\u25E6\u2043\u2219\*]\s*|\d+[\.\)]\s*)", formatted)
+        m = re.match(
+            r"^\s*(?:[-\u2022\u2023\u25E6\u2043\u2219\*]\s*|\d+[\.\)]\s*)", formatted
+        )
         if m:
-            formatted = formatted[m.end():]
+            formatted = formatted[m.end() :]
         return f"{prefix}{formatted.strip()}\n"
 
     # Normal paragraph
@@ -119,7 +121,7 @@ def _table_to_markdown(table) -> str:
     for row in rows[1:]:
         while len(row) < len(rows[0]):
             row.append("")
-        lines.append("| " + " | ".join(row[:len(rows[0])]) + " |")
+        lines.append("| " + " | ".join(row[: len(rows[0])]) + " |")
 
     lines.append("")
     return "\n".join(lines)
@@ -206,7 +208,11 @@ class DocxToMarkdownTool(BaseTool):
                         p_idx += 1
                         md_lines.append(_format_paragraph_markdown(para))
 
-                elif tag == "tbl" and validated.include_tables and tbl_idx < len(doc.tables):
+                elif (
+                    tag == "tbl"
+                    and validated.include_tables
+                    and tbl_idx < len(doc.tables)
+                ):
                     table = doc.tables[tbl_idx]
                     tbl_idx += 1
                     md_lines.append(_table_to_markdown(table))

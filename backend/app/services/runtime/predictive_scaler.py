@@ -10,6 +10,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class PredictiveScaler:
     """Predictive auto-scaling based on ML models"""
 
@@ -40,22 +41,28 @@ class PredictiveScaler:
                 "current": round(cpu_current, 2),
                 "predicted": round(cpu_predicted, 2),
                 "confidence": round(random.uniform(0.7, 0.95), 2),
-                "recommendation": self._get_recommendation("cpu", cpu_current, cpu_predicted),
-                "horizon": horizon
+                "recommendation": self._get_recommendation(
+                    "cpu", cpu_current, cpu_predicted
+                ),
+                "horizon": horizon,
             },
             "memory": {
                 "resource": "memory",
                 "current": round(memory_current, 2),
                 "predicted": round(memory_predicted, 2),
                 "confidence": round(random.uniform(0.7, 0.95), 2),
-                "recommendation": self._get_recommendation("memory", memory_current, memory_predicted),
-                "horizon": horizon
-            }
+                "recommendation": self._get_recommendation(
+                    "memory", memory_current, memory_predicted
+                ),
+                "horizon": horizon,
+            },
         }
 
         return self._predictions
 
-    def _get_recommendation(self, resource: str, current: float, predicted: float) -> str:
+    def _get_recommendation(
+        self, resource: str, current: float, predicted: float
+    ) -> str:
         """Generate scaling recommendation"""
         if predicted > 85:
             return f"SCALE UP: {resource} predicted to exceed threshold"
@@ -74,19 +81,19 @@ class PredictiveScaler:
                 recommendations[resource] = {
                     "action": "scale_up",
                     "urgency": "high" if data["predicted"] > 90 else "medium",
-                    **data
+                    **data,
                 }
             elif data["predicted"] < 30:
                 recommendations[resource] = {
                     "action": "scale_down",
                     "urgency": "low",
-                    **data
+                    **data,
                 }
             else:
                 recommendations[resource] = {
                     "action": "maintain",
                     "urgency": "none",
-                    **data
+                    **data,
                 }
 
         return recommendations
@@ -101,7 +108,7 @@ class PredictiveScaler:
             "target_memory": self.target_memory,
             "auto_scaling_enabled": True,
             "last_scale_event": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
-            "predictions": self._predictions
+            "predictions": self._predictions,
         }
 
     async def scale_up(self, count: int = 1) -> dict[str, Any]:
@@ -110,13 +117,15 @@ class PredictiveScaler:
         actual_added = new_count - self.current_workers
         self.current_workers = new_count
 
-        logger.info(f"Scaled up by {actual_added} workers. Total: {self.current_workers}")
+        logger.info(
+            f"Scaled up by {actual_added} workers. Total: {self.current_workers}"
+        )
 
         return {
             "action": "scale_up",
             "workers_added": actual_added,
             "total_workers": self.current_workers,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def scale_down(self, count: int = 1) -> dict[str, Any]:
@@ -125,14 +134,17 @@ class PredictiveScaler:
         actual_removed = self.current_workers - new_count
         self.current_workers = new_count
 
-        logger.info(f"Scaled down by {actual_removed} workers. Total: {self.current_workers}")
+        logger.info(
+            f"Scaled down by {actual_removed} workers. Total: {self.current_workers}"
+        )
 
         return {
             "action": "scale_down",
             "workers_removed": actual_removed,
             "total_workers": self.current_workers,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
+
 
 # Singleton instance
 predictive_scaler = PredictiveScaler()

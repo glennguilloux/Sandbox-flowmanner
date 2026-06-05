@@ -6,7 +6,9 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload")
+T = TypeVar(
+    "T", bound="PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload"
+)
 
 
 @_attrs_define
@@ -24,9 +26,13 @@ class PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload = cls()
+        push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload = (
+            cls()
+        )
 
-        push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload.additional_properties = d
+        push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload.additional_properties = (
+            d
+        )
         return push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload
 
     @property

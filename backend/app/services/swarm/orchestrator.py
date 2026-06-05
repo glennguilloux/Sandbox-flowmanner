@@ -77,7 +77,9 @@ class SwarmOrchestrator:
         strategy: str = "parallel",
         max_agents: int = 5,
         metadata: dict[str, Any] | None = None,
-        byok_key_id: int | None = None, model_override: str | None = None) -> OrchestratorExecution:
+        byok_key_id: int | None = None,
+        model_override: str | None = None,
+    ) -> OrchestratorExecution:
         """Execute a goal using multi-agent orchestration."""
         execution = OrchestratorExecution(
             goal=goal,
@@ -94,13 +96,16 @@ class SwarmOrchestrator:
             # Store params from execute() call to self for downstream use
             self.byok_key_id = byok_key_id
             self.model_override = model_override
-            
+
             if self.byok_key_id and not self._byok_key:
                 from sqlalchemy import select
 
                 from app.models.byok_models import UserAPIKey
+
                 result = await self.db.execute(
-                    select(UserAPIKey).where(UserAPIKey.id == self.byok_key_id, UserAPIKey.is_active == True)
+                    select(UserAPIKey).where(
+                        UserAPIKey.id == self.byok_key_id, UserAPIKey.is_active == True
+                    )
                 )
                 key_row = result.scalar_one_or_none()
                 if key_row:
@@ -145,12 +150,16 @@ class SwarmOrchestrator:
                     item["record"].status = "assigned"
 
             # Step 4: Execute tasks (respecting dependencies)
-            await self._transition_execution_status(execution, "running", cause="Agents dispatched")
+            await self._transition_execution_status(
+                execution, "running", cause="Agents dispatched"
+            )
 
             await self._execute_tasks(task_records, strategy)
 
             # Step 5: Synthesize results
-            await self._transition_execution_status(execution, "synthesizing", cause="All tasks completed")
+            await self._transition_execution_status(
+                execution, "synthesizing", cause="All tasks completed"
+            )
 
             synthesis, conflicts = await self._synthesize(goal, task_records)
             execution.synthesis = synthesis
@@ -161,11 +170,10 @@ class SwarmOrchestrator:
                 1 for t in task_records if t["record"].status == "completed"
             )
             execution.completed_count = completed
-            execution.total_tokens = sum(
-                t["record"].tokens_used for t in task_records
-            )
+            execution.total_tokens = sum(t["record"].tokens_used for t in task_records)
             await self._transition_execution_status(
-                execution, "completed",
+                execution,
+                "completed",
                 cause=f"{completed}/{len(task_records)} tasks completed, {execution.total_tokens} tokens",
             )
             execution.completed_at = datetime.now(UTC)
@@ -190,8 +198,12 @@ class SwarmOrchestrator:
         logger.info(
             "Swarm execution %s state transition: %s → %s (cause: %s) actor=swarm_orchestrator"
             " prev_state=%s next_state=%s",
-            execution.id, prev_status, new_status, cause or f"transitioned to {new_status}",
-            prev_status, new_status,
+            execution.id,
+            prev_status,
+            new_status,
+            cause or f"transitioned to {new_status}",
+            prev_status,
+            new_status,
         )
 
     async def _decompose(self, goal: str, max_agents: int) -> list[dict]:
@@ -212,9 +224,7 @@ class SwarmOrchestrator:
             # Fallback: single task
             return [{"id": "task_1", "description": goal, "task_type": "general"}]
 
-    async def _execute_tasks(
-        self, task_records: list[dict], strategy: str
-    ) -> None:
+    async def _execute_tasks(self, task_records: list[dict], strategy: str) -> None:
         """Execute tasks respecting dependency order."""
         if strategy == "sequential":
             for item in task_records:
@@ -230,14 +240,15 @@ class SwarmOrchestrator:
                     item
                     for item in remaining
                     if all(
-                        dep in completed_ids
-                        for dep in (item.get("depends_on") or [])
+                        dep in completed_ids for dep in (item.get("depends_on") or [])
                     )
                 ]
 
                 if not ready:
                     # Deadlock protection: execute remaining sequentially
-                    logger.warning("Dependency deadlock detected, executing remaining sequentially")
+                    logger.warning(
+                        "Dependency deadlock detected, executing remaining sequentially"
+                    )
                     for item in remaining:
                         await self._execute_single_task(item)
                         completed_ids.add(item["id"])
@@ -267,7 +278,9 @@ class SwarmOrchestrator:
                     for _other in []:
                         pass  # Would need access to all task records
                 if dep_outputs:
-                    dep_context = "\n\nContext from prior tasks:\n" + "\n---\n".join(dep_outputs)
+                    dep_context = "\n\nContext from prior tasks:\n" + "\n---\n".join(
+                        dep_outputs
+                    )
 
             agent_prompt = f"You are {task.agent_name or 'a specialist agent'}. Complete this task:\n\n{task.task_description}{dep_context}"
 
@@ -306,15 +319,16 @@ class SwarmOrchestrator:
 
         prompt = (
             f"Original goal: {goal}\n\n"
-            f"Agent outputs:\n\n"
-            + "\n\n---\n\n".join(completed_outputs)
+            f"Agent outputs:\n\n" + "\n\n---\n\n".join(completed_outputs)
         )
 
         synthesis = await self._call_llm(SYNTHESIZE_SYSTEM_PROMPT, prompt)
 
         # Check for conflict markers
         if "[CONFLICT]" in synthesis:
-            conflicts.append({"type": "unresolved", "count": synthesis.count("[CONFLICT]")})
+            conflicts.append(
+                {"type": "unresolved", "count": synthesis.count("[CONFLICT]")}
+            )
 
         return synthesis, conflicts
 
@@ -402,6 +416,7 @@ class SwarmOrchestrator:
         # Also record Prometheus metrics
         try:
             from app.core.metrics import record_llm_request
+
             record_llm_request(
                 provider=provider,
                 duration_seconds=latency_ms / 1000.0,
@@ -414,7 +429,9 @@ class SwarmOrchestrator:
 
     async def get_execution(self, execution_id: str) -> OrchestratorExecution | None:
         result = await self.db.execute(
-            select(OrchestratorExecution).where(OrchestratorExecution.id == execution_id)
+            select(OrchestratorExecution).where(
+                OrchestratorExecution.id == execution_id
+            )
         )
         return result.scalar_one_or_none()
 

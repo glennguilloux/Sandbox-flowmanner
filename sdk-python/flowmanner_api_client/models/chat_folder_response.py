@@ -1,37 +1,28 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
 
-
-
-
-
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="ChatFolderResponse")
 
 
-
 @_attrs_define
 class ChatFolderResponse:
-    """ 
-        Attributes:
-            id (int):
-            name (str):
-            user_id (int):
-            created_at (datetime.datetime | None | Unset):
-            updated_at (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (int):
+        name (str):
+        user_id (int):
+        created_at (datetime.datetime | None | Unset):
+        updated_at (datetime.datetime | None | Unset):
+    """
 
     id: int
     name: str
@@ -39,10 +30,6 @@ class ChatFolderResponse:
     created_at: datetime.datetime | None | Unset = UNSET
     updated_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -67,22 +54,21 @@ class ChatFolderResponse:
         else:
             updated_at = self.updated_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "name": name,
-            "user_id": user_id,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "name": name,
+                "user_id": user_id,
+            }
+        )
         if created_at is not UNSET:
             field_dict["created_at"] = created_at
         if updated_at is not UNSET:
             field_dict["updated_at"] = updated_at
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -103,15 +89,12 @@ class ChatFolderResponse:
                     raise TypeError()
                 created_at_type_0 = isoparse(data)
 
-
-
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         def _parse_updated_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -123,15 +106,12 @@ class ChatFolderResponse:
                     raise TypeError()
                 updated_at_type_0 = isoparse(data)
 
-
-
                 return updated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         updated_at = _parse_updated_at(d.pop("updated_at", UNSET))
-
 
         chat_folder_response = cls(
             id=id,
@@ -140,7 +120,6 @@ class ChatFolderResponse:
             created_at=created_at,
             updated_at=updated_at,
         )
-
 
         chat_folder_response.additional_properties = d
         return chat_folder_response

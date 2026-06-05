@@ -52,6 +52,7 @@ def _get_redis() -> redis.Redis | None:
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class ContextWindowManagerInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
@@ -82,6 +83,7 @@ class ContextWindowManagerInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class ContextWindowManagerTool(BaseTool):
     def __init__(self):
@@ -203,7 +205,9 @@ class ContextWindowManagerTool(BaseTool):
                 pg_stored = True
                 logger.info(
                     "Context window stored in PG: id=%s key=%s namespace=%s",
-                    entry_id, key, namespace,
+                    entry_id,
+                    key,
+                    namespace,
                 )
         except Exception as e:
             logger.error("Failed to store in PostgreSQL: %s", e)
@@ -421,7 +425,9 @@ class ContextWindowManagerTool(BaseTool):
                     deleted_from_pg = True
                     logger.info(
                         "Deleted %d context window entries from PG: key=%s namespace=%s",
-                        len(rows), key, namespace,
+                        len(rows),
+                        key,
+                        namespace,
                     )
         except Exception as e:
             logger.error("PostgreSQL delete failed: %s", e)
@@ -461,13 +467,23 @@ class ContextWindowManagerTool(BaseTool):
 
         # Sentences containing key phrases get priority
         key_phrases = [
-            "important", "critical", "key", "must", "required",
-            "conclusion", "summary", "therefore", "however",
-            "decision", "action item", "deadline",
+            "important",
+            "critical",
+            "key",
+            "must",
+            "required",
+            "conclusion",
+            "summary",
+            "therefore",
+            "however",
+            "decision",
+            "action item",
+            "deadline",
         ]
 
         key_sentences = [
-            s for s in sentences[2:-1]
+            s
+            for s in sentences[2:-1]
             if any(phrase in s.lower() for phrase in key_phrases)
         ]
 

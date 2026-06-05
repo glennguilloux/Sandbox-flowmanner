@@ -44,7 +44,9 @@ def _mock_db_session(connections=None):
     return session
 
 
-def _make_connection_row(user_id=33, slug="google", is_active=True, token="encrypted-token"):
+def _make_connection_row(
+    user_id=33, slug="google", is_active=True, token="encrypted-token"
+):
     """Create a mock IntegrationConnection row."""
     conn = MagicMock()
     conn.user_id = user_id
@@ -175,9 +177,7 @@ async def test_register_capabilities_success():
         mock_registry.register = MagicMock()
         mock_get_registry.return_value = mock_registry
 
-        ids = await bridge.register_capabilities_for_user(
-            user_id=1, slug="github"
-        )
+        ids = await bridge.register_capabilities_for_user(user_id=1, slug="github")
 
     assert len(ids) > 0
     assert mock_registry.register.call_count == len(ids)
@@ -190,9 +190,7 @@ async def test_register_capabilities_success():
 async def test_register_capabilities_unknown_slug():
     """Registering an unknown slug returns empty list."""
     bridge = IntegrationBridge()
-    ids = await bridge.register_capabilities_for_user(
-        user_id=1, slug="unknown-service"
-    )
+    ids = await bridge.register_capabilities_for_user(user_id=1, slug="unknown-service")
     assert ids == []
 
 
@@ -205,9 +203,7 @@ async def test_register_capabilities_registry_unavailable():
         "app.services.nexus.capability_registry.get_capability_registry",
         side_effect=ImportError("No registry"),
     ):
-        ids = await bridge.register_capabilities_for_user(
-            user_id=1, slug="github"
-        )
+        ids = await bridge.register_capabilities_for_user(user_id=1, slug="github")
 
     # Should not crash
     assert ids == []
@@ -233,9 +229,7 @@ async def test_unregister_capabilities_success():
         await bridge.register_capabilities_for_user(user_id=1, slug="github")
 
         # Now unregister
-        count = await bridge.unregister_capabilities_for_user(
-            user_id=1, slug="github"
-        )
+        count = await bridge.unregister_capabilities_for_user(user_id=1, slug="github")
 
     assert count > 0
     assert mock_registry.unregister.call_count == count
@@ -248,9 +242,7 @@ async def test_unregister_capabilities_success():
 async def test_unregister_capabilities_no_registration():
     """Unregister when nothing was registered returns 0."""
     bridge = IntegrationBridge()
-    count = await bridge.unregister_capabilities_for_user(
-        user_id=99, slug="github"
-    )
+    count = await bridge.unregister_capabilities_for_user(user_id=99, slug="github")
     assert count == 0
 
 
@@ -268,9 +260,7 @@ async def test_unregister_capabilities_registry_unavailable():
         "app.services.nexus.capability_registry.get_capability_registry",
         side_effect=ImportError("No registry"),
     ):
-        count = await bridge.unregister_capabilities_for_user(
-            user_id=1, slug="github"
-        )
+        count = await bridge.unregister_capabilities_for_user(user_id=1, slug="github")
 
     assert count == 0
 
@@ -464,9 +454,7 @@ async def test_get_connector_for_user_returns_connector():
         "app.services.integration_bridge.decrypt_token",
         return_value="ya29.decrypted",
     ):
-        connector = await bridge.get_connector_for_user(
-            user_id=33, slug="google"
-        )
+        connector = await bridge.get_connector_for_user(user_id=33, slug="google")
 
     assert connector is not None
     mock_connector.connect.assert_called_once()
@@ -484,9 +472,7 @@ async def test_get_connector_for_user_no_token():
         "app.database.AsyncSessionLocal",
         return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
     ):
-        connector = await bridge.get_connector_for_user(
-            user_id=33, slug="google"
-        )
+        connector = await bridge.get_connector_for_user(user_id=33, slug="google")
 
     assert connector is None
 
@@ -505,9 +491,7 @@ async def test_get_connector_for_user_decrypt_fails():
         "app.services.integration_bridge.decrypt_token",
         side_effect=ValueError("Bad encryption"),
     ):
-        connector = await bridge.get_connector_for_user(
-            user_id=33, slug="google"
-        )
+        connector = await bridge.get_connector_for_user(user_id=33, slug="google")
 
     assert connector is None
 
@@ -528,9 +512,7 @@ async def test_get_connector_for_linear_skips_oauth():
         "app.services.connectors.ConnectorManager",
         return_value=mock_manager,
     ):
-        connector = await bridge.get_connector_for_user(
-            user_id=33, slug="linear"
-        )
+        connector = await bridge.get_connector_for_user(user_id=33, slug="linear")
 
     assert connector is not None
     mock_connector.connect.assert_called_once()
@@ -556,9 +538,7 @@ async def test_get_connector_for_discord_skips_oauth():
         "app.services.connectors.ConnectorManager",
         return_value=mock_manager,
     ):
-        connector = await bridge.get_connector_for_user(
-            user_id=33, slug="discord"
-        )
+        connector = await bridge.get_connector_for_user(user_id=33, slug="discord")
 
     assert connector is not None
     mock_connector.connect.assert_called_once()

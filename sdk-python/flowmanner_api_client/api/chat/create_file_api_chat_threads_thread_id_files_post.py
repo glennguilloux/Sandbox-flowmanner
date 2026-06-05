@@ -15,31 +15,24 @@ from ...types import UNSET, Unset
 from typing import cast
 
 
-
 def _get_kwargs(
     thread_id: int,
     *,
     body: ChatFileCreate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/api/chat/threads/{thread_id}/files".format(thread_id=quote(str(thread_id), safe=""),),
+        "url": "/api/chat/threads/{thread_id}/files".format(
+            thread_id=quote(str(thread_id), safe=""),
+        ),
     }
 
     _kwargs["json"] = body.to_dict()
-
 
     headers["Content-Type"] = "application/json"
 
@@ -47,19 +40,16 @@ def _get_kwargs(
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> ChatFileResponse | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> ChatFileResponse | HTTPValidationError | None:
     if response.status_code == 201:
         response_201 = ChatFileResponse.from_dict(response.json())
-
-
 
         return response_201
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -69,7 +59,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[ChatFileResponse | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[ChatFileResponse | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -83,10 +75,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[ChatFileResponse | HTTPValidationError]:
-    """ Create File
+    """Create File
 
     Args:
         thread_id (int):
@@ -99,14 +90,12 @@ def sync_detailed(
 
     Returns:
         Response[ChatFileResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         thread_id=thread_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -115,15 +104,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     thread_id: int,
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> ChatFileResponse | HTTPValidationError | None:
-    """ Create File
+    """Create File
 
     Args:
         thread_id (int):
@@ -136,26 +125,24 @@ def sync(
 
     Returns:
         ChatFileResponse | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         thread_id=thread_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
+        client=client,
+        body=body,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     thread_id: int,
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[ChatFileResponse | HTTPValidationError]:
-    """ Create File
+    """Create File
 
     Args:
         thread_id (int):
@@ -168,31 +155,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[ChatFileResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         thread_id=thread_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     thread_id: int,
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> ChatFileResponse | HTTPValidationError | None:
-    """ Create File
+    """Create File
 
     Args:
         thread_id (int):
@@ -205,13 +188,13 @@ async def asyncio(
 
     Returns:
         ChatFileResponse | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        thread_id=thread_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            thread_id=thread_id,
+            client=client,
+            body=body,
+            accept_version=accept_version,
+        )
+    ).parsed

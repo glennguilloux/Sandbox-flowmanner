@@ -27,9 +27,7 @@ def validate_dag(tasks: list[MissionTask]) -> list[str]:
         deps = task.dependencies or {}
         for dep_id in deps.get("depends_on", []):
             if dep_id not in task_ids:
-                errors.append(
-                    f"Task {task.id} depends on non-existent task {dep_id}"
-                )
+                errors.append(f"Task {task.id} depends on non-existent task {dep_id}")
 
     if errors:
         return errors
@@ -139,9 +137,7 @@ def get_ready_tasks(tasks: list[MissionTask]) -> list[str]:
         if not valid_deps:
             ready.append(str(task.id))
         else:
-            all_done = all(
-                task_map[d].status == "completed" for d in valid_deps
-            )
+            all_done = all(task_map[d].status == "completed" for d in valid_deps)
             if all_done:
                 ready.append(str(task.id))
 

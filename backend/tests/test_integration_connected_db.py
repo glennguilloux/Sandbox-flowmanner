@@ -369,9 +369,7 @@ class TestRealDBNonOAuth:
     async def test_discord_appears_when_bot_token_set(
         self, monkeypatch, test_user_and_session, real_db_client
     ):
-        monkeypatch.setenv(
-            "DISCORD_BOT_TOKEN", "real-test-discord-token-integration"
-        )
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "real-test-discord-token-integration")
         monkeypatch.setattr(
             settings, "DISCORD_BOT_TOKEN", "real-test-discord-token-integration"
         )

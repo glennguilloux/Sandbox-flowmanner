@@ -24,20 +24,27 @@ def upgrade() -> None:
         "workflow_versions",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "workflow_id", postgresql.UUID(as_uuid=True),
+            "workflow_id",
+            postgresql.UUID(as_uuid=True),
             sa.ForeignKey("workflows.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("snapshot", postgresql.JSONB(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_wf_versions_workflow_id", "workflow_versions", ["workflow_id"])
     op.create_index(
-        "ix_wf_versions_workflow_version", "workflow_versions",
-        ["workflow_id", "version"], unique=True,
+        "ix_wf_versions_workflow_version",
+        "workflow_versions",
+        ["workflow_id", "version"],
+        unique=True,
     )
 
     # ── execution_events ─────────────────────────────────────────────
@@ -45,7 +52,8 @@ def upgrade() -> None:
         "execution_events",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "execution_id", postgresql.UUID(as_uuid=True),
+            "execution_id",
+            postgresql.UUID(as_uuid=True),
             sa.ForeignKey("workflow_executions.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -55,14 +63,20 @@ def upgrade() -> None:
         sa.Column("payload", postgresql.JSONB(), nullable=True),
         sa.Column("level", sa.String(20), nullable=False, server_default="info"),
         sa.Column("sequence", sa.Integer(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_exec_events_execution_id", "execution_events", ["execution_id"])
     op.create_index("ix_exec_events_event_type", "execution_events", ["event_type"])
     op.create_index(
-        "ix_exec_events_exec_seq", "execution_events",
-        ["execution_id", "sequence"], unique=True,
+        "ix_exec_events_exec_seq",
+        "execution_events",
+        ["execution_id", "sequence"],
+        unique=True,
     )
 
 

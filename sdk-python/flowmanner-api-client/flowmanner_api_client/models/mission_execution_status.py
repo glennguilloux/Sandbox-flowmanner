@@ -146,7 +146,9 @@ class MissionExecutionStatus:
                 return data
             return cast(int | None | Unset, data)
 
-        current_task_index = _parse_current_task_index(d.pop("current_task_index", UNSET))
+        current_task_index = _parse_current_task_index(
+            d.pop("current_task_index", UNSET)
+        )
 
         total_tasks = d.pop("total_tasks", UNSET)
 
@@ -173,7 +175,9 @@ class MissionExecutionStatus:
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
 
-        def _parse_estimated_completion(data: object) -> datetime.datetime | None | Unset:
+        def _parse_estimated_completion(
+            data: object,
+        ) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -188,7 +192,9 @@ class MissionExecutionStatus:
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
-        estimated_completion = _parse_estimated_completion(d.pop("estimated_completion", UNSET))
+        estimated_completion = _parse_estimated_completion(
+            d.pop("estimated_completion", UNSET)
+        )
 
         mission_execution_status = cls(
             mission_id=mission_id,

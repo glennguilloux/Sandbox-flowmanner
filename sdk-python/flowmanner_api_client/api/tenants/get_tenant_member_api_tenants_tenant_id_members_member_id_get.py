@@ -1,52 +1,42 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, Unset
-from typing import cast
-
+from ...types import Response, Unset
 
 
 def _get_kwargs(
     tenant_id: str,
     member_id: str,
     *,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/tenants/{tenant_id}/members/{member_id}".format(tenant_id=quote(str(tenant_id), safe=""),member_id=quote(str(member_id), safe=""),),
+        "url": "/api/tenants/{tenant_id}/members/{member_id}".format(
+            tenant_id=quote(str(tenant_id), safe=""),
+            member_id=quote(str(member_id), safe=""),
+        ),
     }
-
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | None:
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -56,7 +46,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -70,10 +62,9 @@ def sync_detailed(
     member_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError]:
-    """ Get Tenant Member
+    """Get Tenant Member
 
      Get a specific member of a tenant.
 
@@ -88,14 +79,12 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         tenant_id=tenant_id,
-member_id=member_id,
-accept_version=accept_version,
-
+        member_id=member_id,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -104,15 +93,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     tenant_id: str,
     member_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | None:
-    """ Get Tenant Member
+    """Get Tenant Member
 
      Get a specific member of a tenant.
 
@@ -127,26 +116,24 @@ def sync(
 
     Returns:
         HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         tenant_id=tenant_id,
-member_id=member_id,
-client=client,
-accept_version=accept_version,
-
+        member_id=member_id,
+        client=client,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     tenant_id: str,
     member_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError]:
-    """ Get Tenant Member
+    """Get Tenant Member
 
      Get a specific member of a tenant.
 
@@ -161,31 +148,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         tenant_id=tenant_id,
-member_id=member_id,
-accept_version=accept_version,
-
+        member_id=member_id,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     tenant_id: str,
     member_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | None:
-    """ Get Tenant Member
+    """Get Tenant Member
 
      Get a specific member of a tenant.
 
@@ -200,13 +183,13 @@ async def asyncio(
 
     Returns:
         HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        tenant_id=tenant_id,
-member_id=member_id,
-client=client,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            tenant_id=tenant_id,
+            member_id=member_id,
+            client=client,
+            accept_version=accept_version,
+        )
+    ).parsed

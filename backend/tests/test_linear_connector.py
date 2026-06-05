@@ -32,7 +32,9 @@ def _make_config(auth_config: dict | None = None) -> ConnectorConfig:
 def _make_mock_linear_client():
     """Create a mock LinearClient with standard method returns."""
     client = AsyncMock()
-    client.get_teams.return_value = [{"id": "team1", "name": "Engineering", "key": "ENG"}]
+    client.get_teams.return_value = [
+        {"id": "team1", "name": "Engineering", "key": "ENG"}
+    ]
     client.get_default_team_id.return_value = "team1"
     client.create_issue.return_value = {
         "id": "issue1",
@@ -174,9 +176,7 @@ async def test_create_issue():
     with patch(
         "app.services.linear.client.LinearClient",
         return_value=mock_client,
-    ), patch(
-        "app.services.connectors.linear_connector.settings"
-    ) as mock_settings:
+    ), patch("app.services.connectors.linear_connector.settings") as mock_settings:
         mock_settings.LINEAR_TEAM_ID = "team1"
         mock_settings.LINEAR_API_KEY = "test"
 
@@ -207,16 +207,12 @@ async def test_create_issue_missing_title():
 @pytest.mark.asyncio
 async def test_create_issue_missing_team_id():
     """Create issue without team_id returns 400 when LINEAR_TEAM_ID is unset."""
-    with patch(
-        "app.services.connectors.linear_connector.settings"
-    ) as mock_settings:
+    with patch("app.services.connectors.linear_connector.settings") as mock_settings:
         mock_settings.LINEAR_TEAM_ID = ""
 
         connector = LinearConnector(_make_config())
         connector._linear_client = _make_mock_linear_client()
-        result = await connector.execute_action(
-            "create_issue", {"title": "No Team"}
-        )
+        result = await connector.execute_action("create_issue", {"title": "No Team"})
 
     assert result.success is False
     assert result.status_code == 400
@@ -245,9 +241,7 @@ async def test_update_issue_missing_id():
     connector = LinearConnector(_make_config())
     connector._linear_client = _make_mock_linear_client()
 
-    result = await connector.execute_action(
-        "update_issue", {"title": "New Title"}
-    )
+    result = await connector.execute_action("update_issue", {"title": "New Title"})
 
     assert result.success is False
     assert result.status_code == 400
@@ -260,9 +254,7 @@ async def test_get_issue_by_id():
 
     connector = LinearConnector(_make_config())
     connector._linear_client = mock_client
-    result = await connector.execute_action(
-        "get_issue", {"issue_id": "issue1"}
-    )
+    result = await connector.execute_action("get_issue", {"issue_id": "issue1"})
 
     assert result.success is True
     assert result.data["title"] == "Existing Issue"
@@ -276,9 +268,7 @@ async def test_get_issue_by_identifier():
 
     connector = LinearConnector(_make_config())
     connector._linear_client = mock_client
-    result = await connector.execute_action(
-        "get_issue", {"identifier": "ENG-1"}
-    )
+    result = await connector.execute_action("get_issue", {"identifier": "ENG-1"})
 
     assert result.success is True
     assert result.data["identifier"] == "ENG-1"
@@ -293,9 +283,7 @@ async def test_get_issue_not_found():
 
     connector = LinearConnector(_make_config())
     connector._linear_client = mock_client
-    result = await connector.execute_action(
-        "get_issue", {"issue_id": "nonexistent"}
-    )
+    result = await connector.execute_action("get_issue", {"issue_id": "nonexistent"})
 
     assert result.success is False
     assert result.status_code == 404
@@ -318,9 +306,7 @@ async def test_list_issues():
     """List issues for a team."""
     mock_client = _make_mock_linear_client()
 
-    with patch(
-        "app.services.connectors.linear_connector.settings"
-    ) as mock_settings:
+    with patch("app.services.connectors.linear_connector.settings") as mock_settings:
         mock_settings.LINEAR_TEAM_ID = "team1"
 
         connector = LinearConnector(_make_config())
@@ -334,9 +320,7 @@ async def test_list_issues():
 @pytest.mark.asyncio
 async def test_list_issues_missing_team_id():
     """List issues missing team_id returns 400."""
-    with patch(
-        "app.services.connectors.linear_connector.settings"
-    ) as mock_settings:
+    with patch("app.services.connectors.linear_connector.settings") as mock_settings:
         mock_settings.LINEAR_TEAM_ID = ""
 
         connector = LinearConnector(_make_config())
@@ -354,9 +338,7 @@ async def test_search_issues_by_identifier():
 
     connector = LinearConnector(_make_config())
     connector._linear_client = mock_client
-    result = await connector.execute_action(
-        "search_issues", {"q": "ENG-1"}
-    )
+    result = await connector.execute_action("search_issues", {"q": "ENG-1"})
 
     assert result.success is True
     assert result.data["issues"][0]["identifier"] == "ENG-1"
@@ -370,9 +352,7 @@ async def test_search_issues_no_results():
 
     connector = LinearConnector(_make_config())
     connector._linear_client = mock_client
-    result = await connector.execute_action(
-        "search_issues", {"q": "NONEXIST-999"}
-    )
+    result = await connector.execute_action("search_issues", {"q": "NONEXIST-999"})
 
     assert result.success is True
     assert len(result.data["issues"]) == 0

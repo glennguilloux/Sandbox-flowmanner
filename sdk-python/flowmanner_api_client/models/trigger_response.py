@@ -1,49 +1,42 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.trigger_response_config_type_0 import TriggerResponseConfigType0
-
-
-
+    from ..models.trigger_response_config_type_0 import TriggerResponseConfigType0
 
 
 T = TypeVar("T", bound="TriggerResponse")
 
 
-
 @_attrs_define
 class TriggerResponse:
-    """ 
-        Attributes:
-            id (str):
-            user_id (int):
-            mission_id (str):
-            trigger_type (str):
-            name (str):
-            status (str):
-            cron_expression (None | str | Unset):
-            cron_timezone (str | Unset):  Default: 'UTC'.
-            webhook_path (None | str | Unset):
-            config (None | TriggerResponseConfigType0 | Unset):
-            fire_count (int | Unset):  Default: 0.
-            last_fired_at (datetime.datetime | None | Unset):
-            next_fire_at (datetime.datetime | None | Unset):
-            created_at (datetime.datetime | None | Unset):
-            updated_at (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        user_id (int):
+        mission_id (str):
+        trigger_type (str):
+        name (str):
+        status (str):
+        cron_expression (None | str | Unset):
+        cron_timezone (str | Unset):  Default: 'UTC'.
+        webhook_path (None | str | Unset):
+        config (None | TriggerResponseConfigType0 | Unset):
+        fire_count (int | Unset):  Default: 0.
+        last_fired_at (datetime.datetime | None | Unset):
+        next_fire_at (datetime.datetime | None | Unset):
+        created_at (datetime.datetime | None | Unset):
+        updated_at (datetime.datetime | None | Unset):
+    """
 
     id: str
     user_id: int
@@ -52,7 +45,7 @@ class TriggerResponse:
     name: str
     status: str
     cron_expression: None | str | Unset = UNSET
-    cron_timezone: str | Unset = 'UTC'
+    cron_timezone: str | Unset = "UTC"
     webhook_path: None | str | Unset = UNSET
     config: None | TriggerResponseConfigType0 | Unset = UNSET
     fire_count: int | Unset = 0
@@ -62,12 +55,9 @@ class TriggerResponse:
     updated_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.trigger_response_config_type_0 import TriggerResponseConfigType0
+
         id = self.id
 
         user_id = self.user_id
@@ -136,17 +126,18 @@ class TriggerResponse:
         else:
             updated_at = self.updated_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "user_id": user_id,
-            "mission_id": mission_id,
-            "trigger_type": trigger_type,
-            "name": name,
-            "status": status,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "user_id": user_id,
+                "mission_id": mission_id,
+                "trigger_type": trigger_type,
+                "name": name,
+                "status": status,
+            }
+        )
         if cron_expression is not UNSET:
             field_dict["cron_expression"] = cron_expression
         if cron_timezone is not UNSET:
@@ -168,11 +159,10 @@ class TriggerResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.trigger_response_config_type_0 import TriggerResponseConfigType0
+
         d = dict(src_dict)
         id = d.pop("id")
 
@@ -195,7 +185,6 @@ class TriggerResponse:
 
         cron_expression = _parse_cron_expression(d.pop("cron_expression", UNSET))
 
-
         cron_timezone = d.pop("cron_timezone", UNSET)
 
         def _parse_webhook_path(data: object) -> None | str | Unset:
@@ -207,7 +196,6 @@ class TriggerResponse:
 
         webhook_path = _parse_webhook_path(d.pop("webhook_path", UNSET))
 
-
         def _parse_config(data: object) -> None | TriggerResponseConfigType0 | Unset:
             if data is None:
                 return data
@@ -218,15 +206,12 @@ class TriggerResponse:
                     raise TypeError()
                 config_type_0 = TriggerResponseConfigType0.from_dict(data)
 
-
-
                 return config_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | TriggerResponseConfigType0 | Unset, data)
 
         config = _parse_config(d.pop("config", UNSET))
-
 
         fire_count = d.pop("fire_count", UNSET)
 
@@ -240,15 +225,12 @@ class TriggerResponse:
                     raise TypeError()
                 last_fired_at_type_0 = isoparse(data)
 
-
-
                 return last_fired_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         last_fired_at = _parse_last_fired_at(d.pop("last_fired_at", UNSET))
-
 
         def _parse_next_fire_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -260,15 +242,12 @@ class TriggerResponse:
                     raise TypeError()
                 next_fire_at_type_0 = isoparse(data)
 
-
-
                 return next_fire_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         next_fire_at = _parse_next_fire_at(d.pop("next_fire_at", UNSET))
-
 
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -280,15 +259,12 @@ class TriggerResponse:
                     raise TypeError()
                 created_at_type_0 = isoparse(data)
 
-
-
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         def _parse_updated_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -300,15 +276,12 @@ class TriggerResponse:
                     raise TypeError()
                 updated_at_type_0 = isoparse(data)
 
-
-
                 return updated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         updated_at = _parse_updated_at(d.pop("updated_at", UNSET))
-
 
         trigger_response = cls(
             id=id,
@@ -327,7 +300,6 @@ class TriggerResponse:
             created_at=created_at,
             updated_at=updated_at,
         )
-
 
         trigger_response.additional_properties = d
         return trigger_response

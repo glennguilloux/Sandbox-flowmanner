@@ -43,6 +43,7 @@ def _import_browser_tools():
     from app.tools.browser_scroll import BrowserScrollInput
     from app.tools.browser_snapshot import BrowserSnapshotInput
     from app.tools.browser_type import BrowserTypeInput
+
     return (
         ToolRegistry,
         BrowserNavigateInput,
@@ -108,7 +109,10 @@ class BrowserTaskRunner:
         tool = ToolRegistry.get(tool_name)
 
         if tool is None:
-            return {"success": False, "error": f"Browser tool not registered: {tool_name}"}
+            return {
+                "success": False,
+                "error": f"Browser tool not registered: {tool_name}",
+            }
 
         user_id = str(mission.user_id) if mission and mission.user_id else "system"
         context = {"user_id": user_id}

@@ -95,7 +95,9 @@ class CryptoMarketDataInput(ToolInput):
         description="Sort order: 'market_cap_desc', 'market_cap_asc', 'volume_desc', 'id_asc'",
     )
     per_page: int = Field(
-        10, ge=1, le=250,
+        10,
+        ge=1,
+        le=250,
         description="Results per page for search (1-250)",
     )
 
@@ -127,8 +129,14 @@ class CryptoMarketDataTool(BaseTool):
                 },
             },
             tags=[
-                "crypto", "bitcoin", "ethereum", "coingecko", "finance",
-                "trading", "web3", "defi",
+                "crypto",
+                "bitcoin",
+                "ethereum",
+                "coingecko",
+                "finance",
+                "trading",
+                "web3",
+                "defi",
             ],
             requires_auth=False,  # CoinGecko free API — no auth needed
             timeout_seconds=CRYPTO_TIMEOUT + 10,
@@ -151,7 +159,11 @@ class CryptoMarketDataTool(BaseTool):
                 error=f"Unknown action: '{validated.action}'. Use: {', '.join(CRYPTO_ACTIONS)}",
             )
 
-        if validated.action != "get_trending" and not validated.coins and not validated.search_query:
+        if (
+            validated.action != "get_trending"
+            and not validated.coins
+            and not validated.search_query
+        ):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="coins required (except for 'get_trending' or 'search_coins'). Use 'search_coins' action to find IDs.",
@@ -172,7 +184,7 @@ class CryptoMarketDataTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error="CoinGecko rate limit reached (10-30 req/min for free tier). "
-                          "Wait 60 seconds and try again.",
+                    "Wait 60 seconds and try again.",
                 )
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -184,7 +196,9 @@ class CryptoMarketDataTool(BaseTool):
 
     # ── _fetch_with_cache ────────────────────────────────────────
 
-    async def _fetch_with_cache(self, validated: CryptoMarketDataInput) -> dict[str, Any]:
+    async def _fetch_with_cache(
+        self, validated: CryptoMarketDataInput
+    ) -> dict[str, Any]:
         """Try Redis cache first, fall back to API call."""
         cache_key = self._cache_key(validated)
 
@@ -195,6 +209,7 @@ class CryptoMarketDataTool(BaseTool):
                 cached = await redis_client.get(cache_key)
                 if cached:
                     import json
+
                     data = json.loads(cached)
                     data["cached"] = True
                     return data
@@ -209,6 +224,7 @@ class CryptoMarketDataTool(BaseTool):
         if redis_client and validated.action != "get_trending":
             try:
                 import json
+
                 await redis_client.setex(cache_key, CRYPTO_CACHE_TTL, json.dumps(data))
             except Exception as e:
                 logger.warning("Redis setex failed (non-fatal): %s", e)
@@ -255,13 +271,17 @@ class CryptoMarketDataTool(BaseTool):
 
         coins = []
         for coin_id, data in raw.items():
-            coins.append({
-                "id": coin_id,
-                "price": data.get(validated.vs_currency, None),
-                "market_cap": data.get(f"{validated.vs_currency}_market_cap", None),
-                "24h_volume": data.get(f"{validated.vs_currency}_24h_vol", None),
-                "24h_change_pct": data.get(f"{validated.vs_currency}_24h_change", None),
-            })
+            coins.append(
+                {
+                    "id": coin_id,
+                    "price": data.get(validated.vs_currency, None),
+                    "market_cap": data.get(f"{validated.vs_currency}_market_cap", None),
+                    "24h_volume": data.get(f"{validated.vs_currency}_24h_vol", None),
+                    "24h_change_pct": data.get(
+                        f"{validated.vs_currency}_24h_change", None
+                    ),
+                }
+            )
 
         return {
             "action": "get_price",
@@ -269,7 +289,9 @@ class CryptoMarketDataTool(BaseTool):
             "coins": coins,
         }
 
-    async def _get_market_data(self, validated: CryptoMarketDataInput) -> dict[str, Any]:
+    async def _get_market_data(
+        self, validated: CryptoMarketDataInput
+    ) -> dict[str, Any]:
         """GET /coins/markets — full market data with optional 7d change."""
         coin_ids = ",".join(validated.coins or []).lower().replace(" ", "")
         params: dict[str, Any] = {
@@ -313,7 +335,9 @@ class CryptoMarketDataTool(BaseTool):
                 "last_updated": c.get("last_updated"),
             }
             if validated.include_7d_chart:
-                entry["price_change_pct_7d"] = c.get("price_change_percentage_7d_in_currency")
+                entry["price_change_pct_7d"] = c.get(
+                    "price_change_percentage_7d_in_currency"
+                )
             coins.append(entry)
 
         return {
@@ -333,26 +357,30 @@ class CryptoMarketDataTool(BaseTool):
         coins = []
         for item in raw.get("coins", []):
             c = item.get("item", {})
-            coins.append({
-                "id": c.get("id", ""),
-                "name": c.get("name", ""),
-                "symbol": c.get("symbol", ""),
-                "market_cap_rank": c.get("market_cap_rank"),
-                "thumb": c.get("thumb", ""),
-                "score": c.get("score", 0),
-                "price_btc": c.get("price_btc"),
-            })
+            coins.append(
+                {
+                    "id": c.get("id", ""),
+                    "name": c.get("name", ""),
+                    "symbol": c.get("symbol", ""),
+                    "market_cap_rank": c.get("market_cap_rank"),
+                    "thumb": c.get("thumb", ""),
+                    "score": c.get("score", 0),
+                    "price_btc": c.get("price_btc"),
+                }
+            )
 
         nfts = []
         for item in raw.get("nfts", []):
             n = item.get("nft", {})
-            nfts.append({
-                "id": n.get("id", ""),
-                "name": n.get("name", ""),
-                "symbol": n.get("symbol", ""),
-                "thumb": n.get("thumb", ""),
-                "floor_price_24h_pct": n.get("floor_price_24h_percentage_change"),
-            })
+            nfts.append(
+                {
+                    "id": n.get("id", ""),
+                    "name": n.get("name", ""),
+                    "symbol": n.get("symbol", ""),
+                    "thumb": n.get("thumb", ""),
+                    "floor_price_24h_pct": n.get("floor_price_24h_percentage_change"),
+                }
+            )
 
         return {
             "action": "get_trending",
@@ -371,14 +399,16 @@ class CryptoMarketDataTool(BaseTool):
             raw = resp.json()
 
         coins = []
-        for c in raw.get("coins", [])[:validated.per_page]:
-            coins.append({
-                "id": c.get("id", ""),
-                "name": c.get("name", ""),
-                "symbol": c.get("symbol", ""),
-                "market_cap_rank": c.get("market_cap_rank"),
-                "thumb": c.get("thumb", ""),
-            })
+        for c in raw.get("coins", [])[: validated.per_page]:
+            coins.append(
+                {
+                    "id": c.get("id", ""),
+                    "name": c.get("name", ""),
+                    "symbol": c.get("symbol", ""),
+                    "market_cap_rank": c.get("market_cap_rank"),
+                    "thumb": c.get("thumb", ""),
+                }
+            )
 
         return {
             "action": "search_coins",

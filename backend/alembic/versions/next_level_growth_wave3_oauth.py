@@ -4,6 +4,7 @@ Revision ID: next_level_growth_wave3_oauth
 Revises: merge_wave2_heads
 Create Date: 2026-06-03 15:00:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -36,7 +37,9 @@ def upgrade() -> None:
         sa.Column("encrypted_client_id", sa.Text(), nullable=False),
         sa.Column("encrypted_client_secret", sa.Text(), nullable=False),
         sa.Column("scopes", postgresql.JSONB(), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -126,10 +129,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_user_oauth_connections_status", table_name="user_oauth_connections")
-    op.drop_index("ix_user_oauth_connections_provider", table_name="user_oauth_connections")
-    op.drop_index("ix_user_oauth_connections_app_id", table_name="user_oauth_connections")
-    op.drop_index("ix_user_oauth_connections_user_id", table_name="user_oauth_connections")
+    op.drop_index(
+        "ix_user_oauth_connections_status", table_name="user_oauth_connections"
+    )
+    op.drop_index(
+        "ix_user_oauth_connections_provider", table_name="user_oauth_connections"
+    )
+    op.drop_index(
+        "ix_user_oauth_connections_app_id", table_name="user_oauth_connections"
+    )
+    op.drop_index(
+        "ix_user_oauth_connections_user_id", table_name="user_oauth_connections"
+    )
     op.drop_table("user_oauth_connections")
     op.drop_index("ix_user_oauth_apps_provider", table_name="user_oauth_apps")
     op.drop_index("ix_user_oauth_apps_user_id", table_name="user_oauth_apps")

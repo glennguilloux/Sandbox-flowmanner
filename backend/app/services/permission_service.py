@@ -30,14 +30,25 @@ _ROLE_HIERARCHY: dict[str, int] = {
 _SYSTEM_ROLE_PERMS: dict[str, set[str]] = {
     "owner": {"admin.all"},
     "admin": {
-        "missions.create", "missions.read", "missions.update", "missions.delete",
-        "team.manage", "team.invite", "team.remove",
-        "billing.view", "billing.manage",
-        "roles.create", "roles.manage",
+        "missions.create",
+        "missions.read",
+        "missions.update",
+        "missions.delete",
+        "team.manage",
+        "team.invite",
+        "team.remove",
+        "billing.view",
+        "billing.manage",
+        "roles.create",
+        "roles.manage",
     },
     "member": {
-        "missions.create", "missions.read", "missions.update", "missions.delete",
-        "team.invite", "billing.view",
+        "missions.create",
+        "missions.read",
+        "missions.update",
+        "missions.delete",
+        "team.invite",
+        "billing.view",
     },
     "viewer": {"missions.read", "billing.view"},
 }
@@ -94,13 +105,17 @@ class PermissionService:
         # ── 2. Custom roles assigned to this user in this workspace ───────
         if workspace_id:
             assigned = (
-                await db.execute(
-                    select(UserCustomRole).where(
-                        UserCustomRole.user_id == user_id,
-                        UserCustomRole.workspace_id == workspace_id,
+                (
+                    await db.execute(
+                        select(UserCustomRole).where(
+                            UserCustomRole.user_id == user_id,
+                            UserCustomRole.workspace_id == workspace_id,
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             for ucr in assigned:
                 for rp in ucr.role.permissions:
                     perms.add(rp.permission_key)
@@ -108,13 +123,17 @@ class PermissionService:
         # ── 3. Active delegations ──────────────────────────────────────
         now = datetime.now(UTC)
         delegations = (
-            await db.execute(
-                select(RoleDelegation).where(
-                    RoleDelegation.delegatee_id == user_id,
-                    RoleDelegation.is_active == True,
+            (
+                await db.execute(
+                    select(RoleDelegation).where(
+                        RoleDelegation.delegatee_id == user_id,
+                        RoleDelegation.is_active == True,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for d in delegations:
             # Filter by workspace if specified
             if workspace_id and d.workspace_id and d.workspace_id != workspace_id:

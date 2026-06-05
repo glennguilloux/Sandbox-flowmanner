@@ -20,6 +20,7 @@ from decimal import Decimal
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def _make_meta_workflow(
     node_count=2,
     max_depth=5,
@@ -51,16 +52,19 @@ def _make_meta_workflow(
 def _make_executor(is_aborted=False):
     executor = MagicMock()
     executor.is_aborted = MagicMock(return_value=is_aborted)
-    executor.execute_node = AsyncMock(return_value={
-        "success": True,
-        "output": {"text": "Done"},
-        "tokens": 20,
-        "cost": 0.02,
-    })
+    executor.execute_node = AsyncMock(
+        return_value={
+            "success": True,
+            "output": {"text": "Done"},
+            "tokens": 20,
+            "cost": 0.02,
+        }
+    )
     return executor
 
 
 # ── can_handle ───────────────────────────────────────────────────────
+
 
 class TestMetaCanHandle:
     def test_handles_meta(self):
@@ -89,6 +93,7 @@ class TestMetaCanHandle:
 
 
 # ── validate ─────────────────────────────────────────────────────────
+
 
 class TestMetaValidate:
     @pytest.mark.asyncio
@@ -136,6 +141,7 @@ class TestMetaValidate:
 
 
 # ── execute ──────────────────────────────────────────────────────────
+
 
 class TestMetaExecute:
     @pytest.mark.asyncio
@@ -193,7 +199,12 @@ class TestMetaExecute:
             call_count += 1
             if call_count == 1:
                 return {"success": False, "error": "LLM error"}
-            return {"success": True, "output": {"text": "Fixed"}, "tokens": 10, "cost": 0.01}
+            return {
+                "success": True,
+                "output": {"text": "Fixed"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
 
         executor.execute_node = AsyncMock(side_effect=fail_then_succeed)
 
@@ -209,9 +220,12 @@ class TestMetaExecute:
         wf = _make_meta_workflow(node_count=1, max_depth=2)
         db = AsyncMock()
         executor = _make_executor()
-        executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "Persistent failure",
-        })
+        executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Persistent failure",
+            }
+        )
 
         result = await s.execute(wf, {"goal": "Test"}, executor, db)
 
@@ -226,9 +240,12 @@ class TestMetaExecute:
         wf = _make_meta_workflow(node_count=1, max_depth=1)
         db = AsyncMock()
         executor = _make_executor()
-        executor.execute_node = AsyncMock(return_value={
-            "success": False, "error": "Fail",
-        })
+        executor.execute_node = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Fail",
+            }
+        )
 
         result = await s.execute(wf, {"goal": "Test"}, executor, db)
 
@@ -267,7 +284,12 @@ class TestMetaExecute:
         async def count_calls(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            return {"success": True, "output": {"text": "ok"}, "tokens": 10, "cost": 0.01}
+            return {
+                "success": True,
+                "output": {"text": "ok"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
 
         executor.execute_node = AsyncMock(side_effect=count_calls)
 
@@ -321,7 +343,9 @@ class TestMetaExecute:
     @pytest.mark.asyncio
     async def test_execute_with_substrate_run_id(self):
         s = MetaStrategy()
-        wf = _make_meta_workflow(node_count=1, metadata={"substrate_run_id": "meta-run-1"})
+        wf = _make_meta_workflow(
+            node_count=1, metadata={"substrate_run_id": "meta-run-1"}
+        )
         db = AsyncMock()
         executor = _make_executor()
 
@@ -344,7 +368,12 @@ class TestMetaExecute:
             contexts_seen.append(kwargs.get("context", {}))
             if len(contexts_seen) == 1:
                 return {"success": False, "error": "First failure"}
-            return {"success": True, "output": {"text": "ok"}, "tokens": 10, "cost": 0.01}
+            return {
+                "success": True,
+                "output": {"text": "ok"},
+                "tokens": 10,
+                "cost": 0.01,
+            }
 
         executor.execute_node = AsyncMock(side_effect=capture_and_succeed)
 

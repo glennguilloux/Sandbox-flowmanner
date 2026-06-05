@@ -18,7 +18,8 @@ from app.services.rag_service import RAGService
 
 if TYPE_CHECKING:
     from app.models.user import User
-    from app.services.rag.prompt_synthesizer import GeneratedPrompt
+
+from app.services.rag.prompt_synthesizer import GeneratedPrompt  # noqa: E402 — needed at runtime for OpenAPI
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,9 @@ async def ingest_book(
         vectors=vectors,
     )
 
-    logger.info("Ingested %d chunks for book '%s' (user %s)", count, book_title, user.id)
+    logger.info(
+        "Ingested %d chunks for book '%s' (user %s)", count, book_title, user.id
+    )
     return {
         "status": "accepted",
         "chunk_count": count,
@@ -185,4 +188,3 @@ async def search_context(
         "results": formatted_results,
         "query": payload.query,
     }
-

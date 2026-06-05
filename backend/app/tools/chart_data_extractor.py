@@ -115,7 +115,9 @@ class ChartDataExtractorTool(BaseTool):
 
     # ── _extract_chart ───────────────────────────────────────────
 
-    async def _extract_chart(self, validated: ChartDataExtractorInput) -> dict[str, Any]:
+    async def _extract_chart(
+        self, validated: ChartDataExtractorInput
+    ) -> dict[str, Any]:
         """Load image and delegate to the appropriate chart extractor."""
         image_bytes = await resolve_input(
             validated.data, validated.url, label="chart image", fetch_timeout=30
@@ -140,7 +142,10 @@ class ChartDataExtractorTool(BaseTool):
             result = {"error": "Could not determine chart type"}
 
         result["detected_type"] = chart_type
-        result["image_size"] = {"width": img_array.shape[1], "height": img_array.shape[0]}
+        result["image_size"] = {
+            "width": img_array.shape[1],
+            "height": img_array.shape[0],
+        }
         return result
 
     # ── Chart type detection ─────────────────────────────────────
@@ -222,20 +227,23 @@ class ChartDataExtractorTool(BaseTool):
             bright_pixels = np.sum(bar_slice > bg_level + 20)
             bar_area = bar_slice.size
             height_ratio = bright_pixels / max(bar_area, 1)
-            bars.append({
-                "x_start": x1,
-                "x_end": x2,
-                "center_x": (x1 + x2) // 2,
-                "relative_value": round(height_ratio, 4),
-                "brightness": round(float(bar_brightness), 1),
-            })
+            bars.append(
+                {
+                    "x_start": x1,
+                    "x_end": x2,
+                    "center_x": (x1 + x2) // 2,
+                    "relative_value": round(height_ratio, 4),
+                    "brightness": round(float(bar_brightness), 1),
+                }
+            )
             max_height = max(max_height, height_ratio)
 
         # Normalize to 0-100 scale
         for bar in bars:
             bar["normalized_value"] = (
                 round((bar["relative_value"] / max_height) * 100, 1)
-                if max_height > 0 else 0.0
+                if max_height > 0
+                else 0.0
             )
 
         return {
@@ -278,9 +286,7 @@ class ChartDataExtractorTool(BaseTool):
         y_range = y_max - y_min or 1
 
         for p in points:
-            p["normalized_value"] = round(
-                (1.0 - (p["y"] - y_min) / y_range) * 100, 1
-            )
+            p["normalized_value"] = round((1.0 - (p["y"] - y_min) / y_range) * 100, 1)
 
         # Downsample to ~20 representative points
         if len(points) > 20:
@@ -306,11 +312,13 @@ class ChartDataExtractorTool(BaseTool):
 
         # Threshold to find the pie (bright region on dark bg)
         if cv2 is None:
-            return {"chart_type": "pie", "segments": [], "error": "OpenCV not available"}
+            return {
+                "chart_type": "pie",
+                "segments": [],
+                "error": "OpenCV not available",
+            }
 
-        _, binary = cv2.threshold(
-            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Find contours to locate the pie circle
         contours, _ = cv2.findContours(
@@ -318,7 +326,11 @@ class ChartDataExtractorTool(BaseTool):
         )
 
         if not contours:
-            return {"chart_type": "pie", "segments": [], "error": "No pie contour found"}
+            return {
+                "chart_type": "pie",
+                "segments": [],
+                "error": "No pie contour found",
+            }
 
         # Use largest contour as pie outline
         largest = max(contours, key=cv2.contourArea)
@@ -346,12 +358,14 @@ class ChartDataExtractorTool(BaseTool):
                 if pixel != current_color:
                     if current_color is not None and segment_pixels > 0:
                         pct = round(segment_pixels / max(total_pixels, 1) * 100, 1)
-                        segments.append({
-                            "start_angle": round(segment_start * 5, 1),
-                            "end_angle": round(i * 5, 1),
-                            "percentage": pct,
-                            "color_rgb": list(current_color),
-                        })
+                        segments.append(
+                            {
+                                "start_angle": round(segment_start * 5, 1),
+                                "end_angle": round(i * 5, 1),
+                                "percentage": pct,
+                                "color_rgb": list(current_color),
+                            }
+                        )
                     current_color = pixel
                     segment_start = i
                     segment_pixels = 1
@@ -361,12 +375,14 @@ class ChartDataExtractorTool(BaseTool):
         # Final segment
         if current_color is not None and segment_pixels > 0:
             pct = round(segment_pixels / max(total_pixels, 1) * 100, 1)
-            segments.append({
-                "start_angle": round(segment_start * 5, 1),
-                "end_angle": 360.0,
-                "percentage": pct,
-                "color_rgb": list(current_color),
-            })
+            segments.append(
+                {
+                    "start_angle": round(segment_start * 5, 1),
+                    "end_angle": 360.0,
+                    "percentage": pct,
+                    "color_rgb": list(current_color),
+                }
+            )
 
         return {
             "chart_type": "pie",

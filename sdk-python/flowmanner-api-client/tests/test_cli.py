@@ -17,6 +17,7 @@ from flowmanner_api_client.cli import main
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def _clear_env(monkeypatch):
     """Ensure env vars don't leak between tests."""
@@ -36,6 +37,7 @@ def mock_fm():
 
 # ── No command / help ───────────────────────────────────────────────────────
 
+
 class TestNoCommand:
     def test_no_command_returns_zero(self, capsys):
         result = main(argv=[])
@@ -48,6 +50,7 @@ class TestNoCommand:
 
 
 # ── Missing key ─────────────────────────────────────────────────────────────
+
 
 class TestMissingKey:
     def test_status_without_key_returns_one(self, capsys):
@@ -70,6 +73,7 @@ class TestMissingKey:
 
 # ── Status command ──────────────────────────────────────────────────────────
 
+
 class TestStatusCommand:
     def test_status_success(self, capsys, mock_fm):
         mock_fm.health_check.return_value = {"status": "healthy"}
@@ -81,7 +85,9 @@ class TestStatusCommand:
 
     def test_status_custom_url(self, capsys, mock_fm):
         mock_fm.health_check.return_value = {"status": "ok"}
-        result = main(argv=["--url", "http://localhost:8000", "--key", "sk-test", "status"])
+        result = main(
+            argv=["--url", "http://localhost:8000", "--key", "sk-test", "status"]
+        )
         assert result == 0
         captured = capsys.readouterr()
         assert "Connected to http://localhost:8000" in captured.out
@@ -102,6 +108,7 @@ class TestStatusCommand:
 
 
 # ── Missions command ────────────────────────────────────────────────────────
+
 
 class TestMissionsCommand:
     def test_missions_lists_items(self, capsys, mock_fm):
@@ -145,6 +152,7 @@ class TestMissionsCommand:
 
 # ── Costs command ───────────────────────────────────────────────────────────
 
+
 class TestCostsCommand:
     def test_costs_success(self, capsys, mock_fm):
         mock_fm.get_usage_summary.return_value = {
@@ -159,7 +167,10 @@ class TestCostsCommand:
         assert "$0.0625" in captured.out
 
     def test_costs_custom_period(self, capsys, mock_fm):
-        mock_fm.get_usage_summary.return_value = {"total_tokens": 500, "total_cost": 0.01}
+        mock_fm.get_usage_summary.return_value = {
+            "total_tokens": 500,
+            "total_cost": 0.01,
+        }
         result = main(argv=["--key", "sk-test", "costs", "--period", "7d"])
         assert result == 0
         captured = capsys.readouterr()
@@ -182,6 +193,7 @@ class TestCostsCommand:
 
 
 # ── Env var support ─────────────────────────────────────────────────────────
+
 
 class TestEnvVarSupport:
     def test_key_from_env(self, monkeypatch, capsys, mock_fm):

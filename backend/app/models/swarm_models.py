@@ -55,12 +55,12 @@ class OrchestratorTask(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    agent_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True
-    )
+    agent_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     agent_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     task_description: Mapped[str] = mapped_column(Text, nullable=False)
-    task_type: Mapped[str] = mapped_column(String(50), nullable=False, default="general")
+    task_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="general"
+    )
     status: Mapped[str] = mapped_column(
         String(20), default="pending", index=True
     )  # pending, assigned, running, completed, failed, escalated

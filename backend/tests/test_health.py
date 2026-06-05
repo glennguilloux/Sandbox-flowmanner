@@ -8,10 +8,12 @@ pytestmark = pytest.mark.integration
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 
+
 @pytest.fixture
 def test_client():
     with TestClient(app) as client:
         yield client
+
 
 def test_health_endpoint_returns_healthy(test_client):
     """Test /health endpoint returns 200 with healthy status."""
@@ -45,6 +47,7 @@ def test_health_endpoint_returns_healthy(test_client):
                     assert data["status"] == "ok"
                     assert "components" in data
 
+
 def test_ready_endpoint(test_client):
     """Test /ready endpoint returns 200 with ok status."""
     with patch("app.database.engine") as mock_engine:
@@ -69,6 +72,7 @@ def test_ready_endpoint(test_client):
                     assert response.status_code == 200
                     data = response.json()
                     assert data["status"] == "ok"
+
 
 def test_health_full_endpoint(test_client):
     """Test /health/full endpoint returns 200."""

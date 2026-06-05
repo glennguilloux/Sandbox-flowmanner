@@ -1,39 +1,34 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
-
-
-
+    from ..models.mission_task_update_output_data_type_0 import (
+        MissionTaskUpdateOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="MissionTaskUpdate")
 
 
-
 @_attrs_define
 class MissionTaskUpdate:
-    """ 
-        Attributes:
-            title (None | str | Unset):
-            description (None | str | Unset):
-            status (None | str | Unset):
-            output_data (MissionTaskUpdateOutputDataType0 | None | Unset):
-            error_message (None | str | Unset):
-            tokens_used (int | None | Unset):
-            cost (float | None | Unset):
-     """
+    """
+    Attributes:
+        title (None | str | Unset):
+        description (None | str | Unset):
+        status (None | str | Unset):
+        output_data (MissionTaskUpdateOutputDataType0 | None | Unset):
+        error_message (None | str | Unset):
+        tokens_used (int | None | Unset):
+        cost (float | None | Unset):
+    """
 
     title: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
@@ -44,12 +39,11 @@ class MissionTaskUpdate:
     cost: float | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
+        from ..models.mission_task_update_output_data_type_0 import (
+            MissionTaskUpdateOutputDataType0,
+        )
+
         title: None | str | Unset
         if isinstance(self.title, Unset):
             title = UNSET
@@ -94,11 +88,9 @@ class MissionTaskUpdate:
         else:
             cost = self.cost
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if title is not UNSET:
             field_dict["title"] = title
         if description is not UNSET:
@@ -116,12 +108,14 @@ class MissionTaskUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
+        from ..models.mission_task_update_output_data_type_0 import (
+            MissionTaskUpdateOutputDataType0,
+        )
+
         d = dict(src_dict)
+
         def _parse_title(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -130,7 +124,6 @@ class MissionTaskUpdate:
             return cast(None | str | Unset, data)
 
         title = _parse_title(d.pop("title", UNSET))
-
 
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
@@ -141,7 +134,6 @@ class MissionTaskUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_status(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -151,8 +143,9 @@ class MissionTaskUpdate:
 
         status = _parse_status(d.pop("status", UNSET))
 
-
-        def _parse_output_data(data: object) -> MissionTaskUpdateOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> MissionTaskUpdateOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -162,15 +155,12 @@ class MissionTaskUpdate:
                     raise TypeError()
                 output_data_type_0 = MissionTaskUpdateOutputDataType0.from_dict(data)
 
-
-
                 return output_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(MissionTaskUpdateOutputDataType0 | None | Unset, data)
 
         output_data = _parse_output_data(d.pop("output_data", UNSET))
-
 
         def _parse_error_message(data: object) -> None | str | Unset:
             if data is None:
@@ -181,7 +171,6 @@ class MissionTaskUpdate:
 
         error_message = _parse_error_message(d.pop("error_message", UNSET))
 
-
         def _parse_tokens_used(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -190,7 +179,6 @@ class MissionTaskUpdate:
             return cast(int | None | Unset, data)
 
         tokens_used = _parse_tokens_used(d.pop("tokens_used", UNSET))
-
 
         def _parse_cost(data: object) -> float | None | Unset:
             if data is None:
@@ -201,7 +189,6 @@ class MissionTaskUpdate:
 
         cost = _parse_cost(d.pop("cost", UNSET))
 
-
         mission_task_update = cls(
             title=title,
             description=description,
@@ -211,7 +198,6 @@ class MissionTaskUpdate:
             tokens_used=tokens_used,
             cost=cost,
         )
-
 
         mission_task_update.additional_properties = d
         return mission_task_update

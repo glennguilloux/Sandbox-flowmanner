@@ -1,20 +1,23 @@
 """LangGraph Agent integration with LLM support."""
+
 import logging
 from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class LLMConfig:
     """Configuration for LLM used in LangGraph agents."""
+
     model: str = "gpt-4"
     temperature: float = 0.7
     max_tokens: int = 4096
     api_key: str | None = None
     base_url: str | None = None
     provider: str = "openai"
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "model": self.model,
@@ -28,22 +31,22 @@ class LLMConfig:
 
 class LangGraphAgent:
     """LangGraph agent with LLM integration."""
-    
+
     def __init__(self, llm_config: LLMConfig | None = None, llm=None):
         self.llm_config = llm_config or LLMConfig()
         self.llm = llm
         self._initialized = False
-        
+
     async def initialize(self):
         """Initialize the agent."""
         self._initialized = True
         logger.info(f"LangGraphAgent initialized with model: {self.llm_config.model}")
-        
+
     async def run(self, messages: list[dict[str, Any]], **kwargs):
         """Run the agent with messages."""
         if not self._initialized:
             await self.initialize()
-        
+
         if self.llm:
             # Use provided LLM instance
             return await self._run_with_llm(messages, **kwargs)
@@ -57,9 +60,7 @@ class LangGraphAgent:
             if hasattr(self.llm, "ainvoke"):
                 response = await self.llm.ainvoke(messages, **kwargs)
                 content = (
-                    response.content
-                    if hasattr(response, "content")
-                    else str(response)
+                    response.content if hasattr(response, "content") else str(response)
                 )
                 return {
                     "messages": [*messages, {"role": "assistant", "content": content}],
@@ -74,7 +75,9 @@ class LangGraphAgent:
                 "error": str(e),
             }
 
-        logger.warning("LLM instance lacks ainvoke method, falling back to model router")
+        logger.warning(
+            "LLM instance lacks ainvoke method, falling back to model router"
+        )
         return await self._run_with_config(messages, **kwargs)
 
     async def _run_with_config(self, messages: list[dict[str, Any]], **kwargs):
@@ -91,7 +94,10 @@ class LangGraphAgent:
 
             if result.get("success"):
                 return {
-                    "messages": [*messages, {"role": "assistant", "content": result["response"]}],
+                    "messages": [
+                        *messages,
+                        {"role": "assistant", "content": result["response"]},
+                    ],
                     "status": "completed",
                     "response": result["response"],
                     "model_id": result.get("model_id"),
@@ -105,7 +111,9 @@ class LangGraphAgent:
                 }
 
         except ImportError:
-            logger.warning("Model router not available for LangGraph agent, sending graceful error to user")
+            logger.warning(
+                "Model router not available for LangGraph agent, sending graceful error to user"
+            )
             graceful_error = "I'm sorry, but the AI service is currently unavailable. The model router could not be loaded. Please try again later."
         except Exception as e:
             logger.error("LangGraph agent config run failed: %s", e)
@@ -126,19 +134,19 @@ _agent_instance: LangGraphAgent | None = None
 
 def get_agent(llm=None, llm_config: LLMConfig | None = None) -> LangGraphAgent:
     """Get or create a LangGraph agent instance.
-    
+
     Args:
         llm: Optional LLM instance to use
         llm_config: Optional LLM configuration
-        
+
     Returns:
         LangGraphAgent instance
     """
     global _agent_instance
-    
+
     if _agent_instance is None:
         _agent_instance = LangGraphAgent(llm_config=llm_config, llm=llm)
     elif llm is not None:
         _agent_instance.llm = llm
-    
+
     return _agent_instance

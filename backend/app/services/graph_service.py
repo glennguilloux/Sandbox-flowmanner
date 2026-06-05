@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from app.websocket.mission_ws import sio as _socketio_server
+
     _sio_available = True
 except Exception:
     _sio_available = False
@@ -30,6 +31,7 @@ def _broadcast_execution_event(execution_id: str, event: str, data: dict) -> Non
         return
     try:
         import asyncio
+
         loop = asyncio.get_running_loop()
         asyncio.create_task(
             _socketio_server.emit(event, data, room=f"graph_exec_{execution_id}")
@@ -61,7 +63,9 @@ async def create_graph_workflow(
 
 
 async def get_graph_workflow(db: AsyncSession, workflow_id) -> GraphWorkflow | None:
-    result = await db.execute(select(GraphWorkflow).where(GraphWorkflow.id == str(workflow_id)))
+    result = await db.execute(
+        select(GraphWorkflow).where(GraphWorkflow.id == str(workflow_id))
+    )
     return result.scalar_one_or_none()
 
 
@@ -84,6 +88,7 @@ async def require_graph_access(
 
     if workflow.workspace_id:
         from app.models.workspace_models import WorkspaceMember
+
         result = await db.execute(
             select(WorkspaceMember).where(
                 WorkspaceMember.workspace_id == workflow.workspace_id,
@@ -93,7 +98,11 @@ async def require_graph_access(
         )
         if result.scalar_one_or_none() is None:
             # Check cross-workspace grants across all user's workspaces
-            from app.services.cross_workspace_service import check_entity_access, find_user_workspaces
+            from app.services.cross_workspace_service import (
+                check_entity_access,
+                find_user_workspaces,
+            )
+
             user_workspaces = await find_user_workspaces(db, user_id)
             has_cross_access = False
             for ws_id in user_workspaces:
@@ -115,20 +124,25 @@ async def require_graph_access(
                     "entity_access_denied"
                     " user_id=%s entity_type=workflow entity_id=%s"
                     " workspace_id=%s reason=no_membership",
-                    user_id, workflow_id, workflow.workspace_id,
+                    user_id,
+                    workflow_id,
+                    workflow.workspace_id,
                 )
                 try:
                     from app.api.middleware.audit import log_event
-                    asyncio.create_task(log_event(
-                        user_id=user_id,
-                        action="entity.access_denied",
-                        details={
-                            "entity_type": "workflow",
-                            "entity_id": str(workflow_id),
-                            "workspace_id": str(workflow.workspace_id),
-                            "reason": "no_membership",
-                        },
-                    ))
+
+                    asyncio.create_task(
+                        log_event(
+                            user_id=user_id,
+                            action="entity.access_denied",
+                            details={
+                                "entity_type": "workflow",
+                                "entity_id": str(workflow_id),
+                                "workspace_id": str(workflow.workspace_id),
+                                "reason": "no_membership",
+                            },
+                        )
+                    )
                 except Exception:
                     pass
                 raise GraphNotFoundError("Graph workflow not found")
@@ -138,19 +152,24 @@ async def require_graph_access(
                 "entity_access_denied"
                 " user_id=%s entity_type=workflow entity_id=%s"
                 " owner_user_id=%s reason=owner_mismatch",
-                user_id, workflow_id, workflow.user_id,
+                user_id,
+                workflow_id,
+                workflow.user_id,
             )
             try:
                 from app.api.middleware.audit import log_event
-                asyncio.create_task(log_event(
-                    user_id=user_id,
-                    action="entity.access_denied",
-                    details={
-                        "entity_type": "workflow",
-                        "entity_id": str(workflow_id),
-                        "reason": "owner_mismatch",
-                    },
-                ))
+
+                asyncio.create_task(
+                    log_event(
+                        user_id=user_id,
+                        action="entity.access_denied",
+                        details={
+                            "entity_type": "workflow",
+                            "entity_id": str(workflow_id),
+                            "reason": "owner_mismatch",
+                        },
+                    )
+                )
             except Exception:
                 pass
             raise GraphNotFoundError("Graph workflow not found")
@@ -254,26 +273,36 @@ async def list_graph_executions(
     offset: int = 0,
     limit: int = 20,
 ) -> tuple[list[GraphExecution], int]:
-    base_filter = (GraphExecution.workflow_id == str(workflow_id)) & (GraphExecution.user_id == user_id)
+    base_filter = (GraphExecution.workflow_id == str(workflow_id)) & (
+        GraphExecution.user_id == user_id
+    )
 
     count_q = select(func.count()).select_from(GraphExecution).where(base_filter)
     total = (await db.execute(count_q)).scalar() or 0
 
     items_q = (
-        select(GraphExecution).where(base_filter).order_by(GraphExecution.created_at.desc()).offset(offset).limit(limit)
+        select(GraphExecution)
+        .where(base_filter)
+        .order_by(GraphExecution.created_at.desc())
+        .offset(offset)
+        .limit(limit)
     )
     items = list((await db.execute(items_q)).scalars().all())
     return items, total
 
 
 async def get_graph_execution(db: AsyncSession, execution_id) -> GraphExecution | None:
-    result = await db.execute(select(GraphExecution).where(GraphExecution.id == str(execution_id)))
+    result = await db.execute(
+        select(GraphExecution).where(GraphExecution.id == str(execution_id))
+    )
     return result.scalar_one_or_none()
 
 
 async def get_graph_states(db: AsyncSession, execution_id) -> list[GraphState]:
     result = await db.execute(
-        select(GraphState).where(GraphState.execution_id == str(execution_id)).order_by(GraphState.created_at.asc())
+        select(GraphState)
+        .where(GraphState.execution_id == str(execution_id))
+        .order_by(GraphState.created_at.asc())
     )
     return list(result.scalars().all())
 
@@ -293,10 +322,14 @@ async def resume_graph_execution(
     await db.flush()
     await db.refresh(execution)
 
-    _broadcast_execution_event(execution_id, "graph:status", {
-        "execution_id": execution_id,
-        "status": "running",
-    })
+    _broadcast_execution_event(
+        execution_id,
+        "graph:status",
+        {
+            "execution_id": execution_id,
+            "status": "running",
+        },
+    )
 
     return execution
 
@@ -323,12 +356,16 @@ async def update_execution_status(
     await db.flush()
     await db.refresh(execution)
 
-    _broadcast_execution_event(execution_id, "graph:status", {
-        "execution_id": execution_id,
-        "status": execution.status,
-        "output_data": execution.output_data,
-        "error_message": execution.error_message,
-    })
+    _broadcast_execution_event(
+        execution_id,
+        "graph:status",
+        {
+            "execution_id": execution_id,
+            "status": execution.status,
+            "output_data": execution.output_data,
+            "error_message": execution.error_message,
+        },
+    )
 
     return execution
 
@@ -347,11 +384,15 @@ async def complete_execution(
     await db.flush()
     await db.refresh(execution)
 
-    _broadcast_execution_event(execution_id, "graph:status", {
-        "execution_id": execution_id,
-        "status": "completed",
-        "output_data": output_data,
-    })
+    _broadcast_execution_event(
+        execution_id,
+        "graph:status",
+        {
+            "execution_id": execution_id,
+            "status": "completed",
+            "output_data": output_data,
+        },
+    )
 
     return execution
 
@@ -370,11 +411,15 @@ async def fail_execution(
     await db.flush()
     await db.refresh(execution)
 
-    _broadcast_execution_event(execution_id, "graph:status", {
-        "execution_id": execution_id,
-        "status": "failed",
-        "error_message": error_message,
-    })
+    _broadcast_execution_event(
+        execution_id,
+        "graph:status",
+        {
+            "execution_id": execution_id,
+            "status": "failed",
+            "error_message": error_message,
+        },
+    )
 
     return execution
 
@@ -390,10 +435,14 @@ async def pause_execution(
     await db.flush()
     await db.refresh(execution)
 
-    _broadcast_execution_event(execution_id, "graph:status", {
-        "execution_id": execution_id,
-        "status": "paused",
-    })
+    _broadcast_execution_event(
+        execution_id,
+        "graph:status",
+        {
+            "execution_id": execution_id,
+            "status": "paused",
+        },
+    )
 
     return execution
 

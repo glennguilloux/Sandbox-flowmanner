@@ -87,6 +87,7 @@ class ExecutionStrategy(ABC):
 # The actual class is in substrate/executor.py
 class UnifiedExecutor:  # pragma: no cover (forward ref)
     """Forward reference for type hints.  Real class is in substrate/executor.py."""
+
     pass
 
 
@@ -107,6 +108,7 @@ class WorkflowWSManager:
         """Send an event to all clients watching a specific run."""
         try:
             from app.websocket.mission_ws import sio
+
             await sio.emit(
                 f"workflow:{event_type}",
                 {"run_id": run_id, **data},
@@ -115,9 +117,7 @@ class WorkflowWSManager:
         except Exception as e:
             logger.debug("WebSocket send_event failed (non-critical): %s", e)
 
-    async def broadcast_phase(
-        self, run_id: str, phase: str, status: str
-    ) -> None:
+    async def broadcast_phase(self, run_id: str, phase: str, status: str) -> None:
         """Broadcast a pipeline phase transition."""
         await self.send_event(
             run_id,

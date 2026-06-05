@@ -1,44 +1,35 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
 
-
-
-
-
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="AgentResponse")
 
 
-
 @_attrs_define
 class AgentResponse:
-    """ 
-        Attributes:
-            id (str):
-            name (str):
-            owner_id (str):
-            description (None | str | Unset):
-            model_preference (None | str | Unset):
-            system_prompt (None | str | Unset):
-            is_active (bool | Unset):  Default: True.
-            is_public (bool | Unset):  Default: False.
-            template_id (None | str | Unset):
-            config (None | str | Unset):
-            created_at (datetime.datetime | None | Unset):
-            updated_at (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        name (str):
+        owner_id (str):
+        description (None | str | Unset):
+        model_preference (None | str | Unset):
+        system_prompt (None | str | Unset):
+        is_active (bool | Unset):  Default: True.
+        is_public (bool | Unset):  Default: False.
+        template_id (None | str | Unset):
+        config (None | str | Unset):
+        created_at (datetime.datetime | None | Unset):
+        updated_at (datetime.datetime | None | Unset):
+    """
 
     id: str
     name: str
@@ -53,10 +44,6 @@ class AgentResponse:
     created_at: datetime.datetime | None | Unset = UNSET
     updated_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -115,14 +102,15 @@ class AgentResponse:
         else:
             updated_at = self.updated_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "name": name,
-            "owner_id": owner_id,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "name": name,
+                "owner_id": owner_id,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if model_preference is not UNSET:
@@ -144,8 +132,6 @@ class AgentResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
@@ -164,7 +150,6 @@ class AgentResponse:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_model_preference(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -174,7 +159,6 @@ class AgentResponse:
 
         model_preference = _parse_model_preference(d.pop("model_preference", UNSET))
 
-
         def _parse_system_prompt(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -183,7 +167,6 @@ class AgentResponse:
             return cast(None | str | Unset, data)
 
         system_prompt = _parse_system_prompt(d.pop("system_prompt", UNSET))
-
 
         is_active = d.pop("is_active", UNSET)
 
@@ -198,7 +181,6 @@ class AgentResponse:
 
         template_id = _parse_template_id(d.pop("template_id", UNSET))
 
-
         def _parse_config(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -207,7 +189,6 @@ class AgentResponse:
             return cast(None | str | Unset, data)
 
         config = _parse_config(d.pop("config", UNSET))
-
 
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -219,15 +200,12 @@ class AgentResponse:
                     raise TypeError()
                 created_at_type_0 = isoparse(data)
 
-
-
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         def _parse_updated_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -239,15 +217,12 @@ class AgentResponse:
                     raise TypeError()
                 updated_at_type_0 = isoparse(data)
 
-
-
                 return updated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         updated_at = _parse_updated_at(d.pop("updated_at", UNSET))
-
 
         agent_response = cls(
             id=id,
@@ -263,7 +238,6 @@ class AgentResponse:
             created_at=created_at,
             updated_at=updated_at,
         )
-
 
         agent_response.additional_properties = d
         return agent_response

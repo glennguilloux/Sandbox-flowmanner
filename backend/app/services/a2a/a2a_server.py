@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class MessageType(str, Enum):
     """A2A message types"""
+
     TASK = "task"
     RESPONSE = "response"
     STATUS = "status"
@@ -31,6 +32,7 @@ class MessageType(str, Enum):
 
 class SessionState(str, Enum):
     """Session states"""
+
     ACTIVE = "active"
     IDLE = "idle"
     CLOSED = "closed"
@@ -40,6 +42,7 @@ class SessionState(str, Enum):
 @dataclass
 class A2AMessage:
     """A2A protocol message"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     type: MessageType = MessageType.TASK
     sender: str = ""
@@ -60,7 +63,7 @@ class A2AMessage:
             "attachments": self.attachments,
             "context_id": self.context_id,
             "timestamp": self.timestamp,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     @classmethod
@@ -74,13 +77,14 @@ class A2AMessage:
             attachments=data.get("attachments", []),
             context_id=data.get("context_id"),
             timestamp=data.get("timestamp", datetime.now(UTC).isoformat()),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
 
 @dataclass
 class A2ASession:
     """A2A communication session"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     agent_url: str = ""
     state: SessionState = SessionState.ACTIVE
@@ -105,12 +109,14 @@ class A2ASessionManager:
         self._agent_sessions: dict[str, set[str]] = {}  # agent_url -> session_ids
         self._lock = asyncio.Lock()
 
-    async def create_session(self, agent_url: str, context_id: str | None = None) -> A2ASession:
+    async def create_session(
+        self, agent_url: str, context_id: str | None = None
+    ) -> A2ASession:
         """Create a new session"""
         async with self._lock:
             session = A2ASession(
                 agent_url=agent_url,
-                context={"context_id": context_id} if context_id else {}
+                context={"context_id": context_id} if context_id else {},
             )
             self._sessions[session.id] = session
 
@@ -167,7 +173,7 @@ class A2AAgentRegistry:
             "capabilities": agent_info.get("capabilities", []),
             "status": agent_info.get("status", "available"),
             "url": agent_info.get("url", ""),
-            "registered_at": datetime.now(UTC).isoformat()
+            "registered_at": datetime.now(UTC).isoformat(),
         }
         logger.info(f"Registered agent: {agent_id}")
 
@@ -221,11 +227,14 @@ class A2AServer:
         self._connections[session.id] = websocket
 
         # Send connection confirmation
-        await self._send_message(websocket, A2AMessage(
-            type=MessageType.STATUS,
-            content="connected",
-            metadata={"session_id": session.id}
-        ))
+        await self._send_message(
+            websocket,
+            A2AMessage(
+                type=MessageType.STATUS,
+                content="connected",
+                metadata={"session_id": session.id},
+            ),
+        )
 
         logger.info(f"WebSocket connected: session={session.id}, agent={agent_url}")
         return session.id
@@ -243,7 +252,9 @@ class A2AServer:
         except Exception as e:
             logger.error(f"Error sending message: {e}")
 
-    async def receive_message(self, session_id: str, data: dict[str, Any]) -> A2AMessage | None:
+    async def receive_message(
+        self, session_id: str, data: dict[str, Any]
+    ) -> A2AMessage | None:
         """Process received message"""
         try:
             message = A2AMessage.from_dict(data)
@@ -259,7 +270,7 @@ class A2AServer:
             return A2AMessage(
                 type=MessageType.ERROR,
                 content=str(e),
-                metadata={"session_id": session_id}
+                metadata={"session_id": session_id},
             )
 
     async def _handle_task(self, message: A2AMessage, session_id: str) -> A2AMessage:
@@ -268,7 +279,9 @@ class A2AServer:
         # Task handling logic - route to appropriate agent
         return message
 
-    async def _handle_response(self, message: A2AMessage, session_id: str) -> A2AMessage:
+    async def _handle_response(
+        self, message: A2AMessage, session_id: str
+    ) -> A2AMessage:
         """Handle response message"""
         logger.info(f"Response received: {message.id}")
         return message
@@ -283,12 +296,12 @@ class A2AServer:
         logger.error(f"Error from {message.sender}: {message.content}")
         return message
 
-    async def _handle_heartbeat(self, message: A2AMessage, session_id: str) -> A2AMessage:
+    async def _handle_heartbeat(
+        self, message: A2AMessage, session_id: str
+    ) -> A2AMessage:
         """Handle heartbeat - respond with pong"""
         return A2AMessage(
-            type=MessageType.HEARTBEAT,
-            content="pong",
-            context_id=message.context_id
+            type=MessageType.HEARTBEAT, content="pong", context_id=message.context_id
         )
 
     async def _handle_file(self, message: A2AMessage, session_id: str) -> A2AMessage:

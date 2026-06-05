@@ -30,15 +30,22 @@ class Memory(Base, TimestampMixin):
         UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     session_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("memory_sessions.id"), nullable=False, index=True
+        UUID(as_uuid=False),
+        ForeignKey("memory_sessions.id"),
+        nullable=False,
+        index=True,
     )
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     meta: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
     source_mission_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    session: Mapped[MemorySession] = relationship("MemorySession", back_populates="memories")
+    session: Mapped[MemorySession] = relationship(
+        "MemorySession", back_populates="memories"
+    )
 
 
 class MemorySession(Base, TimestampMixin):
@@ -49,11 +56,17 @@ class MemorySession(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    title: Mapped[str] = mapped_column(String(500), nullable=False, default="Untitled Session")
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(
+        String(500), nullable=False, default="Untitled Session"
+    )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    memories: Mapped[list[Memory]] = relationship("Memory", back_populates="session", cascade="all, delete-orphan")
+    memories: Mapped[list[Memory]] = relationship(
+        "Memory", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class MemoryEntry(Base, TimestampMixin):
@@ -69,36 +82,54 @@ class MemoryEntry(Base, TimestampMixin):
     __tablename__ = "memory_entries"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()),
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
     )
     workspace_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), nullable=True, index=True,
+        UUID(as_uuid=False),
+        nullable=True,
+        index=True,
     )
     user_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True,
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     agent_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, index=True,
+        String(255),
+        nullable=True,
+        index=True,
     )
     session_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), nullable=True, index=True,
+        UUID(as_uuid=False),
+        nullable=True,
+        index=True,
     )
     namespace: Mapped[str] = mapped_column(
-        String(255), nullable=False, default="default",
+        String(255),
+        nullable=False,
+        default="default",
     )
     key: Mapped[str | None] = mapped_column(
-        String(500), nullable=True,
+        String(500),
+        nullable=True,
     )
     memory_type: Mapped[str] = mapped_column(
-        String(100), nullable=False, default="episodic",
+        String(100),
+        nullable=False,
+        default="episodic",
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     importance: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     supersedes_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), nullable=True,
+        UUID(as_uuid=False),
+        nullable=True,
     )
     source_mission_id: Mapped[str | None] = mapped_column(
-        String(100), nullable=True,
+        String(100),
+        nullable=True,
     )
     meta: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
 

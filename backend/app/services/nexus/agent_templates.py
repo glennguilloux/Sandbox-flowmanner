@@ -27,6 +27,7 @@ class AgentCategory(str, Enum):
 @dataclass
 class AgentToolConfig:
     """Configuration for a tool the agent can use"""
+
     tool_id: str
     enabled: bool = True
     config: dict[str, Any] = field(default_factory=dict)
@@ -35,6 +36,7 @@ class AgentToolConfig:
 @dataclass
 class AgentModelConfig:
     """Model configuration for the agent"""
+
     provider: str = "deepseek"
     model_name: str = "deepseek-chat"
     temperature: float = 0.7
@@ -45,6 +47,7 @@ class AgentModelConfig:
 @dataclass
 class AgentMemoryConfig:
     """Memory configuration for the agent"""
+
     enabled: bool = True
     max_entries: int = 100
     retention_days: int = 30
@@ -54,6 +57,7 @@ class AgentMemoryConfig:
 @dataclass
 class AgentTemplate:
     """Pre-configured agent template"""
+
     id: str
     name: str
     description: str
@@ -95,7 +99,7 @@ Guidelines:
 - Admit when you don't know something
 - Provide step-by-step explanations for complex topics
 - Use examples to illustrate concepts
-- Be respectful and professional"""
+- Be respectful and professional""",
         ),
         tools=[
             AgentToolConfig(tool_id="web_search", enabled=True),
@@ -108,9 +112,8 @@ Guidelines:
         capabilities=["chat", "analysis", "code"],
         featured=True,
         rating=4.8,
-        installs=1500
+        installs=1500,
     ),
-
     # Code Assistant
     AgentTemplate(
         id="code-assistant-v1",
@@ -138,7 +141,7 @@ Guidelines:
 - Include comments and documentation
 - Follow language-specific conventions and best practices
 - Suggest tests when appropriate
-- Explain your reasoning and approach"""
+- Explain your reasoning and approach""",
         ),
         tools=[
             AgentToolConfig(tool_id="code_executor", enabled=True),
@@ -150,9 +153,8 @@ Guidelines:
         capabilities=["code", "analysis", "chat"],
         featured=True,
         rating=4.9,
-        installs=2300
+        installs=2300,
     ),
-
     # Research Analyst
     AgentTemplate(
         id="research-analyst-v1",
@@ -180,20 +182,21 @@ Output format:
 - Key findings
 - Detailed analysis
 - Conclusions and recommendations
-- References and citations"""
+- References and citations""",
         ),
         tools=[
             AgentToolConfig(tool_id="web_search", enabled=True),
             AgentToolConfig(tool_id="document_analyzer", enabled=True),
             AgentToolConfig(tool_id="data_visualization", enabled=True),
         ],
-        memory_config=AgentMemoryConfig(enabled=True, max_entries=300, retention_days=60),
+        memory_config=AgentMemoryConfig(
+            enabled=True, max_entries=300, retention_days=60
+        ),
         capabilities=["analysis", "chat", "code"],
         featured=True,
         rating=4.7,
-        installs=890
+        installs=890,
     ),
-
     # Content Writer
     AgentTemplate(
         id="content-writer-v1",
@@ -222,7 +225,7 @@ Guidelines:
 - Use compelling headlines and hooks
 - Structure content for readability
 - Incorporate SEO best practices when requested
-- Edit and refine based on feedback"""
+- Edit and refine based on feedback""",
         ),
         tools=[
             AgentToolConfig(tool_id="web_search", enabled=True),
@@ -231,9 +234,8 @@ Guidelines:
         memory_config=AgentMemoryConfig(enabled=True, max_entries=150),
         capabilities=["chat", "analysis"],
         rating=4.6,
-        installs=1200
+        installs=1200,
     ),
-
     # Data Scientist
     AgentTemplate(
         id="data-scientist-v1",
@@ -241,7 +243,13 @@ Guidelines:
         description="Expert in data analysis, machine learning, statistical modeling, and data visualization using Python and popular ML frameworks.",
         category=AgentCategory.DATA_SCIENCE,
         icon="📊",
-        tags=["data-science", "machine-learning", "statistics", "python", "visualization"],
+        tags=[
+            "data-science",
+            "machine-learning",
+            "statistics",
+            "python",
+            "visualization",
+        ],
         model_config=AgentModelConfig(
             provider="deepseek",
             model_name="deepseek-chat",
@@ -261,7 +269,7 @@ Approach:
 2. Explore and preprocess data
 3. Select appropriate methods/models
 4. Validate and interpret results
-5. Communicate findings clearly"""
+5. Communicate findings clearly""",
         ),
         tools=[
             AgentToolConfig(tool_id="code_executor", enabled=True),
@@ -271,9 +279,8 @@ Approach:
         memory_config=AgentMemoryConfig(enabled=True, max_entries=200),
         capabilities=["code", "analysis", "chat"],
         rating=4.8,
-        installs=750
+        installs=750,
     ),
-
     # Customer Support Agent
     AgentTemplate(
         id="customer-support-v1",
@@ -301,19 +308,20 @@ Response structure:
 1. Acknowledge the issue
 2. Apologize if appropriate
 3. Provide solution or next steps
-4. Offer additional assistance"""
+4. Offer additional assistance""",
         ),
         tools=[
             AgentToolConfig(tool_id="knowledge_base", enabled=True),
             AgentToolConfig(tool_id="ticket_system", enabled=True),
             AgentToolConfig(tool_id="order_lookup", enabled=True),
         ],
-        memory_config=AgentMemoryConfig(enabled=True, max_entries=500, retention_days=90),
+        memory_config=AgentMemoryConfig(
+            enabled=True, max_entries=500, retention_days=90
+        ),
         capabilities=["chat", "analysis"],
         rating=4.5,
-        installs=1800
+        installs=1800,
     ),
-
     # Automation Specialist
     AgentTemplate(
         id="automation-specialist-v1",
@@ -341,7 +349,7 @@ Approach:
 2. Identify automation opportunities
 3. Design efficient workflows
 4. Implement with proper error handling
-5. Test and optimize"""
+5. Test and optimize""",
         ),
         tools=[
             AgentToolConfig(tool_id="workflow_builder", enabled=True),
@@ -354,9 +362,8 @@ Approach:
         memory_config=AgentMemoryConfig(enabled=True, max_entries=150),
         capabilities=["code", "analysis", "chat"],
         rating=4.6,
-        installs=620
+        installs=620,
     ),
-
     # Financial Analyst
     AgentTemplate(
         id="financial-analyst-v1",
@@ -385,7 +392,7 @@ Guidelines:
 - Cite data sources
 - Explain methodology and assumptions
 - Highlight risks and uncertainties
-- Note: This is for informational purposes only, not financial advice"""
+- Note: This is for informational purposes only, not financial advice""",
         ),
         tools=[
             AgentToolConfig(tool_id="web_search", enabled=True),
@@ -395,9 +402,8 @@ Guidelines:
         memory_config=AgentMemoryConfig(enabled=True, max_entries=200),
         capabilities=["analysis", "chat"],
         rating=4.4,
-        installs=480
+        installs=480,
     ),
-
     # Legal Assistant
     AgentTemplate(
         id="legal-assistant-v1",
@@ -424,18 +430,19 @@ Important disclaimer:
 - You are not a licensed attorney
 - Your responses are for informational purposes only
 - Always recommend consulting with a qualified attorney for legal advice
-- Clearly state limitations of your assistance"""
+- Clearly state limitations of your assistance""",
         ),
         tools=[
             AgentToolConfig(tool_id="web_search", enabled=True),
             AgentToolConfig(tool_id="document_analyzer", enabled=True),
         ],
-        memory_config=AgentMemoryConfig(enabled=True, max_entries=300, retention_days=90),
+        memory_config=AgentMemoryConfig(
+            enabled=True, max_entries=300, retention_days=90
+        ),
         capabilities=["analysis", "chat"],
         rating=4.3,
-        installs=320
+        installs=320,
     ),
-
     # Creative Writer
     AgentTemplate(
         id="creative-writer-v1",
@@ -464,7 +471,7 @@ Approach:
 - Offer constructive feedback
 - Suggest techniques and exercises
 - Help overcome writer's block
-- Adapt to the writer's style and voice"""
+- Adapt to the writer's style and voice""",
         ),
         tools=[
             AgentToolConfig(tool_id="web_search", enabled=True),
@@ -472,7 +479,7 @@ Approach:
         memory_config=AgentMemoryConfig(enabled=True, max_entries=100),
         capabilities=["chat", "analysis"],
         rating=4.7,
-        installs=950
+        installs=950,
     ),
 ]
 
@@ -500,9 +507,11 @@ def search_templates(query: str) -> list[AgentTemplate]:
     query_lower = query.lower()
     results = []
     for template in AGENT_TEMPLATES:
-        if (query_lower in template.name.lower() or
-            query_lower in template.description.lower() or
-            any(query_lower in tag.lower() for tag in template.tags)):
+        if (
+            query_lower in template.name.lower()
+            or query_lower in template.description.lower()
+            or any(query_lower in tag.lower() for tag in template.tags)
+        ):
             results.append(template)
     return results
 

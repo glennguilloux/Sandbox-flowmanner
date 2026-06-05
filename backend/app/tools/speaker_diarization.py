@@ -115,9 +115,7 @@ class SpeakerDiarizationTool(BaseTool):
 
     # ── _diarize ─────────────────────────────────────────────────
 
-    async def _diarize(
-        self, validated: SpeakerDiarizationInput
-    ) -> dict[str, Any]:
+    async def _diarize(self, validated: SpeakerDiarizationInput) -> dict[str, Any]:
         """Load audio and run speaker diarization pipeline."""
         audio_bytes = await resolve_input(
             validated.data, validated.url, label="audio", fetch_timeout=60
@@ -126,6 +124,7 @@ class SpeakerDiarizationTool(BaseTool):
         tmp_path: str | None = None
         try:
             from pydub import AudioSegment
+
             audio_seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
 
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
@@ -148,27 +147,27 @@ class SpeakerDiarizationTool(BaseTool):
             )
 
             speaker_ids = sorted({s["speaker_id"] for s in segments})
-            speaker_timelines: dict[str, list[dict]] = {
-                sid: [] for sid in speaker_ids
-            }
+            speaker_timelines: dict[str, list[dict]] = {sid: [] for sid in speaker_ids}
             for seg in segments:
-                speaker_timelines[seg["speaker_id"]].append({
-                    "start_seconds": seg["start_seconds"],
-                    "end_seconds": seg["end_seconds"],
-                })
+                speaker_timelines[seg["speaker_id"]].append(
+                    {
+                        "start_seconds": seg["start_seconds"],
+                        "end_seconds": seg["end_seconds"],
+                    }
+                )
 
-            total_speech = sum(
-                s["end_seconds"] - s["start_seconds"] for s in segments
-            )
+            total_speech = sum(s["end_seconds"] - s["start_seconds"] for s in segments)
 
             return {
                 "duration_seconds": round(duration_sec, 2),
                 "speaker_count": len(speaker_ids),
                 "speaker_ids": speaker_ids,
                 "total_speech_seconds": round(total_speech, 2),
-                "speech_percentage": round(
-                    total_speech / duration_sec * 100, 1
-                ) if duration_sec > 0 else 0.0,
+                "speech_percentage": (
+                    round(total_speech / duration_sec * 100, 1)
+                    if duration_sec > 0
+                    else 0.0
+                ),
                 "segments": segments,
                 "speaker_timelines": speaker_timelines,
                 "engine": "mfcc-clustering",
@@ -195,7 +194,9 @@ class SpeakerDiarizationTool(BaseTool):
         # Use energy-based VAD: find frames where RMS exceeds threshold
         frame_length = 2048
         hop_length = 512
-        rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
+        rms = librosa.feature.rms(
+            y=y, frame_length=frame_length, hop_length=hop_length
+        )[0]
         rms_db = librosa.amplitude_to_db(rms, ref=np.max)
 
         # Dynamic threshold: mean - 10dB for speech
@@ -227,12 +228,14 @@ class SpeakerDiarizationTool(BaseTool):
             # Only one segment — single speaker
             result = []
             for i, (start_s, end_s) in enumerate(valid_segments):
-                result.append({
-                    "speaker_id": "speaker_0",
-                    "start_seconds": round(start_s / sr, 2),
-                    "end_seconds": round(end_s / sr, 2),
-                    "duration_seconds": round((end_s - start_s) / sr, 2),
-                })
+                result.append(
+                    {
+                        "speaker_id": "speaker_0",
+                        "start_seconds": round(start_s / sr, 2),
+                        "end_seconds": round(end_s / sr, 2),
+                        "duration_seconds": round((end_s - start_s) / sr, 2),
+                    }
+                )
             return result
 
         # Step 3: Cluster segments by MFCC similarity
@@ -249,12 +252,14 @@ class SpeakerDiarizationTool(BaseTool):
         result = []
         for i, (start_s, end_s) in enumerate(valid_segments):
             speaker_idx = int(labels[i])
-            result.append({
-                "speaker_id": f"speaker_{speaker_idx}",
-                "start_seconds": round(start_s / sr, 2),
-                "end_seconds": round(end_s / sr, 2),
-                "duration_seconds": round((end_s - start_s) / sr, 2),
-            })
+            result.append(
+                {
+                    "speaker_id": f"speaker_{speaker_idx}",
+                    "start_seconds": round(start_s / sr, 2),
+                    "end_seconds": round(end_s / sr, 2),
+                    "duration_seconds": round((end_s - start_s) / sr, 2),
+                }
+            )
 
         return result
 
@@ -277,19 +282,23 @@ class SpeakerDiarizationTool(BaseTool):
             elif not is_speech and start is not None:
                 end = i
                 if end - start >= min_frames:
-                    segments.append((
-                        int(start * hop_length),
-                        int(end * hop_length),
-                    ))
+                    segments.append(
+                        (
+                            int(start * hop_length),
+                            int(end * hop_length),
+                        )
+                    )
                 start = None
 
         if start is not None:
             end = len(speech_frames)
             if end - start >= min_frames:
-                segments.append((
-                    int(start * hop_length),
-                    int(end * hop_length),
-                ))
+                segments.append(
+                    (
+                        int(start * hop_length),
+                        int(end * hop_length),
+                    )
+                )
 
         return segments
 

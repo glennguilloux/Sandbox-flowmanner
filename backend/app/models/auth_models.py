@@ -25,6 +25,7 @@ from app.models import Base, TimestampMixin, UUIDMixin
 # 1. OIDC Provider Config
 # ---------------------------------------------------------------------------
 
+
 class OIDCProvider(Base, UUIDMixin, TimestampMixin):
     """Configured OIDC identity provider (Okta, Google, Azure AD, …)."""
 
@@ -95,6 +96,7 @@ class UserOIDCAccount(Base, UUIDMixin):
 # 2. Custom Roles
 # ---------------------------------------------------------------------------
 
+
 class CustomRole(Base, UUIDMixin, TimestampMixin):
     """Workspace-scoped role (system or custom). H4 Phase 3: renamed from tenant_id."""
 
@@ -109,7 +111,10 @@ class CustomRole(Base, UUIDMixin, TimestampMixin):
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     is_system: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, comment="Built-in roles cannot be deleted"
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Built-in roles cannot be deleted",
     )
 
     __table_args__ = (
@@ -156,6 +161,7 @@ class RolePermission(Base, UUIDMixin):
 # 3. Delegation
 # ---------------------------------------------------------------------------
 
+
 class RoleDelegation(Base, UUIDMixin):
     """Temporary role elevation from one user to another within a workspace. H4 Phase 3: renamed from tenant_id."""
 
@@ -189,9 +195,7 @@ class RoleDelegation(Base, UUIDMixin):
     )
     audit_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    __table_args__ = (
-        Index("ix_delegations_active", "workspace_id", "is_active"),
-    )
+    __table_args__ = (Index("ix_delegations_active", "workspace_id", "is_active"),)
 
     # relationships
     role: Mapped["CustomRole"] = relationship(back_populates="delegations")
@@ -201,6 +205,7 @@ class RoleDelegation(Base, UUIDMixin):
 # 4. Cross-tenant (many-to-many)
 # ---------------------------------------------------------------------------
 
+
 class UserTenant(Base, UUIDMixin):
     """Junction table linking users to multiple workspaces with a role. H4 Phase 3: renamed from tenant_id."""
 
@@ -209,11 +214,11 @@ class UserTenant(Base, UUIDMixin):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    workspace_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True
-    )
+    workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     role: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="member",
+        String(50),
+        nullable=False,
+        default="member",
         comment="Role name within this workspace (owner, admin, member, viewer)",
     )
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -231,6 +236,7 @@ class UserTenant(Base, UUIDMixin):
 # 5. User ↔ Custom Role assignment (junction)
 # ---------------------------------------------------------------------------
 
+
 class UserCustomRole(Base, UUIDMixin):
     """Assigns a custom role to a specific user within a workspace. H4 Phase 3: renamed from tenant_id."""
 
@@ -245,9 +251,7 @@ class UserCustomRole(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
-    workspace_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True
-    )
+    workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     assigned_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -256,7 +260,9 @@ class UserCustomRole(Base, UUIDMixin):
     )
 
     __table_args__ = (
-        UniqueConstraint("user_id", "role_id", "workspace_id", name="uq_user_custom_role_ws"),
+        UniqueConstraint(
+            "user_id", "role_id", "workspace_id", name="uq_user_custom_role_ws"
+        ),
         Index("ix_user_custom_roles_ws", "workspace_id"),
     )
 

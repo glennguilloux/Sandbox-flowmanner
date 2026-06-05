@@ -16,7 +16,9 @@ from app.services.dag_executor import (
 )
 
 
-def _task(task_id: str | None = None, deps: list[str] | None = None, status: str = "pending"):
+def _task(
+    task_id: str | None = None, deps: list[str] | None = None, status: str = "pending"
+):
     """Create a mock MissionTask-like object."""
     return SimpleNamespace(
         id=task_id or str(uuid4()),

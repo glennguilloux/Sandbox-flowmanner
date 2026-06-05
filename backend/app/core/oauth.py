@@ -14,8 +14,8 @@ class OAuthProviderConfig:
     name: str
     authorize_url: str
     token_url: str
-    client_id_env: str          # env var name for client_id
-    client_secret_env: str      # env var name for client_secret
+    client_id_env: str  # env var name for client_id
+    client_secret_env: str  # env var name for client_secret
     scopes: list[str]
     extra_auth_params: dict | None = None
 

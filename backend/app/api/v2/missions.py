@@ -4,6 +4,7 @@ Cross-cutting concerns: idempotency, per-user rate limiting, auditing.
 """
 
 from __future__ import annotations
+import uuid
 
 from typing import TYPE_CHECKING, Any
 
@@ -32,7 +33,6 @@ from app.schemas.mission import (
 )
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,25 +45,35 @@ router = APIRouter(prefix="/missions", tags=["v2-missions"])
 
 # ── List / Create (CQRS DI) ───────────────────────────────────────────────────
 
+
 @router.get("")
 @router.get("/")
 async def list_items(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    cursor: str | None = Query(None, description="Opaque cursor token from a previous response (enables keyset pagination)"),
+    cursor: str | None = Query(
+        None,
+        description="Opaque cursor token from a previous response (enables keyset pagination)",
+    ),
     user: User = Depends(get_current_user),
     q: MissionQueryHandlers = Depends(get_mission_queries),
 ):
     if cursor:
         # Keyset pagination: decode cursor and fetch after the referenced item
         from app.models.mission_models import Mission
+
         cp = CursorParams(cursor=cursor, direction="after", limit=per_page)
         decoded = cp.decoded
-        query = select(Mission).where(
-            Mission.user_id == user.id,
-            Mission.deleted_at.is_(None),
-            Mission.id > str(decoded["id"]),
-        ).order_by(Mission.id.asc()).limit(per_page + 1)
+        query = (
+            select(Mission)
+            .where(
+                Mission.user_id == user.id,
+                Mission.deleted_at.is_(None),
+                Mission.id > str(decoded["id"]),
+            )
+            .order_by(Mission.id.asc())
+            .limit(per_page + 1)
+        )
         result = await q.session.execute(query)
         items = list(result.scalars().all())
         serialized = [MissionResponse.model_validate(m).model_dump() for m in items]
@@ -76,7 +86,12 @@ async def list_items(
         )
     # Offset pagination (default)
     r = await q.list_missions(user.id, page, per_page)
-    return paginated(items=[i.model_dump() for i in r.items], total=r.total, page=r.page, per_page=r.per_page)
+    return paginated(
+        items=[i.model_dump() for i in r.items],
+        total=r.total,
+        page=r.page,
+        per_page=r.per_page,
+    )
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -97,6 +112,7 @@ async def create_item(
 
 # ── Active (CQRS DI) ──────────────────────────────────────────────────────────
 
+
 @router.get("/active")
 async def list_active(
     user: User = Depends(get_current_user),
@@ -107,6 +123,7 @@ async def list_active(
 
 
 # ── CRUD (CQRS DI) ────────────────────────────────────────────────────────────
+
 
 @router.get("/{mission_id}")
 @router.get("/{mission_id}/")
@@ -131,7 +148,11 @@ async def patch_item(
         return _idem
     if isinstance(_rate, JSONResponse):
         return _rate
-    return ok(MissionResponse.model_validate(await c.update_mission(user, mission_id, payload)).model_dump())
+    return ok(
+        MissionResponse.model_validate(
+            await c.update_mission(user, mission_id, payload)
+        ).model_dump()
+    )
 
 
 @router.delete("/{mission_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -151,6 +172,7 @@ async def delete_item(
 
 # ── Tasks (CQRS DI) ───────────────────────────────────────────────────────────
 
+
 @router.get("/{mission_id}/tasks")
 @router.get("/{mission_id}/tasks/")
 async def list_tasks(
@@ -169,7 +191,11 @@ async def create_task(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(MissionTaskResponse.model_validate(await c.create_task(user, mission_id, payload)).model_dump())
+    return ok(
+        MissionTaskResponse.model_validate(
+            await c.create_task(user, mission_id, payload)
+        ).model_dump()
+    )
 
 
 @router.patch("/{mission_id}/tasks/{task_id}")
@@ -180,10 +206,15 @@ async def update_task(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(MissionTaskResponse.model_validate(await c.update_task(user, mission_id, task_id, payload)).model_dump())
+    return ok(
+        MissionTaskResponse.model_validate(
+            await c.update_task(user, mission_id, task_id, payload)
+        ).model_dump()
+    )
 
 
 # ── Logs (CQRS DI) ────────────────────────────────────────────────────────────
+
 
 @router.get("/{mission_id}/logs")
 @router.get("/{mission_id}/logs/")
@@ -203,10 +234,15 @@ async def create_log(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(MissionLogResponse.model_validate(await c.create_log(user, mission_id, payload)).model_dump())
+    return ok(
+        MissionLogResponse.model_validate(
+            await c.create_log(user, mission_id, payload)
+        ).model_dump()
+    )
 
 
 # ── Planning (CQRS DI) ────────────────────────────────────────────────────────
+
 
 @router.post("/{mission_id}/plan")
 async def plan_mission(
@@ -218,6 +254,7 @@ async def plan_mission(
 
 
 # ── Execution (CQRS DI) ───────────────────────────────────────────────────────
+
 
 @router.post("/{mission_id}/execute")
 async def execute_mission(
@@ -247,6 +284,7 @@ async def execute_mission_async(
 
 # ── Abort (CQRS DI) ───────────────────────────────────────────────────────────
 
+
 @router.post("/{mission_id}/abort")
 async def abort_mission(
     mission_id: uuid.UUID,
@@ -264,6 +302,7 @@ async def abort_mission(
 
 
 # ── Status / Streaming ────────────────────────────────────────────────────────
+
 
 @router.get("/{mission_id}/status")
 @router.get("/{mission_id}/status/")
@@ -288,6 +327,7 @@ async def stream_mission_status(
 
 
 # ── Lifecycle: Pause / Resume / Retry (CQRS DI) ───────────────────────────────
+
 
 @router.post("/{mission_id}/pause")
 async def pause_mission(
@@ -332,10 +372,15 @@ async def create_from_template(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(MissionResponse.model_validate(await c.create_from_template(user, template_id)).model_dump())
+    return ok(
+        MissionResponse.model_validate(
+            await c.create_from_template(user, template_id)
+        ).model_dump()
+    )
 
 
 # ── Improvements (CQRS DI) ────────────────────────────────────────────────────
+
 
 @router.get("/{mission_id}/improvements")
 @router.get("/{mission_id}/improvements/")
@@ -369,6 +414,7 @@ async def apply_improvement(
 
 # ── Analytics (CQRS DI) ───────────────────────────────────────────────────────
 
+
 @router.get("/{mission_id}/analytics")
 @router.get("/{mission_id}/analytics/")
 async def get_mission_analytics_endpoint(
@@ -390,6 +436,7 @@ async def get_global_analytics(
 
 # ── Human Approval (HITL) ─────────────────────────────────────────────────────
 
+
 @router.post("/{mission_id}/tasks/{task_id}/approve")
 async def approve_task(
     mission_id: uuid.UUID,
@@ -405,36 +452,52 @@ async def approve_task(
     # Verify mission exists and belongs to user
     mission = await q.get_mission(user.id, mission_id)
     if not mission:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
+        )
 
     # Find pending interrupt for this specific task
     hitl = get_hitl_manager()
     pending = await hitl.list_pending(db, str(mission_id))
     matching = [
-        p for p in pending
+        p
+        for p in pending
         if (p.get("proposed_action") or {}).get("task_id") == str(task_id)
     ]
     if not matching:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No pending approval found for this task")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending approval found for this task",
+        )
 
     interrupt_id = matching[0]["id"]
     await hitl.resolve_interrupt(db, interrupt_id, "approved", resolved_by=str(user.id))
 
     # Clear approval flag and resume mission
-    task_obj = (await db.execute(
-        select(MissionTask).where(MissionTask.id == str(task_id))
-    )).scalars().first()
+    task_obj = (
+        (await db.execute(select(MissionTask).where(MissionTask.id == str(task_id))))
+        .scalars()
+        .first()
+    )
     if task_obj:
         task_obj.approval_required = False
 
-    mission_obj = (await db.execute(
-        select(Mission).where(Mission.id == str(mission_id))
-    )).scalars().first()
+    mission_obj = (
+        (await db.execute(select(Mission).where(Mission.id == str(mission_id))))
+        .scalars()
+        .first()
+    )
     if mission_obj and mission_obj.status == MissionStatus.PAUSED:
         mission_obj.status = MissionStatus.QUEUED
     await db.commit()
 
-    return ok({"status": "approved", "mission_id": str(mission_id), "interrupt_id": interrupt_id})
+    return ok(
+        {
+            "status": "approved",
+            "mission_id": str(mission_id),
+            "interrupt_id": interrupt_id,
+        }
+    )
 
 
 @router.post("/{mission_id}/tasks/{task_id}/reject")
@@ -446,44 +509,67 @@ async def reject_task(
     db: AsyncSession = Depends(get_db),
 ):
     """Reject a task awaiting human approval — fails the task and marks mission for retry."""
-    from app.models.mission_models import Mission, MissionStatus, MissionTask, MissionTaskStatus
+    from app.models.mission_models import (
+        Mission,
+        MissionStatus,
+        MissionTask,
+        MissionTaskStatus,
+    )
     from app.orchestration.human_interrupt import get_hitl_manager
 
     # Verify mission exists and belongs to user
     mission = await q.get_mission(user.id, mission_id)
     if not mission:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
+        )
 
     # Find pending interrupt for this specific task
     hitl = get_hitl_manager()
     pending = await hitl.list_pending(db, str(mission_id))
     matching = [
-        p for p in pending
+        p
+        for p in pending
         if (p.get("proposed_action") or {}).get("task_id") == str(task_id)
     ]
     if not matching:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No pending approval found for this task")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending approval found for this task",
+        )
 
     interrupt_id = matching[0]["id"]
     await hitl.resolve_interrupt(db, interrupt_id, "rejected", resolved_by=str(user.id))
 
     # Fail the task (transition PENDING → RUNNING → FAILED to respect state machine)
-    task_obj = (await db.execute(
-        select(MissionTask).where(MissionTask.id == str(task_id))
-    )).scalars().first()
+    task_obj = (
+        (await db.execute(select(MissionTask).where(MissionTask.id == str(task_id))))
+        .scalars()
+        .first()
+    )
     if task_obj:
         task_obj.approval_required = False
         task_obj.status = MissionTaskStatus.RUNNING  # valid: PENDING → RUNNING
         await db.flush()
-        task_obj.status = MissionTaskStatus.FAILED   # valid: RUNNING → FAILED
+        task_obj.status = MissionTaskStatus.FAILED  # valid: RUNNING → FAILED
         task_obj.error_message = "Rejected by user"
 
-    mission_obj = (await db.execute(
-        select(Mission).where(Mission.id == str(mission_id))
-    )).scalars().first()
+    mission_obj = (
+        (await db.execute(select(Mission).where(Mission.id == str(mission_id))))
+        .scalars()
+        .first()
+    )
     if mission_obj:
         mission_obj.status = MissionStatus.FAILED
-        mission_obj.error_message = f"Task '{task_obj.title if task_obj else task_id}' rejected by user"
+        mission_obj.error_message = (
+            f"Task '{task_obj.title if task_obj else task_id}' rejected by user"
+        )
         await db.commit()
 
-    return ok({"status": "rejected", "mission_id": str(mission_id), "interrupt_id": interrupt_id})
+    return ok(
+        {
+            "status": "rejected",
+            "mission_id": str(mission_id),
+            "interrupt_id": interrupt_id,
+        }
+    )

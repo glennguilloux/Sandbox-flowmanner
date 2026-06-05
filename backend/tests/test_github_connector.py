@@ -5,7 +5,6 @@ Tests the 18 actions (issues, PRs, repos, search, comments, user) using
 mocked aiohttp HTTP responses since BaseConnector uses aiohttp internally.
 """
 
-
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -147,9 +146,7 @@ async def test_create_issue_success():
 @pytest.mark.asyncio
 async def test_create_issue_missing_params():
     """Missing required params returns 400."""
-    fake = _FakeSession(
-        {"default": _make_mock_response(200, {"login": "test"})}
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"login": "test"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
@@ -409,9 +406,7 @@ async def test_list_repos():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/user/repos": _make_mock_response(
-                200, repos
-            ),
+            "GET:https://api.github.com/user/repos": _make_mock_response(200, repos),
         }
     )
 
@@ -458,9 +453,7 @@ async def test_search_code():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/search/code": _make_mock_response(
-                200, results
-            ),
+            "GET:https://api.github.com/search/code": _make_mock_response(200, results),
         }
     )
 
@@ -523,9 +516,7 @@ async def test_get_user_authenticated():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/user": _make_mock_response(
-                200, user
-            ),
+            "GET:https://api.github.com/user": _make_mock_response(200, user),
         }
     )
 
@@ -545,18 +536,14 @@ async def test_get_user_specific():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/users/torvalds": _make_mock_response(
-                200, user
-            ),
+            "GET:https://api.github.com/users/torvalds": _make_mock_response(200, user),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "get_user", {"username": "torvalds"}
-        )
+        result = await connector.execute_action("get_user", {"username": "torvalds"})
 
     assert result.success is True
     assert result.data["login"] == "torvalds"

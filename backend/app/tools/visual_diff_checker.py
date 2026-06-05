@@ -127,12 +127,16 @@ class VisualDiffCheckerTool(BaseTool):
     async def _compute_diff(self, validated: VisualDiffCheckerInput) -> dict[str, Any]:
         """Load both images, compute diff, and return analysis."""
         bytes1 = await resolve_input(
-            validated.image1_data, validated.image1_url,
-            label="image1", fetch_timeout=30,
+            validated.image1_data,
+            validated.image1_url,
+            label="image1",
+            fetch_timeout=30,
         )
         bytes2 = await resolve_input(
-            validated.image2_data, validated.image2_url,
-            label="image2", fetch_timeout=30,
+            validated.image2_data,
+            validated.image2_url,
+            label="image2",
+            fetch_timeout=30,
         )
 
         img1 = Image.open(io.BytesIO(bytes1)).convert("RGB")
@@ -184,9 +188,9 @@ class VisualDiffCheckerTool(BaseTool):
             diff_image = self._generate_diff_overlay(img1, changed_mask)
             buf = io.BytesIO()
             diff_image.save(buf, format="PNG")
-            result_data["diff_image_base64"] = base64.b64encode(
-                buf.getvalue()
-            ).decode("ascii")
+            result_data["diff_image_base64"] = base64.b64encode(buf.getvalue()).decode(
+                "ascii"
+            )
             diff_image.close()
 
         img1.close()
@@ -203,9 +207,7 @@ class VisualDiffCheckerTool(BaseTool):
         result = base_image.copy().convert("RGBA")
 
         # Create red overlay with alpha based on change mask
-        overlay = np.zeros(
-            (base_image.height, base_image.width, 4), dtype=np.uint8
-        )
+        overlay = np.zeros((base_image.height, base_image.width, 4), dtype=np.uint8)
         overlay[changed_mask] = [255, 0, 0, 128]  # semi-transparent red
 
         overlay_img = Image.fromarray(overlay, "RGBA")

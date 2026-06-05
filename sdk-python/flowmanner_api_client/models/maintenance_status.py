@@ -1,44 +1,31 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="MaintenanceStatus")
-
 
 
 @_attrs_define
 class MaintenanceStatus:
-    """ 
-        Attributes:
-            active (bool):
-            message (None | str | Unset):
-            estimated_duration (None | str | Unset):
-            activated_at (None | str | Unset):
-     """
+    """
+    Attributes:
+        active (bool):
+        message (None | str | Unset):
+        estimated_duration (None | str | Unset):
+        activated_at (None | str | Unset):
+    """
 
     active: bool
     message: None | str | Unset = UNSET
     estimated_duration: None | str | Unset = UNSET
     activated_at: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         active = self.active
@@ -61,12 +48,13 @@ class MaintenanceStatus:
         else:
             activated_at = self.activated_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "active": active,
-        })
+        field_dict.update(
+            {
+                "active": active,
+            }
+        )
         if message is not UNSET:
             field_dict["message"] = message
         if estimated_duration is not UNSET:
@@ -75,8 +63,6 @@ class MaintenanceStatus:
             field_dict["activated_at"] = activated_at
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -92,7 +78,6 @@ class MaintenanceStatus:
 
         message = _parse_message(d.pop("message", UNSET))
 
-
         def _parse_estimated_duration(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -100,8 +85,9 @@ class MaintenanceStatus:
                 return data
             return cast(None | str | Unset, data)
 
-        estimated_duration = _parse_estimated_duration(d.pop("estimated_duration", UNSET))
-
+        estimated_duration = _parse_estimated_duration(
+            d.pop("estimated_duration", UNSET)
+        )
 
         def _parse_activated_at(data: object) -> None | str | Unset:
             if data is None:
@@ -112,14 +98,12 @@ class MaintenanceStatus:
 
         activated_at = _parse_activated_at(d.pop("activated_at", UNSET))
 
-
         maintenance_status = cls(
             active=active,
             message=message,
             estimated_duration=estimated_duration,
             activated_at=activated_at,
         )
-
 
         maintenance_status.additional_properties = d
         return maintenance_status

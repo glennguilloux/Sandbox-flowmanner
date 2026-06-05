@@ -200,9 +200,9 @@ async def list_plugin_node_types(
         if manifest_data:
             # manifest_data may be a PluginManifest Pydantic model or dict
             manifest_dict = (
-                manifest_data.model_dump() if hasattr(manifest_data, "model_dump")
-                else manifest_data if isinstance(manifest_data, dict)
-                else {}
+                manifest_data.model_dump()
+                if hasattr(manifest_data, "model_dump")
+                else manifest_data if isinstance(manifest_data, dict) else {}
             )
             node_types_list = manifest_dict.get("node_types", [])
             # Find the matching node type in the manifest
@@ -230,18 +230,20 @@ async def list_plugin_node_types(
                             outputs[k] = {"type": "object"}
                     break
 
-        node_types.append(NodeTypeResponse(
-            node_type_id=node_type_id,
-            plugin_name=entry["plugin_name"],
-            permissions=entry.get("permissions", []),
-            label=label,
-            category=category,
-            description=description,
-            icon=icon,
-            color=color,
-            inputs=inputs,
-            outputs=outputs,
-        ))
+        node_types.append(
+            NodeTypeResponse(
+                node_type_id=node_type_id,
+                plugin_name=entry["plugin_name"],
+                permissions=entry.get("permissions", []),
+                label=label,
+                category=category,
+                description=description,
+                icon=icon,
+                color=color,
+                inputs=inputs,
+                outputs=outputs,
+            )
+        )
 
     return node_types
 
@@ -285,7 +287,10 @@ async def install_plugin(
 
         logger.info(
             "Plugin installed via API: %s v%s (user=%s, workspace=%s)",
-            plugin_row.name, plugin_row.version, user.id, workspace_id,
+            plugin_row.name,
+            plugin_row.version,
+            user.id,
+            workspace_id,
         )
         return _to_plugin_response(plugin_row)
 
@@ -345,6 +350,7 @@ async def get_plugin_status(
 
     # Get registered node types from runtime
     from app.services.plugin_runtime import get_plugin_runtime
+
     runtime = get_plugin_runtime()
     registered_types = [
         nt["node_type_id"]
@@ -361,7 +367,9 @@ async def get_plugin_status(
         execution_count=exec_count,
         error_count=err_count,
         error_rate=round(error_rate, 2),
-        last_executed_at=plugin.last_executed_at.isoformat() if plugin.last_executed_at else None,
+        last_executed_at=(
+            plugin.last_executed_at.isoformat() if plugin.last_executed_at else None
+        ),
         last_error=plugin.last_error,
         registered_node_types=registered_types,
     )
@@ -468,6 +476,7 @@ async def execute_plugin(
 
     # Build a minimal context
     from app.services.graph_executor import ExecutionContext
+
     context = ExecutionContext()
 
     try:
@@ -475,7 +484,8 @@ async def execute_plugin(
 
         # Record execution stats
         await runtime.record_execution(
-            db, plugin.name,
+            db,
+            plugin.name,
             success=handler_result.get("success", False),
             error=handler_result.get("error"),
             elapsed_ms=handler_result.get("elapsed_ms", 0.0),
@@ -490,7 +500,9 @@ async def execute_plugin(
             plugin=handler_result.get("plugin", plugin.name),
         )
     except Exception as e:
-        await runtime.record_execution(db, plugin.name, success=False, error=str(e), elapsed_ms=0.0)
+        await runtime.record_execution(
+            db, plugin.name, success=False, error=str(e), elapsed_ms=0.0
+        )
         await db.commit()
         return PluginExecuteResponse(
             success=False,
@@ -552,7 +564,9 @@ async def upgrade_plugin(
 
         logger.info(
             "Plugin upgraded: %s %s → %s",
-            old_plugin.name, old_plugin.version, plugin_row.version,
+            old_plugin.name,
+            old_plugin.version,
+            plugin_row.version,
         )
         return _to_plugin_response(plugin_row)
 
@@ -640,7 +654,9 @@ async def approve_plugin(
     await db.commit()
     await db.refresh(plugin)
 
-    logger.info("Plugin approved: %s v%s by admin %s", plugin.name, plugin.version, user.id)
+    logger.info(
+        "Plugin approved: %s v%s by admin %s", plugin.name, plugin.version, user.id
+    )
     return _to_plugin_response(plugin)
 
 
@@ -664,6 +680,7 @@ async def reject_plugin(
 
     # Disable the plugin on rejection
     from app.services.plugin_runtime import get_plugin_runtime
+
     runtime = get_plugin_runtime()
     await runtime.disable(db, plugin_id)
 
@@ -676,7 +693,10 @@ async def reject_plugin(
 
     logger.info(
         "Plugin rejected: %s v%s by admin %s (reason: %s)",
-        plugin.name, plugin.version, user.id, payload.reason,
+        plugin.name,
+        plugin.version,
+        user.id,
+        payload.reason,
     )
     return _to_plugin_response(plugin)
 
@@ -705,6 +725,7 @@ async def kill_switch_plugin(
 
     # Disable ALL instances of this plugin name across all workspaces
     from app.services.plugin_runtime import get_plugin_runtime
+
     runtime = get_plugin_runtime()
 
     # Unload from memory once (subsequent calls are no-ops)
@@ -729,7 +750,9 @@ async def kill_switch_plugin(
 
     logger.warning(
         "KILL-SWITCH activated for plugin '%s': %d instances disabled by admin %s",
-        plugin.name, disabled_count, user.id,
+        plugin.name,
+        disabled_count,
+        user.id,
     )
     return {
         "status": "disabled",
@@ -780,7 +803,9 @@ async def scan_plugin(
 
     logger.info(
         "Plugin scan completed: %s risk_score=%d passed=%s",
-        plugin.name, scan_result.risk_score, scan_result.passed,
+        plugin.name,
+        scan_result.risk_score,
+        scan_result.passed,
     )
     return ScanResultResponse(**scan_result.to_dict())
 
@@ -821,13 +846,15 @@ async def get_plugin_health_report(
             healthy += 1
 
         if (p.crash_count or 0) > 0:
-            crashing.append({
-                "name": p.name,
-                "version": p.version,
-                "crash_count": p.crash_count,
-                "error_rate": round(error_rate, 2),
-                "workspace_id": p.workspace_id,
-            })
+            crashing.append(
+                {
+                    "name": p.name,
+                    "version": p.version,
+                    "crash_count": p.crash_count,
+                    "error_rate": round(error_rate, 2),
+                    "workspace_id": p.workspace_id,
+                }
+            )
 
     crashing.sort(key=lambda x: x["crash_count"], reverse=True)
 

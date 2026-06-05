@@ -85,58 +85,103 @@ def upgrade() -> None:
     # Table may have been dropped in phase 10.3 — skip if absent.
     if _table_exists("mission_improvements"):
         if not _column_exists("mission_improvements", "run_id"):
-            op.add_column("mission_improvements", sa.Column(
-                "run_id", postgresql.UUID(as_uuid=True), nullable=True,
-            ))
+            op.add_column(
+                "mission_improvements",
+                sa.Column(
+                    "run_id",
+                    postgresql.UUID(as_uuid=True),
+                    nullable=True,
+                ),
+            )
         if not _index_exists("ix_mission_improvements_run_id"):
-            op.create_index("ix_mission_improvements_run_id", "mission_improvements", ["run_id"])
-        if not _constraint_exists("fk_mission_improvements_run_id", "mission_improvements"):
+            op.create_index(
+                "ix_mission_improvements_run_id", "mission_improvements", ["run_id"]
+            )
+        if not _constraint_exists(
+            "fk_mission_improvements_run_id", "mission_improvements"
+        ):
             op.create_foreign_key(
                 "fk_mission_improvements_run_id",
-                "mission_improvements", "runs",
-                ["run_id"], ["id"],
+                "mission_improvements",
+                "runs",
+                ["run_id"],
+                ["id"],
             )
 
     # ── mission_triggers: add blueprint_id FK ────────────────────────
     if _table_exists("mission_triggers"):
         if not _column_exists("mission_triggers", "blueprint_id"):
-            op.add_column("mission_triggers", sa.Column(
-                "blueprint_id", postgresql.UUID(as_uuid=True), nullable=True,
-            ))
+            op.add_column(
+                "mission_triggers",
+                sa.Column(
+                    "blueprint_id",
+                    postgresql.UUID(as_uuid=True),
+                    nullable=True,
+                ),
+            )
         if not _index_exists("ix_mission_triggers_blueprint_id"):
-            op.create_index("ix_mission_triggers_blueprint_id", "mission_triggers", ["blueprint_id"])
-        if not _constraint_exists("fk_mission_triggers_blueprint_id", "mission_triggers"):
+            op.create_index(
+                "ix_mission_triggers_blueprint_id", "mission_triggers", ["blueprint_id"]
+            )
+        if not _constraint_exists(
+            "fk_mission_triggers_blueprint_id", "mission_triggers"
+        ):
             op.create_foreign_key(
                 "fk_mission_triggers_blueprint_id",
-                "mission_triggers", "blueprints",
-                ["blueprint_id"], ["id"],
+                "mission_triggers",
+                "blueprints",
+                ["blueprint_id"],
+                ["id"],
             )
 
     # ── mission_circuit_breakers: add run_id FK ──────────────────────
     if _table_exists("mission_circuit_breakers"):
         if not _column_exists("mission_circuit_breakers", "run_id"):
-            op.add_column("mission_circuit_breakers", sa.Column(
-                "run_id", postgresql.UUID(as_uuid=True), nullable=True,
-            ))
+            op.add_column(
+                "mission_circuit_breakers",
+                sa.Column(
+                    "run_id",
+                    postgresql.UUID(as_uuid=True),
+                    nullable=True,
+                ),
+            )
         if not _index_exists("ix_mission_circuit_breakers_run_id"):
-            op.create_index("ix_mission_circuit_breakers_run_id", "mission_circuit_breakers", ["run_id"])
-        if not _constraint_exists("fk_mission_circuit_breakers_run_id", "mission_circuit_breakers"):
+            op.create_index(
+                "ix_mission_circuit_breakers_run_id",
+                "mission_circuit_breakers",
+                ["run_id"],
+            )
+        if not _constraint_exists(
+            "fk_mission_circuit_breakers_run_id", "mission_circuit_breakers"
+        ):
             op.create_foreign_key(
                 "fk_mission_circuit_breakers_run_id",
-                "mission_circuit_breakers", "runs",
-                ["run_id"], ["id"],
+                "mission_circuit_breakers",
+                "runs",
+                ["run_id"],
+                ["id"],
             )
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_mission_circuit_breakers_run_id", "mission_circuit_breakers", type_="foreignkey")
-    op.drop_index("ix_mission_circuit_breakers_run_id", table_name="mission_circuit_breakers")
+    op.drop_constraint(
+        "fk_mission_circuit_breakers_run_id",
+        "mission_circuit_breakers",
+        type_="foreignkey",
+    )
+    op.drop_index(
+        "ix_mission_circuit_breakers_run_id", table_name="mission_circuit_breakers"
+    )
     op.drop_column("mission_circuit_breakers", "run_id")
 
-    op.drop_constraint("fk_mission_triggers_blueprint_id", "mission_triggers", type_="foreignkey")
+    op.drop_constraint(
+        "fk_mission_triggers_blueprint_id", "mission_triggers", type_="foreignkey"
+    )
     op.drop_index("ix_mission_triggers_blueprint_id", table_name="mission_triggers")
     op.drop_column("mission_triggers", "blueprint_id")
 
-    op.drop_constraint("fk_mission_improvements_run_id", "mission_improvements", type_="foreignkey")
+    op.drop_constraint(
+        "fk_mission_improvements_run_id", "mission_improvements", type_="foreignkey"
+    )
     op.drop_index("ix_mission_improvements_run_id", table_name="mission_improvements")
     op.drop_column("mission_improvements", "run_id")

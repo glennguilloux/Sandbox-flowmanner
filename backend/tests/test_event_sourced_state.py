@@ -19,7 +19,11 @@ class TestUnifiedExecutorGA:
 
     def test_unified_executor_is_only_path(self):
         """Phase 8.1: Feature flag removed — UnifiedExecutor is always used."""
-        from app.services.substrate.executor import UnifiedExecutor, get_unified_executor
+        from app.services.substrate.executor import (
+            UnifiedExecutor,
+            get_unified_executor,
+        )
+
         assert UnifiedExecutor is not None
         executor = get_unified_executor()
         assert isinstance(executor, UnifiedExecutor)
@@ -27,8 +31,9 @@ class TestUnifiedExecutorGA:
     def test_feature_flag_removed(self):
         """Phase 8.1: _unified_executor_enabled and _should_use_unified no longer exist."""
         import app.services.substrate.executor as executor_mod
-        assert not hasattr(executor_mod, '_unified_executor_enabled')
-        assert not hasattr(executor_mod, '_should_use_unified')
+
+        assert not hasattr(executor_mod, "_unified_executor_enabled")
+        assert not hasattr(executor_mod, "_should_use_unified")
 
 
 class TestEventHistoryQuery:
@@ -42,7 +47,9 @@ class TestEventHistoryQuery:
 
         mock_session = AsyncMock()
         handlers = MissionQueryHandlers(mock_session)
-        handlers.get_mission = AsyncMock(side_effect=MissionNotFoundError("Mission not found"))
+        handlers.get_mission = AsyncMock(
+            side_effect=MissionNotFoundError("Mission not found")
+        )
         with pytest.raises(MissionNotFoundError):
             await handlers.get_events(1, uuid4())
 
@@ -54,7 +61,9 @@ class TestEventHistoryQuery:
 
         mock_session = AsyncMock()
         handlers = MissionQueryHandlers(mock_session)
-        handlers.get_mission = AsyncMock(side_effect=MissionNotFoundError("Mission not found"))
+        handlers.get_mission = AsyncMock(
+            side_effect=MissionNotFoundError("Mission not found")
+        )
         with pytest.raises(MissionNotFoundError):
             await handlers.get_substrate_state(1, uuid4())
 
@@ -66,7 +75,8 @@ class TestAbortSignalPropagation:
         """abort_mission should signal UnifiedExecutor abort."""
         # This is a structural test — verify the abort method exists
         from app.services.substrate.executor import UnifiedExecutor
-        assert hasattr(UnifiedExecutor, 'abort')
+
+        assert hasattr(UnifiedExecutor, "abort")
         assert callable(UnifiedExecutor.abort)
 
 
@@ -76,6 +86,7 @@ class TestReplayEngineIntegration:
     @pytest.mark.asyncio
     async def test_replay_engine_singleton(self):
         from app.services.substrate.replay_engine import get_replay_engine
+
         engine1 = get_replay_engine()
         engine2 = get_replay_engine()
         assert engine1 is engine2
@@ -83,10 +94,11 @@ class TestReplayEngineIntegration:
     @pytest.mark.asyncio
     async def test_replay_engine_has_methods(self):
         from app.services.substrate.replay_engine import ReplayEngine
-        assert hasattr(ReplayEngine, 'rebuild_state')
-        assert hasattr(ReplayEngine, 'rebuild_state_at_sequence')
-        assert hasattr(ReplayEngine, 'verify_determinism')
-        assert hasattr(ReplayEngine, 'get_checkpoint_sequences')
+
+        assert hasattr(ReplayEngine, "rebuild_state")
+        assert hasattr(ReplayEngine, "rebuild_state_at_sequence")
+        assert hasattr(ReplayEngine, "verify_determinism")
+        assert hasattr(ReplayEngine, "get_checkpoint_sequences")
 
 
 class TestEventLogIntegration:
@@ -95,16 +107,18 @@ class TestEventLogIntegration:
     @pytest.mark.asyncio
     async def test_event_log_singleton(self):
         from app.services.substrate.event_log import get_event_log
+
         log1 = get_event_log()
         log2 = get_event_log()
         assert log1 is log2
 
     def test_event_log_has_methods(self):
         from app.services.substrate.event_log import EventLog
-        assert hasattr(EventLog, 'append')
-        assert hasattr(EventLog, 'get_events')
-        assert hasattr(EventLog, 'get_latest_sequence')
-        assert hasattr(EventLog, 'run_exists')
+
+        assert hasattr(EventLog, "append")
+        assert hasattr(EventLog, "get_events")
+        assert hasattr(EventLog, "get_latest_sequence")
+        assert hasattr(EventLog, "run_exists")
 
 
 class TestSubstrateEventTypes:
@@ -112,19 +126,33 @@ class TestSubstrateEventTypes:
 
     def test_all_event_types_exist(self):
         from app.models.substrate_models import SubstrateEventType
+
         expected = [
-            "MISSION_STARTED", "MISSION_COMPLETED", "MISSION_FAILED", "MISSION_ABORTED",
-            "MISSION_PAUSED", "MISSION_RESUMED",
-            "TASK_STARTED", "TASK_COMPLETED", "TASK_FAILED", "TASK_RETRYING", "TASK_SKIPPED",
-            "LLM_CALL", "LLM_RESPONSE",
-            "TOOL_CALL", "TOOL_RESPONSE",
-            "CHECKPOINT", "BUDGET_EXHAUSTED", "ERROR",
+            "MISSION_STARTED",
+            "MISSION_COMPLETED",
+            "MISSION_FAILED",
+            "MISSION_ABORTED",
+            "MISSION_PAUSED",
+            "MISSION_RESUMED",
+            "TASK_STARTED",
+            "TASK_COMPLETED",
+            "TASK_FAILED",
+            "TASK_RETRYING",
+            "TASK_SKIPPED",
+            "LLM_CALL",
+            "LLM_RESPONSE",
+            "TOOL_CALL",
+            "TOOL_RESPONSE",
+            "CHECKPOINT",
+            "BUDGET_EXHAUSTED",
+            "ERROR",
         ]
         for attr in expected:
             assert hasattr(SubstrateEventType, attr), f"Missing event type: {attr}"
 
     def test_event_type_values(self):
         from app.models.substrate_models import SubstrateEventType
+
         assert SubstrateEventType.MISSION_STARTED == "mission.started"
         assert SubstrateEventType.TASK_COMPLETED == "task.completed"
         assert SubstrateEventType.CHECKPOINT == "substrate.checkpoint"
@@ -135,6 +163,7 @@ class TestRunStateProjection:
 
     def test_run_state_apply_mission_started(self):
         from app.models.substrate_models import SubstrateRunState, SubstrateEventType
+
         state = SubstrateRunState(run_id="test-run")
         event = MagicMock()
         event.type = SubstrateEventType.MISSION_STARTED
@@ -146,6 +175,7 @@ class TestRunStateProjection:
 
     def test_run_state_apply_task_completed(self):
         from app.models.substrate_models import SubstrateRunState, SubstrateEventType
+
         state = SubstrateRunState(run_id="test-run")
         event = MagicMock()
         event.type = SubstrateEventType.TASK_COMPLETED
@@ -159,6 +189,7 @@ class TestRunStateProjection:
 
     def test_run_state_to_dict(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test-run")
         d = state.to_dict()
         assert d["run_id"] == "test-run"
@@ -170,13 +201,19 @@ class TestWorkflowModels:
     """Verify the unified Workflow models are importable."""
 
     def test_workflow_import(self):
-        from app.services.substrate.workflow_models import Workflow, WorkflowNode, WorkflowEdge
+        from app.services.substrate.workflow_models import (
+            Workflow,
+            WorkflowNode,
+            WorkflowEdge,
+        )
+
         assert Workflow is not None
         assert WorkflowNode is not None
         assert WorkflowEdge is not None
 
     def test_workflow_type_enum(self):
         from app.services.substrate.workflow_models import WorkflowType
+
         assert WorkflowType.SOLO.value == "solo"
         assert WorkflowType.DAG.value == "dag"
         assert WorkflowType.SWARM.value == "swarm"
@@ -187,6 +224,7 @@ class TestWorkflowModels:
 
     def test_strategy_result(self):
         from app.services.substrate.workflow_models import StrategyResult
+
         r = StrategyResult(success=True, status="completed")
         assert r.success is True
         assert r.status == "completed"
@@ -198,10 +236,12 @@ class TestAdapters:
 
     def test_mission_to_workflow_import(self):
         from app.services.substrate.adapters import mission_to_workflow
+
         assert callable(mission_to_workflow)
 
     def test_mission_to_workflow_with_mock(self):
         from app.services.substrate.adapters import mission_to_workflow
+
         mission = MagicMock()
         mission.id = uuid4()
         mission.title = "Test Mission"

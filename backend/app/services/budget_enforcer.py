@@ -44,9 +44,21 @@ DEFAULT_PRICING: dict[str, dict[str, float]] = {
     "gpt-4o": {"input": 5.00, "output": 15.00, "provider": "openai"},
     "gpt-4-turbo": {"input": 10.00, "output": 30.00, "provider": "openai"},
     # OpenRouter (passthrough with margin)
-    "openrouter-gemma-2-9b-free": {"input": 0.0, "output": 0.0, "provider": "openrouter"},
-    "openrouter-gemini-2.0-flash": {"input": 0.15, "output": 0.60, "provider": "openrouter"},
-    "openrouter-deepseek-coder": {"input": 0.14, "output": 0.28, "provider": "openrouter"},
+    "openrouter-gemma-2-9b-free": {
+        "input": 0.0,
+        "output": 0.0,
+        "provider": "openrouter",
+    },
+    "openrouter-gemini-2.0-flash": {
+        "input": 0.15,
+        "output": 0.60,
+        "provider": "openrouter",
+    },
+    "openrouter-deepseek-coder": {
+        "input": 0.14,
+        "output": 0.28,
+        "provider": "openrouter",
+    },
     # Local (free)
     "vllm-qwen3-14b-chat": {"input": 0.0, "output": 0.0, "provider": "local"},
     "llamacpp-qwen3.6-27b": {"input": 0.0, "output": 0.0, "provider": "local"},
@@ -119,11 +131,14 @@ class PricingTable:
                 self._pricing = {**DEFAULT_PRICING, **models}
                 logger.info(
                     "Pricing refreshed from %s: %d models (updated %s)",
-                    config_path, len(self._pricing),
+                    config_path,
+                    len(self._pricing),
                     data.get("updated_at", "unknown"),
                 )
             else:
-                logger.info("Pricing config exists but contains no models — using defaults")
+                logger.info(
+                    "Pricing config exists but contains no models — using defaults"
+                )
         except FileNotFoundError:
             logger.debug("Pricing config not found at %s — using defaults", config_path)
         except (json.JSONDecodeError, OSError) as e:
@@ -172,7 +187,8 @@ class BudgetEnforcer:
         if estimated_cost > remaining:
             logger.debug(
                 "Budget check failed: estimated $%s > remaining $%s",
-                estimated_cost, remaining,
+                estimated_cost,
+                remaining,
             )
             return False
 
@@ -264,7 +280,9 @@ class BudgetEnforcer:
                 completion_tokens = cost_info.get("output_tokens", 0)
 
             except Exception as router_error:
-                logger.warning("ModelRouter failed, trying direct httpx: %s", router_error)
+                logger.warning(
+                    "ModelRouter failed, trying direct httpx: %s", router_error
+                )
 
                 # Fallback to direct httpx call
                 import httpx
@@ -292,7 +310,9 @@ class BudgetEnforcer:
                     )
                     data = resp.json()
 
-                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                content = (
+                    data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                )
                 usage = data.get("usage", {})
                 prompt_tokens = usage.get("prompt_tokens", 0)
                 completion_tokens = usage.get("completion_tokens", 0)
@@ -357,7 +377,9 @@ class BudgetEnforcer:
             # Enrich response with budget info
             response["budget"] = {
                 "spent_usd": float(budget.spent_usd),
-                "remaining_usd": float(max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)),
+                "remaining_usd": float(
+                    max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)
+                ),
                 "iterations_used": budget.iterations_used,
                 "budget_exhausted": is_exhausted,
             }
@@ -377,7 +399,9 @@ class BudgetEnforcer:
                 "cost": {"input_tokens": 0, "output_tokens": 0},
                 "budget": {
                     "spent_usd": float(budget.spent_usd),
-                    "remaining_usd": float(max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)),
+                    "remaining_usd": float(
+                        max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)
+                    ),
                     "iterations_used": budget.iterations_used,
                     "budget_exhausted": False,
                 },
@@ -392,11 +416,14 @@ class BudgetEnforcer:
         """Record an LLM call in the circuit breaker (Phase 6.4)."""
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
+
             if db_session:
                 service = CircuitBreakerService(db_session)
                 breaker = await service.get_breaker(mission_id)
                 if breaker:
-                    await service.record_call(breaker, call_type="llm", cost_usd=cost_usd)
+                    await service.record_call(
+                        breaker, call_type="llm", cost_usd=cost_usd
+                    )
         except Exception as e:
             logger.debug("Circuit breaker record skipped: %s", e)
 
@@ -426,25 +453,33 @@ class BudgetEnforcer:
 
             event_log = get_event_log()
             async with AsyncSessionLocal() as db:
-                await event_log.append(db, run_id, [{
-                    "type": "llm.call",
-                    "payload": {
-                        "model_id": model_id,
-                        "provider": provider,
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "cost_usd": cost_usd,
-                        "latency_ms": latency_ms,
-                        "success": success,
-                        "error": error,
-                    },
-                    "actor": "budget_enforcer",                "mission_id": mission_id,
-                "task_id": task_id,
-            }])
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": "llm.call",
+                            "payload": {
+                                "model_id": model_id,
+                                "provider": provider,
+                                "prompt_tokens": prompt_tokens,
+                                "completion_tokens": completion_tokens,
+                                "cost_usd": cost_usd,
+                                "latency_ms": latency_ms,
+                                "success": success,
+                                "error": error,
+                            },
+                            "actor": "budget_enforcer",
+                            "mission_id": mission_id,
+                            "task_id": task_id,
+                        }
+                    ],
+                )
 
             # Phase 6.3: Also record to llm_call_records with cost attribution
             try:
                 from app.models.llm_call_record import LLMCallRecord
+
                 record = LLMCallRecord(
                     mission_id=mission_id,
                     task_id=task_id,
@@ -486,20 +521,26 @@ class BudgetEnforcer:
 
             event_log = get_event_log()
             async with AsyncSessionLocal() as db:
-                await event_log.append(db, run_id, [{
-                    "type": "substrate.budget_exhausted",
-                    "payload": {
-                        "reason": reason,
-                        "spent_usd": float(budget.spent_usd),
-                        "max_cost_usd": float(budget.max_cost_usd),
-                        "iterations_used": budget.iterations_used,
-                        "max_iterations": budget.max_iterations,
-                        "remaining": budget.remaining(),
-                    },
-                    "actor": "budget_enforcer",
-                    "mission_id": mission_id,
-                    "task_id": task_id,
-                }])
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": "substrate.budget_exhausted",
+                            "payload": {
+                                "reason": reason,
+                                "spent_usd": float(budget.spent_usd),
+                                "max_cost_usd": float(budget.max_cost_usd),
+                                "iterations_used": budget.iterations_used,
+                                "max_iterations": budget.max_iterations,
+                                "remaining": budget.remaining(),
+                            },
+                            "actor": "budget_enforcer",
+                            "mission_id": mission_id,
+                            "task_id": task_id,
+                        }
+                    ],
+                )
         except Exception as e:
             logger.debug("Failed to record budget event to substrate: %s", e)
 

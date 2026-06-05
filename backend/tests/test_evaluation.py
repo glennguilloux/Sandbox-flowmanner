@@ -151,8 +151,12 @@ def test_llm_judge_default_rubric():
 def test_eval_runner_config_hash():
     from app.services.evaluation.eval_runner import EvaluationRunner
 
-    h1 = EvaluationRunner._compute_config_hash({"system_prompt": "test", "temperature": 0.7})
-    h2 = EvaluationRunner._compute_config_hash({"temperature": 0.7, "system_prompt": "test"})
+    h1 = EvaluationRunner._compute_config_hash(
+        {"system_prompt": "test", "temperature": 0.7}
+    )
+    h2 = EvaluationRunner._compute_config_hash(
+        {"temperature": 0.7, "system_prompt": "test"}
+    )
     assert h1 == h2
 
 
@@ -194,16 +198,18 @@ def test_judge_scoring_known_good_output():
 
     judge = LLMJudge.__new__(LLMJudge)
     # Simulate judge response for a perfect answer
-    raw = json.dumps({
-        "scores": {
-            "accuracy": {"score": 5, "reasoning": "Factually correct"},
-            "completeness": {"score": 5, "reasoning": "Covers all aspects"},
-            "relevance": {"score": 5, "reasoning": "Directly answers the question"},
-            "safety": {"score": 5, "reasoning": "No harmful content"},
-        },
-        "overall_score": 5.0,
-        "summary": "Excellent response",
-    })
+    raw = json.dumps(
+        {
+            "scores": {
+                "accuracy": {"score": 5, "reasoning": "Factually correct"},
+                "completeness": {"score": 5, "reasoning": "Covers all aspects"},
+                "relevance": {"score": 5, "reasoning": "Directly answers the question"},
+                "safety": {"score": 5, "reasoning": "No harmful content"},
+            },
+            "overall_score": 5.0,
+            "summary": "Excellent response",
+        }
+    )
     rubric = LLMJudge._default_rubric()
     result = judge._parse_response(raw, rubric)
     assert result["overall_score"] == 5.0
@@ -215,16 +221,18 @@ def test_judge_scoring_known_bad_output():
     from app.services.evaluation.llm_judge import LLMJudge
 
     judge = LLMJudge.__new__(LLMJudge)
-    raw = json.dumps({
-        "scores": {
-            "accuracy": {"score": 1, "reasoning": "Completely wrong"},
-            "completeness": {"score": 1, "reasoning": "Missing all required parts"},
-            "relevance": {"score": 2, "reasoning": "Partially related"},
-            "safety": {"score": 1, "reasoning": "Contains harmful advice"},
-        },
-        "overall_score": 1.0,
-        "summary": "Dangerously incorrect response",
-    })
+    raw = json.dumps(
+        {
+            "scores": {
+                "accuracy": {"score": 1, "reasoning": "Completely wrong"},
+                "completeness": {"score": 1, "reasoning": "Missing all required parts"},
+                "relevance": {"score": 2, "reasoning": "Partially related"},
+                "safety": {"score": 1, "reasoning": "Contains harmful advice"},
+            },
+            "overall_score": 1.0,
+            "summary": "Dangerously incorrect response",
+        }
+    )
     rubric = LLMJudge._default_rubric()
     result = judge._parse_response(raw, rubric)
     # weighted: 1*0.35 + 1*0.25 + 2*0.25 + 1*0.15 = 1.25
@@ -237,16 +245,18 @@ def test_judge_scoring_mixed_output():
     from app.services.evaluation.llm_judge import LLMJudge
 
     judge = LLMJudge.__new__(LLMJudge)
-    raw = json.dumps({
-        "scores": {
-            "accuracy": {"score": 4, "reasoning": "Mostly correct"},
-            "completeness": {"score": 3, "reasoning": "Some gaps"},
-            "relevance": {"score": 5, "reasoning": "Directly answers"},
-            "safety": {"score": 4, "reasoning": "Minor concerns"},
-        },
-        "overall_score": 0,  # will be recalculated
-        "summary": "Good but incomplete",
-    })
+    raw = json.dumps(
+        {
+            "scores": {
+                "accuracy": {"score": 4, "reasoning": "Mostly correct"},
+                "completeness": {"score": 3, "reasoning": "Some gaps"},
+                "relevance": {"score": 5, "reasoning": "Directly answers"},
+                "safety": {"score": 4, "reasoning": "Minor concerns"},
+            },
+            "overall_score": 0,  # will be recalculated
+            "summary": "Good but incomplete",
+        }
+    )
     rubric = LLMJudge._default_rubric()
     result = judge._parse_response(raw, rubric)
     # weighted: 4*0.35 + 3*0.25 + 5*0.25 + 4*0.15 = 1.4 + 0.75 + 1.25 + 0.6 = 4.0
@@ -265,14 +275,16 @@ def test_judge_scoring_custom_rubric():
         },
         "scale": {"min": 1, "max": 5},
     }
-    raw = json.dumps({
-        "scores": {
-            "speed": {"score": 3, "reasoning": "Moderate speed"},
-            "accuracy": {"score": 5, "reasoning": "Perfect answer"},
-        },
-        "overall_score": 0,
-        "summary": "Accurate but slow",
-    })
+    raw = json.dumps(
+        {
+            "scores": {
+                "speed": {"score": 3, "reasoning": "Moderate speed"},
+                "accuracy": {"score": 5, "reasoning": "Perfect answer"},
+            },
+            "overall_score": 0,
+            "summary": "Accurate but slow",
+        }
+    )
     result = judge._parse_response(raw, custom_rubric)
     # weighted: 3*0.5 + 5*0.5 = 1.5 + 2.5 = 4.0
     assert result["overall_score"] == 4.0
@@ -283,14 +295,16 @@ def test_judge_scoring_missing_criterion():
     from app.services.evaluation.llm_judge import LLMJudge
 
     judge = LLMJudge.__new__(LLMJudge)
-    raw = json.dumps({
-        "scores": {
-            "accuracy": {"score": 4, "reasoning": "Good"},
-            # missing: completeness, relevance, safety
-        },
-        "overall_score": 0,
-        "summary": "Partial scoring",
-    })
+    raw = json.dumps(
+        {
+            "scores": {
+                "accuracy": {"score": 4, "reasoning": "Good"},
+                # missing: completeness, relevance, safety
+            },
+            "overall_score": 0,
+            "summary": "Partial scoring",
+        }
+    )
     rubric = LLMJudge._default_rubric()
     result = judge._parse_response(raw, rubric)
     # Only accuracy scored: 4 * 0.35 / 0.35 = 4.0 (normalized by actual weight sum)
@@ -302,14 +316,16 @@ def test_judge_malformed_score_clamped():
     from app.services.evaluation.llm_judge import LLMJudge
 
     judge = LLMJudge.__new__(LLMJudge)
-    raw = json.dumps({
-        "scores": {
-            "accuracy": {"score": 10, "reasoning": "Gave 10 somehow"},
-            "completeness": {"score": 0, "reasoning": "Gave 0"},
-        },
-        "overall_score": 5.0,
-        "summary": "Out of range scores",
-    })
+    raw = json.dumps(
+        {
+            "scores": {
+                "accuracy": {"score": 10, "reasoning": "Gave 10 somehow"},
+                "completeness": {"score": 0, "reasoning": "Gave 0"},
+            },
+            "overall_score": 5.0,
+            "summary": "Out of range scores",
+        }
+    )
     rubric = LLMJudge._default_rubric()
     result = judge._parse_response(raw, rubric)
     # Should not crash, recalculated with raw values

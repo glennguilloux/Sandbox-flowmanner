@@ -143,7 +143,15 @@ class EscalationChain:
             max_retries_per_level=policy_config.get("max_retries_same", 2),
             retries_at_level=0,
             escalation_policy=policy_name,
-            status="retrying" if action == "retry" else ("escalated" if action == "escalate" else ("dead_letter" if action == "dead_letter" else "active")),
+            status=(
+                "retrying"
+                if action == "retry"
+                else (
+                    "escalated"
+                    if action == "escalate"
+                    else ("dead_letter" if action == "dead_letter" else "active")
+                )
+            ),
             metadata_=metadata,
         )
 
@@ -218,7 +226,9 @@ class EscalationChain:
             return existing
 
         # Check if we stay at current level or escalate
-        retries_remaining = existing.max_retries_per_level - existing.retries_at_level - 1
+        retries_remaining = (
+            existing.max_retries_per_level - existing.retries_at_level - 1
+        )
         if retries_remaining > 0:
             # Retry at current level
             existing.retries_at_level += 1
@@ -233,7 +243,9 @@ class EscalationChain:
             if existing.level == 1:
                 # Escalate to specialist
                 matched = await self._find_specialist(existing.task_description)
-                existing.escalated_to_agent_id = matched["agent_id"] if matched else None
+                existing.escalated_to_agent_id = (
+                    matched["agent_id"] if matched else None
+                )
                 existing.escalated_to_agent_name = matched["name"] if matched else None
                 existing.max_retries_per_level = policy_config["max_retries_specialist"]
                 existing.status = "escalated"
@@ -272,7 +284,9 @@ class EscalationChain:
             self.db.add(msg)
 
         await self.db.flush()
-        logger.info(f"Escalation continued for task {existing.task_id}: level={existing.level}")
+        logger.info(
+            f"Escalation continued for task {existing.task_id}: level={existing.level}"
+        )
         return existing
 
     async def resolve(

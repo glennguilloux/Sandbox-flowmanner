@@ -41,7 +41,9 @@ class VersionResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.version_response_snapshot_type_0 import VersionResponseSnapshotType0
+        from ..models.version_response_snapshot_type_0 import (
+            VersionResponseSnapshotType0,
+        )
 
         id = str(self.id)
 
@@ -94,7 +96,9 @@ class VersionResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.version_response_snapshot_type_0 import VersionResponseSnapshotType0
+        from ..models.version_response_snapshot_type_0 import (
+            VersionResponseSnapshotType0,
+        )
 
         d = dict(src_dict)
         id = UUID(d.pop("id"))

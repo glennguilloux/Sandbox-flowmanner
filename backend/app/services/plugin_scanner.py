@@ -45,8 +45,10 @@ BLOCKED_BUILTINS = {
 BLOCKED_PATTERNS = [
     (r"os\.system\s*\(", "Calls os.system() (shell command execution)"),
     (r"os\.popen\s*\(", "Calls os.popen() (shell command execution)"),
-    (r"subprocess\.(run|Popen|call|check_output|check_call)\s*\(",
-     "Calls subprocess methods (command execution)"),
+    (
+        r"subprocess\.(run|Popen|call|check_output|check_call)\s*\(",
+        "Calls subprocess methods (command execution)",
+    ),
     (r"open\s*\([^)]*['\"]/?(\.\./)", "Accesses files outside current directory"),
     (r"open\s*\([^)]*['\"]/(?!tmp|dev)", "Accesses files outside /tmp"),
     (r"__builtins__", "Manipulates builtins"),
@@ -194,21 +196,21 @@ class PluginScanner:
 
         return result
 
-    def _scan_file(
-        self, file_path: Path, plugin_dir: Path, result: ScanResult
-    ) -> None:
+    def _scan_file(self, file_path: Path, plugin_dir: Path, result: ScanResult) -> None:
         """Scan a single Python file for security issues."""
         rel_path = str(file_path.relative_to(plugin_dir))
 
         try:
             source = file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception as e:
-            result.findings.append(ScanFinding(
-                severity="low",
-                category="read_error",
-                message=f"Could not read file: {e}",
-                file=rel_path,
-            ))
+            result.findings.append(
+                ScanFinding(
+                    severity="low",
+                    category="read_error",
+                    message=f"Could not read file: {e}",
+                    file=rel_path,
+                )
+            )
             return
 
         lines = source.splitlines()
@@ -221,34 +223,40 @@ class PluginScanner:
 
             for pattern, message in BLOCKED_PATTERNS:
                 if re.search(pattern, line):
-                    severity = "critical" if any(
-                        k in message.lower()
-                        for k in ["eval", "exec", "system", "subprocess", "command"]
-                    ) else "high"
-                    result.findings.append(ScanFinding(
-                        severity=severity,
-                        category="blocked_pattern",
-                        message=message,
-                        file=rel_path,
-                        line=line_num,
-                        code_snippet=stripped[:200],
-                    ))
+                    severity = (
+                        "critical"
+                        if any(
+                            k in message.lower()
+                            for k in ["eval", "exec", "system", "subprocess", "command"]
+                        )
+                        else "high"
+                    )
+                    result.findings.append(
+                        ScanFinding(
+                            severity=severity,
+                            category="blocked_pattern",
+                            message=message,
+                            file=rel_path,
+                            line=line_num,
+                            code_snippet=stripped[:200],
+                        )
+                    )
 
         # AST-based scanning for imports and function calls
         try:
             tree = ast.parse(source, filename=str(file_path))
             self._scan_ast(tree, rel_path, result)
         except SyntaxError:
-            result.findings.append(ScanFinding(
-                severity="medium",
-                category="syntax_error",
-                message="File has syntax errors — cannot fully analyze",
-                file=rel_path,
-            ))
+            result.findings.append(
+                ScanFinding(
+                    severity="medium",
+                    category="syntax_error",
+                    message="File has syntax errors — cannot fully analyze",
+                    file=rel_path,
+                )
+            )
 
-    def _scan_ast(
-        self, tree: ast.AST, rel_path: str, result: ScanResult
-    ) -> None:
+    def _scan_ast(self, tree: ast.AST, rel_path: str, result: ScanResult) -> None:
         """Scan AST for dangerous imports and function calls."""
         for node in ast.walk(tree):
             # Check import statements
@@ -256,37 +264,43 @@ class PluginScanner:
                 for alias in node.names:
                     module = alias.name.split(".")[0]
                     if module in BLOCKED_IMPORTS:
-                        result.findings.append(ScanFinding(
-                            severity="high",
-                            category="dangerous_import",
-                            message=BLOCKED_IMPORTS[module],
-                            file=rel_path,
-                            line=node.lineno,
-                        ))
+                        result.findings.append(
+                            ScanFinding(
+                                severity="high",
+                                category="dangerous_import",
+                                message=BLOCKED_IMPORTS[module],
+                                file=rel_path,
+                                line=node.lineno,
+                            )
+                        )
 
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
                     module = node.module.split(".")[0]
                     if module in BLOCKED_IMPORTS:
-                        result.findings.append(ScanFinding(
-                            severity="high",
-                            category="dangerous_import",
-                            message=BLOCKED_IMPORTS[module],
-                            file=rel_path,
-                            line=node.lineno,
-                        ))
+                        result.findings.append(
+                            ScanFinding(
+                                severity="high",
+                                category="dangerous_import",
+                                message=BLOCKED_IMPORTS[module],
+                                file=rel_path,
+                                line=node.lineno,
+                            )
+                        )
 
             # Check function calls to blocked builtins
             elif isinstance(node, ast.Call):
                 func_name = self._get_call_name(node)
                 if func_name in BLOCKED_BUILTINS:
-                    result.findings.append(ScanFinding(
-                        severity="critical",
-                        category="blocked_pattern",
-                        message=BLOCKED_BUILTINS[func_name],
-                        file=rel_path,
-                        line=node.lineno,
-                    ))
+                    result.findings.append(
+                        ScanFinding(
+                            severity="critical",
+                            category="blocked_pattern",
+                            message=BLOCKED_BUILTINS[func_name],
+                            file=rel_path,
+                            line=node.lineno,
+                        )
+                    )
 
     def _get_call_name(self, node: ast.Call) -> str:
         """Extract the function name from a Call node."""
@@ -324,11 +338,13 @@ class PluginScanner:
 
         # Add findings for undeclared permissions
         for perm in undeclared:
-            result.findings.append(ScanFinding(
-                severity="high",
-                category="permission_mismatch",
-                message=f"Uses '{perm}' permission but not declared in manifest",
-            ))
+            result.findings.append(
+                ScanFinding(
+                    severity="high",
+                    category="permission_mismatch",
+                    message=f"Uses '{perm}' permission but not declared in manifest",
+                )
+            )
 
     def _calculate_risk_score(self, result: ScanResult) -> int:
         """Calculate a 0-100 risk score from findings."""

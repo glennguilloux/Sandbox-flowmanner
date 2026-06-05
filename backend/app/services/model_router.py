@@ -101,7 +101,7 @@ class ModelRouter:
         if self.llm_manager:
             mapped = self.llm_manager.MODEL_MAP.get(model_id, model_id)
             if mapped.startswith("llamacpp/"):
-                return mapped[len("llamacpp/"):]
+                return mapped[len("llamacpp/") :]
             if "/" in mapped:
                 # Extract model name from provider/model format
                 parts = mapped.rsplit("/", 1)
@@ -115,7 +115,9 @@ class ModelRouter:
             "local_model_ratio": self.local_model_ratio,
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
-            "total_models": len(self.LOCAL_MODELS) + len(self.FREE_CLOUD_MODELS) + len(self.PAID_CLOUD_MODELS),
+            "total_models": len(self.LOCAL_MODELS)
+            + len(self.FREE_CLOUD_MODELS)
+            + len(self.PAID_CLOUD_MODELS),
             "local_count": len(self.LOCAL_MODELS),
             "free_cloud_count": len(self.FREE_CLOUD_MODELS),
             "paid_cloud_count": len(self.PAID_CLOUD_MODELS),
@@ -165,7 +167,9 @@ class ModelRouter:
         try:
             model = llm_manager.get_model(model_id, user_id=user_id)
             if model is not None:
-                return not (model_id in self.model_health and not self.model_health[model_id])
+                return not (
+                    model_id in self.model_health and not self.model_health[model_id]
+                )
         except Exception as e:
             logger.warning(f"Platform model check failed for {model_id}: {e}")
 
@@ -180,13 +184,19 @@ class ModelRouter:
             # Extract original model_id from BYOK format: byok_{user_id}_{model_id}
             original_model_id = model_id
             if model_id.startswith("byok_"):
-                parts = model_id.split("_", 2)  # Split into ['byok', '{user_id}', '{model_id}']
+                parts = model_id.split(
+                    "_", 2
+                )  # Split into ['byok', '{user_id}', '{model_id}']
                 if len(parts) >= 3:
                     byok_prefix_user = parts[1]
                     original_model_id = parts[2]
-                    logger.info(f"BYOK lookup: parsed model_id={model_id} -> original={original_model_id}, user={user_id}")
+                    logger.info(
+                        f"BYOK lookup: parsed model_id={model_id} -> original={original_model_id}, user={user_id}"
+                    )
 
-            logger.info(f"BYOK lookup: searching for user_id={user_id}, original_model_id={original_model_id}")
+            logger.info(
+                f"BYOK lookup: searching for user_id={user_id}, original_model_id={original_model_id}"
+            )
 
             if self._get_db_backend() == "postgresql":
                 # PostgreSQL: Use JSON containment operator
@@ -200,10 +210,16 @@ class ModelRouter:
                     .first()
                 )
                 if result:
-                    logger.info("BYOK model_router lookup: MATCH key_id=%s provider=%s",
-                                result.id, result.provider)
+                    logger.info(
+                        "BYOK model_router lookup: MATCH key_id=%s provider=%s",
+                        result.id,
+                        result.provider,
+                    )
                 else:
-                    logger.debug("BYOK model_router lookup: NO MATCH for model=%s", original_model_id)
+                    logger.debug(
+                        "BYOK model_router lookup: NO MATCH for model=%s",
+                        original_model_id,
+                    )
                 return result
             else:
                 # SQLite fallback: Iterate and check
@@ -216,9 +232,13 @@ class ModelRouter:
                     )
                     .all()
                 )
-                logger.info(f"BYOK lookup (sqlite): found {len(keys)} active keys for user")
+                logger.info(
+                    f"BYOK lookup (sqlite): found {len(keys)} active keys for user"
+                )
                 for key in keys:
-                    logger.info(f"BYOK lookup: checking key {key.id}, models={key.models}")
+                    logger.info(
+                        f"BYOK lookup: checking key {key.id}, models={key.models}"
+                    )
                     if key.models and original_model_id in key.models:
                         logger.info(f"BYOK lookup: MATCH found! key_id={key.id}")
                         return key
@@ -241,8 +261,13 @@ class ModelRouter:
         **kwargs,
     ) -> dict:
         """Execute LLM with BYOK credentials, returning standard response format."""
-        logger.info("BYOK execute START: model=%s user=%s key_id=%s base_url=%s",
-                    model_id, user_id, api_key_id, base_url)
+        logger.info(
+            "BYOK execute START: model=%s user=%s key_id=%s base_url=%s",
+            model_id,
+            user_id,
+            api_key_id,
+            base_url,
+        )
         logger.debug("BYOK execute: messages=%d", len(messages))
 
         # Extract original model_id from BYOK format
@@ -261,7 +286,9 @@ class ModelRouter:
         try:
             llm_manager = self._get_llm_manager()
             logger.info(f"  LLM manager: {llm_manager is not None}")
-            logger.info(f"  Has get_model_with_user_key: {hasattr(llm_manager, 'get_model_with_user_key') if llm_manager else False}")
+            logger.info(
+                f"  Has get_model_with_user_key: {hasattr(llm_manager, 'get_model_with_user_key') if llm_manager else False}"
+            )
             if not llm_manager:
                 return {
                     "success": False,
@@ -296,9 +323,11 @@ class ModelRouter:
                     UsageTrackingService.log_usage(
                         db=db_session,
                         api_key_id=api_key_id,
-                        user_id=user_id_int
-                        if isinstance(user_id_int, int)
-                        else int(user_id_int),
+                        user_id=(
+                            user_id_int
+                            if isinstance(user_id_int, int)
+                            else int(user_id_int)
+                        ),
                         model_id=model_id,
                         request_type=request_type,
                         input_tokens=input_tokens,
@@ -310,13 +339,20 @@ class ModelRouter:
                     logger.warning(f"Usage logging failed: {log_error}")
 
             latency_ms = int((time.time() - start_time) * 1000)
-            logger.info("BYOK execute DONE: model=%s latency=%sms tokens_in=%d tokens_out=%d",
-                        model_id, latency_ms, input_tokens, output_tokens)
+            logger.info(
+                "BYOK execute DONE: model=%s latency=%sms tokens_in=%d tokens_out=%d",
+                model_id,
+                latency_ms,
+                input_tokens,
+                output_tokens,
+            )
             return {
                 "success": True,
-                "response": raw_response.content
-                if hasattr(raw_response, "content")
-                else str(raw_response),
+                "response": (
+                    raw_response.content
+                    if hasattr(raw_response, "content")
+                    else str(raw_response)
+                ),
                 "model_id": model_id,
                 "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
                 "cost": cost,
@@ -325,8 +361,13 @@ class ModelRouter:
             }
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
-            logger.error("BYOK execute FAILED: model=%s latency=%sms error=%s",
-                         model_id, latency_ms, e, exc_info=True)
+            logger.error(
+                "BYOK execute FAILED: model=%s latency=%sms error=%s",
+                model_id,
+                latency_ms,
+                e,
+                exc_info=True,
+            )
             # Log failed usage
             if db_session and api_key_id and user_id:
                 try:
@@ -335,9 +376,11 @@ class ModelRouter:
                     UsageTrackingService.log_usage(
                         db=db_session,
                         api_key_id=api_key_id,
-                        user_id=int(user_id)
-                        if isinstance(user_id, str) and user_id.isdigit()
-                        else user_id,
+                        user_id=(
+                            int(user_id)
+                            if isinstance(user_id, str) and user_id.isdigit()
+                            else user_id
+                        ),
                         model_id=model_id,
                         request_type=request_type,
                         input_tokens=0,
@@ -427,7 +470,9 @@ class ModelRouter:
         """Route to platform or BYOK model."""
 
         with tracer.start_as_current_span("model.route") as span:
-            span.set_attribute("model.user_id", str(user_id) if user_id else "anonymous")
+            span.set_attribute(
+                "model.user_id", str(user_id) if user_id else "anonymous"
+            )
             span.set_attribute("model.preference", model_preference or "auto")
             span.set_attribute("model.is_admin", is_admin)
 
@@ -443,7 +488,11 @@ class ModelRouter:
 
         # Check BYOK first if we have user context
         if user_id_int and db_session and target_model:
-            logger.debug("BYOK model_router: checking for model=%s user=%s", target_model, user_id_int)
+            logger.debug(
+                "BYOK model_router: checking for model=%s user=%s",
+                target_model,
+                user_id_int,
+            )
             byok_key = self._get_byok_key(target_model, user_id_int, db_session)
             if byok_key:
                 try:
@@ -463,8 +512,13 @@ class ModelRouter:
                         **kwargs,
                     )
                 except Exception as e:
-                    logger.error("BYOK model_router: execution FAILED model=%s user=%s error=%s",
-                                 target_model, user_id_int, e, exc_info=True)
+                    logger.error(
+                        "BYOK model_router: execution FAILED model=%s user=%s error=%s",
+                        target_model,
+                        user_id_int,
+                        e,
+                        exc_info=True,
+                    )
 
         # Platform model execution
         return await self._execute_with_platform_model(
@@ -493,7 +547,11 @@ class ModelRouter:
         llm_manager = self._get_llm_manager()
         if llm_manager:
             try:
-                model = llm_manager.get_model(model_id, user_id=user_id_int) if model_id else None
+                model = (
+                    llm_manager.get_model(model_id, user_id=user_id_int)
+                    if model_id
+                    else None
+                )
                 if model:
                     raw_response = await model.ainvoke(messages, **kwargs)
                     input_tokens, output_tokens = self._extract_token_usage(
@@ -504,9 +562,11 @@ class ModelRouter:
                     )
                     return {
                         "success": True,
-                        "response": raw_response.content
-                        if hasattr(raw_response, "content")
-                        else str(raw_response),
+                        "response": (
+                            raw_response.content
+                            if hasattr(raw_response, "content")
+                            else str(raw_response)
+                        ),
                         "model_id": model_id,
                         "usage": {
                             "input_tokens": input_tokens,
@@ -522,7 +582,9 @@ class ModelRouter:
             # Fallback: try any available platform model via fallback chain
             try:
                 fallback_model = (
-                    llm_manager.get_model(model_id, user_id=user_id_int, use_fallback=True)
+                    llm_manager.get_model(
+                        model_id, user_id=user_id_int, use_fallback=True
+                    )
                     if model_id
                     else llm_manager.get_model(user_id=user_id_int)
                 )
@@ -537,9 +599,11 @@ class ModelRouter:
                     )
                     return {
                         "success": True,
-                        "response": raw_response.content
-                        if hasattr(raw_response, "content")
-                        else str(raw_response),
+                        "response": (
+                            raw_response.content
+                            if hasattr(raw_response, "content")
+                            else str(raw_response)
+                        ),
                         "model_id": used_model_id,
                         "usage": {
                             "input_tokens": input_tokens,

@@ -233,11 +233,13 @@ async def get_available_actions(
         for meta in _ACTION_CATALOG.values():
             if meta["provider"] != provider:
                 continue
-            actions.append({
-                **meta,
-                "connection_id": str(conn.id),
-                "provider_account_name": conn.provider_account_name or provider,
-            })
+            actions.append(
+                {
+                    **meta,
+                    "connection_id": str(conn.id),
+                    "provider_account_name": conn.provider_account_name or provider,
+                }
+            )
 
     # Sort by provider then action name for stable output
     actions.sort(key=lambda a: (a["provider"], a["name"]))

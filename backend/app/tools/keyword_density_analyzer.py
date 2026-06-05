@@ -29,42 +29,242 @@ STUFFING_THRESHOLD = float(os.getenv("KEYWORD_STUFFING_THRESHOLD", "5.0"))  # %
 
 # Common SEO stopwords (English default)
 _SEO_STOPWORDS = {
-    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "can", "shall", "you", "your",
-    "we", "our", "they", "their", "it", "its", "this", "that", "these",
-    "those", "what", "which", "who", "how", "all", "each", "every",
-    "both", "few", "more", "most", "other", "some", "such", "no", "nor",
-    "not", "only", "own", "same", "so", "than", "too", "very", "just",
-    "about", "also", "here", "there", "when", "where", "why", "get",
-    "make", "like", "into", "over", "after", "before", "between",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "from",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "can",
+    "shall",
+    "you",
+    "your",
+    "we",
+    "our",
+    "they",
+    "their",
+    "it",
+    "its",
+    "this",
+    "that",
+    "these",
+    "those",
+    "what",
+    "which",
+    "who",
+    "how",
+    "all",
+    "each",
+    "every",
+    "both",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "no",
+    "nor",
+    "not",
+    "only",
+    "own",
+    "same",
+    "so",
+    "than",
+    "too",
+    "very",
+    "just",
+    "about",
+    "also",
+    "here",
+    "there",
+    "when",
+    "where",
+    "why",
+    "get",
+    "make",
+    "like",
+    "into",
+    "over",
+    "after",
+    "before",
+    "between",
 }
 
 # Multi-language stopword sets (NLTK-compatible language codes)
 _LANG_STOPWORDS: dict[str, set[str]] = {
     "en": _SEO_STOPWORDS,
     "es": {  # Spanish
-        "de", "la", "que", "el", "en", "y", "a", "los", "del", "se",
-        "las", "por", "un", "para", "con", "no", "una", "su", "al",
-        "lo", "como", "más", "pero", "sus", "le", "ya", "o", "este",
-        "sí", "porque", "esta", "entre", "cuando", "muy", "sin", "sobre",
-        "también", "me", "hasta", "hay", "donde", "quien", "todo",
-        "nos", "durante", "todos", "uno", "les", "ni", "contra", "eso",
-        "esa", "esos", "esas", "fue", "han", "era", "ser", "son",
+        "de",
+        "la",
+        "que",
+        "el",
+        "en",
+        "y",
+        "a",
+        "los",
+        "del",
+        "se",
+        "las",
+        "por",
+        "un",
+        "para",
+        "con",
+        "no",
+        "una",
+        "su",
+        "al",
+        "lo",
+        "como",
+        "más",
+        "pero",
+        "sus",
+        "le",
+        "ya",
+        "o",
+        "este",
+        "sí",
+        "porque",
+        "esta",
+        "entre",
+        "cuando",
+        "muy",
+        "sin",
+        "sobre",
+        "también",
+        "me",
+        "hasta",
+        "hay",
+        "donde",
+        "quien",
+        "todo",
+        "nos",
+        "durante",
+        "todos",
+        "uno",
+        "les",
+        "ni",
+        "contra",
+        "eso",
+        "esa",
+        "esos",
+        "esas",
+        "fue",
+        "han",
+        "era",
+        "ser",
+        "son",
     },
     "fr": {  # French
-        "le", "la", "les", "de", "du", "des", "un", "une", "et", "à",
-        "en", "au", "aux", "ce", "cette", "ces", "il", "elle", "ils",
-        "elles", "que", "qui", "dans", "sur", "pour", "par", "pas",
-        "ne", "se", "son", "sa", "ses", "nous", "vous", "leur", "leurs",
-        "avec", "est", "sont", "était", "étaient", "plus", "moins",
+        "le",
+        "la",
+        "les",
+        "de",
+        "du",
+        "des",
+        "un",
+        "une",
+        "et",
+        "à",
+        "en",
+        "au",
+        "aux",
+        "ce",
+        "cette",
+        "ces",
+        "il",
+        "elle",
+        "ils",
+        "elles",
+        "que",
+        "qui",
+        "dans",
+        "sur",
+        "pour",
+        "par",
+        "pas",
+        "ne",
+        "se",
+        "son",
+        "sa",
+        "ses",
+        "nous",
+        "vous",
+        "leur",
+        "leurs",
+        "avec",
+        "est",
+        "sont",
+        "était",
+        "étaient",
+        "plus",
+        "moins",
     },
     "de": {  # German
-        "der", "die", "das", "und", "in", "zu", "den", "des", "von",
-        "mit", "auf", "für", "ist", "im", "dem", "nicht", "ein", "eine",
-        "als", "auch", "es", "an", "werden", "aus", "er", "hat", "dass",
-        "sie", "nach", "bei", "um", "noch", "wie", "über", "so", "war",
+        "der",
+        "die",
+        "das",
+        "und",
+        "in",
+        "zu",
+        "den",
+        "des",
+        "von",
+        "mit",
+        "auf",
+        "für",
+        "ist",
+        "im",
+        "dem",
+        "nicht",
+        "ein",
+        "eine",
+        "als",
+        "auch",
+        "es",
+        "an",
+        "werden",
+        "aus",
+        "er",
+        "hat",
+        "dass",
+        "sie",
+        "nach",
+        "bei",
+        "um",
+        "noch",
+        "wie",
+        "über",
+        "so",
+        "war",
     },
 }
 
@@ -78,20 +278,39 @@ def _get_stopwords(language: str) -> set[str]:
     # Try NLTK for language not in our built-in set
     try:
         from nltk.corpus import stopwords
-        nltk_stops = set(stopwords.words(lang if lang == "english" else _nltk_lang_map.get(lang, "english")))
+
+        nltk_stops = set(
+            stopwords.words(
+                lang if lang == "english" else _nltk_lang_map.get(lang, "english")
+            )
+        )
         if nltk_stops:
             return nltk_stops
     except Exception:
-        logger.debug("NLTK stopwords not available for language '%s', falling back to English", language)
+        logger.debug(
+            "NLTK stopwords not available for language '%s', falling back to English",
+            language,
+        )
 
     return _SEO_STOPWORDS
 
 
 _nltk_lang_map: dict[str, str] = {
-    "en": "english", "es": "spanish", "fr": "french", "de": "german",
-    "it": "italian", "pt": "portuguese", "nl": "dutch", "ru": "russian",
-    "ar": "arabic", "da": "danish", "fi": "finnish", "hu": "hungarian",
-    "no": "norwegian", "sv": "swedish", "tr": "turkish",
+    "en": "english",
+    "es": "spanish",
+    "fr": "french",
+    "de": "german",
+    "it": "italian",
+    "pt": "portuguese",
+    "nl": "dutch",
+    "ru": "russian",
+    "ar": "arabic",
+    "da": "danish",
+    "fi": "finnish",
+    "hu": "hungarian",
+    "no": "norwegian",
+    "sv": "swedish",
+    "tr": "turkish",
 }
 
 # ── Input ─────────────────────────────────────────────────────────────
@@ -123,7 +342,9 @@ class KeywordDensityAnalyzerInput(ToolInput):
         description="Specific keywords to check density for (optional; auto-extracted if omitted)",
     )
     top_n: int = Field(
-        DEFAULT_TOP_N, ge=5, le=100,
+        DEFAULT_TOP_N,
+        ge=5,
+        le=100,
         description="Number of top keywords to return",
     )
     language: str = Field(
@@ -140,7 +361,9 @@ class KeywordDensityAnalyzerInput(ToolInput):
         description="Include TF-IDF scores in keyword output",
     )
     optimal_density: float = Field(
-        DEFAULT_OPTIMAL_DENSITY, ge=0.5, le=10.0,
+        DEFAULT_OPTIMAL_DENSITY,
+        ge=0.5,
+        le=10.0,
         description="Target keyword density percentage (default: 2.5%)",
     )
 
@@ -172,15 +395,18 @@ class KeywordDensityAnalyzerTool(BaseTool):
             output_schema={
                 "type": "object",
                 "properties": {
-                    "keywords": {"type": "array", "items": {
-                        "type": "object",
-                        "properties": {
-                            "term": {"type": "string"},
-                            "count": {"type": "integer"},
-                            "density_pct": {"type": "number"},
-                            "tfidf_score": {"type": "number"},
+                    "keywords": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "term": {"type": "string"},
+                                "count": {"type": "integer"},
+                                "density_pct": {"type": "number"},
+                                "tfidf_score": {"type": "number"},
+                            },
                         },
-                    }},
+                    },
                     "total_words": {"type": "integer"},
                     "unique_words": {"type": "integer"},
                     "stuffing_warnings": {"type": "array", "items": {"type": "string"}},
@@ -246,18 +472,24 @@ class KeywordDensityAnalyzerTool(BaseTool):
         """Tokenize text into lowercase words, filtering stopwords and short tokens."""
         if stopwords is None:
             stopwords = _SEO_STOPWORDS
-        words = re.findall(r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text.lower())
-        return [
-            w for w in words
-            if len(w) > 1 and w not in stopwords
-        ]
+        words = re.findall(
+            r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text.lower()
+        )
+        return [w for w in words if len(w) > 1 and w not in stopwords]
 
     def _count_words(self, text: str) -> int:
         """Count total words in text."""
-        return len(re.findall(r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text))
+        return len(
+            re.findall(
+                r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text
+            )
+        )
 
     def _compute_tfidf(
-        self, documents: list[str], top_n: int, max_features: int = 500,
+        self,
+        documents: list[str],
+        top_n: int,
+        max_features: int = 500,
         ngram_range: tuple[int, int] | None = None,
     ) -> list[dict[str, Any]]:
         """Compute TF-IDF scores and return top keywords."""
@@ -278,17 +510,20 @@ class KeywordDensityAnalyzerTool(BaseTool):
 
             # Sum scores across all documents
             combined_scores = (
-                tfidf_matrix.sum(axis=0).A1 if tfidf_matrix.shape[0] > 1
+                tfidf_matrix.sum(axis=0).A1
+                if tfidf_matrix.shape[0] > 1
                 else tfidf_matrix.toarray()[0]
             )
 
             keyword_scores = []
             for name, score in zip(feature_names, combined_scores, strict=False):
                 if score > 0 and len(name) > 1:
-                    keyword_scores.append({
-                        "keyword": name,
-                        "score": round(float(score), 6),
-                    })
+                    keyword_scores.append(
+                        {
+                            "keyword": name,
+                            "score": round(float(score), 6),
+                        }
+                    )
 
             keyword_scores.sort(key=lambda x: x["score"], reverse=True)
             return keyword_scores[:top_n]
@@ -296,9 +531,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
             logger.warning("TF-IDF computation failed: %s", e)
             return []
 
-    def _keyword_density(
-        self, text: str, keywords: list[str]
-    ) -> list[dict[str, Any]]:
+    def _keyword_density(self, text: str, keywords: list[str]) -> list[dict[str, Any]]:
         """Calculate density percentage for specific keywords."""
         total_words = max(self._count_words(text), 1)
         tokens = self._tokenize(text)
@@ -313,11 +546,13 @@ class KeywordDensityAnalyzerTool(BaseTool):
             else:
                 count = token_counter.get(kw_lower, 0)
             density = round((count / total_words) * 100, 2)
-            results.append({
-                "term": kw,
-                "count": count,
-                "density_pct": density,
-            })
+            results.append(
+                {
+                    "term": kw,
+                    "count": count,
+                    "density_pct": density,
+                }
+            )
 
         return results
 
@@ -328,7 +563,10 @@ class KeywordDensityAnalyzerTool(BaseTool):
     ) -> dict[str, Any]:
         """Analyze keyword density for given or auto-extracted keywords."""
         if not validated.text_content:
-            return {"error": "text_content is required for analyze_density", "success": False}
+            return {
+                "error": "text_content is required for analyze_density",
+                "success": False,
+            }
 
         stopwords = self._get_stopwords_for_lang(validated.language)
         total_words = self._count_words(validated.text_content)
@@ -363,16 +601,16 @@ class KeywordDensityAnalyzerTool(BaseTool):
             for item in density_data_raw:
                 kw_lower = item["term"].lower()
                 tfidf_score = tfidf_map.get(item["term"], tfidf_map.get(kw_lower, 0.0))
-                density_data.append({
-                    "term": item["term"],
-                    "count": item["count"],
-                    "density_pct": item["density_pct"],
-                    "tfidf_score": round(tfidf_score, 6),
-                })
+                density_data.append(
+                    {
+                        "term": item["term"],
+                        "count": item["count"],
+                        "density_pct": item["density_pct"],
+                        "tfidf_score": round(tfidf_score, 6),
+                    }
+                )
         else:
-            density_data = [
-                {**item, "tfidf_score": 0.0} for item in density_data_raw
-            ]
+            density_data = [{**item, "tfidf_score": 0.0} for item in density_data_raw]
 
         # Generate stuffing warnings (>5% density)
         for item in density_data:
@@ -407,7 +645,10 @@ class KeywordDensityAnalyzerTool(BaseTool):
     ) -> dict[str, Any]:
         """Extract top keywords using TF-IDF without density analysis."""
         if not validated.text_content:
-            return {"error": "text_content is required for extract_keywords", "success": False}
+            return {
+                "error": "text_content is required for extract_keywords",
+                "success": False,
+            }
 
         total_words = self._count_words(validated.text_content)
         ngram = tuple(validated.ngram_range) if validated.ngram_range else None
@@ -423,12 +664,14 @@ class KeywordDensityAnalyzerTool(BaseTool):
                 kw_name = kw["keyword"]
                 count = token_counter.get(kw_name, 0)
                 density = round((count / max(total_words, 1)) * 100, 2)
-                formatted.append({
-                    "term": kw_name,
-                    "count": count,
-                    "density_pct": density,
-                    "tfidf_score": kw["score"],
-                })
+                formatted.append(
+                    {
+                        "term": kw_name,
+                        "count": count,
+                        "density_pct": density,
+                        "tfidf_score": kw["score"],
+                    }
+                )
         else:
             formatted = keywords
 
@@ -447,9 +690,15 @@ class KeywordDensityAnalyzerTool(BaseTool):
     ) -> dict[str, Any]:
         """Compare keyword usage across two pages."""
         if not validated.text_content:
-            return {"error": "text_content is required for compare_pages", "success": False}
+            return {
+                "error": "text_content is required for compare_pages",
+                "success": False,
+            }
         if not validated.second_text:
-            return {"error": "second_text is required for compare_pages", "success": False}
+            return {
+                "error": "second_text is required for compare_pages",
+                "success": False,
+            }
 
         ngram = tuple(validated.ngram_range) if validated.ngram_range else None
         docs = [validated.text_content, validated.second_text]
@@ -464,13 +713,15 @@ class KeywordDensityAnalyzerTool(BaseTool):
         comparison = []
         for p1, p2 in zip(page1_density, page2_density, strict=False):
             diff = round(p1["density_pct"] - p2["density_pct"], 2)
-            comparison.append({
-                "term": p1["term"],
-                "page1_density": p1["density_pct"],
-                "page2_density": p2["density_pct"],
-                "difference": abs(diff),
-                "winner": "page1" if diff > 0 else ("page2" if diff < 0 else "tie"),
-            })
+            comparison.append(
+                {
+                    "term": p1["term"],
+                    "page1_density": p1["density_pct"],
+                    "page2_density": p2["density_pct"],
+                    "difference": abs(diff),
+                    "winner": "page1" if diff > 0 else ("page2" if diff < 0 else "tie"),
+                }
+            )
 
         comparison.sort(key=lambda x: x["difference"], reverse=True)
 

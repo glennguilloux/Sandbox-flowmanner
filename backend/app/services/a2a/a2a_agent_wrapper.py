@@ -21,13 +21,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentResponse:
     """Standardized agent response"""
+
     content: str
     success: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     tokens_used: int = 0
 
-    def to_a2a_message(self, sender: str, receiver: str, context_id: str | None = None) -> A2AMessage:
+    def to_a2a_message(
+        self, sender: str, receiver: str, context_id: str | None = None
+    ) -> A2AMessage:
         return A2AMessage(
             type=MessageType.RESPONSE,
             sender=sender,
@@ -38,8 +41,8 @@ class AgentResponse:
                 "success": self.success,
                 "tool_calls": self.tool_calls,
                 "tokens_used": self.tokens_used,
-                **self.metadata
-            }
+                **self.metadata,
+            },
         )
 
 
@@ -71,8 +74,8 @@ class A2AAgentWrapper(ABC):
                 "description": self.__class__.__doc__ or "",
                 "capabilities": self.capabilities,
                 "status": "available",
-                "wrapper_type": self.__class__.__name__
-            }
+                "wrapper_type": self.__class__.__name__,
+            },
         )
 
     def unregister(self):
@@ -92,11 +95,13 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
         self,
         agent_id: str = "langgraph-agent",
         agent_name: str = "LangGraph Agent",
-        capabilities: list[str] = None
+        capabilities: list[str] = None,
     ):
-        super().__init__(agent_id, agent_name, capabilities or [
-            "chat", "reasoning", "tool_calling", "streaming"
-        ])
+        super().__init__(
+            agent_id,
+            agent_name,
+            capabilities or ["chat", "reasoning", "tool_calling", "streaming"],
+        )
         self._agent = None
         self._config = {}
 
@@ -112,18 +117,19 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                 # Try to import and create agent
                 try:
                     from app.services.langgraph.agent import get_agent
+
                     self._agent = get_agent()
                 except ImportError:
                     return AgentResponse(
                         content="LangGraph agent not available",
                         success=False,
-                        metadata={"error": "agent_not_initialized"}
+                        metadata={"error": "agent_not_initialized"},
                     )
 
             # Process through LangGraph
             result = await self._agent.ainvoke(
                 {"messages": [{"role": "user", "content": message.content}]},
-                config=self._config
+                config=self._config,
             )
 
             # Extract response
@@ -146,13 +152,11 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                         content=content,
                         success=True,
                         tool_calls=tool_calls,
-                        metadata={"agent_type": "langgraph"}
+                        metadata={"agent_type": "langgraph"},
                     )
 
             return AgentResponse(
-                content=str(result),
-                success=True,
-                metadata={"agent_type": "langgraph"}
+                content=str(result), success=True, metadata={"agent_type": "langgraph"}
             )
 
         except Exception as e:
@@ -160,7 +164,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
             return AgentResponse(
                 content=f"Error processing message: {e!s}",
                 success=False,
-                metadata={"error": str(e)}
+                metadata={"error": str(e)},
             )
 
     async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:
@@ -169,6 +173,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
             if not self._agent:
                 try:
                     from app.services.langgraph.agent import get_agent
+
                     self._agent = get_agent()
                 except ImportError:
                     yield "LangGraph agent not available"
@@ -176,7 +181,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
 
             async for event in self._agent.astream(
                 {"messages": [{"role": "user", "content": message.content}]},
-                config=self._config
+                config=self._config,
             ):
                 if isinstance(event, dict):
                     for value in event.values():
@@ -206,23 +211,38 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
         self,
         agent_id: str = "metaloop-agent",
         agent_name: str = "MetaLoop Agent",
-        capabilities: list[str] = None
+        capabilities: list[str] = None,
     ):
-        super().__init__(agent_id, agent_name, capabilities or [
-            "self_improvement", "reasoning", "feedback_loop",
-            "hallucination_detection", "memory_storage", "cost_tracking"
-        ])
+        super().__init__(
+            agent_id,
+            agent_name,
+            capabilities
+            or [
+                "self_improvement",
+                "reasoning",
+                "feedback_loop",
+                "hallucination_detection",
+                "memory_storage",
+                "cost_tracking",
+            ],
+        )
         self._metaloop = None
 
     def _get_metaloop(self):
         """Lazy load MetaLoop service"""
         if self._metaloop is None:
             try:
-                from app.services.meta_loop_feedback_integration import MetaLoopFeedbackIntegration
+                from app.services.meta_loop_feedback_integration import (
+                    MetaLoopFeedbackIntegration,
+                )
+
                 self._metaloop = MetaLoopFeedbackIntegration()
             except ImportError:
                 try:
-                    from app.services.self_improvement_service import SelfImprovementService
+                    from app.services.self_improvement_service import (
+                        SelfImprovementService,
+                    )
+
                     self._metaloop = SelfImprovementService()
                 except ImportError:
                     logger.warning("MetaLoop service not available")
@@ -237,14 +257,13 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
                 return AgentResponse(
                     content="MetaLoop service not available",
                     success=False,
-                    metadata={"error": "service_not_initialized"}
+                    metadata={"error": "service_not_initialized"},
                 )
 
             # Execute MetaLoop cycle
             if hasattr(metaloop, "execute_cycle"):
                 result = await metaloop.execute_cycle(
-                    query=message.content,
-                    context=message.metadata
+                    query=message.content, context=message.metadata
                 )
             elif hasattr(metaloop, "process"):
                 result = await metaloop.process(message.content)
@@ -260,14 +279,12 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
                         "phases_completed": result.get("phases_completed", []),
                         "improvements": result.get("improvements", []),
                         "cost": result.get("cost", 0),
-                        "agent_type": "metaloop"
-                    }
+                        "agent_type": "metaloop",
+                    },
                 )
 
             return AgentResponse(
-                content=str(result),
-                success=True,
-                metadata={"agent_type": "metaloop"}
+                content=str(result), success=True, metadata={"agent_type": "metaloop"}
             )
 
         except Exception as e:
@@ -275,7 +292,7 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
             return AgentResponse(
                 content=f"Error processing message: {e!s}",
                 success=False,
-                metadata={"error": str(e)}
+                metadata={"error": str(e)},
             )
 
     async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:
@@ -288,8 +305,14 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
                 return
 
             # Stream through phases
-            phases = ["query_processing", "response_generation", "hallucination_detection",
-                     "memory_storage", "response_delivery", "cost_tracking"]
+            phases = [
+                "query_processing",
+                "response_generation",
+                "hallucination_detection",
+                "memory_storage",
+                "response_delivery",
+                "cost_tracking",
+            ]
 
             for phase in phases:
                 yield f"[Phase: {phase}]\n"
@@ -325,12 +348,21 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
         self,
         agent_id: str = "nexus-orchestrator",
         agent_name: str = "Nexus Orchestrator",
-        capabilities: list[str] = None
+        capabilities: list[str] = None,
     ):
-        super().__init__(agent_id, agent_name, capabilities or [
-            "orchestration", "tool_composition", "capability_discovery",
-            "distributed_execution", "cost_optimization", "failure_analysis"
-        ])
+        super().__init__(
+            agent_id,
+            agent_name,
+            capabilities
+            or [
+                "orchestration",
+                "tool_composition",
+                "capability_discovery",
+                "distributed_execution",
+                "cost_optimization",
+                "failure_analysis",
+            ],
+        )
         self._orchestrator = None
 
     def _get_orchestrator(self):
@@ -338,6 +370,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
         if self._orchestrator is None:
             try:
                 from app.services.nexus.orchestrator import get_nexus_orchestrator
+
                 self._orchestrator = get_nexus_orchestrator()
             except ImportError:
                 logger.warning("Nexus orchestrator not available")
@@ -352,7 +385,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
                 return AgentResponse(
                     content="Nexus orchestrator not available",
                     success=False,
-                    metadata={"error": "orchestrator_not_initialized"}
+                    metadata={"error": "orchestrator_not_initialized"},
                 )
 
             # Parse intent from message
@@ -366,32 +399,25 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
                 return AgentResponse(
                     content=f"Discovered {len(capabilities)} capabilities",
                     success=True,
-                    metadata={
-                        "capabilities": capabilities,
-                        "agent_type": "nexus"
-                    }
+                    metadata={"capabilities": capabilities, "agent_type": "nexus"},
                 )
 
             elif intent == "compose":
                 # Compose tools for task
                 composition = await orchestrator.compose_tools(
                     task_description=message.content,
-                    constraints=message.metadata.get("constraints", {})
+                    constraints=message.metadata.get("constraints", {}),
                 )
                 return AgentResponse(
                     content=f"Composed {len(composition.get('tools', []))} tools",
                     success=True,
-                    metadata={
-                        "composition": composition,
-                        "agent_type": "nexus"
-                    }
+                    metadata={"composition": composition, "agent_type": "nexus"},
                 )
 
             else:
                 # Execute task
                 result = await orchestrator.execute(
-                    task=message.content,
-                    context=message.metadata
+                    task=message.content, context=message.metadata
                 )
 
                 return AgentResponse(
@@ -401,8 +427,8 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
                         "execution_plan": result.get("plan"),
                         "tools_used": result.get("tools_used", []),
                         "cost": result.get("cost", 0),
-                        "agent_type": "nexus"
-                    }
+                        "agent_type": "nexus",
+                    },
                 )
 
         except Exception as e:
@@ -410,7 +436,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
             return AgentResponse(
                 content=f"Error processing message: {e!s}",
                 success=False,
-                metadata={"error": str(e)}
+                metadata={"error": str(e)},
             )
 
     async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:
@@ -453,12 +479,14 @@ def create_agent_wrapper(agent_type: str, **kwargs) -> A2AAgentWrapper:
     wrappers = {
         "langgraph": LangGraphAgentWrapper,
         "metaloop": MetaLoopAgentWrapper,
-        "nexus": NexusOrchestratorWrapper
+        "nexus": NexusOrchestratorWrapper,
     }
 
     wrapper_class = wrappers.get(agent_type.lower())
     if not wrapper_class:
-        raise ValueError(f"Unknown agent type: {agent_type}. Available: {list(wrappers.keys())}")
+        raise ValueError(
+            f"Unknown agent type: {agent_type}. Available: {list(wrappers.keys())}"
+        )
 
     return wrapper_class(**kwargs)
 
@@ -469,7 +497,7 @@ def register_default_agents():
     wrappers = [
         LangGraphAgentWrapper(),
         MetaLoopAgentWrapper(),
-        NexusOrchestratorWrapper()
+        NexusOrchestratorWrapper(),
     ]
 
     for wrapper in wrappers:

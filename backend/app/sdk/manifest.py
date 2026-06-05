@@ -14,7 +14,10 @@ from pydantic import BaseModel, Field, field_validator
 class NodeTypeInput(BaseModel):
     """Schema for a single input port on a plugin node type."""
 
-    type: str = Field(..., description="JSON Schema type: string, integer, number, boolean, object, array")
+    type: str = Field(
+        ...,
+        description="JSON Schema type: string, integer, number, boolean, object, array",
+    )
     required: bool = Field(default=False, description="Whether this input is required")
     description: str | None = None
     default: Any = None
@@ -32,10 +35,15 @@ class PluginNodeType(BaseModel):
 
     id: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
     label: str = Field(..., min_length=1, max_length=128)
-    category: str = Field(default="custom", description="Node category: transform, data, integration, custom")
+    category: str = Field(
+        default="custom",
+        description="Node category: transform, data, integration, custom",
+    )
     description: str | None = None
     icon: str | None = Field(default=None, description="Lucide icon name or emoji")
-    color: str | None = Field(default=None, description="Hex color for node in graph editor")
+    color: str | None = Field(
+        default=None, description="Hex color for node in graph editor"
+    )
     inputs: dict[str, NodeTypeInput] = Field(default_factory=dict)
     outputs: dict[str, NodeTypeOutput] = Field(default_factory=dict)
 
@@ -97,7 +105,9 @@ class PluginManifest(BaseModel):
 
     @field_validator("node_types")
     @classmethod
-    def validate_node_type_ids_unique(cls, v: list[PluginNodeType]) -> list[PluginNodeType]:
+    def validate_node_type_ids_unique(
+        cls, v: list[PluginNodeType]
+    ) -> list[PluginNodeType]:
         seen: set[str] = set()
         for nt in v:
             if nt.id in seen:

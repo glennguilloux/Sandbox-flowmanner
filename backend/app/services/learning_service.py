@@ -48,10 +48,15 @@ class LearningService:
             client.get_collections()
             self._qdrant_client = client
             self._qdrant_available = True
-            logger.info("LearningService connected to Qdrant at %s", settings.QDRANT_URL)
+            logger.info(
+                "LearningService connected to Qdrant at %s", settings.QDRANT_URL
+            )
             return self._qdrant_client
         except Exception as e:
-            logger.warning("LearningService: Qdrant unavailable (%s), falling back to PostgreSQL", e)
+            logger.warning(
+                "LearningService: Qdrant unavailable (%s), falling back to PostgreSQL",
+                e,
+            )
             self._qdrant_available = False
             return None
 
@@ -62,7 +67,9 @@ class LearningService:
         try:
             from sentence_transformers import SentenceTransformer
 
-            logger.info("LearningService loading embedding model '%s'...", EMBEDDING_MODEL_NAME)
+            logger.info(
+                "LearningService loading embedding model '%s'...", EMBEDDING_MODEL_NAME
+            )
             self._embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
             logger.info("LearningService embedding model loaded")
             return self._embedding_model
@@ -83,9 +90,13 @@ class LearningService:
             if MISSION_EMBEDDINGS_COLLECTION not in names:
                 client.create_collection(
                     collection_name=MISSION_EMBEDDINGS_COLLECTION,
-                    vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+                    vectors_config=VectorParams(
+                        size=EMBEDDING_DIM, distance=Distance.COSINE
+                    ),
                 )
-                logger.info("Created Qdrant collection '%s'", MISSION_EMBEDDINGS_COLLECTION)
+                logger.info(
+                    "Created Qdrant collection '%s'", MISSION_EMBEDDINGS_COLLECTION
+                )
             return True
         except Exception as e:
             logger.warning("LearningService: failed to ensure collection: %s", e)
@@ -127,10 +138,14 @@ class LearningService:
                 return None
 
             # Build context summary from similar tasks
-            success_count = sum(1 for t in similar_tasks if t.get("success_rate", 0) > 0.5)
+            success_count = sum(
+                1 for t in similar_tasks if t.get("success_rate", 0) > 0.5
+            )
             total = len(similar_tasks)
             avg_success = (
-                sum(t.get("success_rate", 0) for t in similar_tasks) / total if total else 0
+                sum(t.get("success_rate", 0) for t in similar_tasks) / total
+                if total
+                else 0
             )
 
             # Extract success patterns
@@ -151,9 +166,7 @@ class LearningService:
             if recommended_model:
                 summary_parts.append(f"Recommended model: {recommended_model}.")
             if success_patterns:
-                summary_parts.append(
-                    f"Top success pattern: {success_patterns[0]}"
-                )
+                summary_parts.append(f"Top success pattern: {success_patterns[0]}")
 
             return {
                 "has_historical_data": True,
@@ -385,14 +398,16 @@ class LearningService:
             tasks: list[dict[str, Any]] = []
             for point in response.points:
                 payload = point.payload or {}
-                tasks.append({
-                    "task_description": payload.get("task_description", ""),
-                    "mission_id": payload.get("mission_id"),
-                    "success_rate": 1.0 if payload.get("success") else 0.0,
-                    "avg_duration": payload.get("duration_seconds"),
-                    "best_model": payload.get("model_used"),
-                    "similarity_score": point.score,
-                })
+                tasks.append(
+                    {
+                        "task_description": payload.get("task_description", ""),
+                        "mission_id": payload.get("mission_id"),
+                        "success_rate": 1.0 if payload.get("success") else 0.0,
+                        "avg_duration": payload.get("duration_seconds"),
+                        "best_model": payload.get("model_used"),
+                        "similarity_score": point.score,
+                    }
+                )
 
             return tasks
         except Exception as e:
@@ -423,7 +438,9 @@ class LearningService:
                     f"(title ILIKE :kw{i} OR description ILIKE :kw{i})"
                     for i in range(len(keywords))
                 )
-                params: dict[str, Any] = {f"kw{i}": f"%{kw}%" for i, kw in enumerate(keywords)}
+                params: dict[str, Any] = {
+                    f"kw{i}": f"%{kw}%" for i, kw in enumerate(keywords)
+                }
 
                 query = text(
                     f"SELECT id, title, description, mission_type, status, "
@@ -451,13 +468,17 @@ class LearningService:
                     if row[7] and row[8]:  # started_at, completed_at
                         duration = (row[8] - row[7]).total_seconds()
 
-                    tasks.append({
-                        "task_description": f"{row[1] or ''} {row[2] or ''}".strip()[:200],
-                        "mission_id": mission_id,
-                        "success_rate": 1.0 if success else 0.0,
-                        "avg_duration": duration,
-                        "best_model": model_used,
-                    })
+                    tasks.append(
+                        {
+                            "task_description": f"{row[1] or ''} {row[2] or ''}".strip()[
+                                :200
+                            ],
+                            "mission_id": mission_id,
+                            "success_rate": 1.0 if success else 0.0,
+                            "avg_duration": duration,
+                            "best_model": model_used,
+                        }
+                    )
 
                 return tasks
         except Exception as e:
@@ -485,6 +506,7 @@ class LearningService:
 # Helpers
 # ------------------------------------------------------------------
 
+
 def _summarize_plan(plan: dict) -> dict:
     """Extract a lightweight summary from a plan dict."""
     if not plan:
@@ -492,7 +514,9 @@ def _summarize_plan(plan: dict) -> dict:
     tasks = plan.get("tasks", [])
     return {
         "task_count": len(tasks),
-        "task_types": list({t.get("task_type", "unknown") for t in tasks}) if tasks else [],
+        "task_types": (
+            list({t.get("task_type", "unknown") for t in tasks}) if tasks else []
+        ),
     }
 
 
@@ -514,18 +538,111 @@ def _extract_keywords(task_description: str, max_keywords: int = 5) -> list[str]
 
     # Remove common stop words and short tokens
     stop_words = {
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "shall", "can", "to", "of", "in", "for",
-        "on", "with", "at", "by", "from", "as", "into", "through", "during",
-        "before", "after", "above", "below", "between", "out", "off", "over",
-        "under", "again", "further", "then", "once", "and", "but", "or", "nor",
-        "not", "so", "very", "just", "about", "up", "that", "this", "these",
-        "those", "it", "its", "i", "me", "my", "we", "our", "you", "your",
-        "he", "him", "his", "she", "her", "they", "them", "their", "which",
-        "what", "who", "whom", "how", "when", "where", "why", "all", "each",
-        "every", "both", "few", "more", "most", "other", "some", "such",
-        "than", "too", "also", "only", "own", "same",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "shall",
+        "can",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "and",
+        "but",
+        "or",
+        "nor",
+        "not",
+        "so",
+        "very",
+        "just",
+        "about",
+        "up",
+        "that",
+        "this",
+        "these",
+        "those",
+        "it",
+        "its",
+        "i",
+        "me",
+        "my",
+        "we",
+        "our",
+        "you",
+        "your",
+        "he",
+        "him",
+        "his",
+        "she",
+        "her",
+        "they",
+        "them",
+        "their",
+        "which",
+        "what",
+        "who",
+        "whom",
+        "how",
+        "when",
+        "where",
+        "why",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "than",
+        "too",
+        "also",
+        "only",
+        "own",
+        "same",
     }
 
     words = re.findall(r"[a-zA-Z]{3,}", task_description.lower())

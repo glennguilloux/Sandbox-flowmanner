@@ -22,9 +22,16 @@ router = APIRouter(prefix="/teams", tags=["v3-teams"])
 
 async def _require_teams_v3(db: AsyncSession) -> None:
     from sqlalchemy import text
-    result = await db.execute(text("SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_TEAMS_TOPLEVEL'"))
+
+    result = await db.execute(
+        text(
+            "SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_TEAMS_TOPLEVEL'"
+        )
+    )
     if not result.scalar():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
 
 @router.get("", status_code=status.HTTP_200_OK)
@@ -42,21 +49,25 @@ async def list_teams(
         )
     )
     if not membership.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
+        )
 
     result = await db.execute(select(Team).where(Team.workspace_id == workspace_id))
     teams = result.scalars().all()
 
-    return ok([
-        TeamResponse(
-            id=t.id,
-            workspace_id=t.workspace_id,
-            name=t.name,
-            description=t.description,
-            created_at=t.created_at,
-        ).model_dump(mode="json")
-        for t in teams
-    ])
+    return ok(
+        [
+            TeamResponse(
+                id=t.id,
+                workspace_id=t.workspace_id,
+                name=t.name,
+                description=t.description,
+                created_at=t.created_at,
+            ).model_dump(mode="json")
+            for t in teams
+        ]
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -75,7 +86,9 @@ async def create_team(
         )
     )
     if not membership.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role"
+        )
 
     team = Team(
         id=str(uuid.uuid4()),
@@ -109,7 +122,9 @@ async def delete_team(
     result = await db.execute(select(Team).where(Team.id == team_id))
     team = result.scalar_one_or_none()
     if not team:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
 
     membership = await db.execute(
         select(WorkspaceMember).where(
@@ -119,7 +134,9 @@ async def delete_team(
         )
     )
     if not membership.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role"
+        )
 
     await db.delete(team)
     await db.flush()

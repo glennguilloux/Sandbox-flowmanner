@@ -246,9 +246,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
 
     # ── Token refresh (Google OAuth 2.0) ───────────────────────────────────
 
-    async def _refresh_token(
-        self, connection: UserOAuthConnection
-    ) -> str | None:
+    async def _refresh_token(self, connection: UserOAuthConnection) -> str | None:
         """Refresh the Google OAuth access token.
 
         Google supports the standard OAuth 2.0 refresh_token grant.
@@ -303,9 +301,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
                     new_access = data.get("access_token")
                     if not new_access:
                         error = data.get("error", "unknown")
-                        logger.warning(
-                            "Google token refresh failed: %s", error
-                        )
+                        logger.warning("Google token refresh failed: %s", error)
                         return None
 
                     from app.integrations.oauth import encrypt_token
@@ -348,11 +344,17 @@ def _parse_drive_response(resp: httpx.Response) -> dict[str, Any]:
     # Google error response
     error_info = data.get("error", {})
     if isinstance(error_info, dict):
-        error_msg = error_info.get("message", f"Drive API error (HTTP {resp.status_code})")
+        error_msg = error_info.get(
+            "message", f"Drive API error (HTTP {resp.status_code})"
+        )
         # Extract the error reason from the errors array for better matching
         errors_list = error_info.get("errors")
         if errors_list and isinstance(errors_list, list) and len(errors_list) > 0:
-            reason = errors_list[0].get("reason") if isinstance(errors_list[0], dict) else None
+            reason = (
+                errors_list[0].get("reason")
+                if isinstance(errors_list[0], dict)
+                else None
+            )
             if reason:
                 # Pass the camelCase reason string to _drive_error_code for matching
                 error_code = reason

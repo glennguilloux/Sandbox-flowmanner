@@ -125,7 +125,11 @@ class CostAttributionEngine:
         )
         if year and month:
             start = datetime(year, month, 1)
-            end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+            end = (
+                datetime(year + 1, 1, 1)
+                if month == 12
+                else datetime(year, month + 1, 1)
+            )
             stmt = stmt.where(
                 and_(
                     LLMCallRecord.timestamp >= start,
@@ -144,12 +148,15 @@ class CostAttributionEngine:
     # ── Aggregation by mission ─────────────────────────────────────
 
     async def mission_cost(
-        self, db: AsyncSession, mission_id: str,
+        self,
+        db: AsyncSession,
+        mission_id: str,
     ) -> float:
         """Total cost for a single mission."""
         result = await db.execute(
-            select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0))
-            .where(LLMCallRecord.mission_id == mission_id)
+            select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0)).where(
+                LLMCallRecord.mission_id == mission_id
+            )
         )
         return float(result.scalar() or 0.0)
 
@@ -261,7 +268,9 @@ class CostAttributionEngine:
 
         result = await db.execute(stmt)
         rows = result.all()
-        direct_costs: dict[str, float] = {row[0]: float(row[1]) for row in rows if row[0]}
+        direct_costs: dict[str, float] = {
+            row[0]: float(row[1]) for row in rows if row[0]
+        }
 
         # Also aggregate via Mission.workspace_id for records without direct attribution
         mission_stmt = (

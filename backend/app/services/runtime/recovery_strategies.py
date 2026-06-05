@@ -8,6 +8,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class RecoveryStrategies:
     """Collection of recovery strategies"""
 
@@ -20,7 +21,7 @@ class RecoveryStrategies:
                 "type": "automatic",
                 "auto_execute": True,
                 "applicable_errors": ["service_crash", "timeout", "connection_lost"],
-                "priority": 1
+                "priority": 1,
             },
             {
                 "strategy_id": "clear-cache",
@@ -29,7 +30,7 @@ class RecoveryStrategies:
                 "type": "automatic",
                 "auto_execute": True,
                 "applicable_errors": ["cache_error", "memory_leak"],
-                "priority": 2
+                "priority": 2,
             },
             {
                 "strategy_id": "scale-up",
@@ -38,7 +39,7 @@ class RecoveryStrategies:
                 "type": "automatic",
                 "auto_execute": True,
                 "applicable_errors": ["high_load", "resource_exhausted"],
-                "priority": 3
+                "priority": 3,
             },
             {
                 "strategy_id": "failover",
@@ -47,7 +48,7 @@ class RecoveryStrategies:
                 "type": "automatic",
                 "auto_execute": False,
                 "applicable_errors": ["primary_failure", "datacenter_outage"],
-                "priority": 1
+                "priority": 1,
             },
             {
                 "strategy_id": "rollback",
@@ -56,8 +57,8 @@ class RecoveryStrategies:
                 "type": "manual",
                 "auto_execute": False,
                 "applicable_errors": ["deployment_error", "version_incompatible"],
-                "priority": 2
-            }
+                "priority": 2,
+            },
         ]
 
     def get_all_strategies(self) -> list[dict[str, Any]]:
@@ -73,10 +74,8 @@ class RecoveryStrategies:
 
     def get_strategies_for_error(self, error_type: str) -> list[dict[str, Any]]:
         """Get applicable strategies for an error type"""
-        return [
-            s for s in self._strategies
-            if error_type in s["applicable_errors"]
-        ]
+        return [s for s in self._strategies if error_type in s["applicable_errors"]]
+
 
 # Singleton instance
 recovery_strategies = RecoveryStrategies()

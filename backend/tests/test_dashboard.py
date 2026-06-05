@@ -165,9 +165,9 @@ class TestFirefightingMetrics:
         resp = test_client.get(
             "/api/dashboard/firefighting-metrics", params={"hours": hours}
         )
-        assert resp.status_code == 422, (
-            f"hours={hours} should return 422, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 422
+        ), f"hours={hours} should return 422, got {resp.status_code}"
 
     @pytest.mark.parametrize("hours", [1, 168])
     def test_validation_hours_boundaries(self, test_client, hours):
@@ -182,9 +182,9 @@ class TestFirefightingMetrics:
                 "/api/dashboard/firefighting-metrics", params={"hours": hours}
             )
 
-        assert resp.status_code == 200, (
-            f"hours={hours} should be accepted, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 200
+        ), f"hours={hours} should be accepted, got {resp.status_code}"
 
     def test_get_firefighting_metrics_service_failure(self, test_client):
         """Service exception returns 500."""
@@ -235,9 +235,7 @@ class TestStats:
         mock_avg = MagicMock()
         mock_avg.scalar.return_value = 2500.0
 
-        mock_db.execute = AsyncMock(
-            side_effect=[mock_total, mock_completed, mock_avg]
-        )
+        mock_db.execute = AsyncMock(side_effect=[mock_total, mock_completed, mock_avg])
 
         resp = test_client.get("/api/dashboard/stats")
 
@@ -273,9 +271,7 @@ class TestStats:
         mock_avg = MagicMock()
         mock_avg.scalar.return_value = None  # no tokens used yet
 
-        mock_db.execute = AsyncMock(
-            side_effect=[mock_total, mock_completed, mock_avg]
-        )
+        mock_db.execute = AsyncMock(side_effect=[mock_total, mock_completed, mock_avg])
 
         resp = test_client.get("/api/dashboard/stats")
 
@@ -337,6 +333,6 @@ class TestRouteRegistration:
             mock_db.execute = AsyncMock(return_value=mock_total)
 
             resp = test_client.get(path)
-            assert resp.status_code == expected_status, (
-                f"Expected {expected_status} for GET {path}, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == expected_status
+            ), f"Expected {expected_status} for GET {path}, got {resp.status_code}"

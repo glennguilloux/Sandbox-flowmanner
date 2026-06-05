@@ -40,7 +40,9 @@ if TYPE_CHECKING:
 class ExecuteCodeRequest(BaseModel):
     code: str = Field(..., min_length=1, description="Source code to execute")
     language: str = Field("python", description="python, javascript, or typescript")
-    timeout: int = Field(DEFAULT_TIMEOUT, ge=1, le=MAX_TIMEOUT, description="Timeout in seconds")
+    timeout: int = Field(
+        DEFAULT_TIMEOUT, ge=1, le=MAX_TIMEOUT, description="Timeout in seconds"
+    )
 
 
 class SandboxResult(BaseModel):
@@ -58,6 +60,7 @@ class SandboxResult(BaseModel):
 
 # ── Route ─────────────────────────────────────────────────────────────
 
+
 @router.post("/execute-code")
 async def execute_code(
     req: ExecuteCodeRequest,
@@ -70,7 +73,9 @@ async def execute_code(
         elif req.language in ("javascript", "typescript"):
             result = await _run_javascript(req.code, req.timeout)
         else:
-            raise HTTPException(status_code=400, detail=f"Unsupported language: {req.language}")
+            raise HTTPException(
+                status_code=400, detail=f"Unsupported language: {req.language}"
+            )
 
         return {"success": True, "result": result}
     except HTTPException:
@@ -82,8 +87,11 @@ async def execute_code(
 
 # ── Python sandbox ────────────────────────────────────────────────────
 
+
 async def _run_python(code: str, timeout: int) -> dict[str, Any]:
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="sandbox_", delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", prefix="sandbox_", delete=False
+    ) as tmp:
         tmp_path = tmp.name
         tmp.write(code)
         tmp.flush()
@@ -92,7 +100,8 @@ async def _run_python(code: str, timeout: int) -> dict[str, Any]:
     try:
         proc = subprocess.run(
             ["python3", tmp_path],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
             timeout=timeout,
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
         )
@@ -100,8 +109,10 @@ async def _run_python(code: str, timeout: int) -> dict[str, Any]:
         stdout, stderr = proc.stdout or "", proc.stderr or ""
         stdout_trunc = len(stdout) > MAX_OUTPUT_BYTES
         stderr_trunc = len(stderr) > MAX_OUTPUT_BYTES
-        if stdout_trunc: stdout = stdout[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
-        if stderr_trunc: stderr = stderr[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
+        if stdout_trunc:
+            stdout = stdout[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
+        if stderr_trunc:
+            stderr = stderr[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
 
         return {
             "stdout": stdout,
@@ -118,11 +129,16 @@ async def _run_python(code: str, timeout: int) -> dict[str, Any]:
     except subprocess.TimeoutExpired:
         elapsed = (time.monotonic() - start) * 1000
         return {
-            "stdout": "", "stderr": f"Execution timed out after {timeout}s",
-            "exit_code": -1, "timed_out": True,
+            "stdout": "",
+            "stderr": f"Execution timed out after {timeout}s",
+            "exit_code": -1,
+            "timed_out": True,
             "execution_time_ms": round(elapsed, 2),
-            "stdout_truncated": False, "stderr_truncated": False,
-            "exited_cleanly": False, "killed_by_oom": False, "killed_by_cpu": False,
+            "stdout_truncated": False,
+            "stderr_truncated": False,
+            "exited_cleanly": False,
+            "killed_by_oom": False,
+            "killed_by_cpu": False,
         }
     finally:
         with contextlib.suppress(OSError):
@@ -131,8 +147,11 @@ async def _run_python(code: str, timeout: int) -> dict[str, Any]:
 
 # ── JavaScript/TypeScript sandbox ─────────────────────────────────────
 
+
 async def _run_javascript(code: str, timeout: int) -> dict[str, Any]:
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".mjs", prefix="sandbox_", delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".mjs", prefix="sandbox_", delete=False
+    ) as tmp:
         tmp_path = tmp.name
         # For TypeScript, transpile via ts-node or just run as JS
         if ".ts" in tmp_path:
@@ -156,15 +175,20 @@ async def _run_javascript(code: str, timeout: int) -> dict[str, Any]:
 
         cmd.append(tmp_path)
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout,
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
             env={**os.environ, "NODE_OPTIONS": "--no-warnings"},
         )
         elapsed = (time.monotonic() - start) * 1000
         stdout, stderr = proc.stdout or "", proc.stderr or ""
         stdout_trunc = len(stdout) > MAX_OUTPUT_BYTES
         stderr_trunc = len(stderr) > MAX_OUTPUT_BYTES
-        if stdout_trunc: stdout = stdout[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
-        if stderr_trunc: stderr = stderr[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
+        if stdout_trunc:
+            stdout = stdout[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
+        if stderr_trunc:
+            stderr = stderr[:MAX_OUTPUT_BYTES] + "\n... [truncated]"
 
         return {
             "stdout": stdout,
@@ -181,11 +205,16 @@ async def _run_javascript(code: str, timeout: int) -> dict[str, Any]:
     except subprocess.TimeoutExpired:
         elapsed = (time.monotonic() - start) * 1000
         return {
-            "stdout": "", "stderr": f"Execution timed out after {timeout}s",
-            "exit_code": -1, "timed_out": True,
+            "stdout": "",
+            "stderr": f"Execution timed out after {timeout}s",
+            "exit_code": -1,
+            "timed_out": True,
             "execution_time_ms": round(elapsed, 2),
-            "stdout_truncated": False, "stderr_truncated": False,
-            "exited_cleanly": False, "killed_by_oom": False, "killed_by_cpu": False,
+            "stdout_truncated": False,
+            "stderr_truncated": False,
+            "exited_cleanly": False,
+            "killed_by_oom": False,
+            "killed_by_cpu": False,
         }
     finally:
         with contextlib.suppress(OSError):

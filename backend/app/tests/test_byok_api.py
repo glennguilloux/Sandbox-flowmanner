@@ -46,7 +46,10 @@ def test_validate_returns_valid_with_models():
     }
     mock_resp = _mock_httpx_response(200, provider_response)
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient",
+        return_value=_FakeAsyncClient(mock_resp),
+    ):
         response = client.post(
             VALIDATE_URL,
             json={"provider": "openai", "api_key": "sk-valid-key"},
@@ -65,7 +68,10 @@ def test_validate_returns_invalid_on_401():
     error_response = {"error": {"message": "Incorrect API key provided"}}
     mock_resp = _mock_httpx_response(401, error_response)
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient",
+        return_value=_FakeAsyncClient(mock_resp),
+    ):
         response = client.post(
             VALIDATE_URL,
             json={"provider": "openai", "api_key": "sk-bad-key"},
@@ -81,7 +87,10 @@ def test_validate_returns_invalid_on_401():
 def test_validate_returns_invalid_on_403():
     mock_resp = _mock_httpx_response(403, {"error": {"message": "Forbidden"}})
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient",
+        return_value=_FakeAsyncClient(mock_resp),
+    ):
         response = client.post(
             VALIDATE_URL,
             json={"provider": "openai-compatible", "api_key": "sk-forbidden"},
@@ -159,7 +168,10 @@ def test_no_key_storage_in_validate():
     provider_response = {"data": [{"id": "gpt-4o"}]}
     mock_resp = _mock_httpx_response(200, provider_response)
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient",
+        return_value=_FakeAsyncClient(mock_resp),
+    ):
         response = client.post(
             VALIDATE_URL,
             json={"provider": "openai", "api_key": "sk-should-not-be-stored"},
@@ -189,7 +201,10 @@ def test_discover_models_success():
     }
     mock_resp = _mock_httpx_response(200, provider_response)
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient",
+        return_value=_FakeAsyncClient(mock_resp),
+    ):
         response = client.post(
             DISCOVER_URL,
             json={"provider": "openai", "api_key": "sk-valid-key"},
@@ -214,7 +229,10 @@ def test_discover_models_invalid_key():
 
     mock_resp = _mock_httpx_response(401, {"error": {"message": "Invalid API key"}})
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_FakeAsyncClient(mock_resp)):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient",
+        return_value=_FakeAsyncClient(mock_resp),
+    ):
         response = client.post(
             DISCOVER_URL,
             json={"provider": "openai", "api_key": "sk-bad-key"},
@@ -245,7 +263,9 @@ def test_model_cache():
             call_count += 1
             return mock_resp
 
-    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_CountingFakeClient()):
+    with patch(
+        "app.api.v1.api_keys.httpx.AsyncClient", return_value=_CountingFakeClient()
+    ):
         client.post(DISCOVER_URL, json={"provider": "openai", "api_key": "sk-key-1"})
         client.post(DISCOVER_URL, json={"provider": "openai", "api_key": "sk-key-2"})
 

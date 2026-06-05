@@ -1,52 +1,36 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
 T = TypeVar("T", bound="PingRequest")
-
 
 
 @_attrs_define
 class PingRequest:
-    """ 
-        Attributes:
-            message (str | Unset):  Default: 'hello'.
-     """
+    """
+    Attributes:
+        message (str | Unset):  Default: 'hello'.
+    """
 
-    message: str | Unset = 'hello'
+    message: str | Unset = "hello"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         message = self.message
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if message is not UNSET:
             field_dict["message"] = message
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -56,7 +40,6 @@ class PingRequest:
         ping_request = cls(
             message=message,
         )
-
 
         ping_request.additional_properties = d
         return ping_request

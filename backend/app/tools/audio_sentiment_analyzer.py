@@ -31,8 +31,16 @@ SENTIMENT_LLM_MODEL = os.getenv("SENTIMENT_LLM_MODEL", "gpt-4o-mini")
 
 _AFFECTIVE_DIMENSIONS = ["valence", "arousal", "dominance"]
 _EMOTION_LABELS = [
-    "neutral", "happy", "sad", "angry", "fearful",
-    "surprised", "disgusted", "calm", "excited", "anxious",
+    "neutral",
+    "happy",
+    "sad",
+    "angry",
+    "fearful",
+    "surprised",
+    "disgusted",
+    "calm",
+    "excited",
+    "anxious",
 ]
 
 
@@ -115,9 +123,7 @@ class AudioSentimentAnalyzerTool(BaseTool):
 
     # ── _analyze ─────────────────────────────────────────────────
 
-    async def _analyze(
-        self, validated: AudioSentimentAnalyzerInput
-    ) -> dict[str, Any]:
+    async def _analyze(self, validated: AudioSentimentAnalyzerInput) -> dict[str, Any]:
         """Extract audio features and compute sentiment scores."""
         audio_bytes = await resolve_input(
             validated.data, validated.url, label="audio", fetch_timeout=60
@@ -128,6 +134,7 @@ class AudioSentimentAnalyzerTool(BaseTool):
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                 # Convert to WAV for librosa
                 from pydub import AudioSegment
+
                 audio_seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
                 audio_seg.export(tmp.name, format="wav")
                 tmp_path = tmp.name
@@ -167,7 +174,10 @@ class AudioSentimentAnalyzerTool(BaseTool):
         duration = len(y) / sr if sr > 0 else 0
 
         if duration < 0.1 or len(y) < sr * 0.1:
-            return {"error": "Audio too short for analysis", "duration_seconds": duration}
+            return {
+                "error": "Audio too short for analysis",
+                "duration_seconds": duration,
+            }
 
         # Energy (RMS)
         rms = librosa.feature.rms(y=y)[0]
@@ -176,9 +186,7 @@ class AudioSentimentAnalyzerTool(BaseTool):
         energy_range = float(np.max(rms) - np.min(rms)) if len(rms) > 0 else 0.0
 
         # Pitch (fundamental frequency)
-        f0, voiced_flag, _ = librosa.pyin(
-            y, fmin=50, fmax=500, sr=sr, fill_na=0
-        )
+        f0, voiced_flag, _ = librosa.pyin(y, fmin=50, fmax=500, sr=sr, fill_na=0)
         f0_voiced = f0[voiced_flag] if np.any(voiced_flag) else np.array([0])
         pitch_mean = float(np.mean(f0_voiced)) if len(f0_voiced) > 0 else 0.0
         pitch_std = float(np.std(f0_voiced)) if len(f0_voiced) > 0 else 0.0
@@ -193,8 +201,12 @@ class AudioSentimentAnalyzerTool(BaseTool):
             tempo_val = float(tempo)
 
         # Spectral features
-        spectral_centroid = float(np.mean(librosa.feature.spectral_centroid(y=y, sr=sr)))
-        spectral_bandwidth = float(np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr)))
+        spectral_centroid = float(
+            np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
+        )
+        spectral_bandwidth = float(
+            np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr))
+        )
         spectral_rolloff = float(np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr)))
         zero_crossing_rate = float(np.mean(librosa.feature.zero_crossing_rate(y)))
 
@@ -255,16 +267,59 @@ class AudioSentimentAnalyzerTool(BaseTool):
         fast_tempo = min((tempo - 80) / 80, 1.0) if tempo > 80 else 0
         slow_tempo = min((120 - tempo) / 120, 1.0) if tempo < 120 else 0
 
-        scores["happy"] = round(min(energy_factor * 0.5 + pitch_var_factor * 0.3 + fast_tempo * 0.2, 1.0), 3)
-        scores["excited"] = round(min(energy_factor * 0.6 + pitch_var_factor * 0.3 + fast_tempo * 0.1, 1.0), 3)
-        scores["calm"] = round(min((1 - energy_factor) * 0.4 + slow_tempo * 0.4 + (1 - pitch_var_factor) * 0.2, 1.0), 3)
-        scores["sad"] = round(min((1 - energy_factor) * 0.3 + slow_tempo * 0.3 + (1 - pitch_var_factor) * 0.4, 1.0), 3)
-        scores["angry"] = round(min(energy_factor * 0.4 + pitch_var_factor * 0.2 + (1 - slow_tempo) * 0.1 + 0.3, 1.0), 3)
-        scores["fearful"] = round(min(pitch_var_factor * 0.4 + energy_factor * 0.3, 1.0), 3)
-        scores["anxious"] = round(min(pitch_var_factor * 0.5 + (1 - slow_tempo) * 0.2 + energy_factor * 0.2, 1.0), 3)
-        scores["surprised"] = round(min(pitch_var_factor * 0.3 + energy_factor * 0.3, 1.0), 3)
-        scores["disgusted"] = round(min((1 - pitch_var_factor) * 0.2 + energy_factor * 0.2, 1.0), 3)
-        scores["neutral"] = round(1.0 - sum(v for k, v in scores.items() if k != "neutral") / 9, 3)
+        scores["happy"] = round(
+            min(energy_factor * 0.5 + pitch_var_factor * 0.3 + fast_tempo * 0.2, 1.0), 3
+        )
+        scores["excited"] = round(
+            min(energy_factor * 0.6 + pitch_var_factor * 0.3 + fast_tempo * 0.1, 1.0), 3
+        )
+        scores["calm"] = round(
+            min(
+                (1 - energy_factor) * 0.4
+                + slow_tempo * 0.4
+                + (1 - pitch_var_factor) * 0.2,
+                1.0,
+            ),
+            3,
+        )
+        scores["sad"] = round(
+            min(
+                (1 - energy_factor) * 0.3
+                + slow_tempo * 0.3
+                + (1 - pitch_var_factor) * 0.4,
+                1.0,
+            ),
+            3,
+        )
+        scores["angry"] = round(
+            min(
+                energy_factor * 0.4
+                + pitch_var_factor * 0.2
+                + (1 - slow_tempo) * 0.1
+                + 0.3,
+                1.0,
+            ),
+            3,
+        )
+        scores["fearful"] = round(
+            min(pitch_var_factor * 0.4 + energy_factor * 0.3, 1.0), 3
+        )
+        scores["anxious"] = round(
+            min(
+                pitch_var_factor * 0.5 + (1 - slow_tempo) * 0.2 + energy_factor * 0.2,
+                1.0,
+            ),
+            3,
+        )
+        scores["surprised"] = round(
+            min(pitch_var_factor * 0.3 + energy_factor * 0.3, 1.0), 3
+        )
+        scores["disgusted"] = round(
+            min((1 - pitch_var_factor) * 0.2 + energy_factor * 0.2, 1.0), 3
+        )
+        scores["neutral"] = round(
+            1.0 - sum(v for k, v in scores.items() if k != "neutral") / 9, 3
+        )
         scores["neutral"] = max(0.0, scores["neutral"])
 
         # Normalize
@@ -302,19 +357,22 @@ class AudioSentimentAnalyzerTool(BaseTool):
             sentiment_url = f"{OPENAI_BASE_URL.rstrip('/')}/v1/chat/completions"
             payload = {
                 "model": SENTIMENT_LLM_MODEL,
-                "messages": [{
-                    "role": "system",
-                    "content": (
-                        "Analyze the sentiment of this transcript. "
-                        "Respond with a JSON object: "
-                        '{"sentiment": "positive|negative|neutral", '
-                        '"confidence": 0.0-1.0, "emotion": "emotion_label", '
-                        '"explanation": "brief reason"}'
-                    ),
-                }, {
-                    "role": "user",
-                    "content": transcript,
-                }],
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Analyze the sentiment of this transcript. "
+                            "Respond with a JSON object: "
+                            '{"sentiment": "positive|negative|neutral", '
+                            '"confidence": 0.0-1.0, "emotion": "emotion_label", '
+                            '"explanation": "brief reason"}'
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": transcript,
+                    },
+                ],
                 "temperature": 0.0,
                 "max_tokens": 200,
             }
@@ -332,10 +390,15 @@ class AudioSentimentAnalyzerTool(BaseTool):
 
             # Parse JSON from response
             import json
+
             try:
                 sentiment_data = json.loads(content)
             except json.JSONDecodeError:
-                sentiment_data = {"sentiment": "neutral", "confidence": 0.5, "explanation": content}
+                sentiment_data = {
+                    "sentiment": "neutral",
+                    "confidence": 0.5,
+                    "explanation": content,
+                }
 
             sentiment_data["transcript"] = transcript
             return sentiment_data

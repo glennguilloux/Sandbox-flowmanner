@@ -12,6 +12,7 @@ constructor injection rather than a hard global.
 """
 
 from __future__ import annotations
+import uuid
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -21,7 +22,6 @@ import structlog
 from app.models.mission_models import MissionLog, MissionStatus
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 

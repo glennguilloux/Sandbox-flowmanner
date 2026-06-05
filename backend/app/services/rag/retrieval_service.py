@@ -67,15 +67,17 @@ class RetrievalService:
         result = []
         for point in deduplicated[:limit]:
             p = point.payload or {}
-            result.append(RetrievedChunk(
-                id=str(point.id),
-                book_title=p.get("book_title", ""),
-                text=p.get("text", ""),
-                topics=p.get("topics", []),
-                relevance_score=p.get("relevance_score", 0.0),
-                chunk_index=p.get("chunk_index", 0),
-                score=point.score,
-            ))
+            result.append(
+                RetrievedChunk(
+                    id=str(point.id),
+                    book_title=p.get("book_title", ""),
+                    text=p.get("text", ""),
+                    topics=p.get("topics", []),
+                    relevance_score=p.get("relevance_score", 0.0),
+                    chunk_index=p.get("chunk_index", 0),
+                    score=point.score,
+                )
+            )
         return result
 
     async def _rerank_llm(self, query: str, candidates: list) -> list:
@@ -101,13 +103,19 @@ class RetrievalService:
                 reordered = []
                 seen = set()
                 for idx in indices:
-                    if isinstance(idx, int) and 0 <= idx < len(candidates) and idx not in seen:
+                    if (
+                        isinstance(idx, int)
+                        and 0 <= idx < len(candidates)
+                        and idx not in seen
+                    ):
                         reordered.append(candidates[idx])
                         seen.add(idx)
                 remaining = [c for i, c in enumerate(candidates) if i not in seen]
                 return reordered + remaining
         except (json.JSONDecodeError, TypeError):
-            logger.warning("LLM re-rank returned unparseable result, using original order")
+            logger.warning(
+                "LLM re-rank returned unparseable result, using original order"
+            )
 
         return candidates
 

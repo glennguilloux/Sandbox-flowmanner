@@ -76,8 +76,12 @@ def _make_run_state(
     state.failed_tasks = failed_tasks or set()
     state.total_tokens = total_tokens
     state.total_cost_usd = total_cost_usd
-    state.started_at = started_at or datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
-    state.last_event_at = last_event_at or datetime(2026, 6, 12, 10, 2, 0, tzinfo=timezone.utc)
+    state.started_at = started_at or datetime(
+        2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc
+    )
+    state.last_event_at = last_event_at or datetime(
+        2026, 6, 12, 10, 2, 0, tzinfo=timezone.utc
+    )
     return state
 
 
@@ -152,22 +156,45 @@ class TestToolSequenceAssertion:
         state = _make_run_state(run_id, completed_tasks={"t1", "t2", "t3"})
         events = [
             _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {}),
-            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
-            _make_event(run_id, 3, SubstrateEventType.TOOL_CALL, {"tool_name": "extract_content"}),
-            _make_event(run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
+            _make_event(
+                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
+            _make_event(
+                run_id,
+                3,
+                SubstrateEventType.TOOL_CALL,
+                {"tool_name": "extract_content"},
+            ),
+            _make_event(
+                run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}
+            ),
             _make_event(run_id, 5, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {
-                "type": "tool_sequence",
-                "expected_tools": ["search_docs", "extract_content", "summarize"],
-                "order": "subset",
-                "max_calls_per_tool": {"search_docs": 3, "extract_content": 2, "summarize": 2},
-            }
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "tool_sequence",
+                        "expected_tools": [
+                            "search_docs",
+                            "extract_content",
+                            "summarize",
+                        ],
+                        "order": "subset",
+                        "max_calls_per_tool": {
+                            "search_docs": 3,
+                            "extract_content": 2,
+                            "summarize": 2,
+                        },
+                    }
+                ],
+            )
+        )
 
         assert len(results) == 1
         assert results[0].passed is True
@@ -179,19 +206,33 @@ class TestToolSequenceAssertion:
         run_id = str(uuid4())
         state = _make_run_state(run_id)
         events = [
-            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
-            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
+            _make_event(
+                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
+            _make_event(
+                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}
+            ),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {
-                "type": "tool_sequence",
-                "expected_tools": ["search_docs", "extract_content", "summarize"],
-                "order": "subset",
-            }
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "tool_sequence",
+                        "expected_tools": [
+                            "search_docs",
+                            "extract_content",
+                            "summarize",
+                        ],
+                        "order": "subset",
+                    }
+                ],
+            )
+        )
 
         assert results[0].passed is False
         assert results[0].severity == Severity.FAILURE
@@ -202,22 +243,36 @@ class TestToolSequenceAssertion:
         run_id = str(uuid4())
         state = _make_run_state(run_id)
         events = [
-            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
-            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
-            _make_event(run_id, 3, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
-            _make_event(run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
+            _make_event(
+                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
+            _make_event(
+                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
+            _make_event(
+                run_id, 3, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
+            _make_event(
+                run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {
-                "type": "tool_sequence",
-                "expected_tools": ["search_docs"],
-                "order": "any",
-                "max_calls_per_tool": {"search_docs": 3},
-            }
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "tool_sequence",
+                        "expected_tools": ["search_docs"],
+                        "order": "any",
+                        "max_calls_per_tool": {"search_docs": 3},
+                    }
+                ],
+            )
+        )
 
         assert results[0].passed is False
         assert results[0].assertion_type == "tool_sequence"
@@ -227,19 +282,29 @@ class TestToolSequenceAssertion:
         run_id = str(uuid4())
         state = _make_run_state(run_id)
         events = [
-            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
-            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
+            _make_event(
+                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}
+            ),
+            _make_event(
+                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
+            ),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {
-                "type": "tool_sequence",
-                "expected_tools": ["search_docs", "summarize"],
-                "order": "exact",
-            }
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "tool_sequence",
+                        "expected_tools": ["search_docs", "summarize"],
+                        "order": "exact",
+                    }
+                ],
+            )
+        )
 
         assert results[0].passed is False
         assert "order" in results[0].message.lower()
@@ -259,9 +324,13 @@ class TestCostCeilingAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "cost_ceiling", "max_cost_usd": 0.50, "warn_at_pct": 80}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [{"type": "cost_ceiling", "max_cost_usd": 0.50, "warn_at_pct": 80}],
+            )
+        )
 
         assert results[0].passed is True
         assert results[0].severity == Severity.INFO
@@ -274,9 +343,13 @@ class TestCostCeilingAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "cost_ceiling", "max_cost_usd": 0.50, "warn_at_pct": 80}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [{"type": "cost_ceiling", "max_cost_usd": 0.50, "warn_at_pct": 80}],
+            )
+        )
 
         assert results[0].passed is False
         assert results[0].severity == Severity.FAILURE
@@ -288,9 +361,13 @@ class TestCostCeilingAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "cost_ceiling", "max_cost_usd": 0.50, "warn_at_pct": 80}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [{"type": "cost_ceiling", "max_cost_usd": 0.50, "warn_at_pct": 80}],
+            )
+        )
 
         assert results[0].passed is True
         assert results[0].severity == Severity.WARNING
@@ -314,9 +391,13 @@ class TestLatencyAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "latency", "max_duration_seconds": 120, "warn_at_pct": 80}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [{"type": "latency", "max_duration_seconds": 120, "warn_at_pct": 80}],
+            )
+        )
 
         assert results[0].passed is True
         assert results[0].actual["duration_seconds"] == 90.0
@@ -332,9 +413,13 @@ class TestLatencyAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "latency", "max_duration_seconds": 120, "warn_at_pct": 80}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [{"type": "latency", "max_duration_seconds": 120, "warn_at_pct": 80}],
+            )
+        )
 
         assert results[0].passed is False
         assert results[0].severity == Severity.FAILURE
@@ -350,13 +435,25 @@ class TestTaskCompletionAssertion:
     def test_passes_when_enough_tasks_completed(self):
         """Task completion assertion passes when minimum tasks completed."""
         run_id = str(uuid4())
-        state = _make_run_state(run_id, completed_tasks={"t1", "t2", "t3"}, failed_tasks=set())
+        state = _make_run_state(
+            run_id, completed_tasks={"t1", "t2", "t3"}, failed_tasks=set()
+        )
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "task_completion", "min_tasks_completed": 3, "max_tasks_failed": 0}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "task_completion",
+                        "min_tasks_completed": 3,
+                        "max_tasks_failed": 0,
+                    }
+                ],
+            )
+        )
 
         assert results[0].passed is True
         assert results[0].actual["completed"] == 3
@@ -368,9 +465,19 @@ class TestTaskCompletionAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "task_completion", "min_tasks_completed": 3, "max_tasks_failed": 0}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "task_completion",
+                        "min_tasks_completed": 3,
+                        "max_tasks_failed": 0,
+                    }
+                ],
+            )
+        )
 
         assert results[0].passed is False
 
@@ -381,9 +488,19 @@ class TestTaskCompletionAssertion:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "task_completion", "min_tasks_completed": 1, "max_tasks_failed": 0}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "task_completion",
+                        "min_tasks_completed": 1,
+                        "max_tasks_failed": 0,
+                    }
+                ],
+            )
+        )
 
         assert results[0].passed is False
 
@@ -406,9 +523,13 @@ class TestNoCircuitBreakerAssertion:
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "no_circuit_breaker", "description": "CB should not trip"}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [{"type": "no_circuit_breaker", "description": "CB should not trip"}],
+            )
+        )
 
         assert results[0].passed is True
         assert results[0].actual["circuit_breaker_events"] == 0
@@ -425,9 +546,9 @@ class TestNoCircuitBreakerAssertion:
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "no_circuit_breaker"}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(db, run_id, [{"type": "no_circuit_breaker"}])
+        )
 
         assert results[0].passed is False
         assert results[0].severity == Severity.FAILURE
@@ -457,9 +578,9 @@ class TestAssertionEngineEdgeCases:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "unknown_type", "foo": "bar"}
-        ]))
+        results = asyncio.run(
+            engine.evaluate(db, run_id, [{"type": "unknown_type", "foo": "bar"}])
+        )
 
         assert len(results) == 1
         assert results[0].passed is False
@@ -475,17 +596,29 @@ class TestAssertionEngineEdgeCases:
             total_cost_usd=0.10,
         )
         events = [
-            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search"}),
+            _make_event(
+                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search"}
+            ),
             _make_event(run_id, 2, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(engine.evaluate(db, run_id, [
-            {"type": "cost_ceiling", "max_cost_usd": 0.50},
-            {"type": "task_completion", "min_tasks_completed": 2, "max_tasks_failed": 0},
-            {"type": "no_circuit_breaker"},
-        ]))
+        results = asyncio.run(
+            engine.evaluate(
+                db,
+                run_id,
+                [
+                    {"type": "cost_ceiling", "max_cost_usd": 0.50},
+                    {
+                        "type": "task_completion",
+                        "min_tasks_completed": 2,
+                        "max_tasks_failed": 0,
+                    },
+                    {"type": "no_circuit_breaker"},
+                ],
+            )
+        )
 
         assert len(results) == 3
         assert all(r.passed for r in results)
@@ -510,7 +643,9 @@ class TestInterventionDistance:
         events = [
             _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {}),
             _make_event(run_id, 2, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-            _make_event(run_id, 3, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}),
+            _make_event(
+                run_id, 3, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}
+            ),
             _make_event(run_id, 4, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
 
@@ -529,15 +664,21 @@ class TestInterventionDistance:
             _make_event(run_id, 2, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
             _make_event(run_id, 3, SubstrateEventType.HUMAN_INTERRUPT_RAISED, {}),
             _make_event(run_id, 4, SubstrateEventType.HUMAN_INTERRUPT_RESOLVED, {}),
-            _make_event(run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}),
+            _make_event(
+                run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}
+            ),
             _make_event(run_id, 6, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
 
         result = compute_intervention_distance(events)
 
         assert result["human_interventions"] == 1
-        assert result["total_actions"] == 4  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
-        assert result["intervention_distance"] == pytest.approx(2.0)  # segments [2, 2] → avg 2.0
+        assert (
+            result["total_actions"] == 4
+        )  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
+        assert result["intervention_distance"] == pytest.approx(
+            2.0
+        )  # segments [2, 2] → avg 2.0
 
     def test_with_multiple_interventions(self):
         """Multiple interventions create multiple segments."""
@@ -547,7 +688,9 @@ class TestInterventionDistance:
             _make_event(run_id, 2, SubstrateEventType.HUMAN_INTERRUPT_RAISED, {}),
             _make_event(run_id, 3, SubstrateEventType.HUMAN_INTERRUPT_RESOLVED, {}),
             _make_event(run_id, 4, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-            _make_event(run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}),
+            _make_event(
+                run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}
+            ),
             _make_event(run_id, 6, SubstrateEventType.HUMAN_INTERRUPT_RAISED, {}),
             _make_event(run_id, 7, SubstrateEventType.HUMAN_INTERRUPT_RESOLVED, {}),
             _make_event(run_id, 8, SubstrateEventType.MISSION_COMPLETED, {}),
@@ -556,7 +699,9 @@ class TestInterventionDistance:
         result = compute_intervention_distance(events)
 
         assert result["human_interventions"] == 2
-        assert result["total_actions"] == 4  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
+        assert (
+            result["total_actions"] == 4
+        )  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
         # Segments: [1] (before HITL1), [2] (between HITLs), [1] (after HITL2)
         # avg = (1 + 2 + 1) / 3 ≈ 1.33 → rounded to 1.3
         assert result["intervention_distance"] == pytest.approx(1.3)

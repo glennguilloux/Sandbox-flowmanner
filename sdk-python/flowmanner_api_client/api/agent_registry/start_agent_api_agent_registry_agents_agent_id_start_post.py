@@ -9,41 +9,37 @@ from ...types import Response, UNSET
 from ... import errors
 
 from ...models.http_validation_error import HTTPValidationError
-from ...models.start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0 import StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0
+from ...models.start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0 import (
+    StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0,
+)
 from ...types import UNSET, Unset
 from typing import cast
 from uuid import UUID
 
 
-
 def _get_kwargs(
     agent_id: UUID,
     *,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/api/agent-registry/agents/{agent_id}/start".format(agent_id=quote(str(agent_id), safe=""),),
+        "url": "/api/agent-registry/agents/{agent_id}/start".format(
+            agent_id=quote(str(agent_id), safe=""),
+        ),
     }
 
-    
     if isinstance(body, StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0):
         _kwargs["json"] = body.to_dict()
     else:
         _kwargs["json"] = body
-
 
     headers["Content-Type"] = "application/json"
 
@@ -51,16 +47,15 @@ def _get_kwargs(
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = response.json()
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -70,7 +65,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -83,11 +80,12 @@ def sync_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
+    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
-    """ Start Agent
+    """Start Agent
 
      Start an agent — marks it active and returns configuration for the frontend to initialize a chat.
 
@@ -102,14 +100,12 @@ def sync_detailed(
 
     Returns:
         Response[Any | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         agent_id=agent_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -118,15 +114,17 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
+    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
-    """ Start Agent
+    """Start Agent
 
      Start an agent — marks it active and returns configuration for the frontend to initialize a chat.
 
@@ -141,26 +139,26 @@ def sync(
 
     Returns:
         Any | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         agent_id=agent_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
+        client=client,
+        body=body,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
+    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
-    """ Start Agent
+    """Start Agent
 
      Start an agent — marks it active and returns configuration for the frontend to initialize a chat.
 
@@ -175,31 +173,29 @@ async def asyncio_detailed(
 
     Returns:
         Response[Any | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         agent_id=agent_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    body: (
+        None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset
+    ) = UNSET,
+    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
-    """ Start Agent
+    """Start Agent
 
      Start an agent — marks it active and returns configuration for the frontend to initialize a chat.
 
@@ -214,13 +210,13 @@ async def asyncio(
 
     Returns:
         Any | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        agent_id=agent_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            agent_id=agent_id,
+            client=client,
+            body=body,
+            accept_version=accept_version,
+        )
+    ).parsed

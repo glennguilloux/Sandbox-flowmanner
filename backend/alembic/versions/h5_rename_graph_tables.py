@@ -16,6 +16,7 @@ DEPLOYMENT ORDER:
   1. Run this migration FIRST (alembic upgrade head)
   2. THEN deploy code that uses the new __tablename__ values
 """
+
 from alembic import op
 
 

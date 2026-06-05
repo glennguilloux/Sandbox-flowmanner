@@ -50,11 +50,14 @@ def _get_redis() -> redis.Redis | None:
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class CrossAgentMemorySharingInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
     key: str = Field(..., description="Memory key/identifier in the shared pool")
-    value: str | None = Field(None, description="Value to store (required for 'share'/'update')")
+    value: str | None = Field(
+        None, description="Value to store (required for 'share'/'update')"
+    )
     action: str = Field(
         "access",
         description="Action: 'share', 'access', 'list', 'update', or 'delete'",
@@ -84,6 +87,7 @@ class CrossAgentMemorySharingInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class CrossAgentMemorySharingTool(BaseTool):
     """Shared memory pool for multi-agent teams.
@@ -225,7 +229,10 @@ class CrossAgentMemorySharingTool(BaseTool):
                 logger.info(
                     "Cross-agent memory shared in PG: id=%s key=%s "
                     "namespace=%s source_agent=%s",
-                    entry_id, key, namespace, agent_id,
+                    entry_id,
+                    key,
+                    namespace,
+                    agent_id,
                 )
         except Exception as e:
             logger.error("Failed to store cross-agent memory in PG: %s", e)
@@ -375,9 +382,11 @@ class CrossAgentMemorySharingTool(BaseTool):
                         "id": r.id,
                         # agent_id is stored as "namespace:key"; extract the key.
                         # Falls back to full string for entries created outside this tool.
-                        "key": r.agent_id.split(":", 1)[1]
-                        if ":" in r.agent_id
-                        else r.agent_id,
+                        "key": (
+                            r.agent_id.split(":", 1)[1]
+                            if ":" in r.agent_id
+                            else r.agent_id
+                        ),
                         "value": r.content,
                         "source_agent": (
                             r.metadata_json.get("source_agent", "unknown")
@@ -462,7 +471,9 @@ class CrossAgentMemorySharingTool(BaseTool):
                 logger.info(
                     "Cross-agent memory updated in PG: key=%s namespace=%s "
                     "source_agent=%s",
-                    key, namespace, agent_id,
+                    key,
+                    namespace,
+                    agent_id,
                 )
         except Exception as e:
             logger.error("PostgreSQL update failed: %s", e)
@@ -523,7 +534,9 @@ class CrossAgentMemorySharingTool(BaseTool):
                     deleted_pg = True
                     logger.info(
                         "Deleted %d cross-agent memory entries: key=%s namespace=%s",
-                        len(rows), key, namespace,
+                        len(rows),
+                        key,
+                        namespace,
                     )
         except Exception as e:
             logger.error("PostgreSQL delete failed: %s", e)

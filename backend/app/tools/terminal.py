@@ -5,8 +5,24 @@ from pydantic import Field
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 ALLOWED_COMMANDS = {
-    "ls", "pwd", "echo", "cat", "head", "tail", "grep", "find",
-    "wc", "date", "whoami", "uname", "df", "du", "ps", "top", "env", "which",
+    "ls",
+    "pwd",
+    "echo",
+    "cat",
+    "head",
+    "tail",
+    "grep",
+    "find",
+    "wc",
+    "date",
+    "whoami",
+    "uname",
+    "df",
+    "du",
+    "ps",
+    "top",
+    "env",
+    "which",
 }
 TIMEOUT_SECONDS = 10
 
@@ -32,7 +48,9 @@ class TerminalTool(BaseTool):
         try:
             validated = TerminalInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         command = validated.command.strip()
         if not command:

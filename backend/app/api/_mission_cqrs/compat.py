@@ -63,7 +63,11 @@ def _blueprint_run_to_mission_response(
         Run.error_message       → error_message
     """
     bp_status = bp.status or "draft"
-    status = _map_run_status(latest_run.status) if latest_run and latest_run.status else _map_bp_status(bp_status)
+    status = (
+        _map_run_status(latest_run.status)
+        if latest_run and latest_run.status
+        else _map_bp_status(bp_status)
+    )
 
     return MissionResponse(
         id=uuid.UUID(str(bp.id)) if bp.id else uuid.uuid4(),
@@ -74,7 +78,9 @@ def _blueprint_run_to_mission_response(
         status=status,
         priority="medium",  # Blueprints don't have priority; safe default
         plan=bp.definition if bp.definition else None,
-        results=latest_run.output_data if latest_run and latest_run.output_data else None,
+        results=(
+            latest_run.output_data if latest_run and latest_run.output_data else None
+        ),
         error_message=latest_run.error_message if latest_run else None,
         tokens_used=latest_run.total_tokens if latest_run else None,
         estimated_cost=None,
@@ -89,6 +95,7 @@ def _blueprint_run_to_mission_response(
 def _map_run_status(run_status: str) -> Any:
     """Map Run.status string → MissionStatus enum-compatible value."""
     from app.models.mission_models import MissionStatus
+
     _MAP = {
         "pending": MissionStatus.PENDING,
         "queued": MissionStatus.QUEUED,
@@ -105,6 +112,7 @@ def _map_run_status(run_status: str) -> Any:
 def _map_bp_status(bp_status: str) -> Any:
     """Map Blueprint.status string → MissionStatus enum-compatible value."""
     from app.models.mission_models import MissionStatus
+
     _MAP = {
         "draft": MissionStatus.PENDING,
         "published": MissionStatus.PLANNED,
@@ -114,6 +122,7 @@ def _map_bp_status(bp_status: str) -> Any:
 
 
 # ── Workspace access check ───────────────────────────────────────────────
+
 
 async def _verify_workspace_access(
     db: AsyncSession,
@@ -145,26 +154,35 @@ async def _verify_workspace_access(
 
 # ── Blueprint lookup helpers ──────────────────────────────────────────────
 
+
 async def _find_blueprint(
     db: AsyncSession,
     mission_id: str,
 ) -> Blueprint | None:
     """Find a Blueprint by direct ID lookup, then by _source_mission_id fallback."""
-    bp = (await db.execute(
-        select(Blueprint).where(
-            Blueprint.id == mission_id,
-            Blueprint.deleted_at.is_(None),
+    bp = (
+        await db.execute(
+            select(Blueprint).where(
+                Blueprint.id == mission_id,
+                Blueprint.deleted_at.is_(None),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if bp is None:
         # Fallback: search by source_mission_id stored during dual-write
-        bp = (await db.execute(
-            select(Blueprint).where(
-                Blueprint.definition["_source_mission_id"].astext == mission_id,
-                Blueprint.deleted_at.is_(None),
+        bp = (
+            (
+                await db.execute(
+                    select(Blueprint).where(
+                        Blueprint.definition["_source_mission_id"].astext == mission_id,
+                        Blueprint.deleted_at.is_(None),
+                    )
+                )
             )
-        )).scalars().first()
+            .scalars()
+            .first()
+        )
 
     return bp
 
@@ -174,14 +192,20 @@ async def _get_latest_run(
     blueprint_id: str,
 ) -> Run | None:
     """Fetch the most recent Run for a blueprint."""
-    return (await db.execute(
-        select(Run).where(
-            Run.blueprint_id == blueprint_id,
-        ).order_by(Run.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
+    return (
+        await db.execute(
+            select(Run)
+            .where(
+                Run.blueprint_id == blueprint_id,
+            )
+            .order_by(Run.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 # ── Query functions ──────────────────────────────────────────────────────
+
 
 async def list_missions_from_blueprints(
     db: AsyncSession,
@@ -213,6 +237,7 @@ async def list_missions_from_blueprints(
 
     # ── Fetch with DISTINCT ON (PostgreSQL-specific, but this is a PG project) ──
     from sqlalchemy.orm import aliased
+
     lr = aliased(Run)
 
     # Subquery: pick the latest run ID per blueprint via DISTINCT ON
@@ -263,6 +288,7 @@ async def get_mission_from_blueprint(
 
     if bp is None:
         from app.services.mission_errors import MissionNotFoundError
+
         raise MissionNotFoundError(f"Mission {mission_id} not found")
 
     # Verify workspace access (mirrors require_mission_access logic)
@@ -273,6 +299,7 @@ async def get_mission_from_blueprint(
 
 
 # ── Active-mission helpers ────────────────────────────────────────────────────
+
 
 async def list_active_from_blueprints(
     db: AsyncSession,
@@ -372,26 +399,36 @@ async def active_missions_from_blueprints(
         completed = stats["completed"]
         progress = int((completed / total) * 100) if total > 0 else 0
         eta = None
-        if mr.status == MissionStatus.RUNNING and mr.started_at and total > 0 and completed > 0:
+        if (
+            mr.status == MissionStatus.RUNNING
+            and mr.started_at
+            and total > 0
+            and completed > 0
+        ):
             elapsed = (datetime.now(UTC) - mr.started_at).total_seconds()
             avg = elapsed / completed
             remaining = total - completed
-            eta = (
-                datetime.now(UTC).replace(microsecond=0)
-                + timedelta(seconds=int(avg * remaining))
+            eta = datetime.now(UTC).replace(microsecond=0) + timedelta(
+                seconds=int(avg * remaining)
             )
 
-        response.append(MissionResponse(
-            **{k: v for k, v in mr.model_dump().items()
-               if k not in ("progress", "eta")},
-            progress=progress,
-            eta=eta,
-        ))
+        response.append(
+            MissionResponse(
+                **{
+                    k: v
+                    for k, v in mr.model_dump().items()
+                    if k not in ("progress", "eta")
+                },
+                progress=progress,
+                eta=eta,
+            )
+        )
 
     return response, len(response)
 
 
 # ── Dual-write helpers (fire-and-forget, own sessions) ──────────────────────
+
 
 def _mission_status_to_run_status(mission_status: str) -> str:
     """Map MissionStatus value → RunStatus value.
@@ -423,6 +460,7 @@ async def dual_write_sync_run_status(
     Accepts MissionStatus values and maps them to RunStatus internally.
     """
     from app.database import AsyncSessionLocal
+
     try:
         async with AsyncSessionLocal() as db:
             bp = await _find_blueprint(db, mission_id)
@@ -438,7 +476,9 @@ async def dual_write_sync_run_status(
                 run.completed_at = completed_at
             await db.commit()
     except Exception:
-        logger.debug("dual_write_sync_run_status_failed", mission_id=mission_id, exc_info=True)
+        logger.debug(
+            "dual_write_sync_run_status_failed", mission_id=mission_id, exc_info=True
+        )
 
 
 async def dual_write_sync_blueprint(
@@ -451,6 +491,7 @@ async def dual_write_sync_blueprint(
     Called as fire-and-forget after mission update mutations.
     """
     from app.database import AsyncSessionLocal
+
     try:
         async with AsyncSessionLocal() as db:
             bp = await _find_blueprint(db, mission_id)
@@ -462,7 +503,9 @@ async def dual_write_sync_blueprint(
             bp.updated_at = datetime.now(UTC)
             await db.commit()
     except Exception:
-        logger.debug("dual_write_sync_blueprint_failed", mission_id=mission_id, exc_info=True)
+        logger.debug(
+            "dual_write_sync_blueprint_failed", mission_id=mission_id, exc_info=True
+        )
 
 
 async def dual_write_soft_delete_blueprint(
@@ -474,6 +517,7 @@ async def dual_write_soft_delete_blueprint(
     Called as fire-and-forget after mission deletion.
     """
     from app.database import AsyncSessionLocal
+
     try:
         async with AsyncSessionLocal() as db:
             bp = await _find_blueprint(db, mission_id)
@@ -483,10 +527,13 @@ async def dual_write_soft_delete_blueprint(
             bp.deleted_by = user_id
             await db.commit()
     except Exception:
-        logger.debug("dual_write_soft_delete_failed", mission_id=mission_id, exc_info=True)
+        logger.debug(
+            "dual_write_soft_delete_failed", mission_id=mission_id, exc_info=True
+        )
 
 
 # ── MissionShim: Mission-compatible object for ORM callers ───────────────
+
 
 @dataclass
 class MissionShim:
@@ -500,6 +547,7 @@ class MissionShim:
 
     Only the attributes actually accessed by downstream callers are populated.
     """
+
     id: str
     user_id: int
     title: str
@@ -534,7 +582,11 @@ class MissionShim:
     def from_blueprint_run(cls, bp: Blueprint, run: Run | None = None) -> MissionShim:
         """Build a MissionShim from a Blueprint ORM object and optional Run."""
         bp_status = bp.status or "draft"
-        status = _map_run_status(run.status) if run and run.status else _map_bp_status(bp_status)
+        status = (
+            _map_run_status(run.status)
+            if run and run.status
+            else _map_bp_status(bp_status)
+        )
 
         return cls(
             id=str(bp.id),
@@ -556,7 +608,7 @@ class MissionShim:
             updated_at=bp.updated_at,
             workspace_id=bp.workspace_id,
             deleted_at=bp.deleted_at,
-            version=bp.version if hasattr(bp, 'version') else 1,
+            version=bp.version if hasattr(bp, "version") else 1,
         )
 
 
@@ -576,6 +628,7 @@ async def get_mission_as_shim(
 
     if bp is None:
         from app.services.mission_errors import MissionNotFoundError
+
         raise MissionNotFoundError(f"Mission {mission_id} not found")
 
     await _verify_workspace_access(db, bp.workspace_id, user_id)

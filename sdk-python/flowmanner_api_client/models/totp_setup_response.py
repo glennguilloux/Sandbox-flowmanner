@@ -1,41 +1,28 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="TOTPSetupResponse")
-
 
 
 @_attrs_define
 class TOTPSetupResponse:
-    """ Response for 2FA setup initiation.
+    """Response for 2FA setup initiation.
 
-        Attributes:
-            secret (str):
-            provisioning_uri (str):
-            qr_code_base64 (str):
-     """
+    Attributes:
+        secret (str):
+        provisioning_uri (str):
+        qr_code_base64 (str):
+    """
 
     secret: str
     provisioning_uri: str
     qr_code_base64: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         secret = self.secret
@@ -44,18 +31,17 @@ class TOTPSetupResponse:
 
         qr_code_base64 = self.qr_code_base64
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "secret": secret,
-            "provisioning_uri": provisioning_uri,
-            "qr_code_base64": qr_code_base64,
-        })
+        field_dict.update(
+            {
+                "secret": secret,
+                "provisioning_uri": provisioning_uri,
+                "qr_code_base64": qr_code_base64,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -71,7 +57,6 @@ class TOTPSetupResponse:
             provisioning_uri=provisioning_uri,
             qr_code_base64=qr_code_base64,
         )
-
 
         totp_setup_response.additional_properties = d
         return totp_setup_response

@@ -42,7 +42,9 @@ async def create_mission(
     return mission
 
 
-async def get_mission(db: AsyncSession, mission_id, *, include_deleted: bool = False) -> Mission | None:
+async def get_mission(
+    db: AsyncSession, mission_id, *, include_deleted: bool = False
+) -> Mission | None:
     stmt = select(Mission).where(Mission.id == str(mission_id))
     if not include_deleted:
         stmt = stmt.where(Mission.deleted_at.is_(None))
@@ -71,6 +73,7 @@ async def require_mission_access(
 
     if mission.workspace_id:
         from app.models.workspace_models import WorkspaceMember
+
         result = await db.execute(
             select(WorkspaceMember).where(
                 WorkspaceMember.workspace_id == mission.workspace_id,
@@ -80,7 +83,11 @@ async def require_mission_access(
         )
         if result.scalar_one_or_none() is None:
             # Check cross-workspace grants across all user's workspaces
-            from app.services.cross_workspace_service import check_entity_access, find_user_workspaces
+            from app.services.cross_workspace_service import (
+                check_entity_access,
+                find_user_workspaces,
+            )
+
             user_workspaces = await find_user_workspaces(db, user_id)
             has_cross_access = False
             for ws_id in user_workspaces:
@@ -102,22 +109,27 @@ async def require_mission_access(
                     "entity_access_denied"
                     " user_id=%s entity_type=mission entity_id=%s"
                     " workspace_id=%s reason=no_membership",
-                    user_id, mission_id, mission.workspace_id,
+                    user_id,
+                    mission_id,
+                    mission.workspace_id,
                 )
                 try:
                     import asyncio
 
                     from app.api.middleware.audit import log_event
-                    asyncio.create_task(log_event(
-                        user_id=user_id,
-                        action="entity.access_denied",
-                        details={
-                            "entity_type": "mission",
-                            "entity_id": str(mission_id),
-                            "workspace_id": str(mission.workspace_id),
-                            "reason": "no_membership",
-                        },
-                    ))
+
+                    asyncio.create_task(
+                        log_event(
+                            user_id=user_id,
+                            action="entity.access_denied",
+                            details={
+                                "entity_type": "mission",
+                                "entity_id": str(mission_id),
+                                "workspace_id": str(mission.workspace_id),
+                                "reason": "no_membership",
+                            },
+                        )
+                    )
                 except Exception:
                     pass
                 raise MissionNotFoundError("Mission not found")
@@ -127,21 +139,26 @@ async def require_mission_access(
                 "entity_access_denied"
                 " user_id=%s entity_type=mission entity_id=%s"
                 " owner_user_id=%s reason=owner_mismatch",
-                user_id, mission_id, mission.user_id,
+                user_id,
+                mission_id,
+                mission.user_id,
             )
             try:
                 import asyncio
 
                 from app.api.middleware.audit import log_event
-                asyncio.create_task(log_event(
-                    user_id=user_id,
-                    action="entity.access_denied",
-                    details={
-                        "entity_type": "mission",
-                        "entity_id": str(mission_id),
-                        "reason": "owner_mismatch",
-                    },
-                ))
+
+                asyncio.create_task(
+                    log_event(
+                        user_id=user_id,
+                        action="entity.access_denied",
+                        details={
+                            "entity_type": "mission",
+                            "entity_id": str(mission_id),
+                            "reason": "owner_mismatch",
+                        },
+                    )
+                )
             except Exception:
                 pass
             raise MissionNotFoundError("Mission not found")
@@ -225,7 +242,9 @@ async def update_mission(
     return mission
 
 
-async def delete_mission(db: AsyncSession, mission_id, deleted_by: int | None = None) -> bool:
+async def delete_mission(
+    db: AsyncSession, mission_id, deleted_by: int | None = None
+) -> bool:
     """Soft-delete a mission — sets deleted_at, preserves referential integrity for tasks/logs."""
     from datetime import datetime
 
@@ -346,7 +365,9 @@ async def create_mission_log(
     return log
 
 
-async def get_mission_logs(db: AsyncSession, mission_id, limit: int = 100) -> list[MissionLog]:
+async def get_mission_logs(
+    db: AsyncSession, mission_id, limit: int = 100
+) -> list[MissionLog]:
     result = await db.execute(
         select(MissionLog)
         .where(MissionLog.mission_id == str(mission_id))

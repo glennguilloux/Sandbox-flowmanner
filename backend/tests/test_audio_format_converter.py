@@ -21,6 +21,7 @@ import pytest
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def generate_tiny_wav_bytes(duration_ms=1000, freq=440, sample_rate=16000):
     """Generate raw WAV bytes for testing."""
     num_samples = int(sample_rate * duration_ms / 1000)
@@ -28,8 +29,7 @@ def generate_tiny_wav_bytes(duration_ms=1000, freq=440, sample_rate=16000):
     buf.write(b"RIFF")
     buf.write(struct.pack("<I", 36 + num_samples * 2))
     buf.write(b"WAVEfmt ")
-    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate,
-                          sample_rate * 2, 2, 16))
+    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16))
     buf.write(b"data")
     buf.write(struct.pack("<I", num_samples * 2))
     for i in range(num_samples):
@@ -50,10 +50,12 @@ def wav_b64():
 @pytest.fixture
 def converter():
     from app.tools.audio_format_converter import AudioFormatConverterTool
+
     return AudioFormatConverterTool()
 
 
 # ── Input Validation ─────────────────────────────────────────────────
+
 
 class TestInputValidation:
     """Test input parsing and validation."""
@@ -66,10 +68,12 @@ class TestInputValidation:
 
     @pytest.mark.asyncio
     async def test_invalid_target_format(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "xyz_invalid",
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "xyz_invalid",
+            }
+        )
         assert not r.success
         assert "Unsupported" in r.error
         assert "mp3" in r.error.lower()
@@ -88,60 +92,71 @@ class TestInputValidation:
             mock_from_file.return_value = mock_audio
 
             with patch("pydub.utils.mediainfo", return_value={}):
-                r = await converter.execute({
-                    "data": wav_b64,
-                    "target_format": "MP3",
-                })
+                r = await converter.execute(
+                    {
+                        "data": wav_b64,
+                        "target_format": "MP3",
+                    }
+                )
         assert r.success
         assert r.result["output_format"] == "mp3"
 
     @pytest.mark.asyncio
     async def test_bitrate_accepted(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
-        inp = AudioFormatConverterInput(data="Zm9v", target_format="mp3",
-                                         bitrate="320k")
+
+        inp = AudioFormatConverterInput(
+            data="Zm9v", target_format="mp3", bitrate="320k"
+        )
         assert inp.bitrate == "320k"
 
     @pytest.mark.asyncio
     async def test_sample_rate_accepted(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
-        inp = AudioFormatConverterInput(data="Zm9v", target_format="wav",
-                                         sample_rate=22050)
+
+        inp = AudioFormatConverterInput(
+            data="Zm9v", target_format="wav", sample_rate=22050
+        )
         assert inp.sample_rate == 22050
 
     @pytest.mark.asyncio
     async def test_sample_rate_below_min_rejected(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
+
         with pytest.raises(Exception):
-            AudioFormatConverterInput(data="Zm9v", target_format="wav",
-                                       sample_rate=1000)
+            AudioFormatConverterInput(
+                data="Zm9v", target_format="wav", sample_rate=1000
+            )
 
     @pytest.mark.asyncio
     async def test_channels_accepted(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
-        inp = AudioFormatConverterInput(data="Zm9v", target_format="wav",
-                                         channels=1)
+
+        inp = AudioFormatConverterInput(data="Zm9v", target_format="wav", channels=1)
         assert inp.channels == 1
 
     @pytest.mark.asyncio
     async def test_channels_out_of_range_rejected(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
+
         with pytest.raises(Exception):
-            AudioFormatConverterInput(data="Zm9v", target_format="wav",
-                                       channels=3)
+            AudioFormatConverterInput(data="Zm9v", target_format="wav", channels=3)
 
 
 # ── Format Conversion ────────────────────────────────────────────────
+
 
 class TestFormatConversion:
     """Test actual format conversions using pydub/ffmpeg."""
 
     @pytest.mark.asyncio
     async def test_wav_to_mp3(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "mp3",
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "mp3",
+            }
+        )
         assert r.success
         assert r.result["output_format"] == "mp3"
         assert r.result["converted_size_bytes"] > 0
@@ -150,59 +165,71 @@ class TestFormatConversion:
 
     @pytest.mark.asyncio
     async def test_wav_to_flac(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "flac",
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "flac",
+            }
+        )
         assert r.success
         assert r.result["output_format"] == "flac"
         assert r.result["converted_size_bytes"] > 0
 
     @pytest.mark.asyncio
     async def test_wav_to_wav_passthrough(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "wav",
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "wav",
+            }
+        )
         assert r.success
         assert r.result["output_format"] == "wav"
 
     @pytest.mark.asyncio
     async def test_custom_bitrate(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "mp3",
-            "bitrate": "128k",
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "mp3",
+                "bitrate": "128k",
+            }
+        )
         assert r.success
         assert r.result["output_bitrate"] == "128k"
 
     @pytest.mark.asyncio
     async def test_channel_conversion_stereo_to_mono(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "mp3",
-            "channels": 1,
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "mp3",
+                "channels": 1,
+            }
+        )
         assert r.success
         assert r.result["output_channels"] == 1
 
     @pytest.mark.asyncio
     async def test_sample_rate_conversion(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "wav",
-            "sample_rate": 22050,
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "wav",
+                "sample_rate": 22050,
+            }
+        )
         assert r.success
         assert r.result["output_sample_rate"] == 22050
 
     @pytest.mark.asyncio
     async def test_converted_data_is_valid_base64(self, converter, wav_b64):
-        r = await converter.execute({
-            "data": wav_b64,
-            "target_format": "mp3",
-        })
+        r = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "mp3",
+            }
+        )
         assert r.success
         converted = r.result["converted_data"]
         # Should be valid base64
@@ -214,18 +241,22 @@ class TestFormatConversion:
     async def test_roundtrip_wav_mp3_wav(self, converter, wav_b64):
         """WAV → MP3 → WAV roundtrip should succeed."""
         # Step 1: WAV → MP3
-        r1 = await converter.execute({
-            "data": wav_b64,
-            "target_format": "mp3",
-        })
+        r1 = await converter.execute(
+            {
+                "data": wav_b64,
+                "target_format": "mp3",
+            }
+        )
         assert r1.success
         mp3_data = r1.result["converted_data"]
 
         # Step 2: MP3 → WAV
-        r2 = await converter.execute({
-            "data": mp3_data,
-            "target_format": "wav",
-        })
+        r2 = await converter.execute(
+            {
+                "data": mp3_data,
+                "target_format": "wav",
+            }
+        )
         assert r2.success
         assert r2.result["output_format"] == "wav"
         assert r2.result["converted_size_bytes"] > 0
@@ -234,20 +265,27 @@ class TestFormatConversion:
     async def test_all_supported_formats(self, converter, wav_b64):
         """Every format in _SUPPORTED_FORMATS should work (skip missing codecs)."""
         from app.tools.audio_format_converter import _SUPPORTED_FORMATS
+
         for fmt in _SUPPORTED_FORMATS:
-            r = await converter.execute({
-                "data": wav_b64,
-                "target_format": fmt,
-            })
+            r = await converter.execute(
+                {
+                    "data": wav_b64,
+                    "target_format": fmt,
+                }
+            )
             if not r.success:
                 # Skip formats needing encoders not installed (ffmpeg error 234)
-                if "error code: 234" in str(r.error) or "encoder" in str(r.error).lower():
+                if (
+                    "error code: 234" in str(r.error)
+                    or "encoder" in str(r.error).lower()
+                ):
                     continue
             assert r.success, f"Format {fmt} failed: {r.error}"
             assert r.result["output_format"] == fmt
 
 
 # ── Tool Metadata ────────────────────────────────────────────────────
+
 
 class TestToolMetadata:
     """Test tool metadata and registration."""
@@ -268,12 +306,14 @@ class TestToolMetadata:
 
     def test_tool_registered(self, converter):
         from app.tools.base import get_tool_registry
+
         registry = get_tool_registry()
         tool = registry.get("audio_format_converter")
         assert tool is not None
 
     def test_supported_formats_table(self, converter):
         from app.tools.audio_format_converter import _SUPPORTED_FORMATS
+
         assert "mp3" in _SUPPORTED_FORMATS
         assert "wav" in _SUPPORTED_FORMATS
         assert "flac" in _SUPPORTED_FORMATS
@@ -284,29 +324,35 @@ class TestToolMetadata:
 
 # ── Edge Cases ────────────────────────────────────────────────────────
 
+
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
     @pytest.mark.asyncio
     async def test_invalid_base64(self, converter):
-        r = await converter.execute({
-            "data": "!!!bad***base64!!!",
-            "target_format": "mp3",
-        })
+        r = await converter.execute(
+            {
+                "data": "!!!bad***base64!!!",
+                "target_format": "mp3",
+            }
+        )
         assert not r.success
 
     @pytest.mark.asyncio
     async def test_empty_base64(self, converter):
-        r = await converter.execute({
-            "data": "",
-            "target_format": "mp3",
-        })
+        r = await converter.execute(
+            {
+                "data": "",
+                "target_format": "mp3",
+            }
+        )
         assert not r.success
 
     @pytest.mark.asyncio
     async def test_missing_target_format(self, converter):
         with pytest.raises(Exception):
             from app.tools.audio_format_converter import AudioFormatConverterInput
+
             AudioFormatConverterInput(data="Zm9v")
 
     @pytest.mark.asyncio
@@ -314,10 +360,12 @@ class TestEdgeCases:
         """Mock a large file to test size check."""
         with patch("app.tools.audio_format_converter.MAX_FILE_SIZE_MB", 0):
             # 0 MB max — any file should be rejected
-            r = await converter.execute({
-                "data": b64(generate_tiny_wav_bytes()),
-                "target_format": "mp3",
-            })
+            r = await converter.execute(
+                {
+                    "data": b64(generate_tiny_wav_bytes()),
+                    "target_format": "mp3",
+                }
+            )
         # Tool returns success_result with error in result dict (codebase pattern)
         assert r.success
         assert r.result is not None

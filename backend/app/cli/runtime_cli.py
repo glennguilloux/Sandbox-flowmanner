@@ -10,7 +10,8 @@ import json
 import sys
 
 # Add parent to path for imports
-sys.path.insert(0, str(__file__).rsplit('/cli', 1)[0])
+sys.path.insert(0, str(__file__).rsplit("/cli", 1)[0])
+
 
 class RuntimeCLI:
     """CLI for runtime management"""
@@ -21,6 +22,7 @@ class RuntimeCLI:
     async def _request(self, method: str, endpoint: str, **kwargs):
         """Make HTTP request"""
         import httpx
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30.0) as client:
             response = await client.request(method, endpoint, **kwargs)
             if response.status_code >= 400:
@@ -71,12 +73,16 @@ class RuntimeCLI:
 
     async def scale_up(self, count: int = 1):
         """Scale up workers"""
-        data = await self._request("POST", "/api/runtime/scaling/scale-up", json={"count": count})
+        data = await self._request(
+            "POST", "/api/runtime/scaling/scale-up", json={"count": count}
+        )
         print(json.dumps(data, indent=2))
 
     async def scale_down(self, count: int = 1):
         """Scale down workers"""
-        data = await self._request("POST", "/api/runtime/scaling/scale-down", json={"count": count})
+        data = await self._request(
+            "POST", "/api/runtime/scaling/scale-down", json={"count": count}
+        )
         print(json.dumps(data, indent=2))
 
     # Prediction commands
@@ -87,7 +93,9 @@ class RuntimeCLI:
 
     async def anomalies(self, hours: int = 24):
         """Get detected anomalies"""
-        data = await self._request("GET", "/api/runtime/anomalies", params={"hours": hours})
+        data = await self._request(
+            "GET", "/api/runtime/anomalies", params={"hours": hours}
+        )
         print(json.dumps(data, indent=2))
 
     async def recommendations(self):
@@ -103,7 +111,9 @@ class RuntimeCLI:
 
     async def recovery_history(self, hours: int = 24):
         """Get recovery history"""
-        data = await self._request("GET", "/api/runtime/recovery/history", params={"hours": hours})
+        data = await self._request(
+            "GET", "/api/runtime/recovery/history", params={"hours": hours}
+        )
         print(json.dumps(data, indent=2))
 
     async def recovery_strategies(self):
@@ -134,10 +144,12 @@ Examples:
   runtime-cli scale up 2                # Scale up by 2 workers
   runtime-cli predictions               # Get resource predictions
   runtime-cli anomalies --hours 48      # Get anomalies from last 48 hours
-        """
+        """,
     )
 
-    parser.add_argument("--url", default="http://localhost:8000", help="Runtime API URL")
+    parser.add_argument(
+        "--url", default="http://localhost:8000", help="Runtime API URL"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -159,14 +171,20 @@ Examples:
     scale_subparsers = scale_parser.add_subparsers(dest="scale_command")
     scale_subparsers.add_parser("status", help="Get scaling status")
     up_parser = scale_subparsers.add_parser("up", help="Scale up workers")
-    up_parser.add_argument("count", type=int, nargs="?", default=1, help="Number of workers to add")
+    up_parser.add_argument(
+        "count", type=int, nargs="?", default=1, help="Number of workers to add"
+    )
     down_parser = scale_subparsers.add_parser("down", help="Scale down workers")
-    down_parser.add_argument("count", type=int, nargs="?", default=1, help="Number of workers to remove")
+    down_parser.add_argument(
+        "count", type=int, nargs="?", default=1, help="Number of workers to remove"
+    )
 
     # Prediction commands
     subparsers.add_parser("predictions", help="Get resource predictions")
     anomalies_parser = subparsers.add_parser("anomalies", help="Get detected anomalies")
-    anomalies_parser.add_argument("--hours", type=int, default=24, help="Hours to look back")
+    anomalies_parser.add_argument(
+        "--hours", type=int, default=24, help="Hours to look back"
+    )
     subparsers.add_parser("recommendations", help="Get scaling recommendations")
 
     # Self-healing commands
@@ -175,7 +193,9 @@ Examples:
     recovery_subparsers = recovery_parser.add_subparsers(dest="recovery_command")
     recovery_subparsers.add_parser("history", help="Get recovery history")
     recovery_subparsers.add_parser("strategies", help="List recovery strategies")
-    recovery_subparsers.add_parser("history").add_argument("--hours", type=int, default=24)
+    recovery_subparsers.add_parser("history").add_argument(
+        "--hours", type=int, default=24
+    )
 
     # Config commands
     config_parser = subparsers.add_parser("config", help="Configuration operations")
@@ -223,7 +243,7 @@ Examples:
             await cli.system_health()
         elif args.command == "recovery":
             if args.recovery_command == "history":
-                hours = getattr(args, 'hours', 24)
+                hours = getattr(args, "hours", 24)
                 await cli.recovery_history(hours)
             elif args.recovery_command == "strategies":
                 await cli.recovery_strategies()

@@ -43,8 +43,10 @@ async def export_user_data(
     # 2. Missions
     try:
         missions = await db.execute(
-            text("SELECT id, title, description, status, created_at, updated_at FROM missions WHERE owner_id = :uid"),
-            {"uid": user.id}
+            text(
+                "SELECT id, title, description, status, created_at, updated_at FROM missions WHERE owner_id = :uid"
+            ),
+            {"uid": user.id},
         )
         export_data["missions"] = [
             {
@@ -65,7 +67,7 @@ async def export_user_data(
     try:
         chats = await db.execute(
             text("SELECT id, title, created_at FROM chat_threads WHERE user_id = :uid"),
-            {"uid": user.id}
+            {"uid": user.id},
         )
         export_data["chat_threads"] = [
             {
@@ -77,14 +79,16 @@ async def export_user_data(
         ]
 
         messages = await db.execute(
-            text("""
+            text(
+                """
                 SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.created_at
                 FROM chat_messages cm
                 JOIN chat_threads ct ON ct.id = cm.thread_id
                 WHERE ct.user_id = :uid
                 ORDER BY cm.created_at
-            """),
-            {"uid": user.id}
+            """
+            ),
+            {"uid": user.id},
         )
         export_data["chat_messages"] = [
             {
@@ -104,8 +108,10 @@ async def export_user_data(
     # 4. Agents created
     try:
         agents = await db.execute(
-            text("SELECT id, name, description, category, created_at FROM agents WHERE created_by = :uid"),
-            {"uid": user.id}
+            text(
+                "SELECT id, name, description, category, created_at FROM agents WHERE created_by = :uid"
+            ),
+            {"uid": user.id},
         )
         export_data["agents"] = [
             {
@@ -124,8 +130,7 @@ async def export_user_data(
     # 5. Settings
     try:
         settings_result = await db.execute(
-            text("SELECT * FROM user_settings WHERE user_id = :uid"),
-            {"uid": user.id}
+            text("SELECT * FROM user_settings WHERE user_id = :uid"), {"uid": user.id}
         )
         settings_row = settings_result.fetchone()
         if settings_row:
@@ -139,8 +144,10 @@ async def export_user_data(
     # 6. API keys (metadata only, not secrets)
     try:
         api_keys = await db.execute(
-            text("SELECT id, name, provider, created_at, last_used_at FROM user_api_keys WHERE user_id = :uid"),
-            {"uid": user.id}
+            text(
+                "SELECT id, name, provider, created_at, last_used_at FROM user_api_keys WHERE user_id = :uid"
+            ),
+            {"uid": user.id},
         )
         export_data["api_keys"] = [
             {
@@ -186,13 +193,25 @@ async def delete_user_data(
 
     # Delete in order (respect foreign keys)
     tables = [
-        ("chat_messages", "thread_id IN (SELECT id FROM chat_threads WHERE user_id = :uid)"),
+        (
+            "chat_messages",
+            "thread_id IN (SELECT id FROM chat_threads WHERE user_id = :uid)",
+        ),
         ("chat_threads", "user_id = :uid"),
         ("chat_files", "user_id = :uid"),
         ("chat_folders", "user_id = :uid"),
-        ("mission_logs", "mission_id IN (SELECT id FROM missions WHERE owner_id = :uid)"),
-        ("mission_runs", "mission_id IN (SELECT id FROM missions WHERE owner_id = :uid)"),
-        ("mission_tasks", "mission_id IN (SELECT id FROM missions WHERE owner_id = :uid)"),
+        (
+            "mission_logs",
+            "mission_id IN (SELECT id FROM missions WHERE owner_id = :uid)",
+        ),
+        (
+            "mission_runs",
+            "mission_id IN (SELECT id FROM missions WHERE owner_id = :uid)",
+        ),
+        (
+            "mission_tasks",
+            "mission_id IN (SELECT id FROM missions WHERE owner_id = :uid)",
+        ),
         ("missions", "owner_id = :uid"),
         ("notifications", "user_id = :uid"),
         ("notification_settings", "user_id = :uid"),
@@ -212,8 +231,7 @@ async def delete_user_data(
     for table, where_clause in tables:
         try:
             result = await db.execute(
-                text(f"DELETE FROM {table} WHERE {where_clause}"),
-                {"uid": user_id}
+                text(f"DELETE FROM {table} WHERE {where_clause}"), {"uid": user_id}
             )
             deleted_counts[table] = result.rowcount
         except Exception as e:
@@ -223,15 +241,17 @@ async def delete_user_data(
     # Anonymize user record (don't delete — may have foreign key references)
     try:
         await db.execute(
-            text("""
+            text(
+                """
                 UPDATE users SET
                     email = :anon_email,
                     hashed_password = 'deleted',
                     name = 'Deleted User',
                     is_active = false
                 WHERE id = :uid
-            """),
-            {"uid": user_id, "anon_email": f"deleted_{user_id}@flowmanner.deleted"}
+            """
+            ),
+            {"uid": user_id, "anon_email": f"deleted_{user_id}@flowmanner.deleted"},
         )
     except Exception as e:
         logger.error(f"Anonymize user failed: {e}")

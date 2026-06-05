@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # pdf_parser
 # ---------------------------------------------------------------------------
 
+
 class PdfParserInput(ToolInput):
     data: str | None = Field(
         None,
@@ -112,14 +113,16 @@ class PdfParserTool(BaseTool):
                         extracted_tables: list[dict[str, Any]] = []
                         for tbl in tables.tables:
                             cells = tbl.extract() if tbl.extract() else []
-                            extracted_tables.append({
-                                "rows": tbl.row_count,
-                                "columns": tbl.col_count,
-                                "cells": [
-                                    [cell.strip() if cell else "" for cell in row]
-                                    for row in cells
-                                ],
-                            })
+                            extracted_tables.append(
+                                {
+                                    "rows": tbl.row_count,
+                                    "columns": tbl.col_count,
+                                    "cells": [
+                                        [cell.strip() if cell else "" for cell in row]
+                                        for row in cells
+                                    ],
+                                }
+                            )
                         page_data["tables"] = extracted_tables
 
                 pages.append(page_data)

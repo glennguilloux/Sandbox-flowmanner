@@ -22,9 +22,21 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("node_type", sa.String(50), nullable=False),
         sa.Column("node_key", sa.String(255), nullable=False),
-        sa.Column("properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
 
     # Compound unique index for node_type + node_key lookups
@@ -53,8 +65,15 @@ def upgrade() -> None:
         ),
         sa.Column("edge_type", sa.String(50), nullable=False),
         sa.Column("weight", sa.Float, nullable=False, server_default="1.0"),
-        sa.Column("properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
 
     # Indexes for edge lookups by source/target

@@ -18,7 +18,9 @@ def upgrade() -> None:
     op.create_index("ix_agents_owner_id", "agents", ["owner_id"])
 
     # Graph executions — queried by workflow and status
-    op.create_index("ix_graph_executions_workflow_id", "graph_executions", ["workflow_id"])
+    op.create_index(
+        "ix_graph_executions_workflow_id", "graph_executions", ["workflow_id"]
+    )
     op.create_index("ix_graph_executions_status", "graph_executions", ["status"])
     op.create_index("ix_graph_executions_user_id", "graph_executions", ["user_id"])
 
@@ -32,7 +34,9 @@ def upgrade() -> None:
     op.create_index("ix_roadmap_items_status", "roadmap_items", ["status"])
 
     # Roadmap comments — queried by item
-    op.create_index("ix_roadmap_comments_roadmap_item_id", "roadmap_comments", ["roadmap_item_id"])
+    op.create_index(
+        "ix_roadmap_comments_roadmap_item_id", "roadmap_comments", ["roadmap_item_id"]
+    )
 
     # Agent reviews — queried by agent
     op.create_index("ix_agent_reviews_agent_id", "agent_reviews", ["agent_id"])

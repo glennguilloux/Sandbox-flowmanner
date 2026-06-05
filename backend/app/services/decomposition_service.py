@@ -119,7 +119,12 @@ async def execute_dag(
     """
     mission = await get_mission(db, mission_id)
     if mission is None:
-        return {"completed": 0, "failed": 0, "skipped": 0, "errors": ["Mission not found"]}
+        return {
+            "completed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "errors": ["Mission not found"],
+        }
 
     tasks = await get_mission_tasks(db, mission_id)
     if not tasks:
@@ -133,6 +138,7 @@ async def execute_dag(
     # Update mission status
     mission.status = "running"
     from datetime import datetime
+
     if mission.started_at is None:
         mission.started_at = datetime.now(UTC)
     await db.flush()
@@ -159,7 +165,9 @@ async def execute_dag(
                 task.status = "skipped"
                 skipped += 1
                 await create_mission_log(
-                    db, mission_id, "info",
+                    db,
+                    mission_id,
+                    "info",
                     f"Skipped task '{task.title}' due to failed dependency",
                     task_id=task_id,
                 )
@@ -178,7 +186,9 @@ async def execute_dag(
                 task.completed_at = datetime.now(UTC)
                 completed += 1
                 await create_mission_log(
-                    db, mission_id, "info",
+                    db,
+                    mission_id,
+                    "info",
                     f"Completed task '{task.title}'",
                     task_id=task_id,
                 )
@@ -189,7 +199,9 @@ async def execute_dag(
                 failed += 1
                 exec_errors.append(f"Task '{task.title}': {e}")
                 await create_mission_log(
-                    db, mission_id, "error",
+                    db,
+                    mission_id,
+                    "error",
                     f"Failed task '{task.title}': {e}",
                     task_id=task_id,
                 )

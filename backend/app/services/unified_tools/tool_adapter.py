@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServiceInfo:
     """Information about a service to be adapted"""
+
     name: str
     module_path: str
     class_name: str | None = None
@@ -28,14 +29,14 @@ class ServiceInfo:
 class ToolAdapter:
     """
     Adapts existing services into standardized tool format.
-    
+
     Auto-wraps services like:
     - rag_pipeline.py -> rag_search, rag_ingest, rag_summarize
     - workflow_executor.py -> workflow_run, workflow_status
     - comfyui_gateway.py -> image_generate, model_3d_generate
     - agent services -> agent_execute, agent_analyze
     """
-    
+
     # Mapping of service methods to tool definitions
     SERVICE_TOOL_MAPPING = {
         "rag_pipeline": {
@@ -48,18 +49,25 @@ class ToolAdapter:
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "description": "Search query"},
-                        "collection": {"type": "string", "description": "Collection to search"},
-                        "top_k": {"type": "integer", "description": "Number of results", "default": 5}
+                        "collection": {
+                            "type": "string",
+                            "description": "Collection to search",
+                        },
+                        "top_k": {
+                            "type": "integer",
+                            "description": "Number of results",
+                            "default": 5,
+                        },
                     },
-                    "required": ["query"]
+                    "required": ["query"],
                 },
                 "output_schema": {
                     "type": "object",
                     "properties": {
                         "results": {"type": "array", "items": {"type": "object"}},
-                        "scores": {"type": "array", "items": {"type": "number"}}
-                    }
-                }
+                        "scores": {"type": "array", "items": {"type": "number"}},
+                    },
+                },
             },
             "ingest": {
                 "tool_id": "rag_ingest",
@@ -70,11 +78,11 @@ class ToolAdapter:
                     "type": "object",
                     "properties": {
                         "documents": {"type": "array", "items": {"type": "object"}},
-                        "collection": {"type": "string"}
+                        "collection": {"type": "string"},
                     },
-                    "required": ["documents", "collection"]
-                }
-            }
+                    "required": ["documents", "collection"],
+                },
+            },
         },
         "workflow_executor": {
             "run": {
@@ -86,10 +94,10 @@ class ToolAdapter:
                     "type": "object",
                     "properties": {
                         "workflow_id": {"type": "string"},
-                        "inputs": {"type": "object"}
+                        "inputs": {"type": "object"},
                     },
-                    "required": ["workflow_id"]
-                }
+                    "required": ["workflow_id"],
+                },
             },
             "status": {
                 "tool_id": "workflow_status",
@@ -98,12 +106,10 @@ class ToolAdapter:
                 "category": "workflow",
                 "input_schema": {
                     "type": "object",
-                    "properties": {
-                        "execution_id": {"type": "string"}
-                    },
-                    "required": ["execution_id"]
-                }
-            }
+                    "properties": {"execution_id": {"type": "string"}},
+                    "required": ["execution_id"],
+                },
+            },
         },
         "comfyui_gateway": {
             "generate": {
@@ -117,10 +123,10 @@ class ToolAdapter:
                         "prompt": {"type": "string"},
                         "negative_prompt": {"type": "string"},
                         "width": {"type": "integer", "default": 512},
-                        "height": {"type": "integer", "default": 512}
+                        "height": {"type": "integer", "default": 512},
                     },
-                    "required": ["prompt"]
-                }
+                    "required": ["prompt"],
+                },
             }
         },
         "agent_service": {
@@ -134,10 +140,10 @@ class ToolAdapter:
                     "properties": {
                         "task": {"type": "string"},
                         "agent_id": {"type": "string"},
-                        "context": {"type": "object"}
+                        "context": {"type": "object"},
                     },
-                    "required": ["task"]
-                }
+                    "required": ["task"],
+                },
             },
             "analyze": {
                 "tool_id": "agent_analyze",
@@ -148,11 +154,11 @@ class ToolAdapter:
                     "type": "object",
                     "properties": {
                         "content": {"type": "string"},
-                        "analysis_type": {"type": "string"}
+                        "analysis_type": {"type": "string"},
                     },
-                    "required": ["content"]
-                }
-            }
+                    "required": ["content"],
+                },
+            },
         },
         "memory_service": {
             "store": {
@@ -165,10 +171,10 @@ class ToolAdapter:
                     "properties": {
                         "content": {"type": "string"},
                         "agent_id": {"type": "string"},
-                        "metadata": {"type": "object"}
+                        "metadata": {"type": "object"},
                     },
-                    "required": ["content"]
-                }
+                    "required": ["content"],
+                },
             },
             "recall": {
                 "tool_id": "memory_recall",
@@ -180,58 +186,55 @@ class ToolAdapter:
                     "properties": {
                         "query": {"type": "string"},
                         "agent_id": {"type": "string"},
-                        "limit": {"type": "integer", "default": 5}
+                        "limit": {"type": "integer", "default": 5},
                     },
-                    "required": ["query"]
-                }
-            }
-        }
+                    "required": ["query"],
+                },
+            },
+        },
     }
-    
+
     def __init__(self, registry=None):
         self.registry = registry or get_tool_registry()
         self._adapted_services: dict[str, list[str]] = {}
-    
+
     def adapt_service(
-        self,
-        service_name: str,
-        service_instance: Any,
-        methods: list[str] | None = None
+        self, service_name: str, service_instance: Any, methods: list[str] | None = None
     ) -> list[Tool]:
         """
         Adapt a service instance into tools.
-        
+
         Args:
             service_name: Name of the service (e.g., "rag_pipeline")
             service_instance: The actual service instance
             methods: Specific methods to adapt (None = all mapped)
-        
+
         Returns:
             List of created Tool objects
         """
         tools = []
-        
+
         # Get tool definitions for this service
         tool_defs = self.SERVICE_TOOL_MAPPING.get(service_name, {})
-        
+
         if not tool_defs:
             logger.warning(f"No tool definitions found for service: {service_name}")
             return tools
-        
+
         # Filter methods if specified
         if methods:
             tool_defs = {k: v for k, v in tool_defs.items() if k in methods}
-        
+
         for method_name, tool_def in tool_defs.items():
             # Get the method from the service
             method = getattr(service_instance, method_name, None)
             if method is None:
                 logger.warning(f"Method {method_name} not found on {service_name}")
                 continue
-            
+
             # Create wrapper handler
             handler = self._create_handler(method, service_name, method_name)
-            
+
             # Create the tool
             tool = Tool(
                 tool_id=tool_def["tool_id"],
@@ -244,28 +247,26 @@ class ToolAdapter:
                 source_service=service_name,
                 requires_auth=tool_def.get("requires_auth", True),
                 cost_estimate=tool_def.get("cost_estimate", {}),
-                tags=tool_def.get("tags", [])
+                tags=tool_def.get("tags", []),
             )
-            
+
             # Register the tool
             self.registry.register(tool)
             tools.append(tool)
-            
+
             # Track adapted services
             if service_name not in self._adapted_services:
                 self._adapted_services[service_name] = []
             self._adapted_services[service_name].append(tool.tool_id)
-        
+
         logger.info(f"Adapted {len(tools)} tools from {service_name}")
         return tools
-    
+
     def _create_handler(
-        self,
-        method: Callable,
-        service_name: str,
-        method_name: str
+        self, method: Callable, service_name: str, method_name: str
     ) -> Callable[[dict[str, Any]], Awaitable[Any]]:
         """Create an async handler wrapper for a service method"""
+
         async def handler(params: dict[str, Any]) -> Any:
             try:
                 # Check if method is async
@@ -277,9 +278,9 @@ class ToolAdapter:
             except Exception as e:
                 logger.error(f"Error in {service_name}.{method_name}: {e}")
                 raise
-        
+
         return handler
-    
+
     def adapt_function(
         self,
         func: Callable,
@@ -289,11 +290,11 @@ class ToolAdapter:
         category: str,
         input_schema: dict[str, Any] | None = None,
         output_schema: dict[str, Any] | None = None,
-        **kwargs
+        **kwargs,
     ) -> Tool:
         """
         Adapt a single function into a tool.
-        
+
         Args:
             func: The function to adapt
             tool_id: Unique tool identifier
@@ -302,17 +303,17 @@ class ToolAdapter:
             category: Tool category
             input_schema: JSON schema for inputs
             output_schema: JSON schema for outputs
-        
+
         Returns:
             The created Tool object
         """
         # Infer schema from function signature if not provided
         if not input_schema:
             input_schema = self._infer_schema_from_function(func)
-        
+
         # Create handler
         handler = self._create_handler(func, "custom", tool_id)
-        
+
         tool = Tool(
             tool_id=tool_id,
             name=name,
@@ -322,24 +323,24 @@ class ToolAdapter:
             output_schema=output_schema or {},
             handler=handler,
             source_service="custom",
-            **kwargs
+            **kwargs,
         )
-        
+
         self.registry.register(tool)
         return tool
-    
+
     def _infer_schema_from_function(self, func: Callable) -> dict[str, Any]:
         """Infer input schema from function signature"""
         sig = inspect.signature(func)
         properties = {}
         required = []
-        
+
         for param_name, param in sig.parameters.items():
-            if param_name in ['self', 'cls']:
+            if param_name in ["self", "cls"]:
                 continue
-            
+
             prop = {"type": "string"}  # Default type
-            
+
             # Try to infer type from annotation
             if param.annotation != inspect.Parameter.empty:
                 type_map = {
@@ -348,30 +349,24 @@ class ToolAdapter:
                     float: "number",
                     bool: "boolean",
                     list: "array",
-                    dict: "object"
+                    dict: "object",
                 }
                 prop["type"] = type_map.get(param.annotation, "string")
-            
+
             properties[param_name] = prop
-            
+
             # Check if required (no default value)
             if param.default == inspect.Parameter.empty:
                 required.append(param_name)
-        
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": required
-        }
-    
+
+        return {"type": "object", "properties": properties, "required": required}
+
     def list_adapted_services(self) -> dict[str, list[str]]:
         """List all adapted services and their tools"""
         return self._adapted_services.copy()
-    
+
     def register_service_mapping(
-        self,
-        service_name: str,
-        method_tools: dict[str, dict[str, Any]]
+        self, service_name: str, method_tools: dict[str, dict[str, Any]]
     ) -> None:
         """Register custom service-to-tool mappings"""
         self.SERVICE_TOOL_MAPPING[service_name] = method_tools

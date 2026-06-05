@@ -12,8 +12,12 @@ from app.models import Base, TimestampMixin
 class MissionTemplate(Base, TimestampMixin):
     __tablename__ = "mission_templates"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -24,22 +28,30 @@ class MissionTemplate(Base, TimestampMixin):
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     default_plan: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
     default_tasks: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
-    default_constraints: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
+    default_constraints: Mapped[dict | list | None] = mapped_column(
+        JSONB, nullable=True
+    )
     tags: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
-    expected_behaviors: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
+    expected_behaviors: Mapped[list | None] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
 
 
 class NodeGroup(Base, TimestampMixin):
     __tablename__ = "node_groups"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     group_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    owner_id: Mapped[int | None] = mapped_column("user_id", Integer, ForeignKey("users.id"), nullable=True)
+    owner_id: Mapped[int | None] = mapped_column(
+        "user_id", Integer, ForeignKey("users.id"), nullable=True
+    )
 
 
 class MissionVersion(Base, TimestampMixin):
@@ -56,8 +68,15 @@ class MissionVersion(Base, TimestampMixin):
 
     __tablename__ = "mission_versions"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
+    )
+    mission_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("missions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

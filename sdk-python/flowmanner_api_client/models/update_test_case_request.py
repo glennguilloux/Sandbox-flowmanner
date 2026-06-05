@@ -1,38 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.update_test_case_request_rubric_type_0 import UpdateTestCaseRequestRubricType0
-
-
-
+    from ..models.update_test_case_request_rubric_type_0 import (
+        UpdateTestCaseRequestRubricType0,
+    )
 
 
 T = TypeVar("T", bound="UpdateTestCaseRequest")
 
 
-
 @_attrs_define
 class UpdateTestCaseRequest:
-    """ 
-        Attributes:
-            input_prompt (None | str | Unset):
-            expected_behavior (None | str | Unset):
-            task_type (None | str | Unset):
-            difficulty (None | str | Unset):
-            tags (list[str] | None | Unset):
-            rubric (None | Unset | UpdateTestCaseRequestRubricType0):
-     """
+    """
+    Attributes:
+        input_prompt (None | str | Unset):
+        expected_behavior (None | str | Unset):
+        task_type (None | str | Unset):
+        difficulty (None | str | Unset):
+        tags (list[str] | None | Unset):
+        rubric (None | Unset | UpdateTestCaseRequestRubricType0):
+    """
 
     input_prompt: None | str | Unset = UNSET
     expected_behavior: None | str | Unset = UNSET
@@ -42,12 +37,11 @@ class UpdateTestCaseRequest:
     rubric: None | Unset | UpdateTestCaseRequestRubricType0 = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.update_test_case_request_rubric_type_0 import UpdateTestCaseRequestRubricType0
+        from ..models.update_test_case_request_rubric_type_0 import (
+            UpdateTestCaseRequestRubricType0,
+        )
+
         input_prompt: None | str | Unset
         if isinstance(self.input_prompt, Unset):
             input_prompt = UNSET
@@ -78,7 +72,6 @@ class UpdateTestCaseRequest:
         elif isinstance(self.tags, list):
             tags = self.tags
 
-
         else:
             tags = self.tags
 
@@ -90,11 +83,9 @@ class UpdateTestCaseRequest:
         else:
             rubric = self.rubric
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if input_prompt is not UNSET:
             field_dict["input_prompt"] = input_prompt
         if expected_behavior is not UNSET:
@@ -110,12 +101,14 @@ class UpdateTestCaseRequest:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.update_test_case_request_rubric_type_0 import UpdateTestCaseRequestRubricType0
+        from ..models.update_test_case_request_rubric_type_0 import (
+            UpdateTestCaseRequestRubricType0,
+        )
+
         d = dict(src_dict)
+
         def _parse_input_prompt(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -124,7 +117,6 @@ class UpdateTestCaseRequest:
             return cast(None | str | Unset, data)
 
         input_prompt = _parse_input_prompt(d.pop("input_prompt", UNSET))
-
 
         def _parse_expected_behavior(data: object) -> None | str | Unset:
             if data is None:
@@ -135,7 +127,6 @@ class UpdateTestCaseRequest:
 
         expected_behavior = _parse_expected_behavior(d.pop("expected_behavior", UNSET))
 
-
         def _parse_task_type(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -145,7 +136,6 @@ class UpdateTestCaseRequest:
 
         task_type = _parse_task_type(d.pop("task_type", UNSET))
 
-
         def _parse_difficulty(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -154,7 +144,6 @@ class UpdateTestCaseRequest:
             return cast(None | str | Unset, data)
 
         difficulty = _parse_difficulty(d.pop("difficulty", UNSET))
-
 
         def _parse_tags(data: object) -> list[str] | None | Unset:
             if data is None:
@@ -173,8 +162,9 @@ class UpdateTestCaseRequest:
 
         tags = _parse_tags(d.pop("tags", UNSET))
 
-
-        def _parse_rubric(data: object) -> None | Unset | UpdateTestCaseRequestRubricType0:
+        def _parse_rubric(
+            data: object,
+        ) -> None | Unset | UpdateTestCaseRequestRubricType0:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -184,15 +174,12 @@ class UpdateTestCaseRequest:
                     raise TypeError()
                 rubric_type_0 = UpdateTestCaseRequestRubricType0.from_dict(data)
 
-
-
                 return rubric_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | Unset | UpdateTestCaseRequestRubricType0, data)
 
         rubric = _parse_rubric(d.pop("rubric", UNSET))
-
 
         update_test_case_request = cls(
             input_prompt=input_prompt,
@@ -202,7 +189,6 @@ class UpdateTestCaseRequest:
             tags=tags,
             rubric=rubric,
         )
-
 
         update_test_case_request.additional_properties = d
         return update_test_case_request

@@ -148,7 +148,12 @@ class LangGraphTraceEmitter:
 
         return span
 
-    def end_span(self, span: Span, output_snapshot: dict[str, Any] | None = None, error: Exception | None = None):
+    def end_span(
+        self,
+        span: Span,
+        output_snapshot: dict[str, Any] | None = None,
+        error: Exception | None = None,
+    ):
         """End a trace span."""
         span.finish()
         span.output_snapshot = output_snapshot
@@ -188,7 +193,10 @@ class LangGraphTraceEmitter:
         self._token_buffer.append(token)
 
         # Emit batch if interval elapsed or buffer is large
-        if current_time - self._last_token_emit > self._token_emit_interval or len(self._token_buffer) >= 10:
+        if (
+            current_time - self._last_token_emit > self._token_emit_interval
+            or len(self._token_buffer) >= 10
+        ):
             event = TraceEvent(
                 event_id=str(uuid.uuid4()),
                 trace_id=self.trace_id,
@@ -197,14 +205,21 @@ class LangGraphTraceEmitter:
                 event_type="tokens",
                 timestamp=datetime.now(UTC).isoformat(),
                 node_name="streaming",
-                data={"tokens": "".join(self._token_buffer), "count": len(self._token_buffer)},
+                data={
+                    "tokens": "".join(self._token_buffer),
+                    "count": len(self._token_buffer),
+                },
             )
             self._emit_event(event)
             self._token_buffer = []
             self._last_token_emit = current_time
 
     def emit_tool_call(
-        self, tool_name: str, tool_input: dict[str, Any], tool_output: Any | None = None, error: str | None = None
+        self,
+        tool_name: str,
+        tool_input: dict[str, Any],
+        tool_output: Any | None = None,
+        error: str | None = None,
     ):
         """Emit a tool call event."""
         event = TraceEvent(
@@ -215,7 +230,12 @@ class LangGraphTraceEmitter:
             event_type="tool_call",
             timestamp=datetime.now(UTC).isoformat(),
             node_name=tool_name,
-            data={"tool_name": tool_name, "tool_input": tool_input, "tool_output": tool_output, "error": error},
+            data={
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+                "tool_output": tool_output,
+                "error": error,
+            },
         )
         self._emit_event(event)
 
@@ -233,11 +253,17 @@ class LangGraphTraceEmitter:
                 span = self.start_span(
                     operation_name=node_name,
                     node_id=node_name,
-                    input_snapshot={"state_keys": list(state.keys()) if isinstance(state, dict) else None},
+                    input_snapshot={
+                        "state_keys": (
+                            list(state.keys()) if isinstance(state, dict) else None
+                        )
+                    },
                 )
                 try:
                     result = await func(state)
-                    self.end_span(span, output_snapshot={"result_type": type(result).__name__})
+                    self.end_span(
+                        span, output_snapshot={"result_type": type(result).__name__}
+                    )
                     return result
                 except Exception as e:
                     self.end_span(span, error=e)
@@ -247,7 +273,12 @@ class LangGraphTraceEmitter:
 
         return decorator
 
-    def span(self, operation_name: str, node_id: str | None = None, input_snapshot: dict[str, Any] | None = None):
+    def span(
+        self,
+        operation_name: str,
+        node_id: str | None = None,
+        input_snapshot: dict[str, Any] | None = None,
+    ):
         """Context manager for tracing a span.
 
         Usage:
@@ -275,7 +306,9 @@ class _SpanContextManager:
 
     async def __aenter__(self):
         self.span = self.emitter.start_span(
-            self.operation_name, node_id=self.node_id, input_snapshot=self.input_snapshot
+            self.operation_name,
+            node_id=self.node_id,
+            input_snapshot=self.input_snapshot,
         )
         return self
 
@@ -288,7 +321,11 @@ class _SpanContextManager:
 
 
 def create_trace_emitter(
-    thread_id: str | None = None, workflow_id: str | None = None, agent_id: str | None = None
+    thread_id: str | None = None,
+    workflow_id: str | None = None,
+    agent_id: str | None = None,
 ) -> LangGraphTraceEmitter:
     """Factory function to create a trace emitter."""
-    return LangGraphTraceEmitter(thread_id=thread_id, workflow_id=workflow_id, agent_id=agent_id)
+    return LangGraphTraceEmitter(
+        thread_id=thread_id, workflow_id=workflow_id, agent_id=agent_id
+    )

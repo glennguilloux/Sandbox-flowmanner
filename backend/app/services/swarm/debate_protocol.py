@@ -153,7 +153,9 @@ class DebateProtocol:
 
             # If consensus reached, return
             if debate_round.consensus_reached:
-                logger.info(f"Debate {debate_id} reached consensus in round {round_num}")
+                logger.info(
+                    f"Debate {debate_id} reached consensus in round {round_num}"
+                )
                 return debate_round
 
         # Max rounds reached without consensus — mark deadlock
@@ -355,10 +357,13 @@ class DebateProtocol:
 
             debate_round.consensus_reached = True
             debate_round.consensus_synthesis = synthesis
-            debate_round.consensus_score = max(
-                judge_result.get("score_a", 5),
-                judge_result.get("score_b", 5),
-            ) / 10.0
+            debate_round.consensus_score = (
+                max(
+                    judge_result.get("score_a", 5),
+                    judge_result.get("score_b", 5),
+                )
+                / 10.0
+            )
 
             # Record synthesis message
             synth_msg = AgentMessage(
@@ -461,8 +466,6 @@ class DebateProtocol:
     async def list_debates(self, limit: int = 20) -> list[DebateRound]:
         """List recent debate rounds."""
         result = await self.db.execute(
-            select(DebateRound)
-            .order_by(DebateRound.created_at.desc())
-            .limit(limit)
+            select(DebateRound).order_by(DebateRound.created_at.desc()).limit(limit)
         )
         return list(result.scalars().all())

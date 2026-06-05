@@ -63,7 +63,9 @@ def _get_device_name(request: Request) -> str:
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)):
+async def register(
+    payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)
+):
     ip = _get_client_ip(request)
     allowed, remaining, retry_after = check_rate_limit(
         f"register:{ip}",
@@ -86,16 +88,22 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
 
     existing = await get_user_by_email(db, payload.email)
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
 
     if payload.username:
         existing_username = await get_user_by_username(db, payload.username)
         if existing_username:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Username already taken"
+            )
 
     from app.services.auth_service import create_user as create_user_service
 
-    user = await create_user_service(db, payload.email, payload.password, payload.full_name, payload.username)
+    user = await create_user_service(
+        db, payload.email, payload.password, payload.full_name, payload.username
+    )
 
     try:
         import re as _re
@@ -116,7 +124,9 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
-        db, user.id, refresh,
+        db,
+        user.id,
+        refresh,
         ip_address=ip,
         user_agent=request.headers.get("user-agent"),
         device_name=_get_device_name(request),
@@ -149,14 +159,22 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     if "application/json" in content_type:
         try:
             body = await request.json()
-            login_field = body.get("username_or_email") or body.get("username") or body.get("email")
+            login_field = (
+                body.get("username_or_email")
+                or body.get("username")
+                or body.get("email")
+            )
             password = body.get("password")
         except Exception:
             logger.debug("login_json_parse_failed", exc_info=True)
     else:
         try:
             form = await request.form()
-            login_field = form.get("username_or_email") or form.get("username") or form.get("email")
+            login_field = (
+                form.get("username_or_email")
+                or form.get("username")
+                or form.get("email")
+            )
             password = form.get("password")
         except Exception:
             raise HTTPException(
@@ -179,19 +197,30 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
             headers={"Retry-After": str(lockout_status["lockout_seconds"])},
         )
 
-    result = await db.execute(select(User).where(or_(User.email == login_field, User.username == login_field)))
+    result = await db.execute(
+        select(User).where(or_(User.email == login_field, User.username == login_field))
+    )
     user = result.scalar_one_or_none()
 
-    if not user or not user.hashed_password or not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if (
+        not user
+        or not user.hashed_password
+        or not verify_password(password, user.hashed_password)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
 
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled"
+        )
 
     if user.totp_enabled:
         import jwt as _jwt
 
         from app.config import settings as _settings
+
         temp_expires = datetime.now(UTC) + timedelta(minutes=5)
         temp_payload = {
             "sub": str(user.id),
@@ -199,7 +228,9 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
             "type": "2fa_temp",
             "role": user.role,
         }
-        temp_token = _jwt.encode(temp_payload, _settings.JWT_SECRET_KEY, algorithm="HS256")
+        temp_token = _jwt.encode(
+            temp_payload, _settings.JWT_SECRET_KEY, algorithm="HS256"
+        )
         return ok({"requires_2fa": True, "temp_token": temp_token})
 
     reset_login_attempts(lockout_key)
@@ -208,7 +239,9 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
-        db, user.id, refresh,
+        db,
+        user.id,
+        refresh,
         ip_address=ip,
         user_agent=request.headers.get("user-agent"),
         device_name=_get_device_name(request),
@@ -241,25 +274,41 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
         temp_token = body.get("temp_token")
         code = body.get("code")
     except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body"
+        )
 
     if not temp_token or not code:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="temp_token and code are required")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="temp_token and code are required",
+        )
 
     try:
         import jwt as _jwt
 
         from app.config import settings as _settings
-        payload = _jwt.decode(temp_token, _settings.JWT_SECRET_KEY, algorithms=["HS256"])
+
+        payload = _jwt.decode(
+            temp_token, _settings.JWT_SECRET_KEY, algorithms=["HS256"]
+        )
         if payload.get("type") != "2fa_temp":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
+            )
         user_id = payload.get("sub")
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired temp token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired temp token",
+        )
 
     user = await get_user_by_id(db, int(user_id))
     if not user or not user.totp_enabled:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="2FA is not enabled for this user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is not enabled for this user",
+        )
 
     code_valid = False
     if user.totp_secret and verify_code(user.totp_secret, code):
@@ -271,13 +320,17 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
             user.totp_backup_codes = new_codes
 
     if not code_valid:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code"
+        )
 
     access = create_access_token(user.id, role=user.role)
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
-        db, user.id, refresh,
+        db,
+        user.id,
+        refresh,
         ip_address=ip,
         user_agent=request.headers.get("user-agent"),
         device_name=_get_device_name(request),
@@ -291,41 +344,59 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh")
-async def refresh(payload: RefreshTokenRequest, request: Request, db: AsyncSession = Depends(get_db)):
+async def refresh(
+    payload: RefreshTokenRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
     from app.services.auth_service import RefreshToken as RTModel
-    result = await db.execute(select(RTModel).where(RTModel.token == payload.refresh_token))
+
+    result = await db.execute(
+        select(RTModel).where(RTModel.token == payload.refresh_token)
+    )
     token_record = result.scalar_one_or_none()
 
     if token_record is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
 
     if token_record.is_revoked:
         await revoke_all_user_tokens(db, token_record.user_id)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token reuse detected. All sessions revoked for security.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token reuse detected. All sessions revoked for security.",
+        )
 
     expires_at = token_record.expires_at
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=UTC)
     if expires_at < datetime.now(UTC):
         await revoke_refresh_token(db, token_record.token)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
+        )
 
     user = await get_user_by_id(db, token_record.user_id)
-    access = create_access_token(token_record.user_id, role=user.role if user else "user")
+    access = create_access_token(
+        token_record.user_id, role=user.role if user else "user"
+    )
     new_refresh = create_refresh_token_value()
 
     await revoke_refresh_token(db, token_record.token)
 
     family_id = token_record.family_id or str(uuid.uuid4())
     await store_refresh_token(
-        db, token_record.user_id, new_refresh,
+        db,
+        token_record.user_id,
+        new_refresh,
         ip_address=_get_client_ip(request),
         user_agent=request.headers.get("user-agent"),
         device_name=_get_device_name(request),
         family_id=family_id,
     )
 
-    return ok(TokenResponse(access_token=access, refresh_token=new_refresh).model_dump())
+    return ok(
+        TokenResponse(access_token=access, refresh_token=new_refresh).model_dump()
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -339,23 +410,25 @@ async def logout(
 
 @router.get("/me")
 async def get_me(user: User = Depends(get_current_user)):
-    return ok(UserResponse(
-        id=user.id,
-        email=user.email,
-        username=user.username,
-        full_name=user.full_name,
-        role=user.role,
-        is_admin=user.is_admin,
-        is_active=user.is_active,
-        avatar_url=user.avatar_url,
-        created_at=user.created_at,
-        onboarding_step=user.onboarding_step,
-        onboarding_completed=user.onboarding_completed or False,
-        onboarding_completed_at=user.onboarding_completed_at,
-        onboarding_data=user.onboarding_data,
-        last_login_at=user.last_login_at,
-        login_count=user.login_count or 0,
-    ).model_dump())
+    return ok(
+        UserResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            full_name=user.full_name,
+            role=user.role,
+            is_admin=user.is_admin,
+            is_active=user.is_active,
+            avatar_url=user.avatar_url,
+            created_at=user.created_at,
+            onboarding_step=user.onboarding_step,
+            onboarding_completed=user.onboarding_completed or False,
+            onboarding_completed_at=user.onboarding_completed_at,
+            onboarding_data=user.onboarding_data,
+            last_login_at=user.last_login_at,
+            login_count=user.login_count or 0,
+        ).model_dump()
+    )
 
 
 @router.patch("/me")
@@ -376,17 +449,19 @@ async def update_me(
         user.hashed_password = hash_password(payload.password)
     await db.flush()
     await db.refresh(user)
-    return ok(UserResponse(
-        id=user.id,
-        email=user.email,
-        username=user.username,
-        full_name=user.full_name,
-        role=user.role,
-        is_admin=user.is_admin,
-        is_active=user.is_active,
-        avatar_url=user.avatar_url,
-        created_at=user.created_at,
-    ).model_dump())
+    return ok(
+        UserResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            full_name=user.full_name,
+            role=user.role,
+            is_admin=user.is_admin,
+            is_active=user.is_active,
+            avatar_url=user.avatar_url,
+            created_at=user.created_at,
+        ).model_dump()
+    )
 
 
 class PasswordChangeRequest:

@@ -32,7 +32,9 @@ class PluginContext:
         self._node_outputs = dict(node_outputs or {})
         self._workspace_id = workspace_id
         self._execution_id = execution_id
-        self._logger = logger or logging.getLogger(f"plugin.{workspace_id or 'default'}")
+        self._logger = logger or logging.getLogger(
+            f"plugin.{workspace_id or 'default'}"
+        )
         self._outputs: dict[str, Any] = {}
 
     # ─── Inputs ───
@@ -45,6 +47,7 @@ class PluginContext:
         """Get a required input or raise SchemaValidationError."""
         if key not in self._inputs:
             from app.sdk.exceptions import SchemaValidationError
+
             raise SchemaValidationError(
                 [f"Required input '{key}' is missing"],
                 plugin_name=None,

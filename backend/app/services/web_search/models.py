@@ -2,6 +2,7 @@
 Web Search Tool - Data Models
 Following Opus 4.6 Architecture Recommendations
 """
+
 import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -11,6 +12,7 @@ from typing import Any
 
 class SearchProvider(str, Enum):
     """Available search providers"""
+
     SEARXNG = "searxng"
     TAVILY = "tavily"
     EXA = "exa"
@@ -19,15 +21,17 @@ class SearchProvider(str, Enum):
 
 class SearchType(str, Enum):
     """Types of search queries"""
-    QUICK = "quick"           # Fast, few results
-    DEEP = "deep"             # Comprehensive search
-    NEWS = "news"             # Real-time news
-    RESEARCH = "research"     # Academic/research
-    CODE = "code"             # Code/technical
+
+    QUICK = "quick"  # Fast, few results
+    DEEP = "deep"  # Comprehensive search
+    NEWS = "news"  # Real-time news
+    RESEARCH = "research"  # Academic/research
+    CODE = "code"  # Code/technical
 
 
 class ContentType(str, Enum):
     """Content types for caching TTL"""
+
     NEWS = "news"
     RESEARCH = "research"
     DOCUMENTATION = "documentation"
@@ -37,15 +41,17 @@ class ContentType(str, Enum):
 
 class ExtractionDepth(str, Enum):
     """Content extraction depth levels"""
+
     AUTO = "auto"
-    STATIC = "static"        # HTTP + BeautifulSoup
-    MODERATE = "moderate"    # Jina Reader
-    COMPLEX = "complex"      # Playwright
+    STATIC = "static"  # HTTP + BeautifulSoup
+    MODERATE = "moderate"  # Jina Reader
+    COMPLEX = "complex"  # Playwright
 
 
 @dataclass
 class SearchResult:
     """Individual search result"""
+
     title: str
     url: str
     snippet: str
@@ -61,6 +67,7 @@ class SearchResult:
     def domain(self) -> str:
         """Extract domain from URL"""
         from urllib.parse import urlparse
+
         return urlparse(self.url).netloc
 
     @property
@@ -72,6 +79,7 @@ class SearchResult:
 @dataclass
 class SearchResponse:
     """Complete search response"""
+
     query: str
     results: list[SearchResult]
     provider: SearchProvider
@@ -90,6 +98,7 @@ class SearchResponse:
 @dataclass
 class ExtractedContent:
     """Extracted content from URL"""
+
     url: str
     title: str
     content: str
@@ -104,6 +113,7 @@ class ExtractedContent:
 @dataclass
 class ProviderConfig:
     """Configuration for a search provider"""
+
     provider: SearchProvider
     api_key: str | None = None
     base_url: str | None = None
@@ -116,6 +126,7 @@ class ProviderConfig:
 @dataclass
 class SearchRequest:
     """Search request parameters"""
+
     query: str
     search_type: SearchType = SearchType.QUICK
     providers: list[SearchProvider] | None = None
@@ -133,27 +144,48 @@ class SearchRequest:
 
 # Provider priority matrix based on query type
 PROVIDER_MATRIX: dict[SearchType, list[SearchProvider]] = {
-    SearchType.NEWS: [SearchProvider.TAVILY, SearchProvider.EXA, SearchProvider.SEARXNG],
-    SearchType.RESEARCH: [SearchProvider.EXA, SearchProvider.TAVILY, SearchProvider.SEARXNG],
+    SearchType.NEWS: [
+        SearchProvider.TAVILY,
+        SearchProvider.EXA,
+        SearchProvider.SEARXNG,
+    ],
+    SearchType.RESEARCH: [
+        SearchProvider.EXA,
+        SearchProvider.TAVILY,
+        SearchProvider.SEARXNG,
+    ],
     SearchType.QUICK: [SearchProvider.SEARXNG, SearchProvider.DUCKDUCKGO],
     SearchType.CODE: [SearchProvider.SEARXNG, SearchProvider.EXA],
-    SearchType.DEEP: [SearchProvider.TAVILY, SearchProvider.EXA, SearchProvider.SEARXNG],
+    SearchType.DEEP: [
+        SearchProvider.TAVILY,
+        SearchProvider.EXA,
+        SearchProvider.SEARXNG,
+    ],
 }
 
 # Cache TTL by content type (seconds)
 CACHE_TTL: dict[ContentType, int] = {
-    ContentType.NEWS: 3600,              # 1 hour
-    ContentType.STOCK_PRICE: 60,         # 1 minute
-    ContentType.RESEARCH: 86400 * 7,     # 7 days
-    ContentType.DOCUMENTATION: 86400 * 3, # 3 days
-    ContentType.GENERAL: 86400,          # 1 day
+    ContentType.NEWS: 3600,  # 1 hour
+    ContentType.STOCK_PRICE: 60,  # 1 minute
+    ContentType.RESEARCH: 86400 * 7,  # 7 days
+    ContentType.DOCUMENTATION: 86400 * 3,  # 3 days
+    ContentType.GENERAL: 86400,  # 1 day
 }
 
 # Trusted domains for quality scoring
 TRUSTED_DOMAINS = {
-    "wikipedia.org", "github.com", "stackoverflow.com", "docs.python.org",
-    "arxiv.org", "scholar.google.com", "nature.com", "science.org",
-    "reuters.com", "bbc.com", "nytimes.com", "bloomberg.com",
+    "wikipedia.org",
+    "github.com",
+    "stackoverflow.com",
+    "docs.python.org",
+    "arxiv.org",
+    "scholar.google.com",
+    "nature.com",
+    "science.org",
+    "reuters.com",
+    "bbc.com",
+    "nytimes.com",
+    "bloomberg.com",
 }
 
 # Provider costs (USD per search)
@@ -168,6 +200,7 @@ PROVIDER_COSTS = {
 @dataclass
 class SearchConfig:
     """Configuration for web search service"""
+
     duckduckgo_enabled: bool = True
     searxng_enabled: bool = False
     searxng_url: str = "http://localhost:55510"

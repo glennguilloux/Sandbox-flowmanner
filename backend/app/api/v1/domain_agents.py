@@ -27,10 +27,18 @@ async def list_catalog(
     db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * per_page
-    templates, total = await list_agent_templates(db, division=division, search=search, offset=offset, limit=per_page)
+    templates, total = await list_agent_templates(
+        db, division=division, search=search, offset=offset, limit=per_page
+    )
     items = [AgentCatalogItem.from_template(t) for t in templates]
     pages = (total + per_page - 1) // per_page
-    return {"items": items, "total": total, "page": page, "per_page": per_page, "pages": pages}
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
 
 
 @router.get("/agents/{slug}", response_model=AgentCatalogDetail)
@@ -42,7 +50,9 @@ async def get_catalog_detail(
     if template is None:
         from fastapi import HTTPException, status
 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent '{slug}' not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent '{slug}' not found"
+        )
     return AgentCatalogDetail.from_template(template)
 
 
@@ -55,7 +65,9 @@ async def list_divisions(
     for t in templates:
         if t.agent_type:
             counter[t.agent_type] += 1
-    return [DivisionInfo(name=name, count=count) for name, count in sorted(counter.items())]
+    return [
+        DivisionInfo(name=name, count=count) for name, count in sorted(counter.items())
+    ]
 
 
 @router.get("/badges")

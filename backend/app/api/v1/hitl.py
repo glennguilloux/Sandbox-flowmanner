@@ -34,6 +34,7 @@ router = APIRouter(prefix="/inbox", tags=["inbox"])
 
 # ── Request/response schemas ───────────────────────────────────────
 
+
 class ResolveRequest(BaseModel):
     resolution_note: str | None = None
     resolution_payload: dict | None = None
@@ -46,9 +47,12 @@ class ClarifyRequest(BaseModel):
 
 # ── Endpoints ──────────────────────────────────────────────────────
 
+
 @router.get("/")
 async def list_inbox(
-    interrupt_type: str | None = Query(None, description="Filter by type: approval, clarification, escalation"),
+    interrupt_type: str | None = Query(
+        None, description="Filter by type: approval, clarification, escalation"
+    ),
     mission_id: str | None = Query(None, description="Filter by mission"),
     status: str | None = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=200),
@@ -215,7 +219,9 @@ async def clarify_item(
     if item.status != InboxItemStatus.PENDING.value:
         raise HTTPException(status_code=409, detail=f"Item already {item.status}")
     if item.interrupt_type != HumanInterruptType.CLARIFICATION.value:
-        raise HTTPException(status_code=400, detail="Item is not a clarification request")
+        raise HTTPException(
+            status_code=400, detail="Item is not a clarification request"
+        )
 
     payload = body.resolution_payload or {}
     payload["response_text"] = body.response_text
@@ -236,6 +242,7 @@ async def clarify_item(
 
 # ── Executor signal helpers ─────────────────────────────────────────
 
+
 async def _signal_executor_resume(
     mission_id: str,
     run_id: str | None,
@@ -255,12 +262,14 @@ async def _signal_executor_resume(
         redis = await get_redis_client()
         try:
             channel = f"hitl:resolved:{mission_id}"
-            message = json.dumps({
-                "mission_id": mission_id,
-                "run_id": run_id,
-                "resolution": resolution,
-                "inbox_item_id": item.id if hasattr(item, "id") else None,
-            })
+            message = json.dumps(
+                {
+                    "mission_id": mission_id,
+                    "run_id": run_id,
+                    "resolution": resolution,
+                    "inbox_item_id": item.id if hasattr(item, "id") else None,
+                }
+            )
             await redis.publish(channel, message)
         finally:
             await redis.aclose()
@@ -282,11 +291,13 @@ async def _signal_executor_abort(
         redis = await get_redis_client()
         try:
             channel = f"hitl:aborted:{mission_id}"
-            message = json.dumps({
-                "mission_id": mission_id,
-                "run_id": run_id,
-                "reason": reason,
-            })
+            message = json.dumps(
+                {
+                    "mission_id": mission_id,
+                    "run_id": run_id,
+                    "reason": reason,
+                }
+            )
             await redis.publish(channel, message)
         finally:
             await redis.aclose()

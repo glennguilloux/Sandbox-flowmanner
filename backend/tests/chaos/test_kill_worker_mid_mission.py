@@ -33,15 +33,24 @@ from app.services.substrate.replay_engine import ReplayEngine
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def _make_event(
-    run_id: str, sequence: int, event_type: str,
+    run_id: str,
+    sequence: int,
+    event_type: str,
     payload: dict | None = None,
-    task_id: str | None = None, mission_id: str | None = None,
+    task_id: str | None = None,
+    mission_id: str | None = None,
 ) -> SubstrateEvent:
     return SubstrateEvent(
-        id=str(uuid4()), sequence=sequence, run_id=run_id,
-        type=event_type, payload=payload or {}, actor="test",
-        task_id=task_id, mission_id=mission_id,
+        id=str(uuid4()),
+        sequence=sequence,
+        run_id=run_id,
+        type=event_type,
+        payload=payload or {},
+        actor="test",
+        task_id=task_id,
+        mission_id=mission_id,
     )
 
 
@@ -53,26 +62,61 @@ def _simulate_mission_until_crash(
     Returns (persisted_events, expected_state_at_crash).
     """
     all_events = [
-        _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED,
-                   {"title": "Crash Test"}, mission_id=mission_id),
-        _make_event(run_id, 2, SubstrateEventType.TASK_STARTED,
-                   {"task_id": "a", "task_title": "Task A"},
-                   task_id="a", mission_id=mission_id),
-        _make_event(run_id, 3, SubstrateEventType.TASK_STARTED,
-                   {"task_id": "b", "task_title": "Task B"},
-                   task_id="b", mission_id=mission_id),
-        _make_event(run_id, 4, SubstrateEventType.TASK_COMPLETED,
-                   {"task_id": "a", "tokens": 50, "cost_usd": 0.02},
-                   task_id="a", mission_id=mission_id),
-        _make_event(run_id, 5, SubstrateEventType.TASK_STARTED,
-                   {"task_id": "c", "task_title": "Task C"},
-                   task_id="c", mission_id=mission_id),
-        _make_event(run_id, 6, SubstrateEventType.TASK_COMPLETED,
-                   {"task_id": "c", "tokens": 30, "cost_usd": 0.01},
-                   task_id="c", mission_id=mission_id),
-        _make_event(run_id, 7, SubstrateEventType.TASK_FAILED,
-                   {"task_id": "b", "error": "CRASHED"},
-                   task_id="b", mission_id=mission_id),
+        _make_event(
+            run_id,
+            1,
+            SubstrateEventType.MISSION_STARTED,
+            {"title": "Crash Test"},
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            2,
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "a", "task_title": "Task A"},
+            task_id="a",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            3,
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "b", "task_title": "Task B"},
+            task_id="b",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            4,
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "a", "tokens": 50, "cost_usd": 0.02},
+            task_id="a",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            5,
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "c", "task_title": "Task C"},
+            task_id="c",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            6,
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "c", "tokens": 30, "cost_usd": 0.01},
+            task_id="c",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            7,
+            SubstrateEventType.TASK_FAILED,
+            {"task_id": "b", "error": "CRASHED"},
+            task_id="b",
+            mission_id=mission_id,
+        ),
     ]
 
     expected_state = SubstrateRunState(run_id=run_id, mission_id=mission_id)
@@ -88,8 +132,9 @@ def _simulate_mission_until_crash(
 def _mock_event_log(events):
     el = MagicMock(spec=EventLog)
 
-    async def _get_events(db, rid, *, from_sequence=0, to_sequence=None,
-                          event_type=None, limit=10000):
+    async def _get_events(
+        db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000
+    ):
         filtered = [e for e in events if e.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [e for e in filtered if e.sequence <= to_sequence]
@@ -104,6 +149,7 @@ def _mock_event_log(events):
 # ═══════════════════════════════════════════════════════════════════
 # Test: Crash after partial execution
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestKillWorkerMidMission:
 
@@ -153,20 +199,52 @@ class TestKillWorkerMidMission:
         mission_id = str(uuid4())
 
         events = [
-            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED,
-                       {"title": "All Done"}, mission_id=mission_id),
-            _make_event(run_id, 2, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "a"}, task_id="a", mission_id=mission_id),
-            _make_event(run_id, 3, SubstrateEventType.TASK_COMPLETED,
-                       {"task_id": "a", "tokens": 100, "cost_usd": 0.05},
-                       task_id="a", mission_id=mission_id),
-            _make_event(run_id, 4, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "b"}, task_id="b", mission_id=mission_id),
-            _make_event(run_id, 5, SubstrateEventType.TASK_COMPLETED,
-                       {"task_id": "b", "tokens": 200, "cost_usd": 0.10},
-                       task_id="b", mission_id=mission_id),
-            _make_event(run_id, 6, SubstrateEventType.MISSION_FAILED,
-                       {"error": "worker crash"}, mission_id=mission_id),
+            _make_event(
+                run_id,
+                1,
+                SubstrateEventType.MISSION_STARTED,
+                {"title": "All Done"},
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                2,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "a"},
+                task_id="a",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                3,
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "a", "tokens": 100, "cost_usd": 0.05},
+                task_id="a",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                4,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "b"},
+                task_id="b",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                5,
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "b", "tokens": 200, "cost_usd": 0.10},
+                task_id="b",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                6,
+                SubstrateEventType.MISSION_FAILED,
+                {"error": "worker crash"},
+                mission_id=mission_id,
+            ),
         ]
 
         el = _mock_event_log(events)
@@ -186,17 +264,43 @@ class TestKillWorkerMidMission:
         mission_id = str(uuid4())
 
         events = [
-            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED,
-                       {"title": "Checkpoint"}, mission_id=mission_id),
-            _make_event(run_id, 2, SubstrateEventType.CHECKPOINT,
-                       {"note": "pre-task"}, mission_id=mission_id),
-            _make_event(run_id, 3, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "x"}, task_id="x", mission_id=mission_id),
-            _make_event(run_id, 4, SubstrateEventType.TASK_COMPLETED,
-                       {"task_id": "x", "tokens": 75},
-                       task_id="x", mission_id=mission_id),
-            _make_event(run_id, 5, SubstrateEventType.CHECKPOINT,
-                       {"note": "post-task-x"}, mission_id=mission_id),
+            _make_event(
+                run_id,
+                1,
+                SubstrateEventType.MISSION_STARTED,
+                {"title": "Checkpoint"},
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                2,
+                SubstrateEventType.CHECKPOINT,
+                {"note": "pre-task"},
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                3,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "x"},
+                task_id="x",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                4,
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "x", "tokens": 75},
+                task_id="x",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                5,
+                SubstrateEventType.CHECKPOINT,
+                {"note": "post-task-x"},
+                mission_id=mission_id,
+            ),
         ]
 
         el = _mock_event_log(events)
@@ -204,9 +308,7 @@ class TestKillWorkerMidMission:
         db = AsyncMock()
 
         # Replay up to first checkpoint
-        state_at_cp = asyncio.run(
-            engine.rebuild_state_at_sequence(db, run_id, 2)
-        )
+        state_at_cp = asyncio.run(engine.rebuild_state_at_sequence(db, run_id, 2))
         assert state_at_cp.status == "executing"
         assert state_at_cp.current_sequence == 2
         assert len(state_at_cp.completed_tasks) == 0
@@ -249,18 +351,45 @@ class TestResumeAfterCrash:
         mission_id = str(uuid4())
 
         events = [
-            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED,
-                       {"title": "Resume"}, mission_id=mission_id),
-            _make_event(run_id, 2, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "a"}, task_id="a", mission_id=mission_id),
-            _make_event(run_id, 3, SubstrateEventType.TASK_COMPLETED,
-                       {"task_id": "a", "tokens": 10},
-                       task_id="a", mission_id=mission_id),
-            _make_event(run_id, 4, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "b"}, task_id="b", mission_id=mission_id),
-            _make_event(run_id, 5, SubstrateEventType.TASK_FAILED,
-                       {"task_id": "b", "error": "crash"},
-                       task_id="b", mission_id=mission_id),
+            _make_event(
+                run_id,
+                1,
+                SubstrateEventType.MISSION_STARTED,
+                {"title": "Resume"},
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                2,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "a"},
+                task_id="a",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                3,
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "a", "tokens": 10},
+                task_id="a",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                4,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "b"},
+                task_id="b",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                5,
+                SubstrateEventType.TASK_FAILED,
+                {"task_id": "b", "error": "crash"},
+                task_id="b",
+                mission_id=mission_id,
+            ),
         ]
 
         el = _mock_event_log(events)

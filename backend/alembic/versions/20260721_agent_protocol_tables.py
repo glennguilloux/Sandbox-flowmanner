@@ -31,18 +31,30 @@ def upgrade() -> None:
         sa.Column("correlation_id", sa.String(36), nullable=True, index=True),
         sa.Column("parent_message_id", sa.String(36), nullable=True),
         sa.Column("execution_id", sa.String(36), nullable=True, index=True),
-        sa.Column("status", sa.String(20), default="delivered", nullable=False, index=True),
+        sa.Column(
+            "status", sa.String(20), default="delivered", nullable=False, index=True
+        ),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
         sa.Column("tags", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
     op.create_foreign_key(
         "fk_agent_messages_parent",
-        "agent_messages", "agent_messages",
-        ["parent_message_id"], ["id"],
+        "agent_messages",
+        "agent_messages",
+        ["parent_message_id"],
+        ["id"],
         ondelete="SET NULL",
     )
 
@@ -69,12 +81,22 @@ def upgrade() -> None:
         sa.Column("consensus_synthesis", sa.Text, nullable=True),
         sa.Column("consensus_score", sa.Float, nullable=True),
         sa.Column("tokens_used", sa.Integer, default=0, nullable=False),
-        sa.Column("status", sa.String(20), default="pending", nullable=False, index=True),
+        sa.Column(
+            "status", sa.String(20), default="pending", nullable=False, index=True
+        ),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # handoff_records
@@ -94,19 +116,31 @@ def upgrade() -> None:
         sa.Column("result_metadata", postgresql.JSONB, nullable=True),
         sa.Column("parent_handoff_id", sa.String(36), nullable=True),
         sa.Column("execution_id", sa.String(36), nullable=True, index=True),
-        sa.Column("status", sa.String(20), default="pending", nullable=False, index=True),
+        sa.Column(
+            "status", sa.String(20), default="pending", nullable=False, index=True
+        ),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
     op.create_foreign_key(
         "fk_handoff_parent",
-        "handoff_records", "handoff_records",
-        ["parent_handoff_id"], ["id"],
+        "handoff_records",
+        "handoff_records",
+        ["parent_handoff_id"],
+        ["id"],
         ondelete="SET NULL",
     )
 
@@ -127,13 +161,25 @@ def upgrade() -> None:
         sa.Column("resolution_agent_id", sa.String(255), nullable=True),
         sa.Column("max_retries_per_level", sa.Integer, default=2, nullable=False),
         sa.Column("retries_at_level", sa.Integer, default=0, nullable=False),
-        sa.Column("escalation_policy", sa.String(50), default="default", nullable=False),
-        sa.Column("status", sa.String(20), default="active", nullable=False, index=True),
+        sa.Column(
+            "escalation_policy", sa.String(50), default="default", nullable=False
+        ),
+        sa.Column(
+            "status", sa.String(20), default="active", nullable=False, index=True
+        ),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
 

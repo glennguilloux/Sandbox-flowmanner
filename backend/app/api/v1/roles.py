@@ -40,6 +40,7 @@ PERMISSION_CATALOGUE: list[PermissionKeyResponse] = [
 
 # ── helpers ─────────────────────────────────────────────────────────────
 
+
 async def _get_role_or_404(
     role_id: str, db: AsyncSession, workspace_id: str | None = None
 ) -> CustomRole:
@@ -47,7 +48,8 @@ async def _get_role_or_404(
     if workspace_id is not None:
         # Allow access to workspace-scoped roles AND global system roles
         q = q.where(
-            (CustomRole.workspace_id == workspace_id) | (CustomRole.workspace_id.is_(None))
+            (CustomRole.workspace_id == workspace_id)
+            | (CustomRole.workspace_id.is_(None))
         )
     role = (await db.execute(q)).scalar_one_or_none()
     if not role:
@@ -61,6 +63,7 @@ def _resolve_workspace(user: User) -> str | None:
 
 
 # ── endpoints ───────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=RoleListResponse)
 async def list_roles(
@@ -261,7 +264,9 @@ async def assign_role_to_user(
 
     role = await _get_role_or_404(role_id, db, wid)
     if role.is_system:
-        raise HTTPException(status_code=403, detail="Cannot assign system roles via this endpoint")
+        raise HTTPException(
+            status_code=403, detail="Cannot assign system roles via this endpoint"
+        )
 
     # Check for existing assignment
     existing = (

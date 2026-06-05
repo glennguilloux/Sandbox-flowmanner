@@ -20,13 +20,25 @@ from app.models.mission_models import MissionStatus
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _user(id: int = 1): return SimpleNamespace(id=id, email="t@t.com", is_active=True, role="user")
+
+def _user(id: int = 1):
+    return SimpleNamespace(id=id, email="t@t.com", is_active=True, role="user")
+
+
 def _mission(uid=1, status=MissionStatus.PENDING):
     m = MagicMock()
-    m.user_id = uid; m.id = "abc-123"; m.title = "T"; m.description = ""
-    m.status = status; m.mission_type = "g"; m.priority = "m"
-    m.tokens_used = 0; m.started_at = None; m.completed_at = None
-    m.deleted_at = None; m.deleted_by = None
+    m.user_id = uid
+    m.id = "abc-123"
+    m.title = "T"
+    m.description = ""
+    m.status = status
+    m.mission_type = "g"
+    m.priority = "m"
+    m.tokens_used = 0
+    m.started_at = None
+    m.completed_at = None
+    m.deleted_at = None
+    m.deleted_by = None
     return m
 
 
@@ -40,7 +52,9 @@ class TestAuditRequestId:
         s = MagicMock()
         s.add = MagicMock()
         audit = AuditService(s)
-        audit.record(action="mission.create", actor_id=1, mission_id="x", request_id="req-42")
+        audit.record(
+            action="mission.create", actor_id=1, mission_id="x", request_id="req-42"
+        )
         log = s.add.call_args[0][0]
         assert log.data["request_id"] == "req-42"
 
@@ -54,6 +68,7 @@ class TestSoftDeleteActiveQueries:
     @pytest.mark.asyncio
     async def test_list_active_excludes_deleted(self, mocker):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         s = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = []
@@ -74,7 +89,9 @@ class TestSoftDeleteActiveQueries:
 
         handlers = MissionQueryHandlers(s)
         try:
-            result = await handlers.active_missions(user_id=1, user_role="pro", is_pro=True)
+            result = await handlers.active_missions(
+                user_id=1, user_role="pro", is_pro=True
+            )
             assert result.total == 0
         except MissionForbiddenError:
             pass  # pro check may fail in mock context, which is fine
@@ -91,17 +108,27 @@ class TestIdempotencyScoped:
     def test_different_user_same_key_isolated(self):
         """Two users with same key should be isolated."""
         k1 = IdempotencyKey(
-            idempotency_key="same-key", user_id=1, method="POST",
-            endpoint="/api/v2/missions", request_hash="h1",
-            is_processing=False, is_completed=True,
-            response_status=201, response_body={"ok": True},
+            idempotency_key="same-key",
+            user_id=1,
+            method="POST",
+            endpoint="/api/v2/missions",
+            request_hash="h1",
+            is_processing=False,
+            is_completed=True,
+            response_status=201,
+            response_body={"ok": True},
             expires_at=datetime(2099, 1, 1, tzinfo=UTC),
         )
         k2 = IdempotencyKey(
-            idempotency_key="same-key", user_id=2, method="POST",
-            endpoint="/api/v2/missions", request_hash="h2",
-            is_processing=False, is_completed=True,
-            response_status=201, response_body={"ok": True},
+            idempotency_key="same-key",
+            user_id=2,
+            method="POST",
+            endpoint="/api/v2/missions",
+            request_hash="h2",
+            is_processing=False,
+            is_completed=True,
+            response_status=201,
+            response_body={"ok": True},
             expires_at=datetime(2099, 1, 1, tzinfo=UTC),
         )
         assert k1.user_id != k2.user_id
@@ -109,6 +136,7 @@ class TestIdempotencyScoped:
 
     def test_hash_mismatch_detected(self):
         import hashlib
+
         h1 = hashlib.sha256(b"POST:/api/v2/missions:body1").hexdigest()
         h2 = hashlib.sha256(b"POST:/api/v2/missions:body2").hexdigest()
         assert h1 != h2
@@ -118,12 +146,19 @@ class TestIdempotencyFinalization:
     """Idempotency finalization persists response for replay."""
 
     def test_finalization_stores_response_body(self):
-        from app.api.v2.idempotency import IDEMPOTENCY_REPLAY_HEADER, _build_cached_response
+        from app.api.v2.idempotency import (
+            IDEMPOTENCY_REPLAY_HEADER,
+            _build_cached_response,
+        )
 
         record = IdempotencyKey(
-            idempotency_key="k", user_id=1, method="POST",
-            endpoint="/api/v2/missions", request_hash="h",
-            is_processing=False, is_completed=True,
+            idempotency_key="k",
+            user_id=1,
+            method="POST",
+            endpoint="/api/v2/missions",
+            request_hash="h",
+            is_processing=False,
+            is_completed=True,
             response_status=201,
             response_body={"data": {"id": "x"}, "meta": {}, "error": None},
             expires_at=datetime(2099, 1, 1, tzinfo=UTC),
@@ -136,10 +171,15 @@ class TestIdempotencyFinalization:
         from app.api.v2.idempotency import _build_cached_response
 
         record = IdempotencyKey(
-            idempotency_key="k", user_id=1, method="POST",
-            endpoint="/api/v2/missions", request_hash="h",
-            is_processing=False, is_completed=True,
-            response_status=204, response_body=None,
+            idempotency_key="k",
+            user_id=1,
+            method="POST",
+            endpoint="/api/v2/missions",
+            request_hash="h",
+            is_processing=False,
+            is_completed=True,
+            response_status=204,
+            response_body=None,
             expires_at=datetime(2099, 1, 1, tzinfo=UTC),
         )
         resp = _build_cached_response(record)
@@ -154,6 +194,7 @@ class TestIdempotencyFinalization:
 class TestRateLimitSettings:
     def test_settings_have_rate_limit_fields(self):
         from app.config import settings
+
         assert hasattr(settings, "MISSION_RATE_LIMIT_CREATE")
         assert hasattr(settings, "MISSION_RATE_LIMIT_DEFAULT")
         assert hasattr(settings, "MISSION_RATE_LIMIT_WINDOW_SECONDS")
@@ -161,6 +202,7 @@ class TestRateLimitSettings:
 
     def test_rate_limit_factory_reads_settings(self):
         from app.api.v2.rate_limit import rate_limit
+
         dep = rate_limit("mission:create")
         assert callable(dep)
 
@@ -187,21 +229,36 @@ class TestCommandHandlerRequestId:
     @pytest.fixture
     def session(self):
         s = AsyncMock()
-        async def _exe(*a, **kw): return MagicMock()
+
+        async def _exe(*a, **kw):
+            return MagicMock()
+
         s.execute = _exe
         return s
+
     @pytest.fixture
-    def user(self): return _user()
+    def user(self):
+        return _user()
+
     @pytest.fixture
-    def audit_session(self): return MagicMock()
+    def audit_session(self):
+        return MagicMock()
 
     @pytest.mark.asyncio
-    async def test_create_mission_passes_request_id_to_audit(self, session, user, mocker):
+    async def test_create_mission_passes_request_id_to_audit(
+        self, session, user, mocker
+    ):
         from app.services.subscription_service import LimitCheckResult
+
         audit_mock = MagicMock()
         audit_mock.mission_created = MagicMock()
-        mocker.patch("app.api._mission_cqrs.commands.create_mission", new=AsyncMock(return_value=_mission()))
-        mocker.patch("app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock())
+        mocker.patch(
+            "app.api._mission_cqrs.commands.create_mission",
+            new=AsyncMock(return_value=_mission()),
+        )
+        mocker.patch(
+            "app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock()
+        )
         mocker.patch(
             "app.services.subscription_service.check_mission_create_allowed",
             new=AsyncMock(return_value=LimitCheckResult(allowed=True)),
@@ -219,9 +276,15 @@ class TestCommandHandlerRequestId:
     async def test_audit_called_sync_not_async(self, session, user, mocker):
         """Verify audit methods are called synchronously (not awaited)."""
         from app.services.subscription_service import LimitCheckResult
+
         audit_mock = MagicMock()
-        mocker.patch("app.api._mission_cqrs.commands.create_mission", new=AsyncMock(return_value=_mission()))
-        mocker.patch("app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock())
+        mocker.patch(
+            "app.api._mission_cqrs.commands.create_mission",
+            new=AsyncMock(return_value=_mission()),
+        )
+        mocker.patch(
+            "app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock()
+        )
         mocker.patch(
             "app.services.subscription_service.check_mission_create_allowed",
             new=AsyncMock(return_value=LimitCheckResult(allowed=True)),
@@ -294,11 +357,13 @@ class TestNPlusOnePrevention:
 class TestMissionCache:
     def test_cache_module_imports(self):
         from app.services import mission_cache
+
         assert hasattr(mission_cache, "cache_get")
         assert hasattr(mission_cache, "invalidate_user_caches")
 
     def test_cache_keys_are_user_scoped(self):
         from app.services.mission_cache import _get_key
+
         k1 = _get_key(1, "abc")
         k2 = _get_key(2, "abc")
         assert k1 != k2  # different users → different keys
@@ -306,6 +371,7 @@ class TestMissionCache:
 
     def test_cache_settings_exist(self):
         from app.config import settings
+
         assert hasattr(settings, "MISSION_CACHE_LIST_TTL")
         assert hasattr(settings, "MISSION_CACHE_GET_TTL")
         assert hasattr(settings, "MISSION_CACHE_ACTIVE_TTL")
@@ -319,6 +385,7 @@ class TestMissionCache:
 class TestCeleryExecution:
     def test_celery_task_module_imports(self):
         from app.tasks import mission_execution
+
         assert hasattr(mission_execution, "ExecuteMissionTask")
         assert hasattr(mission_execution, "dispatch_mission_execution")
 
@@ -327,6 +394,7 @@ class TestCeleryExecution:
         # This is verified via the code change in commands.py
         # which now calls dispatch_mission_execution instead of asyncio.create_task
         from app.tasks.mission_execution import dispatch_mission_execution
+
         assert callable(dispatch_mission_execution)
 
 
@@ -338,12 +406,24 @@ class TestCeleryExecution:
 class TestMigrationIndexes:
     def test_migration_file_exists(self):
         from pathlib import Path
-        path = Path(__file__).parent.parent.parent / "alembic" / "versions" / "a3bc0002_idempotency_scope_and_perf_indexes.py"
+
+        path = (
+            Path(__file__).parent.parent.parent
+            / "alembic"
+            / "versions"
+            / "a3bc0002_idempotency_scope_and_perf_indexes.py"
+        )
         assert path.exists(), f"Migration missing at {path}"
 
     def test_migration_contains_scoped_index(self):
         from pathlib import Path
-        path = Path(__file__).parent.parent.parent / "alembic" / "versions" / "a3bc0002_idempotency_scope_and_perf_indexes.py"
+
+        path = (
+            Path(__file__).parent.parent.parent
+            / "alembic"
+            / "versions"
+            / "a3bc0002_idempotency_scope_and_perf_indexes.py"
+        )
         content = path.read_text()
         assert "ix_idempotency_keys_scoped" in content
         assert "ix_missions_user_status_not_deleted" in content

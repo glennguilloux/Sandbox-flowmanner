@@ -180,7 +180,9 @@ class TestHydrateCapabilitiesFromDB:
 
         with (
             patch("app.database.AsyncSessionLocal", return_value=mock_factory),
-            patch("app.services.nexus.capability_registry.get_capability_registry") as mock_registry,
+            patch(
+                "app.services.nexus.capability_registry.get_capability_registry"
+            ) as mock_registry,
         ):
             mock_registry.return_value = MagicMock()
 

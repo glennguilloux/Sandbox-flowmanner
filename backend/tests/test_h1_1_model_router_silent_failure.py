@@ -60,7 +60,7 @@ class TestMissionExecutorNoSilentSuccess:
             return_value={
                 "success": False,
                 "error": "No API key available for model 'bogus/nonexistent-model'. "
-                         "Add a BYOK key in Settings or set the DEEPSEEK_API_KEY environment variable.",
+                "Add a BYOK key in Settings or set the DEEPSEEK_API_KEY environment variable.",
                 "response": "",
                 "model": "bogus/nonexistent-model",
                 "cost": {"input_tokens": 0, "output_tokens": 0},
@@ -91,9 +91,9 @@ class TestMissionExecutorNoSilentSuccess:
         # Must contain a meaningful error message
         assert "error" in result
         assert result["error"] is not None
-        assert len(str(result["error"])) > 0, (
-            "H1.1 FAIL: Error message is empty — user has no way to debug"
-        )
+        assert (
+            len(str(result["error"])) > 0
+        ), "H1.1 FAIL: Error message is empty — user has no way to debug"
 
         # Must NOT have content (no tokens, no output)
         assert result.get("output", {}).get("text", "") == ""
@@ -111,7 +111,7 @@ class TestMissionExecutorNoSilentSuccess:
             return_value={
                 "success": False,
                 "error": "No API key available for model 'deepseek/deepseek-v4-flash'. "
-                         "Add a BYOK key in Settings or set the DEEPSEEK_API_KEY environment variable.",
+                "Add a BYOK key in Settings or set the DEEPSEEK_API_KEY environment variable.",
                 "response": "",
                 "model": "deepseek/deepseek-v4-flash",
                 "cost": {"input_tokens": 0, "output_tokens": 0},
@@ -138,7 +138,9 @@ class TestMissionExecutorNoSilentSuccess:
         assert "api key" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_mission_executor_surfaces_error_to_mission_log(self, mock_mission_and_task):
+    async def test_mission_executor_surfaces_error_to_mission_log(
+        self, mock_mission_and_task
+    ):
         """When _execute_llm returns success=False, the mission executor must
         propagate the error so it appears in the mission log / API response."""
         from app.services.mission_executor import MissionExecutor
@@ -173,7 +175,10 @@ class TestMissionExecutorNoSilentSuccess:
         # The task-level result must report failure
         assert result["success"] is False
         assert "error" in result
-        assert "not available" in result["error"].lower() or "bogus" in result["error"].lower()
+        assert (
+            "not available" in result["error"].lower()
+            or "bogus" in result["error"].lower()
+        )
 
         # The error must be descriptive enough for the user to act on
         assert len(str(result["error"])) > 5
@@ -240,9 +245,9 @@ class TestMissionExecutorNoSilentSuccess:
             )
 
         assert result["success"] is False
-        assert "ModelRouter" in result.get("error", ""), (
-            f"Error should mention ModelRouter, got: {result.get('error')}"
-        )
+        assert "ModelRouter" in result.get(
+            "error", ""
+        ), f"Error should mention ModelRouter, got: {result.get('error')}"
 
 
 class TestLlmRouterNoSilentSuccess:
@@ -256,7 +261,11 @@ class TestLlmRouterNoSilentSuccess:
         router = ModelRouter()
 
         with patch("app.services.llm_router._resolve_provider") as mock_resolve:
-            mock_resolve.return_value = ("https://api.deepseek.com/v1", "", "test-model")
+            mock_resolve.return_value = (
+                "https://api.deepseek.com/v1",
+                "",
+                "test-model",
+            )
 
             result = await router.route_request(
                 messages=[{"role": "user", "content": "Hello"}],
@@ -266,7 +275,9 @@ class TestLlmRouterNoSilentSuccess:
 
         assert result["success"] is False
         assert "error" in result
-        assert "api key" in result["error"].lower() or "api key" in result["error"].lower()
+        assert (
+            "api key" in result["error"].lower() or "api key" in result["error"].lower()
+        )
 
     @pytest.mark.asyncio
     async def test_route_request_not_needed_key_is_valid_for_local_providers(self):
@@ -276,7 +287,11 @@ class TestLlmRouterNoSilentSuccess:
         router = ModelRouter()
 
         with patch("app.services.llm_router._resolve_provider") as mock_resolve:
-            mock_resolve.return_value = ("http://localhost:11434/v1", "not-needed", "local-model")
+            mock_resolve.return_value = (
+                "http://localhost:11434/v1",
+                "not-needed",
+                "local-model",
+            )
 
             # This should NOT raise or reject — llamacpp legitimately uses 'not-needed'
             # The behavior depends on whether the LLM server responds.
@@ -291,9 +306,9 @@ class TestLlmRouterNoSilentSuccess:
         # since there's no real llamacpp, but it should NOT be rejected at validation)
         # If success=False, the error should be about connectivity, not about API key
         if not result.get("success"):
-            assert "API key" not in result.get("error", ""), (
-                f"'not-needed' key was wrongly rejected: {result.get('error')}"
-            )
+            assert "API key" not in result.get(
+                "error", ""
+            ), f"'not-needed' key was wrongly rejected: {result.get('error')}"
 
 
 class TestModelRouterIsModelAvailable:
@@ -359,7 +374,7 @@ class TestModelRouterIsModelAvailable:
         from app.services.llm_router import ModelRouter
 
         router = ModelRouter()
-        assert hasattr(router, "_is_model_available"), (
-            "H1.1 FAIL: llm_router.ModelRouter is missing _is_model_available"
-        )
+        assert hasattr(
+            router, "_is_model_available"
+        ), "H1.1 FAIL: llm_router.ModelRouter is missing _is_model_available"
         assert callable(router._is_model_available)

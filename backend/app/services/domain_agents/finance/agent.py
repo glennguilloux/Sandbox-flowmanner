@@ -10,12 +10,12 @@ class FinanceAgent(BaseDomainAgent):
     Finance-specific AI assistant for financial analysis,
     investment research, and regulatory compliance.
     """
-    
+
     domain_name = "finance"
     domain_icon = "💰"
     domain_color = "#F5A623"
     domain_description = "Finance assistant for analysis, investments, and compliance"
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized finance AI assistant with expertise in:
 
@@ -36,7 +36,7 @@ Guidelines:
 
 Remember: You provide informational assistance, not financial advice. 
 Always recommend consulting with a licensed financial advisor for investment decisions."""
-    
+
     def get_tools(self) -> list[dict[str, Any]]:
         return [
             {
@@ -44,27 +44,27 @@ Always recommend consulting with a licensed financial advisor for investment dec
                 "description": "Analyze financial statements and compute key ratios",
                 "parameters": {
                     "statements": "dict",
-                    "analysis_type": "ratio|dcf|comparable"
-                }
+                    "analysis_type": "ratio|dcf|comparable",
+                },
             },
             {
                 "name": "risk_assessor",
                 "description": "Assess financial and market risks",
                 "parameters": {
                     "portfolio": "dict",
-                    "risk_metrics": ["var", "sharpe", "beta", "volatility"]
-                }
+                    "risk_metrics": ["var", "sharpe", "beta", "volatility"],
+                },
             },
             {
                 "name": "compliance_checker",
                 "description": "Check compliance against financial regulations",
                 "parameters": {
                     "document": "string",
-                    "regulations": ["SEC", "FINRA", "Basel", "MiFID"]
-                }
-            }
+                    "regulations": ["SEC", "FINRA", "Basel", "MiFID"],
+                },
+            },
         ]
-    
+
     def process_response(self, response: str) -> dict[str, Any]:
         return {
             "response": response,
@@ -72,7 +72,7 @@ Always recommend consulting with a licensed financial advisor for investment dec
             "disclaimer": "This is informational only. Consult a licensed financial advisor for investment decisions.",
             "data_sources_required": True,
         }
-    
+
     def get_capabilities(self) -> list[str]:
         return [
             "Financial statement analysis",
@@ -82,10 +82,12 @@ Always recommend consulting with a licensed financial advisor for investment dec
             "Regulatory compliance",
             "Market analysis",
         ]
-    
+
     async def run(self, query: str, context: dict[str, Any] = None) -> dict[str, Any]:
         """Execute a finance query"""
         result = await super().run(query, context)
-        result["disclaimer"] = "This is informational only. Consult a licensed financial advisor for investment decisions."
+        result["disclaimer"] = (
+            "This is informational only. Consult a licensed financial advisor for investment decisions."
+        )
         result["capabilities"] = self.get_capabilities()
         return result

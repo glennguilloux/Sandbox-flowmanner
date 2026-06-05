@@ -32,7 +32,11 @@ def encode_cursor(item_id: str, created_at: datetime | str | None = None) -> str
     """Encode a cursor token from an item's ID and timestamp."""
     ts = None
     if created_at is not None:
-        ts = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at)
+        ts = (
+            created_at.isoformat()
+            if isinstance(created_at, datetime)
+            else str(created_at)
+        )
     payload = {"id": str(item_id), "ts": ts}
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
@@ -56,6 +60,7 @@ def decode_cursor(cursor: str) -> dict[str, Any]:
 
 class CursorPageData(BaseModel):
     """Paginated data with cursor navigation."""
+
     items: list[Any] = Field(default_factory=list)
     next_cursor: str | None = None
     prev_cursor: str | None = None
@@ -63,6 +68,7 @@ class CursorPageData(BaseModel):
 
 class CursorPaginatedEnvelope(BaseModel):
     """Standard v2 cursor-paginated response envelope."""
+
     data: CursorPageData = Field(default_factory=CursorPageData)
     meta: dict[str, Any] = Field(default_factory=dict)
     error: Any = None
@@ -74,6 +80,7 @@ class CursorPaginatedEnvelope(BaseModel):
 @dataclass
 class CursorParams:
     """Resolved cursor pagination parameters."""
+
     cursor: str | None
     direction: str  # "after" or "before"
     limit: int
@@ -98,9 +105,19 @@ def cursor_pagination(
     """
 
     def _dependency(
-        cursor: str | None = Query(None, description="Opaque cursor token from a previous response"),
-        direction: str = Query("after", description="Pagination direction: 'after' (next page) or 'before' (previous page)"),
-        limit: int = Query(default_limit, ge=1, le=max_limit, description=f"Items per page (1-{max_limit})"),
+        cursor: str | None = Query(
+            None, description="Opaque cursor token from a previous response"
+        ),
+        direction: str = Query(
+            "after",
+            description="Pagination direction: 'after' (next page) or 'before' (previous page)",
+        ),
+        limit: int = Query(
+            default_limit,
+            ge=1,
+            le=max_limit,
+            description=f"Items per page (1-{max_limit})",
+        ),
     ) -> CursorParams:
         if direction not in ("after", "before"):
             direction = "after"
@@ -163,14 +180,19 @@ def cursor_paginated(
                     item_ts_fn(items[-1]) if item_ts_fn else None,
                 )
             # After reversal, next_cursor points to the item AFTER the original cursor
-            next_cursor = encode_cursor(
-                item_id_fn(items[0]),
-                item_ts_fn(items[0]) if item_ts_fn else None,
-            ) if cursor_params.cursor else None
+            next_cursor = (
+                encode_cursor(
+                    item_id_fn(items[0]),
+                    item_ts_fn(items[0]) if item_ts_fn else None,
+                )
+                if cursor_params.cursor
+                else None
+            )
             # Reverse items so they appear in ascending order
             items = list(reversed(items))
 
     from app.api.v2.base import ResponseMeta
+
     meta = ResponseMeta().model_dump()
     if extra_meta:
         meta.update(extra_meta)

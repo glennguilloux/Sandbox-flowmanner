@@ -15,7 +15,12 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from .state import AgentState, ToolExecution, create_tool_execution, update_tool_execution
+from .state import (
+    AgentState,
+    ToolExecution,
+    create_tool_execution,
+    update_tool_execution,
+)
 from .tool_converter import ToolConverter, get_tool_converter
 
 logger = logging.getLogger(__name__)
@@ -23,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class ApprovalStatus(Enum):
     """Approval status"""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -32,7 +38,7 @@ class ApprovalStatus(Enum):
 
 class ApprovalRequest:
     """Represents an approval request"""
-    
+
     def __init__(
         self,
         tool_execution: ToolExecution,
@@ -51,11 +57,11 @@ class ApprovalRequest:
         self.approved_by: int | None = None
         self.rejection_reason: str | None = None
         self.request_id = request_id
-    
+
     def is_expired(self) -> bool:
         """Check if approval request has expired"""
         return datetime.now(UTC).timestamp() > self.expires_at
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
@@ -76,14 +82,14 @@ class ApprovalRequest:
 class ApprovalWorkflow:
     """
     Manages the human approval workflow for tool execution.
-    
+
     This class handles:
     - Creating approval requests
     - Processing user approvals/rejections
     - Auto-approving safe tools
     - Managing approval timeouts
     """
-    
+
     def __init__(
         self,
         tool_converter: ToolConverter | None = None,
@@ -106,7 +112,7 @@ class ApprovalWorkflow:
         self.redis_client = redis_client
         self.pending_requests: dict[str, ApprovalRequest] = {}
         self.approval_callbacks: dict[str, list[Callable]] = {}
-    
+
     def create_approval_request(
         self,
         state: AgentState,
@@ -116,13 +122,13 @@ class ApprovalWorkflow:
     ) -> dict[str, Any]:
         """
         Create an approval request for tool execution.
-        
+
         Args:
             state: Current agent state
             tool_name: Name of the tool
             tool_id: Tool identifier
             parameters: Tool parameters
-        
+
         Returns:
             Dictionary with approval request info
         """
@@ -133,14 +139,14 @@ class ApprovalWorkflow:
                 "success": False,
                 "error": f"Tool {tool_id} not found",
             }
-        
+
         # Check if auto-approval is possible
         requires_approval = tool.requires_approval
         if state["require_approval_for_all"]:
             requires_approval = True
         elif tool.is_safe and self.auto_approve_safe:
             requires_approval = False
-        
+
         # Create tool execution
         tool_execution = create_tool_execution(
             tool_name=tool_name,
@@ -148,7 +154,7 @@ class ApprovalWorkflow:
             parameters=parameters,
             requires_approval=requires_approval,
         )
-        
+
         # Auto-approve if safe
         if not requires_approval:
             tool_execution = update_tool_execution(
@@ -156,14 +162,14 @@ class ApprovalWorkflow:
                 status="approved",
                 approved_by=state["user_id"] or 0,  # System approval
             )
-            
+
             return {
                 "success": True,
                 "auto_approved": True,
                 "tool_execution": tool_execution,
                 "message": f"Tool {tool_name} auto-approved (safe tool)",
             }
-        
+
         # Create approval request
         request_id = f"{state['session_id']}:{tool_id}:{tool_execution['created_at']}"
         request = ApprovalRequest(
@@ -176,36 +182,51 @@ class ApprovalWorkflow:
 
         # Store request
         self.pending_requests[request_id] = request
-        logger.info(f"[APPROVAL] Created approval request {request_id}, saving to Redis: {self.redis_client is not None}")
+        logger.info(
+            f"[APPROVAL] Created approval request {request_id}, saving to Redis: {self.redis_client is not None}"
+        )
 
         # Save to Redis if available
         if self.redis_client:
             try:
                 import json
+
                 redis_key = f"langgraph:approval:{request_id}"
-                redis_value = json.dumps({
-                    "request_id": request_id,
-                    "session_id": request.session_id,
-                    "user_id": request.user_id,
-                    "tool_execution": request.tool_execution,
-                    "status": request.status.value,
-                    "created_at": request.created_at.isoformat(),
-                    "timeout_seconds": request.timeout_seconds,
-                })
-                self.redis_client.setex(redis_key, self.default_timeout + 60, redis_value)
-                logger.info(f"[APPROVAL] Successfully saved approval request {request_id} to Redis")
+                redis_value = json.dumps(
+                    {
+                        "request_id": request_id,
+                        "session_id": request.session_id,
+                        "user_id": request.user_id,
+                        "tool_execution": request.tool_execution,
+                        "status": request.status.value,
+                        "created_at": request.created_at.isoformat(),
+                        "timeout_seconds": request.timeout_seconds,
+                    }
+                )
+                self.redis_client.setex(
+                    redis_key, self.default_timeout + 60, redis_value
+                )
+                logger.info(
+                    f"[APPROVAL] Successfully saved approval request {request_id} to Redis"
+                )
             except Exception as e:
-                logger.warning(f"[APPROVAL] Failed to save approval request to Redis: {e}")
+                logger.warning(
+                    f"[APPROVAL] Failed to save approval request to Redis: {e}"
+                )
         else:
-            logger.warning(f"[APPROVAL] Redis not available, approval request {request_id} only in memory")
-        
+            logger.warning(
+                f"[APPROVAL] Redis not available, approval request {request_id} only in memory"
+            )
+
         # Update state
         state["awaiting_approval"] = True
         state["current_approval_request"] = tool_execution
         state["pending_tools"] = state["pending_tools"] + [tool_execution]
-        
-        logger.info(f"Created approval request for tool {tool_name} in session {state['session_id']}")
-        
+
+        logger.info(
+            f"Created approval request for tool {tool_name} in session {state['session_id']}"
+        )
+
         return {
             "success": True,
             "auto_approved": False,
@@ -214,7 +235,7 @@ class ApprovalWorkflow:
             "tool_execution": tool_execution,
             "message": f"Approval required for tool {tool_name}",
         }
-    
+
     def _load_request_from_redis(self, request_id: str) -> ApprovalRequest | None:
         """Load approval request from Redis"""
         if not self.redis_client:
@@ -265,7 +286,9 @@ class ApprovalWorkflow:
         Returns:
             Dictionary with approval result
         """
-        logger.info(f"[APPROVAL] approve() called with request_id={request_id}, user_id={user_id}, has_redis={self.redis_client is not None}")
+        logger.info(
+            f"[APPROVAL] approve() called with request_id={request_id}, user_id={user_id}, has_redis={self.redis_client is not None}"
+        )
         request = self.pending_requests.get(request_id)
 
         # Try loading from Redis if not in memory
@@ -312,7 +335,7 @@ class ApprovalWorkflow:
             "tool_execution": request.tool_execution,
             "message": "Tool execution approved",
         }
-    
+
     def reject(
         self,
         request_id: str,
@@ -368,7 +391,7 @@ class ApprovalWorkflow:
             "tool_execution": request.tool_execution,
             "message": "Tool execution rejected",
         }
-    
+
     def cancel(
         self,
         request_id: str,
@@ -421,7 +444,7 @@ class ApprovalWorkflow:
             "tool_execution": request.tool_execution,
             "message": "Tool execution cancelled",
         }
-    
+
     def get_pending_requests(
         self,
         session_id: str | None = None,
@@ -429,45 +452,45 @@ class ApprovalWorkflow:
     ) -> list[dict[str, Any]]:
         """
         Get pending approval requests.
-        
+
         Args:
             session_id: Optional filter by session ID
             user_id: Optional filter by user ID
-        
+
         Returns:
             List of pending approval requests
         """
         requests = []
-        
+
         for request_id, request in self.pending_requests.items():
             # Filter expired requests
             if request.is_expired():
                 self._remove_request(request_id)
                 continue
-            
+
             # Apply filters
             if session_id and request.session_id != session_id:
                 continue
             if user_id and request.user_id != user_id:
                 continue
-            
+
             requests.append(request.to_dict())
-        
+
         return requests
-    
+
     def cleanup_expired_requests(self) -> int:
         """
         Clean up expired approval requests.
-        
+
         Returns:
             Number of requests cleaned up
         """
         expired_ids = []
-        
+
         for request_id, request in self.pending_requests.items():
             if request.is_expired():
                 expired_ids.append(request_id)
-        
+
         for request_id in expired_ids:
             request = self.pending_requests[request_id]
             request.status = ApprovalStatus.CANCELLED
@@ -478,12 +501,12 @@ class ApprovalWorkflow:
             )
             self._trigger_callbacks(request_id, "expired", request)
             self._remove_request(request_id)
-        
+
         if expired_ids:
             logger.info(f"Cleaned up {len(expired_ids)} expired approval requests")
-        
+
         return len(expired_ids)
-    
+
     def register_callback(
         self,
         request_id: str,
@@ -491,7 +514,7 @@ class ApprovalWorkflow:
     ):
         """
         Register a callback for approval status changes.
-        
+
         Args:
             request_id: Approval request ID
             callback: Callback function
@@ -499,7 +522,7 @@ class ApprovalWorkflow:
         if request_id not in self.approval_callbacks:
             self.approval_callbacks[request_id] = []
         self.approval_callbacks[request_id].append(callback)
-    
+
     def _remove_request(self, request_id: str):
         """Remove request from pending"""
         if request_id in self.pending_requests:
@@ -515,7 +538,7 @@ class ApprovalWorkflow:
                 logger.debug(f"Removed approval request {request_id} from Redis")
             except Exception as e:
                 logger.warning(f"Failed to remove approval request from Redis: {e}")
-    
+
     def _trigger_callbacks(
         self,
         request_id: str,
@@ -529,22 +552,22 @@ class ApprovalWorkflow:
                 callback(request_id, ApprovalStatus(status), request)
             except Exception as e:
                 logger.error(f"Error in approval callback: {e}")
-    
+
     def get_approval_summary(
         self,
         session_id: str,
     ) -> dict[str, Any]:
         """
         Get approval summary for a session.
-        
+
         Args:
             session_id: Session ID
-        
+
         Returns:
             Approval summary
         """
         pending = self.get_pending_requests(session_id=session_id)
-        
+
         return {
             "session_id": session_id,
             "pending_count": len(pending),

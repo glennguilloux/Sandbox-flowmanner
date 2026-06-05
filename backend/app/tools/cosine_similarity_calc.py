@@ -31,7 +31,9 @@ class CosineSimilarityCalcInput(ToolInput):
         description="List of corpus vectors to compare against",
     )
     top_k: int | None = Field(
-        10, ge=1, le=10000,
+        10,
+        ge=1,
+        le=10000,
         description="Return top-k most similar results",
     )
     threshold: float | None = Field(
@@ -65,7 +67,9 @@ class CosineSimilarityCalcInput(ToolInput):
                     f"Dimension mismatch: query has {query_dim}, "
                     f"corpus vector at index {i} has {len(vec)}"
                 )
-        if self.corpus_labels and len(self.corpus_labels) != len(self.corpus_embeddings):
+        if self.corpus_labels and len(self.corpus_labels) != len(
+            self.corpus_embeddings
+        ):
             raise ValueError(
                 f"corpus_labels length ({len(self.corpus_labels)}) must match "
                 f"corpus_embeddings length ({len(self.corpus_embeddings)})"
@@ -120,22 +124,27 @@ class CosineSimilarityCalcTool(BaseTool):
         try:
             validated = CosineSimilarityCalcInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         start = time.monotonic()
 
         try:
             results = self._compute(validated)
             computation_time = round((time.monotonic() - start) * 1000, 2)
-            return ToolResult.success_result(tool_id=self.tool_id, result={
-                "results": results,
-                "metric": validated.metric,
-                "top_k": validated.top_k,
-                "threshold": validated.threshold,
-                "total_compared": len(validated.corpus_embeddings),
-                "computation_time_ms": computation_time,
-                "success": True,
-            })
+            return ToolResult.success_result(
+                tool_id=self.tool_id,
+                result={
+                    "results": results,
+                    "metric": validated.metric,
+                    "top_k": validated.top_k,
+                    "threshold": validated.threshold,
+                    "total_compared": len(validated.corpus_embeddings),
+                    "computation_time_ms": computation_time,
+                    "success": True,
+                },
+            )
         except Exception as e:
             logger.exception("cosine_similarity_calc failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -166,11 +175,13 @@ class CosineSimilarityCalcTool(BaseTool):
                 continue
             if validated.threshold is not None and score < validated.threshold:
                 continue
-            results.append({
-                "index": i,
-                "score": round(float(score), 6),
-                "label": labels[i] if i < len(labels) else None,
-            })
+            results.append(
+                {
+                    "index": i,
+                    "score": round(float(score), 6),
+                    "label": labels[i] if i < len(labels) else None,
+                }
+            )
 
         # Sort descending by score
         results.sort(key=lambda x: x["score"], reverse=True)

@@ -1,35 +1,26 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="NavigateResponse")
-
 
 
 @_attrs_define
 class NavigateResponse:
-    """ 
-        Attributes:
-            success (bool):
-            url (None | str | Unset):
-            title (None | str | Unset):
-            status (int | None | Unset):
-            error (None | str | Unset):
-     """
+    """
+    Attributes:
+        success (bool):
+        url (None | str | Unset):
+        title (None | str | Unset):
+        status (int | None | Unset):
+        error (None | str | Unset):
+    """
 
     success: bool
     url: None | str | Unset = UNSET
@@ -37,10 +28,6 @@ class NavigateResponse:
     status: int | None | Unset = UNSET
     error: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         success = self.success
@@ -69,12 +56,13 @@ class NavigateResponse:
         else:
             error = self.error
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-        })
+        field_dict.update(
+            {
+                "success": success,
+            }
+        )
         if url is not UNSET:
             field_dict["url"] = url
         if title is not UNSET:
@@ -85,8 +73,6 @@ class NavigateResponse:
             field_dict["error"] = error
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -102,7 +88,6 @@ class NavigateResponse:
 
         url = _parse_url(d.pop("url", UNSET))
 
-
         def _parse_title(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -111,7 +96,6 @@ class NavigateResponse:
             return cast(None | str | Unset, data)
 
         title = _parse_title(d.pop("title", UNSET))
-
 
         def _parse_status(data: object) -> int | None | Unset:
             if data is None:
@@ -122,7 +106,6 @@ class NavigateResponse:
 
         status = _parse_status(d.pop("status", UNSET))
 
-
         def _parse_error(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -132,7 +115,6 @@ class NavigateResponse:
 
         error = _parse_error(d.pop("error", UNSET))
 
-
         navigate_response = cls(
             success=success,
             url=url,
@@ -140,7 +122,6 @@ class NavigateResponse:
             status=status,
             error=error,
         )
-
 
         navigate_response.additional_properties = d
         return navigate_response

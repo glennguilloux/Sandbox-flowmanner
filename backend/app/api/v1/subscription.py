@@ -157,7 +157,11 @@ async def get_my_subscription(
                     "missions_per_month": tier.missions_per_month,
                 },
                 "status": sub.status,
-                "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
+                "current_period_end": (
+                    sub.current_period_end.isoformat()
+                    if sub.current_period_end
+                    else None
+                ),
             }
 
         # Fall back to free tier if no active subscription found
@@ -219,6 +223,7 @@ async def paypal_cancel():
 
 # ── PayPal Webhook (Phase 8.4) ─────────────────────────────────────────────
 
+
 @router.post("/paypal/webhook")
 async def paypal_webhook(
     request: Request,
@@ -242,7 +247,9 @@ async def paypal_webhook(
     webhook_id = getattr(settings, "PAYPAL_WEBHOOK_ID", "")
     if webhook_id:
         is_valid = await paypal_client.verify_webhook_signature_api(
-            webhook_id=webhook_id, body=body, headers=headers,
+            webhook_id=webhook_id,
+            body=body,
+            headers=headers,
         )
         if not is_valid:
             logger.warning("PayPal webhook signature verification failed")
@@ -272,9 +279,7 @@ async def paypal_webhook(
     sub = result.scalar_one_or_none()
 
     if not sub:
-        logger.warning(
-            "PayPal webhook for unknown subscription: %s", paypal_sub_id
-        )
+        logger.warning("PayPal webhook for unknown subscription: %s", paypal_sub_id)
         return {"status": "unknown_subscription"}
 
     now = datetime.now(UTC)
@@ -315,12 +320,14 @@ async def paypal_webhook(
     await db.commit()
     logger.info(
         "Subscription %s updated to status=%s via PayPal webhook",
-        paypal_sub_id, sub.status,
+        paypal_sub_id,
+        sub.status,
     )
     return {"status": "processed", "event_type": event_type, "new_status": sub.status}
 
 
 # ── Activate after approval (Phase 8.4) ────────────────────────────────────
+
 
 @router.post("/paypal/activate")
 async def paypal_activate(
@@ -338,9 +345,7 @@ async def paypal_activate(
     try:
         pp_sub = await paypal_client.get_subscription(subscription_id)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"PayPal verification failed: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"PayPal verification failed: {e}")
 
     pp_status = pp_sub.get("status", "")
     if pp_status not in ("APPROVED", "ACTIVE"):
@@ -405,6 +410,7 @@ async def paypal_activate(
 
 # ── Billing Dashboard (Phase 8.4) ─────────────────────────────────────────
 
+
 @router.get("/billing")
 async def billing_dashboard(
     user=Depends(get_current_user),
@@ -448,11 +454,13 @@ async def billing_dashboard(
                 ),
                 "missions_this_month_remaining": max(
                     0,
-                    dashboard.plan.missions_per_month - dashboard.usage.missions_this_month,
+                    dashboard.plan.missions_per_month
+                    - dashboard.usage.missions_this_month,
                 ),
                 "concurrent_remaining": max(
                     0,
-                    dashboard.plan.max_concurrent_missions - dashboard.usage.active_missions,
+                    dashboard.plan.max_concurrent_missions
+                    - dashboard.usage.active_missions,
                 ),
             },
             "subscription": {

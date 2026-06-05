@@ -41,28 +41,38 @@ class HumanInterruptRecord(Base, TimestampMixin):
     __tablename__ = "human_interrupts"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()),
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
     )
     mission_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("missions.id"), nullable=False, index=True,
+        String(36),
+        ForeignKey("missions.id"),
+        nullable=False,
+        index=True,
     )
     interrupt_type: Mapped[str] = mapped_column(
-        String(20), nullable=False,
+        String(20),
+        nullable=False,
     )  # approval | clarification | escalation
     context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     proposed_action: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
     deadline: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(
-        String(20), default="pending",
+        String(20),
+        default="pending",
     )  # pending | approved | rejected | expired
     resolved_by: Mapped[str | None] = mapped_column(
-        String(100), nullable=True,
+        String(100),
+        nullable=True,
     )
     resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
 
@@ -110,7 +120,9 @@ class HITLManager:
         self._listeners.append(callback)
 
     async def raise_interrupt(
-        self, db: AsyncSession, interrupt: HumanInterrupt,
+        self,
+        db: AsyncSession,
+        interrupt: HumanInterrupt,
     ) -> str:
         """Persist interrupt and fire all registered listeners.
 
@@ -135,12 +147,15 @@ class HITLManager:
                 await listener("HUMAN_INTERRUPT_RAISED", interrupt)
             except Exception as exc:
                 logger.warning(
-                    "HITL listener failed (non-fatal): %s", exc,
+                    "HITL listener failed (non-fatal): %s",
+                    exc,
                 )
 
         logger.info(
             "Interrupt raised: mission=%s type=%s id=%s",
-            interrupt.mission_id, interrupt.interrupt_type, record.id,
+            interrupt.mission_id,
+            interrupt.interrupt_type,
+            record.id,
         )
         return record.id
 
@@ -161,7 +176,9 @@ class HITLManager:
         if record is None:
             return False
         if record.status != "pending":
-            logger.debug("Interrupt %s already resolved: %s", interrupt_id, record.status)
+            logger.debug(
+                "Interrupt %s already resolved: %s", interrupt_id, record.status
+            )
             return False
 
         record.status = resolution
@@ -169,12 +186,17 @@ class HITLManager:
         record.resolved_at = datetime.now(UTC)
         await db.commit()
         logger.info(
-            "Interrupt %s resolved: %s by %s", interrupt_id, resolution, resolved_by,
+            "Interrupt %s resolved: %s by %s",
+            interrupt_id,
+            resolution,
+            resolved_by,
         )
         return True
 
     async def list_pending(
-        self, db: AsyncSession, mission_id: str | None = None,
+        self,
+        db: AsyncSession,
+        mission_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return all pending interrupts, optionally filtered by mission."""
         stmt = select(HumanInterruptRecord).where(

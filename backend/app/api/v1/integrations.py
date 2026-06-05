@@ -29,7 +29,7 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 # ── Redis-backed OAuth state store (shared across all workers) ──────────
 
-_OAUTH_STATE_TTL=600  # 10 minutes — enough for user to auth on GitHub
+_OAUTH_STATE_TTL = 600  # 10 minutes — enough for user to auth on GitHub
 
 
 def _get_redis():
@@ -67,6 +67,7 @@ class Integration(BaseModel):
 
 class ConnectRequest(BaseModel):
     """Optional body for API-key / credential-based integrations."""
+
     instance_url: str | None = None
     api_key: str | None = None
 
@@ -195,11 +196,14 @@ async def connect_integration(
     if integration.auth_type == "oauth2":
         # Generate one-time auth token so the browser-based authorize redirect works
         auth_token = secrets.token_urlsafe(32)
-        _store_state(auth_token, {
-            "user_id": user.id,
-            "slug": slug,
-            "created_at": time.time(),
-        })
+        _store_state(
+            auth_token,
+            {
+                "user_id": user.id,
+                "slug": slug,
+                "created_at": time.time(),
+            },
+        )
         authorize_url = str(request.url_for("oauth_authorize", slug=slug))
         return {"authorize_url": f"{authorize_url}?auth={auth_token}"}
 
@@ -257,20 +261,24 @@ async def oauth_authorize(
     if request and request.headers.get("x-forwarded-proto"):
         scheme = request.headers["x-forwarded-proto"]
     redirect_uri = (
-        str(request.url_for("oauth_callback", slug=slug))
-        .replace("http://", f"{scheme}://")
+        str(request.url_for("oauth_callback", slug=slug)).replace(
+            "http://", f"{scheme}://"
+        )
         if request
         else f"https://flowmanner.com/api/integrations/{slug}/oauth/callback"
     )
 
     # Generate and store state for CSRF protection
     state = secrets.token_urlsafe(32)
-    _store_state(state, {
-        "user_id": user_id,
-        "slug": slug,
-        "created_at": time.time(),
-        "redirect_uri": redirect_uri,
-    })
+    _store_state(
+        state,
+        {
+            "user_id": user_id,
+            "slug": slug,
+            "created_at": time.time(),
+            "redirect_uri": redirect_uri,
+        },
+    )
 
     # Build the authorize URL
     params = {
@@ -362,6 +370,7 @@ async def oauth_callback(
     # Wire the connection into Nexus so agents can use it
     try:
         from app.services.integration_bridge import get_integration_bridge
+
         bridge = get_integration_bridge()
         await bridge.register_capabilities_for_user(
             user_id=stored["user_id"],
@@ -397,6 +406,7 @@ async def disconnect_integration(
     # Unregister Nexus capabilities for this integration
     try:
         from app.services.integration_bridge import get_integration_bridge
+
         bridge = get_integration_bridge()
         await bridge.unregister_capabilities_for_user(
             user_id=user.id,
@@ -431,18 +441,20 @@ async def get_connected_integrations(
     for conn in result.scalars().all():
         slug = conn.integration_slug
         caps = _INTEGRATION_CAPABILITIES.get(slug, [])
-        connected.append({
-            "slug": slug,
-            "name": slug.title(),
-            "account_name": conn.account_name,
-            "account_id": conn.account_id,
-            "auth_type": "oauth2",
-            "actions": [
-                {"id": c["id"], "name": c["name"], "description": c["description"]}
-                for c in caps
-            ],
-            "action_count": len(caps),
-        })
+        connected.append(
+            {
+                "slug": slug,
+                "name": slug.title(),
+                "account_name": conn.account_name,
+                "account_id": conn.account_id,
+                "auth_type": "oauth2",
+                "actions": [
+                    {"id": c["id"], "name": c["name"], "description": c["description"]}
+                    for c in caps
+                ],
+                "action_count": len(caps),
+            }
+        )
 
     # 2. Non-OAuth integrations (API key / bot token)
     _NON_OAUTH_SETTINGS: dict[str, str] = {
@@ -454,18 +466,24 @@ async def get_connected_integrations(
         setting_key = _NON_OAUTH_SETTINGS.get(slug)
         if setting_key and getattr(settings, setting_key, ""):
             caps = _INTEGRATION_CAPABILITIES.get(slug, [])
-            connected.append({
-                "slug": slug,
-                "name": slug.title(),
-                "account_name": cfg.get("name"),
-                "account_id": None,
-                "auth_type": cfg.get("auth_type"),
-                "actions": [
-                    {"id": c["id"], "name": c["name"], "description": c["description"]}
-                    for c in caps
-                ],
-                "action_count": len(caps),
-            })
+            connected.append(
+                {
+                    "slug": slug,
+                    "name": slug.title(),
+                    "account_name": cfg.get("name"),
+                    "account_id": None,
+                    "auth_type": cfg.get("auth_type"),
+                    "actions": [
+                        {
+                            "id": c["id"],
+                            "name": c["name"],
+                            "description": c["description"],
+                        }
+                        for c in caps
+                    ],
+                    "action_count": len(caps),
+                }
+            )
 
     return {"connected": connected, "total": len(connected)}
 

@@ -86,7 +86,10 @@ class TestCrossWorkspaceService:
 
     @pytest.mark.asyncio
     async def test_grant_share_rejects_self_share(self):
-        from app.services.cross_workspace_service import grant_share, CrossWorkspaceError
+        from app.services.cross_workspace_service import (
+            grant_share,
+            CrossWorkspaceError,
+        )
 
         db = AsyncMock()
         with pytest.raises(CrossWorkspaceError, match="Cannot share"):
@@ -100,7 +103,10 @@ class TestCrossWorkspaceService:
 
     @pytest.mark.asyncio
     async def test_grant_share_rejects_invalid_entity_type(self):
-        from app.services.cross_workspace_service import grant_share, CrossWorkspaceError
+        from app.services.cross_workspace_service import (
+            grant_share,
+            CrossWorkspaceError,
+        )
 
         db = AsyncMock()
         with pytest.raises(CrossWorkspaceError, match="Invalid entity_type"):
@@ -114,7 +120,10 @@ class TestCrossWorkspaceService:
 
     @pytest.mark.asyncio
     async def test_grant_share_rejects_invalid_permission(self):
-        from app.services.cross_workspace_service import grant_share, CrossWorkspaceError
+        from app.services.cross_workspace_service import (
+            grant_share,
+            CrossWorkspaceError,
+        )
 
         db = AsyncMock()
         with pytest.raises(CrossWorkspaceError, match="Invalid permission"):
@@ -146,7 +155,10 @@ class TestCrossWorkspaceService:
 
     @pytest.mark.asyncio
     async def test_revoke_share_not_found(self):
-        from app.services.cross_workspace_service import revoke_share, ShareNotFoundError
+        from app.services.cross_workspace_service import (
+            revoke_share,
+            ShareNotFoundError,
+        )
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -178,8 +190,12 @@ class TestCrossWorkspaceService:
         db.execute = AsyncMock(side_effect=mock_execute)
 
         result = await check_entity_access(
-            db, user_id=1, target_workspace_id="ws-b",
-            entity_type="mission", entity_id="m-1", required_permission="read",
+            db,
+            user_id=1,
+            target_workspace_id="ws-b",
+            entity_type="mission",
+            entity_id="m-1",
+            required_permission="read",
         )
         assert result is share
 
@@ -205,8 +221,12 @@ class TestCrossWorkspaceService:
         db.execute = AsyncMock(side_effect=mock_execute)
 
         result = await check_entity_access(
-            db, user_id=1, target_workspace_id="ws-b",
-            entity_type="mission", entity_id="m-1", required_permission="write",
+            db,
+            user_id=1,
+            target_workspace_id="ws-b",
+            entity_type="mission",
+            entity_id="m-1",
+            required_permission="write",
         )
         assert result is None
 
@@ -220,8 +240,11 @@ class TestCrossWorkspaceService:
         db.execute = AsyncMock(return_value=mock_result)
 
         result = await check_entity_access(
-            db, user_id=1, target_workspace_id="ws-b",
-            entity_type="mission", entity_id="m-1",
+            db,
+            user_id=1,
+            target_workspace_id="ws-b",
+            entity_type="mission",
+            entity_id="m-1",
         )
         assert result is None
 
@@ -244,8 +267,11 @@ class TestCrossWorkspaceService:
         db.execute = AsyncMock(side_effect=mock_execute)
 
         result = await check_entity_access(
-            db, user_id=1, target_workspace_id="ws-b",
-            entity_type="mission", entity_id="m-1",
+            db,
+            user_id=1,
+            target_workspace_id="ws-b",
+            entity_type="mission",
+            entity_id="m-1",
         )
         assert result is None
 
@@ -299,7 +325,9 @@ class TestAccessCheckCrossWorkspaceIntegration:
                     return mock_r
                 # check_entity_access: member check in ws-other → member exists
                 if call_count == 3:
-                    return MagicMock(scalar_one_or_none=MagicMock(return_value=MagicMock()))
+                    return MagicMock(
+                        scalar_one_or_none=MagicMock(return_value=MagicMock())
+                    )
                 # check_entity_access: share lookup → found
                 if call_count == 4:
                     grant = MagicMock()
@@ -373,7 +401,9 @@ class TestAccessCheckCrossWorkspaceIntegration:
 
         db.execute = AsyncMock(side_effect=mock_execute)
 
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
+        with patch(
+            "app.services.graph_service.get_graph_workflow", return_value=workflow
+        ):
             result = await require_graph_access(db, "wf-1", user_id=99)
             assert result is workflow
 

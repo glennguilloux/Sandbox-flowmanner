@@ -36,20 +36,32 @@ router = APIRouter(prefix="/blueprints", tags=["blueprints-v2"])
 async def list_blueprints(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    blueprint_type: str | None = Query(None, description="Filter by blueprint type (solo, dag, swarm, etc.)"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by status (draft, published, deprecated)"),
+    blueprint_type: str | None = Query(
+        None, description="Filter by blueprint type (solo, dag, swarm, etc.)"
+    ),
+    status_filter: str | None = Query(
+        None,
+        alias="status",
+        description="Filter by status (draft, published, deprecated)",
+    ),
     user: User = Depends(get_current_user),
     workspace_id: str | None = Depends(get_workspace_id),
     q: BlueprintQueryHandlers = Depends(get_blueprint_queries),
 ):
     """List blueprints with optional type/status filtering."""
     r = await q.list_blueprints(
-        user.id, page=page, per_page=per_page,
-        workspace_id=workspace_id, blueprint_type=blueprint_type, status=status_filter,
+        user.id,
+        page=page,
+        per_page=per_page,
+        workspace_id=workspace_id,
+        blueprint_type=blueprint_type,
+        status=status_filter,
     )
     return paginated(
         items=[b.model_dump() for b in r.items],
-        total=r.total, page=r.page, per_page=r.per_page,
+        total=r.total,
+        page=r.page,
+        per_page=r.per_page,
     )
 
 
@@ -145,6 +157,3 @@ async def list_versions(
     """List version history."""
     versions = await q.list_versions(user.id, blueprint_id)
     return ok([v.model_dump() for v in versions])
-
-
-

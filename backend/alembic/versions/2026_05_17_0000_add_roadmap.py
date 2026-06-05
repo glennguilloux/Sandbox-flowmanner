@@ -21,7 +21,9 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("description", sa.Text(), nullable=False, server_default=""),
-        sa.Column("status", sa.String(32), nullable=False, server_default="under_review"),
+        sa.Column(
+            "status", sa.String(32), nullable=False, server_default="under_review"
+        ),
         sa.Column("category", sa.String(64), nullable=False, server_default="general"),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("is_public", sa.Boolean(), nullable=False, server_default="true"),
@@ -56,7 +58,12 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index("ix_roadmap_votes_item_user", "roadmap_votes", ["item_id", "user_id"], unique=True)
+    op.create_index(
+        "ix_roadmap_votes_item_user",
+        "roadmap_votes",
+        ["item_id", "user_id"],
+        unique=True,
+    )
 
     op.create_table(
         "roadmap_comments",
@@ -84,7 +91,8 @@ def upgrade() -> None:
     )
 
     # Seed some initial roadmap items
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO roadmap_items (id, title, description, status, category, sort_order, is_public, vote_count, created_by)
         VALUES
             (gen_random_uuid(), 'Mobile App', 'Native mobile application for iOS and Android', 'planned', 'platform', 1, true, 0, 'system'),
@@ -92,7 +100,8 @@ def upgrade() -> None:
             (gen_random_uuid(), 'Custom AI Models', 'Support for custom fine-tuned AI models', 'planned', 'ai', 3, true, 0, 'system'),
             (gen_random_uuid(), 'API v2', 'Redesigned REST API with GraphQL support', 'under_review', 'platform', 4, true, 0, 'system'),
             (gen_random_uuid(), 'Workflow Marketplace', 'Community-driven workflow template marketplace', 'in_progress', 'feature', 5, true, 0, 'system')
-    """)
+    """
+    )
 
 
 def downgrade() -> None:

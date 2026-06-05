@@ -1,42 +1,35 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-from uuid import UUID
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.mission_log_response_data_type_0 import MissionLogResponseDataType0
-
-
-
+    from ..models.mission_log_response_data_type_0 import MissionLogResponseDataType0
 
 
 T = TypeVar("T", bound="MissionLogResponse")
 
 
-
 @_attrs_define
 class MissionLogResponse:
-    """ 
-        Attributes:
-            id (UUID):
-            mission_id (UUID):
-            message (str):
-            task_id (None | Unset | UUID):
-            level (None | str | Unset):
-            data (MissionLogResponseDataType0 | None | Unset):
-            timestamp (datetime.datetime | None | Unset):
-     """
+    """
+    Attributes:
+        id (UUID):
+        mission_id (UUID):
+        message (str):
+        task_id (None | Unset | UUID):
+        level (None | str | Unset):
+        data (MissionLogResponseDataType0 | None | Unset):
+        timestamp (datetime.datetime | None | Unset):
+    """
 
     id: UUID
     mission_id: UUID
@@ -47,12 +40,11 @@ class MissionLogResponse:
     timestamp: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_log_response_data_type_0 import MissionLogResponseDataType0
+        from ..models.mission_log_response_data_type_0 import (
+            MissionLogResponseDataType0,
+        )
+
         id = str(self.id)
 
         mission_id = str(self.mission_id)
@@ -89,14 +81,15 @@ class MissionLogResponse:
         else:
             timestamp = self.timestamp
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "mission_id": mission_id,
-            "message": message,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "mission_id": mission_id,
+                "message": message,
+            }
+        )
         if task_id is not UNSET:
             field_dict["task_id"] = task_id
         if level is not UNSET:
@@ -108,21 +101,16 @@ class MissionLogResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_log_response_data_type_0 import MissionLogResponseDataType0
+        from ..models.mission_log_response_data_type_0 import (
+            MissionLogResponseDataType0,
+        )
+
         d = dict(src_dict)
         id = UUID(d.pop("id"))
 
-
-
-
         mission_id = UUID(d.pop("mission_id"))
-
-
-
 
         message = d.pop("message")
 
@@ -136,15 +124,12 @@ class MissionLogResponse:
                     raise TypeError()
                 task_id_type_0 = UUID(data)
 
-
-
                 return task_id_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | Unset | UUID, data)
 
         task_id = _parse_task_id(d.pop("task_id", UNSET))
-
 
         def _parse_level(data: object) -> None | str | Unset:
             if data is None:
@@ -154,7 +139,6 @@ class MissionLogResponse:
             return cast(None | str | Unset, data)
 
         level = _parse_level(d.pop("level", UNSET))
-
 
         def _parse_data(data: object) -> MissionLogResponseDataType0 | None | Unset:
             if data is None:
@@ -166,15 +150,12 @@ class MissionLogResponse:
                     raise TypeError()
                 data_type_0 = MissionLogResponseDataType0.from_dict(data)
 
-
-
                 return data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(MissionLogResponseDataType0 | None | Unset, data)
 
         data = _parse_data(d.pop("data", UNSET))
-
 
         def _parse_timestamp(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -186,15 +167,12 @@ class MissionLogResponse:
                     raise TypeError()
                 timestamp_type_0 = isoparse(data)
 
-
-
                 return timestamp_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(datetime.datetime | None | Unset, data)
 
         timestamp = _parse_timestamp(d.pop("timestamp", UNSET))
-
 
         mission_log_response = cls(
             id=id,
@@ -205,7 +183,6 @@ class MissionLogResponse:
             data=data,
             timestamp=timestamp,
         )
-
 
         mission_log_response.additional_properties = d
         return mission_log_response

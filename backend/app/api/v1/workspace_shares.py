@@ -36,7 +36,9 @@ router = APIRouter(prefix="/workspace-shares", tags=["workspace-shares"])
 
 class ShareCreateRequest(BaseModel):
     target_workspace_id: str = Field(..., description="Workspace to grant access to")
-    entity_type: str = Field(..., description="Entity type: mission, workflow, chat_thread")
+    entity_type: str = Field(
+        ..., description="Entity type: mission, workflow, chat_thread"
+    )
     entity_id: str = Field(..., description="Entity ID to share")
     permission: str = Field("read", description="Permission level: read or write")
 
@@ -112,7 +114,9 @@ async def revoke_share_endpoint(
     try:
         await revoke_share(db, share_id, revoked_by=user.id)
     except ShareNotFoundError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Share not found"
+        )
 
 
 @router.get("/", response_model=list[ShareResponse])

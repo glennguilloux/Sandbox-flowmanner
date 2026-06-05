@@ -11,7 +11,9 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
+    from ..models.graph_workflow_response_graph_definition_type_0 import (
+        GraphWorkflowResponseGraphDefinitionType0,
+    )
 
 
 T = TypeVar("T", bound="GraphWorkflowResponse")
@@ -42,7 +44,9 @@ class GraphWorkflowResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
+        from ..models.graph_workflow_response_graph_definition_type_0 import (
+            GraphWorkflowResponseGraphDefinitionType0,
+        )
 
         id = self.id
 
@@ -61,7 +65,9 @@ class GraphWorkflowResponse:
         graph_definition: dict[str, Any] | None | Unset
         if isinstance(self.graph_definition, Unset):
             graph_definition = UNSET
-        elif isinstance(self.graph_definition, GraphWorkflowResponseGraphDefinitionType0):
+        elif isinstance(
+            self.graph_definition, GraphWorkflowResponseGraphDefinitionType0
+        ):
             graph_definition = self.graph_definition.to_dict()
         else:
             graph_definition = self.graph_definition
@@ -97,7 +103,9 @@ class GraphWorkflowResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
+        from ..models.graph_workflow_response_graph_definition_type_0 import (
+            GraphWorkflowResponseGraphDefinitionType0,
+        )
 
         d = dict(src_dict)
         id = d.pop("id")
@@ -117,7 +125,9 @@ class GraphWorkflowResponse:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_graph_definition(data: object) -> GraphWorkflowResponseGraphDefinitionType0 | None | Unset:
+        def _parse_graph_definition(
+            data: object,
+        ) -> GraphWorkflowResponseGraphDefinitionType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -125,7 +135,9 @@ class GraphWorkflowResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                graph_definition_type_0 = GraphWorkflowResponseGraphDefinitionType0.from_dict(data)
+                graph_definition_type_0 = (
+                    GraphWorkflowResponseGraphDefinitionType0.from_dict(data)
+                )
 
                 return graph_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

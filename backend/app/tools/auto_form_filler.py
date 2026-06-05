@@ -126,15 +126,32 @@ _FIELD_MAPPINGS: dict[str, str] = {
 
 # Field name patterns that should be left empty (too sensitive or context-specific)
 _SKIP_FIELDS: set[str] = {
-    "captcha", "recaptcha", "2fa", "mfa", "totp", "security_code",
-    "verification_code", "otp", "pin", "credit_card", "card_number",
-    "cvv", "cvc", "ssn", "social_security", "tax_id",
-    "current_password", "old_password", "existing_password",
-    "reset_token", "confirmation_token",
+    "captcha",
+    "recaptcha",
+    "2fa",
+    "mfa",
+    "totp",
+    "security_code",
+    "verification_code",
+    "otp",
+    "pin",
+    "credit_card",
+    "card_number",
+    "cvv",
+    "cvc",
+    "ssn",
+    "social_security",
+    "tax_id",
+    "current_password",
+    "old_password",
+    "existing_password",
+    "reset_token",
+    "confirmation_token",
 }
 
 
 # ── Input ─────────────────────────────────────────────────────────────
+
 
 class AutoFormFillerInput(ToolInput):
     action: str = Field(
@@ -166,6 +183,7 @@ class AutoFormFillerInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class AutoFormFillerTool(BaseTool):
     """Detect and automatically fill web forms using heuristics or LLM."""
@@ -388,7 +406,9 @@ class AutoFormFillerTool(BaseTool):
                         matched_override = val
                         break
                 if matched_override:
-                    resolved.append({**field, "fill_value": matched_override, "method": "override"})
+                    resolved.append(
+                        {**field, "fill_value": matched_override, "method": "override"}
+                    )
                     count += 1
                 continue
 
@@ -401,7 +421,9 @@ class AutoFormFillerTool(BaseTool):
                         matched_override = val
                         break
                 if matched_override:
-                    resolved.append({**field, "fill_value": matched_override, "method": "override"})
+                    resolved.append(
+                        {**field, "fill_value": matched_override, "method": "override"}
+                    )
                     count += 1
                 continue
 
@@ -425,7 +447,11 @@ class AutoFormFillerTool(BaseTool):
         return resolved
 
     def _heuristic_match(
-        self, name: str, label: str, placeholder: str, field_id: str,
+        self,
+        name: str,
+        label: str,
+        placeholder: str,
+        field_id: str,
     ) -> tuple[str | None, str]:
         """Match a field to a fill value using keyword matching."""
         # Build a search text from all identifiers
@@ -480,7 +506,9 @@ class AutoFormFillerTool(BaseTool):
                     await handle.fill(str(fill_value))
                     results.append({**field, "filled": True, "fill_value": fill_value})
                 else:
-                    results.append({**field, "filled": False, "error": "Element not found"})
+                    results.append(
+                        {**field, "filled": False, "error": "Element not found"}
+                    )
             except Exception as e:
                 results.append({**field, "filled": False, "error": str(e)})
 

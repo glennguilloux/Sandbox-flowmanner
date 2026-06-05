@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 from app.tools.redis_cache import get_redis
 
 logger = logging.getLogger(__name__)
@@ -27,6 +34,7 @@ STOCK_CACHE_TTL = int(os.getenv("STOCK_CACHE_TTL", "300"))  # 5 min default
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
+
 
 def _interval_for_raw(raw: dict) -> str:
     """Extract interval from raw response metadata for intraday."""
@@ -158,14 +166,14 @@ class StockPriceTrackerTool(BaseTool):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="Alpha Vantage not configured. Set ALPHA_VANTAGE_API_KEY env var. "
-                      "Get a free key at https://www.alphavantage.co/support/#api-key",
+                "Get a free key at https://www.alphavantage.co/support/#api-key",
             )
 
         if is_placeholder(api_key):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="Alpha Vantage not configured. Replace placeholder value for "
-                      "ALPHA_VANTAGE_API_KEY with a real key from https://www.alphavantage.co/support/#api-key",
+                "ALPHA_VANTAGE_API_KEY with a real key from https://www.alphavantage.co/support/#api-key",
             )
 
         try:
@@ -184,7 +192,9 @@ class StockPriceTrackerTool(BaseTool):
 
     # ── _fetch_with_cache ────────────────────────────────────────
 
-    async def _fetch_with_cache(self, validated: StockPriceTrackerInput) -> dict[str, Any]:
+    async def _fetch_with_cache(
+        self, validated: StockPriceTrackerInput
+    ) -> dict[str, Any]:
         """Try Redis cache first, fall back to API call."""
         cache_key = self._cache_key(validated)
 
@@ -195,6 +205,7 @@ class StockPriceTrackerTool(BaseTool):
                 cached = await redis_client.get(cache_key)
                 if cached:
                     import json
+
                     data = json.loads(cached)
                     data["cached"] = True
                     return data
@@ -209,6 +220,7 @@ class StockPriceTrackerTool(BaseTool):
         if redis_client:
             try:
                 import json
+
                 await redis_client.setex(cache_key, STOCK_CACHE_TTL, json.dumps(data))
             except Exception as e:
                 logger.warning("Redis setex failed (non-fatal): %s", e)
@@ -217,7 +229,9 @@ class StockPriceTrackerTool(BaseTool):
 
     # ── _call_alpha_vantage ──────────────────────────────────────
 
-    async def _call_alpha_vantage(self, validated: StockPriceTrackerInput) -> dict[str, Any]:
+    async def _call_alpha_vantage(
+        self, validated: StockPriceTrackerInput
+    ) -> dict[str, Any]:
         """Call Alpha Vantage API."""
         sym = self._primary_symbol(validated)
         params: dict[str, Any] = {
@@ -228,14 +242,22 @@ class StockPriceTrackerTool(BaseTool):
         if validated.action == "SYMBOL_SEARCH":
             params["keywords"] = validated.keywords or sym
         elif validated.action == "CURRENCY_EXCHANGE_RATE":
-            params["from_currency"] = validated.from_currency or sym.split("/")[0] if "/" in sym else sym
-            params["to_currency"] = validated.to_currency or (sym.split("/")[1] if "/" in sym else "USD")
+            params["from_currency"] = (
+                validated.from_currency or sym.split("/")[0] if "/" in sym else sym
+            )
+            params["to_currency"] = validated.to_currency or (
+                sym.split("/")[1] if "/" in sym else "USD"
+            )
         elif validated.action in ("CRYPTO_INTRADAY", "DIGITAL_CURRENCY_DAILY"):
             params["symbol"] = sym
             params["market"] = validated.market or "USD"
         elif validated.action == "FX_DAILY":
-            params["from_symbol"] = validated.from_currency or sym.split("/")[0] if "/" in sym else sym
-            params["to_symbol"] = validated.to_currency or (sym.split("/")[1] if "/" in sym else "USD")
+            params["from_symbol"] = (
+                validated.from_currency or sym.split("/")[0] if "/" in sym else sym
+            )
+            params["to_symbol"] = validated.to_currency or (
+                sym.split("/")[1] if "/" in sym else "USD"
+            )
             params["outputsize"] = validated.outputsize
         elif validated.action == "TIME_SERIES_INTRADAY":
             params["symbol"] = sym

@@ -78,7 +78,9 @@ class CircuitBreakerService:
         await self.db.flush()
         logger.info(
             "Circuit breaker created for mission %s (max_llm=%d, max_cost=$%.2f)",
-            mission_id, max_llm_calls, max_cost_usd,
+            mission_id,
+            max_llm_calls,
+            max_cost_usd,
         )
         return breaker
 
@@ -101,7 +103,10 @@ class CircuitBreakerService:
             breaker.started_at = datetime.now(UTC)
 
         if breaker.state == CircuitBreakerState.CIRCUIT_BROKEN.value:
-            return False, "Circuit breaker is permanently broken — manual reset required"
+            return (
+                False,
+                "Circuit breaker is permanently broken — manual reset required",
+            )
 
         is_broken, reason = breaker.check_limits()
         if is_broken:
@@ -114,7 +119,9 @@ class CircuitBreakerService:
 
             logger.warning(
                 "Circuit breaker triggered for mission %s: %s (count=%d)",
-                breaker.mission_id, reason, breaker.trigger_count,
+                breaker.mission_id,
+                reason,
+                breaker.trigger_count,
             )
             return False, reason
 
@@ -154,7 +161,8 @@ class CircuitBreakerService:
         await self.db.flush()
         logger.warning(
             "Circuit breaker BROKEN for mission %s after %d triggers",
-            breaker.mission_id, breaker.trigger_count,
+            breaker.mission_id,
+            breaker.trigger_count,
         )
 
     async def reset(self, breaker: MissionCircuitBreaker) -> None:

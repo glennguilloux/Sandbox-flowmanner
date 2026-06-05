@@ -21,7 +21,14 @@ try:
 except ImportError:
     OAuth1Session = None  # type: ignore[assignment]
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +73,7 @@ class XTwitterSchedulerInput(ToolInput):
 
 class XTwitterSchedulerStatusInput(ToolInput):
     """Check status of a scheduled tweet."""
+
     schedule_id: str = Field(..., description="Schedule ID returned by the scheduler")
 
 
@@ -146,7 +154,11 @@ class XTwitterSchedulerTool(BaseTool):
             "total_characters": sum(len(t) for t in tweets),
             "is_thread": len(tweets) > 1,
             "tweets": [
-                {"index": i, "text": t[:100] + ("..." if len(t) > 100 else ""), "length": len(t)}
+                {
+                    "index": i,
+                    "text": t[:100] + ("..." if len(t) > 100 else ""),
+                    "length": len(t),
+                }
                 for i, t in enumerate(tweets)
             ],
         }
@@ -170,7 +182,10 @@ class XTwitterSchedulerTool(BaseTool):
                 "preview": preview,
             }
 
-        if any(is_placeholder(v) for v in [X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET]):
+        if any(
+            is_placeholder(v)
+            for v in [X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET]
+        ):
             return {
                 "status": "not_configured",
                 "message": (

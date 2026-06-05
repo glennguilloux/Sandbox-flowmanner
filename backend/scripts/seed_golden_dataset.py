@@ -407,7 +407,9 @@ async def seed():
 
         await db.commit()
 
-        total = len(CODE_CASES) + len(RAG_CASES) + len(AGENT_CASES) + len(CREATIVE_CASES)
+        total = (
+            len(CODE_CASES) + len(RAG_CASES) + len(AGENT_CASES) + len(CREATIVE_CASES)
+        )
         print(f"Seeded {total} golden test cases across 4 datasets:")
         print(f"  - Code: {len(CODE_CASES)} cases ({code_ds.id})")
         print(f"  - RAG:  {len(RAG_CASES)} cases ({rag_ds.id})")

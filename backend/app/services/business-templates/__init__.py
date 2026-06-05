@@ -11,4 +11,4 @@ from .finance_template import FinanceAgentTemplate
 from .legal_template import LegalAgentTemplate
 from .support_template import SupportAgentTemplate
 
-__all__ = ['FinanceAgentTemplate', 'LegalAgentTemplate', 'SupportAgentTemplate']
+__all__ = ["FinanceAgentTemplate", "LegalAgentTemplate", "SupportAgentTemplate"]

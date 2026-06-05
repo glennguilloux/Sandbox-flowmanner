@@ -103,7 +103,10 @@ class TestGetWorkspaceIdAudit:
         db.execute = AsyncMock(side_effect=side_effect)
 
         # Even if audit internals fail, the function must return None cleanly
-        with patch("app.api.middleware.audit.log_auth_event", side_effect=RuntimeError("db down")):
+        with patch(
+            "app.api.middleware.audit.log_auth_event",
+            side_effect=RuntimeError("db down"),
+        ):
             result = await get_workspace_id(request, user, db)
 
         assert result is None
@@ -206,7 +209,9 @@ class TestRequireMissionAccessAudit:
 
         with patch("app.services.mission_service.get_mission", return_value=mission):
             mock_result = MagicMock()
-            mock_result.scalar_one_or_none.return_value = MagicMock()  # membership exists
+            mock_result.scalar_one_or_none.return_value = (
+                MagicMock()
+            )  # membership exists
             db.execute = AsyncMock(return_value=mock_result)
 
             with caplog.at_level(logging.WARNING):
@@ -237,7 +242,9 @@ class TestRequireGraphAccessAudit:
 
         db = AsyncMock()
 
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
+        with patch(
+            "app.services.graph_service.get_graph_workflow", return_value=workflow
+        ):
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
             db.execute = AsyncMock(return_value=mock_result)
@@ -264,7 +271,9 @@ class TestRequireGraphAccessAudit:
 
         db = AsyncMock()
 
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
+        with patch(
+            "app.services.graph_service.get_graph_workflow", return_value=workflow
+        ):
             with caplog.at_level(logging.WARNING):
                 with pytest.raises(GraphNotFoundError):
                     await require_graph_access(db, "wf-def", user_id=99)
@@ -284,7 +293,9 @@ class TestRequireGraphAccessAudit:
 
         db = AsyncMock()
 
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
+        with patch(
+            "app.services.graph_service.get_graph_workflow", return_value=workflow
+        ):
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = MagicMock()
             db.execute = AsyncMock(return_value=mock_result)
@@ -323,6 +334,7 @@ class TestRequireChatThreadAccessAudit:
 
             with caplog.at_level(logging.WARNING):
                 from fastapi import HTTPException
+
                 with pytest.raises(HTTPException):
                     await require_chat_thread_access(db, 42, user_id=99)
 
@@ -346,6 +358,7 @@ class TestRequireChatThreadAccessAudit:
         with patch("app.services.chat_service.get_chat_thread", return_value=thread):
             with caplog.at_level(logging.WARNING):
                 from fastapi import HTTPException
+
                 with pytest.raises(HTTPException):
                     await require_chat_thread_access(db, 42, user_id=99)
 
@@ -415,15 +428,19 @@ class TestAuditLogFormatConsistency:
         mock_detect = MagicMock()
         mock_detect.first.return_value = None
         call_count = 0
+
         async def ws_side(stmt):
             nonlocal call_count
             call_count += 1
             return mock_result if call_count == 1 else mock_detect
+
         db.execute = AsyncMock(side_effect=ws_side)
         with caplog.at_level(logging.WARNING):
             await get_workspace_id(request, user, db)
         denials = [r for r in caplog.records if "workspace_access_denied" in r.message]
-        assert len(denials) == 1, f"Expected 1 workspace_access_denied, got {len(denials)}"
+        assert (
+            len(denials) == 1
+        ), f"Expected 1 workspace_access_denied, got {len(denials)}"
 
         # require_mission_access with workspace denial
         caplog.clear()
@@ -435,6 +452,8 @@ class TestAuditLogFormatConsistency:
             with caplog.at_level(logging.WARNING):
                 with pytest.raises(MissionNotFoundError):
                     await require_mission_access(db, "m-1", user_id=2)
-        entity_denials = [r for r in caplog.records if "entity_access_denied" in r.message]
+        entity_denials = [
+            r for r in caplog.records if "entity_access_denied" in r.message
+        ]
         assert len(entity_denials) == 1
         assert "entity_type=mission" in entity_denials[0].message

@@ -5,7 +5,9 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_template_api_community_templates_post_data import CreateTemplateApiCommunityTemplatesPostData
+from ...models.create_template_api_community_templates_post_data import (
+    CreateTemplateApiCommunityTemplatesPostData,
+)
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
 

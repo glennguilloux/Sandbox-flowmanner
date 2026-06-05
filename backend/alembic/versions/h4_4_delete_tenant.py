@@ -58,7 +58,9 @@ def downgrade() -> None:
         sa.Column("description", sa.String(500), nullable=True),
         sa.Column("subscription_tier_id", sa.Integer(), nullable=True),
         sa.Column("max_members", sa.Integer(), nullable=False, server_default="10"),
-        sa.Column("max_missions_per_day", sa.Integer(), nullable=False, server_default="100"),
+        sa.Column(
+            "max_missions_per_day", sa.Integer(), nullable=False, server_default="100"
+        ),
         sa.Column("billing_customer_id", sa.String(100), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
         sa.Column("owner_id", sa.Integer(), nullable=False),
@@ -76,7 +78,9 @@ def downgrade() -> None:
 
     # Restore users.tenant_id
     op.add_column("users", sa.Column("tenant_id", sa.Integer(), nullable=True))
-    op.create_foreign_key("users_ibfk_tenant", "users", "tenants", ["tenant_id"], ["id"])
+    op.create_foreign_key(
+        "users_ibfk_tenant", "users", "tenants", ["tenant_id"], ["id"]
+    )
 
     # Re-create dependent tables
     op.create_table(
@@ -85,8 +89,12 @@ def downgrade() -> None:
         sa.Column("tenant_id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("role", sa.String(50), nullable=False),
-        sa.Column("can_create_missions", sa.Boolean(), nullable=False, server_default="1"),
-        sa.Column("can_manage_members", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column(
+            "can_create_missions", sa.Boolean(), nullable=False, server_default="1"
+        ),
+        sa.Column(
+            "can_manage_members", sa.Boolean(), nullable=False, server_default="0"
+        ),
         sa.Column("can_view_billing", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),

@@ -45,7 +45,10 @@ class ListIntegrationsTool(BaseTool):
             output_schema={
                 "type": "object",
                 "properties": {
-                    "connected": {"type": "array", "description": "List of connected integrations"},
+                    "connected": {
+                        "type": "array",
+                        "description": "List of connected integrations",
+                    },
                     "total": {"type": "integer"},
                 },
             },
@@ -97,23 +100,25 @@ class ListIntegrationsTool(BaseTool):
                 for conn in connections:
                     slug = conn.integration_slug
                     caps = _INTEGRATION_CAPABILITIES.get(slug, [])
-                    connected.append({
-                        "slug": slug,
-                        "name": slug.title(),
-                        "account_name": conn.account_name,
-                        "account_id": conn.account_id,
-                        "auth_type": "oauth2",
-                        "actions": [
-                            {
-                                "id": c["id"],
-                                "name": c["name"],
-                                "description": c["description"],
-                                "params": c.get("params", {}),
-                            }
-                            for c in caps
-                        ],
-                        "action_count": len(caps),
-                    })
+                    connected.append(
+                        {
+                            "slug": slug,
+                            "name": slug.title(),
+                            "account_name": conn.account_name,
+                            "account_id": conn.account_id,
+                            "auth_type": "oauth2",
+                            "actions": [
+                                {
+                                    "id": c["id"],
+                                    "name": c["name"],
+                                    "description": c["description"],
+                                    "params": c.get("params", {}),
+                                }
+                                for c in caps
+                            ],
+                            "action_count": len(caps),
+                        }
+                    )
 
             # ── 2. Report non-OAuth integrations (API key / bot token) ──
             # Each _NON_OAUTH_CONFIGS entry maps to a settings attr that holds
@@ -130,23 +135,25 @@ class ListIntegrationsTool(BaseTool):
                 if setting_key and getattr(settings, setting_key, ""):
                     # Only report if the credential is configured
                     caps = _INTEGRATION_CAPABILITIES.get(slug, [])
-                    connected.append({
-                        "slug": slug,
-                        "name": slug.title(),
-                        "account_name": cfg.get("name"),
-                        "account_id": None,
-                        "auth_type": cfg.get("auth_type"),
-                        "actions": [
-                            {
-                                "id": c["id"],
-                                "name": c["name"],
-                                "description": c["description"],
-                                "params": c.get("params", {}),
-                            }
-                            for c in caps
-                        ],
-                        "action_count": len(caps),
-                    })
+                    connected.append(
+                        {
+                            "slug": slug,
+                            "name": slug.title(),
+                            "account_name": cfg.get("name"),
+                            "account_id": None,
+                            "auth_type": cfg.get("auth_type"),
+                            "actions": [
+                                {
+                                    "id": c["id"],
+                                    "name": c["name"],
+                                    "description": c["description"],
+                                    "params": c.get("params", {}),
+                                }
+                                for c in caps
+                            ],
+                            "action_count": len(caps),
+                        }
+                    )
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
@@ -269,7 +276,10 @@ class ExecuteIntegrationTool(BaseTool):
         except Exception as e:
             logger.exception(
                 "execute_integration failed for user %s, %s/%s: %s",
-                user_id, slug, action, e,
+                user_id,
+                slug,
+                action,
+                e,
             )
             return ToolResult.error_result(
                 tool_id=self.tool_id,

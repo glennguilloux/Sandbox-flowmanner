@@ -15,7 +15,14 @@ Components:
 from .retry import RetryManager, retry_manager
 from .router import WebhookRouter, webhook_router
 from .service import WebhookHandlerService, webhook_service
-from .signature import GitHubVerifier, HMACVerifier, SignatureVerifier, SlackVerifier, StripeVerifier, get_verifier
+from .signature import (
+    GitHubVerifier,
+    HMACVerifier,
+    SignatureVerifier,
+    SlackVerifier,
+    StripeVerifier,
+    get_verifier,
+)
 
 __all__ = [
     "GitHubVerifier",

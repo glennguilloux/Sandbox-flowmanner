@@ -1,55 +1,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="VoteOut")
-
 
 
 @_attrs_define
 class VoteOut:
-    """ 
-        Attributes:
-            success (bool):
-            vote_count (int):
-     """
+    """
+    Attributes:
+        success (bool):
+        vote_count (int):
+    """
 
     success: bool
     vote_count: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         success = self.success
 
         vote_count = self.vote_count
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-            "vote_count": vote_count,
-        })
+        field_dict.update(
+            {
+                "success": success,
+                "vote_count": vote_count,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -62,7 +48,6 @@ class VoteOut:
             success=success,
             vote_count=vote_count,
         )
-
 
         vote_out.additional_properties = d
         return vote_out

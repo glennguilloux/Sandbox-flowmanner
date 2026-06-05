@@ -36,6 +36,7 @@ Out = TypeVar("Out", bound=BaseModel)
 
 # ── Action & ResourceRef ───────────────────────────────────────────
 
+
 class Action(str, Enum):
     """Permissible actions on a resource (OCap)."""
 
@@ -69,6 +70,7 @@ class ResourceRef(BaseModel):
 
 
 # ── Capability[In, Out] — typed capability ─────────────────────────
+
 
 class Capability(BaseModel, Generic[In, Out]):
     """Typed capability with Pydantic input/output contracts.
@@ -157,6 +159,7 @@ class Capability(BaseModel, Generic[In, Out]):
 
 
 # ── CapabilityToken — OCap token ───────────────────────────────────
+
 
 class CapabilityToken(BaseModel):
     """Unforgeable OCap token per Ω spec VII.1.
@@ -247,6 +250,7 @@ class CapabilityToken(BaseModel):
 
 # ── Budget — first-class budget model ──────────────────────────────
 
+
 class Budget(BaseModel):
     """First-class budget model per Ω spec VII.3.
 
@@ -301,8 +305,7 @@ class Budget(BaseModel):
 
         if self.depth_used >= self.max_depth:
             return True, (
-                f"Depth budget exhausted "
-                f"({self.depth_used}/{self.max_depth})"
+                f"Depth budget exhausted " f"({self.depth_used}/{self.max_depth})"
             )
 
         return False, ""
@@ -348,6 +351,7 @@ class Budget(BaseModel):
 
 # ── BudgetExhausted exception ──────────────────────────────────────
 
+
 class BudgetExhausted(Exception):
     """Raised when a run exceeds its declared budget."""
 
@@ -358,6 +362,7 @@ class BudgetExhausted(Exception):
 
 
 # ── PydanticAdapter — bridge for gradual migration ─────────────────
+
 
 class PydanticAdapter:
     """Bridges between typed Pydantic capabilities and legacy dict schemas.
@@ -464,9 +469,7 @@ class PydanticAdapter:
         return True, None
 
     @staticmethod
-    def validate_output(
-        capability: Capability, result: Any
-    ) -> tuple[bool, str | None]:
+    def validate_output(capability: Capability, result: Any) -> tuple[bool, str | None]:
         """Validate output against a capability's typed contract."""
         out_type = capability.get_output_type()
         if out_type is not None:
@@ -479,7 +482,10 @@ class PydanticAdapter:
             elif isinstance(result, out_type):
                 return True, None
             else:
-                return False, f"Expected {out_type.__name__}, got {type(result).__name__}"
+                return (
+                    False,
+                    f"Expected {out_type.__name__}, got {type(result).__name__}",
+                )
 
         # Fallback for dict schemas: always pass (no type info)
         return True, None

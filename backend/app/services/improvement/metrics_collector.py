@@ -23,8 +23,10 @@ logger = logging.getLogger(__name__)
 # DATA CLASSES
 # ============================================================================
 
+
 class MetricType(str, Enum):
     """Types of metrics collected"""
+
     SUCCESS_RATE = "success_rate"
     LATENCY = "latency"
     ERROR_RATE = "error_rate"
@@ -39,6 +41,7 @@ class MetricType(str, Enum):
 @dataclass
 class MetricPoint:
     """A single metric data point."""
+
     timestamp: datetime
     value: float
     labels: dict[str, str] = field(default_factory=dict)
@@ -47,26 +50,29 @@ class MetricPoint:
 @dataclass
 class MetricSeries:
     """A time series of metric points."""
+
     metric_name: str
     points: list[MetricPoint] = field(default_factory=list)
-    
+
     def add_point(self, value: float, labels: dict[str, str] = None):
         """Add a point to the series."""
-        self.points.append(MetricPoint(
-            timestamp=datetime.now(UTC),
-            value=value,
-            labels=labels or {},
-        ))
-    
+        self.points.append(
+            MetricPoint(
+                timestamp=datetime.now(UTC),
+                value=value,
+                labels=labels or {},
+            )
+        )
+
     def get_values(self) -> list[float]:
         """Get all values as a list."""
         return [p.value for p in self.points]
-    
+
     def get_average(self) -> float | None:
         """Get average value."""
         values = self.get_values()
         return statistics.mean(values) if values else None
-    
+
     def get_percentile(self, percentile: float) -> float | None:
         """Get a percentile value (e.g., 95 for p95)."""
         values = sorted(self.get_values())
@@ -80,60 +86,61 @@ class MetricSeries:
 @dataclass
 class AgentMetrics:
     """Aggregated metrics for an agent."""
+
     agent_id: str
     time_window: timedelta
-    
+
     # Success metrics
     total_requests: int = 0
     successful_requests: int = 0
     failed_requests: int = 0
-    
+
     # Latency metrics (in milliseconds)
     latencies: list[float] = field(default_factory=list)
-    
+
     # Error metrics
     errors_by_type: dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    
+
     # Tool metrics
     tool_calls: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     tool_errors: dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    
+
     @property
     def success_rate(self) -> float:
         """Calculate success rate (0.0 to 1.0)."""
         if self.total_requests == 0:
             return 1.0  # No requests = perfect success
         return self.successful_requests / self.total_requests
-    
+
     @property
     def error_rate(self) -> float:
         """Calculate error rate (0.0 to 1.0)."""
         if self.total_requests == 0:
             return 0.0
         return self.failed_requests / self.total_requests
-    
+
     @property
     def latency_p50(self) -> float:
         """Get median latency."""
         return self._percentile(50)
-    
+
     @property
     def latency_p95(self) -> float:
         """Get 95th percentile latency."""
         return self._percentile(95)
-    
+
     @property
     def latency_p99(self) -> float:
         """Get 99th percentile latency."""
         return self._percentile(99)
-    
+
     @property
     def avg_latency(self) -> float:
         """Get average latency."""
         if not self.latencies:
             return 0.0
         return statistics.mean(self.latencies)
-    
+
     def _percentile(self, p: float) -> float:
         """Calculate percentile of latencies."""
         if not self.latencies:
@@ -142,7 +149,7 @@ class AgentMetrics:
         index = int(len(sorted_latencies) * p / 100)
         index = min(index, len(sorted_latencies) - 1)
         return sorted_latencies[index]
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {
@@ -167,18 +174,19 @@ class AgentMetrics:
 # METRICS COLLECTOR
 # ============================================================================
 
+
 class MetricsCollector:
     """
     Collects real metrics from the observability system.
-    
+
     This class queries the existing observability infrastructure to get
     actual performance data for hypothesis testing and improvement evaluation.
     """
-    
+
     def __init__(self, observability_service=None):
         """
         Initialize the metrics collector.
-        
+
         Args:
             observability_service: The observability service to query
         """
@@ -186,10 +194,10 @@ class MetricsCollector:
         self._metric_cache: dict[str, MetricSeries] = {}
         self._cache_ttl = timedelta(minutes=5)
         self._last_cache_clear = datetime.now(UTC)
-        
+
         # In-memory metrics storage (fallback when observability not available)
         self._metrics_store: dict[str, list[MetricPoint]] = defaultdict(list)
-    
+
     async def get_metrics(
         self,
         agent_id: str | None = None,
@@ -199,13 +207,13 @@ class MetricsCollector:
     ) -> dict[str, float]:
         """
         Get aggregated metrics for the specified time window.
-        
+
         Args:
             agent_id: Optional agent ID to filter by
             start_time: Start of time window (defaults to now - time_window)
             end_time: End of time window (defaults to now)
             time_window: Time window if start_time not specified
-            
+
         Returns:
             Dictionary of metric names to values
         """
@@ -213,19 +221,17 @@ class MetricsCollector:
             end_time = datetime.now(UTC)
         if start_time is None:
             start_time = end_time - time_window
-        
+
         # Try to get from observability service first
         if self.observability:
             try:
-                return await self._query_observability(
-                    agent_id, start_time, end_time
-                )
+                return await self._query_observability(agent_id, start_time, end_time)
             except Exception as e:
                 logger.warning(f"Failed to query observability: {e}")
-        
+
         # Fall back to in-memory metrics
         return self._get_from_memory(agent_id, start_time, end_time)
-    
+
     async def get_agent_metrics(
         self,
         agent_id: str,
@@ -233,22 +239,22 @@ class MetricsCollector:
     ) -> AgentMetrics:
         """
         Get detailed metrics for a specific agent.
-        
+
         Args:
             agent_id: The agent ID
             time_window: Time window to aggregate over
-            
+
         Returns:
             AgentMetrics with detailed statistics
         """
         end_time = datetime.now(UTC)
         start_time = end_time - time_window
-        
+
         metrics = AgentMetrics(
             agent_id=agent_id,
             time_window=time_window,
         )
-        
+
         # Query spans/metrics from observability
         if self.observability:
             try:
@@ -257,16 +263,12 @@ class MetricsCollector:
                 )
             except Exception as e:
                 logger.warning(f"Failed to populate from observability: {e}")
-                self._populate_agent_metrics_from_memory(
-                    metrics, start_time, end_time
-                )
+                self._populate_agent_metrics_from_memory(metrics, start_time, end_time)
         else:
-            self._populate_agent_metrics_from_memory(
-                metrics, start_time, end_time
-            )
-        
+            self._populate_agent_metrics_from_memory(metrics, start_time, end_time)
+
         return metrics
-    
+
     async def get_success_rate(
         self,
         agent_id: str | None = None,
@@ -275,7 +277,7 @@ class MetricsCollector:
         """Get success rate (0.0 to 1.0)."""
         metrics = await self.get_metrics(agent_id, time_window=time_window)
         return metrics.get("success_rate", 1.0)
-    
+
     async def get_latency_percentile(
         self,
         percentile: float,
@@ -286,7 +288,7 @@ class MetricsCollector:
         metrics = await self.get_metrics(agent_id, time_window=time_window)
         key = f"latency_p{int(percentile)}"
         return metrics.get(key, metrics.get("latency_p95", 0.0))
-    
+
     async def get_error_rate(
         self,
         agent_id: str | None = None,
@@ -295,7 +297,7 @@ class MetricsCollector:
         """Get error rate (0.0 to 1.0)."""
         metrics = await self.get_metrics(agent_id, time_window=time_window)
         return metrics.get("error_rate", 0.0)
-    
+
     async def record_metric(
         self,
         metric_name: str,
@@ -304,7 +306,7 @@ class MetricsCollector:
     ) -> None:
         """
         Record a metric value.
-        
+
         Args:
             metric_name: Name of the metric
             value: Metric value
@@ -315,21 +317,21 @@ class MetricsCollector:
             value=value,
             labels=labels or {},
         )
-        
+
         # Store in memory
         self._metrics_store[metric_name].append(point)
-        
+
         # Also push to observability if available
         if self.observability:
             try:
                 await self._push_to_observability(metric_name, point)
             except Exception as e:
                 logger.warning(f"Failed to push to observability: {e}")
-        
+
         # Periodic cache cleanup
         if (datetime.now(UTC) - self._last_cache_clear) > self._cache_ttl:
             self._cleanup_old_metrics()
-    
+
     async def record_request(
         self,
         agent_id: str,
@@ -340,7 +342,7 @@ class MetricsCollector:
     ) -> None:
         """
         Record a request outcome.
-        
+
         Args:
             agent_id: Agent that made the request
             success: Whether the request succeeded
@@ -353,27 +355,27 @@ class MetricsCollector:
             labels["tool"] = tool_name
         if error_type:
             labels["error_type"] = error_type
-        
+
         # Record individual metrics
         await self.record_metric("requests_total", 1, labels)
         await self.record_metric("latency_ms", latency_ms, labels)
-        
+
         if success:
             await self.record_metric("requests_success", 1, labels)
         else:
             await self.record_metric("requests_failed", 1, labels)
             if error_type:
                 await self.record_metric(f"errors_{error_type}", 1, labels)
-        
+
         if tool_name:
             await self.record_metric(f"tool_calls_{tool_name}", 1, labels)
             if not success:
                 await self.record_metric(f"tool_errors_{tool_name}", 1, labels)
-    
+
     # ========================================================================
     # PRIVATE METHODS
     # ========================================================================
-    
+
     async def _query_observability(
         self,
         agent_id: str | None,
@@ -383,31 +385,31 @@ class MetricsCollector:
         """Query metrics from the observability service."""
         # This would integrate with the actual observability system
         # For now, return aggregated in-memory metrics
-        
-        if hasattr(self.observability, 'query_metrics'):
+
+        if hasattr(self.observability, "query_metrics"):
             # Use observability service's query method
             return await self.observability.query_metrics(
                 start_time=start_time,
                 end_time=end_time,
                 agent_id=agent_id,
             )
-        
+
         # Fall back to in-memory
         return self._get_from_memory(agent_id, start_time, end_time)
-    
+
     async def _push_to_observability(
         self,
         metric_name: str,
         point: MetricPoint,
     ) -> None:
         """Push a metric to the observability service."""
-        if hasattr(self.observability, 'record_metric'):
+        if hasattr(self.observability, "record_metric"):
             await self.observability.record_metric(
                 metric_name=metric_name,
                 value=point.value,
                 labels=point.labels,
             )
-    
+
     async def _populate_agent_metrics_from_observability(
         self,
         metrics: AgentMetrics,
@@ -415,22 +417,24 @@ class MetricsCollector:
         end_time: datetime,
     ) -> None:
         """Populate AgentMetrics from observability service."""
-        if hasattr(self.observability, 'get_agent_metrics'):
+        if hasattr(self.observability, "get_agent_metrics"):
             obs_metrics = await self.observability.get_agent_metrics(
                 agent_id=metrics.agent_id,
                 start_time=start_time,
                 end_time=end_time,
             )
-            
+
             # Map observability metrics to AgentMetrics
             metrics.total_requests = obs_metrics.get("total_requests", 0)
             metrics.successful_requests = obs_metrics.get("successful_requests", 0)
             metrics.failed_requests = obs_metrics.get("failed_requests", 0)
             metrics.latencies = obs_metrics.get("latencies", [])
-            metrics.errors_by_type = defaultdict(int, obs_metrics.get("errors_by_type", {}))
+            metrics.errors_by_type = defaultdict(
+                int, obs_metrics.get("errors_by_type", {})
+            )
             metrics.tool_calls = defaultdict(int, obs_metrics.get("tool_calls", {}))
             metrics.tool_errors = defaultdict(int, obs_metrics.get("tool_errors", {}))
-    
+
     def _populate_agent_metrics_from_memory(
         self,
         metrics: AgentMetrics,
@@ -439,16 +443,16 @@ class MetricsCollector:
     ) -> None:
         """Populate AgentMetrics from in-memory storage."""
         agent_id = metrics.agent_id
-        
+
         # Get all metric points in time window
         for metric_name, points in self._metrics_store.items():
             for point in points:
                 if point.timestamp < start_time or point.timestamp > end_time:
                     continue
-                
+
                 if point.labels.get("agent_id") != agent_id:
                     continue
-                
+
                 if metric_name == "requests_total":
                     metrics.total_requests += 1
                 elif metric_name == "requests_success":
@@ -466,7 +470,7 @@ class MetricsCollector:
                 elif metric_name.startswith("tool_errors_"):
                     tool = metric_name[12:]  # Remove "tool_errors_" prefix
                     metrics.tool_errors[tool] += int(point.value)
-    
+
     def _get_from_memory(
         self,
         agent_id: str | None,
@@ -480,15 +484,15 @@ class MetricsCollector:
             "failed_requests": 0,
             "latencies": [],
         }
-        
+
         for metric_name, points in self._metrics_store.items():
             for point in points:
                 if point.timestamp < start_time or point.timestamp > end_time:
                     continue
-                
+
                 if agent_id and point.labels.get("agent_id") != agent_id:
                     continue
-                
+
                 if metric_name == "requests_total":
                     result["total_requests"] += 1
                 elif metric_name == "requests_success":
@@ -497,11 +501,11 @@ class MetricsCollector:
                     result["failed_requests"] += 1
                 elif metric_name == "latency_ms":
                     result["latencies"].append(point.value)
-        
+
         # Calculate derived metrics
         total = result["total_requests"]
         latencies = result["latencies"]
-        
+
         return {
             "success_rate": result["successful_requests"] / total if total > 0 else 1.0,
             "error_rate": result["failed_requests"] / total if total > 0 else 0.0,
@@ -513,7 +517,7 @@ class MetricsCollector:
             "successful_requests": result["successful_requests"],
             "failed_requests": result["failed_requests"],
         }
-    
+
     def _percentile(self, values: list[float], p: float) -> float:
         """Calculate percentile of a list."""
         if not values:
@@ -522,17 +526,16 @@ class MetricsCollector:
         index = int(len(sorted_values) * p / 100)
         index = min(index, len(sorted_values) - 1)
         return sorted_values[index]
-    
+
     def _cleanup_old_metrics(self) -> None:
         """Remove metrics older than cache TTL."""
         cutoff = datetime.now(UTC) - timedelta(hours=24)  # Keep 24 hours
-        
+
         for metric_name in list(self._metrics_store.keys()):
             self._metrics_store[metric_name] = [
-                p for p in self._metrics_store[metric_name]
-                if p.timestamp > cutoff
+                p for p in self._metrics_store[metric_name] if p.timestamp > cutoff
             ]
-        
+
         self._last_cache_clear = datetime.now(UTC)
         logger.debug("Cleaned up old metrics from memory")
 

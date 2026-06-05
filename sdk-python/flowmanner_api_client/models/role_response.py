@@ -1,43 +1,36 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-
-from ..types import UNSET, Unset
-
-from ..types import UNSET, Unset
 from dateutil.parser import isoparse
-from typing import cast
-import datetime
+
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-  from ..models.role_permission_response import RolePermissionResponse
-
-
-
+    from ..models.role_permission_response import RolePermissionResponse
 
 
 T = TypeVar("T", bound="RoleResponse")
 
 
-
 @_attrs_define
 class RoleResponse:
-    """ 
-        Attributes:
-            id (str):
-            tenant_id (None | str):
-            name (str):
-            description (None | str):
-            is_system (bool):
-            created_by (int | None):
-            created_at (datetime.datetime):
-            updated_at (datetime.datetime):
-            permissions (list[RolePermissionResponse] | Unset):
-     """
+    """
+    Attributes:
+        id (str):
+        tenant_id (None | str):
+        name (str):
+        description (None | str):
+        is_system (bool):
+        created_by (int | None):
+        created_at (datetime.datetime):
+        updated_at (datetime.datetime):
+        permissions (list[RolePermissionResponse] | Unset):
+    """
 
     id: str
     tenant_id: None | str
@@ -50,12 +43,7 @@ class RoleResponse:
     permissions: list[RolePermissionResponse] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.role_permission_response import RolePermissionResponse
         id = self.id
 
         tenant_id: None | str
@@ -82,31 +70,29 @@ class RoleResponse:
                 permissions_item = permissions_item_data.to_dict()
                 permissions.append(permissions_item)
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "tenant_id": tenant_id,
-            "name": name,
-            "description": description,
-            "is_system": is_system,
-            "created_by": created_by,
-            "created_at": created_at,
-            "updated_at": updated_at,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "tenant_id": tenant_id,
+                "name": name,
+                "description": description,
+                "is_system": is_system,
+                "created_by": created_by,
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+        )
         if permissions is not UNSET:
             field_dict["permissions"] = permissions
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.role_permission_response import RolePermissionResponse
+
         d = dict(src_dict)
         id = d.pop("id")
 
@@ -117,7 +103,6 @@ class RoleResponse:
 
         tenant_id = _parse_tenant_id(d.pop("tenant_id"))
 
-
         name = d.pop("name")
 
         def _parse_description(data: object) -> None | str:
@@ -126,7 +111,6 @@ class RoleResponse:
             return cast(None | str, data)
 
         description = _parse_description(d.pop("description"))
-
 
         is_system = d.pop("is_system")
 
@@ -137,28 +121,20 @@ class RoleResponse:
 
         created_by = _parse_created_by(d.pop("created_by"))
 
-
         created_at = isoparse(d.pop("created_at"))
 
-
-
-
         updated_at = isoparse(d.pop("updated_at"))
-
-
-
 
         _permissions = d.pop("permissions", UNSET)
         permissions: list[RolePermissionResponse] | Unset = UNSET
         if _permissions is not UNSET:
             permissions = []
             for permissions_item_data in _permissions:
-                permissions_item = RolePermissionResponse.from_dict(permissions_item_data)
-
-
+                permissions_item = RolePermissionResponse.from_dict(
+                    permissions_item_data
+                )
 
                 permissions.append(permissions_item)
-
 
         role_response = cls(
             id=id,
@@ -171,7 +147,6 @@ class RoleResponse:
             updated_at=updated_at,
             permissions=permissions,
         )
-
 
         role_response.additional_properties = d
         return role_response

@@ -125,7 +125,8 @@ async def _send_webhook(payload: dict) -> bool:
             return True
         logger.warning(
             "webhook channel returned %d: %s",
-            resp.status_code, resp.text[:200],
+            resp.status_code,
+            resp.text[:200],
         )
         return False
 
@@ -162,7 +163,8 @@ async def _send_ntfy(payload: dict) -> bool:
             return True
         logger.warning(
             "ntfy channel returned %d: %s",
-            resp.status_code, resp.text[:200],
+            resp.status_code,
+            resp.text[:200],
         )
         return False
 
@@ -202,14 +204,32 @@ async def _send_email(payload: dict) -> bool:
 
     try:
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _smtp_send, smtp_host, smtp_port, smtp_username, smtp_password, smtp_from, smtp_to, msg)
+        await loop.run_in_executor(
+            None,
+            _smtp_send,
+            smtp_host,
+            smtp_port,
+            smtp_username,
+            smtp_password,
+            smtp_from,
+            smtp_to,
+            msg,
+        )
         return True
     except Exception as e:
         logger.warning("email channel failed (non-fatal): %s", e)
         return False
 
 
-def _smtp_send(host: str, port: int, username: str, password: str, from_addr: str, to_addr: str, msg: MIMEMultipart) -> None:
+def _smtp_send(
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    from_addr: str,
+    to_addr: str,
+    msg: MIMEMultipart,
+) -> None:
     """Synchronous SMTP send — called via run_in_executor."""
     with smtplib.SMTP(host, port, timeout=10) as server:
         server.ehlo()
@@ -229,7 +249,9 @@ async def _send_pagerduty(payload: dict) -> bool:
     """
     integration_key = os.getenv("PAGERDUTY_INTEGRATION_KEY", "")
     if not integration_key:
-        logger.debug("pagerduty channel: PAGERDUTY_INTEGRATION_KEY not configured — skipping")
+        logger.debug(
+            "pagerduty channel: PAGERDUTY_INTEGRATION_KEY not configured — skipping"
+        )
         return False
 
     # Map payload severity to PagerDuty severity
@@ -262,7 +284,9 @@ async def _send_pagerduty(payload: dict) -> bool:
             )
             if resp.status_code < 300:
                 return True
-            logger.warning("pagerduty channel returned %d: %s", resp.status_code, resp.text[:200])
+            logger.warning(
+                "pagerduty channel returned %d: %s", resp.status_code, resp.text[:200]
+            )
             return False
     except Exception as e:
         logger.warning("pagerduty channel failed (non-fatal): %s", e)
@@ -308,7 +332,9 @@ async def _dispatch_to_channels(
             results[channel] = await dispatcher(payload)  # type: ignore[operator]
         except Exception as e:
             logger.warning(
-                "Alert channel '%s' failed (non-fatal): %s", channel, e,
+                "Alert channel '%s' failed (non-fatal): %s",
+                channel,
+                e,
             )
             results[channel] = False
 
@@ -338,7 +364,11 @@ async def send_circuit_alert(
         return
 
     emoji = "🔴" if new_state == "open" else "🟡" if new_state == "half_open" else "🟢"
-    severity = "CRITICAL" if new_state == "open" else "WARNING" if new_state == "half_open" else "INFO"
+    severity = (
+        "CRITICAL"
+        if new_state == "open"
+        else "WARNING" if new_state == "half_open" else "INFO"
+    )
 
     # Build rich internal payload — each channel dispatcher formats as needed
     payload = {
@@ -351,7 +381,11 @@ async def send_circuit_alert(
         "username": "Flowmanner Alerts",
         "icon_emoji": ":warning:",
         "title": f"[{severity}] Circuit Breaker: {dependency}",
-        "priority": "urgent" if severity == "CRITICAL" else "high" if severity == "WARNING" else "default",
+        "priority": (
+            "urgent"
+            if severity == "CRITICAL"
+            else "high" if severity == "WARNING" else "default"
+        ),
         "tags": ["circuit_breaker", new_state],
     }
 
@@ -363,7 +397,10 @@ async def send_circuit_alert(
             _alert_state.last_sent = _alert_state.timestamps[key]
         logger.info(
             "Circuit alert dispatched: %s %s→%s (failures=%d) channels=%s",
-            dependency, old_state, new_state, failure_count,
+            dependency,
+            old_state,
+            new_state,
+            failure_count,
             {ch: "ok" if ok else "fail" for ch, ok in results.items()},
         )
     except Exception as e:
@@ -432,7 +469,9 @@ async def send_slo_alert(
             _slo_alert_state.last_sent = now
         logger.warning(
             "SLO alert dispatched: %s (compliance=%.2f%%, burn=%.1fx) channels=%s",
-            slo_name, compliance * 100, burn_rate,
+            slo_name,
+            compliance * 100,
+            burn_rate,
             {ch: "ok" if ok else "fail" for ch, ok in results.items()},
         )
     except Exception as e:
@@ -451,10 +490,14 @@ def get_alerting_status() -> dict:
         "email_configured": bool(getattr(settings, "SMTP_HOST", "")),
         "pagerduty_configured": bool(os.getenv("PAGERDUTY_INTEGRATION_KEY", "")),
         "cooldown_seconds": _ALERT_COOLDOWN_SECONDS,
-        "last_alert_ago_seconds": round(
-            time.monotonic() - _alert_state.last_sent, 1
-        ) if _alert_state.last_sent > 0 else None,
-        "last_slo_alert_ago_seconds": round(
-            time.monotonic() - _slo_alert_state.last_sent, 1
-        ) if _slo_alert_state.last_sent > 0 else None,
+        "last_alert_ago_seconds": (
+            round(time.monotonic() - _alert_state.last_sent, 1)
+            if _alert_state.last_sent > 0
+            else None
+        ),
+        "last_slo_alert_ago_seconds": (
+            round(time.monotonic() - _slo_alert_state.last_sent, 1)
+            if _slo_alert_state.last_sent > 0
+            else None
+        ),
     }

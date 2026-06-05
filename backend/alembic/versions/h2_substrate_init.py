@@ -107,25 +107,31 @@ def upgrade() -> None:
     # This trigger raises an exception on any UPDATE or DELETE to the
     # substrate_events table, guaranteeing append-only semantics at the
     # database level — not just application level.
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION enforce_substrate_events_append_only()
         RETURNS TRIGGER AS $$
         BEGIN
             RAISE EXCEPTION 'substrate_events is append-only: UPDATE and DELETE are forbidden';
         END;
         $$ LANGUAGE plpgsql;
-    """)
+    """
+    )
 
-    op.execute("""
+    op.execute(
+        """
         CREATE TRIGGER trg_substrate_events_append_only
         BEFORE UPDATE OR DELETE ON substrate_events
         FOR EACH STATEMENT
         EXECUTE FUNCTION enforce_substrate_events_append_only();
-    """)
+    """
+    )
 
 
 def downgrade() -> None:
-    op.execute("DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"
+    )
     op.execute("DROP FUNCTION IF EXISTS enforce_substrate_events_append_only()")
     op.drop_index("ix_substrate_events_timestamp", table_name="substrate_events")
     op.drop_index("ix_substrate_events_type", table_name="substrate_events")

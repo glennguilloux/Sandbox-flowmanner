@@ -28,7 +28,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test"
+)
 
 
 pytestmark = pytest.mark.integration
@@ -271,14 +273,20 @@ class TestBlueprintCreateAndVersioning:
     """Create a blueprint, update its definition, verify version history."""
 
     @pytest.mark.asyncio
-    async def test_create_blueprint_sets_draft_status(self, mock_db, sample_blueprint_definition):
+    async def test_create_blueprint_sets_draft_status(
+        self, mock_db, sample_blueprint_definition
+    ):
         """New blueprints must start in 'draft' status with version=1."""
         from app.services.blueprint_service import BlueprintService
 
         svc = BlueprintService(mock_db)
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(all=MagicMock(return_value=[]))
+                )
+            )
+        )
 
         bp = await svc.create(
             user_id=42,
@@ -297,7 +305,9 @@ class TestBlueprintCreateAndVersioning:
         assert mock_db.flush.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_update_definition_creates_new_version(self, mock_db, sample_blueprint_definition):
+    async def test_update_definition_creates_new_version(
+        self, mock_db, sample_blueprint_definition
+    ):
         """Updating a blueprint's definition must increment version and create a new BlueprintVersion."""
         from app.services.blueprint_service import BlueprintService
 
@@ -311,17 +321,22 @@ class TestBlueprintCreateAndVersioning:
         updated = await svc.update(
             str(bp.id),
             42,
-            definition={**sample_blueprint_definition, "nodes": [
-                *sample_blueprint_definition["nodes"],
-                {"id": "node-2", "type": "tool_call", "title": "Extra"},
-            ]},
+            definition={
+                **sample_blueprint_definition,
+                "nodes": [
+                    *sample_blueprint_definition["nodes"],
+                    {"id": "node-2", "type": "tool_call", "title": "Extra"},
+                ],
+            },
         )
 
         assert updated.version == 2, "Definition change must increment version"
         assert mock_db.add.call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_update_non_definition_field_does_not_increment_version(self, mock_db, sample_blueprint_definition):
+    async def test_update_non_definition_field_does_not_increment_version(
+        self, mock_db, sample_blueprint_definition
+    ):
         """Updating title only should NOT create a new version."""
         from app.services.blueprint_service import BlueprintService
 
@@ -401,7 +416,10 @@ class TestBlueprintPublishLifecycle:
     @pytest.mark.asyncio
     async def test_publish_non_draft_raises_error(self, mock_db):
         """Cannot publish a blueprint that is not in 'draft' status."""
-        from app.services.blueprint_service import BlueprintService, BlueprintValidationError
+        from app.services.blueprint_service import (
+            BlueprintService,
+            BlueprintValidationError,
+        )
 
         svc = BlueprintService(mock_db)
 
@@ -435,7 +453,10 @@ class TestBlueprintPublishLifecycle:
     @pytest.mark.asyncio
     async def test_get_deleted_blueprint_raises_not_found(self, mock_db):
         """Getting a soft-deleted blueprint must raise BlueprintNotFoundError."""
-        from app.services.blueprint_service import BlueprintService, BlueprintNotFoundError
+        from app.services.blueprint_service import (
+            BlueprintService,
+            BlueprintNotFoundError,
+        )
 
         svc = BlueprintService(mock_db)
         mock_result = MagicMock()
@@ -480,7 +501,9 @@ class TestRunLifecycle:
         assert run.snapshot["nodes"][0]["id"] == "node-1"
 
     @pytest.mark.asyncio
-    async def test_create_run_with_input_data(self, mock_db, sample_blueprint_definition):
+    async def test_create_run_with_input_data(
+        self, mock_db, sample_blueprint_definition
+    ):
         """create_from_blueprint() must store input_data on the run."""
         from app.services.run_service import RunService
 
@@ -498,7 +521,9 @@ class TestRunLifecycle:
         assert run.input_data == {"text": "Hello world"}
 
     @pytest.mark.asyncio
-    async def test_create_run_with_budget_override(self, mock_db, sample_blueprint_definition):
+    async def test_create_run_with_budget_override(
+        self, mock_db, sample_blueprint_definition
+    ):
         """Budget override must replace the snapshot's budget section."""
         from app.services.run_service import RunService
 
@@ -540,12 +565,15 @@ class TestRunLifecycle:
 
         svc = RunService(mock_db)
         bp_id = str(uuid4())
-        run = _make_run(blueprint_id=bp_id, snapshot={
-            "blueprint_type": "solo",
-            "title": "Test",
-            "nodes": sample_blueprint_definition["nodes"],
-            "budget": sample_blueprint_definition["budget"],
-        })
+        run = _make_run(
+            blueprint_id=bp_id,
+            snapshot={
+                "blueprint_type": "solo",
+                "title": "Test",
+                "nodes": sample_blueprint_definition["nodes"],
+                "budget": sample_blueprint_definition["budget"],
+            },
+        )
 
         bp = _make_blueprint(bp_id=bp_id, user_id=42)
         run_result = MagicMock()
@@ -565,8 +593,11 @@ class TestRunLifecycle:
 
         mock_db.execute = AsyncMock(side_effect=_execute)
 
-        with patch("app.services.run_service.get_unified_executor") as mock_get_exec, \
-             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter:
+        with patch(
+            "app.services.run_service.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.run_service.blueprint_to_workflow"
+        ) as mock_adapter:
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=_mock_execute_result)
             mock_get_exec.return_value = mock_executor
@@ -592,12 +623,15 @@ class TestRunLifecycle:
 
         svc = RunService(mock_db)
         bp_id = str(uuid4())
-        run = _make_run(blueprint_id=bp_id, snapshot={
-            "blueprint_type": "solo",
-            "title": "Test",
-            "nodes": [],
-            "budget": {},
-        })
+        run = _make_run(
+            blueprint_id=bp_id,
+            snapshot={
+                "blueprint_type": "solo",
+                "title": "Test",
+                "nodes": [],
+                "budget": {},
+            },
+        )
 
         bp = _make_blueprint(bp_id=bp_id, user_id=42)
         run_result = MagicMock()
@@ -614,8 +648,11 @@ class TestRunLifecycle:
 
         mock_db.execute = AsyncMock(side_effect=_execute)
 
-        with patch("app.services.run_service.get_unified_executor") as mock_get_exec, \
-             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter:
+        with patch(
+            "app.services.run_service.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.run_service.blueprint_to_workflow"
+        ) as mock_adapter:
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=_mock_execute_result)
             mock_get_exec.return_value = mock_executor
@@ -651,12 +688,15 @@ class TestRunLifecycle:
 
         svc = RunService(mock_db)
         bp_id = str(uuid4())
-        run = _make_run(blueprint_id=bp_id, snapshot={
-            "blueprint_type": "solo",
-            "title": "Test",
-            "nodes": [],
-            "budget": {},
-        })
+        run = _make_run(
+            blueprint_id=bp_id,
+            snapshot={
+                "blueprint_type": "solo",
+                "title": "Test",
+                "nodes": [],
+                "budget": {},
+            },
+        )
 
         bp = _make_blueprint(bp_id=bp_id, user_id=42)
         run_result = MagicMock()
@@ -673,8 +713,11 @@ class TestRunLifecycle:
 
         mock_db.execute = AsyncMock(side_effect=_execute)
 
-        with patch("app.services.run_service.get_unified_executor") as mock_get_exec, \
-             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter:
+        with patch(
+            "app.services.run_service.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.run_service.blueprint_to_workflow"
+        ) as mock_adapter:
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=_mock_failed_result)
             mock_get_exec.return_value = mock_executor
@@ -724,8 +767,16 @@ class TestSubstrateEvents:
             mock_db,
             run_id,
             [
-                {"type": "mission.started", "payload": {"title": "Test"}, "actor": "unified_executor"},
-                {"type": "mission.completed", "payload": {"status": "completed"}, "actor": "unified_executor"},
+                {
+                    "type": "mission.started",
+                    "payload": {"title": "Test"},
+                    "actor": "unified_executor",
+                },
+                {
+                    "type": "mission.completed",
+                    "payload": {"status": "completed"},
+                    "actor": "unified_executor",
+                },
             ],
             blueprint_id=blueprint_id,
         )
@@ -761,7 +812,8 @@ class TestSubstrateEvents:
         mock_db.execute = AsyncMock(side_effect=_execute)
 
         events = await el.append(
-            mock_db, run_id,
+            mock_db,
+            run_id,
             [
                 {"type": "task.started", "actor": "system"},
                 {"type": "task.completed", "actor": "system"},
@@ -804,7 +856,9 @@ class TestSubstrateEvents:
         mock_db.execute = AsyncMock(side_effect=_execute)
 
         with pytest.raises(ValueError, match="exceeds max"):
-            await el.append(mock_db, str(uuid4()), [{"type": "test", "actor": "system"}] * 5)
+            await el.append(
+                mock_db, str(uuid4()), [{"type": "test", "actor": "system"}] * 5
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -824,14 +878,34 @@ class TestRunReplay:
         blueprint_id = str(uuid4())
 
         events = [
-            _make_event(run_id=run_id, sequence=1, event_type="mission.started",
-                        payload={"title": "Test", "workflow_type": "solo"}, blueprint_id=blueprint_id),
-            _make_event(run_id=run_id, sequence=2, event_type="task.started",
-                        payload={"task_id": "node-1"}, blueprint_id=blueprint_id),
-            _make_event(run_id=run_id, sequence=3, event_type="task.completed",
-                        payload={"task_id": "node-1", "tokens": 100, "cost_usd": 0.002}, blueprint_id=blueprint_id),
-            _make_event(run_id=run_id, sequence=4, event_type="mission.completed",
-                        payload={"status": "completed"}, blueprint_id=blueprint_id),
+            _make_event(
+                run_id=run_id,
+                sequence=1,
+                event_type="mission.started",
+                payload={"title": "Test", "workflow_type": "solo"},
+                blueprint_id=blueprint_id,
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=2,
+                event_type="task.started",
+                payload={"task_id": "node-1"},
+                blueprint_id=blueprint_id,
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=3,
+                event_type="task.completed",
+                payload={"task_id": "node-1", "tokens": 100, "cost_usd": 0.002},
+                blueprint_id=blueprint_id,
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=4,
+                event_type="mission.completed",
+                payload={"status": "completed"},
+                blueprint_id=blueprint_id,
+            ),
         ]
 
         event_result = MagicMock()
@@ -856,10 +930,18 @@ class TestRunReplay:
         run_id = str(uuid4())
         events = [
             _make_event(run_id=run_id, sequence=1, event_type="mission.started"),
-            _make_event(run_id=run_id, sequence=2, event_type="task.failed",
-                        payload={"task_id": "node-1", "error": "API timeout"}),
-            _make_event(run_id=run_id, sequence=3, event_type="mission.failed",
-                        payload={"error": "Node node-1 failed: API timeout"}),
+            _make_event(
+                run_id=run_id,
+                sequence=2,
+                event_type="task.failed",
+                payload={"task_id": "node-1", "error": "API timeout"},
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=3,
+                event_type="mission.failed",
+                payload={"error": "Node node-1 failed: API timeout"},
+            ),
         ]
 
         event_result = MagicMock()
@@ -881,8 +963,12 @@ class TestRunReplay:
         run_id = str(uuid4())
         events = [
             _make_event(run_id=run_id, sequence=1, event_type="mission.started"),
-            _make_event(run_id=run_id, sequence=2, event_type="task.completed",
-                        payload={"task_id": "node-1", "tokens": 50}),
+            _make_event(
+                run_id=run_id,
+                sequence=2,
+                event_type="task.completed",
+                payload={"task_id": "node-1", "tokens": 50},
+            ),
             _make_event(run_id=run_id, sequence=3, event_type="mission.completed"),
         ]
 
@@ -908,8 +994,12 @@ class TestRunReplay:
         run_id = str(uuid4())
         partial_events = [
             _make_event(run_id=run_id, sequence=1, event_type="mission.started"),
-            _make_event(run_id=run_id, sequence=2, event_type="task.completed",
-                        payload={"task_id": "node-1", "tokens": 50}),
+            _make_event(
+                run_id=run_id,
+                sequence=2,
+                event_type="task.completed",
+                payload={"task_id": "node-1", "tokens": 50},
+            ),
         ]
 
         event_result = MagicMock()
@@ -1101,14 +1191,18 @@ class TestRunAbort:
             mock_result.scalar_one_or_none.return_value = run
             mock_db.execute = AsyncMock(return_value=mock_result)
 
-            with patch("app.services.run_service.get_unified_executor") as mock_get_exec:
+            with patch(
+                "app.services.run_service.get_unified_executor"
+            ) as mock_get_exec:
                 mock_executor = AsyncMock()
                 mock_executor.abort = AsyncMock(return_value=True)
                 mock_get_exec.return_value = mock_executor
 
                 aborted = await svc.abort(str(run.id), 42)
 
-            assert aborted.status == "aborted", f"Failed to abort from '{active_status}'"
+            assert (
+                aborted.status == "aborted"
+            ), f"Failed to abort from '{active_status}'"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1238,8 +1332,15 @@ class TestBlueprintToWorkflowAdapter:
         from app.services.substrate.adapters import blueprint_to_workflow
         from app.services.substrate.workflow_models import WorkflowType
 
-        snapshot = {"blueprint_type": "solo", "title": "Test Blueprint", "description": "A test", **sample_blueprint_definition}
-        workflow = blueprint_to_workflow(snapshot=snapshot, blueprint_id="bp-123", user_id="42")
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "Test Blueprint",
+            "description": "A test",
+            **sample_blueprint_definition,
+        }
+        workflow = blueprint_to_workflow(
+            snapshot=snapshot, blueprint_id="bp-123", user_id="42"
+        )
 
         assert workflow.type == WorkflowType.SOLO
         assert workflow.id == "bp-123"
@@ -1251,7 +1352,11 @@ class TestBlueprintToWorkflowAdapter:
         from app.services.substrate.adapters import blueprint_to_workflow
         from app.services.substrate.workflow_models import WorkflowType
 
-        snapshot = {"title": "DAG Blueprint", "description": "", **sample_dag_definition}
+        snapshot = {
+            "title": "DAG Blueprint",
+            "description": "",
+            **sample_dag_definition,
+        }
         workflow = blueprint_to_workflow(snapshot=snapshot, blueprint_id="bp-dag")
 
         assert workflow.type == WorkflowType.DAG
@@ -1274,7 +1379,13 @@ class TestBlueprintToWorkflowAdapter:
     def test_blueprint_to_workflow_empty_nodes(self):
         from app.services.substrate.adapters import blueprint_to_workflow
 
-        snapshot = {"blueprint_type": "solo", "title": "Empty", "nodes": [], "edges": [], "budget": {"max_cost_usd": 1.0}}
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "Empty",
+            "nodes": [],
+            "edges": [],
+            "budget": {"max_cost_usd": 1.0},
+        }
         workflow = blueprint_to_workflow(snapshot=snapshot, blueprint_id="bp-empty")
 
         assert len(workflow.nodes) == 0
@@ -1291,6 +1402,7 @@ class TestSubstrateRunStateApply:
 
     def test_apply_mission_started(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
         event = _make_event(run_id="test", sequence=1, event_type="mission.started")
         state.apply(event)
@@ -1299,6 +1411,7 @@ class TestSubstrateRunStateApply:
 
     def test_apply_mission_completed(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
         state.status = "executing"
         event = _make_event(run_id="test", sequence=2, event_type="mission.completed")
@@ -1307,11 +1420,21 @@ class TestSubstrateRunStateApply:
 
     def test_apply_task_lifecycle(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
 
-        started = _make_event(run_id="test", sequence=1, event_type="task.started", payload={"task_id": "node-1"})
-        completed = _make_event(run_id="test", sequence=2, event_type="task.completed",
-                                payload={"task_id": "node-1", "tokens": 150, "cost_usd": 0.003})
+        started = _make_event(
+            run_id="test",
+            sequence=1,
+            event_type="task.started",
+            payload={"task_id": "node-1"},
+        )
+        completed = _make_event(
+            run_id="test",
+            sequence=2,
+            event_type="task.completed",
+            payload={"task_id": "node-1", "tokens": 150, "cost_usd": 0.003},
+        )
 
         state.apply(started)
         assert state.task_states["node-1"]["status"] == "running"
@@ -1324,9 +1447,14 @@ class TestSubstrateRunStateApply:
 
     def test_apply_task_failed(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
-        event = _make_event(run_id="test", sequence=1, event_type="task.failed",
-                            payload={"task_id": "node-1", "error": "timeout"})
+        event = _make_event(
+            run_id="test",
+            sequence=1,
+            event_type="task.failed",
+            payload={"task_id": "node-1", "error": "timeout"},
+        )
         state.apply(event)
         assert "node-1" in state.failed_tasks
         assert state.task_states["node-1"]["status"] == "failed"
@@ -1334,25 +1462,36 @@ class TestSubstrateRunStateApply:
 
     def test_apply_budget_exhausted(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
         state.status = "executing"
-        event = _make_event(run_id="test", sequence=1, event_type="substrate.budget_exhausted",
-                            payload={"budget_type": "cost"})
+        event = _make_event(
+            run_id="test",
+            sequence=1,
+            event_type="substrate.budget_exhausted",
+            payload={"budget_type": "cost"},
+        )
         state.apply(event)
         assert state.status == "failed"
         assert "Budget exhausted" in (state.error_message or "")
 
     def test_apply_mission_aborted(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
         state.status = "executing"
-        event = _make_event(run_id="test", sequence=1, event_type="mission.aborted",
-                            payload={"reason": "user_requested"})
+        event = _make_event(
+            run_id="test",
+            sequence=1,
+            event_type="mission.aborted",
+            payload={"reason": "user_requested"},
+        )
         state.apply(event)
         assert state.status == "aborted"
 
     def test_apply_unknown_event_is_noop(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
         event = _make_event(run_id="test", sequence=1, event_type="custom.unknown")
         state.apply(event)
@@ -1361,9 +1500,14 @@ class TestSubstrateRunStateApply:
 
     def test_apply_task_retrying(self):
         from app.models.substrate_models import SubstrateRunState
+
         state = SubstrateRunState(run_id="test")
-        event = _make_event(run_id="test", sequence=1, event_type="task.retrying",
-                            payload={"task_id": "node-1", "attempt": 2})
+        event = _make_event(
+            run_id="test",
+            sequence=1,
+            event_type="task.retrying",
+            payload={"task_id": "node-1", "attempt": 2},
+        )
         state.apply(event)
         assert state.task_states["node-1"]["status"] == "retrying"
         assert state.task_states["node-1"]["attempt"] == 2
@@ -1379,8 +1523,14 @@ class TestBlueprintSchemas:
 
     def test_blueprint_create_valid(self, sample_blueprint_definition):
         from app.schemas.blueprint import BlueprintCreate, BlueprintDefinition
+
         bp_def = BlueprintDefinition(**sample_blueprint_definition)
-        payload = BlueprintCreate(title="Test", blueprint_type="solo", definition=bp_def, tags=["ai", "summarize"])
+        payload = BlueprintCreate(
+            title="Test",
+            blueprint_type="solo",
+            definition=bp_def,
+            tags=["ai", "summarize"],
+        )
         assert payload.title == "Test"
         assert payload.definition is not None
         assert len(payload.definition.nodes) == 1
@@ -1388,11 +1538,13 @@ class TestBlueprintSchemas:
     def test_blueprint_create_extra_fields_forbidden(self):
         from app.schemas.blueprint import BlueprintCreate
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             BlueprintCreate(title="Test", unknown_field="should fail")
 
     def test_blueprint_update_partial(self):
         from app.schemas.blueprint import BlueprintUpdate
+
         update = BlueprintUpdate(title="New Title")
         assert update.title == "New Title"
         assert update.definition is None
@@ -1400,6 +1552,7 @@ class TestBlueprintSchemas:
     def test_run_response_from_attributes(self):
         """RunResponse must work with from_attributes=True (ORM mode)."""
         from app.schemas.blueprint import RunResponse
+
         run = _make_run(blueprint_id=str(uuid4()), status="completed")
         run.total_tokens = 42
         run.total_cost_usd = 0.001
@@ -1411,6 +1564,7 @@ class TestBlueprintSchemas:
     def test_blueprint_response_from_attributes(self):
         """BlueprintResponse must work with from_attributes=True."""
         from app.schemas.blueprint import BlueprintResponse
+
         bp = _make_blueprint(title="Test BP", status="published", version=3)
         response = BlueprintResponse.model_validate(bp)
         assert response.title == "Test BP"
@@ -1419,6 +1573,7 @@ class TestBlueprintSchemas:
 
     def test_blueprint_definition_defaults(self):
         from app.schemas.blueprint import BlueprintDefinition
+
         bd = BlueprintDefinition()
         assert bd.blueprint_type == "solo"
         assert bd.nodes == []
@@ -1426,7 +1581,11 @@ class TestBlueprintSchemas:
 
     def test_run_create_with_budget_override(self):
         from app.schemas.blueprint import RunCreate, BlueprintBudgetDefinition
-        payload = RunCreate(input_data={"text": "Hello"}, budget_override=BlueprintBudgetDefinition(max_cost_usd=1.0))
+
+        payload = RunCreate(
+            input_data={"text": "Hello"},
+            budget_override=BlueprintBudgetDefinition(max_cost_usd=1.0),
+        )
         assert payload.input_data == {"text": "Hello"}
         assert payload.budget_override.max_cost_usd == 1.0
 
@@ -1439,22 +1598,34 @@ class TestBlueprintSchemas:
 class TestModelEnums:
     def test_blueprint_status_values(self):
         from app.models.blueprint_models import BlueprintStatus
+
         assert BlueprintStatus.DRAFT.value == "draft"
         assert BlueprintStatus.PUBLISHED.value == "published"
         assert BlueprintStatus.DEPRECATED.value == "deprecated"
 
     def test_blueprint_type_values(self):
         from app.models.blueprint_models import BlueprintType
+
         expected = {"solo", "dag", "swarm", "pipeline", "graph", "meta", "langgraph"}
         assert {bt.value for bt in BlueprintType} == expected
 
     def test_run_status_values(self):
         from app.models.blueprint_models import RunStatus
-        expected = {"pending", "queued", "executing", "paused", "completed", "failed", "aborted"}
+
+        expected = {
+            "pending",
+            "queued",
+            "executing",
+            "paused",
+            "completed",
+            "failed",
+            "aborted",
+        }
         assert {rs.value for rs in RunStatus} == expected
 
     def test_substrate_event_type_aliases(self):
         from app.models.substrate_models import SubstrateEventType as SET
+
         assert SET.MISSION_STARTED == SET.RUN_STARTED
         assert SET.MISSION_COMPLETED == SET.RUN_COMPLETED
         assert SET.TASK_STARTED == SET.NODE_STARTED
@@ -1462,6 +1633,7 @@ class TestModelEnums:
 
     def test_substrate_event_string_values_unchanged(self):
         from app.models.substrate_models import SubstrateEventType as SET
+
         assert SET.RUN_STARTED == "mission.started"
         assert SET.RUN_COMPLETED == "mission.completed"
         assert SET.NODE_STARTED == "task.started"
@@ -1477,6 +1649,7 @@ class TestListingAndFiltering:
     @pytest.mark.asyncio
     async def test_list_blueprints_filters_by_type(self, mock_db):
         from app.services.blueprint_service import BlueprintService
+
         svc = BlueprintService(mock_db)
         items = [_make_blueprint(blueprint_type="solo") for _ in range(3)]
 
@@ -1500,8 +1673,11 @@ class TestListingAndFiltering:
     @pytest.mark.asyncio
     async def test_list_runs_filters_by_status(self, mock_db):
         from app.services.run_service import RunService
+
         svc = RunService(mock_db)
-        items = [_make_run(blueprint_id=str(uuid4()), status="completed") for _ in range(2)]
+        items = [
+            _make_run(blueprint_id=str(uuid4()), status="completed") for _ in range(2)
+        ]
 
         count_result = MagicMock()
         count_result.scalar.return_value = 2
@@ -1523,6 +1699,7 @@ class TestListingAndFiltering:
     @pytest.mark.asyncio
     async def test_list_blueprints_excludes_deleted(self, mock_db):
         from app.services.blueprint_service import BlueprintService
+
         svc = BlueprintService(mock_db)
 
         count_result = MagicMock()
@@ -1568,7 +1745,9 @@ class TestFullBlueprintRunLifecycle:
         run_svc = RunService(mock_db)
 
         # ── Step 1: Create blueprint ─────────────────────────────────
-        bp = _make_blueprint(definition=sample_blueprint_definition, status="draft", version=1)
+        bp = _make_blueprint(
+            definition=sample_blueprint_definition, status="draft", version=1
+        )
         assert bp.status == "draft"
         assert bp.version == 1
 
@@ -1620,8 +1799,11 @@ class TestFullBlueprintRunLifecycle:
 
         mock_db.execute = AsyncMock(side_effect=_run_db)
 
-        with patch("app.services.run_service.get_unified_executor") as mock_get_exec, \
-             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter:
+        with patch(
+            "app.services.run_service.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.run_service.blueprint_to_workflow"
+        ) as mock_adapter:
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=_mock_execute_result)
             mock_get_exec.return_value = mock_executor
@@ -1636,14 +1818,34 @@ class TestFullBlueprintRunLifecycle:
         run_id = str(run.id)
         bp_id = str(bp.id)
         events = [
-            _make_event(run_id=run_id, sequence=1, event_type="mission.started",
-                        payload={"title": bp.title, "blueprint_id": bp_id}, blueprint_id=bp_id),
-            _make_event(run_id=run_id, sequence=2, event_type="task.started",
-                        payload={"task_id": "node-1"}, blueprint_id=bp_id),
-            _make_event(run_id=run_id, sequence=3, event_type="task.completed",
-                        payload={"task_id": "node-1", "tokens": 100, "cost_usd": 0.002}, blueprint_id=bp_id),
-            _make_event(run_id=run_id, sequence=4, event_type="mission.completed",
-                        payload={"status": "completed"}, blueprint_id=bp_id),
+            _make_event(
+                run_id=run_id,
+                sequence=1,
+                event_type="mission.started",
+                payload={"title": bp.title, "blueprint_id": bp_id},
+                blueprint_id=bp_id,
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=2,
+                event_type="task.started",
+                payload={"task_id": "node-1"},
+                blueprint_id=bp_id,
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=3,
+                event_type="task.completed",
+                payload={"task_id": "node-1", "tokens": 100, "cost_usd": 0.002},
+                blueprint_id=bp_id,
+            ),
+            _make_event(
+                run_id=run_id,
+                sequence=4,
+                event_type="mission.completed",
+                payload={"status": "completed"},
+                blueprint_id=bp_id,
+            ),
         ]
 
         for event in events:
@@ -1664,7 +1866,9 @@ class TestFullBlueprintRunLifecycle:
         assert state.total_tokens == 100
 
         # ── Step 8: Retry (simulate failure first) ───────────────────
-        failed_run = _make_run(blueprint_id=bp_id, status="failed", snapshot=run.snapshot)
+        failed_run = _make_run(
+            blueprint_id=bp_id, status="failed", snapshot=run.snapshot
+        )
         failed_result = MagicMock()
         failed_result.scalar_one_or_none.return_value = failed_run
         mock_db.execute = AsyncMock(return_value=failed_result)
@@ -1751,7 +1955,9 @@ class TestDualWriteIntegration:
 
     @pytest.mark.asyncio
     async def test_create_mission_dual_writes_blueprint_with_source_id(
-        self, mock_db, mock_user,
+        self,
+        mock_db,
+        mock_user,
     ):
         """create_mission must fire-and-forget a Blueprint with _source_mission_id in definition."""
         from app.api._mission_cqrs.commands import MissionCommandHandlers
@@ -1763,11 +1969,22 @@ class TestDualWriteIntegration:
         mock_bp_svc = MagicMock()
         mock_bp_svc.create = AsyncMock(return_value=MagicMock(id=str(uuid4())))
 
-        with patch('app.api._mission_cqrs.commands._schedule_fire_and_forget', lambda c: _captured.append(c)), \
-             patch('app.database.AsyncSessionLocal', lambda: _AsyncCtx(mock_bp_db)), \
-             patch('app.services.blueprint_service.BlueprintService', return_value=mock_bp_svc), \
-             patch('app.api._mission_cqrs.commands.create_mission', new_callable=AsyncMock, return_value=mission_result), \
-             patch('app.services.subscription_service.check_mission_create_allowed', new_callable=AsyncMock, return_value=MagicMock(allowed=True)):
+        with patch(
+            "app.api._mission_cqrs.commands._schedule_fire_and_forget",
+            lambda c: _captured.append(c),
+        ), patch(
+            "app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_bp_db)
+        ), patch(
+            "app.services.blueprint_service.BlueprintService", return_value=mock_bp_svc
+        ), patch(
+            "app.api._mission_cqrs.commands.create_mission",
+            new_callable=AsyncMock,
+            return_value=mission_result,
+        ), patch(
+            "app.services.subscription_service.check_mission_create_allowed",
+            new_callable=AsyncMock,
+            return_value=MagicMock(allowed=True),
+        ):
 
             payload = MagicMock(
                 title="Test Mission",
@@ -1789,14 +2006,18 @@ class TestDualWriteIntegration:
         # Verify BlueprintService.create was called with _source_mission_id
         mock_bp_svc.create.assert_called_once()
         call_kwargs = mock_bp_svc.create.call_args.kwargs
-        assert call_kwargs['definition'] == {"_source_mission_id": str(mission_result.id)}
-        assert call_kwargs['title'] == "Test Mission"
-        assert call_kwargs['user_id'] == mock_user.id
-        assert call_kwargs['workspace_id'] is None
+        assert call_kwargs["definition"] == {
+            "_source_mission_id": str(mission_result.id)
+        }
+        assert call_kwargs["title"] == "Test Mission"
+        assert call_kwargs["user_id"] == mock_user.id
+        assert call_kwargs["workspace_id"] is None
 
     @pytest.mark.asyncio
     async def test_execute_mission_dual_writes_run_with_started_at(
-        self, mock_db, mock_user,
+        self,
+        mock_db,
+        mock_user,
     ):
         """execute_mission must find linked Blueprint and create a Run with started_at set."""
         from app.api._mission_cqrs.commands import MissionCommandHandlers
@@ -1805,16 +2026,25 @@ class TestDualWriteIntegration:
 
         mission_id = uuid4()
         mission = MagicMock(
-            id=str(mission_id), workspace_id=None, user_id=mock_user.id,
-            status=MissionStatus.EXECUTING, plan=None, tokens_used=0,
+            id=str(mission_id),
+            workspace_id=None,
+            user_id=mock_user.id,
+            status=MissionStatus.EXECUTING,
+            plan=None,
+            tokens_used=0,
             started_at=datetime.now(timezone.utc),
         )
 
         strategy_result = StrategyResult(
-            success=True, status="completed",
-            data={"result": "done"}, completed_nodes=["node-1"], failed_nodes=[],
-            total_tokens=250, total_cost_usd=0.005,
-            execution_time_ms=1500.0, event_count=4,
+            success=True,
+            status="completed",
+            data={"result": "done"},
+            completed_nodes=["node-1"],
+            failed_nodes=[],
+            total_tokens=250,
+            total_cost_usd=0.005,
+            execution_time_ms=1500.0,
+            event_count=4,
         )
 
         _captured: list = []
@@ -1825,22 +2055,43 @@ class TestDualWriteIntegration:
         mock_run_db.execute = AsyncMock(return_value=bp_result)
 
         run_mock = MagicMock(
-            id=str(uuid4()), status="pending",
-            started_at=None, completed_at=None,
-            total_tokens=0, total_cost_usd=0.0,
-            error_message=None, output_data=None,
+            id=str(uuid4()),
+            status="pending",
+            started_at=None,
+            completed_at=None,
+            total_tokens=0,
+            total_cost_usd=0.0,
+            error_message=None,
+            output_data=None,
         )
         mock_run_svc = MagicMock()
         mock_run_svc.create_from_blueprint = AsyncMock(return_value=run_mock)
 
-        with patch('app.api._mission_cqrs.commands._schedule_fire_and_forget', lambda c: _captured.append(c)), \
-             patch('app.database.AsyncSessionLocal', lambda: _AsyncCtx(mock_run_db)), \
-             patch('app.api._mission_cqrs.commands.require_mission_access', new_callable=AsyncMock, return_value=mission), \
-             patch('app.services.subscription_service.check_mission_execute_allowed', new_callable=AsyncMock, return_value=MagicMock(allowed=True)), \
-             patch('app.services.substrate.executor.get_unified_executor') as mock_get_exec, \
-             patch('app.services.substrate.adapters.mission_to_workflow', return_value=MagicMock()), \
-             patch('app.api._mission_cqrs.commands.get_mission_tasks', new_callable=AsyncMock, return_value=[]), \
-             patch('app.services.run_service.RunService', return_value=mock_run_svc):
+        with patch(
+            "app.api._mission_cqrs.commands._schedule_fire_and_forget",
+            lambda c: _captured.append(c),
+        ), patch(
+            "app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_run_db)
+        ), patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new_callable=AsyncMock,
+            return_value=mission,
+        ), patch(
+            "app.services.subscription_service.check_mission_execute_allowed",
+            new_callable=AsyncMock,
+            return_value=MagicMock(allowed=True),
+        ), patch(
+            "app.services.substrate.executor.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.substrate.adapters.mission_to_workflow",
+            return_value=MagicMock(),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new_callable=AsyncMock,
+            return_value=[],
+        ), patch(
+            "app.services.run_service.RunService", return_value=mock_run_svc
+        ):
 
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=strategy_result)
@@ -1858,7 +2109,8 @@ class TestDualWriteIntegration:
 
         # Verify Run was created from the linked Blueprint
         mock_run_svc.create_from_blueprint.assert_called_once_with(
-            blueprint_id=str(bp_mock.id), user_id=mock_user.id,
+            blueprint_id=str(bp_mock.id),
+            user_id=mock_user.id,
         )
 
         # Verify Run fields were set correctly
@@ -1868,11 +2120,15 @@ class TestDualWriteIntegration:
         assert run_mock.total_cost_usd == 0.005
         assert run_mock.error_message is None
         assert run_mock.output_data == {"result": "done"}
-        assert run_mock.completed_at is not None, "Run.completed_at must be set for terminal status"
+        assert (
+            run_mock.completed_at is not None
+        ), "Run.completed_at must be set for terminal status"
 
     @pytest.mark.asyncio
     async def test_execute_mission_dual_write_skips_when_no_blueprint(
-        self, mock_db, mock_user,
+        self,
+        mock_db,
+        mock_user,
     ):
         """When no linked Blueprint exists, dual-write must skip Run creation gracefully."""
         from app.api._mission_cqrs.commands import MissionCommandHandlers
@@ -1881,16 +2137,25 @@ class TestDualWriteIntegration:
 
         mission_id = uuid4()
         mission = MagicMock(
-            id=str(mission_id), workspace_id=None, user_id=mock_user.id,
-            status=MissionStatus.EXECUTING, plan=None, tokens_used=0,
+            id=str(mission_id),
+            workspace_id=None,
+            user_id=mock_user.id,
+            status=MissionStatus.EXECUTING,
+            plan=None,
+            tokens_used=0,
             started_at=datetime.now(timezone.utc),
         )
 
         strategy_result = StrategyResult(
-            success=True, status="completed", data={},
-            completed_nodes=["n1"], failed_nodes=[],
-            total_tokens=100, total_cost_usd=0.001,
-            execution_time_ms=500.0, event_count=2,
+            success=True,
+            status="completed",
+            data={},
+            completed_nodes=["n1"],
+            failed_nodes=[],
+            total_tokens=100,
+            total_cost_usd=0.001,
+            execution_time_ms=500.0,
+            event_count=2,
         )
 
         _captured: list = []
@@ -1902,14 +2167,31 @@ class TestDualWriteIntegration:
         mock_run_svc = MagicMock()
         mock_run_svc.create_from_blueprint = AsyncMock()
 
-        with patch('app.api._mission_cqrs.commands._schedule_fire_and_forget', lambda c: _captured.append(c)), \
-             patch('app.database.AsyncSessionLocal', lambda: _AsyncCtx(mock_run_db)), \
-             patch('app.api._mission_cqrs.commands.require_mission_access', new_callable=AsyncMock, return_value=mission), \
-             patch('app.services.subscription_service.check_mission_execute_allowed', new_callable=AsyncMock, return_value=MagicMock(allowed=True)), \
-             patch('app.services.substrate.executor.get_unified_executor') as mock_get_exec, \
-             patch('app.services.substrate.adapters.mission_to_workflow', return_value=MagicMock()), \
-             patch('app.api._mission_cqrs.commands.get_mission_tasks', new_callable=AsyncMock, return_value=[]), \
-             patch('app.services.run_service.RunService', return_value=mock_run_svc):
+        with patch(
+            "app.api._mission_cqrs.commands._schedule_fire_and_forget",
+            lambda c: _captured.append(c),
+        ), patch(
+            "app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_run_db)
+        ), patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new_callable=AsyncMock,
+            return_value=mission,
+        ), patch(
+            "app.services.subscription_service.check_mission_execute_allowed",
+            new_callable=AsyncMock,
+            return_value=MagicMock(allowed=True),
+        ), patch(
+            "app.services.substrate.executor.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.substrate.adapters.mission_to_workflow",
+            return_value=MagicMock(),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new_callable=AsyncMock,
+            return_value=[],
+        ), patch(
+            "app.services.run_service.RunService", return_value=mock_run_svc
+        ):
 
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=strategy_result)
@@ -1928,7 +2210,9 @@ class TestDualWriteIntegration:
 
     @pytest.mark.asyncio
     async def test_execute_mission_dual_write_copies_failure_fields(
-        self, mock_db, mock_user,
+        self,
+        mock_db,
+        mock_user,
     ):
         """When execution fails, dual-write must set error_message and skip output_data."""
         from app.api._mission_cqrs.commands import MissionCommandHandlers
@@ -1937,17 +2221,26 @@ class TestDualWriteIntegration:
 
         mission_id = uuid4()
         mission = MagicMock(
-            id=str(mission_id), workspace_id=None, user_id=mock_user.id,
-            status=MissionStatus.EXECUTING, plan=None, tokens_used=0,
+            id=str(mission_id),
+            workspace_id=None,
+            user_id=mock_user.id,
+            status=MissionStatus.EXECUTING,
+            plan=None,
+            tokens_used=0,
             started_at=datetime.now(timezone.utc),
         )
 
         strategy_result = StrategyResult(
-            success=False, status="failed",
-            error="Model rate limit exceeded", data=None,
-            completed_nodes=[], failed_nodes=["node-1"],
-            total_tokens=50, total_cost_usd=0.001,
-            execution_time_ms=200.0, event_count=2,
+            success=False,
+            status="failed",
+            error="Model rate limit exceeded",
+            data=None,
+            completed_nodes=[],
+            failed_nodes=["node-1"],
+            total_tokens=50,
+            total_cost_usd=0.001,
+            execution_time_ms=200.0,
+            event_count=2,
         )
 
         _captured: list = []
@@ -1958,22 +2251,43 @@ class TestDualWriteIntegration:
         mock_run_db.execute = AsyncMock(return_value=bp_result)
 
         run_mock = MagicMock(
-            id=str(uuid4()), status="pending",
-            started_at=None, completed_at=None,
-            total_tokens=0, total_cost_usd=0.0,
-            error_message=None, output_data=None,
+            id=str(uuid4()),
+            status="pending",
+            started_at=None,
+            completed_at=None,
+            total_tokens=0,
+            total_cost_usd=0.0,
+            error_message=None,
+            output_data=None,
         )
         mock_run_svc = MagicMock()
         mock_run_svc.create_from_blueprint = AsyncMock(return_value=run_mock)
 
-        with patch('app.api._mission_cqrs.commands._schedule_fire_and_forget', lambda c: _captured.append(c)), \
-             patch('app.database.AsyncSessionLocal', lambda: _AsyncCtx(mock_run_db)), \
-             patch('app.api._mission_cqrs.commands.require_mission_access', new_callable=AsyncMock, return_value=mission), \
-             patch('app.services.subscription_service.check_mission_execute_allowed', new_callable=AsyncMock, return_value=MagicMock(allowed=True)), \
-             patch('app.services.substrate.executor.get_unified_executor') as mock_get_exec, \
-             patch('app.services.substrate.adapters.mission_to_workflow', return_value=MagicMock()), \
-             patch('app.api._mission_cqrs.commands.get_mission_tasks', new_callable=AsyncMock, return_value=[]), \
-             patch('app.services.run_service.RunService', return_value=mock_run_svc):
+        with patch(
+            "app.api._mission_cqrs.commands._schedule_fire_and_forget",
+            lambda c: _captured.append(c),
+        ), patch(
+            "app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_run_db)
+        ), patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new_callable=AsyncMock,
+            return_value=mission,
+        ), patch(
+            "app.services.subscription_service.check_mission_execute_allowed",
+            new_callable=AsyncMock,
+            return_value=MagicMock(allowed=True),
+        ), patch(
+            "app.services.substrate.executor.get_unified_executor"
+        ) as mock_get_exec, patch(
+            "app.services.substrate.adapters.mission_to_workflow",
+            return_value=MagicMock(),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new_callable=AsyncMock,
+            return_value=[],
+        ), patch(
+            "app.services.run_service.RunService", return_value=mock_run_svc
+        ):
 
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=strategy_result)
@@ -1996,4 +2310,6 @@ class TestDualWriteIntegration:
         assert run_mock.total_tokens == 50
         assert run_mock.error_message == "Model rate limit exceeded"
         assert run_mock.output_data is None, "output_data must be None on failure"
-        assert run_mock.completed_at is not None, "completed_at must be set for terminal status"
+        assert (
+            run_mock.completed_at is not None
+        ), "completed_at must be set for terminal status"

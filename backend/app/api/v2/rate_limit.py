@@ -37,6 +37,7 @@ def _get_limits_from_settings():
     """Read rate-limit config from app settings or return defaults."""
     try:
         from app.config import settings
+
         return {
             "mission:create": getattr(settings, "MISSION_RATE_LIMIT_CREATE", 30),
             "mission:update": getattr(settings, "MISSION_RATE_LIMIT_UPDATE", 30),
@@ -44,9 +45,15 @@ def _get_limits_from_settings():
             "mission:execute": getattr(settings, "MISSION_RATE_LIMIT_EXECUTE", 20),
             "mission:abort": getattr(settings, "MISSION_RATE_LIMIT_ABORT", 15),
             "mission:plan": getattr(settings, "MISSION_RATE_LIMIT_PLAN", 20),
-            "_DEFAULT": getattr(settings, "MISSION_RATE_LIMIT_DEFAULT", _FALLBACK_LIMIT),
-            "_WINDOW": getattr(settings, "MISSION_RATE_LIMIT_WINDOW_SECONDS", _FALLBACK_WINDOW),
-            "_BURST": getattr(settings, "MISSION_RATE_LIMIT_BURST_MULTIPLIER", _FALLBACK_BURST),
+            "_DEFAULT": getattr(
+                settings, "MISSION_RATE_LIMIT_DEFAULT", _FALLBACK_LIMIT
+            ),
+            "_WINDOW": getattr(
+                settings, "MISSION_RATE_LIMIT_WINDOW_SECONDS", _FALLBACK_WINDOW
+            ),
+            "_BURST": getattr(
+                settings, "MISSION_RATE_LIMIT_BURST_MULTIPLIER", _FALLBACK_BURST
+            ),
         }
     except Exception:
         return {}
@@ -61,6 +68,7 @@ async def _get_redis():
         from redis.asyncio import Redis as AsyncRedis
 
         from app.config import settings
+
         r = AsyncRedis.from_url(settings.REDIS_URL, decode_responses=True)
         await r.ping()
         return r
@@ -68,7 +76,9 @@ async def _get_redis():
         return None
 
 
-async def _redis_allowed(key: str, max_tokens: int, window_s: int, burst: int) -> tuple[bool, int, int]:
+async def _redis_allowed(
+    key: str, max_tokens: int, window_s: int, burst: int
+) -> tuple[bool, int, int]:
     """Redis sorted-set sliding window. Returns (allowed, remaining, retry_after)."""
     r = await _get_redis()
     if r is None:
@@ -100,7 +110,11 @@ async def _redis_allowed(key: str, max_tokens: int, window_s: int, burst: int) -
 
 
 def _inmem_allowed(
-    windows: dict[str, list[float]], key: str, max_tokens: int, window_s: int, burst: int,
+    windows: dict[str, list[float]],
+    key: str,
+    max_tokens: int,
+    window_s: int,
+    burst: int,
 ) -> tuple[bool, int, int]:
     """In-memory sliding window. Returns (allowed, remaining, retry_after)."""
     now = time.monotonic()
@@ -142,13 +156,17 @@ def _build_429(limit: int, window_s: int, retry: int) -> JSONResponse:
 # ── FastAPI dependency factory ────────────────────────────────────────────────
 
 
-def rate_limit(endpoint_key: str, *, limit: int | None = None, window_seconds: int | None = None):
+def rate_limit(
+    endpoint_key: str, *, limit: int | None = None, window_seconds: int | None = None
+):
     """FastAPI dependency factory for per-user rate limiting.
 
     Checks Redis first, then in-memory.  Either one can deny the request.
     """
     cfg = _get_limits_from_settings()
-    effective_limit = limit or cfg.get(endpoint_key, cfg.get("_DEFAULT", _FALLBACK_LIMIT))
+    effective_limit = limit or cfg.get(
+        endpoint_key, cfg.get("_DEFAULT", _FALLBACK_LIMIT)
+    )
     effective_window = window_seconds or cfg.get("_WINDOW", _FALLBACK_WINDOW)
     effective_burst = cfg.get("_BURST", _FALLBACK_BURST)
     inmem: dict[str, list[float]] = {}
@@ -161,7 +179,9 @@ def rate_limit(endpoint_key: str, *, limit: int | None = None, window_seconds: i
 
         # Always check in-memory (authoritative, per-process gate)
         # Redis check is optional cross-process hint, not required
-        inmem_ok, remaining, inmem_retry = _inmem_allowed(inmem, key, effective_limit, effective_window, effective_burst)
+        inmem_ok, remaining, inmem_retry = _inmem_allowed(
+            inmem, key, effective_limit, effective_window, effective_burst
+        )
 
         # Store rate limit state on request.state for the headers middleware
         request.state.rate_limit_limit = effective_limit

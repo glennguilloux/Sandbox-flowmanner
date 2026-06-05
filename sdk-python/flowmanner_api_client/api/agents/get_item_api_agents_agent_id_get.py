@@ -15,46 +15,36 @@ from typing import cast
 from uuid import UUID
 
 
-
 def _get_kwargs(
     agent_id: UUID,
     *,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/agents/{agent_id}".format(agent_id=quote(str(agent_id), safe=""),),
+        "url": "/api/agents/{agent_id}".format(
+            agent_id=quote(str(agent_id), safe=""),
+        ),
     }
-
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> AgentResponse | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> AgentResponse | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = AgentResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -64,7 +54,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[AgentResponse | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[AgentResponse | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -77,10 +69,9 @@ def sync_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[AgentResponse | HTTPValidationError]:
-    """ Get Item
+    """Get Item
 
     Args:
         agent_id (UUID):
@@ -92,13 +83,11 @@ def sync_detailed(
 
     Returns:
         Response[AgentResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         agent_id=agent_id,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,14 +96,14 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> AgentResponse | HTTPValidationError | None:
-    """ Get Item
+    """Get Item
 
     Args:
         agent_id (UUID):
@@ -126,24 +115,22 @@ def sync(
 
     Returns:
         AgentResponse | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         agent_id=agent_id,
-client=client,
-accept_version=accept_version,
-
+        client=client,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[AgentResponse | HTTPValidationError]:
-    """ Get Item
+    """Get Item
 
     Args:
         agent_id (UUID):
@@ -155,29 +142,25 @@ async def asyncio_detailed(
 
     Returns:
         Response[AgentResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         agent_id=agent_id,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> AgentResponse | HTTPValidationError | None:
-    """ Get Item
+    """Get Item
 
     Args:
         agent_id (UUID):
@@ -189,12 +172,12 @@ async def asyncio(
 
     Returns:
         AgentResponse | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        agent_id=agent_id,
-client=client,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            agent_id=agent_id,
+            client=client,
+            accept_version=accept_version,
+        )
+    ).parsed

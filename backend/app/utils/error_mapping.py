@@ -77,13 +77,15 @@ def get_user_friendly_error(error: Exception, context: dict | None = None) -> di
     """
     error_type = type(error).__name__
     error_msg = str(error).lower()
-    
+
     # Check for specific error patterns
     if "timeout" in error_msg or error_type == "TimeoutError":
         return EDGE_CASE_HANDLING["timeout"]
     elif "rate limit" in error_msg or "429" in error_msg:
         return EDGE_CASE_HANDLING["rate_limit"]
-    elif "gpu" in error_msg and ("unavailable" in error_msg or "not found" in error_msg):
+    elif "gpu" in error_msg and (
+        "unavailable" in error_msg or "not found" in error_msg
+    ):
         return EDGE_CASE_HANDLING["gpu_unavailable"]
     elif "out of memory" in error_msg or "oom" in error_msg:
         return EDGE_CASE_HANDLING["gpu_out_of_memory"]

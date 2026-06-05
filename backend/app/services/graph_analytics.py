@@ -29,7 +29,15 @@ async def get_execution_stats(db: AsyncSession, user_id: int) -> dict[str, Any]:
     )
     row = rows.one_or_none()
     if row is None:
-        return {"total_runs": 0, "success": 0, "failed": 0, "running": 0, "paused": 0, "success_rate": 0.0, "avg_duration_seconds": 0.0}
+        return {
+            "total_runs": 0,
+            "success": 0,
+            "failed": 0,
+            "running": 0,
+            "paused": 0,
+            "success_rate": 0.0,
+            "avg_duration_seconds": 0.0,
+        }
 
     total = row.total_runs or 0
     success = row.success or 0
@@ -39,7 +47,9 @@ async def get_execution_stats(db: AsyncSession, user_id: int) -> dict[str, Any]:
     dur_rows = await db.execute(
         select(
             func.avg(
-                func.extract("epoch", GraphExecution.completed_at - GraphExecution.started_at)
+                func.extract(
+                    "epoch", GraphExecution.completed_at - GraphExecution.started_at
+                )
             ).label("avg_duration")
         ).where(
             GraphExecution.user_id == user_id,
@@ -81,18 +91,22 @@ async def get_workflow_stats(db: AsyncSession, user_id: int) -> list[dict]:
     for row in rows.all():
         total = row.total_runs or 0
         success = row.success or 0
-        results.append({
-            "workflow_id": str(row.id),
-            "name": row.name,
-            "total_runs": total,
-            "success": success,
-            "failed": row.failed or 0,
-            "success_rate": round((success / total * 100) if total > 0 else 0.0, 1),
-        })
+        results.append(
+            {
+                "workflow_id": str(row.id),
+                "name": row.name,
+                "total_runs": total,
+                "success": success,
+                "failed": row.failed or 0,
+                "success_rate": round((success / total * 100) if total > 0 else 0.0, 1),
+            }
+        )
     return results
 
 
-async def get_recent_executions(db: AsyncSession, user_id: int, limit: int = 20) -> list[dict]:
+async def get_recent_executions(
+    db: AsyncSession, user_id: int, limit: int = 20
+) -> list[dict]:
     """Recent executions with status/timing."""
     rows = await db.execute(
         select(GraphExecution)
@@ -105,15 +119,19 @@ async def get_recent_executions(db: AsyncSession, user_id: int, limit: int = 20)
         duration = None
         if ex.started_at and ex.completed_at:
             duration = (ex.completed_at - ex.started_at).total_seconds()
-        results.append({
-            "id": str(ex.id),
-            "workflow_id": str(ex.workflow_id),
-            "status": ex.status,
-            "started_at": ex.started_at.isoformat() if ex.started_at else None,
-            "completed_at": ex.completed_at.isoformat() if ex.completed_at else None,
-            "duration_seconds": round(duration, 2) if duration else None,
-            "error_message": ex.error_message,
-        })
+        results.append(
+            {
+                "id": str(ex.id),
+                "workflow_id": str(ex.workflow_id),
+                "status": ex.status,
+                "started_at": ex.started_at.isoformat() if ex.started_at else None,
+                "completed_at": (
+                    ex.completed_at.isoformat() if ex.completed_at else None
+                ),
+                "duration_seconds": round(duration, 2) if duration else None,
+                "error_message": ex.error_message,
+            }
+        )
     return results
 
 
@@ -167,7 +185,9 @@ async def get_usage_stats(db: AsyncSession, user_id: int, period: str = "30d") -
     rows = await db.execute(
         select(
             func.count().label("total_executions"),
-            func.count().filter(GraphExecution.status == "completed").label("completed"),
+            func.count()
+            .filter(GraphExecution.status == "completed")
+            .label("completed"),
             func.count().filter(GraphExecution.status == "failed").label("failed"),
         ).where(
             GraphExecution.user_id == user_id,

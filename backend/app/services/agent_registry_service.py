@@ -48,7 +48,9 @@ class AgentRegistryService:
             logger.info("AgentRegistry connected to Qdrant at %s", settings.QDRANT_URL)
             return self._qdrant_client
         except Exception as e:
-            logger.warning("AgentRegistry: Qdrant unavailable (%s), falling back to PostgreSQL", e)
+            logger.warning(
+                "AgentRegistry: Qdrant unavailable (%s), falling back to PostgreSQL", e
+            )
             self._qdrant_available = False
             return None
 
@@ -59,7 +61,9 @@ class AgentRegistryService:
             from sentence_transformers import SentenceTransformer
 
             self._embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-            logger.info("AgentRegistry loaded embedding model: %s", EMBEDDING_MODEL_NAME)
+            logger.info(
+                "AgentRegistry loaded embedding model: %s", EMBEDDING_MODEL_NAME
+            )
             return self._embedding_model
         except Exception as e:
             logger.warning("AgentRegistry: embedding model unavailable (%s)", e)
@@ -139,7 +143,9 @@ class AgentRegistryService:
                                 points_selector=[cap.embedding_id],
                             )
                         except Exception:
-                            logger.debug("qdrant_old_point_delete_failed", exc_info=True)
+                            logger.debug(
+                                "qdrant_old_point_delete_failed", exc_info=True
+                            )
 
                     embedding_id = str(uuid4())
                     client.upsert(
@@ -319,10 +325,16 @@ class AgentRegistryService:
             filtered = []
             for c in candidates:
                 cap_result = await db.execute(
-                    select(AgentCapability).where(AgentCapability.agent_id == c["agent_id"])
+                    select(AgentCapability).where(
+                        AgentCapability.agent_id == c["agent_id"]
+                    )
                 )
                 cap = cap_result.scalar_one_or_none()
-                if cap and cap.tools and all(tool in cap.tools for tool in required_tools):
+                if (
+                    cap
+                    and cap.tools
+                    and all(tool in cap.tools for tool in required_tools)
+                ):
                     filtered.append(c)
             if filtered:
                 candidates = filtered

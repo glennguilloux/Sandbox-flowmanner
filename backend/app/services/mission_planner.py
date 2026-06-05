@@ -133,9 +133,7 @@ class MissionPlanner:
 
                 # Check if tasks already exist
                 existing = await db.execute(
-                    select(MissionTask).where(
-                        MissionTask.mission_id == str(mission_id)
-                    )
+                    select(MissionTask).where(MissionTask.mission_id == str(mission_id))
                 )
                 if existing.scalars().first():
                     await self._log(
@@ -383,9 +381,7 @@ class MissionPlanner:
             else:
                 llm_url = getattr(settings, "LLM_BASE_URL", "http://localhost:11434")
                 llm_key = getattr(settings, "LLM_API_KEY", "")
-                llm_model = getattr(
-                    settings, "LLM_DEFAULT_MODEL", "qwen3:14b"
-                )
+                llm_model = getattr(settings, "LLM_DEFAULT_MODEL", "qwen3:14b")
                 model_id = llm_model
                 provider = "llamacpp"
 
@@ -467,6 +463,8 @@ async def _nop_log(db, mission_id, task_id, level, message, extra_data=None):
     pass
 
 
-async def _nop_transition(db, mission, new_status, *, cause="", error_message=None, level="info"):
+async def _nop_transition(
+    db, mission, new_status, *, cause="", error_message=None, level="info"
+):
     """No-op transition callback used when none is provided to MissionPlanner."""
     pass

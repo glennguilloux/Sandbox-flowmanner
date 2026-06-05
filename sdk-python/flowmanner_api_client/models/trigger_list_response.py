@@ -1,78 +1,60 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.trigger_response import TriggerResponse
-
-
-
+    from ..models.trigger_response import TriggerResponse
 
 
 T = TypeVar("T", bound="TriggerListResponse")
 
 
-
 @_attrs_define
 class TriggerListResponse:
-    """ 
-        Attributes:
-            triggers (list[TriggerResponse]):
-            total (int):
-     """
+    """
+    Attributes:
+        triggers (list[TriggerResponse]):
+        total (int):
+    """
 
     triggers: list[TriggerResponse]
     total: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.trigger_response import TriggerResponse
         triggers = []
         for triggers_item_data in self.triggers:
             triggers_item = triggers_item_data.to_dict()
             triggers.append(triggers_item)
 
-
-
         total = self.total
-
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "triggers": triggers,
-            "total": total,
-        })
+        field_dict.update(
+            {
+                "triggers": triggers,
+                "total": total,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.trigger_response import TriggerResponse
+
         d = dict(src_dict)
         triggers = []
         _triggers = d.pop("triggers")
-        for triggers_item_data in (_triggers):
+        for triggers_item_data in _triggers:
             triggers_item = TriggerResponse.from_dict(triggers_item_data)
 
-
-
             triggers.append(triggers_item)
-
 
         total = d.pop("total")
 
@@ -80,7 +62,6 @@ class TriggerListResponse:
             triggers=triggers,
             total=total,
         )
-
 
         trigger_list_response.additional_properties = d
         return trigger_list_response

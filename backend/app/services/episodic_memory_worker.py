@@ -117,7 +117,9 @@ class EpisodicMemoryWorker:
         }
         logger.info(
             "Episode consolidated: mission=%s events=%d summary_len=%d",
-            mission_id, len(events), len(summary),
+            mission_id,
+            len(events),
+            len(summary),
         )
         return episode
 
@@ -162,7 +164,11 @@ class EpisodicMemoryWorker:
             query_filter = None
             if workspace_id:
                 query_filter = Filter(
-                    must=[FieldCondition(key="workspace_id", params=MatchValue(value=workspace_id))]
+                    must=[
+                        FieldCondition(
+                            key="workspace_id", params=MatchValue(value=workspace_id)
+                        )
+                    ]
                 )
 
             results = await client.search(
@@ -251,23 +257,30 @@ class EpisodicMemoryWorker:
             payload = event.payload or {}
             match event.type:
                 case SubstrateEventType.TASK_COMPLETED:
-                    actions.append({
-                        "action": "task_completed",
-                        "task_title": payload.get("task_title", "unknown"),
-                        "tokens": payload.get("tokens", 0),
-                        "cost_usd": payload.get("cost_usd", 0.0),
-                    })
+                    actions.append(
+                        {
+                            "action": "task_completed",
+                            "task_title": payload.get("task_title", "unknown"),
+                            "tokens": payload.get("tokens", 0),
+                            "cost_usd": payload.get("cost_usd", 0.0),
+                        }
+                    )
                 case SubstrateEventType.TOOL_CALL:
-                    actions.append({
-                        "action": "tool_call",
-                        "tool": payload.get("tool_name", "unknown"),
-                    })
+                    actions.append(
+                        {
+                            "action": "tool_call",
+                            "tool": payload.get("tool_name", "unknown"),
+                        }
+                    )
                 case SubstrateEventType.LLM_CALL:
-                    actions.append({
-                        "action": "llm_call",
-                        "model": payload.get("model_id", "unknown"),
-                        "tokens": payload.get("prompt_tokens", 0) + payload.get("completion_tokens", 0),
-                    })
+                    actions.append(
+                        {
+                            "action": "llm_call",
+                            "model": payload.get("model_id", "unknown"),
+                            "tokens": payload.get("prompt_tokens", 0)
+                            + payload.get("completion_tokens", 0),
+                        }
+                    )
         return actions
 
     def _extract_outcome(self, mission: Mission, events: list) -> dict[str, Any]:
@@ -283,7 +296,11 @@ class EpisodicMemoryWorker:
                 break
 
         return {
-            "status": mission.status if isinstance(mission.status, str) else mission.status.value,
+            "status": (
+                mission.status
+                if isinstance(mission.status, str)
+                else mission.status.value
+            ),
             "error": terminal.payload.get("error") if terminal else None,
             "total_tokens": getattr(mission, "tokens_used", 0) or 0,
             "actual_cost": getattr(mission, "actual_cost", 0.0) or 0.0,
@@ -316,6 +333,7 @@ class EpisodicMemoryWorker:
 
             budget = Budget(max_cost_usd=Decimal("0.01"), max_iterations=1)
             from app.services.budget_enforcer import get_budget_enforcer
+
             enforcer = get_budget_enforcer()
 
             response = await enforcer.call(
@@ -415,6 +433,7 @@ class EpisodicMemoryWorker:
         """
         try:
             from app.services.rag.embedding_service import EmbeddingService
+
             service = EmbeddingService()
             vectors = await service.embed([text])
             return vectors[0] if vectors else None

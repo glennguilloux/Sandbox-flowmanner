@@ -23,6 +23,7 @@ async def delete_current_user(
     """
     # Revoke all sessions
     from app.services.auth_service import revoke_all_user_tokens
+
     await revoke_all_user_tokens(db, user.id)
     # Soft-delete: mark as inactive so orphaned references remain valid
     user.is_active = False

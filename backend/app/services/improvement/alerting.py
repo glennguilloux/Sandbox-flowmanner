@@ -23,8 +23,10 @@ logger = logging.getLogger(__name__)
 # ENUMS AND DATA CLASSES
 # ============================================================================
 
+
 class AlertSeverity(str, Enum):
     """Severity levels for improvement alerts."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -33,24 +35,25 @@ class AlertSeverity(str, Enum):
 
 class AlertType(str, Enum):
     """Types of improvement alerts."""
+
     # Rollback events
     ROLLBACK_TRIGGERED = "rollback_triggered"
     ROLLBACK_FAILED = "rollback_failed"
-    
+
     # Failure events
     CRITICAL_FAILURE_SPIKE = "critical_failure_spike"
     FAILURE_THRESHOLD_EXCEEDED = "failure_threshold_exceeded"
-    
+
     # Oscillation events
     OSCILLATION_DETECTED = "oscillation_detected"
     OSCILLATION_RISK_HIGH = "oscillation_risk_high"
-    
+
     # Improvement events
     IMPROVEMENT_APPLIED = "improvement_applied"
     IMPROVEMENT_REJECTED = "improvement_rejected"
     IMPROVEMENT_SESSION_STARTED = "improvement_session_started"
     IMPROVEMENT_SESSION_COMPLETED = "improvement_session_completed"
-    
+
     # System events
     IMPROVEMENT_SYSTEM_HEALTHY = "improvement_system_healthy"
     IMPROVEMENT_SYSTEM_DEGRADED = "improvement_system_degraded"
@@ -60,6 +63,7 @@ class AlertType(str, Enum):
 @dataclass
 class ImprovementAlert:
     """An alert from the improvement system."""
+
     alert_id: str
     alert_type: AlertType
     severity: AlertSeverity
@@ -75,7 +79,7 @@ class ImprovementAlert:
     acknowledged: bool = False
     acknowledged_at: datetime | None = None
     acknowledged_by: str | None = None
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize alert to dictionary."""
         return {
@@ -92,7 +96,9 @@ class ImprovementAlert:
             "metrics": self.metrics,
             "context": self.context,
             "acknowledged": self.acknowledged,
-            "acknowledged_at": self.acknowledged_at.isoformat() if self.acknowledged_at else None,
+            "acknowledged_at": (
+                self.acknowledged_at.isoformat() if self.acknowledged_at else None
+            ),
             "acknowledged_by": self.acknowledged_by,
         }
 
@@ -101,18 +107,19 @@ class ImprovementAlert:
 # ALERT HANDLER
 # ============================================================================
 
+
 class ImprovementAlertHandler:
     """
     Handles alerts from the improvement system.
-    
+
     This class provides alerting capabilities for significant events,
     integrating with the existing notification infrastructure.
     """
-    
+
     def __init__(self, notification_service=None):
         """
         Initialize the alert handler.
-        
+
         Args:
             notification_service: Optional notification service for sending alerts
         """
@@ -122,7 +129,7 @@ class ImprovementAlertHandler:
         self._alert_counts: dict[str, int] = defaultdict(int)
         self._rate_limit_window = timedelta(minutes=5)
         self._last_alert_time: dict[str, datetime] = {}
-        
+
         # Alert thresholds
         self.thresholds = {
             "failure_spike_multiplier": 3.0,  # Alert if failures > 3x baseline
@@ -131,16 +138,16 @@ class ImprovementAlertHandler:
             "error_rate_threshold": 0.5,  # Alert if error rate > 50%
             "latency_increase_threshold": 2.0,  # Alert if latency > 2x baseline
         }
-    
+
     def register_callback(self, callback: Callable[[ImprovementAlert], None]) -> None:
         """
         Register a callback to be called when an alert is raised.
-        
+
         Args:
             callback: Function to call with the alert
         """
         self._alert_callbacks.append(callback)
-    
+
     async def raise_alert(
         self,
         alert_type: AlertType,
@@ -156,7 +163,7 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Raise an alert.
-        
+
         Args:
             alert_type: Type of alert
             severity: Severity level
@@ -168,14 +175,14 @@ class ImprovementAlertHandler:
             failure_type: Optional failure type
             metrics: Optional metrics data
             context: Optional context data
-            
+
         Returns:
             The created alert
         """
         import uuid
-        
+
         alert_id = str(uuid.uuid4())
-        
+
         # Check rate limiting
         alert_key = f"{alert_type.value}:{agent_id or 'global'}"
         if self._is_rate_limited(alert_key):
@@ -196,7 +203,7 @@ class ImprovementAlertHandler:
             )
             self._alert_history.append(alert)
             return alert
-        
+
         alert = ImprovementAlert(
             alert_id=alert_id,
             alert_type=alert_type,
@@ -210,12 +217,12 @@ class ImprovementAlertHandler:
             metrics=metrics or {},
             context=context or {},
         )
-        
+
         # Store in history
         self._alert_history.append(alert)
         self._last_alert_time[alert_key] = datetime.now(UTC)
         self._alert_counts[alert_key] += 1
-        
+
         # Log the alert
         log_level = {
             AlertSeverity.INFO: logging.INFO,
@@ -223,22 +230,22 @@ class ImprovementAlertHandler:
             AlertSeverity.ERROR: logging.ERROR,
             AlertSeverity.CRITICAL: logging.CRITICAL,
         }.get(severity, logging.INFO)
-        
+
         logger.log(log_level, f"[{alert_type.value}] {title}: {message}")
-        
+
         # Call registered callbacks
         for callback in self._alert_callbacks:
             try:
                 callback(alert)
             except Exception as e:
                 logger.warning(f"Alert callback failed: {e}")
-        
+
         # Send to notification service if available
         if self.notification_service:
             await self._send_notification(alert)
-        
+
         return alert
-    
+
     async def alert_rollback_triggered(
         self,
         knob_name: str,
@@ -249,14 +256,14 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert that a rollback was triggered.
-        
+
         Args:
             knob_name: Name of the knob that was rolled back
             reason: Reason for the rollback
             agent_id: Optional agent ID
             session_id: Optional session ID
             metrics: Optional metrics that triggered the rollback
-            
+
         Returns:
             The created alert
         """
@@ -271,7 +278,7 @@ class ImprovementAlertHandler:
             metrics=metrics,
             context={"reason": reason},
         )
-    
+
     async def alert_rollback_failed(
         self,
         knob_name: str,
@@ -280,12 +287,12 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert that a rollback failed.
-        
+
         Args:
             knob_name: Name of the knob
             error: Error message
             agent_id: Optional agent ID
-            
+
         Returns:
             The created alert
         """
@@ -298,7 +305,7 @@ class ImprovementAlertHandler:
             knob_name=knob_name,
             context={"error": error},
         )
-    
+
     async def alert_failure_spike(
         self,
         failure_type: str,
@@ -308,18 +315,20 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert on a spike in failures.
-        
+
         Args:
             failure_type: Type of failure
             current_count: Current failure count
             baseline_count: Baseline failure count
             agent_id: Optional agent ID
-            
+
         Returns:
             The created alert
         """
-        multiplier = current_count / baseline_count if baseline_count > 0 else float('inf')
-        
+        multiplier = (
+            current_count / baseline_count if baseline_count > 0 else float("inf")
+        )
+
         return await self.raise_alert(
             alert_type=AlertType.CRITICAL_FAILURE_SPIKE,
             severity=AlertSeverity.CRITICAL,
@@ -333,7 +342,7 @@ class ImprovementAlertHandler:
                 "multiplier": multiplier,
             },
         )
-    
+
     async def alert_oscillation_detected(
         self,
         knob_name: str,
@@ -343,13 +352,13 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert that oscillation was detected.
-        
+
         Args:
             knob_name: Name of the oscillating knob
             change_count: Number of changes in the time window
             time_window_hours: Time window in hours
             agent_id: Optional agent ID
-            
+
         Returns:
             The created alert
         """
@@ -365,7 +374,7 @@ class ImprovementAlertHandler:
                 "time_window_hours": time_window_hours,
             },
         )
-    
+
     async def alert_improvement_applied(
         self,
         strategy_type: str,
@@ -376,14 +385,14 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert that an improvement was successfully applied.
-        
+
         Args:
             strategy_type: Type of strategy applied
             knob_name: Name of the knob that was adjusted
             improvement_delta: Measured improvement
             agent_id: Optional agent ID
             session_id: Optional session ID
-            
+
         Returns:
             The created alert
         """
@@ -397,7 +406,7 @@ class ImprovementAlertHandler:
             knob_name=knob_name,
             metrics={"improvement_delta": improvement_delta},
         )
-    
+
     async def alert_improvement_rejected(
         self,
         strategy_type: str,
@@ -407,13 +416,13 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert that an improvement was rejected.
-        
+
         Args:
             strategy_type: Type of strategy that was rejected
             reason: Reason for rejection
             agent_id: Optional agent ID
             session_id: Optional session ID
-            
+
         Returns:
             The created alert
         """
@@ -426,7 +435,7 @@ class ImprovementAlertHandler:
             session_id=session_id,
             context={"reason": reason},
         )
-    
+
     async def alert_session_completed(
         self,
         session_id: str,
@@ -436,22 +445,24 @@ class ImprovementAlertHandler:
     ) -> ImprovementAlert:
         """
         Alert that an improvement session completed.
-        
+
         Args:
             session_id: The session ID
             success: Whether the session was successful
             improvement_delta: The improvement delta (if any)
             agent_id: Optional agent ID
-            
+
         Returns:
             The created alert
         """
         severity = AlertSeverity.INFO if success else AlertSeverity.WARNING
-        title = "Improvement Session Completed" if success else "Improvement Session Failed"
+        title = (
+            "Improvement Session Completed" if success else "Improvement Session Failed"
+        )
         message = f"Session {session_id} completed."
         if improvement_delta is not None:
             message += f" Improvement: {improvement_delta:.1%}"
-        
+
         return await self.raise_alert(
             alert_type=AlertType.IMPROVEMENT_SESSION_COMPLETED,
             severity=severity,
@@ -459,9 +470,11 @@ class ImprovementAlertHandler:
             message=message,
             agent_id=agent_id,
             session_id=session_id,
-            metrics={"improvement_delta": improvement_delta} if improvement_delta else {},
+            metrics=(
+                {"improvement_delta": improvement_delta} if improvement_delta else {}
+            ),
         )
-    
+
     def get_recent_alerts(
         self,
         limit: int = 50,
@@ -472,19 +485,19 @@ class ImprovementAlertHandler:
     ) -> list[ImprovementAlert]:
         """
         Get recent alerts.
-        
+
         Args:
             limit: Maximum number of alerts to return
             severity: Optional severity filter
             alert_type: Optional alert type filter
             agent_id: Optional agent ID filter
             unacknowledged_only: Only return unacknowledged alerts
-            
+
         Returns:
             List of matching alerts
         """
         alerts = self._alert_history
-        
+
         if severity:
             alerts = [a for a in alerts if a.severity == severity]
         if alert_type:
@@ -493,12 +506,12 @@ class ImprovementAlertHandler:
             alerts = [a for a in alerts if a.agent_id == agent_id]
         if unacknowledged_only:
             alerts = [a for a in alerts if not a.acknowledged]
-        
+
         # Sort by timestamp descending
         alerts = sorted(alerts, key=lambda a: a.timestamp, reverse=True)
-        
+
         return alerts[:limit]
-    
+
     def acknowledge_alert(
         self,
         alert_id: str,
@@ -506,11 +519,11 @@ class ImprovementAlertHandler:
     ) -> bool:
         """
         Acknowledge an alert.
-        
+
         Args:
             alert_id: The alert ID
             acknowledged_by: Who acknowledged the alert
-            
+
         Returns:
             True if successful, False if not found
         """
@@ -521,14 +534,14 @@ class ImprovementAlertHandler:
                 alert.acknowledged_by = acknowledged_by
                 return True
         return False
-    
+
     def clear_old_alerts(self, older_than: timedelta = timedelta(days=7)) -> int:
         """
         Clear alerts older than the specified age.
-        
+
         Args:
             older_than: Age threshold
-            
+
         Returns:
             Number of alerts cleared
         """
@@ -536,38 +549,40 @@ class ImprovementAlertHandler:
         original_count = len(self._alert_history)
         self._alert_history = [a for a in self._alert_history if a.timestamp >= cutoff]
         return original_count - len(self._alert_history)
-    
+
     def _is_rate_limited(self, alert_key: str) -> bool:
         """Check if an alert key is rate limited."""
         if alert_key not in self._last_alert_time:
             return False
-        
+
         last_time = self._last_alert_time[alert_key]
         return (datetime.now(UTC) - last_time) < self._rate_limit_window
-    
+
     async def _send_notification(self, alert: ImprovementAlert) -> None:
         """Send notification through the notification service."""
         if not self.notification_service:
             return
-        
+
         try:
             # Try different notification methods
-            if hasattr(self.notification_service, 'send_alert'):
+            if hasattr(self.notification_service, "send_alert"):
                 await self.notification_service.send_alert(
                     title=alert.title,
                     message=alert.message,
                     severity=alert.severity.value,
                     data=alert.to_dict(),
                 )
-            elif hasattr(self.notification_service, 'notify'):
+            elif hasattr(self.notification_service, "notify"):
                 await self.notification_service.notify(
                     title=alert.title,
                     message=alert.message,
                     level=alert.severity.value,
                 )
             else:
-                logger.debug(f"No compatible notification method found for alert: {alert.alert_id}")
-                
+                logger.debug(
+                    f"No compatible notification method found for alert: {alert.alert_id}"
+                )
+
         except Exception as e:
             logger.warning(f"Failed to send notification: {e}")
 
@@ -593,17 +608,18 @@ def initialize_alert_handler(notification_service=None) -> ImprovementAlertHandl
     _alert_handler = ImprovementAlertHandler(notification_service)
     return _alert_handler
 
+
 # Alias for backward compatibility
 Alert = ImprovementAlert
 
 
 class AlertingSystem:
     """System for managing and dispatching alerts"""
-    
+
     def __init__(self):
         self.alerts: list[ImprovementAlert] = []
         self.handlers: list[callable] = []
-    
+
     def add_alert(self, alert: ImprovementAlert) -> None:
         """Add an alert to the system"""
         self.alerts.append(alert)
@@ -612,15 +628,15 @@ class AlertingSystem:
                 handler(alert)
             except Exception as e:
                 logger.error(f"Alert handler error: {e}")
-    
+
     def register_handler(self, handler: callable) -> None:
         """Register an alert handler"""
         self.handlers.append(handler)
-    
+
     def get_alerts(self, limit: int = 100) -> list[ImprovementAlert]:
         """Get recent alerts"""
         return self.alerts[-limit:]
-    
+
     def clear_alerts(self) -> None:
         """Clear all alerts"""
         self.alerts.clear()

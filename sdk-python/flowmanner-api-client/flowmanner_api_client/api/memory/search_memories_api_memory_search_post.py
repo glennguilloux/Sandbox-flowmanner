@@ -6,7 +6,9 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.search_memories_api_memory_search_post_payload import SearchMemoriesApiMemorySearchPostPayload
+from ...models.search_memories_api_memory_search_post_payload import (
+    SearchMemoriesApiMemorySearchPostPayload,
+)
 from ...types import Response
 
 

@@ -11,8 +11,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def sync_mission_to_linear(mission_id: str, status: str, results: dict | None = None,
-                                  error_message: str | None = None) -> bool:
+async def sync_mission_to_linear(
+    mission_id: str,
+    status: str,
+    results: dict | None = None,
+    error_message: str | None = None,
+) -> bool:
     """
     Sync a completed/failed mission back to its linked Linear issue.
 
@@ -35,7 +39,9 @@ async def sync_mission_to_linear(mission_id: str, status: str, results: dict | N
 
         # Load mission to get Linear linkage
         async with AsyncSessionLocal() as db:
-            result = await db.execute(select(Mission).where(Mission.id == str(mission_id)))
+            result = await db.execute(
+                select(Mission).where(Mission.id == str(mission_id))
+            )
             mission = result.scalars().first()
             if not mission:
                 logger.warning(f"Mission {mission_id} not found for Linear sync")
@@ -46,7 +52,9 @@ async def sync_mission_to_linear(mission_id: str, status: str, results: dict | N
             linear_data = plan.get("linear", {})
             issue_id = linear_data.get("issue_id")
             if not issue_id:
-                logger.debug(f"Mission {mission_id} has no linked Linear issue — skipping sync")
+                logger.debug(
+                    f"Mission {mission_id} has no linked Linear issue — skipping sync"
+                )
                 return False
 
             # Fetch current issue to get team context
@@ -67,8 +75,10 @@ async def sync_mission_to_linear(mission_id: str, status: str, results: dict | N
                     total = summary.get("total_tasks", 0)
                     completed = summary.get("completed", 0)
                     failed = summary.get("failed", 0)
-                    comment_lines.append(f"- **Tasks**: {completed}/{total} completed" +
-                                         (f", {failed} failed" if failed else ""))
+                    comment_lines.append(
+                        f"- **Tasks**: {completed}/{total} completed"
+                        + (f", {failed} failed" if failed else "")
+                    )
                     comment_lines.append("")
 
                 if mission.tokens_used:
@@ -113,7 +123,9 @@ async def sync_mission_to_linear(mission_id: str, status: str, results: dict | N
 
             comment_body = "\n".join(comment_lines)
             await client.add_comment(issue_id, comment_body)
-            logger.info(f"Posted Linear comment on issue {issue_id} for mission {mission_id}")
+            logger.info(
+                f"Posted Linear comment on issue {issue_id} for mission {mission_id}"
+            )
 
             # Optionally update issue state
             try:
@@ -123,13 +135,22 @@ async def sync_mission_to_linear(mission_id: str, status: str, results: dict | N
                     if team_id:
                         states = await client.get_workflow_states(team_id)
                         done_state = next(
-                            (s for s in states if s.get("type") in ("completed", "done") or
-                             s.get("name", "").lower() in ("done", "completed", "closed")),
-                            None
+                            (
+                                s
+                                for s in states
+                                if s.get("type") in ("completed", "done")
+                                or s.get("name", "").lower()
+                                in ("done", "completed", "closed")
+                            ),
+                            None,
                         )
                         if done_state:
-                            await client.update_issue(issue_id, state_id=done_state["id"])
-                            logger.info(f"Updated Linear issue {issue_id} to {done_state['name']}")
+                            await client.update_issue(
+                                issue_id, state_id=done_state["id"]
+                            )
+                            logger.info(
+                                f"Updated Linear issue {issue_id} to {done_state['name']}"
+                            )
             except Exception as state_err:
                 logger.debug(f"Could not update Linear issue state: {state_err}")
 

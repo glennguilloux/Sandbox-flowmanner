@@ -85,7 +85,10 @@ class HITLService:
 
         logger.info(
             "HITL interrupt created: id=%s type=%s mission=%s title=%s",
-            item.id, interrupt_type.value, mission_id, title,
+            item.id,
+            interrupt_type.value,
+            mission_id,
+            title,
         )
         return item
 
@@ -103,9 +106,7 @@ class HITLService:
         The caller is responsible for resuming the mission executor
         after resolution.
         """
-        result = await self.db.execute(
-            select(InboxItem).where(InboxItem.id == item_id)
-        )
+        result = await self.db.execute(select(InboxItem).where(InboxItem.id == item_id))
         item = result.scalar_one_or_none()
         if item is None:
             raise ValueError(f"Inbox item {item_id} not found")
@@ -127,7 +128,9 @@ class HITLService:
 
         logger.info(
             "HITL interrupt resolved: id=%s status=%s by=%s",
-            item.id, status.value, resolved_by,
+            item.id,
+            status.value,
+            resolved_by,
         )
         return item
 
@@ -176,21 +179,16 @@ class HITLService:
 
     async def get_item(self, item_id: str) -> InboxItem | None:
         """Get an inbox item by ID."""
-        result = await self.db.execute(
-            select(InboxItem).where(InboxItem.id == item_id)
-        )
+        result = await self.db.execute(select(InboxItem).where(InboxItem.id == item_id))
         return result.scalar_one_or_none()
 
     async def expire_stale(self) -> int:
         """Mark expired items as EXPIRED. Returns count expired."""
         now = datetime.now(UTC)
-        stmt = (
-            select(InboxItem)
-            .where(
-                InboxItem.status == InboxItemStatus.PENDING.value,
-                InboxItem.expires_at.isnot(None),
-                InboxItem.expires_at < now,
-            )
+        stmt = select(InboxItem).where(
+            InboxItem.status == InboxItemStatus.PENDING.value,
+            InboxItem.expires_at.isnot(None),
+            InboxItem.expires_at < now,
         )
         items = (await self.db.execute(stmt)).scalars().all()
         for item in items:
@@ -212,14 +210,20 @@ class HITLService:
         stmt = select(func.count()).select_from(InboxItem).where(and_(*conditions))
         return (await self.db.execute(stmt)).scalar() or 0
 
-    async def _push_inbox_event(self, user_id: int, event: str, item: InboxItem) -> None:
+    async def _push_inbox_event(
+        self, user_id: int, event: str, item: InboxItem
+    ) -> None:
         """Push inbox event to user's SSE channel via Redis pub/sub."""
         try:
             from app.services.sse_service import publish_user_notification
-            await publish_user_notification(user_id, {
-                "event": event,
-                "data": self._item_to_dict(item),
-            })
+
+            await publish_user_notification(
+                user_id,
+                {
+                    "event": event,
+                    "data": self._item_to_dict(item),
+                },
+            )
         except Exception as e:
             logger.debug("Failed to push inbox SSE event: %s", e)
 

@@ -38,6 +38,7 @@ VERCEL_ACTIONS: tuple[str, ...] = (
 
 # ── Input ───────────────────────────────────────────────────────────
 
+
 class VercelDeployerInput(ToolInput):
     action: str = Field(
         ...,
@@ -78,6 +79,7 @@ class VercelDeployerInput(ToolInput):
 
 
 # ── Tool ────────────────────────────────────────────────────────────
+
 
 class VercelDeployerTool(BaseTool):
     """Trigger and manage Vercel deployments via the REST API."""
@@ -154,7 +156,11 @@ class VercelDeployerTool(BaseTool):
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             return await client.request(
-                method, url, json=json_data, params=all_params, headers=self._auth_headers()
+                method,
+                url,
+                json=json_data,
+                params=all_params,
+                headers=self._auth_headers(),
             )
 
     def _summarize_deployment(self, dep: dict[str, Any]) -> dict[str, Any]:
@@ -239,7 +245,11 @@ class VercelDeployerTool(BaseTool):
         )
 
         if resp.status_code >= 400:
-            error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            error_body = (
+                resp.json()
+                if resp.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
             return {
                 "action": "trigger_deployment",
                 "error": f"Vercel API error {resp.status_code}: {error_body.get('error', {}).get('message', resp.text[:500])}",
@@ -255,7 +265,10 @@ class VercelDeployerTool(BaseTool):
 
     async def _get_deployment_status(self, v: VercelDeployerInput) -> dict[str, Any]:
         if not v.deployment_id:
-            return {"action": "get_deployment_status", "error": "deployment_id is required"}
+            return {
+                "action": "get_deployment_status",
+                "error": "deployment_id is required",
+            }
 
         resp = await self._request("GET", f"/v13/deployments/{v.deployment_id}")
 
@@ -370,7 +383,10 @@ class VercelDeployerTool(BaseTool):
 
     async def _get_deployment_events(self, v: VercelDeployerInput) -> dict[str, Any]:
         if not v.deployment_id:
-            return {"action": "get_deployment_events", "error": "deployment_id is required"}
+            return {
+                "action": "get_deployment_events",
+                "error": "deployment_id is required",
+            }
 
         resp = await self._request(
             "GET",
@@ -383,16 +399,26 @@ class VercelDeployerTool(BaseTool):
                 "error": f"Vercel API error {resp.status_code}: {resp.text[:500]}",
             }
 
-        events = resp.json() if isinstance(resp.json(), list) else resp.json().get("events", [])
+        events = (
+            resp.json()
+            if isinstance(resp.json(), list)
+            else resp.json().get("events", [])
+        )
         # Summarize to most recent + key event types
         summarized: list[dict[str, Any]] = []
         for e in events[:50]:
-            summarized.append({
-                "type": e.get("type"),
-                "created": e.get("created"),
-                "text": (e.get("payload", {}).get("text", "") or "")[:200],
-                "info": e.get("payload", {}).get("info", {}) if e.get("payload") else None,
-            })
+            summarized.append(
+                {
+                    "type": e.get("type"),
+                    "created": e.get("created"),
+                    "text": (e.get("payload", {}).get("text", "") or "")[:200],
+                    "info": (
+                        e.get("payload", {}).get("info", {})
+                        if e.get("payload")
+                        else None
+                    ),
+                }
+            )
 
         return {
             "action": "get_deployment_events",

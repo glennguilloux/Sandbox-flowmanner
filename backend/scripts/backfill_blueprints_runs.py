@@ -29,7 +29,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
-async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: bool = False) -> int:
+async def backfill_blueprints(
+    db: AsyncSession, batch_size: int = 100, dry_run: bool = False
+) -> int:
     """Create blueprints from existing missions."""
     # Find missions that don't have a corresponding blueprint yet
     existing_bp_ids = select(Blueprint.id)
@@ -59,24 +61,35 @@ async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: 
         # Build definition from mission plan + tasks
         nodes = []
         for task in tasks:
-            nodes.append({
-                "id": str(task.id),
-                "type": task.task_type or "llm_call",
-                "title": task.title or "",
-                "description": task.description or "",
-                "config": task.input_data or {},
-                "dependencies": task.dependencies if isinstance(task.dependencies, list) else [],
-                "assigned_model": task.assigned_model,
-                "assigned_agent_id": str(task.assigned_agent_id) if task.assigned_agent_id else None,
-                "max_retries": task.max_retries or 3,
-                "fallback_strategy": "human_escalate",
-            })
+            nodes.append(
+                {
+                    "id": str(task.id),
+                    "type": task.task_type or "llm_call",
+                    "title": task.title or "",
+                    "description": task.description or "",
+                    "config": task.input_data or {},
+                    "dependencies": (
+                        task.dependencies if isinstance(task.dependencies, list) else []
+                    ),
+                    "assigned_model": task.assigned_model,
+                    "assigned_agent_id": (
+                        str(task.assigned_agent_id) if task.assigned_agent_id else None
+                    ),
+                    "max_retries": task.max_retries or 3,
+                    "fallback_strategy": "human_escalate",
+                }
+            )
 
         definition = {
             "blueprint_type": mission.mission_type or "solo",
             "nodes": nodes,
             "edges": [],
-            "budget": {"max_cost_usd": 10.0, "max_wall_time_seconds": 300, "max_iterations": 100, "max_depth": 5},
+            "budget": {
+                "max_cost_usd": 10.0,
+                "max_wall_time_seconds": 300,
+                "max_iterations": 100,
+                "max_depth": 5,
+            },
             "config": {"source_mission_id": str(mission.id)},
         }
 
@@ -87,7 +100,9 @@ async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: 
             description=mission.description or "",
             blueprint_type=mission.mission_type or "solo",
             definition=definition,
-            status="published" if mission.status in ("completed", "approved") else "draft",
+            status=(
+                "published" if mission.status in ("completed", "approved") else "draft"
+            ),
             version=1,
             workspace_id=mission.workspace_id,
             run_count=1 if mission.status in ("completed", "failed", "aborted") else 0,
@@ -119,7 +134,9 @@ async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: 
     return len(missions)
 
 
-async def backfill_runs(db: AsyncSession, batch_size: int = 100, dry_run: bool = False) -> int:
+async def backfill_runs(
+    db: AsyncSession, batch_size: int = 100, dry_run: bool = False
+) -> int:
     """Create runs from existing workflow executions and orchestrator executions."""
     count = 0
 
@@ -139,7 +156,10 @@ async def backfill_runs(db: AsyncSession, batch_size: int = 100, dry_run: bool =
             workspace_id=ex.workspace_id,
             user_id=ex.user_id,
             status=ex.status or "completed",
-            snapshot={"blueprint_type": "graph", "title": "Backfilled workflow execution"},
+            snapshot={
+                "blueprint_type": "graph",
+                "title": "Backfilled workflow execution",
+            },
             output_data=ex.output_data,
             error_message=ex.error_message,
             started_at=ex.started_at,
@@ -165,7 +185,10 @@ async def backfill_runs(db: AsyncSession, batch_size: int = 100, dry_run: bool =
             workspace_id=None,
             user_id=None,
             status=getattr(ox, "status", "completed") or "completed",
-            snapshot={"blueprint_type": "swarm", "title": "Backfilled orchestrator execution"},
+            snapshot={
+                "blueprint_type": "swarm",
+                "title": "Backfilled orchestrator execution",
+            },
             started_at=getattr(ox, "started_at", None),
             completed_at=getattr(ox, "completed_at", None),
         )

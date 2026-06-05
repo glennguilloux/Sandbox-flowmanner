@@ -54,7 +54,9 @@ class ArxivPaperFinderInput(ToolInput):
         description="ArXiv paper ID (e.g., '2301.12345' or '2301.12345v1') for get_paper",
     )
     max_results: int = Field(
-        ARXIV_MAX_RESULTS, ge=1, le=50,
+        ARXIV_MAX_RESULTS,
+        ge=1,
+        le=50,
         description="Maximum number of papers to return",
     )
     sort_by: str = Field(
@@ -62,7 +64,9 @@ class ArxivPaperFinderInput(ToolInput):
         description="Sort order: 'relevance', 'lastUpdatedDate', or 'submittedDate'",
     )
     start: int = Field(
-        0, ge=0, le=1000,
+        0,
+        ge=0,
+        le=1000,
         description="Starting index for pagination",
     )
 
@@ -166,11 +170,13 @@ class ArxivPaperFinderTool(BaseTool):
 
         links = []
         for link_el in entry.findall("atom:link", _ARXIV_NS):
-            links.append({
-                "href": link_el.get("href", ""),
-                "rel": link_el.get("rel", ""),
-                "title": link_el.get("title", ""),
-            })
+            links.append(
+                {
+                    "href": link_el.get("href", ""),
+                    "rel": link_el.get("rel", ""),
+                    "title": link_el.get("title", ""),
+                }
+            )
 
         # Categories
         categories = []
@@ -179,7 +185,9 @@ class ArxivPaperFinderTool(BaseTool):
 
         # ArXiv-specific
         primary_cat = entry.find("arxiv:primary_category", _ARXIV_NS)
-        primary_category = primary_cat.get("term", "") if primary_cat is not None else ""
+        primary_category = (
+            primary_cat.get("term", "") if primary_cat is not None else ""
+        )
 
         return {
             "paper_id": paper_id,
@@ -195,9 +203,7 @@ class ArxivPaperFinderTool(BaseTool):
             "journal_ref": _text("arxiv:journal_ref") if "arxiv" in _ARXIV_NS else "",
             "doi": _text("arxiv:doi") if "arxiv" in _ARXIV_NS else "",
             "links": links,
-            "pdf_url": next(
-                (l["href"] for l in links if l.get("title") == "pdf"), ""
-            ),
+            "pdf_url": next((l["href"] for l in links if l.get("title") == "pdf"), ""),
             "abs_url": f"https://arxiv.org/abs/{paper_id}",
         }
 
@@ -264,7 +270,10 @@ class ArxivPaperFinderTool(BaseTool):
         try:
             root = ElementTree.fromstring(raw_xml)
         except ElementTree.ParseError as e:
-            return {"action": "get_paper", "error": f"Failed to parse ArXiv response: {e}"}
+            return {
+                "action": "get_paper",
+                "error": f"Failed to parse ArXiv response: {e}",
+            }
 
         entries = root.findall("atom:entry", _ARXIV_NS)
         if not entries:

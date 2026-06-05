@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class LangGraphAgent:
     """
     Main LangGraph agent for workflow automation.
-    
+
     This agent:
     - Processes natural language requests
     - Converts them to tool calls
@@ -51,14 +51,8 @@ class LangGraphAgent:
     - Maintains conversation state
     - Persists sessions and configurations
     """
-    
-    def __init__(
-        self,
-        llm,
-        redis_client=None,
-        auto_approve_safe=True,
-        **config
-    ):
+
+    def __init__(self, llm, redis_client=None, auto_approve_safe=True, **config):
         self.llm = llm
         self.tool_converter = get_tool_converter(llm)
         self.approval_workflow = get_approval_workflow(
@@ -67,59 +61,63 @@ class LangGraphAgent:
             redis_client=redis_client,
         )
         self.persistence = get_persistence(redis_client)
-        
+
         # Store configuration for tool handlers
         self.tool_handler_config = config
-        
+
         # Initialize tool handler registry
         self.tool_registry = get_tool_handler_registry()
         self._register_default_handlers(config)
-        
+
         # Tool execution handlers (legacy compatibility)
         self.tool_handlers: Dict[str, Callable] = {}
         self._initialize_default_handlers()
-        
+
         # Build the graph
         self.graph = self._build_graph()
-        
+
         # Checkpointer for state persistence
         self.checkpointer = MemorySaver()
-        
+
         logger.info("LangGraph agent initialized with tool handlers")
-    
+
     def _register_default_handlers(self, config: Dict[str, Any]):
         """Register default tool handlers with configuration"""
-        
+
         # Register n8n handler
-        n8n_base_url = config.get('n8n_base_url')
+        n8n_base_url = config.get("n8n_base_url")
         if n8n_base_url:
-            self.tool_registry.register_handler(
-                "execute_n8n_workflow",
-                N8nToolHandler
-            )
+            self.tool_registry.register_handler("execute_n8n_workflow", N8nToolHandler)
             logger.info(f"Registered n8n handler with URL: {n8n_base_url}")
-        
+
         # Register ComfyUI handler
-        comfyui_base_url = config.get('comfyui_base_url')
+        comfyui_base_url = config.get("comfyui_base_url")
         if comfyui_base_url:
             self.tool_registry.register_handler(
-                "execute_comfyui_workflow",
-                ComfyUIHandler
+                "execute_comfyui_workflow", ComfyUIHandler
             )
             logger.info(f"Registered ComfyUI handler with URL: {comfyui_base_url}")
-    
+
     def _initialize_default_handlers(self):
         """Initialize default tool execution handlers"""
         # These handlers will be connected to actual workflow services
         self.register_tool_handler("execute_n8n_workflow", self._handle_n8n_workflow)
-        self.register_tool_handler("execute_comfyui_workflow", self._handle_comfyui_workflow)
-        self.register_tool_handler("execute_3dglenn_workflow", self._handle_3dglenn_workflow)
+        self.register_tool_handler(
+            "execute_comfyui_workflow", self._handle_comfyui_workflow
+        )
+        self.register_tool_handler(
+            "execute_3dglenn_workflow", self._handle_3dglenn_workflow
+        )
         self.register_tool_handler("search_workflows", self._handle_search_workflows)
-        self.register_tool_handler("get_workflow_details", self._handle_get_workflow_details)
-        self.register_tool_handler("list_saved_configs", self._handle_list_saved_configs)
+        self.register_tool_handler(
+            "get_workflow_details", self._handle_get_workflow_details
+        )
+        self.register_tool_handler(
+            "list_saved_configs", self._handle_list_saved_configs
+        )
         self.register_tool_handler("load_saved_config", self._handle_load_saved_config)
         self.register_tool_handler("save_tool_config", self._handle_save_tool_config)
-    
+
     def register_tool_handler(
         self,
         tool_id: str,
@@ -127,25 +125,25 @@ class LangGraphAgent:
     ):
         """
         Register a tool execution handler.
-        
+
         Args:
             tool_id: Tool identifier
             handler: Handler function
         """
         self.tool_handlers[tool_id] = handler
         logger.debug(f"Registered handler for tool: {tool_id}")
-    
+
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph state machine"""
         workflow = StateGraph(AgentState)
-        
+
         # Add nodes
         workflow.add_node("process_input", self._process_input_node)
         workflow.add_node("convert_to_tools", self._convert_to_tools_node)
         workflow.add_node("check_approval", self._check_approval_node)
         workflow.add_node("execute_tools", self._execute_tools_node)
         workflow.add_node("generate_response", self._generate_response_node)
-        
+
         # Add edges
         workflow.set_entry_point("process_input")
         workflow.add_edge("process_input", "convert_to_tools")
@@ -156,7 +154,7 @@ class LangGraphAgent:
                 "approval": "check_approval",
                 "execute": "execute_tools",
                 "response": "generate_response",
-            }
+            },
         )
         workflow.add_conditional_edges(
             "check_approval",
@@ -165,13 +163,13 @@ class LangGraphAgent:
                 "approved": "execute_tools",
                 "rejected": "generate_response",
                 "pending": END,
-            }
+            },
         )
         workflow.add_edge("execute_tools", "generate_response")
         workflow.add_edge("generate_response", END)
-        
+
         return workflow.compile()
-    
+
     async def process_message(
         self,
         message: str,
@@ -243,7 +241,7 @@ class LangGraphAgent:
             "awaiting_approval": state["awaiting_approval"],
             "approval_request": state["current_approval_request"],
         }
-    
+
     async def handle_approval(
         self,
         session_id: str,
@@ -329,21 +327,21 @@ class LangGraphAgent:
             "result": result,
             "state": state_to_dict(state),
         }
-    
+
     # Graph nodes
-    
+
     async def _process_input_node(self, state: AgentState) -> AgentState:
         """Process user input"""
         logger.debug(f"Processing input for session {state['session_id']}")
         return state
-    
+
     async def _convert_to_tools_node(self, state: AgentState) -> AgentState:
         """Convert natural language to tool calls with configuration reuse"""
         message = state["current_message"]
         history = state["messages"]
         context = state["context"]
         user_id = state.get("user_id")
-        
+
         # Convert to tools with reuse support
         if user_id:
             # Use enhanced converter with reuse support
@@ -360,10 +358,10 @@ class LangGraphAgent:
                 conversation_history=history,
                 context=context,
             )
-        
+
         # Store conversion result in context
         state["context"]["tool_conversion"] = result
-        
+
         # Create tool executions
         for tool_call in result["tools"]:
             tool_def = self.tool_converter.get_tool(tool_call["tool_id"])
@@ -375,23 +373,23 @@ class LangGraphAgent:
                     requires_approval=tool_call["requires_approval"],
                 )
                 state["pending_tools"] = state["pending_tools"] + [tool_execution]
-        
+
         return state
-    
+
     def _should_request_approval(self, state: AgentState) -> str:
         """Determine if approval is needed"""
         pending_tools = state["pending_tools"]
-        
+
         if not pending_tools:
             return "response"
-        
+
         # Check if any tool requires approval
         for tool in pending_tools:
             if tool["requires_approval"]:
                 return "approval"
-        
+
         return "execute"
-    
+
     async def _check_approval_node(self, state: AgentState) -> AgentState:
         """Create approval request and mark state as awaiting approval"""
         if state["pending_tools"]:
@@ -411,24 +409,28 @@ class LangGraphAgent:
                 # The approval workflow has created the request
                 # Update state with the approval request
                 state["current_approval_request"] = result["approval_request"]
-                logger.info(f"Approval workflow created request for tool {tool['tool_name']}")
+                logger.info(
+                    f"Approval workflow created request for tool {tool['tool_name']}"
+                )
             else:
-                logger.warning(f"Failed to create approval request: {result.get('error')}")
+                logger.warning(
+                    f"Failed to create approval request: {result.get('error')}"
+                )
 
         return state
-    
+
     def _check_approval_result(self, state: AgentState) -> str:
         """Check approval result"""
         if state["awaiting_approval"]:
             return "pending"
-        
+
         # Check if tools were approved or rejected
         for tool in state["pending_tools"]:
             if tool["status"] == "rejected":
                 return "rejected"
-        
+
         return "approved"
-    
+
     async def _execute_tools_node(self, state: AgentState) -> AgentState:
         """Execute approved tools"""
         for tool in state["pending_tools"]:
@@ -466,11 +468,11 @@ class LangGraphAgent:
         state["pending_tools"] = []
 
         return state
-    
+
     async def _generate_response_node(self, state: AgentState) -> AgentState:
         """Generate response to user"""
         conversion_result = state["context"].get("tool_conversion", {})
-        
+
         # Build response
         if conversion_result.get("missing_info"):
             response = f"I need more information: {', '.join(conversion_result['missing_info'])}"
@@ -478,23 +480,22 @@ class LangGraphAgent:
             # Summarize tool executions
             completed = [t for t in state["tool_history"] if t["status"] == "completed"]
             failed = [t for t in state["tool_history"] if t["status"] == "failed"]
-            
+
             parts = []
             if completed:
                 parts.append(f"Successfully executed {len(completed)} tool(s)")
             if failed:
                 parts.append(f"Failed to execute {len(failed)} tool(s)")
-            
+
             response = ". ".join(parts)
         else:
             response = conversion_result.get("reasoning", "I understand your request.")
-        
+
         # Add assistant message
         state = add_message_to_state(state, "assistant", response)
-        
+
         return state
-    
-    
+
     def _execute_tool(
         self,
         state: AgentState,
@@ -503,124 +504,122 @@ class LangGraphAgent:
         """Execute a single tool using async tool handlers"""
         tool_id = tool["tool_id"]
         parameters = tool["parameters"]
-        
+
         # Build execution context
         context = {
             "user_context": {
                 "user_id": state.get("user_id"),
                 "username": state.get("username"),
                 "email": state.get("email"),
-                "is_admin": state.get("is_admin", False)
+                "is_admin": state.get("is_admin", False),
             }
         }
-        
+
         # Build tool call
-        tool_call = {
-            "tool_id": tool_id,
-            "parameters": parameters,
-            "context": context
-        }
-        
+        tool_call = {"tool_id": tool_id, "parameters": parameters, "context": context}
+
         # Execute using async handler
         import asyncio
+
         result = asyncio.run(self.execute_tool_call(tool_call))
         return result
-    async def execute_tool_call(self, tool_call: Dict[str, Any], user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    async def execute_tool_call(
+        self, tool_call: Dict[str, Any], user_context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         Execute tool call using registered handlers with permission checking
-        
+
         Args:
             tool_call: Tool call dictionary with tool_id and parameters
             user_context: User context for permission checking
-            
+
         Returns:
             Execution result
         """
         tool_id = tool_call.get("tool_id")
         parameters = tool_call.get("parameters", {})
         context = tool_call.get("context", {})
-        
+
         if not tool_id:
-            return {
-                "success": False,
-                "error": "No tool_id specified"
-            }
-        
+            return {"success": False, "error": "No tool_id specified"}
+
         # Get handler from registry with configuration
         handler_config = {}
         if tool_id == "execute_n8n_workflow":
             handler_config = {
-                "n8n_base_url": self.tool_handler_config.get('n8n_base_url'),
-                "api_key": self.tool_handler_config.get('n8n_api_key')
+                "n8n_base_url": self.tool_handler_config.get("n8n_base_url"),
+                "api_key": self.tool_handler_config.get("n8n_api_key"),
             }
         elif tool_id == "execute_comfyui_workflow":
             handler_config = {
-                "comfyui_base_url": self.tool_handler_config.get('comfyui_base_url'),
-                "client_id": self.tool_handler_config.get('comfyui_client_id', 'workflow-agent')
+                "comfyui_base_url": self.tool_handler_config.get("comfyui_base_url"),
+                "client_id": self.tool_handler_config.get(
+                    "comfyui_client_id", "workflow-agent"
+                ),
             }
-        
+
         handler = self.tool_registry.get_handler(tool_id, **handler_config)
         if not handler:
             return {
                 "success": False,
-                "error": f"No handler registered for tool: {tool_id}"
+                "error": f"No handler registered for tool: {tool_id}",
             }
-        
+
         # Check user permissions if user_context provided
         if user_context:
             from .auth import UserContext
+
             # Check if user_context is a dict or UserContext instance
             if isinstance(user_context, dict):
                 # Create UserContext from dict
                 auth_user_context = UserContext(
-                    user_id=user_context.get('user_id', 0),
-                    username=user_context.get('username', ''),
-                    email=user_context.get('email', ''),
-                    is_admin=user_context.get('is_admin', False),
-                    permissions=user_context.get('permissions', {})
+                    user_id=user_context.get("user_id", 0),
+                    username=user_context.get("username", ""),
+                    email=user_context.get("email", ""),
+                    is_admin=user_context.get("is_admin", False),
+                    permissions=user_context.get("permissions", {}),
                 )
             else:
                 auth_user_context = user_context
-            
+
             # Check tool access permission
             if not auth_user_context.can_access_tool(tool_id):
                 return {
                     "success": False,
                     "error": f"User does not have permission to access tool: {tool_id}",
                     "tool_id": tool_id,
-                    "user_id": auth_user_context.user_id
+                    "user_id": auth_user_context.user_id,
                 }
-            
+
             # Add user context to execution context
             if context is None:
                 context = {}
-            context['user_context'] = auth_user_context.to_dict()
-        
+            context["user_context"] = auth_user_context.to_dict()
+
         # Execute tool
         result = await handler.safe_execute(parameters, context)
         return result
-    
+
     # Default tool handlers
-    
+
     def _handle_n8n_workflow(
         self,
         state: AgentState,
         parameters: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Handle n8n workflow execution"""
-        from app.services.langchain.tools.n8n_agent_tool_prod import execute_n8n_workflow
-        
+        from app.services.langchain.tools.n8n_agent_tool_prod import (
+            execute_n8n_workflow,
+        )
+
         workflow_id = parameters.get("workflow_id")
         if not workflow_id:
-            return {
-                "success": False,
-                "error": "workflow_id is required"
-            }
-        
+            return {"success": False, "error": "workflow_id is required"}
+
         try:
             result = execute_n8n_workflow(
-                workflow_id=workflow_id,
-                parameters=parameters.get("parameters", {})
+                workflow_id=workflow_id, parameters=parameters.get("parameters", {})
             )
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
@@ -628,26 +627,24 @@ class LangGraphAgent:
         except Exception as e:
             logger.error(f"Error executing n8n workflow: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def _handle_comfyui_workflow(
         self,
         state: AgentState,
         parameters: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Handle ComfyUI workflow execution"""
-        from app.services.langchain.tools.comfyui_agent_tool_prod import generate_hero_background
-        
+        from app.services.langchain.tools.comfyui_agent_tool_prod import (
+            generate_hero_background,
+        )
+
         prompt = parameters.get("prompt")
         if not prompt:
-            return {
-                "success": False,
-                "error": "prompt is required"
-            }
-        
+            return {"success": False, "error": "prompt is required"}
+
         try:
             result = generate_hero_background(
-                prompt=prompt,
-                style=parameters.get("style", "modern")
+                prompt=prompt, style=parameters.get("style", "modern")
             )
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
@@ -655,26 +652,24 @@ class LangGraphAgent:
         except Exception as e:
             logger.error(f"Error executing ComfyUI workflow: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def _handle_3dglenn_workflow(
         self,
         state: AgentState,
         parameters: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Handle 3Dglenn workflow execution"""
-        from app.services.langchain.tools.comfyui_agent_tool_prod import generate_3d_model
-        
+        from app.services.langchain.tools.comfyui_agent_tool_prod import (
+            generate_3d_model,
+        )
+
         description = parameters.get("description")
         if not description:
-            return {
-                "success": False,
-                "error": "description is required"
-            }
-        
+            return {"success": False, "error": "description is required"}
+
         try:
             result = generate_3d_model(
-                description=description,
-                style=parameters.get("style", "modern")
+                description=description, style=parameters.get("style", "modern")
             )
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
@@ -682,7 +677,7 @@ class LangGraphAgent:
         except Exception as e:
             logger.error(f"Error executing 3Dglenn workflow: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def _handle_search_workflows(
         self,
         state: AgentState,
@@ -690,9 +685,9 @@ class LangGraphAgent:
     ) -> Dict[str, Any]:
         """Handle workflow search"""
         from app.services.langchain.tools.n8n_agent_tool_prod import list_n8n_workflows
-        
+
         search_query = parameters.get("search_query")
-        
+
         try:
             result = list_n8n_workflows(search_query=search_query)
             return {"success": True, "result": json.loads(result)}
@@ -701,7 +696,7 @@ class LangGraphAgent:
         except Exception as e:
             logger.error(f"Error searching workflows: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def _handle_get_workflow_details(
         self,
         state: AgentState,
@@ -709,14 +704,11 @@ class LangGraphAgent:
     ) -> Dict[str, Any]:
         """Handle getting workflow details"""
         from app.services.langchain.tools.n8n_agent_tool_prod import get_workflow_info
-        
+
         workflow_id = parameters.get("workflow_id")
         if not workflow_id:
-            return {
-                "success": False,
-                "error": "workflow_id is required"
-            }
-        
+            return {"success": False, "error": "workflow_id is required"}
+
         try:
             result = get_workflow_info(workflow_id=workflow_id)
             return {"success": True, "result": json.loads(result)}
@@ -725,7 +717,7 @@ class LangGraphAgent:
         except Exception as e:
             logger.error(f"Error getting workflow details: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def _handle_list_saved_configs(
         self,
         state: AgentState,
@@ -737,18 +729,18 @@ class LangGraphAgent:
                 "success": False,
                 "error": "User ID required",
             }
-        
+
         configs = self.persistence.list_user_configurations(
             user_id=state["user_id"],
             tool_id=parameters.get("tool_id"),
         )
-        
+
         return {
             "success": True,
             "message": f"Found {len(configs)} saved configurations",
             "configurations": configs,
         }
-    
+
     def _handle_load_saved_config(
         self,
         state: AgentState,
@@ -756,19 +748,19 @@ class LangGraphAgent:
     ) -> Dict[str, Any]:
         """Handle loading saved configuration"""
         config = self.persistence.get_tool_configuration(parameters["config_id"])
-        
+
         if not config:
             return {
                 "success": False,
                 "error": "Configuration not found",
             }
-        
+
         return {
             "success": True,
             "message": "Configuration loaded",
             "configuration": config,
         }
-    
+
     def _handle_save_tool_config(
         self,
         state: AgentState,
@@ -780,7 +772,7 @@ class LangGraphAgent:
                 "success": False,
                 "error": "User ID required",
             }
-        
+
         config_id = self.persistence.save_tool_configuration(
             user_id=state["user_id"],
             tool_id=parameters["tool_id"],
@@ -789,22 +781,22 @@ class LangGraphAgent:
             description=parameters.get("description", ""),
             parameters=parameters["parameters"],
         )
-        
+
         if not config_id:
             return {
                 "success": False,
                 "error": "Failed to save configuration",
             }
-        
+
         return {
             "success": True,
             "message": "Configuration saved",
             "config_id": config_id,
         }
-    
+
     async def close(self):
         """Close agent and all handlers"""
-        if hasattr(self, 'tool_registry'):
+        if hasattr(self, "tool_registry"):
             await self.tool_registry.close_all()
 
 
@@ -821,14 +813,14 @@ def get_agent(
 ) -> LangGraphAgent:
     """
     Get singleton agent instance.
-    
+
     Args:
         llm: Optional LLM instance
         redis_client: Optional Redis client
         auto_approve_safe: Whether to auto-approve safe tools
         require_approval_for_all: Whether to require approval for all tools
         **config: Additional configuration for tool handlers
-    
+
     Returns:
         LangGraphAgent instance
     """

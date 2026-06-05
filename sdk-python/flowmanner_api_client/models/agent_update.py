@@ -1,37 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.agent_update_config_type_0 import AgentUpdateConfigType0
-
-
-
+    from ..models.agent_update_config_type_0 import AgentUpdateConfigType0
 
 
 T = TypeVar("T", bound="AgentUpdate")
 
 
-
 @_attrs_define
 class AgentUpdate:
-    """ 
-        Attributes:
-            name (None | str | Unset):
-            description (None | str | Unset):
-            system_prompt (None | str | Unset):
-            model_preference (None | str | Unset):
-            config (AgentUpdateConfigType0 | None | Unset):
-     """
+    """
+    Attributes:
+        name (None | str | Unset):
+        description (None | str | Unset):
+        system_prompt (None | str | Unset):
+        model_preference (None | str | Unset):
+        config (AgentUpdateConfigType0 | None | Unset):
+    """
 
     name: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
@@ -40,12 +33,9 @@ class AgentUpdate:
     config: AgentUpdateConfigType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.agent_update_config_type_0 import AgentUpdateConfigType0
+
         name: None | str | Unset
         if isinstance(self.name, Unset):
             name = UNSET
@@ -78,11 +68,9 @@ class AgentUpdate:
         else:
             config = self.config
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if name is not UNSET:
             field_dict["name"] = name
         if description is not UNSET:
@@ -96,12 +84,12 @@ class AgentUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.agent_update_config_type_0 import AgentUpdateConfigType0
+
         d = dict(src_dict)
+
         def _parse_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -110,7 +98,6 @@ class AgentUpdate:
             return cast(None | str | Unset, data)
 
         name = _parse_name(d.pop("name", UNSET))
-
 
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
@@ -121,7 +108,6 @@ class AgentUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_system_prompt(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -131,7 +117,6 @@ class AgentUpdate:
 
         system_prompt = _parse_system_prompt(d.pop("system_prompt", UNSET))
 
-
         def _parse_model_preference(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -140,7 +125,6 @@ class AgentUpdate:
             return cast(None | str | Unset, data)
 
         model_preference = _parse_model_preference(d.pop("model_preference", UNSET))
-
 
         def _parse_config(data: object) -> AgentUpdateConfigType0 | None | Unset:
             if data is None:
@@ -152,15 +136,12 @@ class AgentUpdate:
                     raise TypeError()
                 config_type_0 = AgentUpdateConfigType0.from_dict(data)
 
-
-
                 return config_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(AgentUpdateConfigType0 | None | Unset, data)
 
         config = _parse_config(d.pop("config", UNSET))
-
 
         agent_update = cls(
             name=name,
@@ -169,7 +150,6 @@ class AgentUpdate:
             model_preference=model_preference,
             config=config,
         )
-
 
         agent_update.additional_properties = d
         return agent_update

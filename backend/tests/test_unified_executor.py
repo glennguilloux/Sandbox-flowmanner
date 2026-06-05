@@ -45,18 +45,21 @@ def _make_mock_executor():
 class TestUnifiedExecutorInit:
     def test_init_creates_event_log_and_replay_engine(self):
         from app.services.substrate.executor import UnifiedExecutor
+
         executor = UnifiedExecutor()
         assert executor.event_log is not None
         assert executor.replay_engine is not None
 
     def test_get_unified_executor_returns_singleton(self):
         from app.services.substrate.executor import get_unified_executor
+
         e1 = get_unified_executor()
         e2 = get_unified_executor()
         assert e1 is e2
 
     def test_init_accepts_custom_event_log_and_replay_engine(self):
         from app.services.substrate.executor import UnifiedExecutor
+
         mock_el = MagicMock()
         mock_re = MagicMock()
         executor = UnifiedExecutor(event_log=mock_el, replay_engine=mock_re)
@@ -113,7 +116,9 @@ class TestExecute:
         mock_strategy = MagicMock()
         mock_strategy.validate = AsyncMock(return_value=[])
         mock_strategy.execute = AsyncMock(
-            return_value=StrategyResult(success=True, status="completed", total_tokens=100, total_cost_usd=0.05)
+            return_value=StrategyResult(
+                success=True, status="completed", total_tokens=100, total_cost_usd=0.05
+            )
         )
 
         with patch.object(executor, "_get_strategy", return_value=mock_strategy):
@@ -132,7 +137,9 @@ class TestExecute:
         mock_strategy = MagicMock()
         mock_strategy.validate = AsyncMock(return_value=[])
         mock_strategy.execute = AsyncMock(
-            return_value=StrategyResult(success=False, status="failed", error="Something went wrong")
+            return_value=StrategyResult(
+                success=False, status="failed", error="Something went wrong"
+            )
         )
 
         with patch.object(executor, "_get_strategy", return_value=mock_strategy):
@@ -183,7 +190,9 @@ class TestExecute:
         db = AsyncMock()
 
         mock_strategy = MagicMock()
-        mock_strategy.validate = AsyncMock(return_value=["Missing start node", "No end node"])
+        mock_strategy.validate = AsyncMock(
+            return_value=["Missing start node", "No end node"]
+        )
 
         with patch.object(executor, "_get_strategy", return_value=mock_strategy):
             result = await executor.execute(db, workflow)
@@ -231,9 +240,7 @@ class TestCircuitBreaker:
         db = AsyncMock()
         # begin_nested must return a valid async context manager
         db.begin_nested = MagicMock(
-            return_value=AsyncMock(
-                __aenter__=AsyncMock(), __aexit__=AsyncMock()
-            )
+            return_value=AsyncMock(__aenter__=AsyncMock(), __aexit__=AsyncMock())
         )
 
         mock_breaker = MagicMock()
@@ -245,7 +252,9 @@ class TestCircuitBreaker:
             "app.services.circuit_breaker_service.CircuitBreakerService",
             return_value=mock_cb,
         ):
-            await executor.record_circuit_breaker_call(db, "m1", call_type="llm", cost_usd=0.01)
+            await executor.record_circuit_breaker_call(
+                db, "m1", call_type="llm", cost_usd=0.01
+            )
 
         # Verify record_call was invoked with the breaker and correct args
         mock_cb.record_call.assert_called_once()

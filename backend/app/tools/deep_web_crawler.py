@@ -43,7 +43,9 @@ class _LinkExtractor(HTMLParser):
 
     def handle_endtag(self, tag):
         if tag.lower() == "a":
-            if self._current_href and not self._current_href.startswith(("#", "javascript:", "mailto:", "tel:")):
+            if self._current_href and not self._current_href.startswith(
+                ("#", "javascript:", "mailto:", "tel:")
+            ):
                 text = " ".join(self._current_text).strip()
                 self.links.append({"url": self._current_href, "text": text})
             self._in_a = False
@@ -70,7 +72,9 @@ class DeepWebCrawlerInput(ToolInput):
         description="Search terms to guide relevance-based link following",
     )
     max_pages: int = Field(20, ge=1, le=MAX_PAGES, description="Maximum pages to crawl")
-    max_depth: int = Field(2, ge=1, le=MAX_DEPTH, description="Maximum link depth from start URL")
+    max_depth: int = Field(
+        2, ge=1, le=MAX_DEPTH, description="Maximum link depth from start URL"
+    )
     same_domain_only: bool = Field(
         True,
         description="Only follow links on the same domain as start_url",
@@ -110,14 +114,18 @@ class DeepWebCrawlerTool(BaseTool):
 
         start_url = validated.start_url.strip()
         if not start_url:
-            return ToolResult.error_result(tool_id=self.tool_id, error="start_url is empty")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="start_url is empty"
+            )
 
         parsed_start = urlparse(start_url)
         base_domain = parsed_start.netloc.lower()
 
         query_terms = []
         if validated.query:
-            query_terms = [t.lower().strip() for t in validated.query.split() if len(t) > 1]
+            query_terms = [
+                t.lower().strip() for t in validated.query.split() if len(t) > 1
+            ]
 
         visited: set[str] = set()
         results: list[dict[str, Any]] = []
@@ -163,21 +171,31 @@ class DeepWebCrawlerTool(BaseTool):
                             text = re.sub(r"\s+", " ", text).strip()
 
                         # Extract title
-                        title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
+                        title_match = re.search(
+                            r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE
+                        )
                         title = title_match.group(1).strip() if title_match else ""
 
                         # Score relevance
-                        relevance = _score_relevance(title + " " + text[:1000], query_terms)
+                        relevance = _score_relevance(
+                            title + " " + text[:1000], query_terms
+                        )
 
                         if relevance >= validated.min_relevance:
-                            results.append({
-                                "url": url,
-                                "title": title,
-                                "depth": depth,
-                                "relevance": round(relevance, 4),
-                                "text_preview": text[:1000] if validated.extract_text else "",
-                                "text_length": len(text) if validated.extract_text else 0,
-                            })
+                            results.append(
+                                {
+                                    "url": url,
+                                    "title": title,
+                                    "depth": depth,
+                                    "relevance": round(relevance, 4),
+                                    "text_preview": (
+                                        text[:1000] if validated.extract_text else ""
+                                    ),
+                                    "text_length": (
+                                        len(text) if validated.extract_text else 0
+                                    ),
+                                }
+                            )
 
                         # Extract links for next depth level
                         if depth < validated.max_depth:
@@ -185,7 +203,10 @@ class DeepWebCrawlerTool(BaseTool):
                             extractor.feed(html)
                             for link in extractor.links:
                                 full_url = urljoin(url, link["url"])
-                                if full_url not in visited and len(queue) < validated.max_pages * 3:
+                                if (
+                                    full_url not in visited
+                                    and len(queue) < validated.max_pages * 3
+                                ):
                                     queue.append((full_url, depth + 1))
 
                     except Exception as e:

@@ -1,47 +1,37 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.mission_log_create_data_type_0 import MissionLogCreateDataType0
-
-
-
+    from ..models.mission_log_create_data_type_0 import MissionLogCreateDataType0
 
 
 T = TypeVar("T", bound="MissionLogCreate")
 
 
-
 @_attrs_define
 class MissionLogCreate:
-    """ 
-        Attributes:
-            message (str):
-            level (str | Unset):  Default: 'info'.
-            data (MissionLogCreateDataType0 | None | Unset):
-     """
+    """
+    Attributes:
+        message (str):
+        level (str | Unset):  Default: 'info'.
+        data (MissionLogCreateDataType0 | None | Unset):
+    """
 
     message: str
-    level: str | Unset = 'info'
+    level: str | Unset = "info"
     data: MissionLogCreateDataType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.mission_log_create_data_type_0 import MissionLogCreateDataType0
+
         message = self.message
 
         level = self.level
@@ -54,12 +44,13 @@ class MissionLogCreate:
         else:
             data = self.data
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "message": message,
-        })
+        field_dict.update(
+            {
+                "message": message,
+            }
+        )
         if level is not UNSET:
             field_dict["level"] = level
         if data is not UNSET:
@@ -67,11 +58,10 @@ class MissionLogCreate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.mission_log_create_data_type_0 import MissionLogCreateDataType0
+
         d = dict(src_dict)
         message = d.pop("message")
 
@@ -87,8 +77,6 @@ class MissionLogCreate:
                     raise TypeError()
                 data_type_0 = MissionLogCreateDataType0.from_dict(data)
 
-
-
                 return data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -96,13 +84,11 @@ class MissionLogCreate:
 
         data = _parse_data(d.pop("data", UNSET))
 
-
         mission_log_create = cls(
             message=message,
             level=level,
             data=data,
         )
-
 
         mission_log_create.additional_properties = d
         return mission_log_create

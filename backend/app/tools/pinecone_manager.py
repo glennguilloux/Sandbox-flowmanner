@@ -26,14 +26,25 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
 PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT", "")
 PINECONE_TIMEOUT = int(os.getenv("PINECONE_TIMEOUT", "30"))
 
-OPERATIONS = ("upsert", "query", "delete", "fetch", "describe_index", "list_indexes", "stats")
+OPERATIONS = (
+    "upsert",
+    "query",
+    "delete",
+    "fetch",
+    "describe_index",
+    "list_indexes",
+    "stats",
+)
 
 
 class PineconeManagerInput(ToolInput):
     """Input schema for Pinecone vector DB operations."""
 
-    operation: Literal["upsert", "query", "delete", "fetch", "describe_index", "list_indexes", "stats"] = Field(
-        ..., description=f"Operation: {', '.join(OPERATIONS)}",
+    operation: Literal[
+        "upsert", "query", "delete", "fetch", "describe_index", "list_indexes", "stats"
+    ] = Field(
+        ...,
+        description=f"Operation: {', '.join(OPERATIONS)}",
     )
     index_name: str = Field(
         ...,
@@ -66,7 +77,9 @@ class PineconeManagerInput(ToolInput):
         description="Vector ID to fetch (for query by ID or fetch)",
     )
     top_k: int = Field(
-        10, ge=1, le=10000,
+        10,
+        ge=1,
+        le=10000,
         description="Number of results to return for queries",
     )
     metadata_filter: dict[str, Any] | None = Field(
@@ -81,6 +94,7 @@ class PineconeManagerInput(ToolInput):
         True,
         description="Include metadata in query results",
     )
+
     @field_validator("index_name")
     @classmethod
     def validate_index_name(cls, v: str) -> str:
@@ -88,7 +102,9 @@ class PineconeManagerInput(ToolInput):
         if not 1 <= len(v) <= 45:
             raise ValueError("index_name must be 1-45 characters")
         if not re.match(r"^[a-z0-9-]+$", v):
-            raise ValueError("index_name must contain only lowercase letters, digits, and hyphens")
+            raise ValueError(
+                "index_name must contain only lowercase letters, digits, and hyphens"
+            )
         return v
 
     # Delete params
@@ -150,19 +166,28 @@ class PineconeManagerTool(BaseTool):
         if self._pc is None:
             try:
                 from pinecone import Pinecone
+
                 self._pc = Pinecone(api_key=api_key)
             except ImportError:
-                raise RuntimeError("pinecone-client not installed. Run: pip install pinecone-client")
+                raise RuntimeError(
+                    "pinecone-client not installed. Run: pip install pinecone-client"
+                )
         return self._pc
 
     async def execute(self, input_data: dict) -> ToolResult:
         try:
             validated = PineconeManagerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         # Security: require confirmation for destructive ops
-        if validated.delete_all and validated.operation == "delete" and not validated.confirmed:
+        if (
+            validated.delete_all
+            and validated.operation == "delete"
+            and not validated.confirmed
+        ):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="delete_all requires confirmation. Set confirmed=true to proceed.",
@@ -171,7 +196,9 @@ class PineconeManagerTool(BaseTool):
         start = time.monotonic()
         api_key = validated.api_key or PINECONE_API_KEY
         if not api_key:
-            return ToolResult.error_result(tool_id=self.tool_id, error="Pinecone API key required")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="Pinecone API key required"
+            )
 
         try:
             pc = self._get_client(api_key)
@@ -195,7 +222,10 @@ class PineconeManagerTool(BaseTool):
                 elif validated.operation == "describe_index":
                     result = await self._describe_index(pc, validated)
                 else:
-                    return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown operation: {validated.operation}")
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id,
+                        error=f"Unknown operation: {validated.operation}",
+                    )
 
             result["processing_time_ms"] = int((time.monotonic() - start) * 1000)
             result["success"] = True
@@ -210,7 +240,10 @@ class PineconeManagerTool(BaseTool):
             raise ValueError("vectors is required for upsert")
 
         # Batch upsert in chunks of 100
-        chunks = [validated.vectors[i:i + 100] for i in range(0, len(validated.vectors), 100)]
+        chunks = [
+            validated.vectors[i : i + 100]
+            for i in range(0, len(validated.vectors), 100)
+        ]
         upserted = 0
         for chunk in chunks:
             idx.upsert(vectors=chunk, namespace=validated.namespace)
@@ -287,7 +320,9 @@ class PineconeManagerTool(BaseTool):
             "count": len(vectors_data),
         }
 
-    async def _describe_index(self, pc, validated: PineconeManagerInput) -> dict[str, Any]:
+    async def _describe_index(
+        self, pc, validated: PineconeManagerInput
+    ) -> dict[str, Any]:
         desc = pc.describe_index(validated.index_name)
         return {
             "operation": "describe_index",
@@ -305,7 +340,11 @@ class PineconeManagerTool(BaseTool):
 
     async def _list_indexes(self, pc) -> dict[str, Any]:
         indexes = pc.list_indexes()
-        names = [i["name"] for i in indexes] if isinstance(indexes, list) else [i.name for i in indexes]
+        names = (
+            [i["name"] for i in indexes]
+            if isinstance(indexes, list)
+            else [i.name for i in indexes]
+        )
         return {
             "operation": "list_indexes",
             "indexes": names,

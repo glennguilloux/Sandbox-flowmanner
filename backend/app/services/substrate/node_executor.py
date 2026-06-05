@@ -112,27 +112,37 @@ class NodeExecutor:
         for attempt in range(max_retries + 1):
             # Check abort signal between retries
             if self.executor.is_aborted(run_id):
-                logger.info("Abort signal detected for run %s, node %s", run_id, node.id)
+                logger.info(
+                    "Abort signal detected for run %s, node %s", run_id, node.id
+                )
                 return {"success": False, "error": "Aborted"}
 
             node.status = "running"
 
             # Record task.started event
-            await event_log.append(db, run_id, [{
-                "type": SubstrateEventType.TASK_STARTED,
-                "payload": {
-                    "task_id": node.id,
-                    "task_title": node.title,
-                    "task_type": node.type.value,
-                    "attempt": attempt + 1,
-                },
-                "actor": "node_executor",
-                "mission_id": workflow.id if workflow else None,
-                "task_id": node.id,
-            }])
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": SubstrateEventType.TASK_STARTED,
+                        "payload": {
+                            "task_id": node.id,
+                            "task_title": node.title,
+                            "task_type": node.type.value,
+                            "attempt": attempt + 1,
+                        },
+                        "actor": "node_executor",
+                        "mission_id": workflow.id if workflow else None,
+                        "task_id": node.id,
+                    }
+                ],
+            )
 
             try:
-                result = await self._dispatch(db, node, context, budget, run_id, workflow)
+                result = await self._dispatch(
+                    db, node, context, budget, run_id, workflow
+                )
             except BudgetExhausted:
                 raise
             except Exception as e:
@@ -143,19 +153,25 @@ class NodeExecutor:
 
             if result.get("success"):
                 # Record task.completed event
-                await event_log.append(db, run_id, [{
-                    "type": SubstrateEventType.TASK_COMPLETED,
-                    "payload": {
-                        "task_id": node.id,
-                        "task_title": node.title,
-                        "tokens": result.get("tokens", 0),
-                        "cost_usd": result.get("cost", 0.0),
-                        "latency_ms": elapsed_ms,
-                    },
-                    "actor": "node_executor",
-                    "mission_id": workflow.id if workflow else None,
-                    "task_id": node.id,
-                }])
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.TASK_COMPLETED,
+                            "payload": {
+                                "task_id": node.id,
+                                "task_title": node.title,
+                                "tokens": result.get("tokens", 0),
+                                "cost_usd": result.get("cost", 0.0),
+                                "latency_ms": elapsed_ms,
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
 
                 node.status = "completed"
                 node.output_data = result.get("output")
@@ -168,36 +184,51 @@ class NodeExecutor:
                 node.retry_count = attempt + 1
                 logger.warning(
                     "Node %s failed (attempt %d/%d): %s",
-                    node.id, attempt + 1, max_retries, result.get("error"),
+                    node.id,
+                    attempt + 1,
+                    max_retries,
+                    result.get("error"),
                 )
                 # Record task.retrying event
-                await event_log.append(db, run_id, [{
-                    "type": SubstrateEventType.TASK_RETRYING,
-                    "payload": {
-                        "task_id": node.id,
-                        "attempt": attempt + 1,
-                        "error": result.get("error"),
-                    },
-                    "actor": "node_executor",
-                    "mission_id": workflow.id if workflow else None,
-                    "task_id": node.id,
-                }])
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.TASK_RETRYING,
+                            "payload": {
+                                "task_id": node.id,
+                                "attempt": attempt + 1,
+                                "error": result.get("error"),
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
                 continue
 
             # All retries exhausted
             logger.error("Node %s failed after %d retries", node.id, max_retries)
-            await event_log.append(db, run_id, [{
-                "type": SubstrateEventType.TASK_FAILED,
-                "payload": {
-                    "task_id": node.id,
-                    "task_title": node.title,
-                    "error": result.get("error"),
-                    "retries_exhausted": True,
-                },
-                "actor": "node_executor",
-                "mission_id": workflow.id if workflow else None,
-                "task_id": node.id,
-            }])
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": SubstrateEventType.TASK_FAILED,
+                        "payload": {
+                            "task_id": node.id,
+                            "task_title": node.title,
+                            "error": result.get("error"),
+                            "retries_exhausted": True,
+                        },
+                        "actor": "node_executor",
+                        "mission_id": workflow.id if workflow else None,
+                        "task_id": node.id,
+                    }
+                ],
+            )
 
             node.status = "failed"
             node.error_message = result.get("error")
@@ -217,9 +248,13 @@ class NodeExecutor:
         """Dispatch a node to the appropriate handler based on its type."""
         match node.type:
             case NodeType.LLM_CALL:
-                return await self._handle_llm(db, node, context, budget, run_id, workflow)
+                return await self._handle_llm(
+                    db, node, context, budget, run_id, workflow
+                )
             case NodeType.TOOL_CALL:
-                return await self._handle_tool(db, node, context, budget, run_id, workflow)
+                return await self._handle_tool(
+                    db, node, context, budget, run_id, workflow
+                )
             case NodeType.CODE_EXECUTION:
                 return await self._handle_code(node, context)
             case NodeType.RAG_QUERY:
@@ -230,20 +265,36 @@ class NodeExecutor:
                 return await self._handle_file(node, context)
             case NodeType.HUMAN_REVIEW:
                 return await self._handle_hitl_interrupt(
-                    db, node, context, run_id, workflow,
+                    db,
+                    node,
+                    context,
+                    run_id,
+                    workflow,
                     interrupt_type="clarification",
                 )
             case NodeType.APPROVAL:
                 return await self._handle_hitl_interrupt(
-                    db, node, context, run_id, workflow,
+                    db,
+                    node,
+                    context,
+                    run_id,
+                    workflow,
                     interrupt_type="approval",
                 )
-            case NodeType.BROWSER_NAVIGATE | NodeType.BROWSER_SNAPSHOT | NodeType.BROWSER_CLICK | \
-                 NodeType.BROWSER_TYPE | NodeType.BROWSER_SCROLL | NodeType.BROWSER_SCREENSHOT | \
-                 NodeType.BROWSER_CLOSE:
+            case (
+                NodeType.BROWSER_NAVIGATE
+                | NodeType.BROWSER_SNAPSHOT
+                | NodeType.BROWSER_CLICK
+                | NodeType.BROWSER_TYPE
+                | NodeType.BROWSER_SCROLL
+                | NodeType.BROWSER_SCREENSHOT
+                | NodeType.BROWSER_CLOSE
+            ):
                 return await self._handle_browser(node, context)
             case NodeType.SUB_WORKFLOW:
-                return await self._handle_sub_workflow(db, node, context, budget, run_id)
+                return await self._handle_sub_workflow(
+                    db, node, context, budget, run_id
+                )
             case NodeType.PHASE_GATE | NodeType.FAN_OUT | NodeType.FAN_IN:
                 # Delegated to strategy — the node executor just passes through
                 return {"success": True, "output": context, "tokens": 0}
@@ -269,7 +320,11 @@ class NodeExecutor:
                 db=db, mission_id=mission_id, call_type="llm"
             )
             if not allowed:
-                return {"success": False, "error": f"Circuit breaker: {reason}", "tokens": 0}
+                return {
+                    "success": False,
+                    "error": f"Circuit breaker: {reason}",
+                    "tokens": 0,
+                }
 
         from app.services.budget_enforcer import get_budget_enforcer
 
@@ -296,14 +351,24 @@ class NodeExecutor:
         )
 
         if not response.get("success"):
-            return {"success": False, "error": response.get("error", "LLM call failed"), "tokens": 0}
+            return {
+                "success": False,
+                "error": response.get("error", "LLM call failed"),
+                "tokens": 0,
+            }
 
         content = response.get("response", "")
         budget_info = response.get("budget", {})
-        tokens = budget_info.get("prompt_tokens", 0) + budget_info.get("completion_tokens", 0)
+        tokens = budget_info.get("prompt_tokens", 0) + budget_info.get(
+            "completion_tokens", 0
+        )
 
         if not content or content.strip() == "":
-            return {"success": False, "error": "LLM returned empty response", "tokens": tokens}
+            return {
+                "success": False,
+                "error": "LLM returned empty response",
+                "tokens": tokens,
+            }
 
         return {
             "success": True,
@@ -349,8 +414,10 @@ class NodeExecutor:
         # Use the workflow's user_id as the principal for token issuance.
         # The kernel should pre-issue tokens before execution reaches this point.
         from uuid import UUID as _UUID
+
         principal_id = (
-            _UUID(workflow.user_id) if workflow and workflow.user_id
+            _UUID(workflow.user_id)
+            if workflow and workflow.user_id
             else _UUID("00000000-0000-0000-0000-000000000000")
         )
         resource = ResourceRef(kind="tool", name=tool_name)
@@ -414,11 +481,25 @@ class NodeExecutor:
 
         # Security: blocked patterns
         DANGEROUS = [
-            "__import__", "import os", "import sys", "import subprocess",
-            "import socket", "import urllib", "import http",
-            "exec(", "eval(", "compile(", "open(", "file(",
-            "os.", "sys.exit", "sys.modules", "sys.path",
-            "globals()", "locals()", "vars()",
+            "__import__",
+            "import os",
+            "import sys",
+            "import subprocess",
+            "import socket",
+            "import urllib",
+            "import http",
+            "exec(",
+            "eval(",
+            "compile(",
+            "open(",
+            "file(",
+            "os.",
+            "sys.exit",
+            "sys.modules",
+            "sys.path",
+            "globals()",
+            "locals()",
+            "vars()",
         ]
         code_lower = code.lower()
         for pat in DANGEROUS:
@@ -436,7 +517,9 @@ class NodeExecutor:
         try:
             result = subprocess.run(
                 ["python3", tmp_path],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True,
+                text=True,
+                timeout=60,
                 cwd=workspace,
             )
             return {
@@ -461,16 +544,26 @@ class NodeExecutor:
         self, node: WorkflowNode, context: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute a RAG query."""
-        query = node.config.get("query") or context.get("query") or node.description or node.title
+        query = (
+            node.config.get("query")
+            or context.get("query")
+            or node.description
+            or node.title
+        )
         collection = node.config.get("collection", "default")
 
         try:
             from app.services.rag_service import RAGService
+
             rag = RAGService()
             results = rag.query_documents(query, n_results=5)
             return {
                 "success": True,
-                "output": {"query": query, "context": results, "collection": collection},
+                "output": {
+                    "query": query,
+                    "context": results,
+                    "collection": collection,
+                },
             }
         except Exception as e:
             return {"success": False, "error": f"RAG query failed: {e}"}
@@ -491,7 +584,9 @@ class NodeExecutor:
             from app.services.web_search.service import get_search_service
 
             service = get_search_service()
-            request = SearchRequest(query=query, search_type=SearchType.GENERAL, max_results=5)
+            request = SearchRequest(
+                query=query, search_type=SearchType.GENERAL, max_results=5
+            )
             response = await service.search(request)
 
             results = [
@@ -516,18 +611,31 @@ class NodeExecutor:
 
         try:
             from app.services.file_storage import FileStorageService
+
             storage = FileStorageService()
             file_info = storage.get_file_info(file_id)
             if not file_info:
                 return {"success": False, "error": f"File {file_id} not found"}
 
             if operation == "read":
-                with open(file_info["path"], "r", encoding="utf-8", errors="ignore") as f:
+                with open(
+                    file_info["path"], "r", encoding="utf-8", errors="ignore"
+                ) as f:
                     content = f.read()
-                return {"success": True, "output": {"content": content[:50000], "filename": file_info.get("filename")}}
+                return {
+                    "success": True,
+                    "output": {
+                        "content": content[:50000],
+                        "filename": file_info.get("filename"),
+                    },
+                }
             elif operation == "list":
                 import os
-                return {"success": True, "output": {"files": os.listdir(file_info["path"])}}
+
+                return {
+                    "success": True,
+                    "output": {"files": os.listdir(file_info["path"])},
+                }
             else:
                 return {"success": False, "error": f"Unknown operation: {operation}"}
         except Exception as e:
@@ -545,7 +653,10 @@ class NodeExecutor:
             tool_name = node.type.value
             tool = ToolRegistry.get(tool_name)
             if tool is None:
-                return {"success": False, "error": f"Browser tool not registered: {tool_name}"}
+                return {
+                    "success": False,
+                    "error": f"Browser tool not registered: {tool_name}",
+                }
 
             tool_input = node.config.get("params", {})
             result = await tool.run(tool_input, {"user_id": "system"})
@@ -614,6 +725,7 @@ class NodeExecutor:
 
             # Convert to canonical Workflow via existing adapter
             from app.services.substrate.adapters import graph_to_workflow
+
             child_workflow = graph_to_workflow(child_graph)
 
             # Share the parent budget (child spends from the same pool)
@@ -624,6 +736,7 @@ class NodeExecutor:
 
             # Execute recursively via the same unified executor
             from app.services.substrate.workflow_models import StrategyResult
+
             strategy_result: StrategyResult = await self.executor.execute(
                 db, child_workflow
             )
@@ -673,17 +786,24 @@ class NodeExecutor:
 
         event_log = get_event_log()
         hitl_type = (
-            HumanInterruptType.APPROVAL if interrupt_type == "approval"
+            HumanInterruptType.APPROVAL
+            if interrupt_type == "approval"
             else HumanInterruptType.CLARIFICATION
         )
 
-        title = node.config.get("approval_prompt") or node.title or f"{interrupt_type.title()} required"
+        title = (
+            node.config.get("approval_prompt")
+            or node.title
+            or f"{interrupt_type.title()} required"
+        )
         description = node.description or node.config.get("description")
         proposed_action = {
             "node_id": node.id,
             "node_title": node.title,
             "node_type": node.type.value,
-            "config": {k: v for k, v in node.config.items() if k not in ("approval_prompt",)},
+            "config": {
+                k: v for k, v in node.config.items() if k not in ("approval_prompt",)
+            },
         }
 
         # Determine the user to notify
@@ -707,22 +827,30 @@ class NodeExecutor:
         )
 
         # Record event
-        await event_log.append(db, run_id, [{
-            "type": SubstrateEventType.HUMAN_INTERRUPT_RAISED,
-            "payload": {
-                "inbox_item_id": item.id,
-                "interrupt_type": hitl_type.value,
-                "title": title,
-                "node_id": node.id,
-            },
-            "actor": "node_executor",
-            "mission_id": mission_id,
-            "task_id": node.id,
-        }])
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.HUMAN_INTERRUPT_RAISED,
+                    "payload": {
+                        "inbox_item_id": item.id,
+                        "interrupt_type": hitl_type.value,
+                        "title": title,
+                        "node_id": node.id,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": mission_id,
+                    "task_id": node.id,
+                }
+            ],
+        )
 
         logger.info(
             "HITL interrupt raised: node=%s type=%s inbox_item=%s",
-            node.id, hitl_type.value, item.id,
+            node.id,
+            hitl_type.value,
+            item.id,
         )
 
         return {
@@ -750,7 +878,9 @@ class NodeExecutor:
             from app.services.web_search.service import get_search_service
 
             service = get_search_service()
-            request = SearchRequest(query=query, search_type=SearchType.GENERAL, max_results=5)
+            request = SearchRequest(
+                query=query, search_type=SearchType.GENERAL, max_results=5
+            )
             response = await service.search(request)
             results = [
                 {"title": r.title, "url": r.url, "snippet": r.snippet}
@@ -758,7 +888,10 @@ class NodeExecutor:
             ]
             return {"success": True, "output": {"query": query, "results": results}}
         except Exception as e:
-            return {"success": True, "output": {"query": query, "results": [], "note": str(e)}}
+            return {
+                "success": True,
+                "output": {"query": query, "results": [], "note": str(e)},
+            }
 
     async def _tool_code_executor(
         self, params: dict[str, Any], context: dict[str, Any]
@@ -778,13 +911,21 @@ class NodeExecutor:
             return {"success": False, "error": "No file_id provided"}
         try:
             from app.services.file_storage import FileStorageService
+
             storage = FileStorageService()
             file_info = storage.get_file_info(file_id)
             if not file_info:
                 return {"success": False, "error": f"File {file_id} not found"}
             with open(file_info["path"], "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-            return {"success": True, "output": {"filename": file_info.get("filename"), "content": content[:50000], "size": len(content)}}
+            return {
+                "success": True,
+                "output": {
+                    "filename": file_info.get("filename"),
+                    "content": content[:50000],
+                    "size": len(content),
+                },
+            }
         except Exception as e:
             return {"success": False, "error": f"File read failed: {e}"}
 
@@ -797,6 +938,7 @@ class NodeExecutor:
             return {"success": False, "error": "No query provided"}
         try:
             from app.services.rag_service import RAGService
+
             rag = RAGService()
             results = rag.query_documents(query, n_results=5)
             return {"success": True, "output": {"query": query, "context": results}}

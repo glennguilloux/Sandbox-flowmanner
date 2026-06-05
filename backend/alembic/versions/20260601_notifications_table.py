@@ -18,7 +18,13 @@ def upgrade() -> None:
     op.create_table(
         "notifications",
         sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("message", sa.Text, default="", nullable=False),
         sa.Column("notification_type", sa.String(50), default="info", nullable=False),
@@ -28,8 +34,12 @@ def upgrade() -> None:
         sa.Column("entity_type", sa.String(50), nullable=True),
         sa.Column("entity_id", sa.String(50), nullable=True),
         sa.Column("meta", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()")
+        ),
     )
 
 

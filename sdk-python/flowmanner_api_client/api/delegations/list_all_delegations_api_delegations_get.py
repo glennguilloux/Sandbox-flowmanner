@@ -14,7 +14,6 @@ from ...types import UNSET, Unset
 from typing import cast
 
 
-
 def _get_kwargs(
     *,
     delegator_id: int | None | Unset = UNSET,
@@ -23,16 +22,11 @@ def _get_kwargs(
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
-
-
-
-    
 
     params: dict[str, Any] = {}
 
@@ -63,9 +57,7 @@ def _get_kwargs(
 
     params["limit"] = limit
 
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -73,24 +65,20 @@ def _get_kwargs(
         "params": params,
     }
 
-
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> DelegationListResponse | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> DelegationListResponse | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = DelegationListResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -100,7 +88,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[DelegationListResponse | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[DelegationListResponse | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -118,10 +108,9 @@ def sync_detailed(
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[DelegationListResponse | HTTPValidationError]:
-    """ List All Delegations
+    """List All Delegations
 
      List delegations with optional filters.
 
@@ -143,18 +132,16 @@ def sync_detailed(
 
     Returns:
         Response[DelegationListResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         delegator_id=delegator_id,
-delegatee_id=delegatee_id,
-tenant_id=tenant_id,
-active_only=active_only,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        delegatee_id=delegatee_id,
+        tenant_id=tenant_id,
+        active_only=active_only,
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -162,6 +149,7 @@ accept_version=accept_version,
     )
 
     return _build_response(client=client, response=response)
+
 
 def sync(
     *,
@@ -172,10 +160,9 @@ def sync(
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> DelegationListResponse | HTTPValidationError | None:
-    """ List All Delegations
+    """List All Delegations
 
      List delegations with optional filters.
 
@@ -197,20 +184,19 @@ def sync(
 
     Returns:
         DelegationListResponse | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-delegator_id=delegator_id,
-delegatee_id=delegatee_id,
-tenant_id=tenant_id,
-active_only=active_only,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        delegator_id=delegator_id,
+        delegatee_id=delegatee_id,
+        tenant_id=tenant_id,
+        active_only=active_only,
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
@@ -221,10 +207,9 @@ async def asyncio_detailed(
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[DelegationListResponse | HTTPValidationError]:
-    """ List All Delegations
+    """List All Delegations
 
      List delegations with optional filters.
 
@@ -246,25 +231,22 @@ async def asyncio_detailed(
 
     Returns:
         Response[DelegationListResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         delegator_id=delegator_id,
-delegatee_id=delegatee_id,
-tenant_id=tenant_id,
-active_only=active_only,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
+        delegatee_id=delegatee_id,
+        tenant_id=tenant_id,
+        active_only=active_only,
+        offset=offset,
+        limit=limit,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
@@ -275,10 +257,9 @@ async def asyncio(
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> DelegationListResponse | HTTPValidationError | None:
-    """ List All Delegations
+    """List All Delegations
 
      List delegations with optional filters.
 
@@ -300,17 +281,17 @@ async def asyncio(
 
     Returns:
         DelegationListResponse | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-delegator_id=delegator_id,
-delegatee_id=delegatee_id,
-tenant_id=tenant_id,
-active_only=active_only,
-offset=offset,
-limit=limit,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            delegator_id=delegator_id,
+            delegatee_id=delegatee_id,
+            tenant_id=tenant_id,
+            active_only=active_only,
+            offset=offset,
+            limit=limit,
+            accept_version=accept_version,
+        )
+    ).parsed

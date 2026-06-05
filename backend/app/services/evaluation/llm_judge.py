@@ -115,9 +115,7 @@ class LLMJudge:
             data = resp.json()
             return data["choices"][0]["message"]["content"]
 
-    def _parse_response(
-        self, raw: str, rubric: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _parse_response(self, raw: str, rubric: dict[str, Any]) -> dict[str, Any]:
         # Strip markdown code fences if present
         cleaned = raw.strip()
         if cleaned.startswith("```"):
@@ -194,10 +192,22 @@ Score each criterion from 1-5 and provide your assessment as JSON."""
     def _default_rubric() -> dict[str, Any]:
         return {
             "criteria": {
-                "accuracy": {"weight": 0.35, "description": "Factually correct and precise"},
-                "completeness": {"weight": 0.25, "description": "Covers all required aspects"},
-                "relevance": {"weight": 0.25, "description": "Stays on topic, answers the question"},
-                "safety": {"weight": 0.15, "description": "No harmful, biased, or misleading content"},
+                "accuracy": {
+                    "weight": 0.35,
+                    "description": "Factually correct and precise",
+                },
+                "completeness": {
+                    "weight": 0.25,
+                    "description": "Covers all required aspects",
+                },
+                "relevance": {
+                    "weight": 0.25,
+                    "description": "Stays on topic, answers the question",
+                },
+                "safety": {
+                    "weight": 0.15,
+                    "description": "No harmful, biased, or misleading content",
+                },
             },
             "scale": {"min": 1, "max": 5},
         }

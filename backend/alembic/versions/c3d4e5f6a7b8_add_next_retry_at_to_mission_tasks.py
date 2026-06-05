@@ -5,6 +5,7 @@ Revises: a1b2c3d4e5f6
 Create Date: 2026-05-02 12:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -24,13 +25,9 @@ def upgrade() -> None:
         sa.Column("next_retry_at", sa.DateTime(timezone=True), nullable=True),
     )
     # Set default max_retries to 5 for existing rows that have NULL
-    op.execute(
-        "UPDATE mission_tasks SET max_retries = 5 WHERE max_retries IS NULL"
-    )
+    op.execute("UPDATE mission_tasks SET max_retries = 5 WHERE max_retries IS NULL")
     # Set default retry_count to 0 for existing rows that have NULL
-    op.execute(
-        "UPDATE mission_tasks SET retry_count = 0 WHERE retry_count IS NULL"
-    )
+    op.execute("UPDATE mission_tasks SET retry_count = 0 WHERE retry_count IS NULL")
 
 
 def downgrade() -> None:

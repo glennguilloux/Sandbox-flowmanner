@@ -9,6 +9,7 @@ from app.services.monitoring_service import MonitoringService
 
 logger = logging.getLogger(__name__)
 
+
 @shared_task(bind=True, ignore_result=False)
 def sync_workflow_status(self):
     """Synchronize workflow status and handle stuck workflows."""
@@ -17,22 +18,28 @@ def sync_workflow_status(self):
     db = SessionLocal()
     try:
         # Get all running/pending workflow runs
-        running_workflows = db.query(WorkflowRuns).filter(
-            WorkflowRuns.status.in_(['running', 'pending'])
-        ).all()
+        running_workflows = (
+            db.query(WorkflowRuns)
+            .filter(WorkflowRuns.status.in_(["running", "pending"]))
+            .all()
+        )
 
         updated_count = 0
         for workflow in running_workflows:
             # Check for stuck workflows (running > 2 hours)
             if workflow.started_at:
                 runtime = (datetime.now(UTC) - workflow.started_at).total_seconds()
-                if runtime > 7200 and workflow.status == 'running':  # 2 hours
-                    workflow.status = 'timed_out'
-                    logger.warning(f"Workflow run {workflow.run_id} marked as timed out after {runtime}s")
+                if runtime > 7200 and workflow.status == "running":  # 2 hours
+                    workflow.status = "timed_out"
+                    logger.warning(
+                        f"Workflow run {workflow.run_id} marked as timed out after {runtime}s"
+                    )
                     updated_count += 1
 
         db.commit()
-        logger.info(f"Synced {len(running_workflows)} workflows, {updated_count} timed out")
+        logger.info(
+            f"Synced {len(running_workflows)} workflows, {updated_count} timed out"
+        )
         return {"synced": len(running_workflows), "timed_out": updated_count}
 
     except Exception as e:
@@ -40,6 +47,7 @@ def sync_workflow_status(self):
         raise
     finally:
         db.close()
+
 
 @shared_task(bind=True, ignore_result=False)
 def update_system_metrics(self):

@@ -1,35 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.usage_by_model import UsageByModel
-
-
-
+    from ..models.usage_by_model import UsageByModel
 
 
 T = TypeVar("T", bound="UsageSummaryResponse")
 
 
-
 @_attrs_define
 class UsageSummaryResponse:
-    """ 
-        Attributes:
-            total_tokens (int):
-            total_cost (float):
-            period (str):
-            breakdown (list[UsageByModel]):
-     """
+    """
+    Attributes:
+        total_tokens (int):
+        total_cost (float):
+        period (str):
+        breakdown (list[UsageByModel]):
+    """
 
     total_tokens: int
     total_cost: float
@@ -37,12 +29,7 @@ class UsageSummaryResponse:
     breakdown: list[UsageByModel]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.usage_by_model import UsageByModel
         total_tokens = self.total_tokens
 
         total_cost = self.total_cost
@@ -54,25 +41,23 @@ class UsageSummaryResponse:
             breakdown_item = breakdown_item_data.to_dict()
             breakdown.append(breakdown_item)
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "total_tokens": total_tokens,
-            "total_cost": total_cost,
-            "period": period,
-            "breakdown": breakdown,
-        })
+        field_dict.update(
+            {
+                "total_tokens": total_tokens,
+                "total_cost": total_cost,
+                "period": period,
+                "breakdown": breakdown,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.usage_by_model import UsageByModel
+
         d = dict(src_dict)
         total_tokens = d.pop("total_tokens")
 
@@ -82,13 +67,10 @@ class UsageSummaryResponse:
 
         breakdown = []
         _breakdown = d.pop("breakdown")
-        for breakdown_item_data in (_breakdown):
+        for breakdown_item_data in _breakdown:
             breakdown_item = UsageByModel.from_dict(breakdown_item_data)
 
-
-
             breakdown.append(breakdown_item)
-
 
         usage_summary_response = cls(
             total_tokens=total_tokens,
@@ -96,7 +78,6 @@ class UsageSummaryResponse:
             period=period,
             breakdown=breakdown,
         )
-
 
         usage_summary_response.additional_properties = d
         return usage_summary_response

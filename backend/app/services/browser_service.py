@@ -57,12 +57,17 @@ class BrowserService:
         try:
             page = session.page
 
-            response = await page.goto(url, timeout=30000, wait_until="domcontentloaded")
+            response = await page.goto(
+                url, timeout=30000, wait_until="domcontentloaded"
+            )
             final_url = page.url
 
             valid_redirect, redirect_error = validate_url_for_navigation(final_url)
             if not valid_redirect:
-                return {"success": False, "error": f"Redirect blocked: {redirect_error}"}
+                return {
+                    "success": False,
+                    "error": f"Redirect blocked: {redirect_error}",
+                }
 
             title = await page.title()
 
@@ -222,13 +227,15 @@ class BrowserService:
                     selector=selector or "",
                     bbox=bbox,
                 )
-                registered_elements.append({
-                    "ref": ref,
-                    "tag": el_data["tag"],
-                    "text": el_data["text"],
-                    "role": el_data["role"],
-                    "bbox": bbox,
-                })
+                registered_elements.append(
+                    {
+                        "ref": ref,
+                        "tag": el_data["tag"],
+                        "text": el_data["text"],
+                        "role": el_data["role"],
+                        "bbox": bbox,
+                    }
+                )
 
             session.snapshot_fingerprint = fingerprint
             session.touch()
@@ -286,7 +293,9 @@ class BrowserService:
                 logger.debug("click_selector_failed", exc_info=True)
 
             if locator.bbox_center_x is not None and locator.bbox_center_y is not None:
-                healed = await self._click_by_coordinates(page, locator.bbox_center_x, locator.bbox_center_y)
+                healed = await self._click_by_coordinates(
+                    page, locator.bbox_center_x, locator.bbox_center_y
+                )
                 if healed:
                     session.touch_user_interaction()
                     return {
@@ -310,7 +319,9 @@ class BrowserService:
             logger.error(f"Click error for user {user_id}: {e}")
             return {"success": False, "error": str(e)}
 
-    async def type_text(self, user_id: str, ref: str, text: str, submit: bool = False) -> dict:
+    async def type_text(
+        self, user_id: str, ref: str, text: str, submit: bool = False
+    ) -> dict:
         manager = get_browser_manager()
         session = manager.get_user_session(user_id)
 
@@ -333,7 +344,10 @@ class BrowserService:
                 is_input = True
 
             if not is_input:
-                return {"success": False, "error": f"Element {ref} is not an input field"}
+                return {
+                    "success": False,
+                    "error": f"Element {ref} is not an input field",
+                }
 
             try:
                 handle = await page.query_selector(selector)
@@ -342,8 +356,13 @@ class BrowserService:
                 else:
                     raise Exception("No handle")
             except Exception:
-                if locator.bbox_center_x is not None and locator.bbox_center_y is not None:
-                    healed = await self._click_by_coordinates(page, locator.bbox_center_x, locator.bbox_center_y)
+                if (
+                    locator.bbox_center_x is not None
+                    and locator.bbox_center_y is not None
+                ):
+                    healed = await self._click_by_coordinates(
+                        page, locator.bbox_center_x, locator.bbox_center_y
+                    )
                     if healed:
                         await page.keyboard.type(text)
                         if submit:
@@ -450,7 +469,9 @@ class BrowserService:
             session.touch()
             return {"success": True, "width": width, "height": height}
         except Exception as e:
-            logger.error(f"Viewport resize error for user {user_id}: {e}", exc_info=True)
+            logger.error(
+                f"Viewport resize error for user {user_id}: {e}", exc_info=True
+            )
             return {"success": False, "error": str(e)}
 
     async def get_console_logs(self, user_id: str) -> dict:
@@ -471,6 +492,7 @@ class BrowserService:
 
         try:
             import base64
+
             page = session.page
             screenshot_bytes = await page.screenshot(type="png", full_page=True)
             screenshot_b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
@@ -505,7 +527,11 @@ class BrowserService:
         session = manager.get_user_session(user_id)
 
         if not session or not session.is_active():
-            return {"success": False, "error": "No active browser session", "history": []}
+            return {
+                "success": False,
+                "error": "No active browser session",
+                "history": [],
+            }
 
         return {"success": True, "history": session.navigation_history}
 

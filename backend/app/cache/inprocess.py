@@ -10,14 +10,15 @@ from cachetools import TTLCache
 logger = logging.getLogger(__name__)
 
 # Caches for different data categories
-_feature_flags_cache = TTLCache(maxsize=1, ttl=60)       # 60s — flags change rarely
-_agent_templates_cache = TTLCache(maxsize=64, ttl=300)    # 5min — static templates
-_config_cache = TTLCache(maxsize=1, ttl=300)              # 5min — app config
-_generic_cache = TTLCache(maxsize=256, ttl=120)           # 2min — misc
+_feature_flags_cache = TTLCache(maxsize=1, ttl=60)  # 60s — flags change rarely
+_agent_templates_cache = TTLCache(maxsize=64, ttl=300)  # 5min — static templates
+_config_cache = TTLCache(maxsize=1, ttl=300)  # 5min — app config
+_generic_cache = TTLCache(maxsize=256, ttl=120)  # 2min — misc
 
 
 def cached_feature_flags(func: Callable) -> Callable:
     """Cache feature flag queries (60s TTL)."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         key = "feature_flags_all"
@@ -27,26 +28,32 @@ def cached_feature_flags(func: Callable) -> Callable:
         result = await func(*args, **kwargs)
         _feature_flags_cache[key] = result
         return result
+
     return wrapper
 
 
 def cached_agent_templates(func: Callable) -> Callable:
     """Cache agent template lookups (5min TTL)."""
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Build cache key from function name + args
-        cache_key = f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
+        cache_key = (
+            f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
+        )
         result = _agent_templates_cache.get(cache_key)
         if result is not None:
             return result
         result = func(*args, **kwargs)
         _agent_templates_cache[cache_key] = result
         return result
+
     return wrapper
 
 
 def cached_config(func: Callable) -> Callable:
     """Cache config/settings lookups (5min TTL)."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         key = f"config:{func.__name__}"
@@ -56,6 +63,7 @@ def cached_config(func: Callable) -> Callable:
         result = await func(*args, **kwargs)
         _config_cache[key] = result
         return result
+
     return wrapper
 
 
@@ -85,6 +93,7 @@ def cached(ttl: int = 120, maxsize: int = 64) -> Callable:
             return result
 
         import asyncio
+
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper

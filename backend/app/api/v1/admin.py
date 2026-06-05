@@ -242,9 +242,7 @@ async def get_system_health(
     try:
         import redis as redis_lib
 
-        r = redis_lib.Redis.from_url(
-            os.getenv("REDIS_URL", "redis://localhost:6379")
-        )
+        r = redis_lib.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
         start = time.time()
         r.ping()
         components["redis"] = {

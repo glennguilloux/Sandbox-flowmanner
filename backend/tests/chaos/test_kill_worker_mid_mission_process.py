@@ -39,13 +39,18 @@ from app.services.substrate.replay_engine import ReplayEngine
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def _make_event(run_id, seq, etype, payload=None, task_id=None, mission_id=None):
     return SubstrateEvent(
-        id=str(uuid4()), sequence=seq, run_id=run_id,
-        type=etype, payload=payload or {}, actor="test",
-        task_id=task_id, mission_id=mission_id,
+        id=str(uuid4()),
+        sequence=seq,
+        run_id=run_id,
+        type=etype,
+        payload=payload or {},
+        actor="test",
+        task_id=task_id,
+        mission_id=mission_id,
     )
-
 
 
 def _worker_write_events_and_die(event_log_path: str, sync_path: str):
@@ -67,42 +72,60 @@ def _worker_write_events_and_die(event_log_path: str, sync_path: str):
 
     # Full mission lifecycle event stream
     events = [
-        (SubstrateEventType.MISSION_STARTED,
-         {"title": "SIGKILL Chaos Mission", "mission_type": "chaos_test"},
-         None),
-        (SubstrateEventType.TASK_STARTED,
-         {"task_id": "sig_a", "task_title": "Chaos Task A"},
-         "sig_a"),
-        (SubstrateEventType.TASK_STARTED,
-         {"task_id": "sig_b", "task_title": "Chaos Task B"},
-         "sig_b"),
-        (SubstrateEventType.TASK_COMPLETED,
-         {"task_id": "sig_a", "tokens": 120, "cost_usd": 0.06},
-         "sig_a"),
-        (SubstrateEventType.TASK_STARTED,
-         {"task_id": "sig_c", "task_title": "Chaos Task C"},
-         "sig_c"),
-        (SubstrateEventType.TASK_COMPLETED,
-         {"task_id": "sig_c", "tokens": 80, "cost_usd": 0.04},
-         "sig_c"),
-        (SubstrateEventType.TASK_FAILED,
-         {"task_id": "sig_b", "error": "worker killed by SIGKILL"},
-         "sig_b"),
-        (SubstrateEventType.MISSION_FAILED,
-         {"error": "worker process received SIGKILL"},
-         None),
+        (
+            SubstrateEventType.MISSION_STARTED,
+            {"title": "SIGKILL Chaos Mission", "mission_type": "chaos_test"},
+            None,
+        ),
+        (
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "sig_a", "task_title": "Chaos Task A"},
+            "sig_a",
+        ),
+        (
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "sig_b", "task_title": "Chaos Task B"},
+            "sig_b",
+        ),
+        (
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "sig_a", "tokens": 120, "cost_usd": 0.06},
+            "sig_a",
+        ),
+        (
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "sig_c", "task_title": "Chaos Task C"},
+            "sig_c",
+        ),
+        (
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "sig_c", "tokens": 80, "cost_usd": 0.04},
+            "sig_c",
+        ),
+        (
+            SubstrateEventType.TASK_FAILED,
+            {"task_id": "sig_b", "error": "worker killed by SIGKILL"},
+            "sig_b",
+        ),
+        (
+            SubstrateEventType.MISSION_FAILED,
+            {"error": "worker process received SIGKILL"},
+            None,
+        ),
     ]
 
     with open(event_log_path, "w") as f:
         for seq, (etype, payload, task_id) in enumerate(events, start=1):
-            event_line = json.dumps({
-                "sequence": seq,
-                "run_id": run_id,
-                "mission_id": mission_id,
-                "task_id": task_id,
-                "type": etype,
-                "payload": payload,
-            })
+            event_line = json.dumps(
+                {
+                    "sequence": seq,
+                    "run_id": run_id,
+                    "mission_id": mission_id,
+                    "task_id": task_id,
+                    "type": etype,
+                    "payload": payload,
+                }
+            )
             f.write(event_line + "\n")
             f.flush()
 
@@ -122,32 +145,40 @@ def _worker_write_events_checkpoint(event_log_path: str, sync_path: str):
     mission_id = str(uuid4())
 
     events = [
-        (SubstrateEventType.MISSION_STARTED,
-         {"title": "Checkpoint Chaos"}, None),
-        (SubstrateEventType.CHECKPOINT,
-         {"note": "pre-task-group-1"}, None),
-        (SubstrateEventType.TASK_STARTED,
-         {"task_id": "cp_a"}, "cp_a"),
-        (SubstrateEventType.TASK_COMPLETED,
-         {"task_id": "cp_a", "tokens": 60, "cost_usd": 0.03}, "cp_a"),
-        (SubstrateEventType.CHECKPOINT,
-         {"note": "post-task-group-1"}, None),
-        (SubstrateEventType.TASK_STARTED,
-         {"task_id": "cp_b"}, "cp_b"),
-        (SubstrateEventType.TASK_COMPLETED,
-         {"task_id": "cp_b", "tokens": 90, "cost_usd": 0.05}, "cp_b"),
-        (SubstrateEventType.CHECKPOINT,
-         {"note": "post-task-group-2"}, None),
+        (SubstrateEventType.MISSION_STARTED, {"title": "Checkpoint Chaos"}, None),
+        (SubstrateEventType.CHECKPOINT, {"note": "pre-task-group-1"}, None),
+        (SubstrateEventType.TASK_STARTED, {"task_id": "cp_a"}, "cp_a"),
+        (
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "cp_a", "tokens": 60, "cost_usd": 0.03},
+            "cp_a",
+        ),
+        (SubstrateEventType.CHECKPOINT, {"note": "post-task-group-1"}, None),
+        (SubstrateEventType.TASK_STARTED, {"task_id": "cp_b"}, "cp_b"),
+        (
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "cp_b", "tokens": 90, "cost_usd": 0.05},
+            "cp_b",
+        ),
+        (SubstrateEventType.CHECKPOINT, {"note": "post-task-group-2"}, None),
         (SubstrateEventType.MISSION_COMPLETED, {}, None),
     ]
 
     with open(event_log_path, "w") as f:
         for seq, (etype, payload, task_id) in enumerate(events, start=1):
-            f.write(json.dumps({
-                "sequence": seq, "run_id": run_id,
-                "mission_id": mission_id, "task_id": task_id,
-                "type": etype, "payload": payload,
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "sequence": seq,
+                        "run_id": run_id,
+                        "mission_id": mission_id,
+                        "task_id": task_id,
+                        "type": etype,
+                        "payload": payload,
+                    }
+                )
+                + "\n"
+            )
             f.flush()
 
             with open(sync_path, "w") as sf:
@@ -157,8 +188,7 @@ def _worker_write_events_checkpoint(event_log_path: str, sync_path: str):
             time.sleep(0.02)
 
 
-def _wait_for_sync_seq(sync_path: str, target_seq: int,
-                       timeout: float = 10.0) -> bool:
+def _wait_for_sync_seq(sync_path: str, target_seq: int, timeout: float = 10.0) -> bool:
     """Poll the sync file until it reaches target_seq or timeout.
 
     Returns True if target_seq was reached, False on timeout.
@@ -192,23 +222,24 @@ def _deserialize_events_from_file(path: str) -> list[SubstrateEvent]:
                     continue
                 try:
                     data = json.loads(line)
-                    events.append(SubstrateEvent(
-                        id=str(uuid4()),
-                        sequence=data["sequence"],
-                        run_id=data["run_id"],
-                        mission_id=data.get("mission_id"),
-                        task_id=data.get("task_id"),
-                        type=data["type"],
-                        payload=data.get("payload", {}),
-                        actor="chaos_test",
-                    ))
+                    events.append(
+                        SubstrateEvent(
+                            id=str(uuid4()),
+                            sequence=data["sequence"],
+                            run_id=data["run_id"],
+                            mission_id=data.get("mission_id"),
+                            task_id=data.get("task_id"),
+                            type=data["type"],
+                            payload=data.get("payload", {}),
+                            actor="chaos_test",
+                        )
+                    )
                 except (json.JSONDecodeError, KeyError):
                     # Partial write from SIGKILL — skip this line
                     continue
     except FileNotFoundError:
         pass
     return events
-
 
 
 def _can_sigkill():
@@ -219,18 +250,45 @@ def _can_sigkill():
 def _build_partial_event_stream(run_id, mission_id, crash_at_seq):
     """Build a mission event stream up to the crash point."""
     events = [
-        _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED,
-                   {"title": "Process Crash Test"}, mission_id=mission_id),
-        _make_event(run_id, 2, SubstrateEventType.TASK_STARTED,
-                   {"task_id": "a"}, task_id="a", mission_id=mission_id),
-        _make_event(run_id, 3, SubstrateEventType.TASK_STARTED,
-                   {"task_id": "b"}, task_id="b", mission_id=mission_id),
-        _make_event(run_id, 4, SubstrateEventType.TASK_COMPLETED,
-                   {"task_id": "a", "tokens": 80, "cost_usd": 0.04},
-                   task_id="a", mission_id=mission_id),
-        _make_event(run_id, 5, SubstrateEventType.TASK_FAILED,
-                   {"task_id": "b", "error": "worker killed"},
-                   task_id="b", mission_id=mission_id),
+        _make_event(
+            run_id,
+            1,
+            SubstrateEventType.MISSION_STARTED,
+            {"title": "Process Crash Test"},
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            2,
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "a"},
+            task_id="a",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            3,
+            SubstrateEventType.TASK_STARTED,
+            {"task_id": "b"},
+            task_id="b",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            4,
+            SubstrateEventType.TASK_COMPLETED,
+            {"task_id": "a", "tokens": 80, "cost_usd": 0.04},
+            task_id="a",
+            mission_id=mission_id,
+        ),
+        _make_event(
+            run_id,
+            5,
+            SubstrateEventType.TASK_FAILED,
+            {"task_id": "b", "error": "worker killed"},
+            task_id="b",
+            mission_id=mission_id,
+        ),
     ]
     # Return events up to (and including) the crash point
     return [e for e in events if e.sequence <= crash_at_seq]
@@ -239,8 +297,9 @@ def _build_partial_event_stream(run_id, mission_id, crash_at_seq):
 def _mock_event_log(events):
     el = MagicMock(spec=EventLog)
 
-    async def _get_events(db, rid, *, from_sequence=0, to_sequence=None,
-                          event_type=None, limit=10000):
+    async def _get_events(
+        db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000
+    ):
         filtered = [e for e in events if e.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [e for e in filtered if e.sequence <= to_sequence]
@@ -256,6 +315,7 @@ def _mock_event_log(events):
 # Primary: Process crash boundary simulation
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestProcessKillMidMission:
     """Simulate worker process death and verify recovery via event replay."""
 
@@ -270,9 +330,7 @@ class TestProcessKillMidMission:
         mission_id = str(uuid4())
 
         # Simulate: worker recorded 4 events before crash
-        persisted = _build_partial_event_stream(
-            run_id, mission_id, crash_at_seq=4
-        )
+        persisted = _build_partial_event_stream(run_id, mission_id, crash_at_seq=4)
 
         # Expected state at crash point
         expected = SubstrateRunState(run_id=run_id, mission_id=mission_id)
@@ -309,22 +367,53 @@ class TestProcessKillMidMission:
         mission_id = str(uuid4())
 
         events = [
-            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED,
-                       {"title": "Near Complete"}, mission_id=mission_id),
-            _make_event(run_id, 2, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "x"}, task_id="x", mission_id=mission_id),
-            _make_event(run_id, 3, SubstrateEventType.TASK_COMPLETED,
-                       {"task_id": "x", "tokens": 150, "cost_usd": 0.07},
-                       task_id="x", mission_id=mission_id),
-            _make_event(run_id, 4, SubstrateEventType.TASK_STARTED,
-                       {"task_id": "y"}, task_id="y", mission_id=mission_id),
-            _make_event(run_id, 5, SubstrateEventType.TASK_COMPLETED,
-                       {"task_id": "y", "tokens": 250, "cost_usd": 0.12},
-                       task_id="y", mission_id=mission_id),
+            _make_event(
+                run_id,
+                1,
+                SubstrateEventType.MISSION_STARTED,
+                {"title": "Near Complete"},
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                2,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "x"},
+                task_id="x",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                3,
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "x", "tokens": 150, "cost_usd": 0.07},
+                task_id="x",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                4,
+                SubstrateEventType.TASK_STARTED,
+                {"task_id": "y"},
+                task_id="y",
+                mission_id=mission_id,
+            ),
+            _make_event(
+                run_id,
+                5,
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "y", "tokens": 250, "cost_usd": 0.12},
+                task_id="y",
+                mission_id=mission_id,
+            ),
             # Worker killed here — MISSION_COMPLETED never recorded
-            _make_event(run_id, 6, SubstrateEventType.MISSION_FAILED,
-                       {"error": "worker process killed by SIGTERM"},
-                       mission_id=mission_id),
+            _make_event(
+                run_id,
+                6,
+                SubstrateEventType.MISSION_FAILED,
+                {"error": "worker process killed by SIGTERM"},
+                mission_id=mission_id,
+            ),
         ]
 
         el = _mock_event_log(events)
@@ -344,9 +433,7 @@ class TestProcessKillMidMission:
         run_id = str(uuid4())
         mission_id = str(uuid4())
 
-        persisted = _build_partial_event_stream(
-            run_id, mission_id, crash_at_seq=5
-        )
+        persisted = _build_partial_event_stream(run_id, mission_id, crash_at_seq=5)
 
         el = _mock_event_log(persisted)
         engine = ReplayEngine(event_log=el)
@@ -366,9 +453,10 @@ class TestProcessKillMidMission:
 # True SIGKILL: spawn worker → SIGKILL → replay surviving events
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.skipif(
     not _can_sigkill(),
-    reason="True process-kill requires SIGKILL signal support (Unix)."
+    reason="True process-kill requires SIGKILL signal support (Unix).",
 )
 class TestTrueSIGKILLRecovery:
     """True SIGKILL chaos test: spawn worker, kill mid-mission, verify recovery.
@@ -407,15 +495,14 @@ class TestTrueSIGKILLRecovery:
         assert proc.is_alive(), "Worker should be running"
 
         # Wait for sync file to reach target_seq, then SIGKILL
-        assert _wait_for_sync_seq(str(sync_file), target_seq), (
-            f"Worker did not reach seq {target_seq} in time"
-        )
+        assert _wait_for_sync_seq(
+            str(sync_file), target_seq
+        ), f"Worker did not reach seq {target_seq} in time"
         os.kill(proc.pid, signal.SIGKILL)
         proc.join(timeout=5)
         assert not proc.is_alive(), "Worker should be dead after SIGKILL"
         assert proc.exitcode == -signal.SIGKILL, (
-            f"Exit code should be -SIGKILL ({-signal.SIGKILL}), "
-            f"got {proc.exitcode}"
+            f"Exit code should be -SIGKILL ({-signal.SIGKILL}), " f"got {proc.exitcode}"
         )
 
         # Read surviving events — MUST be fewer than total (8)
@@ -497,9 +584,9 @@ class TestTrueSIGKILLRecovery:
             args=(str(event_log), str(sync_file)),
         )
         proc.start()
-        assert _wait_for_sync_seq(str(sync_file), target_seq), (
-            f"Worker did not reach seq {target_seq}"
-        )
+        assert _wait_for_sync_seq(
+            str(sync_file), target_seq
+        ), f"Worker did not reach seq {target_seq}"
         os.kill(proc.pid, signal.SIGKILL)
         proc.join(timeout=5)
 
@@ -519,9 +606,9 @@ class TestTrueSIGKILLRecovery:
             f"Task A should be completed (seq {target_seq} reached), "
             f"completed_tasks={rebuilt.completed_tasks}"
         )
-        assert rebuilt.total_tokens >= 120, (
-            f"Task A should add 120 tokens, got {rebuilt.total_tokens}"
-        )
+        assert (
+            rebuilt.total_tokens >= 120
+        ), f"Task A should add 120 tokens, got {rebuilt.total_tokens}"
         assert rebuilt.total_cost_usd >= 0.06
         assert rebuilt.status == "executing"
 
@@ -552,18 +639,14 @@ class TestTrueSIGKILLRecovery:
         db = AsyncMock()
 
         # Get checkpoints from surviving events
-        checkpoints = asyncio.run(
-            engine.get_checkpoint_sequences(db, run_id)
-        )
-        assert len(checkpoints) >= 1, (
-            f"Should have at least 1 checkpoint, got {checkpoints}"
-        )
+        checkpoints = asyncio.run(engine.get_checkpoint_sequences(db, run_id))
+        assert (
+            len(checkpoints) >= 1
+        ), f"Should have at least 1 checkpoint, got {checkpoints}"
 
         # Replay from last checkpoint should produce consistent state
         last_cp = checkpoints[-1]
-        cp_state = asyncio.run(
-            engine.rebuild_state_at_sequence(db, run_id, last_cp)
-        )
+        cp_state = asyncio.run(engine.rebuild_state_at_sequence(db, run_id, last_cp))
         assert cp_state.current_sequence == last_cp
 
         # Full replay
@@ -589,9 +672,9 @@ class TestTrueSIGKILLRecovery:
 
         # Deserialization must not raise
         surviving = _deserialize_events_from_file(str(event_log))
-        assert len(surviving) >= 1, (
-            "At least 1 complete event should survive partial-write SIGKILL"
-        )
+        assert (
+            len(surviving) >= 1
+        ), "At least 1 complete event should survive partial-write SIGKILL"
 
         # Every surviving event must be valid
         for e in surviving:

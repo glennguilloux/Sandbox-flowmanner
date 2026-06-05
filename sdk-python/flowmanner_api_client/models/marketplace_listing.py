@@ -1,52 +1,43 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="MarketplaceListing")
-
 
 
 @_attrs_define
 class MarketplaceListing:
-    """ 
-        Attributes:
-            id (str):
-            slug (str):
-            name (str):
-            type_ (str):
-            category (str):
-            description (None | str | Unset):
-            icon_url (None | str | Unset):
-            thumbnail_url (None | str | Unset):
-            screenshots (list[str] | Unset):
-            author_name (None | str | Unset):
-            author_id (None | str | Unset):
-            pricing_type (str | Unset):  Default: 'free'.
-            price_cents (int | None | Unset):
-            install_count (int | Unset):  Default: 0.
-            rating_avg (float | None | Unset):
-            rating_count (int | Unset):  Default: 0.
-            status (str | Unset):  Default: 'approved'.
-            tags (list[str] | Unset):
-            version (None | str | Unset):
-            created_at (str | Unset):  Default: ''.
-            updated_at (str | Unset):  Default: ''.
-            is_featured (bool | Unset):  Default: False.
-     """
+    """
+    Attributes:
+        id (str):
+        slug (str):
+        name (str):
+        type_ (str):
+        category (str):
+        description (None | str | Unset):
+        icon_url (None | str | Unset):
+        thumbnail_url (None | str | Unset):
+        screenshots (list[str] | Unset):
+        author_name (None | str | Unset):
+        author_id (None | str | Unset):
+        pricing_type (str | Unset):  Default: 'free'.
+        price_cents (int | None | Unset):
+        install_count (int | Unset):  Default: 0.
+        rating_avg (float | None | Unset):
+        rating_count (int | Unset):  Default: 0.
+        status (str | Unset):  Default: 'approved'.
+        tags (list[str] | Unset):
+        version (None | str | Unset):
+        created_at (str | Unset):  Default: ''.
+        updated_at (str | Unset):  Default: ''.
+        is_featured (bool | Unset):  Default: False.
+    """
 
     id: str
     slug: str
@@ -59,22 +50,18 @@ class MarketplaceListing:
     screenshots: list[str] | Unset = UNSET
     author_name: None | str | Unset = UNSET
     author_id: None | str | Unset = UNSET
-    pricing_type: str | Unset = 'free'
+    pricing_type: str | Unset = "free"
     price_cents: int | None | Unset = UNSET
     install_count: int | Unset = 0
     rating_avg: float | None | Unset = UNSET
     rating_count: int | Unset = 0
-    status: str | Unset = 'approved'
+    status: str | Unset = "approved"
     tags: list[str] | Unset = UNSET
     version: None | str | Unset = UNSET
-    created_at: str | Unset = ''
-    updated_at: str | Unset = ''
+    created_at: str | Unset = ""
+    updated_at: str | Unset = ""
     is_featured: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -108,8 +95,6 @@ class MarketplaceListing:
         screenshots: list[str] | Unset = UNSET
         if not isinstance(self.screenshots, Unset):
             screenshots = self.screenshots
-
-
 
         author_name: None | str | Unset
         if isinstance(self.author_name, Unset):
@@ -147,8 +132,6 @@ class MarketplaceListing:
         if not isinstance(self.tags, Unset):
             tags = self.tags
 
-
-
         version: None | str | Unset
         if isinstance(self.version, Unset):
             version = UNSET
@@ -161,16 +144,17 @@ class MarketplaceListing:
 
         is_featured = self.is_featured
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "slug": slug,
-            "name": name,
-            "type": type_,
-            "category": category,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "slug": slug,
+                "name": name,
+                "type": type_,
+                "category": category,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if icon_url is not UNSET:
@@ -208,8 +192,6 @@ class MarketplaceListing:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
@@ -232,7 +214,6 @@ class MarketplaceListing:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_icon_url(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -241,7 +222,6 @@ class MarketplaceListing:
             return cast(None | str | Unset, data)
 
         icon_url = _parse_icon_url(d.pop("icon_url", UNSET))
-
 
         def _parse_thumbnail_url(data: object) -> None | str | Unset:
             if data is None:
@@ -252,9 +232,7 @@ class MarketplaceListing:
 
         thumbnail_url = _parse_thumbnail_url(d.pop("thumbnail_url", UNSET))
 
-
         screenshots = cast(list[str], d.pop("screenshots", UNSET))
-
 
         def _parse_author_name(data: object) -> None | str | Unset:
             if data is None:
@@ -265,7 +243,6 @@ class MarketplaceListing:
 
         author_name = _parse_author_name(d.pop("author_name", UNSET))
 
-
         def _parse_author_id(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -274,7 +251,6 @@ class MarketplaceListing:
             return cast(None | str | Unset, data)
 
         author_id = _parse_author_id(d.pop("author_id", UNSET))
-
 
         pricing_type = d.pop("pricing_type", UNSET)
 
@@ -287,7 +263,6 @@ class MarketplaceListing:
 
         price_cents = _parse_price_cents(d.pop("price_cents", UNSET))
 
-
         install_count = d.pop("install_count", UNSET)
 
         def _parse_rating_avg(data: object) -> float | None | Unset:
@@ -299,13 +274,11 @@ class MarketplaceListing:
 
         rating_avg = _parse_rating_avg(d.pop("rating_avg", UNSET))
 
-
         rating_count = d.pop("rating_count", UNSET)
 
         status = d.pop("status", UNSET)
 
         tags = cast(list[str], d.pop("tags", UNSET))
-
 
         def _parse_version(data: object) -> None | str | Unset:
             if data is None:
@@ -315,7 +288,6 @@ class MarketplaceListing:
             return cast(None | str | Unset, data)
 
         version = _parse_version(d.pop("version", UNSET))
-
 
         created_at = d.pop("created_at", UNSET)
 
@@ -347,7 +319,6 @@ class MarketplaceListing:
             updated_at=updated_at,
             is_featured=is_featured,
         )
-
 
         marketplace_listing.additional_properties = d
         return marketplace_listing

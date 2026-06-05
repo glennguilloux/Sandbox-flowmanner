@@ -1,37 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.agent_create_config_type_0 import AgentCreateConfigType0
-
-
-
+    from ..models.agent_create_config_type_0 import AgentCreateConfigType0
 
 
 T = TypeVar("T", bound="AgentCreate")
 
 
-
 @_attrs_define
 class AgentCreate:
-    """ 
-        Attributes:
-            name (str):
-            description (None | str | Unset):
-            system_prompt (None | str | Unset):
-            model_preference (None | str | Unset):
-            config (AgentCreateConfigType0 | None | Unset):
-     """
+    """
+    Attributes:
+        name (str):
+        description (None | str | Unset):
+        system_prompt (None | str | Unset):
+        model_preference (None | str | Unset):
+        config (AgentCreateConfigType0 | None | Unset):
+    """
 
     name: str
     description: None | str | Unset = UNSET
@@ -40,12 +33,9 @@ class AgentCreate:
     config: AgentCreateConfigType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.agent_create_config_type_0 import AgentCreateConfigType0
+
         name = self.name
 
         description: None | str | Unset
@@ -74,12 +64,13 @@ class AgentCreate:
         else:
             config = self.config
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "name": name,
-        })
+        field_dict.update(
+            {
+                "name": name,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if system_prompt is not UNSET:
@@ -91,11 +82,10 @@ class AgentCreate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.agent_create_config_type_0 import AgentCreateConfigType0
+
         d = dict(src_dict)
         name = d.pop("name")
 
@@ -108,7 +98,6 @@ class AgentCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_system_prompt(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -118,7 +107,6 @@ class AgentCreate:
 
         system_prompt = _parse_system_prompt(d.pop("system_prompt", UNSET))
 
-
         def _parse_model_preference(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -127,7 +115,6 @@ class AgentCreate:
             return cast(None | str | Unset, data)
 
         model_preference = _parse_model_preference(d.pop("model_preference", UNSET))
-
 
         def _parse_config(data: object) -> AgentCreateConfigType0 | None | Unset:
             if data is None:
@@ -139,15 +126,12 @@ class AgentCreate:
                     raise TypeError()
                 config_type_0 = AgentCreateConfigType0.from_dict(data)
 
-
-
                 return config_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(AgentCreateConfigType0 | None | Unset, data)
 
         config = _parse_config(d.pop("config", UNSET))
-
 
         agent_create = cls(
             name=name,
@@ -156,7 +140,6 @@ class AgentCreate:
             model_preference=model_preference,
             config=config,
         )
-
 
         agent_create.additional_properties = d
         return agent_create

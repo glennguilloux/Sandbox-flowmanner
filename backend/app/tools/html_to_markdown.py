@@ -21,18 +21,41 @@ logger = logging.getLogger(__name__)
 
 # ── HTML → Markdown converter ─────────────────────────────────────────────
 
+
 class _MarkdownConverter(HTMLParser):
     """Convert HTML to Markdown."""
 
     SKIP_TAGS = {"script", "style", "noscript", "iframe", "svg"}
 
     INLINE_TAGS = {
-        "b", "strong", "i", "em", "code", "a", "span",
-        "sub", "sup", "del", "ins", "mark", "small", "abbr",
+        "b",
+        "strong",
+        "i",
+        "em",
+        "code",
+        "a",
+        "span",
+        "sub",
+        "sup",
+        "del",
+        "ins",
+        "mark",
+        "small",
+        "abbr",
     }
 
-    BLOCK_TAGS = {"p", "div", "section", "article", "main", "aside",
-                  "header", "footer", "nav", "blockquote"}
+    BLOCK_TAGS = {
+        "p",
+        "div",
+        "section",
+        "article",
+        "main",
+        "aside",
+        "header",
+        "footer",
+        "nav",
+        "blockquote",
+    }
 
     HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
 
@@ -142,7 +165,9 @@ class _MarkdownConverter(HTMLParser):
                 self._list_stack.pop()
                 self._list_idx.pop()
             self.output.append("\n")
-        elif tag in ("p", "div", "section", "article") and not self.output[-1].endswith("\n\n"):
+        elif tag in ("p", "div", "section", "article") and not self.output[-1].endswith(
+            "\n\n"
+        ):
             self.output.append("\n\n")
 
     def handle_data(self, data):
@@ -166,6 +191,7 @@ class _MarkdownConverter(HTMLParser):
 
 
 # ── Input ─────────────────────────────────────────────────────────────────
+
 
 class HtmlToMarkdownInput(ToolInput):
     data: str | None = Field(
@@ -208,7 +234,9 @@ class HtmlToMarkdownTool(BaseTool):
             )
 
         try:
-            html_bytes = await resolve_input(validated.data, validated.url, label="HTML")
+            html_bytes = await resolve_input(
+                validated.data, validated.url, label="HTML"
+            )
         except ValueError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
@@ -236,7 +264,9 @@ class HtmlToMarkdownTool(BaseTool):
                     "html_length": len(html_str),
                     "markdown_length": len(markdown),
                     "markdown": markdown,
-                    "compression_ratio": round(len(markdown) / max(len(html_str), 1), 4),
+                    "compression_ratio": round(
+                        len(markdown) / max(len(html_str), 1), 4
+                    ),
                 },
             )
 

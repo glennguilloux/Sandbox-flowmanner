@@ -68,30 +68,53 @@ RETRY_BACKOFF_BASE = 0.5  # seconds; retries at 0.5s, 1.5s
 
 class CircuitState(str, Enum):
     """Circuit breaker states."""
-    CLOSED = "CLOSED"       # Normal operation — tracing active
-    OPEN = "OPEN"           # Tracing disabled — too many failures
-    HALF_OPEN = "HALF_OPEN" # Probing — allowing one test call
+
+    CLOSED = "CLOSED"  # Normal operation — tracing active
+    OPEN = "OPEN"  # Tracing disabled — too many failures
+    HALF_OPEN = "HALF_OPEN"  # Probing — allowing one test call
 
 
 # Lazy imports — Langfuse SDK is optional
 class _LangfuseUnavailable:
     """Stub when Langfuse is not installed or not configured."""
+
     class _StubTrace:
-        def span(self, **kwargs): return _LangfuseUnavailable._StubSpan()
-        def generation(self, **kwargs): return _LangfuseUnavailable._StubSpan()
-        def update(self, **kwargs): pass
+        def span(self, **kwargs):
+            return _LangfuseUnavailable._StubSpan()
+
+        def generation(self, **kwargs):
+            return _LangfuseUnavailable._StubSpan()
+
+        def update(self, **kwargs):
+            pass
+
     class _StubSpan:
-        def span(self, **kwargs): return _LangfuseUnavailable._StubSpan()
-        def generation(self, **kwargs): return _LangfuseUnavailable._StubSpan()
-        def update(self, **kwargs): pass
-        def end(self, **kwargs): pass
-        def score(self, **kwargs): pass
+        def span(self, **kwargs):
+            return _LangfuseUnavailable._StubSpan()
+
+        def generation(self, **kwargs):
+            return _LangfuseUnavailable._StubSpan()
+
+        def update(self, **kwargs):
+            pass
+
+        def end(self, **kwargs):
+            pass
+
+        def score(self, **kwargs):
+            pass
+
     _trace = _StubTrace()
     _span = _StubSpan()
 
-    def trace(self, **kwargs): return self._trace
-    def flush(self): pass
-    def shutdown(self): pass
+    def trace(self, **kwargs):
+        return self._trace
+
+    def flush(self):
+        pass
+
+    def shutdown(self):
+        pass
 
 
 def _is_transient_error(exc: Exception) -> bool:
@@ -108,12 +131,21 @@ def _is_transient_error(exc: Exception) -> bool:
         return True
     msg = str(exc).lower()
     transient_keywords = [
-        "connection", "timeout", "timed out", "refused",
-        "reset", "unreachable", "network", "temporary",
+        "connection",
+        "timeout",
+        "timed out",
+        "refused",
+        "reset",
+        "unreachable",
+        "network",
+        "temporary",
     ]
     auth_keywords = [
-        "unauthorized", "forbidden", "authentication",
-        "invalid api key", "invalid credentials",
+        "unauthorized",
+        "forbidden",
+        "authentication",
+        "invalid api key",
+        "invalid credentials",
     ]
     if any(kw in msg for kw in auth_keywords):
         return False
@@ -168,7 +200,7 @@ def _run_with_retry(func, timeout_seconds: float, *args, **kwargs):
         if not _is_transient_error(error):
             break
         if attempt < MAX_RETRIES:
-            backoff = RETRY_BACKOFF_BASE * (3 ** attempt)
+            backoff = RETRY_BACKOFF_BASE * (3**attempt)
             logger.debug(
                 f"Langfuse transient error (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
                 f"retrying in {backoff:.1f}s: {error}"
@@ -211,10 +243,15 @@ class LangfuseService:
         except Exception:
             logger.debug("langfuse_init_gauge_failed", exc_info=True)
 
-    def initialize(self, public_key: str, secret_key: str,
-                   host: str = "http://langfuse-web:3000",
-                   enabled: bool = True, sampling_rate: float = 1.0,
-                   flush_interval: float = 1.0) -> bool:
+    def initialize(
+        self,
+        public_key: str,
+        secret_key: str,
+        host: str = "http://langfuse-web:3000",
+        enabled: bool = True,
+        sampling_rate: float = 1.0,
+        flush_interval: float = 1.0,
+    ) -> bool:
         """Initialize the Langfuse client. Called once at app startup."""
         if not enabled:
             logger.info("Langfuse disabled via configuration")
@@ -222,8 +259,11 @@ class LangfuseService:
             return False
         try:
             from langfuse import Langfuse
+
             self._client = Langfuse(
-                public_key=public_key, secret_key=secret_key, host=host,
+                public_key=public_key,
+                secret_key=secret_key,
+                host=host,
             )
             self._enabled = True
             self._sampling_rate = sampling_rate
@@ -255,10 +295,15 @@ class LangfuseService:
     def circuit_state(self) -> str:
         """Get the current circuit breaker state. Transitions OPEN->HALF_OPEN if cooldown elapsed."""
         with self._lock:
-            if self._circuit_state == CircuitState.OPEN and time.time() >= self._circuit_open_until:
+            if (
+                self._circuit_state == CircuitState.OPEN
+                and time.time() >= self._circuit_open_until
+            ):
                 self._circuit_state = CircuitState.HALF_OPEN
                 try:
-                    get_reliability_monitor().record_circuit_transition("OPEN", "HALF_OPEN")
+                    get_reliability_monitor().record_circuit_transition(
+                        "OPEN", "HALF_OPEN"
+                    )
                 except Exception:
                     logger.debug("langfuse_reliability_monitor_failed", exc_info=True)
                 logger.warning(
@@ -266,7 +311,9 @@ class LangfuseService:
                     f"(worker={self._worker_id}, probing after cooldown)"
                 )
                 try:
-                    update_circuit_breaker_gauge(self._worker_id, CircuitState.HALF_OPEN.value)
+                    update_circuit_breaker_gauge(
+                        self._worker_id, CircuitState.HALF_OPEN.value
+                    )
                 except Exception:
                     logger.debug("langfuse_gauge_update_failed", exc_info=True)
             return self._circuit_state.value
@@ -298,7 +345,9 @@ class LangfuseService:
         old_state = self._circuit_state
         self._circuit_state = CircuitState.OPEN
         try:
-            get_reliability_monitor().record_circuit_transition(old_state.value, CircuitState.OPEN.value)
+            get_reliability_monitor().record_circuit_transition(
+                old_state.value, CircuitState.OPEN.value
+            )
         except Exception:
             logger.debug("langfuse_transition_monitor_failed", exc_info=True)
         self._circuit_open_until = time.time() + CIRCUIT_RECOVERY_SECONDS
@@ -320,7 +369,9 @@ class LangfuseService:
             if self._circuit_state == CircuitState.HALF_OPEN:
                 self._circuit_state = CircuitState.CLOSED
                 try:
-                    get_reliability_monitor().record_circuit_transition("HALF_OPEN", "CLOSED")
+                    get_reliability_monitor().record_circuit_transition(
+                        "HALF_OPEN", "CLOSED"
+                    )
                 except Exception:
                     logger.debug("langfuse_close_transition_failed", exc_info=True)
                 logger.warning(
@@ -337,13 +388,18 @@ class LangfuseService:
         except Exception:
             logger.debug("langfuse_success_metrics_failed", exc_info=True)
 
-    def _record_failure(self, reason=None, operation: str = "unknown", duration: float = 0.0):
+    def _record_failure(
+        self, reason=None, operation: str = "unknown", duration: float = 0.0
+    ):
         """Record a failed SDK call with Prometheus metrics."""
         with self._lock:
             self._failure_count += 1
             self._last_failure_reason = reason
             self._traces_failed += 1
-            if self._circuit_state == CircuitState.HALF_OPEN or self._failure_count >= CIRCUIT_FAILURE_THRESHOLD:
+            if (
+                self._circuit_state == CircuitState.HALF_OPEN
+                or self._failure_count >= CIRCUIT_FAILURE_THRESHOLD
+            ):
                 self._transition_to_open()
             else:
                 logger.debug(
@@ -368,20 +424,38 @@ class LangfuseService:
     def _base_trace_metadata(self) -> dict[str, Any]:
         return {"worker_id": self._worker_id}
 
-    def trace(self, trace_id=None, name=None, user_id=None, metadata=None,
-              input=None, output=None, tags=None, session_id=None, version=None):
+    def trace(
+        self,
+        trace_id=None,
+        name=None,
+        user_id=None,
+        metadata=None,
+        input=None,
+        output=None,
+        tags=None,
+        session_id=None,
+        version=None,
+    ):
         """Create a Langfuse trace. Returns a trace object or stub."""
         if not self._should_sample():
             return _LangfuseUnavailable._StubTrace()
         if self.circuit_open:
             return _LangfuseUnavailable._StubTrace()
         merged_metadata = {**self._base_trace_metadata(), **(metadata or {})}
+
         def _call():
             return self.client.trace(
-                id=trace_id, name=name, user_id=user_id,
-                metadata=merged_metadata, input=input, output=output,
-                tags=tags, session_id=session_id, version=version,
+                id=trace_id,
+                name=name,
+                user_id=user_id,
+                metadata=merged_metadata,
+                input=input,
+                output=output,
+                tags=tags,
+                session_id=session_id,
+                version=version,
             )
+
         start = time.perf_counter()
         result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
@@ -393,23 +467,43 @@ class LangfuseService:
             self._record_failure(str(error), operation="trace", duration=duration)
             return _LangfuseUnavailable._StubTrace()
 
-    def span(self, trace_id=None, parent_observation_id=None, name=None,
-             metadata=None, input=None, output=None, start_time=None,
-             end_time=None, status_message=None, level="DEFAULT", version=None):
+    def span(
+        self,
+        trace_id=None,
+        parent_observation_id=None,
+        name=None,
+        metadata=None,
+        input=None,
+        output=None,
+        start_time=None,
+        end_time=None,
+        status_message=None,
+        level="DEFAULT",
+        version=None,
+    ):
         """Create a Langfuse span within a trace."""
         if not self._should_sample():
             return _LangfuseUnavailable._StubSpan()
         if self.circuit_open:
             return _LangfuseUnavailable._StubSpan()
         merged_metadata = {**self._base_trace_metadata(), **(metadata or {})}
+
         def _call():
             t = self.client.trace(id=trace_id)
             return t.span(
-                id=str(uuid.uuid4()), parent_observation_id=parent_observation_id,
-                name=name, metadata=merged_metadata, input=input,
-                output=output, start_time=start_time, end_time=end_time,
-                status_message=status_message, level=level, version=version,
+                id=str(uuid.uuid4()),
+                parent_observation_id=parent_observation_id,
+                name=name,
+                metadata=merged_metadata,
+                input=input,
+                output=output,
+                start_time=start_time,
+                end_time=end_time,
+                status_message=status_message,
+                level=level,
+                version=version,
             )
+
         start = time.perf_counter()
         result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
@@ -421,22 +515,38 @@ class LangfuseService:
             self._record_failure(str(error), operation="span", duration=duration)
             return _LangfuseUnavailable._StubSpan()
 
-    def generation(self, trace_id=None, name=None, model=None,
-                   model_parameters=None, input=None, output=None,
-                   usage=None, metadata=None, parent_observation_id=None):
+    def generation(
+        self,
+        trace_id=None,
+        name=None,
+        model=None,
+        model_parameters=None,
+        input=None,
+        output=None,
+        usage=None,
+        metadata=None,
+        parent_observation_id=None,
+    ):
         """Create a Langfuse generation observation."""
         if not self._should_sample():
             return _LangfuseUnavailable._StubSpan()
         if self.circuit_open:
             return _LangfuseUnavailable._StubSpan()
         merged_metadata = {**self._base_trace_metadata(), **(metadata or {})}
+
         def _call():
             t = self.client.trace(id=trace_id)
             return t.generation(
-                name=name, model=model, model_parameters=model_parameters,
-                input=input, output=output, usage=usage,
-                metadata=merged_metadata, parent_observation_id=parent_observation_id,
+                name=name,
+                model=model,
+                model_parameters=model_parameters,
+                input=input,
+                output=output,
+                usage=usage,
+                metadata=merged_metadata,
+                parent_observation_id=parent_observation_id,
             )
+
         start = time.perf_counter()
         result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
@@ -448,8 +558,9 @@ class LangfuseService:
             self._record_failure(str(error), operation="generation", duration=duration)
             return _LangfuseUnavailable._StubSpan()
 
-    def get_langchain_callback(self, trace_id=None, name=None,
-                                user_id=None, metadata=None, tags=None):
+    def get_langchain_callback(
+        self, trace_id=None, name=None, user_id=None, metadata=None, tags=None
+    ):
         """Get a LangChain callback handler that auto-traces LLM calls."""
         if not self._enabled:
             return None
@@ -458,16 +569,23 @@ class LangfuseService:
         merged_metadata = {**self._base_trace_metadata(), **(metadata or {})}
         try:
             from langfuse.callback import CallbackHandler as LangfuseCallback
+
             def _create_callback():
                 return LangfuseCallback(
                     public_key=self._client.public_key if self._client else None,
                     secret_key=self._client.secret_key if self._client else None,
                     host=self._client.host if self._client else None,
-                    trace_id=trace_id, name=name, user_id=user_id,
-                    metadata=merged_metadata, tags=tags,
+                    trace_id=trace_id,
+                    name=name,
+                    user_id=user_id,
+                    metadata=merged_metadata,
+                    tags=tags,
                 )
+
             start = time.perf_counter()
-            result, error = _run_with_timeout(_create_callback, CALLBACK_CREATION_TIMEOUT_SECONDS)
+            result, error = _run_with_timeout(
+                _create_callback, CALLBACK_CREATION_TIMEOUT_SECONDS
+            )
             duration = time.perf_counter() - start
             if error is not None:
                 if isinstance(error, TimeoutError):
@@ -494,13 +612,19 @@ class LangfuseService:
             return {}
         if self.circuit_open:
             return {}
+
         def _call():
             return {
                 "callback_name": "langfuse",
-                "langfuse_public_key": self._client.public_key if self._client else None,
-                "langfuse_secret_key": self._client.secret_key if self._client else None,
+                "langfuse_public_key": (
+                    self._client.public_key if self._client else None
+                ),
+                "langfuse_secret_key": (
+                    self._client.secret_key if self._client else None
+                ),
                 "langfuse_host": self._client.host if self._client else None,
             }
+
         start = time.perf_counter()
         result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
@@ -509,7 +633,9 @@ class LangfuseService:
             return result
         else:
             logger.debug(f"LiteLLM callback config failed: {error}")
-            self._record_failure(str(error), operation="litellm_config", duration=duration)
+            self._record_failure(
+                str(error), operation="litellm_config", duration=duration
+            )
             return {}
 
     def flush(self):
@@ -518,8 +644,10 @@ class LangfuseService:
             return
         if self.circuit_open:
             return
+
         def _call():
             self._client.flush()
+
         start = time.perf_counter()
         result, error = _run_with_retry(_call, FLUSH_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
@@ -545,18 +673,29 @@ class LangfuseService:
         except Exception as e:
             logger.debug(f"Langfuse shutdown failed: {e}")
 
-    def score_trace(self, trace_id: str, name: str, value: float,
-                    comment=None, data_type: str = "NUMERIC"):
+    def score_trace(
+        self,
+        trace_id: str,
+        name: str,
+        value: float,
+        comment=None,
+        data_type: str = "NUMERIC",
+    ):
         """Add a score to a trace. Non-blocking."""
         if not self._enabled:
             return
         if self.circuit_open:
             return
+
         def _call():
             self.client.score(
-                trace_id=trace_id, name=name, value=value,
-                comment=comment, data_type=data_type,
+                trace_id=trace_id,
+                name=name,
+                value=value,
+                comment=comment,
+                data_type=data_type,
             )
+
         start = time.perf_counter()
         result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
@@ -579,6 +718,7 @@ class LangfuseService:
     def _should_sample(self) -> bool:
         """Determine if this trace should be sampled based on sampling_rate."""
         import random
+
         if self._sampling_rate >= 1.0:
             return True
         return random.random() < self._sampling_rate

@@ -2,6 +2,7 @@
 
 from flowmanner_api_client import FlowmannerClient
 
+
 def main():
     with FlowmannerClient(base_url="https://flowmanner.com") as fm:
         # Usage summary
@@ -14,6 +15,7 @@ def main():
         print(f"\nCost by model:")
         for model in costs.get("by_model", []):
             print(f"  {model.get('model')}: ${model.get('cost', 0):.4f}")
+
 
 if __name__ == "__main__":
     main()

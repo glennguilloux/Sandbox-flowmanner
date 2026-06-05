@@ -69,10 +69,12 @@ class TestBuildFromDB:
         """snapshot_data stored as JSON string should be parsed."""
         from app.services.semantic.topology_manager import TopologyManager
 
-        snapshot_data_str = json.dumps({
-            "nodes": [{"id": "x", "label": "X", "stack": "test"}],
-            "edges": [],
-        })
+        snapshot_data_str = json.dumps(
+            {
+                "nodes": [{"id": "x", "label": "X", "stack": "test"}],
+                "edges": [],
+            }
+        )
 
         mock_snapshot = MagicMock()
         mock_snapshot.id = "snap-2"

@@ -39,9 +39,7 @@ async def table_count(table: str) -> int:
 
     async with AsyncSessionLocal() as session:
         try:
-            result = await session.execute(
-                text(f"SELECT count(*) FROM {table}")
-            )
+            result = await session.execute(text(f"SELECT count(*) FROM {table}"))
             return result.scalar() or 0
         except Exception:
             return -1
@@ -54,10 +52,7 @@ async def table_exists(table: str) -> bool:
 
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            text(
-                "SELECT 1 FROM information_schema.tables "
-                "WHERE table_name = :name"
-            ),
+            text("SELECT 1 FROM information_schema.tables " "WHERE table_name = :name"),
             {"name": table},
         )
         return result.fetchone() is not None
@@ -91,10 +86,15 @@ class DRTestRunner:
 
     async def check_schemas(self):
         tables = [
-            "tools_catalog", "tool_versions",
-            "capabilities_catalog", "capability_versions",
-            "memory_entries", "materialization_state",
-            "topology_snapshots", "topology_nodes", "topology_edges",
+            "tools_catalog",
+            "tool_versions",
+            "capabilities_catalog",
+            "capability_versions",
+            "memory_entries",
+            "materialization_state",
+            "topology_snapshots",
+            "topology_nodes",
+            "topology_edges",
             "agent_template_versions",
         ]
         for table in tables:
@@ -109,7 +109,10 @@ class DRTestRunner:
     async def check_data_population(self):
         checks = {
             "tools_catalog": (1, "Run import_builtin_tools.py to populate"),
-            "capabilities_catalog": (1, "Run import_builtin_capabilities.py to populate"),
+            "capabilities_catalog": (
+                1,
+                "Run import_builtin_capabilities.py to populate",
+            ),
             "agent_templates": (10, "Should have been seeded at startup"),
             "agent_template_versions": (1, "Run import_agent_templates.py to populate"),
         }
@@ -144,7 +147,9 @@ class DRTestRunner:
                 tools = registry.list_all()
                 self.ok("Hydration: tools", f"{len(tools)} tools hydrated from DB")
             else:
-                self.fail("Hydration: tools", "hydration returned False despite data in DB")
+                self.fail(
+                    "Hydration: tools", "hydration returned False despite data in DB"
+                )
         except Exception as e:
             self.fail("Hydration: tools", str(e))
         finally:
@@ -168,9 +173,15 @@ class DRTestRunner:
             if result:
                 registry = get_capability_registry()
                 caps = registry.list_all()
-                self.ok("Hydration: capabilities", f"{len(caps)} capabilities hydrated from DB")
+                self.ok(
+                    "Hydration: capabilities",
+                    f"{len(caps)} capabilities hydrated from DB",
+                )
             else:
-                self.fail("Hydration: capabilities", "hydration returned False despite data in DB")
+                self.fail(
+                    "Hydration: capabilities",
+                    "hydration returned False despite data in DB",
+                )
         except Exception as e:
             self.fail("Hydration: capabilities", str(e))
         finally:
@@ -232,16 +243,24 @@ class DRTestRunner:
     # ── 5. Topology & Materialization Models ──────────────────────
 
     def check_topology_models(self):
-        from app.models.topology_models import TopologySnapshot, TopologyNode, TopologyEdge
-        if (TopologySnapshot.__tablename__ == "topology_snapshots"
-                and TopologyNode.__tablename__ == "topology_nodes"
-                and TopologyEdge.__tablename__ == "topology_edges"):
+        from app.models.topology_models import (
+            TopologySnapshot,
+            TopologyNode,
+            TopologyEdge,
+        )
+
+        if (
+            TopologySnapshot.__tablename__ == "topology_snapshots"
+            and TopologyNode.__tablename__ == "topology_nodes"
+            and TopologyEdge.__tablename__ == "topology_edges"
+        ):
             self.ok("Models: topology", "3 models importable")
         else:
             self.fail("Models: topology", "unexpected table names")
 
     def check_materialization_model(self):
         from app.models.materialization_models import MaterializationState
+
         if MaterializationState.__tablename__ == "materialization_state":
             self.ok("Models: materialization", "importable")
         else:
@@ -291,7 +310,9 @@ class DRTestRunner:
 
         if not db_reachable():
             print("⏭️  Database not reachable — skipping all tests")
-            print("   Run inside the backend container: docker compose exec backend python /app/dr_test.py")
+            print(
+                "   Run inside the backend container: docker compose exec backend python /app/dr_test.py"
+            )
             return
 
         print("\n1. Schema Verification")
@@ -317,7 +338,9 @@ class DRTestRunner:
 
         # Summary
         print(f"\n{'=' * 60}")
-        print(f"  RESULTS: {self.passed} passed, {self.failed} failed, {self.skipped} skipped")
+        print(
+            f"  RESULTS: {self.passed} passed, {self.failed} failed, {self.skipped} skipped"
+        )
         print(f"{'=' * 60}")
         for d in self.details:
             print(d)
@@ -348,9 +371,7 @@ try:
         async def test_full_dr_suite(self, _db_check):
             runner = DRTestRunner()
             await runner.run_all()
-            assert runner.failed == 0, (
-                f"Disaster recovery had {runner.failed} failures"
-            )
+            assert runner.failed == 0, f"Disaster recovery had {runner.failed} failures"
 
 except ImportError:
     pass

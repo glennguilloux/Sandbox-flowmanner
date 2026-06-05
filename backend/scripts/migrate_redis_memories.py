@@ -35,6 +35,7 @@ async def run(apply: bool = False):
     # ── 1. Connect to Redis ──────────────────────────────────────────
     try:
         from redis.asyncio import Redis
+
         redis = Redis.from_url(settings.REDIS_URL, decode_responses=True)
         await redis.ping()
         logger.info("Connected to Redis at %s", settings.REDIS_URL)
@@ -50,7 +51,9 @@ async def run(apply: bool = False):
 
     async with engine.begin() as conn:
         exists = await conn.execute(
-            sa_text("SELECT 1 FROM information_schema.tables WHERE table_name = 'memory_entries'")
+            sa_text(
+                "SELECT 1 FROM information_schema.tables WHERE table_name = 'memory_entries'"
+            )
         )
         if not exists.fetchone():
             logger.error("memory_entries table does not exist. Run migration first.")
@@ -62,7 +65,9 @@ async def run(apply: bool = False):
     agent_memories = []
     cursor = 0
     while True:
-        cursor, keys = await redis.scan(cursor=cursor, match=f"{MEMORY_KEY_PREFIX}mem:*", count=100)
+        cursor, keys = await redis.scan(
+            cursor=cursor, match=f"{MEMORY_KEY_PREFIX}mem:*", count=100
+        )
         for key in keys:
             raw = await redis.get(key)
             if raw:
@@ -80,7 +85,9 @@ async def run(apply: bool = False):
     kv_memories = []
     cursor = 0
     while True:
-        cursor, keys = await redis.scan(cursor=cursor, match=f"{MEMORY_KEY_PREFIX}*", count=100)
+        cursor, keys = await redis.scan(
+            cursor=cursor, match=f"{MEMORY_KEY_PREFIX}*", count=100
+        )
         for key in keys:
             # Skip agent memories and index keys
             if ":mem:" in key or key.startswith(MEMORY_INDEX_PREFIX):
@@ -92,7 +99,7 @@ async def run(apply: bool = False):
                 except json.JSONDecodeError:
                     value = raw
                 # Extract the key name after the prefix
-                kv_key = key[len(MEMORY_KEY_PREFIX):]
+                kv_key = key[len(MEMORY_KEY_PREFIX) :]
                 kv_memories.append({"key": kv_key, "value": value})
         if cursor == 0:
             break
@@ -110,7 +117,9 @@ async def run(apply: bool = False):
         logger.info(
             "DRY RUN: Would migrate %d agent memories + %d KV memories = %d total. "
             "Run with --apply to execute.",
-            len(agent_memories), len(kv_memories), total,
+            len(agent_memories),
+            len(kv_memories),
+            total,
         )
         await engine.dispose()
         await redis.aclose()
@@ -137,7 +146,8 @@ async def run(apply: bool = False):
 
             try:
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO memory_entries (
                             id, agent_id, namespace, memory_type, content,
                             importance, metadata, created_at, updated_at
@@ -145,7 +155,8 @@ async def run(apply: bool = False):
                             :id, :agent_id, 'agent', :memory_type, :content,
                             :importance, :metadata::jsonb, :created_at, :updated_at
                         )
-                    """),
+                    """
+                    ),
                     {
                         "id": mem_id,
                         "agent_id": mem.get("agent_id", ""),
@@ -169,7 +180,9 @@ async def run(apply: bool = False):
 
             # Check if already exists
             existing = await conn.execute(
-                sa_text("SELECT 1 FROM memory_entries WHERE namespace = 'kv' AND key = :key"),
+                sa_text(
+                    "SELECT 1 FROM memory_entries WHERE namespace = 'kv' AND key = :key"
+                ),
                 {"key": kv_key},
             )
             if existing.fetchone():
@@ -177,9 +190,14 @@ async def run(apply: bool = False):
                 continue
 
             try:
-                content = json.dumps(value, default=str) if not isinstance(value, str) else value
+                content = (
+                    json.dumps(value, default=str)
+                    if not isinstance(value, str)
+                    else value
+                )
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO memory_entries (
                             id, namespace, key, memory_type, content,
                             importance, created_at, updated_at
@@ -187,7 +205,8 @@ async def run(apply: bool = False):
                             :id, 'kv', :key, 'kv', :content,
                             1.0, :created_at, :updated_at
                         )
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "key": kv_key,
@@ -206,7 +225,9 @@ async def run(apply: bool = False):
 
     logger.info(
         "Migration complete: %d migrated, %d skipped (already exist), %d errors",
-        migrated, skipped, errors,
+        migrated,
+        skipped,
+        errors,
     )
 
 

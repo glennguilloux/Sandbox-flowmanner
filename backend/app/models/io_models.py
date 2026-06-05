@@ -22,8 +22,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # ── Modality ────────────────────────────────────────────────────────
 
+
 class Modality(str, Enum):
     """Supported I/O modalities. The kernel routes to the right renderer."""
+
     TEXT = "text"
     AUDIO = "audio"
     IMAGE = "image"
@@ -35,11 +37,13 @@ class Modality(str, Enum):
 
 # ── IOBlob ──────────────────────────────────────────────────────────
 
+
 class IOBlob(BaseModel):
     """Binary blob with MIME type.
 
     Used for audio, image, video, and other binary modalities.
     """
+
     mime_type: str
     data: bytes | None = None
     url: str | None = None
@@ -51,6 +55,7 @@ class IOBlob(BaseModel):
 
 # ── IOMessage ───────────────────────────────────────────────────────
 
+
 class IOMessage(BaseModel):
     """Unified message that the kernel consumes and produces.
 
@@ -60,6 +65,7 @@ class IOMessage(BaseModel):
     A message can contain multiple renders for different modalities
     (e.g., text + audio for voice responses).
     """
+
     id: UUID = Field(default_factory=uuid4)
     role: Literal["user", "assistant", "system", "tool"] = "user"
     renders: list[IORender] = Field(default_factory=list)
@@ -68,6 +74,7 @@ class IOMessage(BaseModel):
 
 
 # ── IORender ────────────────────────────────────────────────────────
+
 
 class IORender(BaseModel):
     """A render output for a specific modality.
@@ -81,10 +88,11 @@ class IORender(BaseModel):
     - TABLE → table renderer
     - IMAGE → image preview
     """
+
     modality: Modality
-    content: str | None = None        # For text, code (source)
-    language: str | None = None       # For code modality (python, js, etc.)
-    blob: IOBlob | None = None        # For audio, image (binary data)
+    content: str | None = None  # For text, code (source)
+    language: str | None = None  # For code modality (python, js, etc.)
+    blob: IOBlob | None = None  # For audio, image (binary data)
     document: DocumentRender | None = None  # For document modality
     table: TableRender | None = None  # For table modality
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -92,8 +100,10 @@ class IORender(BaseModel):
 
 # ── Document / Table renders ────────────────────────────────────────
 
+
 class DocumentRender(BaseModel):
     """Render for document uploads (PDF, CSV, JSON)."""
+
     filename: str
     mime_type: str
     page_count: int | None = None
@@ -104,6 +114,7 @@ class DocumentRender(BaseModel):
 
 class TableRender(BaseModel):
     """Render for tabular data."""
+
     columns: list[str]
     rows: list[list[Any]]
     total_rows: int
@@ -112,8 +123,10 @@ class TableRender(BaseModel):
 
 # ── Voice / Audio models ────────────────────────────────────────────
 
+
 class VoiceTranscribeRequest(BaseModel):
     """Request to transcribe audio to text."""
+
     audio_data: str | None = Field(None, description="Base64-encoded audio")
     audio_url: str | None = Field(None, description="URL to audio file")
     language: str | None = None
@@ -122,6 +135,7 @@ class VoiceTranscribeRequest(BaseModel):
 
 class VoiceTranscribeResponse(BaseModel):
     """Response from voice transcription."""
+
     text: str
     language: str | None = None
     duration_seconds: float = 0.0
@@ -130,12 +144,14 @@ class VoiceTranscribeResponse(BaseModel):
 
 class VoiceSynthesizeRequest(BaseModel):
     """Request to synthesize text to speech."""
+
     text: str = Field(..., min_length=1, max_length=5000)
     voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # ElevenLabs Rachel
 
 
 class VoiceSynthesizeResponse(BaseModel):
     """Response from TTS synthesis."""
+
     audio_url: str | None = None
     audio_base64: str | None = None
     format: str = "mp3"
@@ -145,8 +161,10 @@ class VoiceSynthesizeResponse(BaseModel):
 
 # ── Document parse models ───────────────────────────────────────────
 
+
 class DocumentParseRequest(BaseModel):
     """Request to parse a document."""
+
     file_url: str | None = None
     file_data: str | None = Field(None, description="Base64-encoded file")
     filename: str = ""
@@ -155,6 +173,7 @@ class DocumentParseRequest(BaseModel):
 
 class DocumentParseResponse(BaseModel):
     """Response from document parsing."""
+
     filename: str
     mime_type: str
     text_content: str = ""
@@ -165,8 +184,10 @@ class DocumentParseResponse(BaseModel):
 
 # ── Code cell models ────────────────────────────────────────────────
 
+
 class CodeExecuteRequest(BaseModel):
     """Request to execute a code cell."""
+
     code: str = Field(..., min_length=1)
     language: str = "python"
     timeout_seconds: int = Field(30, ge=1, le=120)
@@ -174,6 +195,7 @@ class CodeExecuteRequest(BaseModel):
 
 class CodeExecuteResponse(BaseModel):
     """Response from code execution."""
+
     success: bool
     stdout: str = ""
     stderr: str = ""

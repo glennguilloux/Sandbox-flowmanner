@@ -82,10 +82,12 @@ def mission_service_mocks():
     # Build mock query handler (read operations)
     mock_queries = MagicMock()
     mock_queries.get_mission = AsyncMock(return_value=mission)
-    mock_queries.get_status = AsyncMock(return_value={
-        "mission_id": str(MISSION_ID),
-        "status": "pending",
-    })
+    mock_queries.get_status = AsyncMock(
+        return_value={
+            "mission_id": str(MISSION_ID),
+            "status": "pending",
+        }
+    )
     mock_queries.list_tasks = AsyncMock(return_value=[])
     mock_queries.list_logs = AsyncMock(return_value=[])
     mock_queries.list_improvements = AsyncMock(return_value=[])
@@ -97,30 +99,39 @@ def mission_service_mocks():
 
     def _fake_stream_status(user_id, mission_id, mission):
         async def event_gen():
-            yield f"data: {{\"status\": \"pending\"}}\n\n"
-            yield f"data: {{\"status\": \"completed\"}}\n\n"
+            yield f'data: {{"status": "pending"}}\n\n'
+            yield f'data: {{"status": "completed"}}\n\n'
             yield "data: [DONE]\n\n"
+
         return StreamingResponse(event_gen(), media_type="text/event-stream")
 
     mock_queries.stream_status = _fake_stream_status
 
     # Build mock command handler (write operations)
     mock_commands = MagicMock()
-    mock_commands.plan_mission = AsyncMock(return_value={
-        "mission_id": str(MISSION_ID),
-        "status": "planned",
-    })
-    mock_commands.execute_mission = AsyncMock(return_value={
-        "mission_id": str(MISSION_ID),
-        "status": "completed",
-    })
-    mock_commands.create_improvement = AsyncMock(return_value={
-        "id": "imp-1",
-        "mission_id": str(MISSION_ID),
-    })
-    mock_commands.apply_improvement = AsyncMock(return_value={
-        "applied": True,
-    })
+    mock_commands.plan_mission = AsyncMock(
+        return_value={
+            "mission_id": str(MISSION_ID),
+            "status": "planned",
+        }
+    )
+    mock_commands.execute_mission = AsyncMock(
+        return_value={
+            "mission_id": str(MISSION_ID),
+            "status": "completed",
+        }
+    )
+    mock_commands.create_improvement = AsyncMock(
+        return_value={
+            "id": "imp-1",
+            "mission_id": str(MISSION_ID),
+        }
+    )
+    mock_commands.apply_improvement = AsyncMock(
+        return_value={
+            "applied": True,
+        }
+    )
 
     # Override the DI dependencies
     async def _override_queries():
@@ -219,13 +230,27 @@ class TestMissionSlashCompatibility:
             (f"/api/missions/{MISSION_ID}", f"/api/missions/{MISSION_ID}/"),
             (f"/api/missions/{MISSION_ID}/tasks", f"/api/missions/{MISSION_ID}/tasks/"),
             (f"/api/missions/{MISSION_ID}/logs", f"/api/missions/{MISSION_ID}/logs/"),
-            (f"/api/missions/{MISSION_ID}/status", f"/api/missions/{MISSION_ID}/status/"),
-            (f"/api/missions/{MISSION_ID}/improvements", f"/api/missions/{MISSION_ID}/improvements/"),
-            (f"/api/missions/{MISSION_ID}/analytics", f"/api/missions/{MISSION_ID}/analytics/"),
-            (f"/api/missions/{MISSION_ID}/stream", f"/api/missions/{MISSION_ID}/stream/"),
+            (
+                f"/api/missions/{MISSION_ID}/status",
+                f"/api/missions/{MISSION_ID}/status/",
+            ),
+            (
+                f"/api/missions/{MISSION_ID}/improvements",
+                f"/api/missions/{MISSION_ID}/improvements/",
+            ),
+            (
+                f"/api/missions/{MISSION_ID}/analytics",
+                f"/api/missions/{MISSION_ID}/analytics/",
+            ),
+            (
+                f"/api/missions/{MISSION_ID}/stream",
+                f"/api/missions/{MISSION_ID}/stream/",
+            ),
         ],
     )
-    def test_dual_routes_return_200(self, auth_client, mission_service_mocks, path_a, path_b):
+    def test_dual_routes_return_200(
+        self, auth_client, mission_service_mocks, path_a, path_b
+    ):
         if "/stream" in path_a:
             mission_service_mocks.queries.get_mission.side_effect = [
                 make_mission("pending"),

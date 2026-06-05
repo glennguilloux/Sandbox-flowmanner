@@ -32,7 +32,9 @@ async def run():
         # ── 1. Build user_id → workspace_id map ────────────────────
         # Primary: workspace.owner_id (each user owns exactly one workspace)
         owner_rows = await conn.execute(
-            sa_text("SELECT id, owner_id FROM workspaces WHERE is_active = true ORDER BY created_at")
+            sa_text(
+                "SELECT id, owner_id FROM workspaces WHERE is_active = true ORDER BY created_at"
+            )
         )
         all_workspaces = owner_rows.fetchall()
 
@@ -50,7 +52,9 @@ async def run():
 
         # Also pull from workspace_members for completeness
         member_rows = await conn.execute(
-            sa_text("SELECT user_id, workspace_id FROM workspace_members WHERE is_active = true")
+            sa_text(
+                "SELECT user_id, workspace_id FROM workspace_members WHERE is_active = true"
+            )
         )
         for row in member_rows.fetchall():
             if row.user_id not in user_ws_map:
@@ -60,7 +64,8 @@ async def run():
         default_ws_id = all_workspaces[0].id
         logger.info(
             "Default workspace: %s (%d user→workspace mappings built)",
-            default_ws_id, len(user_ws_map),
+            default_ws_id,
+            len(user_ws_map),
         )
 
         # ── 2. Backfill each table ─────────────────────────────────
@@ -95,8 +100,10 @@ async def run():
 
             # Determine if uid_col is string-typed (e.g. agents.owner_id is VARCHAR)
             col_info = await conn.execute(
-                sa_text("""SELECT data_type FROM information_schema.columns
-                           WHERE table_name = :tbl AND column_name = :col"""),
+                sa_text(
+                    """SELECT data_type FROM information_schema.columns
+                           WHERE table_name = :tbl AND column_name = :col"""
+                ),
                 {"tbl": table, "col": uid_col},
             )
             col_type = col_info.scalar() or ""
@@ -107,44 +114,54 @@ async def run():
             for uid, ws_id in user_ws_map.items():
                 match_uid = str(uid) if uid_is_string else uid
                 result = await conn.execute(
-                    sa_text(f"""
+                    sa_text(
+                        f"""
                         UPDATE {table}
                         SET workspace_id = :ws_id
                         WHERE workspace_id IS NULL AND {uid_col} = :uid
-                    """),
+                    """
+                    ),
                     {"ws_id": ws_id, "uid": match_uid},
                 )
                 matched += result.rowcount
 
             # Remaining NULLs → default workspace
             result = await conn.execute(
-                sa_text(f"""
+                sa_text(
+                    f"""
                     UPDATE {table}
                     SET workspace_id = :ws_id
                     WHERE workspace_id IS NULL
-                """),
+                """
+                ),
                 {"ws_id": default_ws_id},
             )
             fallback = result.rowcount
             total_updated += matched + fallback
             logger.info(
                 "%s: %d matched by user, %d assigned to default workspace",
-                table, matched, fallback,
+                table,
+                matched,
+                fallback,
             )
 
         # 2b. Default-only tables
         for table in default_tables:
             result = await conn.execute(
-                sa_text(f"""
+                sa_text(
+                    f"""
                     UPDATE {table}
                     SET workspace_id = :ws_id
                     WHERE workspace_id IS NULL
-                """),
+                """
+                ),
                 {"ws_id": default_ws_id},
             )
             if result.rowcount > 0:
                 total_updated += result.rowcount
-                logger.info("%s: %d rows assigned to default workspace", table, result.rowcount)
+                logger.info(
+                    "%s: %d rows assigned to default workspace", table, result.rowcount
+                )
             else:
                 logger.info("%s: no NULLs — skipped", table)
 

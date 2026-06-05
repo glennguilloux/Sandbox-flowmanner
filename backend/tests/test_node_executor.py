@@ -34,11 +34,13 @@ def _make_mock_node_executor():
     mock_executor.is_running = MagicMock(return_value=True)
     mock_executor.event_log = MagicMock()
     mock_executor.event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
-    mock_executor.call_llm = AsyncMock(return_value={
-        "success": True,
-        "response": "Response text",
-        "budget": {"prompt_tokens": 10, "completion_tokens": 20, "cost_usd": 0.01},
-    })
+    mock_executor.call_llm = AsyncMock(
+        return_value={
+            "success": True,
+            "response": "Response text",
+            "budget": {"prompt_tokens": 10, "completion_tokens": 20, "cost_usd": 0.01},
+        }
+    )
 
     node_executor = NodeExecutor(mock_executor)
     return node_executor, mock_executor
@@ -53,6 +55,7 @@ def _make_budget(exhausted: bool = False):
 class TestNodeExecutorInit:
     def test_init_stores_executor_reference(self):
         from app.services.substrate.node_executor import NodeExecutor
+
         mock_executor = MagicMock()
         ne = NodeExecutor(mock_executor)
         assert ne.executor is mock_executor
@@ -96,8 +99,13 @@ class TestExecuteMainLoop:
 
         mock_result = {"success": True, "output": "ok", "tokens": 10, "cost": 0.01}
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
-            with patch.object(ne, "_dispatch", new_callable=AsyncMock, return_value=mock_result):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
+            with patch.object(
+                ne, "_dispatch", new_callable=AsyncMock, return_value=mock_result
+            ):
                 result = await ne.execute(db, node, context, budget, run_id)
 
         assert result["success"] is True
@@ -121,7 +129,10 @@ class TestExecuteMainLoop:
                 raise RuntimeError("transient error")
             return {"success": True, "output": "ok", "tokens": 10, "cost": 0.01}
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
             with patch.object(ne, "_dispatch", side_effect=mock_dispatch):
                 result = await ne.execute(db, node, context, budget, run_id)
 
@@ -140,7 +151,10 @@ class TestExecuteMainLoop:
         async def mock_dispatch(*args, **kwargs):
             raise RuntimeError("persistent error")
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
             with patch.object(ne, "_dispatch", side_effect=mock_dispatch):
                 result = await ne.execute(db, node, context, budget, run_id)
 
@@ -156,7 +170,10 @@ class TestExecuteMainLoop:
         context = {"mission_id": "m1"}
         mock_executor.is_aborted = MagicMock(return_value=True)
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
             with patch.object(ne, "_dispatch", new_callable=AsyncMock) as mock_dispatch:
                 result = await ne.execute(db, node, context, budget, run_id)
 
@@ -172,7 +189,10 @@ class TestExecuteMainLoop:
         budget = _make_budget(exhausted=True)
         context = {"mission_id": "m1"}
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
             with patch.object(ne, "_dispatch", new_callable=AsyncMock) as mock_dispatch:
                 with pytest.raises(BudgetExhausted):
                     await ne.execute(db, node, context, budget, run_id)
@@ -190,8 +210,13 @@ class TestExecuteMainLoop:
 
         mock_result = {"success": True, "output": "ok", "tokens": 50, "cost": 0.02}
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
-            with patch.object(ne, "_dispatch", new_callable=AsyncMock, return_value=mock_result):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
+            with patch.object(
+                ne, "_dispatch", new_callable=AsyncMock, return_value=mock_result
+            ):
                 await ne.execute(db, node, context, budget, run_id)
 
         assert mock_executor.event_log.append.call_count >= 2
@@ -214,7 +239,10 @@ class TestExecuteMainLoop:
         async def mock_dispatch(*args, **kwargs):
             raise RuntimeError("boom")
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
             with patch.object(ne, "_dispatch", side_effect=mock_dispatch):
                 await ne.execute(db, node, context, budget, run_id)
 
@@ -247,7 +275,10 @@ class TestExecuteMainLoop:
 
         mock_executor.is_aborted = MagicMock(side_effect=abort_on_second_check)
 
-        with patch("app.services.substrate.node_executor.get_event_log", return_value=mock_executor.event_log):
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_executor.event_log,
+        ):
             with patch.object(ne, "_dispatch", side_effect=mock_dispatch):
                 result = await ne.execute(db, node, context, budget, run_id)
 
@@ -262,9 +293,15 @@ class TestHandleCode:
         node = _make_node(node_type="code_execution", config={"code": "print(42)"})
         context = {"mission_id": "m1"}
 
-        with patch.object(ne, "_execute_code_sandboxed", new_callable=AsyncMock, return_value={
-            "success": True, "output": {"stdout": "42\n", "return_code": 0}
-        }) as mock_exec:
+        with patch.object(
+            ne,
+            "_execute_code_sandboxed",
+            new_callable=AsyncMock,
+            return_value={
+                "success": True,
+                "output": {"stdout": "42\n", "return_code": 0},
+            },
+        ) as mock_exec:
             result = await ne._handle_code(node, context)
 
         assert result["success"] is True
@@ -276,9 +313,12 @@ class TestHandleCode:
         node = _make_node(node_type="code_execution", config={})
         context = {"code": "x = 1"}
 
-        with patch.object(ne, "_execute_code_sandboxed", new_callable=AsyncMock, return_value={
-            "success": True, "output": {}
-        }) as mock_exec:
+        with patch.object(
+            ne,
+            "_execute_code_sandboxed",
+            new_callable=AsyncMock,
+            return_value={"success": True, "output": {}},
+        ) as mock_exec:
             await ne._handle_code(node, context)
 
         mock_exec.assert_awaited_once_with("x = 1")
@@ -298,7 +338,9 @@ class TestHandleRAG:
     @pytest.mark.asyncio
     async def test_handle_rag_success(self):
         ne, _ = _make_mock_node_executor()
-        node = _make_node(node_type="rag_query", config={"query": "test query", "collection": "docs"})
+        node = _make_node(
+            node_type="rag_query", config={"query": "test query", "collection": "docs"}
+        )
         context = {}
 
         mock_rag = MagicMock()
@@ -356,12 +398,18 @@ class TestHandleTool:
         budget = MagicMock()
         context = {"mission_id": "m1"}
         from app.services.substrate.workflow_models import Workflow
+
         workflow = Workflow(
-            id="wf-1", type=WorkflowType.SOLO, title="Test",
-            nodes=[node], user_id="1",
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="Test",
+            nodes=[node],
+            user_id="1",
         )
 
-        with patch.object(ne, "_handle_llm", new_callable=AsyncMock, return_value={"success": True}) as mock_llm:
+        with patch.object(
+            ne, "_handle_llm", new_callable=AsyncMock, return_value={"success": True}
+        ) as mock_llm:
             mock_executor.check_circuit_breaker = AsyncMock(return_value=(True, ""))
             result = await ne._handle_tool(db, node, context, budget, run_id, workflow)
 
@@ -377,12 +425,18 @@ class TestHandleTool:
         budget = MagicMock()
         context = {"mission_id": "m1"}
         from app.services.substrate.workflow_models import Workflow
+
         workflow = Workflow(
-            id="wf-1", type=WorkflowType.SOLO, title="Test",
-            nodes=[node], user_id="1",
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="Test",
+            nodes=[node],
+            user_id="1",
         )
 
-        mock_executor.check_circuit_breaker = AsyncMock(return_value=(False, "too many calls"))
+        mock_executor.check_circuit_breaker = AsyncMock(
+            return_value=(False, "too many calls")
+        )
 
         result = await ne._handle_tool(db, node, context, budget, run_id, workflow)
         assert result["success"] is False
@@ -393,7 +447,9 @@ class TestHandleHITL:
     @pytest.mark.asyncio
     async def test_handle_hitl_creates_interrupt(self):
         ne, mock_executor = _make_mock_node_executor()
-        node = _make_node(node_type="approval", config={"approval_prompt": "Approve this?"})
+        node = _make_node(
+            node_type="approval", config={"approval_prompt": "Approve this?"}
+        )
         db = AsyncMock()
         run_id = str(uuid4())
         context = {"mission_id": "m1"}
@@ -406,14 +462,21 @@ class TestHandleHITL:
         mock_event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
 
         from app.services.substrate.workflow_models import Workflow
+
         workflow = Workflow(
-            id="wf-1", type=WorkflowType.SOLO, title="Test",
-            nodes=[node], user_id="1",
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="Test",
+            nodes=[node],
+            user_id="1",
         )
 
         # HITLService and get_event_log are imported locally in _handle_hitl_interrupt
         with patch("app.services.hitl_service.HITLService", return_value=mock_hitl):
-            with patch("app.services.substrate.event_log.get_event_log", return_value=mock_event_log):
+            with patch(
+                "app.services.substrate.event_log.get_event_log",
+                return_value=mock_event_log,
+            ):
                 result = await ne._handle_hitl_interrupt(
                     db, node, context, run_id, workflow, interrupt_type="approval"
                 )
@@ -440,7 +503,10 @@ class TestHandleHITL:
 
         # HITLService and get_event_log are imported locally in _handle_hitl_interrupt
         with patch("app.services.hitl_service.HITLService", return_value=mock_hitl):
-            with patch("app.services.substrate.event_log.get_event_log", return_value=mock_event_log):
+            with patch(
+                "app.services.substrate.event_log.get_event_log",
+                return_value=mock_event_log,
+            ):
                 result = await ne._handle_hitl_interrupt(
                     db, node, context, run_id, None, interrupt_type="clarification"
                 )
@@ -468,6 +534,7 @@ class TestDispatchRoutingExtended:
     async def test_dispatch_phase_gate_passthrough(self):
         ne, _ = _make_mock_node_executor()
         from app.services.substrate.workflow_models import WorkflowNode, NodeType
+
         node = WorkflowNode(id="pg1", type=NodeType.PHASE_GATE, title="Gate")
         db = AsyncMock()
         budget = MagicMock()
@@ -490,14 +557,25 @@ class TestHandleLLM:
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
-        mock_enforcer.call = AsyncMock(return_value={
-            "success": True,
-            "response": "Response",
-            "budget": {"prompt_tokens": 10, "completion_tokens": 20, "spent_usd": 0.01},
-        })
+        mock_enforcer.call = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "Response",
+                "budget": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "spent_usd": 0.01,
+                },
+            }
+        )
 
-        with patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer):
-            with patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls:
+        with patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=mock_enforcer,
+        ):
+            with patch(
+                "app.services.circuit_breaker_service.CircuitBreakerService"
+            ) as mock_cb_cls:
                 mock_cb = MagicMock()
                 mock_cb.get_breaker = AsyncMock(return_value=None)
                 mock_cb_cls.return_value = mock_cb
@@ -518,13 +596,20 @@ class TestHandleLLM:
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
-        mock_enforcer.call = AsyncMock(return_value={
-            "success": False,
-            "error": "Rate limited",
-        })
+        mock_enforcer.call = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Rate limited",
+            }
+        )
 
-        with patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer):
-            with patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls:
+        with patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=mock_enforcer,
+        ):
+            with patch(
+                "app.services.circuit_breaker_service.CircuitBreakerService"
+            ) as mock_cb_cls:
                 mock_cb = MagicMock()
                 mock_cb.get_breaker = AsyncMock(return_value=None)
                 mock_cb_cls.return_value = mock_cb
@@ -543,14 +628,25 @@ class TestHandleLLM:
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
-        mock_enforcer.call = AsyncMock(return_value={
-            "success": True,
-            "response": "",
-            "budget": {"prompt_tokens": 5, "completion_tokens": 0, "spent_usd": 0.001},
-        })
+        mock_enforcer.call = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "",
+                "budget": {
+                    "prompt_tokens": 5,
+                    "completion_tokens": 0,
+                    "spent_usd": 0.001,
+                },
+            }
+        )
 
-        with patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer):
-            with patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls:
+        with patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=mock_enforcer,
+        ):
+            with patch(
+                "app.services.circuit_breaker_service.CircuitBreakerService"
+            ) as mock_cb_cls:
                 mock_cb = MagicMock()
                 mock_cb.get_breaker = AsyncMock(return_value=None)
                 mock_cb_cls.return_value = mock_cb
@@ -562,23 +658,40 @@ class TestHandleLLM:
     @pytest.mark.asyncio
     async def test_handle_llm_with_system_prompt(self):
         ne, mock_executor = _make_mock_node_executor()
-        node = _make_node(node_type="llm_call", config={
-            "prompt": "Hello", "system_prompt": "You are helpful", "temperature": 0.3, "max_tokens": 500,
-        })
+        node = _make_node(
+            node_type="llm_call",
+            config={
+                "prompt": "Hello",
+                "system_prompt": "You are helpful",
+                "temperature": 0.3,
+                "max_tokens": 500,
+            },
+        )
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
-        mock_enforcer.call = AsyncMock(return_value={
-            "success": True,
-            "response": "Hi!",
-            "budget": {"prompt_tokens": 10, "completion_tokens": 2, "spent_usd": 0.002},
-        })
+        mock_enforcer.call = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "Hi!",
+                "budget": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 2,
+                    "spent_usd": 0.002,
+                },
+            }
+        )
 
-        with patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer):
-            with patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls:
+        with patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=mock_enforcer,
+        ):
+            with patch(
+                "app.services.circuit_breaker_service.CircuitBreakerService"
+            ) as mock_cb_cls:
                 mock_cb = MagicMock()
                 mock_cb.get_breaker = AsyncMock(return_value=None)
                 mock_cb_cls.return_value = mock_cb

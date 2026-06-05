@@ -125,7 +125,9 @@ class UsageService:
             dp.cost = round(dp.cost + r.cost, 8)
             dp.request_count += 1
 
-        return [dp.to_dict() for dp in sorted(buckets.values(), key=lambda dp: dp.timestamp)]
+        return [
+            dp.to_dict() for dp in sorted(buckets.values(), key=lambda dp: dp.timestamp)
+        ]
 
     def get_raw_records(self, user_id: str) -> list[UsageRecord]:
         return list(self._records.get(user_id, []))

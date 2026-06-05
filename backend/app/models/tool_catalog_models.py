@@ -24,15 +24,20 @@ class Tool(Base, TimestampMixin):
     __tablename__ = "tools_catalog"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: __import__("uuid").uuid4().__str__(),
     )
-    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    slug: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     tool_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="builtin",
+        String(50),
+        nullable=False,
+        default="builtin",
     )
     handler_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
     input_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -48,7 +53,9 @@ class Tool(Base, TimestampMixin):
     timeout_seconds: Mapped[int] = mapped_column(Integer, default=30)
     requires_auth: Mapped[bool] = mapped_column(Boolean, default=True)
     workspace_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True,
+        String(36),
+        nullable=True,
+        index=True,
         comment="NULL = builtin/global tool, non-NULL = workspace-specific custom tool",
     )
 
@@ -59,11 +66,14 @@ class ToolVersion(Base, TimestampMixin):
     __tablename__ = "tool_versions"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: __import__("uuid").uuid4().__str__(),
     )
     tool_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True,
+        String(36),
+        nullable=False,
+        index=True,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)

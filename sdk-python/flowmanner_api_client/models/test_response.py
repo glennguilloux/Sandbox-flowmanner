@@ -1,45 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
 T = TypeVar("T", bound="TestResponse")
-
 
 
 @_attrs_define
 class TestResponse:
-    """ 
-        Attributes:
-            success (bool):
-            content (str | Unset):  Default: ''.
-            model (str | Unset):  Default: ''.
-            token_count (int | Unset):  Default: 0.
-            error (str | Unset):  Default: ''.
-     """
+    """
+    Attributes:
+        success (bool):
+        content (str | Unset):  Default: ''.
+        model (str | Unset):  Default: ''.
+        token_count (int | Unset):  Default: 0.
+        error (str | Unset):  Default: ''.
+    """
 
     success: bool
-    content: str | Unset = ''
-    model: str | Unset = ''
+    content: str | Unset = ""
+    model: str | Unset = ""
     token_count: int | Unset = 0
-    error: str | Unset = ''
+    error: str | Unset = ""
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         success = self.success
@@ -52,12 +40,13 @@ class TestResponse:
 
         error = self.error
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-        })
+        field_dict.update(
+            {
+                "success": success,
+            }
+        )
         if content is not UNSET:
             field_dict["content"] = content
         if model is not UNSET:
@@ -68,8 +57,6 @@ class TestResponse:
             field_dict["error"] = error
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -91,7 +78,6 @@ class TestResponse:
             token_count=token_count,
             error=error,
         )
-
 
         test_response.additional_properties = d
         return test_response

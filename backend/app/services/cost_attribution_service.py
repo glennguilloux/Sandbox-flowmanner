@@ -68,9 +68,11 @@ class CostAttributionService:
         conditions = [LLMCallRecord.timestamp >= since]
 
         if user_id:
-            conditions.append(LLMCallRecord.mission_id.in_(
-                select(Mission.id).where(Mission.user_id == user_id)
-            ))
+            conditions.append(
+                LLMCallRecord.mission_id.in_(
+                    select(Mission.id).where(Mission.user_id == user_id)
+                )
+            )
         if workspace_id:
             conditions.append(LLMCallRecord.workspace_id == workspace_id)
         if agent_id:
@@ -81,16 +83,21 @@ class CostAttributionService:
         where = and_(*conditions)
 
         # ── Totals ───────────────────────────────────────────────────
-        totals_stmt = (
-            select(
-                func.count(LLMCallRecord.id).label("total_calls"),
-                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label("total_prompt_tokens"),
-                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label("total_completion_tokens"),
-                func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("total_cost_usd"),
-                func.coalesce(func.avg(LLMCallRecord.latency_ms), 0).label("avg_latency_ms"),
-            )
-            .where(where)
-        )
+        totals_stmt = select(
+            func.count(LLMCallRecord.id).label("total_calls"),
+            func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label(
+                "total_prompt_tokens"
+            ),
+            func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label(
+                "total_completion_tokens"
+            ),
+            func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label(
+                "total_cost_usd"
+            ),
+            func.coalesce(func.avg(LLMCallRecord.latency_ms), 0).label(
+                "avg_latency_ms"
+            ),
+        ).where(where)
         totals_row = (await self.db.execute(totals_stmt)).one()
 
         # ── Breakdown ────────────────────────────────────────────────
@@ -106,7 +113,9 @@ class CostAttributionService:
         elif group_by == "provider":
             breakdown = await self._aggregate_by_field(where, LLMCallRecord.provider)
         elif group_by == "workspace":
-            breakdown = await self._aggregate_by_field(where, LLMCallRecord.workspace_id)
+            breakdown = await self._aggregate_by_field(
+                where, LLMCallRecord.workspace_id
+            )
 
         return {
             "period": {
@@ -131,8 +140,12 @@ class CostAttributionService:
                 func.date_trunc("day", LLMCallRecord.timestamp).label("day"),
                 func.count(LLMCallRecord.id).label("calls"),
                 func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("cost_usd"),
-                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label("completion_tokens"),
+                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label(
+                    "prompt_tokens"
+                ),
+                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label(
+                    "completion_tokens"
+                ),
             )
             .where(where)
             .group_by(text("day"))
@@ -157,8 +170,12 @@ class CostAttributionService:
                 field.label("key"),
                 func.count(LLMCallRecord.id).label("calls"),
                 func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("cost_usd"),
-                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label("completion_tokens"),
+                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label(
+                    "prompt_tokens"
+                ),
+                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label(
+                    "completion_tokens"
+                ),
             )
             .where(where)
             .group_by(field)
@@ -178,15 +195,16 @@ class CostAttributionService:
 
     async def get_mission_cost(self, mission_id: str) -> dict[str, Any]:
         """Get total cost for a single mission."""
-        stmt = (
-            select(
-                func.count(LLMCallRecord.id).label("calls"),
-                func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("cost_usd"),
-                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label("completion_tokens"),
-            )
-            .where(LLMCallRecord.mission_id == mission_id)
-        )
+        stmt = select(
+            func.count(LLMCallRecord.id).label("calls"),
+            func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("cost_usd"),
+            func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label(
+                "prompt_tokens"
+            ),
+            func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label(
+                "completion_tokens"
+            ),
+        ).where(LLMCallRecord.mission_id == mission_id)
         row = (await self.db.execute(stmt)).one()
         return {
             "mission_id": mission_id,

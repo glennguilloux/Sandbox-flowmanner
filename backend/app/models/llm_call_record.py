@@ -26,39 +26,27 @@ class LLMCallRecord(Base):
     mission_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
-    task_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
-    model_id: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True
-    )
-    provider: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="unknown"
-    )
-    prompt_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    completion_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    cost_usd: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0
-    )
-    latency_ms: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    task_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    model_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, default="unknown")
+    prompt_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     success: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, index=True
     )
-    error_message: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Phase 6.3: Cost attribution columns
     agent_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True,
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
     )
     workspace_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True,
+        String(36),
+        nullable=True,
+        index=True,
     )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

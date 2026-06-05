@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class TaskOptimizerConfig:
     """Configuration constants for task optimizer"""
+
     # Priority constants (as expected by tests)
     HIGH_PRIORITY = 9
     MEDIUM_PRIORITY = 5
@@ -27,7 +28,7 @@ class TaskOptimizerConfig:
             "exchange": "priority",
             "priority": HIGH_PRIORITY,
             "prefetch": 1,
-            "concurrency": 4
+            "concurrency": 4,
         },
         "medium_priority": {
             "queue": "medium_priority",
@@ -35,7 +36,7 @@ class TaskOptimizerConfig:
             "exchange": "priority",
             "priority": MEDIUM_PRIORITY,
             "prefetch": 2,
-            "concurrency": 2
+            "concurrency": 2,
         },
         "low_priority": {
             "queue": "low_priority",
@@ -43,24 +44,41 @@ class TaskOptimizerConfig:
             "exchange": "priority",
             "priority": LOW_PRIORITY,
             "prefetch": 4,
-            "concurrency": 1
-        }
+            "concurrency": 1,
+        },
     }
 
 
 @dataclass
 class TaskOptimizerOptions:
     """Options for task optimizer"""
-    high_priority_patterns: list = field(default_factory=lambda: [
-        "notification", "alert", "urgent", "critical", "realtime",
-        "websocket", "chat", "stream", "immediate"
-    ])
-    medium_priority_patterns: list = field(default_factory=lambda: [
-        "email", "report", "analytics", "dashboard", "api"
-    ])
-    low_priority_patterns: list = field(default_factory=lambda: [
-        "backup", "cleanup", "archive", "maintenance", "log", "stats"
-    ])
+
+    high_priority_patterns: list = field(
+        default_factory=lambda: [
+            "notification",
+            "alert",
+            "urgent",
+            "critical",
+            "realtime",
+            "websocket",
+            "chat",
+            "stream",
+            "immediate",
+        ]
+    )
+    medium_priority_patterns: list = field(
+        default_factory=lambda: ["email", "report", "analytics", "dashboard", "api"]
+    )
+    low_priority_patterns: list = field(
+        default_factory=lambda: [
+            "backup",
+            "cleanup",
+            "archive",
+            "maintenance",
+            "log",
+            "stats",
+        ]
+    )
     default_priority: int = TaskOptimizerConfig.MEDIUM_PRIORITY
 
 
@@ -120,8 +138,14 @@ class TaskPriorityRouter:
         """Determine priority for a task (public method)."""
         return self._determine_priority(task)
 
-    def route_task(self, task: Any, args: tuple = None, kwargs: dict = None, 
-                   options: dict = None, **extra) -> dict[str, Any]:
+    def route_task(
+        self,
+        task: Any,
+        args: tuple = None,
+        kwargs: dict = None,
+        options: dict = None,
+        **extra
+    ) -> dict[str, Any]:
         """
         Route a task to the appropriate queue based on priority.
 
@@ -146,7 +170,9 @@ class TaskPriorityRouter:
 
         # Handle None priority edge case
         if priority is None:
-            logger.warning("Priority was None for task %s, falling back to MEDIUM_PRIORITY", task)
+            logger.warning(
+                "Priority was None for task %s, falling back to MEDIUM_PRIORITY", task
+            )
             priority = TaskOptimizerConfig.MEDIUM_PRIORITY
 
         # Map priority to queue settings based on value ranges
@@ -166,7 +192,7 @@ class TaskPriorityRouter:
             "exchange": queue_config["exchange"],
             "priority": priority,
             "prefetch": queue_config.get("prefetch", 1),
-            "concurrency": queue_config.get("concurrency", 1)
+            "concurrency": queue_config.get("concurrency", 1),
         }
 
 
@@ -183,18 +209,18 @@ def optimize_celery_app(celery_app):
     router = TaskPriorityRouter()
 
     # Configure task routing based on priority patterns
-    if hasattr(celery_app, 'conf'):
+    if hasattr(celery_app, "conf"):
         # Set up task routes
-        celery_app.conf.task_routes = celery_app.conf.get('task_routes', {})
+        celery_app.conf.task_routes = celery_app.conf.get("task_routes", {})
 
         # Configure worker concurrency based on priority
         celery_app.conf.worker_prefetch_multiplier = 1
 
         # Set up task annotations for priority
         celery_app.conf.task_annotations = {
-            '**': {
-                'max_retries': 3,
-                'default_retry_delay': 60,
+            "**": {
+                "max_retries": 3,
+                "default_retry_delay": 60,
             }
         }
 

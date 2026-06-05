@@ -52,58 +52,73 @@ class BaselineExtractor:
         behaviors: list[dict[str, Any]] = []
 
         # 1. Extract tool sequence
-        tool_events = [
-            e for e in events
-            if e.type == SubstrateEventType.TOOL_CALL
-        ]
+        tool_events = [e for e in events if e.type == SubstrateEventType.TOOL_CALL]
         tool_names = [e.payload.get("tool_name", "") for e in tool_events]
         call_counts = Counter(tool_names)
 
         if tool_names:
-            behaviors.append({
-                "type": "tool_sequence",
-                "expected_tools": list(dict.fromkeys(tool_names)),  # preserve order, dedupe
-                "order": "subset",  # allow reordering
-                "max_calls_per_tool": {
-                    name: count + 1  # allow 1 extra call as headroom
-                    for name, count in call_counts.items()
-                },
-            })
+            behaviors.append(
+                {
+                    "type": "tool_sequence",
+                    "expected_tools": list(
+                        dict.fromkeys(tool_names)
+                    ),  # preserve order, dedupe
+                    "order": "subset",  # allow reordering
+                    "max_calls_per_tool": {
+                        name: count + 1  # allow 1 extra call as headroom
+                        for name, count in call_counts.items()
+                    },
+                }
+            )
 
         # 2. Cost ceiling (actual cost × headroom)
         actual_cost = state.total_cost_usd or 0.0
-        behaviors.append({
-            "type": "cost_ceiling",
-            "max_cost_usd": round(actual_cost * cost_headroom, 4),
-            "warn_at_pct": 80,
-        })
+        behaviors.append(
+            {
+                "type": "cost_ceiling",
+                "max_cost_usd": round(actual_cost * cost_headroom, 4),
+                "warn_at_pct": 80,
+            }
+        )
 
         # 3. Latency (actual duration × headroom)
         duration = 0.0
         if state.started_at and state.last_event_at:
             duration = (state.last_event_at - state.started_at).total_seconds()
-        behaviors.append({
-            "type": "latency",
-            "max_duration_seconds": int(duration * latency_headroom) if duration > 0 else 300,
-            "warn_at_pct": 80,
-        })
+        behaviors.append(
+            {
+                "type": "latency",
+                "max_duration_seconds": (
+                    int(duration * latency_headroom) if duration > 0 else 300
+                ),
+                "warn_at_pct": 80,
+            }
+        )
 
         # 4. Task completion
-        behaviors.append({
-            "type": "task_completion",
-            "min_tasks_completed": len(state.completed_tasks),
-            "max_tasks_failed": 0,
-        })
+        behaviors.append(
+            {
+                "type": "task_completion",
+                "min_tasks_completed": len(state.completed_tasks),
+                "max_tasks_failed": 0,
+            }
+        )
 
         # 5. No circuit breaker (always include)
-        behaviors.append({
-            "type": "no_circuit_breaker",
-            "description": "Circuit breaker should not trip",
-        })
+        behaviors.append(
+            {
+                "type": "no_circuit_breaker",
+                "description": "Circuit breaker should not trip",
+            }
+        )
 
         logger.info(
             "Extracted %d behaviors from run %s (cost=$%.4f, duration=%.0fs, %d tools)",
-            len(behaviors), run_id, actual_cost, duration, len(call_counts),
+            len(behaviors),
+            run_id,
+            actual_cost,
+            duration,
+            len(call_counts),
         )
 
         return behaviors

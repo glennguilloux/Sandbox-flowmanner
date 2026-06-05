@@ -26,7 +26,9 @@ class PushSubscribeApiUsersMeNotificationsPushSubscribePostPayload:
         d = dict(src_dict)
         push_subscribe_api_users_me_notifications_push_subscribe_post_payload = cls()
 
-        push_subscribe_api_users_me_notifications_push_subscribe_post_payload.additional_properties = d
+        push_subscribe_api_users_me_notifications_push_subscribe_post_payload.additional_properties = (
+            d
+        )
         return push_subscribe_api_users_me_notifications_push_subscribe_post_payload
 
     @property

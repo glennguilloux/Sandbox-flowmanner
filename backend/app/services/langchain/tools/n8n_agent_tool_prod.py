@@ -88,9 +88,7 @@ class N8NWorkflowRequest(BaseModel):
     action: str = Field(
         ..., description="Action to perform: list, execute, create, status"
     )
-    workflow_id: str | None = Field(
-        None, description="Workflow ID for execute/status"
-    )
+    workflow_id: str | None = Field(None, description="Workflow ID for execute/status")
     parameters: dict[str, Any] | None = Field(
         None, description="Parameters for workflow execution"
     )
@@ -149,9 +147,7 @@ class HTTPClient:
         except Exception as e:
             raise N8NError(f"GET request failed: {e}")
 
-    def post(
-        self, endpoint: str, json_data: dict | None = None
-    ) -> requests.Response:
+    def post(self, endpoint: str, json_data: dict | None = None) -> requests.Response:
         """POST request with retry logic"""
         url = f"{self.base_url}{endpoint}"
         try:
@@ -299,9 +295,7 @@ class N8NClient:
             "error": f"Execution did not complete within {timeout} seconds",
         }
 
-    def create_workflow(
-        self, workflow_type: str, config: dict | None = None
-    ) -> dict:
+    def create_workflow(self, workflow_type: str, config: dict | None = None) -> dict:
         """Create a new workflow from template"""
         logger.info(f"Creating workflow - type: {workflow_type}")
 
@@ -487,9 +481,7 @@ def execute_n8n_workflow(workflow_id: str, parameters: dict = None) -> str:
 
 def list_n8n_workflows(search_query: str = None) -> str:
     """List available n8n workflows"""
-    return n8n_workflow_manager.invoke(
-        {"action": "list", "search_query": search_query}
-    )
+    return n8n_workflow_manager.invoke({"action": "list", "search_query": search_query})
 
 
 def create_n8n_workflow(workflow_type: str, config: dict = None) -> str:
@@ -501,6 +493,4 @@ def create_n8n_workflow(workflow_type: str, config: dict = None) -> str:
 
 def get_workflow_info(workflow_id: str) -> str:
     """Get detailed information about a workflow"""
-    return n8n_workflow_manager.invoke(
-        {"action": "status", "workflow_id": workflow_id}
-    )
+    return n8n_workflow_manager.invoke({"action": "status", "workflow_id": workflow_id})

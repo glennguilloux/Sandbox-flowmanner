@@ -1,41 +1,29 @@
 from http import HTTPStatus
-from typing import Any, cast
-from urllib.parse import quote
+from typing import Any
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.usage_summary_response import UsageSummaryResponse
-from ...types import UNSET, Unset
-from typing import cast
-
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     *,
-    period: str | Unset = '30d',
-    accept_version: str | Unset = 'v1',
-
+    period: str | Unset = "30d",
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
     params: dict[str, Any] = {}
 
     params["period"] = period
 
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -43,24 +31,20 @@ def _get_kwargs(
         "params": params,
     }
 
-
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | UsageSummaryResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | UsageSummaryResponse | None:
     if response.status_code == 200:
         response_200 = UsageSummaryResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -70,7 +54,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | UsageSummaryResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | UsageSummaryResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -82,11 +68,10 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    period: str | Unset = '30d',
-    accept_version: str | Unset = 'v1',
-
+    period: str | Unset = "30d",
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | UsageSummaryResponse]:
-    """ Get Usage Summary
+    """Get Usage Summary
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
@@ -98,13 +83,11 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | UsageSummaryResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         period=period,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -113,14 +96,14 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
-    period: str | Unset = '30d',
-    accept_version: str | Unset = 'v1',
-
+    period: str | Unset = "30d",
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | UsageSummaryResponse | None:
-    """ Get Usage Summary
+    """Get Usage Summary
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
@@ -132,24 +115,22 @@ def sync(
 
     Returns:
         HTTPValidationError | UsageSummaryResponse
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-period=period,
-accept_version=accept_version,
-
+        period=period,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    period: str | Unset = '30d',
-    accept_version: str | Unset = 'v1',
-
+    period: str | Unset = "30d",
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | UsageSummaryResponse]:
-    """ Get Usage Summary
+    """Get Usage Summary
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
@@ -161,29 +142,25 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | UsageSummaryResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         period=period,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    period: str | Unset = '30d',
-    accept_version: str | Unset = 'v1',
-
+    period: str | Unset = "30d",
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | UsageSummaryResponse | None:
-    """ Get Usage Summary
+    """Get Usage Summary
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
@@ -195,12 +172,12 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | UsageSummaryResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-period=period,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            period=period,
+            accept_version=accept_version,
+        )
+    ).parsed

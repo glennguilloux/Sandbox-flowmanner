@@ -1,18 +1,13 @@
 from http import HTTPStatus
-from typing import Any, cast
-from urllib.parse import quote
+from typing import Any
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.listings_response import ListingsResponse
-from ...types import UNSET, Unset
-from typing import cast
-
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -23,16 +18,11 @@ def _get_kwargs(
     sort: None | str | Unset = UNSET,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
-
-
-
-    
 
     params: dict[str, Any] = {}
 
@@ -68,9 +58,7 @@ def _get_kwargs(
 
     params["per_page"] = per_page
 
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -78,24 +66,20 @@ def _get_kwargs(
         "params": params,
     }
 
-
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | ListingsResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | ListingsResponse | None:
     if response.status_code == 200:
         response_200 = ListingsResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -105,7 +89,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | ListingsResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | ListingsResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -123,10 +109,9 @@ def sync_detailed(
     sort: None | str | Unset = UNSET,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | ListingsResponse]:
-    """ List Listings
+    """List Listings
 
     Args:
         search (None | str | Unset):
@@ -143,18 +128,16 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | ListingsResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         search=search,
-type_=type_,
-category=category,
-sort=sort,
-page=page,
-per_page=per_page,
-accept_version=accept_version,
-
+        type_=type_,
+        category=category,
+        sort=sort,
+        page=page,
+        per_page=per_page,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -162,6 +145,7 @@ accept_version=accept_version,
     )
 
     return _build_response(client=client, response=response)
+
 
 def sync(
     *,
@@ -172,10 +156,9 @@ def sync(
     sort: None | str | Unset = UNSET,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | ListingsResponse | None:
-    """ List Listings
+    """List Listings
 
     Args:
         search (None | str | Unset):
@@ -192,20 +175,19 @@ def sync(
 
     Returns:
         HTTPValidationError | ListingsResponse
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-search=search,
-type_=type_,
-category=category,
-sort=sort,
-page=page,
-per_page=per_page,
-accept_version=accept_version,
-
+        search=search,
+        type_=type_,
+        category=category,
+        sort=sort,
+        page=page,
+        per_page=per_page,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
@@ -216,10 +198,9 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | ListingsResponse]:
-    """ List Listings
+    """List Listings
 
     Args:
         search (None | str | Unset):
@@ -236,25 +217,22 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | ListingsResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         search=search,
-type_=type_,
-category=category,
-sort=sort,
-page=page,
-per_page=per_page,
-accept_version=accept_version,
-
+        type_=type_,
+        category=category,
+        sort=sort,
+        page=page,
+        per_page=per_page,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
@@ -265,10 +243,9 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | ListingsResponse | None:
-    """ List Listings
+    """List Listings
 
     Args:
         search (None | str | Unset):
@@ -285,17 +262,17 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | ListingsResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-search=search,
-type_=type_,
-category=category,
-sort=sort,
-page=page,
-per_page=per_page,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            search=search,
+            type_=type_,
+            category=category,
+            sort=sort,
+            page=page,
+            per_page=per_page,
+            accept_version=accept_version,
+        )
+    ).parsed

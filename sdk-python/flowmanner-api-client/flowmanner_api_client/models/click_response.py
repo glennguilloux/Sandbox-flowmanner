@@ -38,7 +38,9 @@ class ClickResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.click_response_clicked_at_type_0 import ClickResponseClickedAtType0
+        from ..models.click_response_clicked_at_type_0 import (
+            ClickResponseClickedAtType0,
+        )
 
         success = self.success
 
@@ -100,7 +102,9 @@ class ClickResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.click_response_clicked_at_type_0 import ClickResponseClickedAtType0
+        from ..models.click_response_clicked_at_type_0 import (
+            ClickResponseClickedAtType0,
+        )
 
         d = dict(src_dict)
         success = d.pop("success")
@@ -125,7 +129,9 @@ class ClickResponse:
 
         healed = _parse_healed(d.pop("healed", UNSET))
 
-        def _parse_clicked_at(data: object) -> ClickResponseClickedAtType0 | None | Unset:
+        def _parse_clicked_at(
+            data: object,
+        ) -> ClickResponseClickedAtType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -149,7 +155,9 @@ class ClickResponse:
                 return data
             return cast(bool | None | Unset, data)
 
-        suggest_resnapshot = _parse_suggest_resnapshot(d.pop("suggest_resnapshot", UNSET))
+        suggest_resnapshot = _parse_suggest_resnapshot(
+            d.pop("suggest_resnapshot", UNSET)
+        )
 
         def _parse_error(data: object) -> None | str | Unset:
             if data is None:

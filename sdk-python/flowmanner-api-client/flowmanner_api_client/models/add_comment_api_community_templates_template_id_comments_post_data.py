@@ -26,7 +26,9 @@ class AddCommentApiCommunityTemplatesTemplateIdCommentsPostData:
         d = dict(src_dict)
         add_comment_api_community_templates_template_id_comments_post_data = cls()
 
-        add_comment_api_community_templates_template_id_comments_post_data.additional_properties = d
+        add_comment_api_community_templates_template_id_comments_post_data.additional_properties = (
+            d
+        )
         return add_comment_api_community_templates_template_id_comments_post_data
 
     @property

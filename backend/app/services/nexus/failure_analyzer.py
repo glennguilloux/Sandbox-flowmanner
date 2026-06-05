@@ -42,6 +42,7 @@ class ErrorClass(str, Enum):
 
 # ── H2.2: Budget per error class ───────────────────────────────────
 
+
 @dataclass
 class ErrorBudget:
     """Budget limits for a single error class.
@@ -70,16 +71,25 @@ class ErrorBudget:
             (is_exhausted, reason_string)
         """
         if self.retry_count >= self.max_retries:
-            return True, f"Retry budget exhausted ({self.retry_count}/{self.max_retries})"
+            return (
+                True,
+                f"Retry budget exhausted ({self.retry_count}/{self.max_retries})",
+            )
 
         # H2.2 fix: Use elapsed wall-clock time from first retry, not accumulated
         if self.max_wall_clock_seconds > 0 and self.started_at > 0:
-            elapsed_seconds = (time.monotonic() - self.started_at)
+            elapsed_seconds = time.monotonic() - self.started_at
             if elapsed_seconds >= self.max_wall_clock_seconds:
-                return True, f"Wall-clock budget exhausted ({elapsed_seconds:.1f}s/{self.max_wall_clock_seconds}s)"
+                return (
+                    True,
+                    f"Wall-clock budget exhausted ({elapsed_seconds:.1f}s/{self.max_wall_clock_seconds}s)",
+                )
 
         if self.total_cost_usd >= self.max_cost_usd:
-            return True, f"Cost budget exhausted (${self.total_cost_usd:.4f}/${self.max_cost_usd:.2f})"
+            return (
+                True,
+                f"Cost budget exhausted (${self.total_cost_usd:.4f}/${self.max_cost_usd:.2f})",
+            )
         return False, ""
 
     def record_attempt(self, wall_clock_ms: float = 0.0, cost_usd: float = 0.0) -> None:
@@ -103,15 +113,33 @@ class ErrorBudget:
 
 # Default budgets per error class (tuneable)
 DEFAULT_ERROR_BUDGETS: dict[ErrorClass, ErrorBudget] = {
-    ErrorClass.TIMEOUT: ErrorBudget(max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50),
-    ErrorClass.VALIDATION: ErrorBudget(max_retries=1, max_wall_clock_seconds=60.0, max_cost_usd=0.10),
-    ErrorClass.RESOURCE: ErrorBudget(max_retries=3, max_wall_clock_seconds=120.0, max_cost_usd=0.25),
-    ErrorClass.LOGIC: ErrorBudget(max_retries=1, max_wall_clock_seconds=30.0, max_cost_usd=0.10),
-    ErrorClass.NETWORK: ErrorBudget(max_retries=5, max_wall_clock_seconds=300.0, max_cost_usd=0.50),
-    ErrorClass.PERMISSION: ErrorBudget(max_retries=0, max_wall_clock_seconds=0.0, max_cost_usd=0.0),
-    ErrorClass.NOT_FOUND: ErrorBudget(max_retries=2, max_wall_clock_seconds=60.0, max_cost_usd=0.10),
-    ErrorClass.RATE_LIMIT: ErrorBudget(max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50),
-    ErrorClass.UNKNOWN: ErrorBudget(max_retries=1, max_wall_clock_seconds=120.0, max_cost_usd=0.25),
+    ErrorClass.TIMEOUT: ErrorBudget(
+        max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50
+    ),
+    ErrorClass.VALIDATION: ErrorBudget(
+        max_retries=1, max_wall_clock_seconds=60.0, max_cost_usd=0.10
+    ),
+    ErrorClass.RESOURCE: ErrorBudget(
+        max_retries=3, max_wall_clock_seconds=120.0, max_cost_usd=0.25
+    ),
+    ErrorClass.LOGIC: ErrorBudget(
+        max_retries=1, max_wall_clock_seconds=30.0, max_cost_usd=0.10
+    ),
+    ErrorClass.NETWORK: ErrorBudget(
+        max_retries=5, max_wall_clock_seconds=300.0, max_cost_usd=0.50
+    ),
+    ErrorClass.PERMISSION: ErrorBudget(
+        max_retries=0, max_wall_clock_seconds=0.0, max_cost_usd=0.0
+    ),
+    ErrorClass.NOT_FOUND: ErrorBudget(
+        max_retries=2, max_wall_clock_seconds=60.0, max_cost_usd=0.10
+    ),
+    ErrorClass.RATE_LIMIT: ErrorBudget(
+        max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50
+    ),
+    ErrorClass.UNKNOWN: ErrorBudget(
+        max_retries=1, max_wall_clock_seconds=120.0, max_cost_usd=0.25
+    ),
 }
 
 
@@ -254,8 +282,10 @@ class FailureAnalyzer:
             if is_exhausted:
                 logger.warning(
                     "Budget exhausted for %s: %s (retries=%d, wall=%.1fs, cost=$%.4f)",
-                    error_class.value, exhaust_reason,
-                    budget.retry_count, budget.total_wall_clock_ms / 1000.0,
+                    error_class.value,
+                    exhaust_reason,
+                    budget.retry_count,
+                    budget.total_wall_clock_ms / 1000.0,
                     budget.total_cost_usd,
                 )
                 return FailureAnalysisResult(
@@ -265,7 +295,10 @@ class FailureAnalyzer:
                     suggested_recovery=f"{exhaust_reason} — aborting mission",
                     retry_recommended=False,
                     alternative_tools=[],
-                    context_updates={"budget_exhausted": True, "exhaust_reason": exhaust_reason},
+                    context_updates={
+                        "budget_exhausted": True,
+                        "exhaust_reason": exhaust_reason,
+                    },
                     confidence=1.0,
                 )
 
@@ -277,7 +310,9 @@ class FailureAnalyzer:
         root_cause = self._identify_root_cause(error, error_class, context, last_obs)
 
         # Get recovery strategy
-        recovery_func = self._recovery_strategies.get(error_class, self._recover_unknown)
+        recovery_func = self._recovery_strategies.get(
+            error_class, self._recover_unknown
+        )
         recovery_result = recovery_func(error, context, last_obs)
 
         # Get alternative tools
@@ -297,7 +332,9 @@ class FailureAnalyzer:
             confidence=recovery_result.get("confidence", 0.8),
         )
 
-        logger.info(f"Failure analysis: {error_class.value} - {root_cause} (recoverable: {result.is_recoverable})")
+        logger.info(
+            f"Failure analysis: {error_class.value} - {root_cause} (recoverable: {result.is_recoverable})"
+        )
 
         return result
 
@@ -321,23 +358,35 @@ class FailureAnalyzer:
             return ErrorClass.TIMEOUT
 
         # Validation errors
-        if any(kw in error_str for kw in ["validation", "invalid", "schema", "required field"]):
+        if any(
+            kw in error_str
+            for kw in ["validation", "invalid", "schema", "required field"]
+        ):
             return ErrorClass.VALIDATION
         if any(kw in error_type for kw in ["validation", "value"]):
             return ErrorClass.VALIDATION
 
         # Resource errors
-        if any(kw in error_str for kw in ["memory", "disk", "resource", "quota", "limit exceeded"]):
+        if any(
+            kw in error_str
+            for kw in ["memory", "disk", "resource", "quota", "limit exceeded"]
+        ):
             return ErrorClass.RESOURCE
 
         # Network errors
-        if any(kw in error_str for kw in ["connection", "network", "dns", "socket", "refused"]):
+        if any(
+            kw in error_str
+            for kw in ["connection", "network", "dns", "socket", "refused"]
+        ):
             return ErrorClass.NETWORK
         if any(kw in error_type for kw in ["connection", "network", "socket"]):
             return ErrorClass.NETWORK
 
         # Permission errors
-        if any(kw in error_str for kw in ["permission", "unauthorized", "forbidden", "access denied"]):
+        if any(
+            kw in error_str
+            for kw in ["permission", "unauthorized", "forbidden", "access denied"]
+        ):
             return ErrorClass.PERMISSION
         if any(kw in error_type for kw in ["permission", "auth"]):
             return ErrorClass.PERMISSION
@@ -351,12 +400,16 @@ class FailureAnalyzer:
             return ErrorClass.RATE_LIMIT
 
         # Logic errors (default for many exception types)
-        if any(kw in error_type for kw in ["value", "type", "key", "index", "attribute"]):
+        if any(
+            kw in error_type for kw in ["value", "type", "key", "index", "attribute"]
+        ):
             return ErrorClass.LOGIC
 
         return ErrorClass.UNKNOWN
 
-    def suggest_recovery(self, error_class: ErrorClass, context: dict[str, Any]) -> dict[str, Any]:
+    def suggest_recovery(
+        self, error_class: ErrorClass, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Suggest recovery strategy based on error classification.
 
@@ -367,10 +420,14 @@ class FailureAnalyzer:
         Returns:
             Recovery strategy dictionary
         """
-        recovery_func = self._recovery_strategies.get(error_class, self._recover_unknown)
+        recovery_func = self._recovery_strategies.get(
+            error_class, self._recover_unknown
+        )
         return recovery_func(Exception("Generic error"), context, None)
 
-    def should_retry(self, error_class: ErrorClass, attempt_count: int, max_retries: int = 3) -> bool:
+    def should_retry(
+        self, error_class: ErrorClass, attempt_count: int, max_retries: int = 3
+    ) -> bool:
         """
         Decide if retry makes sense for this error type.
 
@@ -386,10 +443,20 @@ class FailureAnalyzer:
             return False
 
         # Errors that benefit from retry
-        retry_beneficial = {ErrorClass.TIMEOUT, ErrorClass.NETWORK, ErrorClass.RATE_LIMIT, ErrorClass.RESOURCE}
+        retry_beneficial = {
+            ErrorClass.TIMEOUT,
+            ErrorClass.NETWORK,
+            ErrorClass.RATE_LIMIT,
+            ErrorClass.RESOURCE,
+        }
 
         # Errors that will not be fixed by retry
-        retry_futile = {ErrorClass.VALIDATION, ErrorClass.PERMISSION, ErrorClass.NOT_FOUND, ErrorClass.LOGIC}
+        retry_futile = {
+            ErrorClass.VALIDATION,
+            ErrorClass.PERMISSION,
+            ErrorClass.NOT_FOUND,
+            ErrorClass.LOGIC,
+        }
 
         if error_class in retry_beneficial:
             return True
@@ -400,7 +467,11 @@ class FailureAnalyzer:
             return attempt_count < 1
 
     def _identify_root_cause(
-        self, error: Exception, error_class: ErrorClass, context: dict[str, Any], last_obs: ExecutionObservation | None
+        self,
+        error: Exception,
+        error_class: ErrorClass,
+        context: dict[str, Any],
+        last_obs: ExecutionObservation | None,
     ) -> str:
         """Identify the root cause of the failure"""
         error_str = str(error)
@@ -560,7 +631,9 @@ class FailureAnalyzer:
 
     def get_common_failures(self, limit: int = 5) -> list[dict[str, Any]]:
         """Get most common failure patterns"""
-        sorted_patterns = sorted(self._pattern_cache.items(), key=lambda x: x[1], reverse=True)
+        sorted_patterns = sorted(
+            self._pattern_cache.items(), key=lambda x: x[1], reverse=True
+        )
         return [{"pattern": p, "count": c} for p, c in sorted_patterns[:limit]]
 
 

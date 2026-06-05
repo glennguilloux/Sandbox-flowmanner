@@ -1,6 +1,7 @@
 """Mission query handlers — read-only operations."""
 
 from __future__ import annotations
+import uuid
 
 import asyncio
 import json
@@ -14,7 +15,12 @@ from sqlalchemy import func, select
 logger = logging.getLogger(__name__)
 from typing import TYPE_CHECKING
 
-from app.models.mission_models import Mission, MissionStatus, MissionTask, MissionTaskStatus
+from app.models.mission_models import (
+    Mission,
+    MissionStatus,
+    MissionTask,
+    MissionTaskStatus,
+)
 from app.schemas.mission import (
     MissionExecutionStatus,
     MissionImprovementResponse,
@@ -45,7 +51,12 @@ from app.services.mission_cache import (
     cache_set_tasks,
 )
 from app.services.mission_errors import MissionForbiddenError, MissionNotFoundError
-from app.services.mission_service import get_mission_logs, get_mission_tasks, list_missions, require_mission_access
+from app.services.mission_service import (
+    get_mission_logs,
+    get_mission_tasks,
+    list_missions,
+    require_mission_access,
+)
 from app.services.self_improvement import SelfImprovementEngine
 
 from .base import QueryHandlerBase, _make_execution_status, _schedule_fire_and_forget
@@ -58,10 +69,6 @@ from .compat import (
     list_missions_from_blueprints,
     use_new_reads,
 )
-
-if TYPE_CHECKING:
-    import uuid
-
 
 @dataclass(slots=True)
 class PaginatedMissions:
@@ -79,13 +86,19 @@ class PaginatedMissions:
 class MissionQueryHandlers(QueryHandlerBase):
     # ── List / Create ────────────────────────────────────────────────────────
 
-    async def list_missions(self, user_id: int, page: int, per_page: int, workspace_id: str | None = None) -> PaginatedMissions:
+    async def list_missions(
+        self, user_id: int, page: int, per_page: int, workspace_id: str | None = None
+    ) -> PaginatedMissions:
         # Try cache first (fail-open: cache miss falls through to DB)
         cached = await cache_list(user_id, page, per_page, workspace_id=workspace_id)
         if cached is not None:
             return PaginatedMissions(
-                items=[MissionResponse.model_validate(item) for item in cached["items"]],
-                total=cached["total"], page=cached["page"], per_page=cached["per_page"],
+                items=[
+                    MissionResponse.model_validate(item) for item in cached["items"]
+                ],
+                total=cached["total"],
+                page=cached["page"],
+                per_page=cached["per_page"],
             )
 
         offset = (page - 1) * per_page
@@ -93,28 +106,51 @@ class MissionQueryHandlers(QueryHandlerBase):
         # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
         if use_new_reads():
             items, total = await list_missions_from_blueprints(
-                self.session, user_id, offset=offset, limit=per_page, workspace_id=workspace_id,
+                self.session,
+                user_id,
+                offset=offset,
+                limit=per_page,
+                workspace_id=workspace_id,
             )
         else:
             mission_items, total = await list_missions(
-                self.session, user_id, offset=offset, limit=per_page, workspace_id=workspace_id,
+                self.session,
+                user_id,
+                offset=offset,
+                limit=per_page,
+                workspace_id=workspace_id,
             )
             items = [MissionResponse.model_validate(m) for m in mission_items]
 
         result = PaginatedMissions(
-            items=items, total=total, page=page, per_page=per_page,
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
         )
 
         # Populate cache (fire-and-forget, failure logged)
-        _schedule_fire_and_forget(cache_set_list(user_id, page, per_page, {
-            "items": [r.model_dump() for r in result.items],
-            "total": result.total, "page": result.page, "per_page": result.per_page,
-        }, workspace_id=workspace_id))
+        _schedule_fire_and_forget(
+            cache_set_list(
+                user_id,
+                page,
+                per_page,
+                {
+                    "items": [r.model_dump() for r in result.items],
+                    "total": result.total,
+                    "page": result.page,
+                    "per_page": result.per_page,
+                },
+                workspace_id=workspace_id,
+            )
+        )
         return result
 
     # ── CRUD reads ──────────────────────────────────────────────────────────
 
-    async def get_mission(self, user_id: int, mission_id: uuid.UUID) -> Mission | MissionShim:
+    async def get_mission(
+        self, user_id: int, mission_id: uuid.UUID
+    ) -> Mission | MissionShim:
         """ORM fetch path — always hits DB, used by internal callers that need
         real ORM objects (list_tasks, list_logs, get_status, etc.).
 
@@ -132,8 +168,13 @@ class MissionQueryHandlers(QueryHandlerBase):
             shim = await get_mission_as_shim(self.session, mission_id, user_id)
             # Write-through cache populate (fire-and-forget, failure logged)
             try:
-                _schedule_fire_and_forget(cache_set(user_id, str(mission_id),
-                    MissionResponse.model_validate(shim).model_dump()))
+                _schedule_fire_and_forget(
+                    cache_set(
+                        user_id,
+                        str(mission_id),
+                        MissionResponse.model_validate(shim).model_dump(),
+                    )
+                )
             except Exception:
                 logger.debug("cache_set_serialization_failed", exc_info=True)
             return shim
@@ -142,13 +183,20 @@ class MissionQueryHandlers(QueryHandlerBase):
 
         # Write-through cache populate (fire-and-forget, failure logged)
         try:
-            _schedule_fire_and_forget(cache_set(user_id, str(mission_id),
-                MissionResponse.model_validate(mission).model_dump()))
+            _schedule_fire_and_forget(
+                cache_set(
+                    user_id,
+                    str(mission_id),
+                    MissionResponse.model_validate(mission).model_dump(),
+                )
+            )
         except Exception:
             logger.debug("cache_set_serialization_failed", exc_info=True)
         return mission
 
-    async def get_mission_response(self, user_id: int, mission_id: uuid.UUID) -> MissionResponse:
+    async def get_mission_response(
+        self, user_id: int, mission_id: uuid.UUID
+    ) -> MissionResponse:
         """Read-model cache-aside path for the v2 GET endpoint.
 
         Returns a MissionResponse (DTO) without ever hitting DB on cache hit.
@@ -167,7 +215,9 @@ class MissionQueryHandlers(QueryHandlerBase):
         # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
         if use_new_reads():
             response = await get_mission_from_blueprint(
-                self.session, mission_id, user_id,
+                self.session,
+                mission_id,
+                user_id,
             )
         else:
             # Cache miss: fetch from DB, validate workspace access, populate cache
@@ -175,28 +225,43 @@ class MissionQueryHandlers(QueryHandlerBase):
             response = MissionResponse.model_validate(mission)
 
         try:
-            _schedule_fire_and_forget(cache_set(user_id, str(mission_id), response.model_dump()))
+            _schedule_fire_and_forget(
+                cache_set(user_id, str(mission_id), response.model_dump())
+            )
         except Exception:
             logger.debug("cache_set_response_failed", exc_info=True)
         return response
 
     # ── Tasks ────────────────────────────────────────────────────────────────
 
-    async def list_tasks(self, user_id: int, mission_id: uuid.UUID) -> list[MissionTask]:
+    async def list_tasks(
+        self, user_id: int, mission_id: uuid.UUID
+    ) -> list[MissionTask]:
         await self.get_mission(user_id, mission_id)  # ownership check
         tasks = await get_mission_tasks(self.session, mission_id)
         # Write-through cache populate (fire-and-forget, failure logged)
         try:
-            _schedule_fire_and_forget(cache_set_tasks(user_id, str(mission_id), {
-                "tasks": [MissionTaskResponse.model_validate(t).model_dump() for t in tasks],
-            }))
+            _schedule_fire_and_forget(
+                cache_set_tasks(
+                    user_id,
+                    str(mission_id),
+                    {
+                        "tasks": [
+                            MissionTaskResponse.model_validate(t).model_dump()
+                            for t in tasks
+                        ],
+                    },
+                )
+            )
         except Exception:
             logger.debug("cache_set_tasks_failed", exc_info=True)
         return tasks
 
     # ── Logs ─────────────────────────────────────────────────────────────────
 
-    async def list_logs(self, user_id: int, mission_id: uuid.UUID) -> list[MissionLogResponse]:
+    async def list_logs(
+        self, user_id: int, mission_id: uuid.UUID
+    ) -> list[MissionLogResponse]:
         await self.get_mission(user_id, mission_id)
 
         # Try cache first
@@ -211,16 +276,24 @@ class MissionQueryHandlers(QueryHandlerBase):
         result = [MissionLogResponse.model_validate(log) for log in logs]
         # Populate cache (fire-and-forget, failure logged)
         try:
-            _schedule_fire_and_forget(cache_set_logs(user_id, str(mission_id), {
-                "logs": [r.model_dump() for r in result],
-            }))
+            _schedule_fire_and_forget(
+                cache_set_logs(
+                    user_id,
+                    str(mission_id),
+                    {
+                        "logs": [r.model_dump() for r in result],
+                    },
+                )
+            )
         except Exception:
             logger.debug("cache_set_logs_failed", exc_info=True)
         return result
 
     # ── Status ───────────────────────────────────────────────────────────────
 
-    async def get_status(self, user_id: int, mission_id: uuid.UUID) -> MissionExecutionStatus:
+    async def get_status(
+        self, user_id: int, mission_id: uuid.UUID
+    ) -> MissionExecutionStatus:
         mission = await self.get_mission(user_id, mission_id)
 
         # Try cache first (before hitting DB for tasks)
@@ -235,14 +308,18 @@ class MissionQueryHandlers(QueryHandlerBase):
         status = _make_execution_status(mission, tasks)
         # Populate cache (fire-and-forget, failure logged)
         try:
-            _schedule_fire_and_forget(cache_set_status(user_id, str(mission_id), status.model_dump()))
+            _schedule_fire_and_forget(
+                cache_set_status(user_id, str(mission_id), status.model_dump())
+            )
         except Exception:
             logger.debug("cache_set_status_failed", exc_info=True)
         return status
 
     # ── Active ───────────────────────────────────────────────────────────────
 
-    async def list_active(self, user_id: int, workspace_id: str | None = None) -> list[Mission | MissionShim]:
+    async def list_active(
+        self, user_id: int, workspace_id: str | None = None
+    ) -> list[Mission | MissionShim]:
         # Try cache first (workspace-scoped)
         cached = await cache_active(user_id, workspace_id)
         if cached is not None and "active_ids" in cached:
@@ -254,6 +331,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                 from app.models.blueprint_models import Blueprint, Run
 
                 from .compat import _ACTIVE_RUN_STATUSES
+
                 stmt = (
                     select(Blueprint, Run)
                     .join(Run, Run.blueprint_id == Blueprint.id)
@@ -277,15 +355,27 @@ class MissionQueryHandlers(QueryHandlerBase):
         # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
         if use_new_reads():
             shims = await list_active_from_blueprints(
-                self.session, user_id, workspace_id=workspace_id,
+                self.session,
+                user_id,
+                workspace_id=workspace_id,
             )
             # Populate cache with mission IDs (workspace-scoped)
-            _schedule_fire_and_forget(cache_set_active(user_id, {
-                "active_ids": [s.id for s in shims],
-            }, workspace_id=workspace_id))
+            _schedule_fire_and_forget(
+                cache_set_active(
+                    user_id,
+                    {
+                        "active_ids": [s.id for s in shims],
+                    },
+                    workspace_id=workspace_id,
+                )
+            )
             return shims
 
-        base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
+        base_filter = (
+            Mission.workspace_id == workspace_id
+            if workspace_id is not None
+            else Mission.user_id == user_id
+        )
 
         stmt = (
             select(Mission)
@@ -299,12 +389,24 @@ class MissionQueryHandlers(QueryHandlerBase):
         missions = list((await self.session.execute(stmt)).scalars().all())
 
         # Populate cache with mission IDs (workspace-scoped)
-        _schedule_fire_and_forget(cache_set_active(user_id, {
-            "active_ids": [m.id for m in missions],
-        }, workspace_id=workspace_id))
+        _schedule_fire_and_forget(
+            cache_set_active(
+                user_id,
+                {
+                    "active_ids": [m.id for m in missions],
+                },
+                workspace_id=workspace_id,
+            )
+        )
         return missions
 
-    async def active_missions(self, user_id: int, user_role: str = "", is_pro: bool = False, workspace_id: str | None = None) -> MissionListResult:
+    async def active_missions(
+        self,
+        user_id: int,
+        user_role: str = "",
+        is_pro: bool = False,
+        workspace_id: str | None = None,
+    ) -> MissionListResult:
         """Active missions with progress/ETA — requires pro subscription."""
         if user_role != "pro" and not is_pro:
             raise MissionForbiddenError("Pro subscription required")
@@ -327,23 +429,37 @@ class MissionQueryHandlers(QueryHandlerBase):
         # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
         if use_new_reads():
             items, total = await active_missions_from_blueprints(
-                self.session, user_id, workspace_id=workspace_id,
+                self.session,
+                user_id,
+                workspace_id=workspace_id,
             )
             # Populate cache (fire-and-forget, failure logged)
-            _schedule_fire_and_forget(cache_set_active(user_id, {
-                "missions": [r.model_dump() for r in items],
-                "total": total,
-            }, workspace_id=workspace_id))
+            _schedule_fire_and_forget(
+                cache_set_active(
+                    user_id,
+                    {
+                        "missions": [r.model_dump() for r in items],
+                        "total": total,
+                    },
+                    workspace_id=workspace_id,
+                )
+            )
             return MissionListResult(missions=items, total=total)
 
-        base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
+        base_filter = (
+            Mission.workspace_id == workspace_id
+            if workspace_id is not None
+            else Mission.user_id == user_id
+        )
 
         result = await self.session.execute(
-            select(Mission).where(
+            select(Mission)
+            .where(
                 base_filter,
                 Mission.status.in_([MissionStatus.QUEUED, MissionStatus.RUNNING]),
                 Mission.deleted_at.is_(None),
-            ).order_by(Mission.started_at.desc())
+            )
+            .order_by(Mission.started_at.desc())
         )
         missions = result.scalars().all()
         if not missions:
@@ -352,12 +468,15 @@ class MissionQueryHandlers(QueryHandlerBase):
         # B1: N+1 prevention — single aggregate subquery for task stats
         mission_ids = [m.id for m in missions]
         from sqlalchemy import case, func
+
         task_stats_stmt = (
             select(
                 MissionTask.mission_id,
                 func.count(MissionTask.id).label("total"),
                 func.sum(
-                    case((MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0)
+                    case(
+                        (MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0
+                    )
                 ).label("completed"),
                 func.sum(
                     case((MissionTask.status == MissionTaskStatus.FAILED, 1), else_=0)
@@ -377,63 +496,104 @@ class MissionQueryHandlers(QueryHandlerBase):
 
         response = []
         for m in missions:
-            stats = stats_by_mission.get(m.id, {"total": 0, "completed": 0, "failed": 0})
+            stats = stats_by_mission.get(
+                m.id, {"total": 0, "completed": 0, "failed": 0}
+            )
             total = stats["total"]
             completed = stats["completed"]
             progress = int((completed / total) * 100) if total > 0 else 0
             eta = None
-            if m.status == MissionStatus.RUNNING and m.started_at and total > 0 and completed > 0:
+            if (
+                m.status == MissionStatus.RUNNING
+                and m.started_at
+                and total > 0
+                and completed > 0
+            ):
                 elapsed = (datetime.now(UTC) - m.started_at).total_seconds()
                 avg = elapsed / completed
                 remaining = total - completed
-                eta = (
-                    datetime.now(UTC).replace(microsecond=0)
-                    + timedelta(seconds=int(avg * remaining))
+                eta = datetime.now(UTC).replace(microsecond=0) + timedelta(
+                    seconds=int(avg * remaining)
                 )
-            response.append(MissionResponse(
-                id=m.id, user_id=m.user_id, title=m.title, description=m.description,
-                mission_type=m.mission_type, status=m.status, priority=m.priority,
-                plan=m.plan, results=m.results, error_message=m.error_message,
-                tokens_used=m.tokens_used, estimated_cost=m.estimated_cost,
-                actual_cost=m.actual_cost, started_at=m.started_at,
-                completed_at=m.completed_at, created_at=m.created_at,
-                updated_at=m.updated_at, progress=progress, eta=eta,
-            ))
+            response.append(
+                MissionResponse(
+                    id=m.id,
+                    user_id=m.user_id,
+                    title=m.title,
+                    description=m.description,
+                    mission_type=m.mission_type,
+                    status=m.status,
+                    priority=m.priority,
+                    plan=m.plan,
+                    results=m.results,
+                    error_message=m.error_message,
+                    tokens_used=m.tokens_used,
+                    estimated_cost=m.estimated_cost,
+                    actual_cost=m.actual_cost,
+                    started_at=m.started_at,
+                    completed_at=m.completed_at,
+                    created_at=m.created_at,
+                    updated_at=m.updated_at,
+                    progress=progress,
+                    eta=eta,
+                )
+            )
         # Populate cache (fire-and-forget, failure logged)
-        _schedule_fire_and_forget(cache_set_active(user_id, {
-            "missions": [r.model_dump() for r in response],
-            "total": len(response),
-        }, workspace_id=workspace_id))
+        _schedule_fire_and_forget(
+            cache_set_active(
+                user_id,
+                {
+                    "missions": [r.model_dump() for r in response],
+                    "total": len(response),
+                },
+                workspace_id=workspace_id,
+            )
+        )
         return MissionListResult(missions=response, total=len(response))
 
     # ── Improvements ─────────────────────────────────────────────────────────
 
-    async def list_improvements(self, user_id: int, mission_id: uuid.UUID) -> list[MissionImprovementResponse]:
+    async def list_improvements(
+        self, user_id: int, mission_id: uuid.UUID
+    ) -> list[MissionImprovementResponse]:
         await self.get_mission(user_id, mission_id)
 
         # Try cache first
         cached = await cache_get_improvements(user_id, str(mission_id))
         if cached is not None:
             try:
-                return [MissionImprovementResponse.model_validate(i) for i in cached["improvements"]]
+                return [
+                    MissionImprovementResponse.model_validate(i)
+                    for i in cached["improvements"]
+                ]
             except Exception:
-                logger.debug("cache_get_improvements_deserialization_failed", exc_info=True)
+                logger.debug(
+                    "cache_get_improvements_deserialization_failed", exc_info=True
+                )
 
         engine = SelfImprovementEngine(self.session, str(user_id))
         improvements = await engine.get_improvements(mission_id)
         result = [MissionImprovementResponse.model_validate(i) for i in improvements]
         # Populate cache (fire-and-forget, failure logged)
         try:
-            _schedule_fire_and_forget(cache_set_improvements(user_id, str(mission_id), {
-                "improvements": [r.model_dump() for r in result],
-            }))
+            _schedule_fire_and_forget(
+                cache_set_improvements(
+                    user_id,
+                    str(mission_id),
+                    {
+                        "improvements": [r.model_dump() for r in result],
+                    },
+                )
+            )
         except Exception:
             logger.debug("cache_set_improvements_failed", exc_info=True)
         return result
 
     # ── Analytics ────────────────────────────────────────────────────────────
 
-    async def mission_analytics(self, user_id: int, mission_id: uuid.UUID, days: int) -> dict:
+    async def mission_analytics(
+        self, user_id: int, mission_id: uuid.UUID, days: int
+    ) -> dict:
         await self.get_mission(user_id, mission_id)
         analytics = await get_mission_analytics(self.session, user_id)
         over_time = await get_mission_analytics_over_time(self.session, user_id, days)
@@ -477,7 +637,10 @@ class MissionQueryHandlers(QueryHandlerBase):
 
             # Find run_ids associated with this mission (latest first)
             run_stmt = (
-                select(SubstrateEvent.run_id, func.max(SubstrateEvent.timestamp).label("last_ts"))
+                select(
+                    SubstrateEvent.run_id,
+                    func.max(SubstrateEvent.timestamp).label("last_ts"),
+                )
                 .where(SubstrateEvent.mission_id == str(mission_id))
                 .group_by(SubstrateEvent.run_id)
                 .order_by(func.max(SubstrateEvent.timestamp).desc())
@@ -539,7 +702,10 @@ class MissionQueryHandlers(QueryHandlerBase):
 
             # Find the latest run_id for this mission
             run_stmt = (
-                select(SubstrateEvent.run_id, func.max(SubstrateEvent.timestamp).label("last_ts"))
+                select(
+                    SubstrateEvent.run_id,
+                    func.max(SubstrateEvent.timestamp).label("last_ts"),
+                )
                 .where(SubstrateEvent.mission_id == str(mission_id))
                 .group_by(SubstrateEvent.run_id)
                 .order_by(func.max(SubstrateEvent.timestamp).desc())
@@ -570,8 +736,12 @@ class MissionQueryHandlers(QueryHandlerBase):
 
     # ── SSE Stream ───────────────────────────────────────────────────────────
 
-    def stream_status(self, user_id: int, mission_id: uuid.UUID,
-                      initial_mission: Mission | MissionShim) -> StreamingResponse:
+    def stream_status(
+        self,
+        user_id: int,
+        mission_id: uuid.UUID,
+        initial_mission: Mission | MissionShim,
+    ) -> StreamingResponse:
         """CQRS SSE stream handler — polls mission status until terminal.
 
         Synchronous wrapper that returns a StreamingResponse with an async
@@ -583,34 +753,54 @@ class MissionQueryHandlers(QueryHandlerBase):
         async def event_generator():
             mission = initial_mission
             yield (
-                "data: " + json.dumps({
-                    "type": "status",
-                    "mission_id": str(mission_id),
-                    "status": mission.status,
-                }) + "\n\n"
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "status",
+                        "mission_id": str(mission_id),
+                        "status": mission.status,
+                    }
+                )
+                + "\n\n"
             )
 
             tasks = await get_mission_tasks(session, mission_id)
             yield (
-                "data: " + json.dumps({
-                    "type": "task_count",
-                    "total": len(tasks),
-                    "completed": sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
-                    "failed": sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
-                }) + "\n\n"
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "task_count",
+                        "total": len(tasks),
+                        "completed": sum(
+                            1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
+                        ),
+                        "failed": sum(
+                            1 for t in tasks if t.status == MissionTaskStatus.FAILED
+                        ),
+                    }
+                )
+                + "\n\n"
             )
 
             for t in tasks:
                 yield (
-                    "data: " + json.dumps({
-                        "type": "task",
-                        "task_id": str(t.id),
-                        "title": t.title,
-                        "status": t.status,
-                    }) + "\n\n"
+                    "data: "
+                    + json.dumps(
+                        {
+                            "type": "task",
+                            "task_id": str(t.id),
+                            "title": t.title,
+                            "status": t.status,
+                        }
+                    )
+                    + "\n\n"
                 )
 
-            terminal_states = {MissionStatus.COMPLETED, MissionStatus.FAILED, MissionStatus.ABORTED}
+            terminal_states = {
+                MissionStatus.COMPLETED,
+                MissionStatus.FAILED,
+                MissionStatus.ABORTED,
+            }
             if mission.status not in terminal_states:
                 for _ in range(150):
                     await asyncio.sleep(2)
@@ -621,13 +811,25 @@ class MissionQueryHandlers(QueryHandlerBase):
                         break
                     tasks = await get_mission_tasks(session, mission_id)
                     yield (
-                        "data: " + json.dumps({
-                            "type": "status",
-                            "mission_id": str(mission_id),
-                            "status": mission.status,
-                            "completed": sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
-                            "failed": sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
-                        }) + "\n\n"
+                        "data: "
+                        + json.dumps(
+                            {
+                                "type": "status",
+                                "mission_id": str(mission_id),
+                                "status": mission.status,
+                                "completed": sum(
+                                    1
+                                    for t in tasks
+                                    if t.status == MissionTaskStatus.COMPLETED
+                                ),
+                                "failed": sum(
+                                    1
+                                    for t in tasks
+                                    if t.status == MissionTaskStatus.FAILED
+                                ),
+                            }
+                        )
+                        + "\n\n"
                     )
                     if mission.status in terminal_states:
                         break

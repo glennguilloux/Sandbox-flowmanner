@@ -208,7 +208,9 @@ class TestFiltersInactiveConnections:
 
     def test_active_connection_is_returned(self, auth_client):
         client, mock_db = auth_client
-        active_slack = _make_connection(id="c1", integration_slug="slack", is_active=True)
+        active_slack = _make_connection(
+            id="c1", integration_slug="slack", is_active=True
+        )
         mock_db.execute.return_value = _make_db_result(active_slack)
 
         response = client.get("/api/integrations/connected")
@@ -329,7 +331,14 @@ class TestActionStructure:
 
         assert response.status_code == 200
         entry = response.json()["connected"][0]
-        required = ["slug", "name", "account_name", "auth_type", "actions", "action_count"]
+        required = [
+            "slug",
+            "name",
+            "account_name",
+            "auth_type",
+            "actions",
+            "action_count",
+        ]
         for field in required:
             assert field in entry, f"Missing '{field}' in connection entry"
 

@@ -83,7 +83,8 @@ class TokenCounterInput(ToolInput):
         description="Max tokens for truncate/split_chunks modes",
     )
     chunk_overlap: int = Field(
-        0, ge=0,
+        0,
+        ge=0,
         description="Token overlap between chunks (split_chunks mode)",
     )
     add_special_tokens: bool = Field(
@@ -143,6 +144,7 @@ class TokenCounterTool(BaseTool):
         self._tiktoken_available = False
         try:
             import tiktoken
+
             self._tiktoken_available = True
         except ImportError:
             pass
@@ -151,28 +153,44 @@ class TokenCounterTool(BaseTool):
         try:
             validated = TokenCounterInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         # Resolve text: check backward-compat 'text' as str, or use 'text' as chat messages
         text_str = validated.text
-        if text_str is None and "text" in input_data and isinstance(input_data["text"], str):
+        if (
+            text_str is None
+            and "text" in input_data
+            and isinstance(input_data["text"], str)
+        ):
             text_str = input_data["text"]
 
         if not text_str:
-            return ToolResult.error_result(tool_id=self.tool_id, error="text is required")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="text is required"
+            )
 
         encoding_name = self._resolve_encoding(validated.model)
         encoding_info = self._get_encoding_info(validated.model)
 
         try:
             if validated.mode == "count":
-                result = self._handle_count(validated, text_str, encoding_name, encoding_info)
+                result = self._handle_count(
+                    validated, text_str, encoding_name, encoding_info
+                )
             elif validated.mode == "truncate":
-                result = self._handle_truncate(validated, text_str, encoding_name, encoding_info)
+                result = self._handle_truncate(
+                    validated, text_str, encoding_name, encoding_info
+                )
             elif validated.mode == "split_chunks":
-                result = self._handle_split(validated, text_str, encoding_name, encoding_info)
+                result = self._handle_split(
+                    validated, text_str, encoding_name, encoding_info
+                )
             else:
-                return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown mode: {validated.mode}")
+                return ToolResult.error_result(
+                    tool_id=self.tool_id, error=f"Unknown mode: {validated.mode}"
+                )
 
             result["success"] = True
             return ToolResult.success_result(tool_id=self.tool_id, result=result)
@@ -182,9 +200,17 @@ class TokenCounterTool(BaseTool):
 
     # ── Mode handlers ────────────────────────────────────────────
 
-    def _handle_count(self, validated: TokenCounterInput, text_str, encoding_name: str, encoding_info: dict) -> dict[str, Any]:
+    def _handle_count(
+        self,
+        validated: TokenCounterInput,
+        text_str,
+        encoding_name: str,
+        encoding_info: dict,
+    ) -> dict[str, Any]:
         text_content = self._extract_text(text_str)
-        token_count, token_ids = self._count_tokens(text_content, validated.model, validated.return_tokens)
+        token_count, token_ids = self._count_tokens(
+            text_content, validated.model, validated.return_tokens
+        )
         result: dict[str, Any] = {
             "mode": "count",
             "token_count": token_count,
@@ -197,7 +223,13 @@ class TokenCounterTool(BaseTool):
             result["tokens"] = token_ids
         return result
 
-    def _handle_truncate(self, validated: TokenCounterInput, text_str, encoding_name: str, encoding_info: dict) -> dict[str, Any]:
+    def _handle_truncate(
+        self,
+        validated: TokenCounterInput,
+        text_str,
+        encoding_name: str,
+        encoding_info: dict,
+    ) -> dict[str, Any]:
         if not validated.max_tokens:
             return {"error": "max_tokens is required for truncate mode"}
 
@@ -216,7 +248,9 @@ class TokenCounterTool(BaseTool):
                 "tokens_removed": 0,
             }
 
-        truncated = self._truncate_to_tokens(text_content, validated.model, validated.max_tokens)
+        truncated = self._truncate_to_tokens(
+            text_content, validated.model, validated.max_tokens
+        )
         new_count, _ = self._count_tokens(truncated, validated.model, False)
 
         return {
@@ -231,12 +265,20 @@ class TokenCounterTool(BaseTool):
             "original_token_count": token_count,
         }
 
-    def _handle_split(self, validated: TokenCounterInput, text_str, encoding_name: str, encoding_info: dict) -> dict[str, Any]:
+    def _handle_split(
+        self,
+        validated: TokenCounterInput,
+        text_str,
+        encoding_name: str,
+        encoding_info: dict,
+    ) -> dict[str, Any]:
         if not validated.max_tokens:
             return {"error": "max_tokens is required for split_chunks mode"}
 
         text_content = self._extract(text_str)
-        chunks = self._split_into_chunks(text_content, validated.model, validated.max_tokens, validated.chunk_overlap)
+        chunks = self._split_into_chunks(
+            text_content, validated.model, validated.max_tokens, validated.chunk_overlap
+        )
 
         return {
             "mode": "split_chunks",
@@ -255,13 +297,17 @@ class TokenCounterTool(BaseTool):
         if isinstance(text_input, str):
             return text_input
         if isinstance(text_input, list):
-            return "\n".join(f"{m.get('role', '')}: {m.get('content', '')}" for m in text_input)
+            return "\n".join(
+                f"{m.get('role', '')}: {m.get('content', '')}" for m in text_input
+            )
         return str(text_input)
 
     def _extract(self, text_input: str | list[dict]) -> str:
         return self._extract_text(text_input)
 
-    def _count_tokens(self, text: str, model: str, return_ids: bool) -> tuple[int, list[int] | None]:
+    def _count_tokens(
+        self, text: str, model: str, return_ids: bool
+    ) -> tuple[int, list[int] | None]:
         """Count tokens, optionally returning token IDs."""
         if not self._tiktoken_available:
             return self._heuristic_count(text), None
@@ -287,14 +333,19 @@ class TokenCounterTool(BaseTool):
         model_lower = model.lower()
         if model_lower in _MODEL_ENCODING_MAP:
             return _MODEL_ENCODING_MAP[model_lower]
-        for prefix, encoding in sorted(_MODEL_ENCODING_MAP.items(), key=lambda x: -len(x[0])):
+        for prefix, encoding in sorted(
+            _MODEL_ENCODING_MAP.items(), key=lambda x: -len(x[0])
+        ):
             if model_lower.startswith(prefix):
                 return encoding
         return "cl100k_base"
 
     def _get_encoding_info(self, model: str) -> dict[str, str]:
         if self._tiktoken_available:
-            return {"encoding_name": self._resolve_encoding(model), "source": "tiktoken"}
+            return {
+                "encoding_name": self._resolve_encoding(model),
+                "source": "tiktoken",
+            }
         return {"encoding_name": "heuristic", "source": "heuristic"}
 
     def _truncate_to_tokens(self, text: str, model: str, max_tokens: int) -> str:
@@ -318,20 +369,26 @@ class TokenCounterTool(BaseTool):
         truncated_ids = ids[:max_tokens]
         return enc.decode(truncated_ids) + "..."
 
-    def _split_into_chunks(self, text: str, model: str, max_tokens: int, overlap: int) -> list[dict[str, Any]]:
+    def _split_into_chunks(
+        self, text: str, model: str, max_tokens: int, overlap: int
+    ) -> list[dict[str, Any]]:
         """Split text into token-sized chunks with overlap."""
         if not self._tiktoken_available:
             chunk_size = int(max_tokens * _CHARS_PER_TOKEN)
             chunks = []
-            for i, start in enumerate(range(0, len(text), chunk_size - int(overlap * _CHARS_PER_TOKEN))):
-                chunk_text = text[start: start + chunk_size]
+            for i, start in enumerate(
+                range(0, len(text), chunk_size - int(overlap * _CHARS_PER_TOKEN))
+            ):
+                chunk_text = text[start : start + chunk_size]
                 if not chunk_text:
                     break
-                chunks.append({
-                    "index": i,
-                    "text": chunk_text,
-                    "token_count": self._heuristic_count(chunk_text),
-                })
+                chunks.append(
+                    {
+                        "index": i,
+                        "text": chunk_text,
+                        "token_count": self._heuristic_count(chunk_text),
+                    }
+                )
             return chunks
 
         encoding_name = self._resolve_encoding(model)
@@ -346,7 +403,7 @@ class TokenCounterTool(BaseTool):
         chunk_ids = []
         step = max_tokens - overlap
         for i in range(0, len(ids), step):
-            chunk = ids[i: i + max_tokens]
+            chunk = ids[i : i + max_tokens]
             if not chunk:
                 break
             chunk_ids.append(chunk)
@@ -354,22 +411,32 @@ class TokenCounterTool(BaseTool):
         chunks = []
         for idx, c_ids in enumerate(chunk_ids):
             chunk_text = enc.decode(c_ids)
-            chunks.append({
-                "index": idx,
-                "text": chunk_text,
-                "token_count": len(c_ids),
-            })
+            chunks.append(
+                {
+                    "index": idx,
+                    "text": chunk_text,
+                    "token_count": len(c_ids),
+                }
+            )
         return chunks
 
-    def _heuristic_split(self, text: str, max_tokens: int, overlap: int) -> list[dict[str, Any]]:
+    def _heuristic_split(
+        self, text: str, max_tokens: int, overlap: int
+    ) -> list[dict[str, Any]]:
         chunk_size = int(max_tokens * _CHARS_PER_TOKEN)
         overlap_chars = int(overlap * _CHARS_PER_TOKEN)
         chunks = []
         for i, start in enumerate(range(0, len(text), chunk_size - overlap_chars)):
-            chunk_text = text[start: start + chunk_size]
+            chunk_text = text[start : start + chunk_size]
             if not chunk_text:
                 break
-            chunks.append({"index": i, "text": chunk_text, "token_count": self._heuristic_count(chunk_text)})
+            chunks.append(
+                {
+                    "index": i,
+                    "text": chunk_text,
+                    "token_count": self._heuristic_count(chunk_text),
+                }
+            )
         return chunks
 
 

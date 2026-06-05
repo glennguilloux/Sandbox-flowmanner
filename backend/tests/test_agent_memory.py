@@ -3,7 +3,10 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.tools.differentiators import PersistentAgentMemoryTool, PersistentAgentMemoryInput
+from app.tools.differentiators import (
+    PersistentAgentMemoryTool,
+    PersistentAgentMemoryInput,
+)
 from app.tools.base import ToolResult
 
 
@@ -77,12 +80,14 @@ class TestPersistentAgentMemoryTool:
     async def test_save_success(self, tool, mock_session):
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            result = await tool.execute({
-                "action": "save",
-                "content": "Memory alpha",
-                "agent_id": "test-agent",
-                "content_type": "summary",
-            })
+            result = await tool.execute(
+                {
+                    "action": "save",
+                    "content": "Memory alpha",
+                    "agent_id": "test-agent",
+                    "content_type": "summary",
+                }
+            )
 
         assert result.success is True
         assert result.result["action"] == "save"
@@ -104,11 +109,13 @@ class TestPersistentAgentMemoryTool:
         """User_id from API context should be resolved."""
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            result = await tool.execute({
-                "action": "save",
-                "content": "From context",
-                "context": {"user_id": "99"},
-            })
+            result = await tool.execute(
+                {
+                    "action": "save",
+                    "content": "From context",
+                    "context": {"user_id": "99"},
+                }
+            )
 
         assert result.success is True
         mock_session.add.assert_called_once()
@@ -121,12 +128,14 @@ class TestPersistentAgentMemoryTool:
         """Explicit user_id should take priority over context."""
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            result = await tool.execute({
-                "action": "save",
-                "content": "Explicit user",
-                "user_id": 42,
-                "context": {"user_id": "99"},
-            })
+            result = await tool.execute(
+                {
+                    "action": "save",
+                    "content": "Explicit user",
+                    "user_id": 42,
+                    "context": {"user_id": "99"},
+                }
+            )
 
         assert result.success is True
         call_args = mock_session.add.call_args[0][0]
@@ -136,11 +145,13 @@ class TestPersistentAgentMemoryTool:
     async def test_recall_success(self, tool, mock_session):
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            result = await tool.execute({
-                "action": "recall",
-                "query": "alpha",
-                "agent_id": "test-agent",
-            })
+            result = await tool.execute(
+                {
+                    "action": "recall",
+                    "query": "alpha",
+                    "agent_id": "test-agent",
+                }
+            )
 
         assert result.success is True
         assert result.result["action"] == "recall"
@@ -154,11 +165,13 @@ class TestPersistentAgentMemoryTool:
         """Recall with no user_id and no context should query with user_id=0."""
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            await tool.execute({
-                "action": "recall",
-                "query": "test",
-                "agent_id": "agent-1",
-            })
+            await tool.execute(
+                {
+                    "action": "recall",
+                    "query": "test",
+                    "agent_id": "agent-1",
+                }
+            )
 
         # Verify the statement includes user_id == 0 filter
         call_args = mock_session.execute.call_args[0][0]
@@ -176,11 +189,13 @@ class TestPersistentAgentMemoryTool:
     async def test_list_success(self, tool, mock_session):
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            result = await tool.execute({
-                "action": "list",
-                "agent_id": "test-agent",
-                "limit": 5,
-            })
+            result = await tool.execute(
+                {
+                    "action": "list",
+                    "agent_id": "test-agent",
+                    "limit": 5,
+                }
+            )
 
         assert result.success is True
         assert result.result["action"] == "list"
@@ -199,10 +214,12 @@ class TestPersistentAgentMemoryTool:
     @pytest.mark.asyncio
     async def test_invalid_user_id(self, tool):
         """Non-integer user_id in context should fail gracefully."""
-        result = await tool.execute({
-            "action": "list",
-            "context": {"user_id": "not-a-number"},
-        })
+        result = await tool.execute(
+            {
+                "action": "list",
+                "context": {"user_id": "not-a-number"},
+            }
+        )
         assert result.success is False
         assert "Invalid user_id" in result.error
 
@@ -213,10 +230,12 @@ class TestPersistentAgentMemoryTool:
 
         with patch("app.tools.differentiators.AsyncSessionLocal") as mock_factory:
             mock_factory.return_value.__aenter__.return_value = mock_session
-            result = await tool.execute({
-                "action": "save",
-                "content": "test",
-            })
+            result = await tool.execute(
+                {
+                    "action": "save",
+                    "content": "test",
+                }
+            )
 
         assert result.success is False
         assert "DB connection lost" in result.error

@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 # ── Entity → (model_class, version_model_class, pk_field, snapshot_fn) ──
 
+
 def _snapshot_agent(agent) -> dict:
     """Serialize an Agent to a JSONB-safe dict."""
     return {
@@ -73,10 +74,14 @@ def _snapshot_mission(mission) -> dict:
         "context_urls": mission.context_urls,
         "constraints": mission.constraints,
         "plan": mission.plan,
-        "status": mission.status if isinstance(mission.status, str) else mission.status.value,
+        "status": (
+            mission.status if isinstance(mission.status, str) else mission.status.value
+        ),
         "priority": mission.priority,
         "fallback_strategy": mission.fallback_strategy,
-        "parent_mission_id": str(mission.parent_mission_id) if mission.parent_mission_id else None,
+        "parent_mission_id": (
+            str(mission.parent_mission_id) if mission.parent_mission_id else None
+        ),
     }
 
 
@@ -171,7 +176,10 @@ async def create_version_snapshot(
 
     logger.debug(
         "Created %s version %d for %s %s",
-        entity_type, new_version, entity_type, entity.id,
+        entity_type,
+        new_version,
+        entity_type,
+        entity.id,
     )
     return new_version
 
@@ -254,9 +262,8 @@ async def get_version_snapshot(
     VersionModel = getattr(module, class_name)
 
     fk_col = getattr(VersionModel, parent_fk_col)
-    stmt = (
-        select(VersionModel)
-        .where(fk_col == entity_id, VersionModel.version == version_number)
+    stmt = select(VersionModel).where(
+        fk_col == entity_id, VersionModel.version == version_number
     )
     result = await db.execute(stmt)
     row = result.scalars().first()

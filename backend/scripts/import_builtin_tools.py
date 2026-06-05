@@ -30,13 +30,28 @@ logger = logging.getLogger(__name__)
 def _tool_type_from_module(module_name: str) -> str:
     """Infer tool_type from module name."""
     integration_slugs = {
-        "slack_communicator", "gmail_sender", "notion_sync", "telegram_bot",
-        "twilio_sms_sender", "stripe_operations", "salesforce_lead_creator",
-        "sendgrid_campaign", "shopify_inventory_sync", "google_workspace_hub",
-        "google_search_api", "google_analytics_reporter", "aws_s3_uploader",
-        "github_manager", "github_actions_trigger", "linkedin_publisher",
-        "instagram_media_publisher", "x_twitter_scheduler", "hubspot_crm_link",
-        "linear_tasks", "vercel_deployer", "pinecone_manager",
+        "slack_communicator",
+        "gmail_sender",
+        "notion_sync",
+        "telegram_bot",
+        "twilio_sms_sender",
+        "stripe_operations",
+        "salesforce_lead_creator",
+        "sendgrid_campaign",
+        "shopify_inventory_sync",
+        "google_workspace_hub",
+        "google_search_api",
+        "google_analytics_reporter",
+        "aws_s3_uploader",
+        "github_manager",
+        "github_actions_trigger",
+        "linkedin_publisher",
+        "instagram_media_publisher",
+        "x_twitter_scheduler",
+        "hubspot_crm_link",
+        "linear_tasks",
+        "vercel_deployer",
+        "pinecone_manager",
     }
     if module_name in integration_slugs:
         return "integration"
@@ -73,27 +88,51 @@ async def run():
     from app.tools.utility import UUIDGeneratorTool, TimestampConverterTool
     from app.tools.external import WeatherCurrentTool, CurrencyConvertTool
     from app.tools.differentiators import (
-        PersistentAgentMemoryTool, SemanticMemoryIndexTool,
-        KnowledgeBaseConnectorTool, BrandVoiceEnforcerTool,
-        CollaborativeTeamSpaceTool, PIIRedactorTool,
-        SemanticChunkingTool, SubAgentRouterTool,
-        TaskPlannerTool, RAGContextBuilderTool,
+        PersistentAgentMemoryTool,
+        SemanticMemoryIndexTool,
+        KnowledgeBaseConnectorTool,
+        BrandVoiceEnforcerTool,
+        CollaborativeTeamSpaceTool,
+        PIIRedactorTool,
+        SemanticChunkingTool,
+        SubAgentRouterTool,
+        TaskPlannerTool,
+        RAGContextBuilderTool,
     )
 
     core_tools = [
-        BrowserPingTool(), BrowserNavigateTool(), BrowserScreenshotTool(),
-        BrowserCloseTool(), BrowserSnapshotTool(), BrowserClickTool(),
-        BrowserTypeTool(), BrowserScrollTool(), TopologyTool(), TerminalTool(),
-        ListIntegrationsTool(), ExecuteIntegrationTool(),
-        LLMSummarizeTool(), LLMTranslateTool(), LLMClassifyTool(),
-        JsonTransformTool(), CsvParseTool(), RegexExtractTool(),
-        UUIDGeneratorTool(), TimestampConverterTool(),
-        WeatherCurrentTool(), CurrencyConvertTool(),
-        PersistentAgentMemoryTool(), SemanticMemoryIndexTool(),
-        KnowledgeBaseConnectorTool(), BrandVoiceEnforcerTool(),
-        CollaborativeTeamSpaceTool(), PIIRedactorTool(),
-        SemanticChunkingTool(), SubAgentRouterTool(),
-        TaskPlannerTool(), RAGContextBuilderTool(),
+        BrowserPingTool(),
+        BrowserNavigateTool(),
+        BrowserScreenshotTool(),
+        BrowserCloseTool(),
+        BrowserSnapshotTool(),
+        BrowserClickTool(),
+        BrowserTypeTool(),
+        BrowserScrollTool(),
+        TopologyTool(),
+        TerminalTool(),
+        ListIntegrationsTool(),
+        ExecuteIntegrationTool(),
+        LLMSummarizeTool(),
+        LLMTranslateTool(),
+        LLMClassifyTool(),
+        JsonTransformTool(),
+        CsvParseTool(),
+        RegexExtractTool(),
+        UUIDGeneratorTool(),
+        TimestampConverterTool(),
+        WeatherCurrentTool(),
+        CurrencyConvertTool(),
+        PersistentAgentMemoryTool(),
+        SemanticMemoryIndexTool(),
+        KnowledgeBaseConnectorTool(),
+        BrandVoiceEnforcerTool(),
+        CollaborativeTeamSpaceTool(),
+        PIIRedactorTool(),
+        SemanticChunkingTool(),
+        SubAgentRouterTool(),
+        TaskPlannerTool(),
+        RAGContextBuilderTool(),
     ]
 
     registry = get_tool_registry()
@@ -125,10 +164,14 @@ async def run():
     async with engine.begin() as conn:
         # Ensure table exists
         exists = await conn.execute(
-            sa_text("SELECT 1 FROM information_schema.tables WHERE table_name = 'tools_catalog'")
+            sa_text(
+                "SELECT 1 FROM information_schema.tables WHERE table_name = 'tools_catalog'"
+            )
         )
         if not exists.fetchone():
-            logger.error("tools_catalog table does not exist. Run Alembic migration first.")
+            logger.error(
+                "tools_catalog table does not exist. Run Alembic migration first."
+            )
             await engine.dispose()
             return
 
@@ -156,8 +199,16 @@ async def run():
                 "output_schema": json.dumps(output_schema) if output_schema else None,
                 "tags": json.dumps(getattr(tool, "tags", []) or []),
                 "tier": getattr(tool, "tier", 1),
-                "timeout_seconds": getattr(tool.metadata, "timeout_seconds", 30) if hasattr(tool, "metadata") and tool.metadata else 30,
-                "requires_auth": getattr(tool.metadata, "requires_auth", True) if hasattr(tool, "metadata") and tool.metadata else True,
+                "timeout_seconds": (
+                    getattr(tool.metadata, "timeout_seconds", 30)
+                    if hasattr(tool, "metadata") and tool.metadata
+                    else 30
+                ),
+                "requires_auth": (
+                    getattr(tool.metadata, "requires_auth", True)
+                    if hasattr(tool, "metadata") and tool.metadata
+                    else True
+                ),
                 "source": "builtin_imported",
                 "updated_at": now,
             }
@@ -174,7 +225,8 @@ async def run():
                 version = existing[1]
                 # Update
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         UPDATE tools_catalog SET
                             name = :name, description = :description, category = :category,
                             tool_type = :tool_type, handler_ref = :handler_ref,
@@ -183,15 +235,18 @@ async def run():
                             requires_auth = :requires_auth, source = :source,
                             version = version + 1, updated_at = :updated_at
                         WHERE slug = :slug
-                    """),
+                    """
+                    ),
                     row_data,
                 )
                 # Create version snapshot
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO tool_versions (id, tool_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :tool_id, :version, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "tool_id": tool_id,
@@ -204,7 +259,8 @@ async def run():
             else:
                 tool_id = str(uuid4())
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO tools_catalog (
                             id, slug, name, description, category, tool_type,
                             handler_ref, input_schema, output_schema, tags, tier,
@@ -216,15 +272,18 @@ async def run():
                             :timeout_seconds, :requires_auth, :source, 1,
                             :updated_at, :updated_at
                         )
-                    """),
+                    """
+                    ),
                     {**row_data, "id": tool_id},
                 )
                 # Create version snapshot
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO tool_versions (id, tool_id, version, snapshot, created_at, updated_at)
                         VALUES (:id, :tool_id, 1, CAST(:snapshot AS jsonb), :now, :now)
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "tool_id": tool_id,
@@ -237,7 +296,9 @@ async def run():
     await engine.dispose()
     logger.info(
         "Import complete: %d new, %d updated, %d total",
-        new_count, updated_count, new_count + updated_count,
+        new_count,
+        updated_count,
+        new_count + updated_count,
     )
 
 

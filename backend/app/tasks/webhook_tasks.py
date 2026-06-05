@@ -38,14 +38,19 @@ def _deliver_sync(
 ) -> None:
     """Deliver a single webhook and update the log record (sync)."""
     body_bytes = json.dumps(payload, default=str).encode()
-    headers = {"Content-Type": "application/json", "User-Agent": "Flowmanner-Webhook/1.0"}
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Flowmanner-Webhook/1.0",
+    }
 
     # HMAC signing
     if endpoint.secret:
         sig = _sign_payload(endpoint.secret, body_bytes)
         headers["X-Webhook-Signature"] = f"sha256={sig}"
         headers["X-Webhook-ID"] = str(log.id)
-        headers["X-Webhook-Timestamp"] = str(int(log.created_at.timestamp())) if log.created_at else ""
+        headers["X-Webhook-Timestamp"] = (
+            str(int(log.created_at.timestamp())) if log.created_at else ""
+        )
 
     log.status = WebhookStatus.PROCESSING.value
 
@@ -69,16 +74,22 @@ def _deliver_sync(
             log.status = WebhookStatus.PENDING.value
             next_retry = retry_manager.schedule_retry(log.id, log.retry_count)
             log.next_retry_at = next_retry
-            logger.info(f"Webhook {log.id} scheduled for retry #{log.retry_count} at {next_retry}")
+            logger.info(
+                f"Webhook {log.id} scheduled for retry #{log.retry_count} at {next_retry}"
+            )
         else:
             log.status = WebhookStatus.FAILED.value
             log.next_retry_at = None
-            logger.warning(f"Webhook {log.id} moved to DLQ after {log.retry_count} retries")
+            logger.warning(
+                f"Webhook {log.id} moved to DLQ after {log.retry_count} retries"
+            )
 
     log.processing_completed_at = datetime.now(UTC)
 
 
-@shared_task(name="app.tasks.webhook_tasks.deliver_webhook", max_retries=0, acks_late=True)
+@shared_task(
+    name="app.tasks.webhook_tasks.deliver_webhook", max_retries=0, acks_late=True
+)
 def deliver_webhook(log_id: int) -> dict:
     """Deliver a single webhook by log ID."""
     db = SyncSessionLocal()
@@ -87,7 +98,10 @@ def deliver_webhook(log_id: int) -> dict:
         if not log:
             return {"error": "log not found", "log_id": log_id}
 
-        if log.status not in (WebhookStatus.PENDING.value, WebhookStatus.PROCESSING.value):
+        if log.status not in (
+            WebhookStatus.PENDING.value,
+            WebhookStatus.PROCESSING.value,
+        ):
             return {"skipped": True, "status": log.status, "log_id": log_id}
 
         ep = db.get(WebhookEndpoint, log.endpoint_id)

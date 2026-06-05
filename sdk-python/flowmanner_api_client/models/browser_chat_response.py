@@ -1,37 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.browser_chat_action import BrowserChatAction
-
-
-
+    from ..models.browser_chat_action import BrowserChatAction
 
 
 T = TypeVar("T", bound="BrowserChatResponse")
 
 
-
 @_attrs_define
 class BrowserChatResponse:
-    """ 
-        Attributes:
-            response (str):
-            actions (list[BrowserChatAction] | Unset):
-            final_url (None | str | Unset):
-            screenshot (None | str | Unset):
-            success (bool | Unset):  Default: True.
-     """
+    """
+    Attributes:
+        response (str):
+        actions (list[BrowserChatAction] | Unset):
+        final_url (None | str | Unset):
+        screenshot (None | str | Unset):
+        success (bool | Unset):  Default: True.
+    """
 
     response: str
     actions: list[BrowserChatAction] | Unset = UNSET
@@ -40,12 +33,7 @@ class BrowserChatResponse:
     success: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.browser_chat_action import BrowserChatAction
         response = self.response
 
         actions: list[dict[str, Any]] | Unset = UNSET
@@ -54,8 +42,6 @@ class BrowserChatResponse:
             for actions_item_data in self.actions:
                 actions_item = actions_item_data.to_dict()
                 actions.append(actions_item)
-
-
 
         final_url: None | str | Unset
         if isinstance(self.final_url, Unset):
@@ -71,12 +57,13 @@ class BrowserChatResponse:
 
         success = self.success
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "response": response,
-        })
+        field_dict.update(
+            {
+                "response": response,
+            }
+        )
         if actions is not UNSET:
             field_dict["actions"] = actions
         if final_url is not UNSET:
@@ -88,11 +75,10 @@ class BrowserChatResponse:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.browser_chat_action import BrowserChatAction
+
         d = dict(src_dict)
         response = d.pop("response")
 
@@ -103,10 +89,7 @@ class BrowserChatResponse:
             for actions_item_data in _actions:
                 actions_item = BrowserChatAction.from_dict(actions_item_data)
 
-
-
                 actions.append(actions_item)
-
 
         def _parse_final_url(data: object) -> None | str | Unset:
             if data is None:
@@ -117,7 +100,6 @@ class BrowserChatResponse:
 
         final_url = _parse_final_url(d.pop("final_url", UNSET))
 
-
         def _parse_screenshot(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -126,7 +108,6 @@ class BrowserChatResponse:
             return cast(None | str | Unset, data)
 
         screenshot = _parse_screenshot(d.pop("screenshot", UNSET))
-
 
         success = d.pop("success", UNSET)
 
@@ -137,7 +118,6 @@ class BrowserChatResponse:
             screenshot=screenshot,
             success=success,
         )
-
 
         browser_chat_response.additional_properties = d
         return browser_chat_response

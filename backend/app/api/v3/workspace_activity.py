@@ -22,9 +22,16 @@ router = APIRouter(prefix="/workspaces", tags=["v3-workspace-audit"])
 
 async def _require_audit_enabled(db: AsyncSession) -> None:
     from sqlalchemy import text
-    result = await db.execute(text("SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_AUDIT'"))
+
+    result = await db.execute(
+        text(
+            "SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_AUDIT'"
+        )
+    )
     if not result.scalar():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
 
 @router.get("/{workspace_id}/audit-log", status_code=status.HTTP_200_OK)
@@ -45,7 +52,10 @@ async def get_audit_log(
     )
     if not membership.scalar_one_or_none():
         from fastapi import HTTPException
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
+        )
 
     result = await db.execute(
         select(WorkspaceActivityLog)
@@ -56,15 +66,17 @@ async def get_audit_log(
     )
     entries = result.scalars().all()
 
-    return ok([
-        AuditLogEntry(
-            id=e.id,
-            actor_id=e.actor_id,
-            action=e.action,
-            target_type=e.target_type,
-            target_id=e.target_id,
-            activity_metadata=e.activity_metadata or {},
-            created_at=e.created_at,
-        ).model_dump(mode="json")
-        for e in entries
-    ])
+    return ok(
+        [
+            AuditLogEntry(
+                id=e.id,
+                actor_id=e.actor_id,
+                action=e.action,
+                target_type=e.target_type,
+                target_id=e.target_id,
+                activity_metadata=e.activity_metadata or {},
+                created_at=e.created_at,
+            ).model_dump(mode="json")
+            for e in entries
+        ]
+    )

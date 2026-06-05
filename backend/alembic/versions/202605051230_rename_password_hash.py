@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-05-05 12:30:00.000000
 
 """
+
 from alembic import op
 
 revision = "202605051230"
@@ -13,7 +14,8 @@ down_revision = None
 
 def upgrade() -> None:
     # Rename password_hash column to hashed_password if it exists
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             IF EXISTS (SELECT 1 FROM information_schema.columns
@@ -22,11 +24,13 @@ def upgrade() -> None:
             END IF;
         END
         $$;
-    """)
+    """
+    )
 
 
 def downgrade() -> None:
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             IF EXISTS (SELECT 1 FROM information_schema.columns
@@ -35,4 +39,5 @@ def downgrade() -> None:
             END IF;
         END
         $$;
-    """)
+    """
+    )

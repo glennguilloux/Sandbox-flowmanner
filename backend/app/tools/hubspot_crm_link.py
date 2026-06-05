@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +31,20 @@ HUBSPOT_ACCESS_TOKEN = os.getenv("HUBSPOT_ACCESS_TOKEN", "")
 HUBSPOT_TIMEOUT = int(os.getenv("HUBSPOT_TIMEOUT", "30"))
 
 
-
 # ── Input ─────────────────────────────────────────────────────────────
 
 HUBSPOT_ACTIONS = (
-    "create_contact", "update_contact", "search_contacts",
-    "get_contact", "list_contacts",
-    "create_deal", "update_deal", "list_deals", "get_deal",
-    "create_company", "search_companies",
+    "create_contact",
+    "update_contact",
+    "search_contacts",
+    "get_contact",
+    "list_contacts",
+    "create_deal",
+    "update_deal",
+    "list_deals",
+    "get_deal",
+    "create_company",
+    "search_companies",
 )
 
 
@@ -62,7 +75,9 @@ class HubspotCrmLinkInput(ToolInput):
         description="Property to search by (for search_contacts, default: email)",
     )
     limit: int = Field(
-        10, ge=1, le=100,
+        10,
+        ge=1,
+        le=100,
         description="Max records to return (for list_contacts, list_deals)",
     )
 
@@ -149,9 +164,7 @@ class HubspotCrmLinkTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: HubspotCrmLinkInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: HubspotCrmLinkInput) -> dict[str, Any]:
         """Route to the appropriate HubSpot API handler."""
         headers = {
             "Authorization": f"Bearer {HUBSPOT_ACCESS_TOKEN}",
@@ -159,7 +172,8 @@ class HubspotCrmLinkTool(BaseTool):
         }
 
         async with httpx.AsyncClient(
-            timeout=HUBSPOT_TIMEOUT, headers=headers,
+            timeout=HUBSPOT_TIMEOUT,
+            headers=headers,
             base_url="https://api.hubapi.com",
         ) as client:
             if validated.action.startswith("create_contact"):
@@ -171,41 +185,35 @@ class HubspotCrmLinkTool(BaseTool):
                     client, "contacts", validated.object_id, validated.properties
                 )
             elif validated.action == "get_contact":
-                return await self._get_record(
-                    client, "contacts", validated.object_id
-                )
+                return await self._get_record(client, "contacts", validated.object_id)
             elif validated.action == "list_contacts":
-                return await self._list_records(
-                    client, "contacts", validated.limit
-                )
+                return await self._list_records(client, "contacts", validated.limit)
             elif validated.action == "search_contacts":
                 return await self._search_records(
-                    client, "contacts", validated.search_query,
+                    client,
+                    "contacts",
+                    validated.search_query,
                     validated.search_property or "email",
                 )
             elif validated.action == "create_deal":
-                return await self._create_record(
-                    client, "deals", validated.properties
-                )
+                return await self._create_record(client, "deals", validated.properties)
             elif validated.action == "update_deal":
                 return await self._update_record(
                     client, "deals", validated.object_id, validated.properties
                 )
             elif validated.action == "get_deal":
-                return await self._get_record(
-                    client, "deals", validated.object_id
-                )
+                return await self._get_record(client, "deals", validated.object_id)
             elif validated.action == "list_deals":
-                return await self._list_records(
-                    client, "deals", validated.limit
-                )
+                return await self._list_records(client, "deals", validated.limit)
             elif validated.action == "create_company":
                 return await self._create_record(
                     client, "companies", validated.properties
                 )
             elif validated.action == "search_companies":
                 return await self._search_records(
-                    client, "companies", validated.search_query,
+                    client,
+                    "companies",
+                    validated.search_query,
                     "domain",
                 )
             else:
@@ -268,8 +276,10 @@ class HubspotCrmLinkTool(BaseTool):
             return {"error": "object_id is required for get"}
         resp = await client.get(
             f"/crm/v3/objects/{object_type}/{object_id}",
-            params={"properties": "email,firstname,lastname,phone,company,"
-                     "dealname,amount,dealstage,hs_pipeline"},
+            params={
+                "properties": "email,firstname,lastname,phone,company,"
+                "dealname,amount,dealstage,hs_pipeline"
+            },
         )
         resp.raise_for_status()
         data = resp.json()
@@ -296,8 +306,7 @@ class HubspotCrmLinkTool(BaseTool):
             "action": f"list_{object_type}",
             "count": len(results),
             "records": [
-                {"id": r["id"], "properties": r.get("properties", {})}
-                for r in results
+                {"id": r["id"], "properties": r.get("properties", {})} for r in results
             ],
         }
 
@@ -313,13 +322,17 @@ class HubspotCrmLinkTool(BaseTool):
         resp = await client.post(
             f"/crm/v3/objects/{object_type}/search",
             json={
-                "filterGroups": [{
-                    "filters": [{
-                        "propertyName": property_name,
-                        "operator": "EQ",
-                        "value": query,
-                    }],
-                }],
+                "filterGroups": [
+                    {
+                        "filters": [
+                            {
+                                "propertyName": property_name,
+                                "operator": "EQ",
+                                "value": query,
+                            }
+                        ],
+                    }
+                ],
             },
         )
         resp.raise_for_status()
@@ -331,8 +344,7 @@ class HubspotCrmLinkTool(BaseTool):
             "query": query,
             "count": len(results),
             "records": [
-                {"id": r["id"], "properties": r.get("properties", {})}
-                for r in results
+                {"id": r["id"], "properties": r.get("properties", {})} for r in results
             ],
         }
 

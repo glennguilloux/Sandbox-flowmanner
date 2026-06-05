@@ -15,31 +15,24 @@ from ...types import UNSET, Unset
 from typing import cast
 
 
-
 def _get_kwargs(
     mission_id: str,
     *,
     body: SynthesizeRequest,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/api/feedback/missions/{mission_id}/synthesize".format(mission_id=quote(str(mission_id), safe=""),),
+        "url": "/api/feedback/missions/{mission_id}/synthesize".format(
+            mission_id=quote(str(mission_id), safe=""),
+        ),
     }
 
     _kwargs["json"] = body.to_dict()
-
 
     headers["Content-Type"] = "application/json"
 
@@ -47,19 +40,16 @@ def _get_kwargs(
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> FeedbackReportResponse | HTTPValidationError | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> FeedbackReportResponse | HTTPValidationError | None:
     if response.status_code == 200:
         response_200 = FeedbackReportResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -69,7 +59,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[FeedbackReportResponse | HTTPValidationError]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[FeedbackReportResponse | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -83,10 +75,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[FeedbackReportResponse | HTTPValidationError]:
-    """ Synthesize Endpoint
+    """Synthesize Endpoint
 
      Synthesize feedback for a completed mission.
 
@@ -101,14 +92,12 @@ def sync_detailed(
 
     Returns:
         Response[FeedbackReportResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -117,15 +106,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     mission_id: str,
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> FeedbackReportResponse | HTTPValidationError | None:
-    """ Synthesize Endpoint
+    """Synthesize Endpoint
 
      Synthesize feedback for a completed mission.
 
@@ -140,26 +129,24 @@ def sync(
 
     Returns:
         FeedbackReportResponse | HTTPValidationError
-     """
-
+    """
 
     return sync_detailed(
         mission_id=mission_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
+        client=client,
+        body=body,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     mission_id: str,
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[FeedbackReportResponse | HTTPValidationError]:
-    """ Synthesize Endpoint
+    """Synthesize Endpoint
 
      Synthesize feedback for a completed mission.
 
@@ -174,31 +161,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[FeedbackReportResponse | HTTPValidationError]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-body=body,
-accept_version=accept_version,
-
+        body=body,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     mission_id: str,
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> FeedbackReportResponse | HTTPValidationError | None:
-    """ Synthesize Endpoint
+    """Synthesize Endpoint
 
      Synthesize feedback for a completed mission.
 
@@ -213,13 +196,13 @@ async def asyncio(
 
     Returns:
         FeedbackReportResponse | HTTPValidationError
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        mission_id=mission_id,
-client=client,
-body=body,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            mission_id=mission_id,
+            client=client,
+            body=body,
+            accept_version=accept_version,
+        )
+    ).parsed

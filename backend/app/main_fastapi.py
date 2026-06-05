@@ -30,7 +30,11 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.dev.set_exc_info,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer() if settings.APP_ENV != "development" else structlog.dev.ConsoleRenderer(),
+        (
+            structlog.processors.JSONRenderer()
+            if settings.APP_ENV != "development"
+            else structlog.dev.ConsoleRenderer()
+        ),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
     context_class=dict,
@@ -44,7 +48,9 @@ logging.basicConfig(
 )
 
 # Determine if we're in production
-_is_production = settings.APP_ENV != "development" and not getattr(settings, "DEBUG", False)
+_is_production = settings.APP_ENV != "development" and not getattr(
+    settings, "DEBUG", False
+)
 
 API_DESCRIPTION = """
 ## Flowmanner API
@@ -80,9 +86,9 @@ app = FastAPI(
     version="0.1.0",
     description=API_DESCRIPTION,
     lifespan=lifespan,
-    docs_url=None,       # We serve custom Swagger UI below
-    redoc_url=None,       # We serve custom Redoc below
-    openapi_url=None if _is_production else "/openapi.json",
+    docs_url=None,  # We serve custom Swagger UI below
+    redoc_url=None,  # We serve custom Redoc below
+    openapi_url="/openapi.json",
     redirect_slashes=False,
     contact={
         "name": "Flowmanner",
@@ -113,8 +119,12 @@ app.add_middleware(AuthCookieMiddleware)
 app.add_middleware(ScopeValidationMiddleware)
 
 # CORS — tightened for production
-_cors_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] if _is_production else ["*"]
-_cors_headers = ["Content-Type", "Authorization", "X-Request-ID"] if _is_production else ["*"]
+_cors_methods = (
+    ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] if _is_production else ["*"]
+)
+_cors_headers = (
+    ["Content-Type", "Authorization", "X-Request-ID"] if _is_production else ["*"]
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -233,8 +243,6 @@ REDOC_DARK_CSS = """
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui():
     """Serve Swagger UI with dark theme styling."""
-    if _is_production:
-        return JSONResponse(status_code=404, content={"detail": "Not found"})
     return HTMLResponse(
         content=get_swagger_ui_html(
             openapi_url=app.openapi_url,
@@ -256,8 +264,6 @@ async def custom_swagger_ui():
 @app.get("/redoc", include_in_schema=False)
 async def custom_redoc():
     """Serve Redoc documentation with dark theme styling."""
-    if _is_production:
-        return JSONResponse(status_code=404, content={"detail": "Not found"})
     return HTMLResponse(
         content=get_redoc_html(
             openapi_url=app.openapi_url,
@@ -311,7 +317,9 @@ try:
         if auth.startswith("Bearer "):
             token = auth[7:]
             try:
-                payload = _jwt.decode(token, _settings.JWT_SECRET_KEY, algorithms=["HS256"])
+                payload = _jwt.decode(
+                    token, _settings.JWT_SECRET_KEY, algorithms=["HS256"]
+                )
                 user_id = payload.get("sub")
                 if user_id:
                     async with AsyncSessionLocal() as session:
@@ -326,7 +334,9 @@ try:
     graphql_app = GraphQLRouter(gql_schema, context_getter=_gql_context_getter)
     app.include_router(graphql_app, prefix="/api/v2/graphql")
 except ImportError:
-    logging.getLogger(__name__).warning("strawberry-graphql not installed — GraphQL endpoint disabled")
+    logging.getLogger(__name__).warning(
+        "strawberry-graphql not installed — GraphQL endpoint disabled"
+    )
 
 # Extensions / Plugin API — registered independently of GraphQL
 from app.api.v1.extensions import router as extensions_router
@@ -336,6 +346,7 @@ app.include_router(extensions_router, prefix="/api")
 # OpenTelemetry — opt-in via OTLP_ENDPOINT env var
 try:
     from app.database import engine as db_engine
+
     setup_telemetry(app, engine=db_engine)
 except Exception as e:
     logging.getLogger(__name__).warning(f"Telemetry setup failed: {e}")
@@ -358,15 +369,22 @@ async def get_stats():
             rows = await session.execute(
                 select(
                     func.count().label("total_runs"),
-                    func.count().filter(GraphExecution.status == "completed").label("success"),
-                    func.count().filter(GraphExecution.status == "failed").label("failed"),
+                    func.count()
+                    .filter(GraphExecution.status == "completed")
+                    .label("success"),
+                    func.count()
+                    .filter(GraphExecution.status == "failed")
+                    .label("failed"),
                 )
             )
             row = rows.one_or_none()
             if row is None:
                 return {
-                    "total_runs": 0, "successful_runs": 0, "failed_runs": 0,
-                    "avg_duration_ms": 0, "total_tokens": 0,
+                    "total_runs": 0,
+                    "successful_runs": 0,
+                    "failed_runs": 0,
+                    "avg_duration_ms": 0,
+                    "total_tokens": 0,
                 }
 
             total = row.total_runs or 0
@@ -375,7 +393,10 @@ async def get_stats():
             dur_rows = await session.execute(
                 select(
                     func.avg(
-                        func.extract("epoch", GraphExecution.completed_at - GraphExecution.started_at)
+                        func.extract(
+                            "epoch",
+                            GraphExecution.completed_at - GraphExecution.started_at,
+                        )
                     ).label("avg_duration")
                 ).where(
                     GraphExecution.status == "completed",
@@ -401,5 +422,71 @@ async def get_stats():
             "total_tokens": 0,
         }
 
+
+
+# ---------------------------------------------------------------------------
+# Resilient OpenAPI spec generation
+# ---------------------------------------------------------------------------
+# Many Pydantic models use `from __future__ import annotations` with types
+# guarded by `if TYPE_CHECKING:`.  When FastAPI generates the OpenAPI spec it
+# tries to resolve every schema eagerly, and a single unresolved forward ref
+# crashes the entire spec.  The wrapper below catches the crash, then builds
+# the spec incrementally — testing each API route against a known-good set
+# so broken routes are skipped with a warning.
+
+from fastapi.routing import APIRoute as _APIRoute
+
+_original_openapi = app.openapi
+
+def _resilient_openapi():
+    """Generate OpenAPI spec, gracefully skipping routes with unresolved types."""
+    cached = getattr(app, "_openapi_schema", None)
+    if cached:
+        return cached
+    try:
+        schema = _original_openapi()
+        app._openapi_schema = schema
+        return schema
+    except Exception:
+        # Full generation crashed — fall back to incremental route-by-route
+        pass
+
+    from fastapi.openapi.utils import get_openapi
+
+    # Separate API routes (may have broken schemas) from non-API routes
+    api_routes = [r for r in app.routes if isinstance(r, _APIRoute)]
+    other_routes = [r for r in app.routes if not isinstance(r, _APIRoute)]
+
+    # Test each API route against the known-good set (incremental).
+    # Cap at 20 skips to avoid O(n²) blowup if many routes break.
+    ok_routes = list(other_routes)
+    skipped: list[str] = []
+    for route in api_routes:
+        if len(skipped) >= 20:
+            skipped.append(f"(... and more, giving up)")
+            break
+        try:
+            get_openapi(title="t", version="v", routes=ok_routes + [route])
+            ok_routes.append(route)
+        except Exception:
+            skipped.append(route.path)
+
+    if skipped:
+        logging.getLogger(__name__).warning(
+            "OpenAPI: %d routes skipped due to unresolved forward refs: %s",
+            len(skipped), ", ".join(skipped[:10]),
+        )
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=ok_routes,
+        tags=app.openapi_tags,
+    )
+    app._openapi_schema = schema
+    return schema
+
+app.openapi = _resilient_openapi
 
 app.mount("/ws", ws_app)

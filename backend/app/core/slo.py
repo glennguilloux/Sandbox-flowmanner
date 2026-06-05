@@ -59,6 +59,7 @@ slo_burn_rate = Gauge(
 @dataclass
 class SLO:
     """Definition of a Service Level Objective."""
+
     name: str
     description: str
     target: float  # target compliance ratio (e.g. 0.95 = 95%)
@@ -97,6 +98,7 @@ def record_sse_token_latency(latency_ms: float) -> None:
     """Record an SSE token delivery latency measurement (H1.5)."""
     try:
         from app.core.metrics import record_sse_token_latency as _rec
+
         _rec(latency_ms / 1000.0)  # convert ms to seconds for Histogram
     except Exception as e:
         logger.debug("slo_record_sse_latency_failed", error=str(e))
@@ -106,6 +108,7 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
     """Record a model fallback attempt (H1.5)."""
     try:
         from app.core.metrics import record_model_fallback as _rec
+
         _rec(provider=provider, success=success)
     except Exception as e:
         logger.debug("slo_record_fallback_failed", error=str(e))
@@ -119,6 +122,7 @@ def record_deploy(success: bool) -> None:
     """
     try:
         from app.core.metrics import deploy_success_total, deploy_total
+
         # These are Gauge-type counters incremented manually
         deploy_total.inc()
         if success:
@@ -310,7 +314,9 @@ def get_slo_status() -> dict:
         try:
             compliance = _read_gauge_value(slo_compliance.labels(slo_name=slo_name))
             burn_rate = _read_gauge_value(slo_burn_rate.labels(slo_name=slo_name))
-            budget = _read_gauge_value(slo_error_budget_remaining.labels(slo_name=slo_name))
+            budget = _read_gauge_value(
+                slo_error_budget_remaining.labels(slo_name=slo_name)
+            )
         except Exception:
             compliance = 1.0
             burn_rate = 0.0
@@ -330,17 +336,17 @@ def get_slo_status() -> dict:
 def get_overall_health() -> dict:
     """Return an overall health score based on SLO compliance."""
     slo_status = get_slo_status()
-    healthy_count = sum(
-        1 for s in slo_status.values() if s["status"] == "healthy"
-    )
+    healthy_count = sum(1 for s in slo_status.values() if s["status"] == "healthy")
     total = len(slo_status)
 
     return {
         "healthy_slos": healthy_count,
         "total_slos": total,
         "health_score": round(healthy_count / max(total, 1), 2),
-        "status": "healthy" if healthy_count == total else (
-            "degraded" if healthy_count >= total / 2 else "unhealthy"
+        "status": (
+            "healthy"
+            if healthy_count == total
+            else ("degraded" if healthy_count >= total / 2 else "unhealthy")
         ),
         "slos": slo_status,
     }
@@ -354,7 +360,8 @@ _refresh_task: asyncio.Task | None = None
 async def _periodic_slo_refresh(interval_seconds: int = SLO_REFRESH_INTERVAL_SECONDS):
     """Background task that periodically refreshes SLO metrics."""
     logger.info(
-        "SLO periodic refresh started (interval=%ds)", interval_seconds,
+        "SLO periodic refresh started (interval=%ds)",
+        interval_seconds,
     )
     while True:
         try:
@@ -366,6 +373,7 @@ async def _periodic_slo_refresh(interval_seconds: int = SLO_REFRESH_INTERVAL_SEC
                 # Trigger SLO alerts for at-risk SLOs
                 try:
                     from app.services.alerting import send_slo_alert
+
                     for slo_name in at_risk:
                         r = results[slo_name]
                         await send_slo_alert(

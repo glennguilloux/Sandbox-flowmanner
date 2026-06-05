@@ -63,19 +63,23 @@ async def run():
 
     async with engine.begin() as conn:
         # ── 1. Load capability slug → id map ────────────────────────
-        r = await conn.execute(sa_text(
-            "SELECT id, slug FROM capabilities_catalog WHERE enabled = true"
-        ))
+        r = await conn.execute(
+            sa_text("SELECT id, slug FROM capabilities_catalog WHERE enabled = true")
+        )
         cap_map = {row.slug: row.id for row in r.fetchall()}
         logger.info("Loaded %d capabilities from catalog", len(cap_map))
 
         # ── 2. Load agent → tools mapping from bindings ─────────────
-        r = await conn.execute(sa_text("""
+        r = await conn.execute(
+            sa_text(
+                """
             SELECT at.slug as agent_slug, tc.slug as tool_slug
             FROM agent_tool_bindings atb
             JOIN agent_templates at ON atb.agent_id = at.template_id
             JOIN tools_catalog tc ON atb.tool_id = tc.id
-        """))
+        """
+            )
+        )
         agent_tools = defaultdict(set)
         for row in r.fetchall():
             agent_tools[row.agent_slug].add(row.tool_slug)
@@ -88,7 +92,7 @@ async def run():
         cap_to_agent = {}
         for cap_slug in cap_map:
             if cap_slug.startswith("agent__"):
-                agent_slug = cap_slug[len("agent__"):]
+                agent_slug = cap_slug[len("agent__") :]
                 cap_to_agent[cap_slug] = agent_slug
                 agent_slugs.add(agent_slug)
 
@@ -151,7 +155,9 @@ async def run():
                 dep_count[cap_a] += 1
             # else: skip this dep but keep processing others
 
-        logger.info("After capping at %d deps/agent: %d total", MAX_DEPS_PER_AGENT, len(capped))
+        logger.info(
+            "After capping at %d deps/agent: %d total", MAX_DEPS_PER_AGENT, len(capped)
+        )
 
         # ── 6. Insert into capability_dependencies ──────────────────
         inserted = 0
@@ -161,12 +167,14 @@ async def run():
             cap_id_b = cap_map[cap_b]
             try:
                 result = await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO capability_dependencies
                             (id, capability_id, depends_on_id, dependency_type, created_at, updated_at)
                         VALUES (:id, :cap_id, :dep_id, :dep_type, :now, :now)
                         ON CONFLICT (capability_id, depends_on_id) DO NOTHING
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid4()),
                         "cap_id": cap_id_a,
@@ -185,7 +193,9 @@ async def run():
 
     await engine.dispose()
     logger.info(
-        "Capability dependencies seed: %d inserted, %d skipped", inserted, skipped,
+        "Capability dependencies seed: %d inserted, %d skipped",
+        inserted,
+        skipped,
     )
 
 

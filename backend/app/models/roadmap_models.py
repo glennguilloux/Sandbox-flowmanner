@@ -56,7 +56,9 @@ class RoadmapVote(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     item_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roadmap_items.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("roadmap_items.id", ondelete="CASCADE"),
+        nullable=False,
     )
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     vote_type: Mapped[str] = mapped_column(String(8), nullable=False, default="up")
@@ -74,7 +76,9 @@ class RoadmapComment(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     roadmap_item_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roadmap_items.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("roadmap_items.id", ondelete="CASCADE"),
+        nullable=False,
     )
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     user_name: Mapped[str] = mapped_column(String(128), nullable=False, default="")

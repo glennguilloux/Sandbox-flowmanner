@@ -82,15 +82,9 @@ def upgrade() -> None:
     )
 
     # Indexes
-    op.create_index(
-        "ix_memory_entries_user_id", "memory_entries", ["user_id"]
-    )
-    op.create_index(
-        "ix_memory_entries_agent_id", "memory_entries", ["agent_id"]
-    )
-    op.create_index(
-        "ix_memory_entries_session_id", "memory_entries", ["session_id"]
-    )
+    op.create_index("ix_memory_entries_user_id", "memory_entries", ["user_id"])
+    op.create_index("ix_memory_entries_agent_id", "memory_entries", ["agent_id"])
+    op.create_index("ix_memory_entries_session_id", "memory_entries", ["session_id"])
     op.create_index(
         "ix_memory_entries_workspace_id", "memory_entries", ["workspace_id"]
     )

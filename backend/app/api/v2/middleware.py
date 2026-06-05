@@ -59,9 +59,13 @@ def register_v2_exception_handlers(app: FastAPI) -> None:
         )
 
         @app.exception_handler(MissionNotFoundError)
-        async def mission_not_found_handler(request: Request, exc: MissionNotFoundError):
+        async def mission_not_found_handler(
+            request: Request, exc: MissionNotFoundError
+        ):
             if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=404, content={"detail": str(exc) or "Mission not found"})
+                return JSONResponse(
+                    status_code=404, content={"detail": str(exc) or "Mission not found"}
+                )
             return _make_error_response(
                 status_code=404,
                 code="MISSION_NOT_FOUND",
@@ -70,9 +74,13 @@ def register_v2_exception_handlers(app: FastAPI) -> None:
             )
 
         @app.exception_handler(MissionForbiddenError)
-        async def mission_forbidden_handler(request: Request, exc: MissionForbiddenError):
+        async def mission_forbidden_handler(
+            request: Request, exc: MissionForbiddenError
+        ):
             if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=403, content={"detail": str(exc) or "Access denied"})
+                return JSONResponse(
+                    status_code=403, content={"detail": str(exc) or "Access denied"}
+                )
             return _make_error_response(
                 status_code=403,
                 code="MISSION_FORBIDDEN",
@@ -81,9 +89,14 @@ def register_v2_exception_handlers(app: FastAPI) -> None:
             )
 
         @app.exception_handler(MissionTransitionConflictError)
-        async def mission_conflict_handler(request: Request, exc: MissionTransitionConflictError):
+        async def mission_conflict_handler(
+            request: Request, exc: MissionTransitionConflictError
+        ):
             if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=409, content={"detail": str(exc) or "Invalid status transition"})
+                return JSONResponse(
+                    status_code=409,
+                    content={"detail": str(exc) or "Invalid status transition"},
+                )
             return _make_error_response(
                 status_code=409,
                 code="MISSION_TRANSITION_CONFLICT",
@@ -92,9 +105,13 @@ def register_v2_exception_handlers(app: FastAPI) -> None:
             )
 
         @app.exception_handler(MissionValidationError)
-        async def mission_validation_handler(request: Request, exc: MissionValidationError):
+        async def mission_validation_handler(
+            request: Request, exc: MissionValidationError
+        ):
             if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=400, content={"detail": str(exc) or "Validation error"})
+                return JSONResponse(
+                    status_code=400, content={"detail": str(exc) or "Validation error"}
+                )
             return _make_error_response(
                 status_code=400,
                 code="MISSION_VALIDATION_ERROR",

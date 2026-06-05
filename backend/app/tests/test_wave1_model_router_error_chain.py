@@ -107,12 +107,17 @@ class TestModelRouterUserIdPropagation:
         with patch("app.services.mission_executor.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
             mock_session.return_value.__aexit__.return_value = None
-            with patch("app.services.mission_executor.tracer"), patch.object(executor, "_log", AsyncMock()):
-                with patch.object(executor.task_exec, "execute_task",
-                                  AsyncMock(return_value={"success": True})):
+            with patch("app.services.mission_executor.tracer"), patch.object(
+                executor, "_log", AsyncMock()
+            ):
+                with patch.object(
+                    executor.task_exec,
+                    "execute_task",
+                    AsyncMock(return_value={"success": True}),
+                ):
                     result = await executor.execute_mission(mock_mission.id)
-                        # May return early with "No tasks to execute" — that's fine
-                        # The router should still be wired
+                    # May return early with "No tasks to execute" — that's fine
+                    # The router should still be wired
 
         # Verify the router was created with the mission's user_id
         assert executor.model_router is not None
@@ -153,8 +158,9 @@ class TestModelRouterIsModelAvailable:
             )
             mock_db = MagicMock()
             # Simulate empty BYOK lookup
-            with patch.object(router, "_get_byok_key",
-                              AsyncMock(return_value=(None, None))):
+            with patch.object(
+                router, "_get_byok_key", AsyncMock(return_value=(None, None))
+            ):
                 result = await router._is_model_available(
                     "some-provider/some-model",
                     user_id="user-no-key",
@@ -190,8 +196,9 @@ class TestModelRouterIsModelAvailable:
         # _resolve_provider returns empty key, so we check BYOK
         with patch("app.services.llm_router._resolve_provider") as mock_resolve:
             mock_resolve.return_value = ("https://api.example.com", "", "some-model")
-            with patch.object(router, "_get_byok_key",
-                              AsyncMock(return_value=("sk-byok", None))):
+            with patch.object(
+                router, "_get_byok_key", AsyncMock(return_value=("sk-byok", None))
+            ):
                 result = await router._is_model_available(
                     "some-provider/some-model",
                     # user_id NOT passed explicitly — uses self.user_id
@@ -213,11 +220,13 @@ class TestLlmExecutorErrorPropagation:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": False,
-            "error": "No models available for user",
-            "cost": {"input_tokens": 0, "output_tokens": 0},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "No models available for user",
+                "cost": {"input_tokens": 0, "output_tokens": 0},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -236,11 +245,13 @@ class TestLlmExecutorErrorPropagation:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": False,
-            "error": "No API key available for model 'deepseek/model'. Add a BYOK key.",
-            "cost": {},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "No API key available for model 'deepseek/model'. Add a BYOK key.",
+                "cost": {},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -262,11 +273,13 @@ class TestTaskExecutorErrorPropagation:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(return_value={
-            "success": False,
-            "error": "LLM call failed: timeout",
-            "tokens": 0,
-        })
+        mock_llm.execute_llm = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "LLM call failed: timeout",
+                "tokens": 0,
+            }
+        )
 
         executor = TaskExecutor(llm_executor=mock_llm)
 
@@ -298,10 +311,12 @@ class TestMissionExecutorErrorPropagation:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(return_value={
-            "success": False,
-            "error": "Simulated task failure",
-        })
+        mock_llm.execute_llm = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "Simulated task failure",
+            }
+        )
 
         executor = TaskExecutor(llm_executor=mock_llm)
 
@@ -329,11 +344,13 @@ class TestMissionExecutorErrorPropagation:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(return_value={
-            "success": True,
-            "output": {"text": "Task completed successfully"},
-            "tokens": 1000,
-        })
+        mock_llm.execute_llm = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {"text": "Task completed successfully"},
+                "tokens": 1000,
+            }
+        )
 
         executor = TaskExecutor(llm_executor=mock_llm)
 
@@ -365,11 +382,13 @@ class TestErrorChainNoSilentFallback:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "   \n  ",
-            "cost": {"input_tokens": 5, "output_tokens": 1},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "   \n  ",
+                "cost": {"input_tokens": 5, "output_tokens": 1},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()

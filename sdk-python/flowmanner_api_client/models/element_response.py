@@ -1,37 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.element_response_bbox_type_0 import ElementResponseBboxType0
-
-
-
+    from ..models.element_response_bbox_type_0 import ElementResponseBboxType0
 
 
 T = TypeVar("T", bound="ElementResponse")
 
 
-
 @_attrs_define
 class ElementResponse:
-    """ 
-        Attributes:
-            ref (str):
-            tag (str):
-            text (str):
-            role (str):
-            bbox (ElementResponseBboxType0 | None | Unset):
-     """
+    """
+    Attributes:
+        ref (str):
+        tag (str):
+        text (str):
+        role (str):
+        bbox (ElementResponseBboxType0 | None | Unset):
+    """
 
     ref: str
     tag: str
@@ -40,12 +33,9 @@ class ElementResponse:
     bbox: ElementResponseBboxType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.element_response_bbox_type_0 import ElementResponseBboxType0
+
         ref = self.ref
 
         tag = self.tag
@@ -62,25 +52,25 @@ class ElementResponse:
         else:
             bbox = self.bbox
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "ref": ref,
-            "tag": tag,
-            "text": text,
-            "role": role,
-        })
+        field_dict.update(
+            {
+                "ref": ref,
+                "tag": tag,
+                "text": text,
+                "role": role,
+            }
+        )
         if bbox is not UNSET:
             field_dict["bbox"] = bbox
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.element_response_bbox_type_0 import ElementResponseBboxType0
+
         d = dict(src_dict)
         ref = d.pop("ref")
 
@@ -100,15 +90,12 @@ class ElementResponse:
                     raise TypeError()
                 bbox_type_0 = ElementResponseBboxType0.from_dict(data)
 
-
-
                 return bbox_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(ElementResponseBboxType0 | None | Unset, data)
 
         bbox = _parse_bbox(d.pop("bbox", UNSET))
-
 
         element_response = cls(
             ref=ref,
@@ -117,7 +104,6 @@ class ElementResponse:
             role=role,
             bbox=bbox,
         )
-
 
         element_response.additional_properties = d
         return element_response

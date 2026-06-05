@@ -6,17 +6,18 @@ from .finance.agent import FinanceAgent
 from .legal.agent import LegalAgent
 
 __all__ = [
-    'BaseDomainAgent',
-    'BiotechAgent',
-    'FinanceAgent',
-    'LegalAgent',
+    "BaseDomainAgent",
+    "BiotechAgent",
+    "FinanceAgent",
+    "LegalAgent",
 ]
 
 DOMAIN_REGISTRY = {
-    'legal': LegalAgent,
-    'finance': FinanceAgent,
-    'biotech': BiotechAgent,
+    "legal": LegalAgent,
+    "finance": FinanceAgent,
+    "biotech": BiotechAgent,
 }
+
 
 def get_domain_agent(domain: str, config: dict = None):
     """Factory function to get a domain agent by name"""

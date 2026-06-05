@@ -28,6 +28,7 @@ EMBEDDING_DIM = 384
 # Data types
 # ------------------------------------------------------------------
 
+
 @dataclass
 class ToolResult:
     """A tool matched by semantic search with a relevance score.
@@ -53,6 +54,7 @@ class ToolPlan:
 # ------------------------------------------------------------------
 # Service
 # ------------------------------------------------------------------
+
 
 class ToolDiscoveryService:
     """Semantic tool discovery backed by Qdrant vector search.
@@ -91,7 +93,9 @@ class ToolDiscoveryService:
     def client(self) -> QdrantClient:
         if self._client is None:
             self._client = QdrantClient(url=self._qdrant_url, timeout=15)
-            logger.info("ToolDiscoveryService connected to Qdrant at %s", self._qdrant_url)
+            logger.info(
+                "ToolDiscoveryService connected to Qdrant at %s", self._qdrant_url
+            )
         return self._client
 
     def _collection_exists(self) -> bool:
@@ -123,7 +127,10 @@ class ToolDiscoveryService:
         Safe to call multiple times — skips re-indexing when already done.
         """
         if self._initialized:
-            logger.debug("ToolDiscoveryService already initialized (%d tools)", self._indexed_count)
+            logger.debug(
+                "ToolDiscoveryService already initialized (%d tools)",
+                self._indexed_count,
+            )
             return self._indexed_count
 
         try:
@@ -137,7 +144,8 @@ class ToolDiscoveryService:
             )
         except Exception as exc:
             logger.warning(
-                "ToolDiscoveryService initialization failed (will retry on next search): %s", exc
+                "ToolDiscoveryService initialization failed (will retry on next search): %s",
+                exc,
             )
             # Don't set _initialized — allow retry on next call
 
@@ -171,9 +179,10 @@ class ToolDiscoveryService:
         try:
             info = self.client.get_collection(self._collection_name)
             config = info.config.params.vectors
-            needs_recreate = (
-                getattr(config, "size", None) != EMBEDDING_DIM
-                or not isinstance(getattr(config, "distance", None), Distance)
+            needs_recreate = getattr(
+                config, "size", None
+            ) != EMBEDDING_DIM or not isinstance(
+                getattr(config, "distance", None), Distance
             )
         except Exception:
             needs_recreate = True
@@ -220,15 +229,17 @@ class ToolDiscoveryService:
             search_text = self._build_search_text(tool)
             documents.append(search_text)
             ids_list.append(tool.tool_id)
-            payloads.append({
-                "tool_id": tool.tool_id,
-                "name": tool.name,
-                "description": tool.description,
-                "category": tool.category,
-                "tier": getattr(tool, "tier", 1),
-                "tags": tool.tags,
-                "source_service": getattr(tool, "source_service", ""),
-            })
+            payloads.append(
+                {
+                    "tool_id": tool.tool_id,
+                    "name": tool.name,
+                    "description": tool.description,
+                    "category": tool.category,
+                    "tier": getattr(tool, "tier", 1),
+                    "tags": tool.tags,
+                    "source_service": getattr(tool, "source_service", ""),
+                }
+            )
 
         # Generate embeddings via sentence-transformers
         logger.info("Encoding %d tool documents ...", len(documents))
@@ -310,15 +321,17 @@ class ToolDiscoveryService:
             )
             documents.append(search_text)
             ids_list.append(f"tool:{tool_row.slug}")
-            payloads.append({
-                "tool_id": tool_row.slug,
-                "name": tool_row.name,
-                "description": tool_row.description or "",
-                "category": tool_row.category or "general",
-                "tags": tool_row.tags or [],
-                "source": "tools_catalog",
-                "handler_ref": tool_row.handler_ref or "",
-            })
+            payloads.append(
+                {
+                    "tool_id": tool_row.slug,
+                    "name": tool_row.name,
+                    "description": tool_row.description or "",
+                    "category": tool_row.category or "general",
+                    "tags": tool_row.tags or [],
+                    "source": "tools_catalog",
+                    "handler_ref": tool_row.handler_ref or "",
+                }
+            )
 
         for cap_row in db_caps:
             search_text = self._build_search_text_from_row(
@@ -329,14 +342,16 @@ class ToolDiscoveryService:
             )
             documents.append(search_text)
             ids_list.append(f"cap:{cap_row.slug}")
-            payloads.append({
-                "capability_id": cap_row.slug,
-                "name": cap_row.name,
-                "description": cap_row.description or "",
-                "category": cap_row.category or "general",
-                "source": "capabilities_catalog",
-                "handler_ref": cap_row.handler_ref or "",
-            })
+            payloads.append(
+                {
+                    "capability_id": cap_row.slug,
+                    "name": cap_row.name,
+                    "description": cap_row.description or "",
+                    "category": cap_row.category or "general",
+                    "source": "capabilities_catalog",
+                    "handler_ref": cap_row.handler_ref or "",
+                }
+            )
 
         if not documents:
             logger.info("reindex_from_db: no tools or capabilities to index")
@@ -434,9 +449,7 @@ class ToolDiscoveryService:
             model = self._get_embedding_model()
 
             # Encode query and search with explicit vector
-            query_vector = model.encode(
-                [query], normalize_embeddings=True
-            )[0].tolist()
+            query_vector = model.encode([query], normalize_embeddings=True)[0].tolist()
 
             hits = self.client.search(
                 collection_name=self._collection_name,
@@ -460,19 +473,25 @@ class ToolDiscoveryService:
 
                 score = hit.score or 0.0
                 reasons = self._build_match_reasons(tool, query)
-                results.append(ToolResult(tool=tool, score=score, match_reasons=reasons))
+                results.append(
+                    ToolResult(tool=tool, score=score, match_reasons=reasons)
+                )
 
                 if len(results) >= top_k:
                     break
 
-            logger.debug("Tool discovery search for '%s' -> %d results", query[:50], len(results))
+            logger.debug(
+                "Tool discovery search for '%s' -> %d results", query[:50], len(results)
+            )
             return results
 
         except Exception as exc:
             logger.warning("Tool discovery search failed (falling back): %s", exc)
             return []
 
-    def plan_for_task(self, task_description: str, max_tools: int = 10) -> ToolPlan | None:
+    def plan_for_task(
+        self, task_description: str, max_tools: int = 10
+    ) -> ToolPlan | None:
         """Build a ranked tool plan for a natural-language task description.
 
         Uses semantic search to find relevant tools.  Confidence is estimated
@@ -496,7 +515,9 @@ class ToolDiscoveryService:
 
             # Build a short summary
             tool_names = [r.tool.name for r in results[:3]]
-            summary = f"Plan for: {task_description[:80]}. Top tools: {', '.join(tool_names)}"
+            summary = (
+                f"Plan for: {task_description[:80]}. Top tools: {', '.join(tool_names)}"
+            )
 
             return ToolPlan(
                 recommended_tools=results,

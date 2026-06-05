@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +30,6 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_DEFAULT_CHAT_ID = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
 TELEGRAM_TIMEOUT = int(os.getenv("TELEGRAM_TIMEOUT", "30"))
-
 
 
 def _telegram_api_base(token: str | None = None) -> str:
@@ -101,7 +107,9 @@ class TelegramBotInput(ToolInput):
         description="List of button rows for inline keyboard markup",
     )
     limit: int = Field(
-        10, ge=1, le=100,
+        10,
+        ge=1,
+        le=100,
         description="Maximum number of updates to fetch (for get_updates)",
     )
     offset: int | None = Field(
@@ -136,7 +144,14 @@ class TelegramBotTool(BaseTool):
                     "status": {"type": "string"},
                 },
             },
-            tags=["telegram", "bot", "messaging", "chat", "communication", "notifications"],
+            tags=[
+                "telegram",
+                "bot",
+                "messaging",
+                "chat",
+                "communication",
+                "notifications",
+            ],
             requires_auth=True,
             timeout_seconds=TELEGRAM_TIMEOUT + 10,
         )
@@ -214,9 +229,7 @@ class TelegramBotTool(BaseTool):
         """Resolve chat_id (now required — no fallback needed)."""
         return validated.chat_id
 
-    async def _call_api(
-        self, method: str, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _call_api(self, method: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Call a Telegram Bot API method."""
         url = f"{_telegram_api_base()}/{method}"
         async with httpx.AsyncClient(timeout=TELEGRAM_TIMEOUT) as client:
@@ -335,7 +348,7 @@ class TelegramBotTool(BaseTool):
         return {
             "action": "get_updates",
             "update_count": len(updates),
-            "updates": updates[:validated.limit],
+            "updates": updates[: validated.limit],
         }
 
     async def _get_chat_info(self, validated: TelegramBotInput) -> dict[str, Any]:

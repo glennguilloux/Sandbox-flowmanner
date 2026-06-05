@@ -13,6 +13,7 @@ import sys
 
 PATTERN = re.compile(r"^\s+class Config:")
 
+
 def main() -> int:
     errors: list[str] = []
     for path in sys.argv[1:]:

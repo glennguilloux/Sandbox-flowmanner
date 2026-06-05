@@ -45,9 +45,12 @@ class IntentClassifier:
                     "action": "search",
                     "details": {
                         "query": message,
-                        "type": "recommend"
-                        if "recommend" in message_lower or "suggest" in message_lower
-                        else "search",
+                        "type": (
+                            "recommend"
+                            if "recommend" in message_lower
+                            or "suggest" in message_lower
+                            else "search"
+                        ),
                     },
                 }
 

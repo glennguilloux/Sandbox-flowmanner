@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 # ── Voice: Transcribe (Speech-to-Text via Whisper) ──────────────────
 
+
 @router.post("/voice/transcribe", response_model=VoiceTranscribeResponse)
 async def voice_transcribe(
     payload: VoiceTranscribeRequest,
@@ -49,12 +50,14 @@ async def voice_transcribe(
         from app.tools.speech_to_text_transcriber import SpeechToTextTranscriberTool
 
         tool = SpeechToTextTranscriberTool()
-        result = await tool.execute({
-            "data": payload.audio_data,
-            "url": payload.audio_url,
-            "language": payload.language,
-            "response_format": "verbose_json",
-        })
+        result = await tool.execute(
+            {
+                "data": payload.audio_data,
+                "url": payload.audio_url,
+                "language": payload.language,
+                "response_format": "verbose_json",
+            }
+        )
 
         if result.status.value != "success":
             raise HTTPException(
@@ -71,8 +74,12 @@ async def voice_transcribe(
             language=data.get("language"),
             duration_seconds=duration,
             segments=[
-                {"start": s.get("start", 0), "end": s.get("end", 0),
-                 "text": s.get("text", ""), "confidence": s.get("confidence", 0)}
+                {
+                    "start": s.get("start", 0),
+                    "end": s.get("end", 0),
+                    "text": s.get("text", ""),
+                    "confidence": s.get("confidence", 0),
+                }
                 for s in (segments or [])
             ],
         )
@@ -89,24 +96,32 @@ async def voice_transcribe(
 
 # ── Voice: Synthesize (Text-to-Speech via ElevenLabs) ───────────────
 
+
 @router.post("/voice/synthesize", response_model=VoiceSynthesizeResponse)
 async def voice_synthesize(
     payload: VoiceSynthesizeRequest,
     user: User = Depends(get_current_user),
 ):
     """Convert text to speech using ElevenLabs TTS."""
-    logger.info("voice_synthesize: user=%s voice=%s text_len=%d", user.id, payload.voice_id, len(payload.text))
+    logger.info(
+        "voice_synthesize: user=%s voice=%s text_len=%d",
+        user.id,
+        payload.voice_id,
+        len(payload.text),
+    )
     try:
         from app.tools.elevenlabs_tts import ElevenLabsTTSTool
 
         tool = ElevenLabsTTSTool()
-        result = await tool.execute({
-            "text": payload.text,
-            "voice_id": payload.voice_id,
-            "model_id": "eleven_turbo_v2_5",
-            "output_format": "mp3_44100_128",
-            "save_to_storage": True,
-        })
+        result = await tool.execute(
+            {
+                "text": payload.text,
+                "voice_id": payload.voice_id,
+                "model_id": "eleven_turbo_v2_5",
+                "output_format": "mp3_44100_128",
+                "save_to_storage": True,
+            }
+        )
 
         if result.status.value != "success":
             raise HTTPException(
@@ -144,13 +159,19 @@ async def voice_synthesize(
 
 # ── Documents: Parse (PDF, CSV, JSON) ───────────────────────────────
 
+
 @router.post("/documents/parse", response_model=DocumentParseResponse)
 async def document_parse(
     payload: DocumentParseRequest,
     user: User = Depends(get_current_user),
 ):
     """Parse a document (PDF, CSV, JSON) and return structured content."""
-    logger.info("document_parse: user=%s file=%s mime=%s", user.id, payload.filename, payload.mime_type)
+    logger.info(
+        "document_parse: user=%s file=%s mime=%s",
+        user.id,
+        payload.filename,
+        payload.mime_type,
+    )
     try:
         file_data = payload.file_data
         filename = payload.filename
@@ -159,6 +180,7 @@ async def document_parse(
         # Resolve file data
         if not file_data and payload.file_url:
             import httpx
+
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(payload.file_url)
                 resp.raise_for_status()
@@ -190,14 +212,23 @@ async def document_parse(
         is_pdf = mime_type == "application/pdf" or ext == ".pdf"
         is_csv = mime_type == "text/csv" or ext == ".csv"
         is_json = mime_type == "application/json" or ext == ".json"
-        is_pptx = mime_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation" or ext == ".pptx"
-        is_docx = mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or ext == ".docx"
+        is_pptx = (
+            mime_type
+            == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            or ext == ".pptx"
+        )
+        is_docx = (
+            mime_type
+            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            or ext == ".docx"
+        )
 
         if is_pdf:
             try:
                 import io
 
                 import PyPDF2
+
                 reader = PyPDF2.PdfReader(io.BytesIO(raw_bytes))
                 page_count = len(reader.pages)
                 text_parts = []
@@ -207,7 +238,8 @@ async def document_parse(
                         text_parts.append(t)
                 text_content = "\n\n".join(text_parts)
                 return DocumentParseResponse(
-                    filename=filename, mime_type=mime_type,
+                    filename=filename,
+                    mime_type=mime_type,
                     text_content=text_content[:100_000],
                     page_count=page_count,
                 )
@@ -220,11 +252,13 @@ async def document_parse(
             try:
                 import csv
                 import io
-                reader = csv.DictReader(io.StringIO(raw_bytes.decode("utf-8", errors="replace")))
+
+                reader = csv.DictReader(
+                    io.StringIO(raw_bytes.decode("utf-8", errors="replace"))
+                )
                 rows = list(reader)
                 text_content = "\n".join(
-                    ", ".join(f"{k}: {v}" for k, v in row.items())
-                    for row in rows[:500]
+                    ", ".join(f"{k}: {v}" for k, v in row.items()) for row in rows[:500]
                 )
                 # H5.4: Include actual row data (first 500 rows) + truncation flag
                 structured_data = {
@@ -234,7 +268,8 @@ async def document_parse(
                     "truncated": len(rows) > 500,
                 }
                 return DocumentParseResponse(
-                    filename=filename, mime_type=mime_type,
+                    filename=filename,
+                    mime_type=mime_type,
                     text_content=text_content[:100_000],
                     structured_data=structured_data,
                 )
@@ -244,11 +279,13 @@ async def document_parse(
         elif is_json:
             try:
                 import json
+
                 data = json.loads(raw_bytes.decode("utf-8", errors="replace"))
                 text_content = json.dumps(data, indent=2, default=str)[:100_000]
                 structured_data = data
                 return DocumentParseResponse(
-                    filename=filename, mime_type=mime_type,
+                    filename=filename,
+                    mime_type=mime_type,
                     text_content=text_content[:100_000],
                     structured_data=structured_data,
                 )
@@ -260,6 +297,7 @@ async def document_parse(
                 import io as _io
 
                 from pptx import Presentation
+
                 prs = Presentation(_io.BytesIO(raw_bytes))
                 slides_text = []
                 for i, slide in enumerate(prs.slides, 1):
@@ -270,12 +308,15 @@ async def document_parse(
                         if shape.has_table:
                             table = shape.table
                             for row in table.rows:
-                                row_text = " | ".join(cell.text.strip() for cell in row.cells)
+                                row_text = " | ".join(
+                                    cell.text.strip() for cell in row.cells
+                                )
                                 slide_parts.append(row_text)
                     slides_text.append("\n".join(slide_parts))
                 text_content = "\n\n".join(slides_text)
                 return DocumentParseResponse(
-                    filename=filename, mime_type=mime_type,
+                    filename=filename,
+                    mime_type=mime_type,
                     text_content=text_content[:100_000],
                     page_count=len(prs.slides),
                 )
@@ -289,6 +330,7 @@ async def document_parse(
                 import io as _io
 
                 from docx import Document
+
                 doc = Document(_io.BytesIO(raw_bytes))
                 paragraphs = []
                 for para in doc.paragraphs:
@@ -308,7 +350,8 @@ async def document_parse(
                             paragraphs.append(row_text)
                 text_content = "\n\n".join(paragraphs)
                 return DocumentParseResponse(
-                    filename=filename, mime_type=mime_type,
+                    filename=filename,
+                    mime_type=mime_type,
                     text_content=text_content[:100_000],
                     page_count=len(doc.sections),
                 )
@@ -327,7 +370,8 @@ async def document_parse(
             text_content = f"[Binary file: {len(raw_bytes)} bytes, {mime_type}]"
 
         return DocumentParseResponse(
-            filename=filename, mime_type=mime_type,
+            filename=filename,
+            mime_type=mime_type,
             text_content=text_content[:100_000],
             error=parse_error,
         )
@@ -344,6 +388,7 @@ async def document_parse(
 
 # ── Code: Execute ───────────────────────────────────────────────────
 
+
 @router.post("/code/execute", response_model=CodeExecuteResponse)
 async def code_execute(
     payload: CodeExecuteRequest,
@@ -356,7 +401,9 @@ async def code_execute(
     """
     logger.info(
         "code_execute: user=%s language=%s timeout=%ds",
-        user.id, payload.language, payload.timeout_seconds,
+        user.id,
+        payload.language,
+        payload.timeout_seconds,
     )
     start = time.monotonic()
 
@@ -368,18 +415,22 @@ async def code_execute(
             from app.tools.nodejs_sandbox import NodeJsSandboxTool
 
             tool = NodeJsSandboxTool()
-            result = await tool.execute({
-                "code": payload.code,
-                "timeout_seconds": payload.timeout_seconds,
-            })
+            result = await tool.execute(
+                {
+                    "code": payload.code,
+                    "timeout_seconds": payload.timeout_seconds,
+                }
+            )
         else:
             from app.tools.python_sandbox import PythonSandboxTool
 
             tool = PythonSandboxTool()
-            result = await tool.execute({
-                "code": payload.code,
-                "timeout_seconds": payload.timeout_seconds,
-            })
+            result = await tool.execute(
+                {
+                    "code": payload.code,
+                    "timeout_seconds": payload.timeout_seconds,
+                }
+            )
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,

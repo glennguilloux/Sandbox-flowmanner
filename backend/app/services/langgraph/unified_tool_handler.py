@@ -29,6 +29,7 @@ class UnifiedToolHandler:
         """Lazy load the unified tool bridge"""
         if self._bridge is None:
             from app.services.unified_tool_bridge import get_unified_tool_bridge
+
             self._bridge = get_unified_tool_bridge(user_id=self.user_id)
         return self._bridge
 
@@ -51,13 +52,11 @@ class UnifiedToolHandler:
         """
         # Extract user_id from state if available
         user_id = self.user_id
-        if state and 'user_id' in state:
-            user_id = state.get('user_id')
+        if state and "user_id" in state:
+            user_id = state.get("user_id")
 
         return await self.bridge.execute_tool(
-            tool_name=tool_name,
-            parameters=parameters,
-            user_id=user_id
+            tool_name=tool_name, parameters=parameters, user_id=user_id
         )
 
     def get_tool_schemas(self) -> list:
@@ -73,7 +72,7 @@ class UnifiedToolHandler:
             schema = {
                 "name": tool["name"],
                 "description": tool.get("description", ""),
-                "parameters": tool.get("input_schema", {})
+                "parameters": tool.get("input_schema", {}),
             }
             schemas.append(schema)
 

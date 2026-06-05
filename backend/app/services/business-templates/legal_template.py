@@ -23,6 +23,7 @@ class RiskLevel(str, Enum):
 @dataclass
 class ContractClause:
     """Extracted contract clause"""
+
     clause_type: str
     content: str
     position: int
@@ -34,6 +35,7 @@ class ContractClause:
 @dataclass
 class ContractAnalysis:
     """Complete contract analysis result"""
+
     document_id: str
     overall_risk: RiskLevel
     clauses: list[ContractClause]
@@ -45,7 +47,7 @@ class ContractAnalysis:
 
 class LegalAgentTemplate:
     """Legal domain agent template"""
-    
+
     PERSONALITY = """You are a Legal Analysis Specialist with expertise in:
 - Contract law and compliance
 - Risk assessment and mitigation
@@ -54,20 +56,20 @@ class LegalAgentTemplate:
 
 Your role is to analyze legal documents, identify risks, and provide actionable recommendations.
 Always be thorough, precise, and cite specific clauses when making observations."""
-    
+
     TOOLS = [
         "document_processor",
         "clause_extractor",
         "risk_scorer",
-        "compliance_checker"
+        "compliance_checker",
     ]
-    
+
     MEMORY_CONFIG = {
         "enable_long_term": True,
         "context_window": 16000,
-        "remember_precedents": True
+        "remember_precedents": True,
     }
-    
+
     PROMPT_LIBRARY = {
         "contract_review": """Analyze this contract for:
 1. Key terms and obligations
@@ -78,7 +80,6 @@ Always be thorough, precise, and cite specific clauses when making observations.
 
 Contract text:
 {contract_text}""",
-        
         "clause_extraction": """Extract and categorize all clauses from this legal document:
 
 Document:
@@ -89,7 +90,6 @@ For each clause, identify:
 - Key parties affected
 - Risk level
 - Any ambiguous language""",
-        
         "risk_assessment": """Assess the legal risk of the following:
 
 {content}
@@ -100,13 +100,13 @@ Consider:
 3. Enforceability
 4. Precedent implications
 
-Provide a risk score (1-10) and justification."""
+Provide a risk score (1-10) and justification.""",
     }
-    
+
     def __init__(self):
         self.name = "Legal Agent"
         self.domain = "legal"
-    
+
     def get_config(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -114,9 +114,9 @@ Provide a risk score (1-10) and justification."""
             "personality": self.PERSONALITY,
             "tools": self.TOOLS,
             "memory_config": self.MEMORY_CONFIG,
-            "prompt_library": self.PROMPT_LIBRARY
+            "prompt_library": self.PROMPT_LIBRARY,
         }
-    
+
     async def analyze_contract(self, contract_text: str) -> ContractAnalysis:
         """Analyze a contract using the LLM infrastructure."""
         error_msg = None
@@ -156,7 +156,9 @@ Provide a risk score (1-10) and justification."""
         # Fallback: extract what we can with basic text parsing
         extracted = self._basic_extract_info(contract_text)
         return ContractAnalysis(
-            document_id=extracted.get("document_id", contract_text[:50].strip() or "unknown"),
+            document_id=extracted.get(
+                "document_id", contract_text[:50].strip() or "unknown"
+            ),
             overall_risk=RiskLevel.MEDIUM,
             clauses=extracted.get("clauses", []),
             summary=(
@@ -172,14 +174,12 @@ Provide a risk score (1-10) and justification."""
             ],
         )
 
-    def _parse_analysis_response(
-        self, doc_id: str, response: str
-    ) -> ContractAnalysis:
+    def _parse_analysis_response(self, doc_id: str, response: str) -> ContractAnalysis:
         """Parse LLM response into structured ContractAnalysis."""
         try:
             # Strip markdown code fences that LLMs commonly wrap JSON in
-            clean = re.sub(r'```(?:json)?\s*\n?', '', response)
-            clean = re.sub(r'\n?\s*```', '', clean)
+            clean = re.sub(r"```(?:json)?\s*\n?", "", response)
+            clean = re.sub(r"\n?\s*```", "", clean)
             # Try JSON parsing first
             data = json.loads(clean)
             return ContractAnalysis(
@@ -227,7 +227,9 @@ Provide a risk score (1-10) and justification."""
         }
 
         if not contract_text or not contract_text.strip():
-            result["red_flags"].append("Contract text is empty — no information could be extracted")
+            result["red_flags"].append(
+                "Contract text is empty — no information could be extracted"
+            )
             return result
 
         # --- Parties ---
@@ -246,16 +248,20 @@ Provide a risk score (1-10) and justification."""
                 groups = [g for g in match.groups() if g]
                 parties.extend(groups)
         if parties:
-            unique_parties = list(dict.fromkeys(p.strip() for p in parties if p.strip()))
+            unique_parties = list(
+                dict.fromkeys(p.strip() for p in parties if p.strip())
+            )
             result["key_terms"]["parties"] = unique_parties[:6]  # cap at 6
         else:
             # Broader fallback: look for company-like names near "agreement"
             company_hits = re.findall(
-                r'(?:^|\n)\s*([A-Z][A-Za-z0-9\s,\.&]+(?:Inc\.?|LLC|Ltd\.?|Corp\.?|GmbH|PLC|Pty\s+Ltd|Limited|Company|Corporation|Co\.))',
+                r"(?:^|\n)\s*([A-Z][A-Za-z0-9\s,\.&]+(?:Inc\.?|LLC|Ltd\.?|Corp\.?|GmbH|PLC|Pty\s+Ltd|Limited|Company|Corporation|Co\.))",
                 contract_text[:2000],
             )
             if company_hits:
-                result["key_terms"]["potential_parties"] = [h.strip() for h in company_hits[:4]]
+                result["key_terms"]["potential_parties"] = [
+                    h.strip() for h in company_hits[:4]
+                ]
 
         # --- Dates ---
         dates = {}
@@ -277,7 +283,10 @@ Provide a risk score (1-10) and justification."""
 
         # Generic date mentions (ISO or US format)
         iso_dates = re.findall(r"\d{4}-\d{2}-\d{2}", contract_text)
-        us_dates = re.findall(r"(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}", contract_text)
+        us_dates = re.findall(
+            r"(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}",
+            contract_text,
+        )
         if not dates.get("effective_date") and us_dates:
             dates["mentioned_date"] = us_dates[0].strip()
 
@@ -287,19 +296,37 @@ Provide a risk score (1-10) and justification."""
         # --- Key Sections / Clauses ---
         clauses = []
         section_keywords = [
-            "term", "termination", "payment", "confidentiality", "indemnification",
-            "liability", "warranty", "governing law", "jurisdiction", "dispute",
-            "assignment", "force majeure", "non-compete", "non-solicit",
-            "intellectual property", "data protection", "privacy", "audit",
-            "insurance", "representation", "covenant", "default", "remedy",
+            "term",
+            "termination",
+            "payment",
+            "confidentiality",
+            "indemnification",
+            "liability",
+            "warranty",
+            "governing law",
+            "jurisdiction",
+            "dispute",
+            "assignment",
+            "force majeure",
+            "non-compete",
+            "non-solicit",
+            "intellectual property",
+            "data protection",
+            "privacy",
+            "audit",
+            "insurance",
+            "representation",
+            "covenant",
+            "default",
+            "remedy",
         ]
         seen_sections = set()
         for keyword in section_keywords:
             # Match section headings like "3. Term" or "Term and Termination" or "Section 5: Payment"
             pattern = re.compile(
-                r"(?:^|\n)\s*(?:\d+\.?\s*|Section\s+\d+[\.:]\s*|Article\s+\d+[\.:]\s*)?" +
-                re.escape(keyword) +
-                r"(?:\s+and\s+\w+)?[\s:\.]",
+                r"(?:^|\n)\s*(?:\d+\.?\s*|Section\s+\d+[\.:]\s*|Article\s+\d+[\.:]\s*)?"
+                + re.escape(keyword)
+                + r"(?:\s+and\s+\w+)?[\s:\.]",
                 re.IGNORECASE,
             )
             match = pattern.search(contract_text)
@@ -308,17 +335,19 @@ Provide a risk score (1-10) and justification."""
                 start = match.start()
                 # Grab the surrounding paragraph (~200 chars after heading)
                 snippet_start = max(0, match.end())
-                snippet = contract_text[snippet_start:snippet_start + 200].strip()
+                snippet = contract_text[snippet_start : snippet_start + 200].strip()
                 snippet = re.sub(r"\s+", " ", snippet)[:200]
 
-                clauses.append(ContractClause(
-                    clause_type=keyword.title(),
-                    content=snippet,
-                    position=start,
-                    risk_level=RiskLevel.LOW,
-                    issues=[],
-                    recommendations=[],
-                ))
+                clauses.append(
+                    ContractClause(
+                        clause_type=keyword.title(),
+                        content=snippet,
+                        position=start,
+                        risk_level=RiskLevel.LOW,
+                        issues=[],
+                        recommendations=[],
+                    )
+                )
 
         result["clauses"] = clauses
 
@@ -343,17 +372,35 @@ Provide a risk score (1-10) and justification."""
         # --- Red Flags (basic heuristics) ---
         red_flag_patterns = [
             (r"\bconfidential\b", "Document marked as confidential"),
-            (r"\bnon[- ]?compete\b", "Contains non-compete clause — verify enforceability"),
+            (
+                r"\bnon[- ]?compete\b",
+                "Contains non-compete clause — verify enforceability",
+            ),
             (r"\bindemnif", "Indemnification clause present — review liability scope"),
-            (r"(?:unlimited|uncapped)\s+(?:liability|indemnif)", "Unlimited liability clause — high-risk"),
+            (
+                r"(?:unlimited|uncapped)\s+(?:liability|indemnif)",
+                "Unlimited liability clause — high-risk",
+            ),
             (r"auto[- ]?renew", "Automatic renewal clause — may extend without notice"),
-            (r"(?:waive|waiver)\s+(?:jury|trial)", "Jury trial waiver — limits legal recourse"),
-            (r"binding\s+arbitration", "Binding arbitration clause — limits litigation rights"),
+            (
+                r"(?:waive|waiver)\s+(?:jury|trial)",
+                "Jury trial waiver — limits legal recourse",
+            ),
+            (
+                r"binding\s+arbitration",
+                "Binding arbitration clause — limits litigation rights",
+            ),
             (r"force\s+majeure", "Force majeure clause — verify scope"),
-            (r"entire\s+agreement", "Entire agreement / merger clause — may limit claims"),
+            (
+                r"entire\s+agreement",
+                "Entire agreement / merger clause — may limit claims",
+            ),
         ]
         for pat, label in red_flag_patterns:
-            if re.search(pat, contract_text, re.IGNORECASE) and label not in result["red_flags"]:
+            if (
+                re.search(pat, contract_text, re.IGNORECASE)
+                and label not in result["red_flags"]
+            ):
                 result["red_flags"].append(label)
 
         return result

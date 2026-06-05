@@ -7,6 +7,7 @@ Provides:
 """
 
 from __future__ import annotations
+import uuid
 
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,6 @@ from app.services.substrate.event_log import get_event_log
 from app.services.substrate.replay_engine import get_replay_engine
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -178,9 +178,7 @@ async def get_mission_replay_state(
             template = tpl_result.scalar_one_or_none()
             if template and template.expected_behaviors:
                 engine = get_assertion_engine()
-                results = await engine.evaluate(
-                    db, run_id, template.expected_behaviors
-                )
+                results = await engine.evaluate(db, run_id, template.expected_behaviors)
                 response["assertion_results"] = [r.to_dict() for r in results]
         except Exception as exc:
             logger.warning(
@@ -215,7 +213,8 @@ async def get_mission_event_at_sequence(
 
     event_log = get_event_log()
     events = await event_log.get_events(
-        db, run_id,
+        db,
+        run_id,
         from_sequence=sequence,
         to_sequence=sequence,
         limit=1,

@@ -36,9 +36,18 @@ class TestMaterializationModelImport:
 
         columns = {c.name for c in MaterializationState.__table__.columns}
         expected = {
-            "id", "object_type", "object_id", "target", "version",
-            "status", "checksum", "last_materialized_at", "error_message",
-            "metadata", "created_at", "updated_at",
+            "id",
+            "object_type",
+            "object_id",
+            "target",
+            "version",
+            "status",
+            "checksum",
+            "last_materialized_at",
+            "error_message",
+            "metadata",
+            "created_at",
+            "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -49,11 +58,17 @@ class TestMaterializationModelImport:
         indexes = MaterializationState.__table__.indexes
         unique_indexes = [ix for ix in indexes if ix.unique]
         target_idx = next(
-            (ix for ix in unique_indexes
-             if set(c.name for c in ix.columns) == {"object_type", "object_id", "target"}),
+            (
+                ix
+                for ix in unique_indexes
+                if set(c.name for c in ix.columns)
+                == {"object_type", "object_id", "target"}
+            ),
             None,
         )
-        assert target_idx is not None, "Missing unique index on (object_type, object_id, target)"
+        assert (
+            target_idx is not None
+        ), "Missing unique index on (object_type, object_id, target)"
 
 
 # ── Schema validation tests ───────────────────────────────────────────
@@ -110,6 +125,7 @@ class TestMaterializationSchema:
 
         col = MaterializationState.__table__.columns["metadata"]
         from sqlalchemy.dialects.postgresql import JSONB
+
         assert isinstance(col.type, JSONB)
 
 
@@ -124,7 +140,9 @@ class TestMaterializationMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_materialization_state.py"
+            / "alembic"
+            / "versions"
+            / "20260603_materialization_state.py"
         )
         assert rev_path.exists(), f"Migration file not found at {rev_path}"
 
@@ -134,7 +152,9 @@ class TestMaterializationMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_materialization_state.py"
+            / "alembic"
+            / "versions"
+            / "20260603_materialization_state.py"
         )
         if not rev_path.exists():
             pytest.skip("Migration file not found")
@@ -154,7 +174,9 @@ class TestMaterializationMigration:
 
         rev_path = (
             Path(__file__).resolve().parent.parent
-            / "alembic" / "versions" / "20260603_materialization_state.py"
+            / "alembic"
+            / "versions"
+            / "20260603_materialization_state.py"
         )
         if not rev_path.exists():
             pytest.skip("Migration file not found")

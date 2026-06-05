@@ -7,7 +7,9 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_task_api_orchestration_tasks_task_id_put_data import UpdateTaskApiOrchestrationTasksTaskIdPutData
+from ...models.update_task_api_orchestration_tasks_task_id_put_data import (
+    UpdateTaskApiOrchestrationTasksTaskIdPutData,
+)
 from ...types import Response, Unset
 
 

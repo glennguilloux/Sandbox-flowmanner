@@ -11,6 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class AnomalyDetector:
     """Detect anomalies in system metrics"""
 
@@ -26,8 +27,9 @@ class AnomalyDetector:
 
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
         return [
-            a for a in self._anomalies 
-            if datetime.fromisoformat(a["detected_at"]) > cutoff 
+            a
+            for a in self._anomalies
+            if datetime.fromisoformat(a["detected_at"]) > cutoff
             and a["anomaly_id"] not in self._resolved
         ]
 
@@ -43,21 +45,29 @@ class AnomalyDetector:
             anomaly_type = random.choice(anomaly_types)
             severity = random.choice(severities)
 
-            value = random.uniform(70, 95) if anomaly_type == "spike" else random.uniform(5, 30)
+            value = (
+                random.uniform(70, 95)
+                if anomaly_type == "spike"
+                else random.uniform(5, 30)
+            )
             expected_min = 30 if anomaly_type == "spike" else 50
             expected_max = 70 if anomaly_type == "spike" else 80
 
-            anomalies.append({
-                "anomaly_id": str(uuid.uuid4()),
-                "anomaly_type": anomaly_type,
-                "resource_type": resource,
-                "severity": severity,
-                "detected_at": (datetime.now(UTC) - timedelta(hours=random.randint(1, 24))).isoformat(),
-                "value": round(value, 2),
-                "expected_range": [expected_min, expected_max],
-                "description": f"{anomaly_type.replace('_', ' ').title()} detected in {resource}",
-                "auto_resolvable": severity in ["low", "medium"]
-            })
+            anomalies.append(
+                {
+                    "anomaly_id": str(uuid.uuid4()),
+                    "anomaly_type": anomaly_type,
+                    "resource_type": resource,
+                    "severity": severity,
+                    "detected_at": (
+                        datetime.now(UTC) - timedelta(hours=random.randint(1, 24))
+                    ).isoformat(),
+                    "value": round(value, 2),
+                    "expected_range": [expected_min, expected_max],
+                    "description": f"{anomaly_type.replace('_', ' ').title()} detected in {resource}",
+                    "auto_resolvable": severity in ["low", "medium"],
+                }
+            )
 
         return anomalies
 
@@ -66,6 +76,7 @@ class AnomalyDetector:
         self._resolved.append(anomaly_id)
         logger.info(f"Anomaly {anomaly_id} resolved")
         return True
+
 
 # Singleton instance
 anomaly_detector = AnomalyDetector()

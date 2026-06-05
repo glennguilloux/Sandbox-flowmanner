@@ -102,7 +102,13 @@ MISSION_TEMPLATES = [
         },
         "results": {
             "files_created": 6,
-            "endpoints": ["GET /users", "POST /users", "GET /users/:id", "PUT /users/:id", "DELETE /users/:id"],
+            "endpoints": [
+                "GET /users",
+                "POST /users",
+                "GET /users/:id",
+                "PUT /users/:id",
+                "DELETE /users/:id",
+            ],
             "tests_passed": 12,
         },
         "tokens_used": 4230,
@@ -366,7 +372,10 @@ CHAT_CONVERSATIONS = [
     {
         "title": "How to set up the dev environment?",
         "messages": [
-            {"role": "user", "content": "How do I set up the local development environment for Flowmanner?"},
+            {
+                "role": "user",
+                "content": "How do I set up the local development environment for Flowmanner?",
+            },
             {
                 "role": "assistant",
                 "content": "Here's how to set up the Flowmanner dev environment:\n\n"
@@ -383,7 +392,10 @@ CHAT_CONVERSATIONS = [
     {
         "title": "Best practices for mission creation",
         "messages": [
-            {"role": "user", "content": "What are the best practices for creating effective missions?"},
+            {
+                "role": "user",
+                "content": "What are the best practices for creating effective missions?",
+            },
             {
                 "role": "assistant",
                 "content": "Here are key best practices for mission creation:\n\n"
@@ -408,7 +420,10 @@ CHAT_CONVERSATIONS = [
     {
         "title": "Understanding the agent system",
         "messages": [
-            {"role": "user", "content": "Can you explain how the agent system works in Flowmanner?"},
+            {
+                "role": "user",
+                "content": "Can you explain how the agent system works in Flowmanner?",
+            },
             {
                 "role": "assistant",
                 "content": "The Flowmanner agent system works in layers:\n\n"
@@ -582,12 +597,11 @@ async def seed_missions(session, user_ids: dict[str, int]) -> list[str]:
                     "status": "completed",
                     "started_at": created_at + timedelta(seconds=5 + j * 10),
                     "completed_at": created_at + timedelta(seconds=15 + j * 10),
-                    "tokens_used": (tmpl["tokens_used"] or 0) // max(len(tmpl["plan"]["steps"]), 1),
+                    "tokens_used": (tmpl["tokens_used"] or 0)
+                    // max(len(tmpl["plan"]["steps"]), 1),
                 }
                 task_stmt = (
-                    pg_insert(MissionTask)
-                    .values(**task_data)
-                    .on_conflict_do_nothing()
+                    pg_insert(MissionTask).values(**task_data).on_conflict_do_nothing()
                 )
                 await session.execute(task_stmt)
 
@@ -709,7 +723,9 @@ async def main() -> None:
         try:
             print("\n[1/5] Seeding users...")
             user_ids = await seed_users(session)
-            print(f"      Created/updated {len(user_ids)} users: {list(user_ids.keys())}")
+            print(
+                f"      Created/updated {len(user_ids)} users: {list(user_ids.keys())}"
+            )
 
             print("\n[2/5] Seeding workspace...")
             ws_id = await seed_workspace(session, user_ids)

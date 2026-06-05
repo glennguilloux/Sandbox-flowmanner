@@ -25,49 +25,92 @@ depends_on = None
 
 def upgrade() -> None:
     # ── marketplace_listings: new columns ───────────────────────────
-    op.add_column("marketplace_listings", sa.Column(
-        "workspace_id", sa.String(36), nullable=True, index=True,
-    ))
-    op.create_foreign_key(
-        "fk_ml_workspace", "marketplace_listings", "workspaces",
-        ["workspace_id"], ["id"], ondelete="SET NULL",
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "workspace_id",
+            sa.String(36),
+            nullable=True,
+            index=True,
+        ),
     )
-    op.add_column("marketplace_listings", sa.Column(
-        "status", sa.String(20), nullable=False, server_default="draft",
-    ))
-    op.add_column("marketplace_listings", sa.Column(
-        "version", sa.String(20), nullable=True, server_default="1.0.0",
-    ))
-    op.add_column("marketplace_listings", sa.Column(
-        "published_at", sa.DateTime(timezone=True), nullable=True,
-    ))
+    op.create_foreign_key(
+        "fk_ml_workspace",
+        "marketplace_listings",
+        "workspaces",
+        ["workspace_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "status",
+            sa.String(20),
+            nullable=False,
+            server_default="draft",
+        ),
+    )
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "version",
+            sa.String(20),
+            nullable=True,
+            server_default="1.0.0",
+        ),
+    )
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "published_at",
+            sa.DateTime(timezone=True),
+            nullable=True,
+        ),
+    )
     op.create_index("ix_ml_status", "marketplace_listings", ["status"])
     op.create_index("ix_ml_workspace", "marketplace_listings", ["workspace_id"])
 
     # Backfill status from is_published boolean
-    op.execute("""
+    op.execute(
+        """
         UPDATE marketplace_listings
         SET status = 'published', published_at = created_at
         WHERE is_published = true
-    """)
-    op.execute("""
+    """
+    )
+    op.execute(
+        """
         UPDATE marketplace_listings
         SET status = 'draft'
         WHERE is_published = false
-    """)
+    """
+    )
 
     # ── marketplace_listings: add review_count column ──────────────
-    op.add_column("marketplace_listings", sa.Column(
-        "review_count", sa.Integer, nullable=False, server_default="0",
-    ))
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "review_count",
+            sa.Integer,
+            nullable=False,
+            server_default="0",
+        ),
+    )
 
     # ── marketplace_reviews: add title column ───────────────────────
-    op.add_column("marketplace_reviews", sa.Column(
-        "title", sa.String(255), nullable=True,
-    ))
+    op.add_column(
+        "marketplace_reviews",
+        sa.Column(
+            "title",
+            sa.String(255),
+            nullable=True,
+        ),
+    )
 
     # ── Backfill review_count from existing reviews ─────────────────
-    op.execute("""
+    op.execute(
+        """
         UPDATE marketplace_listings ml
         SET review_count = COALESCE(sub.cnt, 0)
         FROM (
@@ -76,7 +119,8 @@ def upgrade() -> None:
             GROUP BY listing_id
         ) sub
         WHERE ml.id = sub.listing_id
-    """)
+    """
+    )
 
 
 def downgrade() -> None:

@@ -3,6 +3,7 @@
 import time
 from flowmanner_api_client import FlowmannerClient
 
+
 def main():
     with FlowmannerClient(base_url="https://flowmanner.com") as fm:
         # Create mission
@@ -35,6 +36,7 @@ def main():
         # List tasks
         tasks = fm.list_tasks(mission_id)
         print(f"Tasks: {len(tasks)}")
+
 
 if __name__ == "__main__":
     main()

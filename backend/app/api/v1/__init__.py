@@ -13,6 +13,7 @@ class RouterTier(Enum):
     STANDARD: Log warning on import failure (most routers).
     OPTIONAL: Log info only — expected to be absent in some deployments.
     """
+
     CRITICAL = "critical"
     STANDARD = "standard"
     OPTIONAL = "optional"
@@ -79,7 +80,6 @@ roles_router = _import_router("roles")
 feedback_router = _import_router("feedback_routes")
 orchestration_router = _import_router("orchestration")
 subscription_router = _import_router("subscription")
-partner_router = _import_router("partner")
 usage_router = _import_router("usage")
 reliability_router = _import_router("reliability")
 webhook_router = _import_router("webhooks")
@@ -107,7 +107,6 @@ evaluation_router = _import_router("evaluation")
 agent_capabilities_router = _import_router("agent_capabilities")
 swarm_router = _import_router("swarm")
 swarm_protocol_router = _import_router("swarm_protocol")
-agent_personalities_router = _import_router("agent_personalities")
 rag_router = _import_router("rag")
 sandbox_router = _import_router("sandbox")
 io_router = _import_router("io")
@@ -124,14 +123,15 @@ plugins_router = _import_router("plugins")
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
 
 community_router = _import_router("community", tier=RouterTier.OPTIONAL)
-blog_router = _import_router("blog", tier=RouterTier.OPTIONAL)
 integrations_router = _import_router("integrations", tier=RouterTier.OPTIONAL)
 marketplace_router = _import_router("marketplace", tier=RouterTier.OPTIONAL)
 newsletter_router = _import_router("newsletter", tier=RouterTier.OPTIONAL)
 
 web_search_enhanced_router = None
 try:
-    from app.services.web_search.web_search_routes_enhanced import router as web_search_enhanced_router
+    from app.services.web_search.web_search_routes_enhanced import (
+        router as web_search_enhanced_router,
+    )
 except Exception as e:
     logger.warning("Skipping enhanced web search router: %s", e)
 
@@ -176,7 +176,6 @@ for _name, _router in [
     ("feedback", feedback_router),
     ("orchestration", orchestration_router),
     ("subscription", subscription_router),
-    ("partner", partner_router),
     ("byok", byok_router),
     ("webhooks", webhook_router),
     ("templates", templates_router),
@@ -215,8 +214,6 @@ for _name, _router in [
     ("agent-capabilities", agent_capabilities_router),
     ("swarm", swarm_router),
     ("swarm_protocol", swarm_protocol_router),
-    ("blog", blog_router),
-    ("agent-personalities", agent_personalities_router),
     ("rag", rag_router),
     ("sandbox", sandbox_router),
     ("substrate", substrate_router),

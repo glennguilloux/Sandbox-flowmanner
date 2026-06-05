@@ -15,7 +15,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -144,9 +151,7 @@ class LinkedinPublisherTool(BaseTool):
             logger.exception("linkedin_publisher failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _publish(
-        self, validated: LinkedinPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish(self, validated: LinkedinPublisherInput) -> dict[str, Any]:
         """Post to LinkedIn API."""
         if not LINKEDIN_ACCESS_TOKEN:
             return {
@@ -160,9 +165,8 @@ class LinkedinPublisherTool(BaseTool):
                     "type": validated.post_type,
                     "visibility": validated.visibility,
                     "length": len(validated.message),
-                    "truncated": validated.message[:200] + (
-                        "..." if len(validated.message) > 200 else ""
-                    ),
+                    "truncated": validated.message[:200]
+                    + ("..." if len(validated.message) > 200 else ""),
                     "has_attachment": bool(validated.share_url),
                 },
             }
@@ -180,9 +184,8 @@ class LinkedinPublisherTool(BaseTool):
                     "type": validated.post_type,
                     "visibility": validated.visibility,
                     "length": len(validated.message),
-                    "truncated": validated.message[:200] + (
-                        "..." if len(validated.message) > 200 else ""
-                    ),
+                    "truncated": validated.message[:200]
+                    + ("..." if len(validated.message) > 200 else ""),
                     "has_attachment": bool(validated.share_url),
                 },
             }
@@ -217,13 +220,13 @@ class LinkedinPublisherTool(BaseTool):
             body["specificContent"]["com.linkedin.ugc.ShareContent"][
                 "shareMediaCategory"
             ] = "ARTICLE"
-            body["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [{
-                "status": "READY",
-                "originalUrl": validated.share_url,
-                "title": {
-                    "text": validated.share_url_title or validated.share_url
-                },
-            }]
+            body["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
+                {
+                    "status": "READY",
+                    "originalUrl": validated.share_url,
+                    "title": {"text": validated.share_url_title or validated.share_url},
+                }
+            ]
 
         async with httpx.AsyncClient(timeout=LINKEDIN_TIMEOUT) as client:
             resp = await client.post(
@@ -244,14 +247,20 @@ class LinkedinPublisherTool(BaseTool):
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
                     "shareCommentary": {
-                        "text": validated.article_description or validated.article_title or ""
+                        "text": validated.article_description
+                        or validated.article_title
+                        or ""
                     },
                     "shareMediaCategory": "ARTICLE",
-                    "media": [{
-                        "status": "READY",
-                        "description": {"text": validated.article_description or ""},
-                        "title": {"text": validated.article_title or "Untitled"},
-                    }],
+                    "media": [
+                        {
+                            "status": "READY",
+                            "description": {
+                                "text": validated.article_description or ""
+                            },
+                            "title": {"text": validated.article_title or "Untitled"},
+                        }
+                    ],
                 }
             },
             "visibility": {
@@ -274,7 +283,11 @@ class LinkedinPublisherTool(BaseTool):
         """Resolve the author URN for the post."""
         if as_org and LINKEDIN_ORG_ID:
             return f"urn:li:organization:{LINKEDIN_ORG_ID}"
-        return LINKEDIN_USER_ID if LINKEDIN_USER_ID.startswith("urn:li:") else f"urn:li:person:{LINKEDIN_USER_ID}"
+        return (
+            LINKEDIN_USER_ID
+            if LINKEDIN_USER_ID.startswith("urn:li:")
+            else f"urn:li:person:{LINKEDIN_USER_ID}"
+        )
 
     def _auth_headers(self) -> dict[str, str]:
         return {
@@ -294,7 +307,8 @@ class LinkedinPublisherTool(BaseTool):
                 "type": post_type,
                 "activity_url": (
                     f"https://www.linkedin.com/feed/update/{post_id}"
-                    if post_id != "unknown" else None
+                    if post_id != "unknown"
+                    else None
                 ),
             }
 

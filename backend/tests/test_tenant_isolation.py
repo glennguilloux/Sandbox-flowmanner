@@ -39,8 +39,10 @@ def _assert(condition: bool, msg: str) -> None:
 
 # ── Mock objects ─────────────────────────────────────────────────────────────
 
+
 class FakeRow:
     """Simulates a SQLAlchemy Row result."""
+
     def __init__(self, *args, **kwargs):
         self._values = list(args)
         for k, v in kwargs.items():
@@ -97,7 +99,9 @@ class FakeResult:
 
 
 class FakeMission:
-    def __init__(self, id=None, user_id=1, workspace_id=None, title="Test", status="pending"):
+    def __init__(
+        self, id=None, user_id=1, workspace_id=None, title="Test", status="pending"
+    ):
         self.id = id or str(uuid.uuid4())
         self.user_id = user_id
         self.workspace_id = workspace_id
@@ -128,6 +132,7 @@ class FakeWorkspaceMember:
 
 
 # ── Test: get_workspace_id dependency ────────────────────────────────────────
+
 
 async def test_get_workspace_id_from_header():
     """get_workspace_id should resolve from X-Workspace-Id header."""
@@ -177,6 +182,7 @@ async def test_get_workspace_id_fallback_to_primary():
     request.query_params = {}
 
     db = AsyncMock()
+
     # Single call: auto-detect primary workspace
     async def mock_execute(stmt):
         return FakeResult(row=FakeRow(workspace_id="ws-primary-000"))
@@ -184,7 +190,9 @@ async def test_get_workspace_id_fallback_to_primary():
     db.execute = mock_execute
 
     result = await get_workspace_id(request, user, db)
-    _assert(result == "ws-primary-000", "get_workspace_id falls back to primary workspace")
+    _assert(
+        result == "ws-primary-000", "get_workspace_id falls back to primary workspace"
+    )
 
 
 async def test_get_workspace_id_no_workspaces():
@@ -204,6 +212,7 @@ async def test_get_workspace_id_no_workspaces():
 
 
 # ── Test: Mission service workspace filtering ────────────────────────────────
+
 
 async def test_list_missions_workspace_filter():
     """list_missions should filter by workspace_id when provided."""
@@ -285,10 +294,14 @@ async def test_create_mission_default_no_workspace():
 
     mission = await create_mission(db, title="Test", user_id=1)
 
-    _assert(added_objects[0].workspace_id is None, "create_mission defaults workspace_id to None")
+    _assert(
+        added_objects[0].workspace_id is None,
+        "create_mission defaults workspace_id to None",
+    )
 
 
 # ── Test: Graph service workspace filtering ──────────────────────────────────
+
 
 async def test_create_graph_workflow_sets_workspace_id():
     """create_graph_workflow should set workspace_id."""
@@ -304,7 +317,10 @@ async def test_create_graph_workflow_sets_workspace_id():
 
     result = await create_graph_workflow(db, 1, "test", {}, workspace_id=ws_id)
 
-    _assert(added_objects[0].workspace_id == ws_id, "create_graph_workflow sets workspace_id")
+    _assert(
+        added_objects[0].workspace_id == ws_id,
+        "create_graph_workflow sets workspace_id",
+    )
 
 
 async def test_list_graph_workflows_workspace_filter():
@@ -331,6 +347,7 @@ async def test_list_graph_workflows_workspace_filter():
 
 # ── Test: Chat service workspace filtering ───────────────────────────────────
 
+
 async def test_create_chat_thread_sets_workspace_id():
     """create_chat_thread should set workspace_id."""
     from app.services.chat_service import create_chat_thread
@@ -345,7 +362,9 @@ async def test_create_chat_thread_sets_workspace_id():
 
     result = await create_chat_thread(db, 1, "user", "title", workspace_id=ws_id)
 
-    _assert(added_objects[0].workspace_id == ws_id, "create_chat_thread sets workspace_id")
+    _assert(
+        added_objects[0].workspace_id == ws_id, "create_chat_thread sets workspace_id"
+    )
 
 
 async def test_list_chat_threads_workspace_filter():
@@ -392,6 +411,7 @@ async def test_list_chat_threads_fallback_to_user():
 
 # ── Test: CQRS workspace_id propagation ──────────────────────────────────────
 
+
 async def test_cqrs_create_mission_passes_workspace_id():
     """MissionCommandHandlers.create_mission should pass workspace_id to service."""
     from app.api._mission_cqrs.commands import MissionCommandHandlers
@@ -417,7 +437,10 @@ async def test_cqrs_create_mission_passes_workspace_id():
     result = await handler.create_mission(user, payload, workspace_id=ws_id)
 
     mission_obj = added_objects[0]
-    _assert(mission_obj.workspace_id == ws_id, "CQRS create_mission propagates workspace_id to Mission object")
+    _assert(
+        mission_obj.workspace_id == ws_id,
+        "CQRS create_mission propagates workspace_id to Mission object",
+    )
 
 
 async def test_cqrs_list_missions_passes_workspace_id():
@@ -436,13 +459,17 @@ async def test_cqrs_list_missions_passes_workspace_id():
 
     handler = MissionQueryHandlers(session)
     result = await handler.list_missions(1, 1, 20, workspace_id=ws_id)
-    _assert(result.total == 0, "CQRS list_missions with workspace_id executes without error")
+    _assert(
+        result.total == 0, "CQRS list_missions with workspace_id executes without error"
+    )
 
 
 # ── Test: Graph access workspace isolation ─────────────────────────────────
 
+
 class FakeWorkflow:
     """Simulates a GraphWorkflow ORM object."""
+
     def __init__(self, id=None, user_id=1, workspace_id=None, name="Test Workflow"):
         self.id = id or str(uuid.uuid4())
         self.user_id = user_id
@@ -519,7 +546,10 @@ async def test_require_graph_access_fallback_to_user_id():
     db.execute = mock_execute
 
     result = await require_graph_access(db, workflow.id, user_id=42)
-    _assert(result.id == workflow.id, "require_graph_access allows owner when no workspace_id")
+    _assert(
+        result.id == workflow.id,
+        "require_graph_access allows owner when no workspace_id",
+    )
 
 
 async def test_require_graph_access_wrong_user_denied():
@@ -559,7 +589,9 @@ async def test_require_graph_access_missing_workflow():
         await require_graph_access(db, "nonexistent-id", user_id=1)
         _assert(False, "require_graph_access should have raised GraphNotFoundError")
     except GraphNotFoundError:
-        _assert(True, "require_graph_access raises GraphNotFoundError for missing workflow")
+        _assert(
+            True, "require_graph_access raises GraphNotFoundError for missing workflow"
+        )
 
 
 async def test_list_graph_workflows_fallback_to_user():
@@ -579,13 +611,17 @@ async def test_list_graph_workflows_fallback_to_user():
     db.execute = mock_execute
 
     items, total = await list_graph_workflows(db, 42, workspace_id=None)
-    _assert(total == 2, "list_graph_workflows without workspace_id falls back to user_id")
+    _assert(
+        total == 2, "list_graph_workflows without workspace_id falls back to user_id"
+    )
 
 
 # ── Test: Chat access workspace isolation ───────────────────────────────────
 
+
 class FakeChatThread:
     """Simulates a ChatThread ORM object."""
+
     def __init__(self, id=None, user_id=1, workspace_id=None, title="Test Thread"):
         self.id = id or str(uuid.uuid4())
         self.user_id = user_id
@@ -617,7 +653,9 @@ async def test_require_chat_thread_access_workspace_member():
     db.execute = mock_execute
 
     result = await require_chat_thread_access(db, thread.id, user_id=1)
-    _assert(result.id == thread.id, "require_chat_thread_access allows workspace member")
+    _assert(
+        result.id == thread.id, "require_chat_thread_access allows workspace member"
+    )
 
 
 async def test_require_chat_thread_access_non_member_denied():
@@ -643,9 +681,14 @@ async def test_require_chat_thread_access_non_member_denied():
 
     try:
         await require_chat_thread_access(db, thread.id, user_id=1)
-        _assert(False, "require_chat_thread_access should have raised HTTPException(404)")
+        _assert(
+            False, "require_chat_thread_access should have raised HTTPException(404)"
+        )
     except HTTPException as e:
-        _assert(e.status_code == 404, "require_chat_thread_access denies non-member with 404")
+        _assert(
+            e.status_code == 404,
+            "require_chat_thread_access denies non-member with 404",
+        )
 
 
 async def test_require_chat_thread_access_fallback_to_user_id():
@@ -662,7 +705,10 @@ async def test_require_chat_thread_access_fallback_to_user_id():
     db.execute = mock_execute
 
     result = await require_chat_thread_access(db, thread.id, user_id=42)
-    _assert(result.id == thread.id, "require_chat_thread_access allows owner when no workspace_id")
+    _assert(
+        result.id == thread.id,
+        "require_chat_thread_access allows owner when no workspace_id",
+    )
 
 
 async def test_require_chat_thread_access_wrong_user_denied():
@@ -681,9 +727,14 @@ async def test_require_chat_thread_access_wrong_user_denied():
 
     try:
         await require_chat_thread_access(db, thread.id, user_id=999)
-        _assert(False, "require_chat_thread_access should have raised HTTPException(404)")
+        _assert(
+            False, "require_chat_thread_access should have raised HTTPException(404)"
+        )
     except HTTPException as e:
-        _assert(e.status_code == 404, "require_chat_thread_access denies wrong user with 404")
+        _assert(
+            e.status_code == 404,
+            "require_chat_thread_access denies wrong user with 404",
+        )
 
 
 async def test_require_chat_thread_access_missing_thread():
@@ -700,12 +751,18 @@ async def test_require_chat_thread_access_missing_thread():
 
     try:
         await require_chat_thread_access(db, "nonexistent-id", user_id=1)
-        _assert(False, "require_chat_thread_access should have raised HTTPException(404)")
+        _assert(
+            False, "require_chat_thread_access should have raised HTTPException(404)"
+        )
     except HTTPException as e:
-        _assert(e.status_code == 404, "require_chat_thread_access returns 404 for missing thread")
+        _assert(
+            e.status_code == 404,
+            "require_chat_thread_access returns 404 for missing thread",
+        )
 
 
 # ── Test: Active missions workspace filtering ───────────────────────────────
+
 
 async def test_list_active_workspace_filter():
     """list_active should filter by workspace_id when provided."""
@@ -727,8 +784,14 @@ async def test_list_active_workspace_filter():
 
     handler = MissionQueryHandlers(session)
     # Patch cache to return None (cache miss)
-    with patch("app.api._mission_cqrs.queries.cache_active", new_callable=AsyncMock, return_value=None):
-        with patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock):
+    with patch(
+        "app.api._mission_cqrs.queries.cache_active",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
+        ):
             result = await handler.list_active(user_id=1, workspace_id=ws_id)
     _assert(len(result) == 1, "list_active with workspace_id returns correct results")
 
@@ -747,8 +810,14 @@ async def test_list_active_fallback_to_user():
     session.execute = mock_execute
 
     handler = MissionQueryHandlers(session)
-    with patch("app.api._mission_cqrs.queries.cache_active", new_callable=AsyncMock, return_value=None):
-        with patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock):
+    with patch(
+        "app.api._mission_cqrs.queries.cache_active",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
+        ):
             result = await handler.list_active(user_id=42, workspace_id=None)
     _assert(len(result) == 1, "list_active without workspace_id falls back to user_id")
 
@@ -774,10 +843,20 @@ async def test_active_missions_workspace_filter():
     session.execute = mock_execute
 
     handler = MissionQueryHandlers(session)
-    with patch("app.api._mission_cqrs.queries.cache_active", new_callable=AsyncMock, return_value=None):
-        with patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock):
-            result = await handler.active_missions(user_id=1, user_role="pro", is_pro=True, workspace_id=ws_id)
-    _assert(result.total == 1, "active_missions with workspace_id returns correct results")
+    with patch(
+        "app.api._mission_cqrs.queries.cache_active",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
+        ):
+            result = await handler.active_missions(
+                user_id=1, user_role="pro", is_pro=True, workspace_id=ws_id
+            )
+    _assert(
+        result.total == 1, "active_missions with workspace_id returns correct results"
+    )
 
 
 async def test_active_missions_fallback_to_user():
@@ -800,10 +879,20 @@ async def test_active_missions_fallback_to_user():
     session.execute = mock_execute
 
     handler = MissionQueryHandlers(session)
-    with patch("app.api._mission_cqrs.queries.cache_active", new_callable=AsyncMock, return_value=None):
-        with patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock):
-            result = await handler.active_missions(user_id=42, user_role="pro", is_pro=True, workspace_id=None)
-    _assert(result.total == 1, "active_missions without workspace_id falls back to user_id")
+    with patch(
+        "app.api._mission_cqrs.queries.cache_active",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
+        ):
+            result = await handler.active_missions(
+                user_id=42, user_role="pro", is_pro=True, workspace_id=None
+            )
+    _assert(
+        result.total == 1, "active_missions without workspace_id falls back to user_id"
+    )
 
 
 async def test_active_missions_requires_pro():
@@ -823,6 +912,7 @@ async def test_active_missions_requires_pro():
 
 # ── Test: Roles.py bug fix ──────────────────────────────────────────────────
 
+
 async def test_roles_assign_uses_wid_not_tid():
     """roles.py assign/unassign should reference `wid`, not `tid`."""
     import ast
@@ -839,10 +929,14 @@ async def test_roles_assign_uses_wid_not_tid():
         if isinstance(node, ast.Name) and node.id == "tid":
             tid_references.append(node)
 
-    _assert(len(tid_references) == 0, f"roles.py has no references to undefined `tid` variable (found {len(tid_references)})")
+    _assert(
+        len(tid_references) == 0,
+        f"roles.py has no references to undefined `tid` variable (found {len(tid_references)})",
+    )
 
 
 # ── Test: Permissions integration ───────────────────────────────────────────
+
 
 async def test_permission_service_respects_workspace():
     """PermissionService.check should return False for workspace with no membership."""
@@ -856,11 +950,17 @@ async def test_permission_service_respects_workspace():
 
     db.execute = mock_execute
 
-    result = await PermissionService.check(db, user_id=1, workspace_id="ws-nonexistent", permission_key="missions.create")
-    _assert(result is False, "PermissionService returns False when user has no workspace membership")
+    result = await PermissionService.check(
+        db, user_id=1, workspace_id="ws-nonexistent", permission_key="missions.create"
+    )
+    _assert(
+        result is False,
+        "PermissionService returns False when user has no workspace membership",
+    )
 
 
 # ── Run all tests ────────────────────────────────────────────────────────────
+
 
 async def main():
     global _passed, _failed, _errors
@@ -869,59 +969,89 @@ async def main():
     print("=" * 60)
 
     tests = [
-        ("get_workspace_id dependency", [
-            test_get_workspace_id_from_header,
-            test_get_workspace_id_from_query,
-            test_get_workspace_id_fallback_to_primary,
-            test_get_workspace_id_no_workspaces,
-        ]),
-        ("Mission service workspace filtering", [
-            test_list_missions_workspace_filter,
-            test_list_missions_fallback_to_user,
-            test_create_mission_sets_workspace_id,
-            test_create_mission_default_no_workspace,
-        ]),
-        ("Graph service workspace filtering", [
-            test_create_graph_workflow_sets_workspace_id,
-            test_list_graph_workflows_workspace_filter,
-            test_list_graph_workflows_fallback_to_user,
-        ]),
-        ("Chat access workspace isolation", [
-            test_require_chat_thread_access_workspace_member,
-            test_require_chat_thread_access_non_member_denied,
-            test_require_chat_thread_access_fallback_to_user_id,
-            test_require_chat_thread_access_wrong_user_denied,
-            test_require_chat_thread_access_missing_thread,
-        ]),
-        ("Graph access workspace isolation", [
-            test_require_graph_access_workspace_member,
-            test_require_graph_access_non_member_denied,
-            test_require_graph_access_fallback_to_user_id,
-            test_require_graph_access_wrong_user_denied,
-            test_require_graph_access_missing_workflow,
-        ]),
-        ("Active missions workspace filtering", [
-            test_list_active_workspace_filter,
-            test_list_active_fallback_to_user,
-            test_active_missions_workspace_filter,
-            test_active_missions_fallback_to_user,
-            test_active_missions_requires_pro,
-        ]),
-        ("Chat service workspace filtering", [
-            test_create_chat_thread_sets_workspace_id,
-            test_list_chat_threads_workspace_filter,
-            test_list_chat_threads_fallback_to_user,
-        ]),
-        ("CQRS workspace propagation", [
-            test_cqrs_create_mission_passes_workspace_id,
-            test_cqrs_list_missions_passes_workspace_id,
-        ]),
-        ("Roles.py bug fix", [
-            test_roles_assign_uses_wid_not_tid,
-        ]),
-        ("Permission service integration", [
-            test_permission_service_respects_workspace,
-        ]),
+        (
+            "get_workspace_id dependency",
+            [
+                test_get_workspace_id_from_header,
+                test_get_workspace_id_from_query,
+                test_get_workspace_id_fallback_to_primary,
+                test_get_workspace_id_no_workspaces,
+            ],
+        ),
+        (
+            "Mission service workspace filtering",
+            [
+                test_list_missions_workspace_filter,
+                test_list_missions_fallback_to_user,
+                test_create_mission_sets_workspace_id,
+                test_create_mission_default_no_workspace,
+            ],
+        ),
+        (
+            "Graph service workspace filtering",
+            [
+                test_create_graph_workflow_sets_workspace_id,
+                test_list_graph_workflows_workspace_filter,
+                test_list_graph_workflows_fallback_to_user,
+            ],
+        ),
+        (
+            "Chat access workspace isolation",
+            [
+                test_require_chat_thread_access_workspace_member,
+                test_require_chat_thread_access_non_member_denied,
+                test_require_chat_thread_access_fallback_to_user_id,
+                test_require_chat_thread_access_wrong_user_denied,
+                test_require_chat_thread_access_missing_thread,
+            ],
+        ),
+        (
+            "Graph access workspace isolation",
+            [
+                test_require_graph_access_workspace_member,
+                test_require_graph_access_non_member_denied,
+                test_require_graph_access_fallback_to_user_id,
+                test_require_graph_access_wrong_user_denied,
+                test_require_graph_access_missing_workflow,
+            ],
+        ),
+        (
+            "Active missions workspace filtering",
+            [
+                test_list_active_workspace_filter,
+                test_list_active_fallback_to_user,
+                test_active_missions_workspace_filter,
+                test_active_missions_fallback_to_user,
+                test_active_missions_requires_pro,
+            ],
+        ),
+        (
+            "Chat service workspace filtering",
+            [
+                test_create_chat_thread_sets_workspace_id,
+                test_list_chat_threads_workspace_filter,
+                test_list_chat_threads_fallback_to_user,
+            ],
+        ),
+        (
+            "CQRS workspace propagation",
+            [
+                test_cqrs_create_mission_passes_workspace_id,
+                test_cqrs_list_missions_passes_workspace_id,
+            ],
+        ),
+        (
+            "Roles.py bug fix",
+            [
+                test_roles_assign_uses_wid_not_tid,
+            ],
+        ),
+        (
+            "Permission service integration",
+            [
+                test_permission_service_respects_workspace,
+            ],
+        ),
     ]
 
     for section_name, test_fns in tests:

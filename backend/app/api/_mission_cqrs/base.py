@@ -39,12 +39,16 @@ def _schedule_fire_and_forget(coro) -> None:
     task.add_done_callback(_on_done)
 
 
-def _make_execution_status(mission: Mission, tasks: list[MissionTask]) -> MissionExecutionStatus:
+def _make_execution_status(
+    mission: Mission, tasks: list[MissionTask]
+) -> MissionExecutionStatus:
     return MissionExecutionStatus(
         mission_id=mission.id,
         status=mission.status,
         total_tasks=len(tasks),
-        completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+        completed_tasks=sum(
+            1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
+        ),
         failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
         total_tokens_used=mission.tokens_used or 0,
         started_at=mission.started_at,

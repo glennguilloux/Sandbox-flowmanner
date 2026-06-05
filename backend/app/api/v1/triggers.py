@@ -188,7 +188,10 @@ async def fire_graph(
     from app.services.graph_service import execute_graph_workflow
 
     execution = await execute_graph_workflow(
-        db, graph_workflow_id, user.id, input_data={"trigger_id": str(trigger.id), "source": "trigger"}
+        db,
+        graph_workflow_id,
+        user.id,
+        input_data={"trigger_id": str(trigger.id), "source": "trigger"},
     )
     await db.commit()
 
@@ -229,7 +232,10 @@ async def webhook_fire(
     _rate_key = f"webhook_trigger:{webhook_path}:{client_ip}"
     try:
         from app.services.auth_rate_limiter import check_rate_limit
-        is_allowed, remaining, retry_after = check_rate_limit(_rate_key, max_requests=30, window_seconds=60)
+
+        is_allowed, remaining, retry_after = check_rate_limit(
+            _rate_key, max_requests=30, window_seconds=60
+        )
         if not is_allowed:
             raise HTTPException(
                 status_code=429,
@@ -249,13 +255,17 @@ async def webhook_fire(
 
     # Read body for signature verification
     body = await request.body()
-    signature = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature-256", "")
+    signature = request.headers.get("X-Signature") or request.headers.get(
+        "X-Hub-Signature-256", ""
+    )
 
     sig_valid = None
     if trigger.webhook_secret:
         if not signature:
             raise HTTPException(status_code=401, detail="Missing X-Signature header")
-        sig_valid = svc.verify_webhook_signature(body, trigger.webhook_secret, signature)
+        sig_valid = svc.verify_webhook_signature(
+            body, trigger.webhook_secret, signature
+        )
         if not sig_valid:
             raise HTTPException(status_code=401, detail="Invalid signature")
 
@@ -266,7 +276,11 @@ async def webhook_fire(
     except Exception:
         payload = {"raw_body": body.decode("utf-8", errors="replace")[:1000]}
 
-    log = await svc.fire_trigger(db, trigger, payload={"source": "webhook", "body": payload, "signature_valid": sig_valid})
+    log = await svc.fire_trigger(
+        db,
+        trigger,
+        payload={"source": "webhook", "body": payload, "signature_valid": sig_valid},
+    )
     await db.commit()
 
     return {

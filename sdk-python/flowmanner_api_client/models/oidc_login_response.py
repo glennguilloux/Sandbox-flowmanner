@@ -1,42 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="OIDCLoginResponse")
-
 
 
 @_attrs_define
 class OIDCLoginResponse:
-    """ 
-        Attributes:
-            authorization_url (str):
-            state (str):
-            nonce (str):
-            code_verifier (str):
-     """
+    """
+    Attributes:
+        authorization_url (str):
+        state (str):
+        nonce (str):
+        code_verifier (str):
+    """
 
     authorization_url: str
     state: str
     nonce: str
     code_verifier: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         authorization_url = self.authorization_url
@@ -47,19 +34,18 @@ class OIDCLoginResponse:
 
         code_verifier = self.code_verifier
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "authorization_url": authorization_url,
-            "state": state,
-            "nonce": nonce,
-            "code_verifier": code_verifier,
-        })
+        field_dict.update(
+            {
+                "authorization_url": authorization_url,
+                "state": state,
+                "nonce": nonce,
+                "code_verifier": code_verifier,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -78,7 +64,6 @@ class OIDCLoginResponse:
             nonce=nonce,
             code_verifier=code_verifier,
         )
-
 
         oidc_login_response.additional_properties = d
         return oidc_login_response

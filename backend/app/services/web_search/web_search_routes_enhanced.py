@@ -1,6 +1,7 @@
 """
 Enhanced Web Search API Routes with AI features
 """
+
 import logging
 from typing import Any
 
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/web-search", tags=["Web Search"])
 # Global service instance
 _search_service = None
 
+
 def get_search_service() -> EnhancedWebSearchService:
     """Get or create search service instance"""
     global _search_service
@@ -23,7 +25,7 @@ def get_search_service() -> EnhancedWebSearchService:
         config = SearchConfig(
             duckduckgo_enabled=True,
             searxng_enabled=True,
-            searxng_url="http://localhost:55510"
+            searxng_url="http://localhost:55510",
         )
         _search_service = EnhancedWebSearchService(config)
     return _search_service
@@ -31,6 +33,7 @@ def get_search_service() -> EnhancedWebSearchService:
 
 class SearchRequest(BaseModel):
     """Search request model"""
+
     query: str = Field(..., min_length=1, max_length=500)
     max_results: int = Field(default=10, ge=1, le=50)
     providers: list[str] | None = None
@@ -41,6 +44,7 @@ class SearchRequest(BaseModel):
 
 class SearchResponse(BaseModel):
     """Search response model"""
+
     query: str
     results: list[dict[str, Any]]
     total_results: int
@@ -75,7 +79,7 @@ async def search(request: SearchRequest):
             providers=request.providers,
             use_query_understanding=request.use_query_understanding,
             use_reranking=request.use_reranking,
-            use_cache=request.use_cache
+            use_cache=request.use_cache,
         )
         return results
     except Exception as e:
@@ -86,22 +90,23 @@ async def search(request: SearchRequest):
 @router.post("/extract")
 async def extract_content(
     url: str = Query(..., description="URL to extract content from"),
-    max_length: int = Query(default=5000, ge=100, le=50000)
+    max_length: int = Query(default=5000, ge=100, le=50000),
 ):
     """Extract and summarize content from a URL"""
     try:
         from .content_extractor import ContentExtractor
+
         extractor = ContentExtractor()
         content = await extractor.extract(url)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Could not extract content")
-        
+
         # Truncate if needed
-        if len(content.get('text', '')) > max_length:
-            content['text'] = content['text'][:max_length] + "..."
-            content['truncated'] = True
-        
+        if len(content.get("text", "")) > max_length:
+            content["text"] = content["text"][:max_length] + "..."
+            content["truncated"] = True
+
         return content
     except Exception as e:
         logger.error(f"Content extraction error: {e}")
@@ -119,15 +124,14 @@ async def clear_cache():
 
 
 @router.get("/query/understand")
-async def understand_query(
-    query: str = Query(..., description="Query to analyze")
-):
+async def understand_query(query: str = Query(..., description="Query to analyze")):
     """Analyze and understand a search query"""
     try:
         from .query_understanding import QueryUnderstandingService
+
         service = QueryUnderstandingService()
         understanding = await service.understand_query(query)
-        
+
         return {
             "original_query": understanding.original_query,
             "normalized_query": understanding.normalized_query,
@@ -138,15 +142,11 @@ async def understand_query(
             "location_sensitive": understanding.location_sensitive,
             "keywords": understanding.keywords,
             "entities": [
-                {
-                    "text": e.text,
-                    "type": e.entity_type,
-                    "confidence": e.confidence
-                }
+                {"text": e.text, "type": e.entity_type, "confidence": e.confidence}
                 for e in understanding.entities
             ],
             "expanded_queries": understanding.expanded_queries,
-            "suggested_providers": understanding.suggested_providers
+            "suggested_providers": understanding.suggested_providers,
         }
     except Exception as e:
         logger.error(f"Query understanding error: {e}")

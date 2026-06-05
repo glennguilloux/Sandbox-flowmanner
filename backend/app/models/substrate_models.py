@@ -38,41 +38,30 @@ class SubstrateEvent(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
     )
-    sequence: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, index=True
-    )
-    run_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
-    )
+    sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     mission_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
-    task_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
-    type: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
-    )
-    payload: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True
-    )
-    causal_parent: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True
-    )
-    actor: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="system"
-    )
+    task_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    causal_parent: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    actor: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         index=True,
     )
     blueprint_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True,
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
     )
 
 
 # ── Known event types ──────────────────────────────────────────────
+
 
 class SubstrateEventType:
     """Well-known event types for the substrate event stream.
@@ -132,6 +121,7 @@ class SubstrateEventType:
 
 
 # ── RunState projection ────────────────────────────────────────────
+
 
 class SubstrateRunState:
     """In-memory projection of a run's current state, built from events.
@@ -200,11 +190,17 @@ class SubstrateRunState:
 
             case SubstrateEventType.TASK_STARTED:
                 task_id = payload.get("task_id", "")
-                self.task_states[task_id] = {"status": "running", "started_at": event.timestamp}
+                self.task_states[task_id] = {
+                    "status": "running",
+                    "started_at": event.timestamp,
+                }
 
             case SubstrateEventType.TASK_COMPLETED:
                 task_id = payload.get("task_id", "")
-                self.task_states[task_id] = {"status": "completed", "completed_at": event.timestamp}
+                self.task_states[task_id] = {
+                    "status": "completed",
+                    "completed_at": event.timestamp,
+                }
                 self.completed_tasks.add(task_id)
                 self.total_tokens += payload.get("tokens", 0)
                 self.total_cost_usd += payload.get("cost_usd", 0.0)
@@ -227,7 +223,9 @@ class SubstrateRunState:
 
             case SubstrateEventType.BUDGET_EXHAUSTED:
                 self.status = "failed"
-                self.error_message = f"Budget exhausted: {payload.get('budget_type', 'unknown')}"
+                self.error_message = (
+                    f"Budget exhausted: {payload.get('budget_type', 'unknown')}"
+                )
 
             case _:
                 pass  # Unknown event types are silently applied (no state change)
@@ -244,5 +242,7 @@ class SubstrateRunState:
             "total_cost_usd": self.total_cost_usd,
             "error_message": self.error_message,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "last_event_at": self.last_event_at.isoformat() if self.last_event_at else None,
+            "last_event_at": (
+                self.last_event_at.isoformat() if self.last_event_at else None
+            ),
         }

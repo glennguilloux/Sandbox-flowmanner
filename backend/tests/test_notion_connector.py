@@ -246,8 +246,16 @@ async def test_query_database():
     """Query rows from a Notion database."""
     rows = {
         "results": [
-            {"id": "r1", "properties": {"Name": {"title": [{"text": {"content": "Buy milk"}}]}}},
-            {"id": "r2", "properties": {"Name": {"title": [{"text": {"content": "Write docs"}}]}}},
+            {
+                "id": "r1",
+                "properties": {"Name": {"title": [{"text": {"content": "Buy milk"}}]}},
+            },
+            {
+                "id": "r2",
+                "properties": {
+                    "Name": {"title": [{"text": {"content": "Write docs"}}]}
+                },
+            },
         ],
         "has_more": False,
     }
@@ -367,9 +375,7 @@ async def test_create_page():
             "create_page",
             {
                 "parent": {"database_id": "db1"},
-                "properties": {
-                    "Name": {"title": [{"text": {"content": "New Task"}}]}
-                },
+                "properties": {"Name": {"title": [{"text": {"content": "New Task"}}]}},
             },
         )
 
@@ -419,7 +425,10 @@ async def test_update_page():
         await connector.connect()
         result = await connector.execute_action(
             "update_page",
-            {"page_id": "page1", "properties": {"Status": {"select": {"name": "Done"}}}},
+            {
+                "page_id": "page1",
+                "properties": {"Status": {"select": {"name": "Done"}}},
+            },
         )
 
     assert result.success is True

@@ -1,4 +1,5 @@
 """Dashboard stats endpoint."""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +23,9 @@ async def get_dashboard_stats(
     # Missions counts
     try:
         rows = await db.execute(
-            text("SELECT status, COUNT(*) FROM missions WHERE user_id=:uid GROUP BY status"),
+            text(
+                "SELECT status, COUNT(*) FROM missions WHERE user_id=:uid GROUP BY status"
+            ),
             {"uid": uid},
         )
         stats["missions"] = {row[0]: row[1] for row in rows.fetchall()}
@@ -32,7 +35,9 @@ async def get_dashboard_stats(
     # Workflow runs counts
     try:
         rows = await db.execute(
-            text("SELECT status, COUNT(*) FROM workflow_runs WHERE user_id=:uid GROUP BY status"),
+            text(
+                "SELECT status, COUNT(*) FROM workflow_runs WHERE user_id=:uid GROUP BY status"
+            ),
             {"uid": uid},
         )
         stats["workflow_runs"] = {row[0]: row[1] for row in rows.fetchall()}
@@ -50,7 +55,8 @@ async def get_dashboard_stats(
         stats["agents"] = 0
 
     return {
-        "total_requests": stats.get("missions", {}).get("completed", 0) + stats.get("workflow_runs", {}).get("completed", 0),
+        "total_requests": stats.get("missions", {}).get("completed", 0)
+        + stats.get("workflow_runs", {}).get("completed", 0),
         "active_agents": stats.get("agents", 0),
         "missions_completed": stats.get("missions", {}).get("completed", 0),
         "avg_response_ms": 0,

@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +128,14 @@ class SendgridCampaignTool(BaseTool):
                     "message": {"type": "string"},
                 },
             },
-            tags=["email", "sendgrid", "transactional", "templates", "campaign", "marketing"],
+            tags=[
+                "email",
+                "sendgrid",
+                "transactional",
+                "templates",
+                "campaign",
+                "marketing",
+            ],
             requires_auth=True,
             timeout_seconds=SENDGRID_TIMEOUT + 10,
         )
@@ -179,9 +193,7 @@ class SendgridCampaignTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: SendgridCampaignInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: SendgridCampaignInput) -> dict[str, Any]:
         if validated.action == "send":
             return await self._send_email(validated)
         elif validated.action == "send_template":
@@ -193,11 +205,7 @@ class SendgridCampaignTool(BaseTool):
 
     def _parse_recipients(self, to_addrs: list[str]) -> list[dict[str, str]]:
         """Convert list of emails into SendGrid personalization format."""
-        return [
-            {"email": addr.strip()}
-            for addr in to_addrs
-            if addr.strip()
-        ]
+        return [{"email": addr.strip()} for addr in to_addrs if addr.strip()]
 
     def _build_personalizations(
         self, validated: SendgridCampaignInput
@@ -232,12 +240,14 @@ class SendgridCampaignTool(BaseTool):
             return []
         result = []
         for att in validated.attachments:
-            result.append({
-                "content": att.get("content", ""),
-                "type": att.get("type", "application/octet-stream"),
-                "filename": att.get("filename", "attachment"),
-                "disposition": "attachment",
-            })
+            result.append(
+                {
+                    "content": att.get("content", ""),
+                    "type": att.get("type", "application/octet-stream"),
+                    "filename": att.get("filename", "attachment"),
+                    "disposition": "attachment",
+                }
+            )
         return result
 
     # ── Action handlers ──────────────────────────────────────────

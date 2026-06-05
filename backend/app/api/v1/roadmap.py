@@ -23,6 +23,7 @@ router = APIRouter(prefix="/roadmap", tags=["roadmap"])
 
 # ── Schemas ──────────────────────────────────────────────────────────────
 
+
 class RoadmapItemOut(BaseModel):
     id: str
     title: str
@@ -56,6 +57,7 @@ class VoteOut(BaseModel):
 
 
 # ── GET /api/roadmap ─────────────────────────────────────────────────────
+
 
 @router.get("", response_model=list[RoadmapItemOut])
 @router.get("/", response_model=list[RoadmapItemOut])
@@ -96,6 +98,7 @@ async def list_roadmap_items(
 
 # ── GET /api/roadmap/categories ──────────────────────────────────────────
 
+
 @router.get("/categories", response_model=list[RoadmapCategoryOut])
 async def list_categories(db: AsyncSession = Depends(get_db)):
     """List roadmap categories with item counts."""
@@ -115,6 +118,7 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
 
 
 # ── GET /api/roadmap/comments ────────────────────────────────────────────
+
 
 @router.get("/comments")
 async def list_comments(
@@ -146,6 +150,7 @@ async def list_comments(
 
 
 # ── POST /api/roadmap/comments ──────────────────────────────────────────
+
 
 @router.post("/comments")
 async def add_comment(

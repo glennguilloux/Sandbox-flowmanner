@@ -29,9 +29,16 @@ router = APIRouter(prefix="/workspaces", tags=["v3-workspace-invitations"])
 
 async def _require_invites_enabled(db: AsyncSession) -> None:
     from sqlalchemy import text
-    result = await db.execute(text("SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_INVITES'"))
+
+    result = await db.execute(
+        text(
+            "SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_INVITES'"
+        )
+    )
     if not result.scalar():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
 
 @router.post("/{workspace_id}/invitations", status_code=status.HTTP_201_CREATED)
@@ -50,7 +57,9 @@ async def create_invitation(
         )
     )
     if not membership.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
+        )
 
     existing = await db.execute(
         select(WorkspaceInvitation).where(
@@ -60,7 +69,9 @@ async def create_invitation(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation already pending")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation already pending"
+        )
 
     invite_id = str(uuid.uuid4())
     token = generate_invite_token()
@@ -105,26 +116,32 @@ async def list_invitations(
     await _require_invites_enabled(db)
 
     result = await db.execute(
-        select(WorkspaceInvitation).where(WorkspaceInvitation.workspace_id == workspace_id)
+        select(WorkspaceInvitation).where(
+            WorkspaceInvitation.workspace_id == workspace_id
+        )
     )
     invitations = result.scalars().all()
 
-    return ok([
-        InvitationResponse(
-            id=i.id,
-            workspace_id=i.workspace_id,
-            email=i.email,
-            role=i.role,
-            status=i.status,
-            message=i.invitation_message,
-            created_at=i.created_at,
-            expires_at=i.expires_at,
-        ).model_dump(mode="json")
-        for i in invitations
-    ])
+    return ok(
+        [
+            InvitationResponse(
+                id=i.id,
+                workspace_id=i.workspace_id,
+                email=i.email,
+                role=i.role,
+                status=i.status,
+                message=i.invitation_message,
+                created_at=i.created_at,
+                expires_at=i.expires_at,
+            ).model_dump(mode="json")
+            for i in invitations
+        ]
+    )
 
 
-@router.delete("/{workspace_id}/invitations/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{workspace_id}/invitations/{invite_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def revoke_invitation(
     workspace_id: str,
     invite_id: str,
@@ -141,13 +158,17 @@ async def revoke_invitation(
     )
     invitation = result.scalar_one_or_none()
     if not invitation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found"
+        )
 
     invitation.status = "revoked"
     await db.flush()
 
 
-@router.post("/{workspace_id}/invitations/{invite_id}/accept", status_code=status.HTTP_200_OK)
+@router.post(
+    "/{workspace_id}/invitations/{invite_id}/accept", status_code=status.HTTP_200_OK
+)
 async def accept_invitation(
     workspace_id: str,
     invite_id: str,
@@ -165,18 +186,27 @@ async def accept_invitation(
     )
     invitation = result.scalar_one_or_none()
     if not invitation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found"
+        )
 
     if invitation.status != "pending":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation already processed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation already processed",
+        )
 
     if invitation.expires_at < datetime.now(UTC):
         invitation.status = "expired"
         await db.flush()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation expired")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation expired"
+        )
 
     if invitation.token != payload.token:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
 
     existing_member = await db.execute(
         select(WorkspaceMember).where(
@@ -185,12 +215,22 @@ async def accept_invitation(
         )
     )
     if existing_member.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already a member")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Already a member"
+        )
 
-    member = WorkspaceMember(workspace_id=workspace_id, user_id=user.id, role=invitation.role)
+    member = WorkspaceMember(
+        workspace_id=workspace_id, user_id=user.id, role=invitation.role
+    )
     db.add(member)
     invitation.status = "accepted"
     invitation.accepted_at = datetime.now(UTC)
     await db.flush()
 
-    return ok({"workspace_id": workspace_id, "role": invitation.role, "message": f"Welcome to workspace"})
+    return ok(
+        {
+            "workspace_id": workspace_id,
+            "role": invitation.role,
+            "message": f"Welcome to workspace",
+        }
+    )

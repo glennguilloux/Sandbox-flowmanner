@@ -116,7 +116,10 @@ class EventLog:
         await db.flush()
         logger.debug(
             "Appended %d events to run %s (seq %d→%d)",
-            len(events), run_id, current_seq, current_seq + len(events),
+            len(events),
+            run_id,
+            current_seq,
+            current_seq + len(events),
         )
         return persisted
 
@@ -164,9 +167,8 @@ class EventLog:
 
     async def get_latest_sequence(self, db: AsyncSession, run_id: str) -> int:
         """Get the highest sequence number for a run (0 if no events)."""
-        stmt = (
-            select(func.max(SubstrateEvent.sequence))
-            .where(SubstrateEvent.run_id == run_id)
+        stmt = select(func.max(SubstrateEvent.sequence)).where(
+            SubstrateEvent.run_id == run_id
         )
         result = await db.execute(stmt)
         max_seq = result.scalar()
@@ -174,9 +176,8 @@ class EventLog:
 
     async def _count_events(self, db: AsyncSession, run_id: str) -> int:
         """Count events for a run (used for safety limit check)."""
-        stmt = (
-            select(func.count(SubstrateEvent.id))
-            .where(SubstrateEvent.run_id == run_id)
+        stmt = select(func.count(SubstrateEvent.id)).where(
+            SubstrateEvent.run_id == run_id
         )
         result = await db.execute(stmt)
         return result.scalar() or 0
@@ -187,6 +188,7 @@ class EventLog:
 
 
 # ── UUID coercion helper ───────────────────────────────────────────
+
 
 def _ensure_uuid(value: Any) -> str:
     """Coerce a value to a UUID string.

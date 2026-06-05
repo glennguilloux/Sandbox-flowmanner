@@ -18,9 +18,13 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    token: Mapped[str] = mapped_column(String(500), unique=True, nullable=False, index=True)
+    token: Mapped[str] = mapped_column(
+        String(500), unique=True, nullable=False, index=True
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False), nullable=False
+    )
     is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
@@ -31,7 +35,9 @@ class RefreshToken(Base):
     device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Token family for reuse detection
@@ -44,10 +50,14 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return _bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    return _bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
 
 
-def create_access_token(user_id: int, tenant_id: int | None = None, role: str = "user") -> str:
+def create_access_token(
+    user_id: int, tenant_id: int | None = None, role: str = "user"
+) -> str:
     """Create a JWT access token.
 
     tenant_id is DEPRECATED (H4 Phase 2) — kept for backward compat but
@@ -85,17 +95,21 @@ async def store_refresh_token(
     device_name: str | None = None,
     family_id: str | None = None,
 ) -> RefreshToken:
-    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=settings.JWT_REFRESH_TOKEN_EXPIRES)
+    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+        seconds=settings.JWT_REFRESH_TOKEN_EXPIRES
+    )
 
     # Determine family generation
     generation = 0
     if family_id:
         # Find the highest generation in this family
         result = await db.execute(
-            select(RefreshToken).where(
+            select(RefreshToken)
+            .where(
                 RefreshToken.family_id == family_id,
                 RefreshToken.is_revoked == False,
-            ).order_by(RefreshToken.family_generation.desc())
+            )
+            .order_by(RefreshToken.family_generation.desc())
         )
         latest = result.scalar_one_or_none()
         if latest:
@@ -118,11 +132,17 @@ async def store_refresh_token(
 
 
 async def get_refresh_token(db: AsyncSession, token: str) -> RefreshToken | None:
-    result = await db.execute(select(RefreshToken).where(RefreshToken.token == token, RefreshToken.is_revoked == False))
+    result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.token == token, RefreshToken.is_revoked == False
+        )
+    )
     return result.scalar_one_or_none()
 
 
-async def revoke_refresh_token(db: AsyncSession, token: str, user_id: int | None = None) -> None:
+async def revoke_refresh_token(
+    db: AsyncSession, token: str, user_id: int | None = None
+) -> None:
     result = await db.execute(select(RefreshToken).where(RefreshToken.token == token))
     rt = result.scalar_one_or_none()
     if rt is None:
@@ -130,7 +150,9 @@ async def revoke_refresh_token(db: AsyncSession, token: str, user_id: int | None
     if user_id is not None and rt.user_id != user_id:
         return
     rt.is_revoked = True
-    rt.last_used_at = datetime.now(UTC).replace(tzinfo=None)  # revocation timestamp for grace period
+    rt.last_used_at = datetime.now(UTC).replace(
+        tzinfo=None
+    )  # revocation timestamp for grace period
     await db.flush()
 
 
@@ -198,7 +220,11 @@ async def get_user_by_id(db: AsyncSession, user_id: int | str) -> User | None:
 
 
 async def create_user(
-    db: AsyncSession, email: str, password: str, full_name: str | None = None, username: str | None = None
+    db: AsyncSession,
+    email: str,
+    password: str,
+    full_name: str | None = None,
+    username: str | None = None,
 ) -> User:
     username = username or email.split("@")[0]
     user = User(
@@ -220,9 +246,11 @@ async def create_user(
     # Send welcome email (non-blocking)
     try:
         from app.services.onboarding_email_service import send_onboarding_email
+
         await send_onboarding_email(db, user, "welcome")
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).warning(f"Failed to send welcome email: {e}")
 
     return user

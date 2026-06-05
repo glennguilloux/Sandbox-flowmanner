@@ -29,7 +29,8 @@ class TopologySnapshot(Base, TimestampMixin):
     __tablename__ = "topology_snapshots"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: str(uuid.uuid4()),
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -38,11 +39,13 @@ class TopologySnapshot(Base, TimestampMixin):
     edge_count: Mapped[int] = mapped_column(Integer, default=0)
     community_count: Mapped[int] = mapped_column(Integer, default=0)
     source: Mapped[str] = mapped_column(
-        String(50), default="computed",
+        String(50),
+        default="computed",
         comment="'computed', 'imported', 'manual'",
     )
     snapshot_data: Mapped[dict] = mapped_column(
-        JSONB, nullable=False,
+        JSONB,
+        nullable=False,
         comment="Full topology graph (nodes + edges) as JSON",
     )
 
@@ -58,44 +61,52 @@ class TopologyNode(Base):
     __tablename__ = "topology_nodes"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: str(uuid.uuid4()),
     )
     snapshot_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True,
+        String(36),
+        nullable=False,
+        index=True,
     )
     external_id: Mapped[str] = mapped_column(
-        String(255), nullable=False,
+        String(255),
+        nullable=False,
         comment="Node ID as it appears in the graph (may differ from PK)",
     )
     label: Mapped[str | None] = mapped_column(String(500), nullable=True)
     node_type: Mapped[str | None] = mapped_column(
-        String(100), nullable=True,
+        String(100),
+        nullable=True,
         comment="'agent', 'capability', 'workflow', 'tool', etc.",
     )
     community_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     metadata_: Mapped[dict | None] = mapped_column(
-        "metadata", JSONB, nullable=True,
+        "metadata",
+        JSONB,
+        nullable=True,
     )
     # Lineage: where this node came from
     derived_from_agent_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True,
+        String(36),
+        nullable=True,
         comment="FK to agents.id — set when this node represents an agent",
     )
     derived_from_capability_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True,
+        String(36),
+        nullable=True,
         comment="FK to capabilities_catalog.id — set when this node represents a capability",
     )
     derived_from_workflow_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True,
+        String(36),
+        nullable=True,
         comment="FK to workflows.id — set when this node represents a workflow",
     )
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
     evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
-    __table_args__ = (
-        Index("ix_topo_nodes_snapshot", "snapshot_id"),
-    )
+    __table_args__ = (Index("ix_topo_nodes_snapshot", "snapshot_id"),)
 
 
 class TopologyEdge(Base):
@@ -108,30 +119,37 @@ class TopologyEdge(Base):
     __tablename__ = "topology_edges"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: str(uuid.uuid4()),
     )
     snapshot_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True,
+        String(36),
+        nullable=False,
+        index=True,
     )
     source_node_id: Mapped[str] = mapped_column(
-        String(36), nullable=False,
+        String(36),
+        nullable=False,
     )
     target_node_id: Mapped[str] = mapped_column(
-        String(36), nullable=False,
+        String(36),
+        nullable=False,
     )
     relation: Mapped[str] = mapped_column(
-        String(100), default="calls",
+        String(100),
+        default="calls",
         comment="'calls', 'depends-on', 'data-flow', etc.",
     )
     confidence: Mapped[str] = mapped_column(
-        String(50), default="INFERRED",
+        String(50),
+        default="INFERRED",
         comment="'INFERRED', 'OBSERVED', 'DECLARED'",
     )
     metadata_: Mapped[dict | None] = mapped_column(
-        "metadata", JSONB, nullable=True,
+        "metadata",
+        JSONB,
+        nullable=True,
     )
 
-    __table_args__ = (
-        Index("ix_topo_edges_snapshot", "snapshot_id"),
-    )
+    __table_args__ = (Index("ix_topo_edges_snapshot", "snapshot_id"),)

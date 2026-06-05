@@ -1,36 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.node_group_create_config_type_0 import NodeGroupCreateConfigType0
-
-
-
+    from ..models.node_group_create_config_type_0 import NodeGroupCreateConfigType0
 
 
 T = TypeVar("T", bound="NodeGroupCreate")
 
 
-
 @_attrs_define
 class NodeGroupCreate:
-    """ 
-        Attributes:
-            name (str):
-            description (None | str | Unset):
-            group_type (None | str | Unset):
-            config (NodeGroupCreateConfigType0 | None | Unset):
-     """
+    """
+    Attributes:
+        name (str):
+        description (None | str | Unset):
+        group_type (None | str | Unset):
+        config (NodeGroupCreateConfigType0 | None | Unset):
+    """
 
     name: str
     description: None | str | Unset = UNSET
@@ -38,12 +31,9 @@ class NodeGroupCreate:
     config: NodeGroupCreateConfigType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
         from ..models.node_group_create_config_type_0 import NodeGroupCreateConfigType0
+
         name = self.name
 
         description: None | str | Unset
@@ -66,12 +56,13 @@ class NodeGroupCreate:
         else:
             config = self.config
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "name": name,
-        })
+        field_dict.update(
+            {
+                "name": name,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if group_type is not UNSET:
@@ -81,11 +72,10 @@ class NodeGroupCreate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.node_group_create_config_type_0 import NodeGroupCreateConfigType0
+
         d = dict(src_dict)
         name = d.pop("name")
 
@@ -98,7 +88,6 @@ class NodeGroupCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_group_type(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -107,7 +96,6 @@ class NodeGroupCreate:
             return cast(None | str | Unset, data)
 
         group_type = _parse_group_type(d.pop("group_type", UNSET))
-
 
         def _parse_config(data: object) -> NodeGroupCreateConfigType0 | None | Unset:
             if data is None:
@@ -119,8 +107,6 @@ class NodeGroupCreate:
                     raise TypeError()
                 config_type_0 = NodeGroupCreateConfigType0.from_dict(data)
 
-
-
                 return config_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
@@ -128,14 +114,12 @@ class NodeGroupCreate:
 
         config = _parse_config(d.pop("config", UNSET))
 
-
         node_group_create = cls(
             name=name,
             description=description,
             group_type=group_type,
             config=config,
         )
-
 
         node_group_create.additional_properties = d
         return node_group_create

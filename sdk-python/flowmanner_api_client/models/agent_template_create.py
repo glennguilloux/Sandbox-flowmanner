@@ -1,53 +1,47 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.agent_template_create_config_data_type_0 import AgentTemplateCreateConfigDataType0
-
-
-
+    from ..models.agent_template_create_config_data_type_0 import (
+        AgentTemplateCreateConfigDataType0,
+    )
 
 
 T = TypeVar("T", bound="AgentTemplateCreate")
 
 
-
 @_attrs_define
 class AgentTemplateCreate:
-    """ 
-        Attributes:
-            name (str):
-            description (None | str | Unset):
-            system_prompt (None | str | Unset):
-            agent_type (str | Unset):  Default: 'domain'.
-            config_data (AgentTemplateCreateConfigDataType0 | None | Unset):
-            is_active (bool | Unset):  Default: True.
-     """
+    """
+    Attributes:
+        name (str):
+        description (None | str | Unset):
+        system_prompt (None | str | Unset):
+        agent_type (str | Unset):  Default: 'domain'.
+        config_data (AgentTemplateCreateConfigDataType0 | None | Unset):
+        is_active (bool | Unset):  Default: True.
+    """
 
     name: str
     description: None | str | Unset = UNSET
     system_prompt: None | str | Unset = UNSET
-    agent_type: str | Unset = 'domain'
+    agent_type: str | Unset = "domain"
     config_data: AgentTemplateCreateConfigDataType0 | None | Unset = UNSET
     is_active: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.agent_template_create_config_data_type_0 import AgentTemplateCreateConfigDataType0
+        from ..models.agent_template_create_config_data_type_0 import (
+            AgentTemplateCreateConfigDataType0,
+        )
+
         name = self.name
 
         description: None | str | Unset
@@ -74,12 +68,13 @@ class AgentTemplateCreate:
 
         is_active = self.is_active
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "name": name,
-        })
+        field_dict.update(
+            {
+                "name": name,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if system_prompt is not UNSET:
@@ -93,11 +88,12 @@ class AgentTemplateCreate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.agent_template_create_config_data_type_0 import AgentTemplateCreateConfigDataType0
+        from ..models.agent_template_create_config_data_type_0 import (
+            AgentTemplateCreateConfigDataType0,
+        )
+
         d = dict(src_dict)
         name = d.pop("name")
 
@@ -110,7 +106,6 @@ class AgentTemplateCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         def _parse_system_prompt(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -120,10 +115,11 @@ class AgentTemplateCreate:
 
         system_prompt = _parse_system_prompt(d.pop("system_prompt", UNSET))
 
-
         agent_type = d.pop("agent_type", UNSET)
 
-        def _parse_config_data(data: object) -> AgentTemplateCreateConfigDataType0 | None | Unset:
+        def _parse_config_data(
+            data: object,
+        ) -> AgentTemplateCreateConfigDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -133,15 +129,12 @@ class AgentTemplateCreate:
                     raise TypeError()
                 config_data_type_0 = AgentTemplateCreateConfigDataType0.from_dict(data)
 
-
-
                 return config_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(AgentTemplateCreateConfigDataType0 | None | Unset, data)
 
         config_data = _parse_config_data(d.pop("config_data", UNSET))
-
 
         is_active = d.pop("is_active", UNSET)
 
@@ -153,7 +146,6 @@ class AgentTemplateCreate:
             config_data=config_data,
             is_active=is_active,
         )
-
 
         agent_template_create.additional_properties = d
         return agent_template_create

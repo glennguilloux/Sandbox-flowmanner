@@ -24,7 +24,9 @@ class BlueprintCommandHandlers(CommandHandlerBase):
         super().__init__(session)
         self._request_id = request_id
 
-    async def create_blueprint(self, user: User, payload: BlueprintCreate, workspace_id: str | None = None):
+    async def create_blueprint(
+        self, user: User, payload: BlueprintCreate, workspace_id: str | None = None
+    ):
         svc = BlueprintService(self.session)
 
         async def _op():
@@ -44,9 +46,12 @@ class BlueprintCommandHandlers(CommandHandlerBase):
                 icon=payload.icon,
                 workspace_id=workspace_id,
             )
+
         return await self.wrap_command(_op)
 
-    async def update_blueprint(self, user: User, blueprint_id: str, payload: BlueprintUpdate):
+    async def update_blueprint(
+        self, user: User, blueprint_id: str, payload: BlueprintUpdate
+    ):
         svc = BlueprintService(self.session)
 
         async def _op():
@@ -70,6 +75,7 @@ class BlueprintCommandHandlers(CommandHandlerBase):
             if payload.icon is not None:
                 kwargs["icon"] = payload.icon
             return await svc.update(blueprint_id, user.id, **kwargs)
+
         return await self.wrap_command(_op)
 
     async def delete_blueprint(self, user: User, blueprint_id: str):
@@ -77,6 +83,7 @@ class BlueprintCommandHandlers(CommandHandlerBase):
 
         async def _op():
             return await svc.delete(blueprint_id, user.id)
+
         return await self.wrap_command(_op)
 
     async def publish_blueprint(self, user: User, blueprint_id: str):
@@ -84,9 +91,12 @@ class BlueprintCommandHandlers(CommandHandlerBase):
 
         async def _op():
             return await svc.publish(blueprint_id, user.id)
+
         return await self.wrap_command(_op)
 
-    async def run_blueprint(self, user: User, blueprint_id: str, payload: RunCreate | None = None):
+    async def run_blueprint(
+        self, user: User, blueprint_id: str, payload: RunCreate | None = None
+    ):
         svc = RunService(self.session)
 
         async def _op():
@@ -101,6 +111,7 @@ class BlueprintCommandHandlers(CommandHandlerBase):
             )
             # Execute immediately
             return await svc.execute(str(run.id), user.id)
+
         return await self.wrap_command(_op)
 
 
@@ -114,6 +125,7 @@ class RunCommandHandlers(CommandHandlerBase):
 
         async def _op():
             return await svc.abort(run_id, user.id, reason)
+
         return await self.wrap_command(_op)
 
     async def retry_run(self, user: User, run_id: str):
@@ -123,4 +135,5 @@ class RunCommandHandlers(CommandHandlerBase):
             new_run = await svc.retry(run_id, user.id)
             # Auto-execute the retry
             return await svc.execute(str(new_run.id), user.id)
+
         return await self.wrap_command(_op)

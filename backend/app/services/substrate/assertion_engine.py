@@ -106,25 +106,33 @@ class ReplayAssertionEngine:
                     case AssertionType.TASK_COMPLETION:
                         results.append(self._check_completion(state, assertion))
                     case AssertionType.NO_CIRCUIT_BREAKER:
-                        results.append(self._check_no_circuit_breaker(events, assertion))
+                        results.append(
+                            self._check_no_circuit_breaker(events, assertion)
+                        )
                     case _:
-                        results.append(AssertionResult(
-                            assertion_type=assertion_type,
-                            passed=False,
-                            severity=Severity.WARNING,
-                            message=f"Unknown assertion type: {assertion_type}",
-                        ))
+                        results.append(
+                            AssertionResult(
+                                assertion_type=assertion_type,
+                                passed=False,
+                                severity=Severity.WARNING,
+                                message=f"Unknown assertion type: {assertion_type}",
+                            )
+                        )
             except Exception as exc:
                 logger.warning(
                     "Assertion evaluation error for type=%s run=%s: %s",
-                    assertion_type, run_id, exc,
+                    assertion_type,
+                    run_id,
+                    exc,
                 )
-                results.append(AssertionResult(
-                    assertion_type=assertion_type,
-                    passed=False,
-                    severity=Severity.FAILURE,
-                    message=f"Evaluation error: {exc}",
-                ))
+                results.append(
+                    AssertionResult(
+                        assertion_type=assertion_type,
+                        passed=False,
+                        severity=Severity.FAILURE,
+                        message=f"Evaluation error: {exc}",
+                    )
+                )
 
         return results
 
@@ -141,10 +149,7 @@ class ReplayAssertionEngine:
         max_calls = assertion.get("max_calls_per_tool", {})
 
         # Extract tool call events
-        tool_events = [
-            e for e in events
-            if e.type == SubstrateEventType.TOOL_CALL
-        ]
+        tool_events = [e for e in events if e.type == SubstrateEventType.TOOL_CALL]
         actual_tools = [
             e.payload.get("tool_name") or e.payload.get("tool_id", "")
             for e in tool_events
@@ -280,7 +285,10 @@ class ReplayAssertionEngine:
             assertion_type=AssertionType.LATENCY,
             passed=passed,
             severity=severity,
-            actual={"duration_seconds": round(actual_seconds, 1), "pct_used": round(pct_used, 1)},
+            actual={
+                "duration_seconds": round(actual_seconds, 1),
+                "pct_used": round(pct_used, 1),
+            },
             expected={"max_duration_seconds": max_seconds, "warn_at_pct": warn_at_pct},
             message=message,
         )
@@ -315,7 +323,10 @@ class ReplayAssertionEngine:
             passed=passed,
             severity=severity,
             actual={"completed": completed, "failed": failed},
-            expected={"min_tasks_completed": min_completed, "max_tasks_failed": max_failed},
+            expected={
+                "min_tasks_completed": min_completed,
+                "max_tasks_failed": max_failed,
+            },
             message=message,
         )
 
@@ -326,8 +337,10 @@ class ReplayAssertionEngine:
     ) -> AssertionResult:
         """Check that no circuit breaker was triggered."""
         cb_events = [
-            e for e in events
-            if e.type in (
+            e
+            for e in events
+            if e.type
+            in (
                 SubstrateEventType.CIRCUIT_BREAKER_TRIGGERED,
                 SubstrateEventType.CIRCUIT_BREAKER_BROKEN,
             )

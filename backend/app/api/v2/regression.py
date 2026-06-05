@@ -8,6 +8,7 @@ Provides:
 """
 
 from __future__ import annotations
+import uuid
 
 import logging
 from datetime import UTC, datetime
@@ -25,7 +26,6 @@ from app.services.substrate.assertion_engine import get_assertion_engine
 from app.services.substrate.baseline_extractor import get_baseline_extractor
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,7 +87,9 @@ async def _get_run_id(db: AsyncSession, mission: Mission) -> str | None:
 @router.get("/{mission_id}/compare")
 async def compare_mission(
     mission_id: uuid.UUID,
-    run_id: str | None = Query(None, description="Override run_id (defaults to mission's latest)"),
+    run_id: str | None = Query(
+        None, description="Override run_id (defaults to mission's latest)"
+    ),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -116,15 +118,17 @@ async def compare_mission(
         template_version = str(template.id)
 
     if not expected_behaviors:
-        return ok({
-            "mission_id": str(mission_id),
-            "run_id": actual_run_id,
-            "template_version": template_version,
-            "evaluated_at": None,
-            "results": [],
-            "summary": {"total": 0, "passed": 0, "failed": 0, "warnings": 0},
-            "message": "No baseline set. Use 'Freeze as Baseline' on a successful run first.",
-        })
+        return ok(
+            {
+                "mission_id": str(mission_id),
+                "run_id": actual_run_id,
+                "template_version": template_version,
+                "evaluated_at": None,
+                "results": [],
+                "summary": {"total": 0, "passed": 0, "failed": 0, "warnings": 0},
+                "message": "No baseline set. Use 'Freeze as Baseline' on a successful run first.",
+            }
+        )
 
     # Evaluate assertions
     engine = get_assertion_engine()
@@ -134,18 +138,24 @@ async def compare_mission(
     summary = {
         "total": len(results),
         "passed": sum(1 for r in results if r.passed),
-        "failed": sum(1 for r in results if not r.passed and r.severity.value == "failure"),
-        "warnings": sum(1 for r in results if not r.passed and r.severity.value == "warning"),
+        "failed": sum(
+            1 for r in results if not r.passed and r.severity.value == "failure"
+        ),
+        "warnings": sum(
+            1 for r in results if not r.passed and r.severity.value == "warning"
+        ),
     }
 
-    return ok({
-        "mission_id": str(mission_id),
-        "run_id": actual_run_id,
-        "template_version": template_version,
-        "evaluated_at": datetime.now(UTC).isoformat(),
-        "results": [r.to_dict() for r in results],
-        "summary": summary,
-    })
+    return ok(
+        {
+            "mission_id": str(mission_id),
+            "run_id": actual_run_id,
+            "template_version": template_version,
+            "evaluated_at": datetime.now(UTC).isoformat(),
+            "results": [r.to_dict() for r in results],
+            "summary": summary,
+        }
+    )
 
 
 # ── Freeze Baseline ────────────────────────────────────────────────
@@ -154,9 +164,15 @@ async def compare_mission(
 @router.post("/{mission_id}/freeze-baseline")
 async def freeze_baseline(
     mission_id: uuid.UUID,
-    run_id: str | None = Query(None, description="Override run_id (defaults to mission's latest)"),
-    cost_headroom: float = Query(1.5, ge=1.0, le=10.0, description="Cost ceiling headroom multiplier"),
-    latency_headroom: float = Query(2.0, ge=1.0, le=10.0, description="Latency ceiling headroom multiplier"),
+    run_id: str | None = Query(
+        None, description="Override run_id (defaults to mission's latest)"
+    ),
+    cost_headroom: float = Query(
+        1.5, ge=1.0, le=10.0, description="Cost ceiling headroom multiplier"
+    ),
+    latency_headroom: float = Query(
+        2.0, ge=1.0, le=10.0, description="Latency ceiling headroom multiplier"
+    ),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -179,7 +195,8 @@ async def freeze_baseline(
     # Extract behaviors
     extractor = get_baseline_extractor()
     behaviors = await extractor.extract_from_run(
-        db, actual_run_id,
+        db,
+        actual_run_id,
         cost_headroom=cost_headroom,
         latency_headroom=latency_headroom,
     )
@@ -198,17 +215,21 @@ async def freeze_baseline(
 
     logger.info(
         "Froze baseline for mission %s → template %s (%d behaviors)",
-        mission_id, template.id, len(behaviors),
+        mission_id,
+        template.id,
+        len(behaviors),
     )
 
-    return ok({
-        "mission_id": str(mission_id),
-        "template_id": str(template.id),
-        "run_id": actual_run_id,
-        "extracted": behaviors,
-        "message": f"Baseline set with {len(behaviors)} assertions. "
-                   f"Future runs will be checked against these.",
-    })
+    return ok(
+        {
+            "mission_id": str(mission_id),
+            "template_id": str(template.id),
+            "run_id": actual_run_id,
+            "extracted": behaviors,
+            "message": f"Baseline set with {len(behaviors)} assertions. "
+            f"Future runs will be checked against these.",
+        }
+    )
 
 
 # ── Expected Behaviors CRUD ─────────────────────────────────────────
@@ -225,18 +246,22 @@ async def get_expected_behaviors(
     template = await _get_template_for_mission(db, mission)
 
     if template is None:
-        return ok({
-            "mission_id": str(mission_id),
-            "template_id": None,
-            "expected_behaviors": [],
-            "message": "Mission has no associated template.",
-        })
+        return ok(
+            {
+                "mission_id": str(mission_id),
+                "template_id": None,
+                "expected_behaviors": [],
+                "message": "Mission has no associated template.",
+            }
+        )
 
-    return ok({
-        "mission_id": str(mission_id),
-        "template_id": str(template.id),
-        "expected_behaviors": template.expected_behaviors or [],
-    })
+    return ok(
+        {
+            "mission_id": str(mission_id),
+            "template_id": str(template.id),
+            "expected_behaviors": template.expected_behaviors or [],
+        }
+    )
 
 
 @router.put("/{mission_id}/expected-behaviors")
@@ -271,9 +296,11 @@ async def update_expected_behaviors(
     template.expected_behaviors = behaviors
     await db.flush()
 
-    return ok({
-        "mission_id": str(mission_id),
-        "template_id": str(template.id),
-        "expected_behaviors": behaviors,
-        "message": f"Updated {len(behaviors)} assertions.",
-    })
+    return ok(
+        {
+            "mission_id": str(mission_id),
+            "template_id": str(template.id),
+            "expected_behaviors": behaviors,
+            "message": f"Updated {len(behaviors)} assertions.",
+        }
+    )

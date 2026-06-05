@@ -1,36 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="TypeResponse")
-
 
 
 @_attrs_define
 class TypeResponse:
-    """ 
-        Attributes:
-            success (bool):
-            stale_ref (bool | Unset):  Default: False.
-            method (None | str | Unset):
-            healed (bool | None | Unset):
-            suggest_resnapshot (bool | None | Unset):
-            error (None | str | Unset):
-     """
+    """
+    Attributes:
+        success (bool):
+        stale_ref (bool | Unset):  Default: False.
+        method (None | str | Unset):
+        healed (bool | None | Unset):
+        suggest_resnapshot (bool | None | Unset):
+        error (None | str | Unset):
+    """
 
     success: bool
     stale_ref: bool | Unset = False
@@ -39,10 +30,6 @@ class TypeResponse:
     suggest_resnapshot: bool | None | Unset = UNSET
     error: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         success = self.success
@@ -73,12 +60,13 @@ class TypeResponse:
         else:
             error = self.error
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "success": success,
-        })
+        field_dict.update(
+            {
+                "success": success,
+            }
+        )
         if stale_ref is not UNSET:
             field_dict["stale_ref"] = stale_ref
         if method is not UNSET:
@@ -91,8 +79,6 @@ class TypeResponse:
             field_dict["error"] = error
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -110,7 +96,6 @@ class TypeResponse:
 
         method = _parse_method(d.pop("method", UNSET))
 
-
         def _parse_healed(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -120,7 +105,6 @@ class TypeResponse:
 
         healed = _parse_healed(d.pop("healed", UNSET))
 
-
         def _parse_suggest_resnapshot(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -128,8 +112,9 @@ class TypeResponse:
                 return data
             return cast(bool | None | Unset, data)
 
-        suggest_resnapshot = _parse_suggest_resnapshot(d.pop("suggest_resnapshot", UNSET))
-
+        suggest_resnapshot = _parse_suggest_resnapshot(
+            d.pop("suggest_resnapshot", UNSET)
+        )
 
         def _parse_error(data: object) -> None | str | Unset:
             if data is None:
@@ -140,7 +125,6 @@ class TypeResponse:
 
         error = _parse_error(d.pop("error", UNSET))
 
-
         type_response = cls(
             success=success,
             stale_ref=stale_ref,
@@ -149,7 +133,6 @@ class TypeResponse:
             suggest_resnapshot=suggest_resnapshot,
             error=error,
         )
-
 
         type_response.additional_properties = d
         return type_response

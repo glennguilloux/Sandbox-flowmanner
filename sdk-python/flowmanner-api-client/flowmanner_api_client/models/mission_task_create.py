@@ -10,8 +10,12 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.mission_task_create_dependencies_type_1 import MissionTaskCreateDependenciesType1
-    from ..models.mission_task_create_input_data_type_0 import MissionTaskCreateInputDataType0
+    from ..models.mission_task_create_dependencies_type_1 import (
+        MissionTaskCreateDependenciesType1,
+    )
+    from ..models.mission_task_create_input_data_type_0 import (
+        MissionTaskCreateInputDataType0,
+    )
 
 
 T = TypeVar("T", bound="MissionTaskCreate")
@@ -42,8 +46,12 @@ class MissionTaskCreate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_create_dependencies_type_1 import MissionTaskCreateDependenciesType1
-        from ..models.mission_task_create_input_data_type_0 import MissionTaskCreateInputDataType0
+        from ..models.mission_task_create_dependencies_type_1 import (
+            MissionTaskCreateDependenciesType1,
+        )
+        from ..models.mission_task_create_input_data_type_0 import (
+            MissionTaskCreateInputDataType0,
+        )
 
         title = self.title
 
@@ -120,8 +128,12 @@ class MissionTaskCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_create_dependencies_type_1 import MissionTaskCreateDependenciesType1
-        from ..models.mission_task_create_input_data_type_0 import MissionTaskCreateInputDataType0
+        from ..models.mission_task_create_dependencies_type_1 import (
+            MissionTaskCreateDependenciesType1,
+        )
+        from ..models.mission_task_create_input_data_type_0 import (
+            MissionTaskCreateInputDataType0,
+        )
 
         d = dict(src_dict)
         title = d.pop("title")
@@ -146,7 +158,9 @@ class MissionTaskCreate:
 
         order_index = _parse_order_index(d.pop("order_index", UNSET))
 
-        def _parse_input_data(data: object) -> MissionTaskCreateInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> MissionTaskCreateInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -163,7 +177,9 @@ class MissionTaskCreate:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-        def _parse_dependencies(data: object) -> list[Any] | MissionTaskCreateDependenciesType1 | None | Unset:
+        def _parse_dependencies(
+            data: object,
+        ) -> list[Any] | MissionTaskCreateDependenciesType1 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -184,7 +200,9 @@ class MissionTaskCreate:
                 return dependencies_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[Any] | MissionTaskCreateDependenciesType1 | None | Unset, data)
+            return cast(
+                list[Any] | MissionTaskCreateDependenciesType1 | None | Unset, data
+            )
 
         dependencies = _parse_dependencies(d.pop("dependencies", UNSET))
 

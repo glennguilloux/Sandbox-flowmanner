@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.integrations.adapters.github import GitHubAdapter, _github_error_code, _parse_github_response
+from app.integrations.adapters.github import (
+    GitHubAdapter,
+    _github_error_code,
+    _parse_github_response,
+)
 
 
 @pytest.fixture
@@ -31,7 +35,10 @@ class TestGitHubResponseParser:
     def test_success_201(self):
         resp = MagicMock()
         resp.status_code = 201
-        resp.json.return_value = {"number": 42, "html_url": "https://github.com/owner/repo/issues/42"}
+        resp.json.return_value = {
+            "number": 42,
+            "html_url": "https://github.com/owner/repo/issues/42",
+        }
         result = _parse_github_response(resp)
         assert result["success"] is True
         assert result["response"]["number"] == 42
@@ -134,7 +141,9 @@ class TestCreateIssue:
 
         assert result["success"] is True
         assert result["response"]["number"] == 42
-        assert result["response"]["html_url"] == "https://github.com/user/repo/issues/42"
+        assert (
+            result["response"]["html_url"] == "https://github.com/user/repo/issues/42"
+        )
 
     @pytest.mark.asyncio
     async def test_missing_owner(self, adapter, connection):

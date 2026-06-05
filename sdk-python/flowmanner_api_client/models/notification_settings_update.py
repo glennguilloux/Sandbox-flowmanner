@@ -1,47 +1,38 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="NotificationSettingsUpdate")
-
 
 
 @_attrs_define
 class NotificationSettingsUpdate:
-    """ Update notification settings.
+    """Update notification settings.
 
-        Attributes:
-            in_app_enabled (bool | None | Unset):
-            email_enabled (bool | None | Unset):
-            push_enabled (bool | None | Unset):
-            event_mission_completed (bool | None | Unset):
-            event_mission_failed (bool | None | Unset):
-            event_mention (bool | None | Unset):
-            event_system (bool | None | Unset):
-            digest_mode (None | str | Unset):
-            digest_time_utc (None | str | Unset):
-            digest_day_of_week (int | None | Unset):
-            email_address (None | str | Unset):
-            push_enabled_channels (None | str | Unset):
-            mission_completed (bool | None | Unset):
-            mission_failed (bool | None | Unset):
-            slack_enabled (bool | None | Unset):
-            slack_webhook_url (None | str | Unset):
-     """
+    Attributes:
+        in_app_enabled (bool | None | Unset):
+        email_enabled (bool | None | Unset):
+        push_enabled (bool | None | Unset):
+        event_mission_completed (bool | None | Unset):
+        event_mission_failed (bool | None | Unset):
+        event_mention (bool | None | Unset):
+        event_system (bool | None | Unset):
+        digest_mode (None | str | Unset):
+        digest_time_utc (None | str | Unset):
+        digest_day_of_week (int | None | Unset):
+        email_address (None | str | Unset):
+        push_enabled_channels (None | str | Unset):
+        mission_completed (bool | None | Unset):
+        mission_failed (bool | None | Unset):
+        slack_enabled (bool | None | Unset):
+        slack_webhook_url (None | str | Unset):
+    """
 
     in_app_enabled: bool | None | Unset = UNSET
     email_enabled: bool | None | Unset = UNSET
@@ -60,10 +51,6 @@ class NotificationSettingsUpdate:
     slack_enabled: bool | None | Unset = UNSET
     slack_webhook_url: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         in_app_enabled: bool | None | Unset
@@ -162,11 +149,9 @@ class NotificationSettingsUpdate:
         else:
             slack_webhook_url = self.slack_webhook_url
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if in_app_enabled is not UNSET:
             field_dict["in_app_enabled"] = in_app_enabled
         if email_enabled is not UNSET:
@@ -202,11 +187,10 @@ class NotificationSettingsUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+
         def _parse_in_app_enabled(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -215,7 +199,6 @@ class NotificationSettingsUpdate:
             return cast(bool | None | Unset, data)
 
         in_app_enabled = _parse_in_app_enabled(d.pop("in_app_enabled", UNSET))
-
 
         def _parse_email_enabled(data: object) -> bool | None | Unset:
             if data is None:
@@ -226,7 +209,6 @@ class NotificationSettingsUpdate:
 
         email_enabled = _parse_email_enabled(d.pop("email_enabled", UNSET))
 
-
         def _parse_push_enabled(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -236,7 +218,6 @@ class NotificationSettingsUpdate:
 
         push_enabled = _parse_push_enabled(d.pop("push_enabled", UNSET))
 
-
         def _parse_event_mission_completed(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -244,8 +225,9 @@ class NotificationSettingsUpdate:
                 return data
             return cast(bool | None | Unset, data)
 
-        event_mission_completed = _parse_event_mission_completed(d.pop("event_mission_completed", UNSET))
-
+        event_mission_completed = _parse_event_mission_completed(
+            d.pop("event_mission_completed", UNSET)
+        )
 
         def _parse_event_mission_failed(data: object) -> bool | None | Unset:
             if data is None:
@@ -254,8 +236,9 @@ class NotificationSettingsUpdate:
                 return data
             return cast(bool | None | Unset, data)
 
-        event_mission_failed = _parse_event_mission_failed(d.pop("event_mission_failed", UNSET))
-
+        event_mission_failed = _parse_event_mission_failed(
+            d.pop("event_mission_failed", UNSET)
+        )
 
         def _parse_event_mention(data: object) -> bool | None | Unset:
             if data is None:
@@ -266,7 +249,6 @@ class NotificationSettingsUpdate:
 
         event_mention = _parse_event_mention(d.pop("event_mention", UNSET))
 
-
         def _parse_event_system(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -275,7 +257,6 @@ class NotificationSettingsUpdate:
             return cast(bool | None | Unset, data)
 
         event_system = _parse_event_system(d.pop("event_system", UNSET))
-
 
         def _parse_digest_mode(data: object) -> None | str | Unset:
             if data is None:
@@ -286,7 +267,6 @@ class NotificationSettingsUpdate:
 
         digest_mode = _parse_digest_mode(d.pop("digest_mode", UNSET))
 
-
         def _parse_digest_time_utc(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -296,7 +276,6 @@ class NotificationSettingsUpdate:
 
         digest_time_utc = _parse_digest_time_utc(d.pop("digest_time_utc", UNSET))
 
-
         def _parse_digest_day_of_week(data: object) -> int | None | Unset:
             if data is None:
                 return data
@@ -304,8 +283,9 @@ class NotificationSettingsUpdate:
                 return data
             return cast(int | None | Unset, data)
 
-        digest_day_of_week = _parse_digest_day_of_week(d.pop("digest_day_of_week", UNSET))
-
+        digest_day_of_week = _parse_digest_day_of_week(
+            d.pop("digest_day_of_week", UNSET)
+        )
 
         def _parse_email_address(data: object) -> None | str | Unset:
             if data is None:
@@ -316,7 +296,6 @@ class NotificationSettingsUpdate:
 
         email_address = _parse_email_address(d.pop("email_address", UNSET))
 
-
         def _parse_push_enabled_channels(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -324,8 +303,9 @@ class NotificationSettingsUpdate:
                 return data
             return cast(None | str | Unset, data)
 
-        push_enabled_channels = _parse_push_enabled_channels(d.pop("push_enabled_channels", UNSET))
-
+        push_enabled_channels = _parse_push_enabled_channels(
+            d.pop("push_enabled_channels", UNSET)
+        )
 
         def _parse_mission_completed(data: object) -> bool | None | Unset:
             if data is None:
@@ -336,7 +316,6 @@ class NotificationSettingsUpdate:
 
         mission_completed = _parse_mission_completed(d.pop("mission_completed", UNSET))
 
-
         def _parse_mission_failed(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -345,7 +324,6 @@ class NotificationSettingsUpdate:
             return cast(bool | None | Unset, data)
 
         mission_failed = _parse_mission_failed(d.pop("mission_failed", UNSET))
-
 
         def _parse_slack_enabled(data: object) -> bool | None | Unset:
             if data is None:
@@ -356,7 +334,6 @@ class NotificationSettingsUpdate:
 
         slack_enabled = _parse_slack_enabled(d.pop("slack_enabled", UNSET))
 
-
         def _parse_slack_webhook_url(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -365,7 +342,6 @@ class NotificationSettingsUpdate:
             return cast(None | str | Unset, data)
 
         slack_webhook_url = _parse_slack_webhook_url(d.pop("slack_webhook_url", UNSET))
-
 
         notification_settings_update = cls(
             in_app_enabled=in_app_enabled,
@@ -385,7 +361,6 @@ class NotificationSettingsUpdate:
             slack_enabled=slack_enabled,
             slack_webhook_url=slack_webhook_url,
         )
-
 
         notification_settings_update.additional_properties = d
         return notification_settings_update

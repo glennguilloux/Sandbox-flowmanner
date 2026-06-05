@@ -4,6 +4,7 @@ Revision ID: auth_v3_001
 Revises: 9ebabc12fb98
 Create Date: 2026-06-01
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -45,8 +46,12 @@ def upgrade():
             comment="Updated ONLY on token refresh, NOT on every access-token validation",
         ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "revoke_reason",
@@ -99,7 +104,9 @@ def upgrade():
         sa.Column("is_active", sa.Boolean(), default=True, nullable=False),
         sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Index("ix_api_keys_user", "user_id", "is_active"),
     )
 
@@ -128,7 +135,9 @@ def upgrade():
             comment='JSON array of event types: ["session.created", "session.revoked"]',
         ),
         sa.Column("is_active", sa.Boolean(), default=True, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("last_delivery_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_failure_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("failure_count", sa.Integer(), default=0),
@@ -165,7 +174,9 @@ def upgrade():
         ),
         sa.Column("scopes", sa.String(500), default="openid email profile"),
         sa.Column("is_active", sa.Boolean(), default=True, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
 
     # ── Seed feature flags ──

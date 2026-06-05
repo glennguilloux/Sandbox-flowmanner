@@ -31,67 +31,95 @@ async def verify_counts(db: AsyncSession) -> list[str]:
     issues = []
 
     # Count missions (non-deleted)
-    mission_count = (await db.execute(
-        select(func.count()).select_from(Mission).where(Mission.deleted_at.is_(None))
-    )).scalar() or 0
+    mission_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(Mission)
+            .where(Mission.deleted_at.is_(None))
+        )
+    ).scalar() or 0
 
     # Count blueprints
-    bp_count = (await db.execute(
-        select(func.count()).select_from(Blueprint).where(Blueprint.deleted_at.is_(None))
-    )).scalar() or 0
+    bp_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(Blueprint)
+            .where(Blueprint.deleted_at.is_(None))
+        )
+    ).scalar() or 0
 
     logger.info("Missions: %d, Blueprints: %d", mission_count, bp_count)
     if bp_count < mission_count:
-        issues.append(f"Blueprint count ({bp_count}) < Mission count ({mission_count}) — some missions may not have been backfilled")
+        issues.append(
+            f"Blueprint count ({bp_count}) < Mission count ({mission_count}) — some missions may not have been backfilled"
+        )
 
     # Count workflow executions
-    wf_exec_count = (await db.execute(
-        select(func.count()).select_from(WorkflowExecution)
-    )).scalar() or 0
+    wf_exec_count = (
+        await db.execute(select(func.count()).select_from(WorkflowExecution))
+    ).scalar() or 0
 
     # Count orchestrator executions
-    orch_count = (await db.execute(
-        select(func.count()).select_from(OrchestratorExecution)
-    )).scalar() or 0
+    orch_count = (
+        await db.execute(select(func.count()).select_from(OrchestratorExecution))
+    ).scalar() or 0
 
     # Count runs
-    run_count = (await db.execute(
-        select(func.count()).select_from(Run)
-    )).scalar() or 0
+    run_count = (await db.execute(select(func.count()).select_from(Run))).scalar() or 0
 
     expected_runs = wf_exec_count + orch_count
-    logger.info("Workflow executions: %d, Orchestrator executions: %d, Runs: %d", wf_exec_count, orch_count, run_count)
+    logger.info(
+        "Workflow executions: %d, Orchestrator executions: %d, Runs: %d",
+        wf_exec_count,
+        orch_count,
+        run_count,
+    )
     if run_count < expected_runs:
-        issues.append(f"Run count ({run_count}) < expected ({expected_runs}) — some executions may not have been backfilled")
+        issues.append(
+            f"Run count ({run_count}) < expected ({expected_runs}) — some executions may not have been backfilled"
+        )
 
     return issues
 
 
-async def verify_sample_integrity(db: AsyncSession, sample_size: int = 100) -> list[str]:
+async def verify_sample_integrity(
+    db: AsyncSession, sample_size: int = 100
+) -> list[str]:
     """Sample random missions and verify corresponding blueprint data."""
     issues = []
 
     # Get random mission IDs
-    mission_ids = (await db.execute(
-        select(Mission.id).where(Mission.deleted_at.is_(None)).order_by(func.random()).limit(sample_size)
-    )).scalars().all()
+    mission_ids = (
+        (
+            await db.execute(
+                select(Mission.id)
+                .where(Mission.deleted_at.is_(None))
+                .order_by(func.random())
+                .limit(sample_size)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     for mission_id in mission_ids:
-        mission = (await db.execute(
-            select(Mission).where(Mission.id == mission_id)
-        )).scalar_one_or_none()
+        mission = (
+            await db.execute(select(Mission).where(Mission.id == mission_id))
+        ).scalar_one_or_none()
 
         if mission is None:
             continue
 
         # Check if blueprint exists for this mission
-        bp = (await db.execute(
-            select(Blueprint).where(
-                Blueprint.deleted_at.is_(None),
-                Blueprint.user_id == mission.user_id,
-                Blueprint.title == mission.title,
+        bp = (
+            await db.execute(
+                select(Blueprint).where(
+                    Blueprint.deleted_at.is_(None),
+                    Blueprint.user_id == mission.user_id,
+                    Blueprint.title == mission.title,
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
 
         if bp is None:
             issues.append(f"Mission {mission_id} has no corresponding blueprint")
@@ -99,7 +127,9 @@ async def verify_sample_integrity(db: AsyncSession, sample_size: int = 100) -> l
 
         # Verify basic data match
         if bp.title != mission.title:
-            issues.append(f"Mission {mission_id} title mismatch: '{mission.title}' vs '{bp.title}'")
+            issues.append(
+                f"Mission {mission_id} title mismatch: '{mission.title}' vs '{bp.title}'"
+            )
         if bp.user_id != mission.user_id:
             issues.append(f"Mission {mission_id} user_id mismatch")
 

@@ -85,8 +85,13 @@ class ViralTrendAnalyzerTool(BaseTool):
                 },
             },
             tags=[
-                "social", "trends", "viral", "analysis", "sentiment",
-                "analytics", "differentiator",
+                "social",
+                "trends",
+                "viral",
+                "analysis",
+                "sentiment",
+                "analytics",
+                "differentiator",
             ],
             requires_auth=True,
             timeout_seconds=TREND_TIMEOUT + 30,
@@ -114,12 +119,15 @@ class ViralTrendAnalyzerTool(BaseTool):
             logger.exception("viral_trend_analyzer failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _analyze(
-        self, validated: ViralTrendAnalyzerInput
-    ) -> dict[str, Any]:
+    async def _analyze(self, validated: ViralTrendAnalyzerInput) -> dict[str, Any]:
         """Gather trend data from platforms and analyze via LLM."""
         platforms = validated.platforms or [
-            "twitter", "tiktok", "youtube", "reddit", "linkedin", "news"
+            "twitter",
+            "tiktok",
+            "youtube",
+            "reddit",
+            "linkedin",
+            "news",
         ]
 
         # Gather trend data from each platform
@@ -150,9 +158,7 @@ class ViralTrendAnalyzerTool(BaseTool):
                 "engine": "data-only",
             }
 
-        analysis = await self._analyze_trends_with_llm(
-            platform_data, validated
-        )
+        analysis = await self._analyze_trends_with_llm(platform_data, validated)
 
         return {
             "status": "complete",
@@ -195,7 +201,9 @@ class ViralTrendAnalyzerTool(BaseTool):
             subreddit = topic.replace(" ", "")
 
         url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=25"
-        resp = await client.get(url, headers={"User-Agent": "Flowmanner/1.0"}, follow_redirects=True)
+        resp = await client.get(
+            url, headers={"User-Agent": "Flowmanner/1.0"}, follow_redirects=True
+        )
         if resp.status_code != 200:
             return {"error": f"Reddit returned {resp.status_code}"}
 
@@ -203,14 +211,16 @@ class ViralTrendAnalyzerTool(BaseTool):
         posts = []
         for post in data.get("data", {}).get("children", []):
             pdata = post["data"]
-            posts.append({
-                "title": pdata.get("title", ""),
-                "subreddit": pdata.get("subreddit", ""),
-                "score": pdata.get("score", 0),
-                "num_comments": pdata.get("num_comments", 0),
-                "url": f"https://reddit.com{pdata.get('permalink', '')}",
-                "created_utc": pdata.get("created_utc", 0),
-            })
+            posts.append(
+                {
+                    "title": pdata.get("title", ""),
+                    "subreddit": pdata.get("subreddit", ""),
+                    "score": pdata.get("score", 0),
+                    "num_comments": pdata.get("num_comments", 0),
+                    "url": f"https://reddit.com{pdata.get('permalink', '')}",
+                    "created_utc": pdata.get("created_utc", 0),
+                }
+            )
 
         return {
             "source": "reddit",
@@ -236,17 +246,25 @@ class ViralTrendAnalyzerTool(BaseTool):
 
         # Simple XML parsing for RSS (defusedxml not required — these are trusted feeds)
         import xml.etree.ElementTree as ET
+
         root = ET.fromstring(resp.text)
         items = []
         for item in root.iter("item"):
-            items.append({
-                "title": (item.findtext("title") or "").strip(),
-                "link": (item.findtext("link") or "").strip(),
-                "description": (item.findtext("description") or "")[:200].strip(),
-            })
+            items.append(
+                {
+                    "title": (item.findtext("title") or "").strip(),
+                    "link": (item.findtext("link") or "").strip(),
+                    "description": (item.findtext("description") or "")[:200].strip(),
+                }
+            )
 
         if topic:
-            items = [i for i in items if topic.lower() in (i.get("title", "") + i.get("description", "")).lower()]
+            items = [
+                i
+                for i in items
+                if topic.lower()
+                in (i.get("title", "") + i.get("description", "")).lower()
+            ]
 
         return {
             "source": f"news-{region}",
@@ -280,15 +298,27 @@ class ViralTrendAnalyzerTool(BaseTool):
             return {"error": f"YouTube feed returned {resp.status_code}"}
 
         import xml.etree.ElementTree as ET
+
         root = ET.fromstring(resp.text)
         ns = {"yt": "http://www.youtube.com/xml/schemas/2015"}
         items = []
         for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
-            items.append({
-                "title": (entry.findtext("{http://www.w3.org/2005/Atom}title") or "").strip(),
-                "link": entry.find("{http://www.w3.org/2005/Atom}link").get("href", ""),
-                "channel": (entry.findtext("{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name") or "").strip(),
-            })
+            items.append(
+                {
+                    "title": (
+                        entry.findtext("{http://www.w3.org/2005/Atom}title") or ""
+                    ).strip(),
+                    "link": entry.find("{http://www.w3.org/2005/Atom}link").get(
+                        "href", ""
+                    ),
+                    "channel": (
+                        entry.findtext(
+                            "{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name"
+                        )
+                        or ""
+                    ).strip(),
+                }
+            )
 
         return {
             "source": "youtube",
@@ -336,9 +366,14 @@ class ViralTrendAnalyzerTool(BaseTool):
             total_trends += len(trends)
             if trends and not pdata.get("note"):
                 titles = [t.get("title", t.get("headline", "")) for t in trends[:5]]
-                data_summary_parts.append(f"**{platform.capitalize()}**:\n" + "\n".join(f"- {t}" for t in titles))
+                data_summary_parts.append(
+                    f"**{platform.capitalize()}**:\n"
+                    + "\n".join(f"- {t}" for t in titles)
+                )
             elif pdata.get("note"):
-                data_summary_parts.append(f"**{platform.capitalize()}**: {pdata.get('note')}")
+                data_summary_parts.append(
+                    f"**{platform.capitalize()}**: {pdata.get('note')}"
+                )
 
         if not data_summary_parts:
             return {
@@ -353,10 +388,10 @@ class ViralTrendAnalyzerTool(BaseTool):
             "and news trends. Return a JSON object with these fields:\n"
             '- "summary": 2-3 sentence overview of the trend landscape\n'
             '- "top_trends": array of {title, platform, momentum_score (1-10), '
-            'audience_size_estimate, relevant_hashtags: [string]}\n'
+            "audience_size_estimate, relevant_hashtags: [string]}\n"
             '- "sentiment_summary": overall sentiment of the trending topics\n'
             '- "recommendations": array of {trend, action, content_idea} '
-            'for content creators'
+            "for content creators"
         )
 
         if validated.suggest_content:
@@ -397,14 +432,25 @@ class ViralTrendAnalyzerTool(BaseTool):
         except json.JSONDecodeError:
             # Try to extract JSON from the response
             import re
+
             match = re.search(r"\{[\s\S]*\}", content)
             if match:
                 try:
                     analysis = json.loads(match.group())
                 except json.JSONDecodeError:
-                    analysis = {"summary": content, "top_trends": [], "sentiment_summary": "N/A", "recommendations": []}
+                    analysis = {
+                        "summary": content,
+                        "top_trends": [],
+                        "sentiment_summary": "N/A",
+                        "recommendations": [],
+                    }
             else:
-                analysis = {"summary": content, "top_trends": [], "sentiment_summary": "N/A", "recommendations": []}
+                analysis = {
+                    "summary": content,
+                    "top_trends": [],
+                    "sentiment_summary": "N/A",
+                    "recommendations": [],
+                }
 
         analysis["total_trends_analyzed"] = total_trends
         analysis["platforms_analyzed"] = list(platform_data.keys())

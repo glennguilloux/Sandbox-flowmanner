@@ -1,36 +1,28 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.marketplace_listing import MarketplaceListing
-
-
-
+    from ..models.marketplace_listing import MarketplaceListing
 
 
 T = TypeVar("T", bound="ListingsResponse")
 
 
-
 @_attrs_define
 class ListingsResponse:
-    """ 
-        Attributes:
-            listings (list[MarketplaceListing]):
-            total (int):
-            page (int):
-            per_page (int):
-            has_more (bool):
-     """
+    """
+    Attributes:
+        listings (list[MarketplaceListing]):
+        total (int):
+        page (int):
+        per_page (int):
+        has_more (bool):
+    """
 
     listings: list[MarketplaceListing]
     total: int
@@ -39,18 +31,11 @@ class ListingsResponse:
     has_more: bool
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.marketplace_listing import MarketplaceListing
         listings = []
         for listings_item_data in self.listings:
             listings_item = listings_item_data.to_dict()
             listings.append(listings_item)
-
-
 
         total = self.total
 
@@ -60,34 +45,31 @@ class ListingsResponse:
 
         has_more = self.has_more
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "listings": listings,
-            "total": total,
-            "page": page,
-            "per_page": per_page,
-            "has_more": has_more,
-        })
+        field_dict.update(
+            {
+                "listings": listings,
+                "total": total,
+                "page": page,
+                "per_page": per_page,
+                "has_more": has_more,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.marketplace_listing import MarketplaceListing
+
         d = dict(src_dict)
         listings = []
         _listings = d.pop("listings")
-        for listings_item_data in (_listings):
+        for listings_item_data in _listings:
             listings_item = MarketplaceListing.from_dict(listings_item_data)
 
-
-
             listings.append(listings_item)
-
 
         total = d.pop("total")
 
@@ -104,7 +86,6 @@ class ListingsResponse:
             per_page=per_page,
             has_more=has_more,
         )
-
 
         listings_response.additional_properties = d
         return listings_response

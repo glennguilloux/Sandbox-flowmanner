@@ -32,6 +32,7 @@ from app.services.nexus.failure_analyzer import (
 # ErrorBudget: initialization
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestErrorBudgetInit:
 
     def test_default_initialization(self):
@@ -68,6 +69,7 @@ class TestErrorBudgetInit:
 # ═══════════════════════════════════════════════════════════════════
 # ErrorBudget: exhaustion checks
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestErrorBudgetExhaustion:
 
@@ -130,6 +132,7 @@ class TestErrorBudgetExhaustion:
 # ErrorBudget: record_attempt()
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestErrorBudgetRecordAttempt:
 
     def test_record_increments_retry_count(self):
@@ -169,6 +172,7 @@ class TestErrorBudgetRecordAttempt:
 # ErrorBudget: to_dict()
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestErrorBudgetToDict:
 
     def test_to_dict_includes_all_fields(self):
@@ -185,6 +189,7 @@ class TestErrorBudgetToDict:
 # ═══════════════════════════════════════════════════════════════════
 # FailureAnalyzer: analyze_failure() with budgets
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestFailureAnalyzerBudgets:
 
@@ -267,6 +272,7 @@ class TestFailureAnalyzerBudgets:
 # FailureAnalyzer: reset_budgets()
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestFailureAnalyzerResetBudgets:
 
     def test_reset_budgets_clears_retry_counts(self):
@@ -310,55 +316,67 @@ class TestFailureAnalyzerResetBudgets:
 # FailureAnalyzer: classify_error()
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestClassifyError:
 
     def setup_method(self):
         self.analyzer = FailureAnalyzer()
 
     def test_classify_timeout(self):
-        assert self.analyzer.classify_error(TimeoutError("timed out")) == ErrorClass.TIMEOUT
+        assert (
+            self.analyzer.classify_error(TimeoutError("timed out"))
+            == ErrorClass.TIMEOUT
+        )
 
     def test_classify_validation(self):
-        assert self.analyzer.classify_error(
-            Exception("validation failed")
-        ) == ErrorClass.VALIDATION
+        assert (
+            self.analyzer.classify_error(Exception("validation failed"))
+            == ErrorClass.VALIDATION
+        )
 
     def test_classify_network(self):
-        assert self.analyzer.classify_error(
-            ConnectionError("connection refused")
-        ) == ErrorClass.NETWORK
+        assert (
+            self.analyzer.classify_error(ConnectionError("connection refused"))
+            == ErrorClass.NETWORK
+        )
 
     def test_classify_permission(self):
-        assert self.analyzer.classify_error(
-            PermissionError("access denied")
-        ) == ErrorClass.PERMISSION
+        assert (
+            self.analyzer.classify_error(PermissionError("access denied"))
+            == ErrorClass.PERMISSION
+        )
 
     def test_classify_not_found(self):
-        assert self.analyzer.classify_error(
-            FileNotFoundError("not found")
-        ) == ErrorClass.NOT_FOUND
+        assert (
+            self.analyzer.classify_error(FileNotFoundError("not found"))
+            == ErrorClass.NOT_FOUND
+        )
 
     def test_classify_rate_limit(self):
         # "rate limit" matches before "limit exceeded" in classify_error
-        assert self.analyzer.classify_error(
-            Exception("too many requests — rate limit")
-        ) == ErrorClass.RATE_LIMIT
+        assert (
+            self.analyzer.classify_error(Exception("too many requests — rate limit"))
+            == ErrorClass.RATE_LIMIT
+        )
 
     def test_classify_resource_limit_exceeded(self):
         # "limit exceeded" matches RESOURCE
-        assert self.analyzer.classify_error(
-            Exception("rate limit exceeded")
-        ) == ErrorClass.RESOURCE
+        assert (
+            self.analyzer.classify_error(Exception("rate limit exceeded"))
+            == ErrorClass.RESOURCE
+        )
 
     def test_classify_unknown(self):
-        assert self.analyzer.classify_error(
-            Exception("something weird")
-        ) == ErrorClass.UNKNOWN
+        assert (
+            self.analyzer.classify_error(Exception("something weird"))
+            == ErrorClass.UNKNOWN
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════
 # FailureAnalyzer: other methods
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestFailureAnalyzerOther:
 
@@ -377,7 +395,9 @@ class TestFailureAnalyzerOther:
     def test_get_budget_returns_budget_for_class(self):
         budget = self.analyzer.get_budget(ErrorClass.NETWORK)
         assert isinstance(budget, ErrorBudget)
-        assert budget.max_retries == DEFAULT_ERROR_BUDGETS[ErrorClass.NETWORK].max_retries
+        assert (
+            budget.max_retries == DEFAULT_ERROR_BUDGETS[ErrorClass.NETWORK].max_retries
+        )
 
     def test_get_budget_returns_none_for_unknown(self):
         budget = self.analyzer.get_budget(MagicMock())
@@ -409,6 +429,7 @@ class TestFailureAnalyzerOther:
 # ExecutionObservation
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestExecutionObservation:
 
     def test_default_timestamp(self):
@@ -433,6 +454,7 @@ class TestExecutionObservation:
 # FailureAnalysisResult
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestFailureAnalysisResult:
 
     def test_to_dict(self):
@@ -453,6 +475,7 @@ class TestFailureAnalysisResult:
 # ═══════════════════════════════════════════════════════════════════
 # FailureAnalyzer: singleton
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestFailureAnalyzerSingleton:
 

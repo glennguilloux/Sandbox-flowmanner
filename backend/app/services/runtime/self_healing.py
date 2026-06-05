@@ -11,6 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class SelfHealing:
     """Self-healing system for automatic error recovery"""
 
@@ -22,11 +23,14 @@ class SelfHealing:
         """Get recovery attempt history"""
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
         return [
-            h for h in self._recovery_history
+            h
+            for h in self._recovery_history
             if datetime.fromisoformat(h["started_at"]) > cutoff
         ]
 
-    async def trigger_recovery(self, error_id: str, strategy: str | None = None) -> dict[str, Any]:
+    async def trigger_recovery(
+        self, error_id: str, strategy: str | None = None
+    ) -> dict[str, Any]:
         """Trigger recovery for an error"""
         attempt_id = str(uuid.uuid4())
 
@@ -38,7 +42,7 @@ class SelfHealing:
             "completed_at": None,
             "status": "in_progress",
             "actions": [],
-            "error_message": None
+            "error_message": None,
         }
 
         self._recovery_history.append(attempt)
@@ -54,7 +58,7 @@ class SelfHealing:
                 "description": "Restarting affected service",
                 "executed_at": datetime.now(UTC).isoformat(),
                 "result": "Service restarted successfully",
-                "success": True
+                "success": True,
             }
         ]
 
@@ -63,11 +67,12 @@ class SelfHealing:
 
         # Trim history if needed
         if len(self._recovery_history) > self._max_history:
-            self._recovery_history = self._recovery_history[-self._max_history:]
+            self._recovery_history = self._recovery_history[-self._max_history :]
 
         logger.info(f"Recovery attempt {attempt_id} completed successfully")
 
         return attempt
+
 
 # Singleton instance
 self_healing = SelfHealing()

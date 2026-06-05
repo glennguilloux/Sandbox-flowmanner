@@ -119,7 +119,9 @@ class TestStartNodeHandler:
     @pytest.mark.asyncio
     async def test_execute(self):
         handler = StartNodeHandler()
-        result = await handler.execute({"data": {"nodeType": "start"}}, ExecutionContext())
+        result = await handler.execute(
+            {"data": {"nodeType": "start"}}, ExecutionContext()
+        )
         assert result["success"] is True
         assert result["output"]["started"] is True
 
@@ -128,7 +130,9 @@ class TestEndNodeHandler:
     @pytest.mark.asyncio
     async def test_execute(self):
         handler = EndNodeHandler()
-        result = await handler.execute({"data": {"nodeType": "end"}}, ExecutionContext())
+        result = await handler.execute(
+            {"data": {"nodeType": "end"}}, ExecutionContext()
+        )
         assert result["success"] is True
         assert result["output"]["completed"] is True
 
@@ -144,14 +148,22 @@ class TestTaskNodeHandler:
     @pytest.mark.asyncio
     async def test_validate_with_label(self):
         handler = TaskNodeHandler()
-        errors = await handler.validate({"data": {"nodeType": "task", "label": "My Task"}})
+        errors = await handler.validate(
+            {"data": {"nodeType": "task", "label": "My Task"}}
+        )
         assert errors == []
 
     @pytest.mark.asyncio
     async def test_execute_no_model_router(self):
         handler = TaskNodeHandler()
         result = await handler.execute(
-            {"data": {"nodeType": "task", "label": "Test", "description": "Do something"}},
+            {
+                "data": {
+                    "nodeType": "task",
+                    "label": "Test",
+                    "description": "Do something",
+                }
+            },
             ExecutionContext(),
         )
         assert result["success"] is False
@@ -202,7 +214,12 @@ class TestConditionNodeHandler:
     async def test_blocks_dangerous_expression(self):
         handler = ConditionNodeHandler()
         result = await handler.execute(
-            {"data": {"nodeType": "condition", "expression": "__import__('os').system('ls')"}},
+            {
+                "data": {
+                    "nodeType": "condition",
+                    "expression": "__import__('os').system('ls')",
+                }
+            },
             ExecutionContext(),
         )
         assert result["success"] is False
@@ -214,7 +231,15 @@ class TestLoopNodeHandler:
     async def test_count_mode(self):
         handler = LoopNodeHandler()
         result = await handler.execute(
-            {"id": "loop1", "data": {"nodeType": "loop", "loopMode": "count", "loopCount": 3, "maxIterations": 100}},
+            {
+                "id": "loop1",
+                "data": {
+                    "nodeType": "loop",
+                    "loopMode": "count",
+                    "loopCount": 3,
+                    "maxIterations": 100,
+                },
+            },
             ExecutionContext(),
         )
         assert result["success"] is True
@@ -224,7 +249,15 @@ class TestLoopNodeHandler:
     async def test_max_iterations_enforced(self):
         handler = LoopNodeHandler()
         result = await handler.execute(
-            {"id": "loop1", "data": {"nodeType": "loop", "loopMode": "count", "loopCount": 999, "maxIterations": 100}},
+            {
+                "id": "loop1",
+                "data": {
+                    "nodeType": "loop",
+                    "loopMode": "count",
+                    "loopCount": 999,
+                    "maxIterations": 100,
+                },
+            },
             ExecutionContext(),
         )
         assert result["success"] is True
@@ -235,7 +268,15 @@ class TestLoopNodeHandler:
         handler = LoopNodeHandler()
         ctx = ExecutionContext({"items": [1, 2, 3]})
         result = await handler.execute(
-            {"id": "loop1", "data": {"nodeType": "loop", "loopMode": "foreach", "loopExpression": "items", "maxIterations": 100}},
+            {
+                "id": "loop1",
+                "data": {
+                    "nodeType": "loop",
+                    "loopMode": "foreach",
+                    "loopExpression": "items",
+                    "maxIterations": 100,
+                },
+            },
             ctx,
         )
         assert result["success"] is True
@@ -246,10 +287,20 @@ class TestLoopNodeHandler:
         handler = LoopNodeHandler()
         mock_interp = MagicMock()
         mock_interp.edges = [{"source": "loop1", "target": "task1"}]
-        mock_interp._execute_node = AsyncMock(return_value={"success": True, "output": {"done": True}})
+        mock_interp._execute_node = AsyncMock(
+            return_value={"success": True, "output": {"done": True}}
+        )
 
         result = await handler.execute(
-            {"id": "loop1", "data": {"nodeType": "loop", "loopMode": "count", "loopCount": 2, "maxIterations": 100}},
+            {
+                "id": "loop1",
+                "data": {
+                    "nodeType": "loop",
+                    "loopMode": "count",
+                    "loopCount": 2,
+                    "maxIterations": 100,
+                },
+            },
             ExecutionContext(),
             interpreter=mock_interp,
         )
@@ -274,7 +325,14 @@ class TestDelayNodeHandler:
     async def test_exponential_delay(self):
         handler = DelayNodeHandler()
         result = await handler.execute(
-            {"data": {"nodeType": "delay", "delayMs": 100, "delayType": "exponential", "maxDelayMs": 5000}},
+            {
+                "data": {
+                    "nodeType": "delay",
+                    "delayMs": 100,
+                    "delayType": "exponential",
+                    "maxDelayMs": 5000,
+                }
+            },
             ExecutionContext(),
         )
         assert result["success"] is True
@@ -287,7 +345,13 @@ class TestTransformNodeHandler:
         handler = TransformNodeHandler()
         ctx = ExecutionContext({"name": "Alice"})
         result = await handler.execute(
-            {"data": {"nodeType": "transform", "transformType": "template", "transformExpression": "Hello {{name}}"}},
+            {
+                "data": {
+                    "nodeType": "transform",
+                    "transformType": "template",
+                    "transformExpression": "Hello {{name}}",
+                }
+            },
             ctx,
         )
         assert result["success"] is True
@@ -298,7 +362,13 @@ class TestTransformNodeHandler:
         handler = TransformNodeHandler()
         ctx = ExecutionContext({"user": {"name": "Bob"}})
         result = await handler.execute(
-            {"data": {"nodeType": "transform", "transformType": "jq", "transformExpression": ".user.name"}},
+            {
+                "data": {
+                    "nodeType": "transform",
+                    "transformType": "jq",
+                    "transformExpression": ".user.name",
+                }
+            },
             ctx,
         )
         assert result["success"] is True
@@ -351,7 +421,9 @@ class TestParallelNodeHandler:
             {"source": "p1", "target": "t1"},
             {"source": "p1", "target": "t2"},
         ]
-        mock_interp._execute_node = AsyncMock(return_value={"success": True, "output": {"done": True}})
+        mock_interp._execute_node = AsyncMock(
+            return_value={"success": True, "output": {"done": True}}
+        )
 
         result = await handler.execute(
             {"id": "p1", "data": {"nodeType": "parallel", "joinMode": "all"}},
@@ -383,7 +455,9 @@ class TestApprovalNodeHandler:
         mock_interp.execution = MagicMock()
         mock_interp.execution.id = "exec-1"
 
-        with patch("app.services.graph_service.pause_execution", new_callable=AsyncMock) as mock_pause:
+        with patch(
+            "app.services.graph_service.pause_execution", new_callable=AsyncMock
+        ) as mock_pause:
             result = await handler.execute(
                 {"data": {"nodeType": "approval", "approverRole": "admin"}},
                 ExecutionContext(),
@@ -498,7 +572,9 @@ class TestGraphInterpreter:
         edges = [{"source": "s", "target": "a"}, {"source": "a", "target": "e"}]
         interp = self._make_interpreter(nodes, edges)
 
-        with patch("app.services.graph_service.pause_execution", new_callable=AsyncMock):
+        with patch(
+            "app.services.graph_service.pause_execution", new_callable=AsyncMock
+        ):
             result = await interp.execute()
             assert result["status"] == "paused"
             assert result["paused_at"] == "a"

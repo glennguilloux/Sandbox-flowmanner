@@ -41,7 +41,9 @@ class HeyGenVideoAvatarInput(ToolInput):
     """Input schema: text, avatar_id, voice_id, video_format, resolution, poll.*, save_to_storage."""
 
     text: str = Field(
-        ..., min_length=1, max_length=5000,
+        ...,
+        min_length=1,
+        max_length=5000,
         description="Script text for the avatar to speak",
     )
     avatar_id: str = Field(
@@ -73,7 +75,9 @@ class HeyGenVideoAvatarInput(ToolInput):
         description="Avatar position in the video frame",
     )
     voice_speed: float = Field(
-        1.0, ge=0.5, le=2.0,
+        1.0,
+        ge=0.5,
+        le=2.0,
         description="Voice speaking speed multiplier (0.5 = half speed, 2.0 = double speed)",
     )
     poll_for_completion: bool = Field(
@@ -81,7 +85,9 @@ class HeyGenVideoAvatarInput(ToolInput):
         description="Poll for video completion; if False, returns video_id immediately",
     )
     poll_timeout_seconds: int = Field(
-        300, ge=30, le=600,
+        300,
+        ge=30,
+        le=600,
         description="Maximum time to wait for video generation",
     )
     api_key: str | None = Field(
@@ -92,6 +98,7 @@ class HeyGenVideoAvatarInput(ToolInput):
         True,
         description="Download and save generated video to local storage",
     )
+
 
 class HeyGenVideoAvatarTool(BaseTool):
     """Generate talking-head avatar videos via HeyGen API."""
@@ -134,11 +141,15 @@ class HeyGenVideoAvatarTool(BaseTool):
         try:
             validated = HeyGenVideoAvatarInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         api_key = validated.api_key or HEYGEN_API_KEY
         if not api_key:
-            return ToolResult.error_result(tool_id=self.tool_id, error="HeyGen API key required")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error="HeyGen API key required"
+            )
 
         start = time.monotonic()
 
@@ -165,8 +176,10 @@ class HeyGenVideoAvatarTool(BaseTool):
                         },
                     }
                 ],
-                "dimension": {"width": self._resolution_width(validated.resolution),
-                              "height": self._resolution_height(validated.resolution)},
+                "dimension": {
+                    "width": self._resolution_width(validated.resolution),
+                    "height": self._resolution_height(validated.resolution),
+                },
                 "aspect_ratio": "16:9",
             }
 
@@ -175,7 +188,10 @@ class HeyGenVideoAvatarTool(BaseTool):
 
             if validated.background:
                 if validated.background.startswith("#"):
-                    body["background"] = {"type": "color", "value": validated.background}
+                    body["background"] = {
+                        "type": "color",
+                        "value": validated.background,
+                    }
                 else:
                     body["background"] = {"type": "image", "url": validated.background}
 
@@ -207,20 +223,23 @@ class HeyGenVideoAvatarTool(BaseTool):
 
             if not validated.poll_for_completion:
                 gen_time = int((time.monotonic() - start) * 1000)
-                return ToolResult.success_result(tool_id=self.tool_id, result={
-                    "video_id": video_id,
-                    "status": "processing",
-                    "video_url": "",
-                    "video_path": "",
-                    "duration_seconds": 0,
-                    "resolution": validated.resolution,
-                    "avatar_id": validated.avatar_id,
-                    "text_length": len(validated.text),
-                    "file_size_bytes": 0,
-                    "credit_cost": credit_cost,
-                    "generation_time_ms": gen_time,
-                    "success": True,
-                })
+                return ToolResult.success_result(
+                    tool_id=self.tool_id,
+                    result={
+                        "video_id": video_id,
+                        "status": "processing",
+                        "video_url": "",
+                        "video_path": "",
+                        "duration_seconds": 0,
+                        "resolution": validated.resolution,
+                        "avatar_id": validated.avatar_id,
+                        "text_length": len(validated.text),
+                        "file_size_bytes": 0,
+                        "credit_cost": credit_cost,
+                        "generation_time_ms": gen_time,
+                        "success": True,
+                    },
+                )
 
             # --- Step 2: Poll for completion ---
             video_url = ""
@@ -248,34 +267,42 @@ class HeyGenVideoAvatarTool(BaseTool):
                         # Download if saving
                         if video_url and validated.save_to_storage:
                             try:
-                                dl_resp = await client.get(video_url, follow_redirects=True)
+                                dl_resp = await client.get(
+                                    video_url, follow_redirects=True
+                                )
                                 video_data = dl_resp.content
                                 file_size = len(video_data)
                                 video_path = self._save_video(
-                                    video_data, video_id,
+                                    video_data,
+                                    video_id,
                                     validated.video_format,
                                 )
                             except Exception as dl_err:
                                 logger.warning("Failed to download video: %s", dl_err)
 
                         gen_time = int((time.monotonic() - start) * 1000)
-                        return ToolResult.success_result(tool_id=self.tool_id, result={
-                            "video_id": video_id,
-                            "status": "completed",
-                            "video_url": video_url,
-                            "video_path": video_path,
-                            "duration_seconds": duration,
-                            "resolution": validated.resolution,
-                            "avatar_id": validated.avatar_id,
-                            "text_length": len(validated.text),
-                            "file_size_bytes": file_size,
-                            "credit_cost": credit_cost,
-                            "generation_time_ms": gen_time,
-                            "success": True,
-                        })
+                        return ToolResult.success_result(
+                            tool_id=self.tool_id,
+                            result={
+                                "video_id": video_id,
+                                "status": "completed",
+                                "video_url": video_url,
+                                "video_path": video_path,
+                                "duration_seconds": duration,
+                                "resolution": validated.resolution,
+                                "avatar_id": validated.avatar_id,
+                                "text_length": len(validated.text),
+                                "file_size_bytes": file_size,
+                                "credit_cost": credit_cost,
+                                "generation_time_ms": gen_time,
+                                "success": True,
+                            },
+                        )
 
                     elif status == "failed":
-                        error_msg = status_data.get("data", {}).get("error", "Unknown error")
+                        error_msg = status_data.get("data", {}).get(
+                            "error", "Unknown error"
+                        )
                         return ToolResult.error_result(
                             tool_id=self.tool_id,
                             error=f"Video generation failed: {error_msg}",
@@ -293,7 +320,9 @@ class HeyGenVideoAvatarTool(BaseTool):
                 detail = str(e.response.json())
             except Exception:
                 detail = e.response.text[:500]
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"HeyGen API error: {detail}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"HeyGen API error: {detail}"
+            )
         except Exception as e:
             logger.exception("heygen_video_avatar failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))

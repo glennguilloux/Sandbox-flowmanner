@@ -81,9 +81,7 @@ class TestDebate:
         """Start a debate returns correct shape with consensus reached."""
         mock_round = _make_mock_debate_round()
 
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.debate = AsyncMock(return_value=mock_round)
 
@@ -104,16 +102,16 @@ class TestDebate:
         assert data["judge_score_a"] == 8.5
         assert data["judge_score_b"] == 6.0
         assert data["consensus_reached"] is True
-        assert data["consensus_synthesis"] == "Synthesized position combining both views"
+        assert (
+            data["consensus_synthesis"] == "Synthesized position combining both views"
+        )
         assert data["status"] == "completed"
 
     def test_start_debate_with_max_rounds(self, test_client):
         """Custom max_rounds is passed through."""
         mock_round = _make_mock_debate_round()
 
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.debate = AsyncMock(return_value=mock_round)
 
@@ -160,9 +158,7 @@ class TestDebate:
         """Boundary: max_rounds=1 passes validation."""
         mock_round = _make_mock_debate_round()
 
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.debate = AsyncMock(return_value=mock_round)
 
@@ -183,9 +179,7 @@ class TestDebate:
         """Boundary: max_rounds=5 passes validation."""
         mock_round = _make_mock_debate_round()
 
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.debate = AsyncMock(return_value=mock_round)
 
@@ -204,13 +198,9 @@ class TestDebate:
 
     def test_start_debate_service_failure(self, test_client):
         """Service exception returns 500."""
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
-            mock_proto.debate = AsyncMock(
-                side_effect=RuntimeError("LLM timeout")
-            )
+            mock_proto.debate = AsyncMock(side_effect=RuntimeError("LLM timeout"))
 
             payload = {
                 "topic": "Test",
@@ -240,9 +230,7 @@ class TestDebate:
         """Topic exactly 5000 chars is accepted."""
         mock_round = _make_mock_debate_round()
 
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.debate = AsyncMock(return_value=mock_round)
 
@@ -283,13 +271,9 @@ class TestDebate:
             status="deadlocked",
         )
 
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
-            mock_proto.get_debate = AsyncMock(
-                return_value=[mock_round, mock_round2]
-            )
+            mock_proto.get_debate = AsyncMock(return_value=[mock_round, mock_round2])
 
             resp = test_client.get("/api/swarm/protocol/debate/debate-001")
 
@@ -315,9 +299,7 @@ class TestDebate:
 
     def test_get_debate_not_found(self, test_client):
         """Non-existent debate returns 404."""
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.get_debate = AsyncMock(return_value=[])
 
@@ -341,9 +323,7 @@ class TestHandoff:
         """Delegate creates a handoff and returns correct shape."""
         mock_h = _make_mock_handoff()
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(return_value=mock_h)
 
@@ -372,16 +352,12 @@ class TestHandoff:
             "from_agent_id": "agent-a",
             "from_agent_name": "Agent A",
         }
-        resp = test_client.post(
-            "/api/swarm/protocol/handoff/delegate", json=payload
-        )
+        resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
         assert resp.status_code == 422
 
     def test_delegate_no_agent_match(self, test_client):
         """ValueError from service (no agent match) returns 400."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(
                 side_effect=ValueError("No agent found for task")
@@ -401,9 +377,7 @@ class TestHandoff:
 
     def test_delegate_service_failure(self, test_client):
         """Generic service exception returns 500."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(
                 side_effect=RuntimeError("Database connection lost")
@@ -425,9 +399,7 @@ class TestHandoff:
         """Delegate passes to_agent_id when provided."""
         mock_h = _make_mock_handoff()
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(return_value=mock_h)
 
@@ -454,15 +426,11 @@ class TestHandoff:
         """Accept returns updated handoff."""
         mock_h = _make_mock_handoff(status="accepted")
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.accept = AsyncMock(return_value=mock_h)
 
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/handoff-001/accept"
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/handoff-001/accept")
 
         assert resp.status_code == 200
         data = resp.json()
@@ -470,15 +438,11 @@ class TestHandoff:
 
     def test_accept_not_found(self, test_client):
         """Accept non-existent handoff returns 404."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.accept = AsyncMock(return_value=None)
 
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/nonexistent/accept"
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/nonexistent/accept")
 
         assert resp.status_code == 404
         assert resp.json()["detail"] == "Handoff not found"
@@ -489,9 +453,7 @@ class TestHandoff:
         """Complete with result returns updated handoff."""
         mock_h = _make_mock_handoff(status="completed")
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.complete = AsyncMock(return_value=mock_h)
 
@@ -509,9 +471,7 @@ class TestHandoff:
 
     def test_complete_not_found(self, test_client):
         """Complete non-existent handoff returns 404."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.complete = AsyncMock(return_value=None)
 
@@ -528,9 +488,7 @@ class TestHandoff:
         """Reject with reason returns updated handoff."""
         mock_h = _make_mock_handoff(status="rejected")
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.reject = AsyncMock(return_value=mock_h)
 
@@ -550,9 +508,7 @@ class TestHandoff:
         """Reject without reason uses default."""
         mock_h = _make_mock_handoff(status="rejected")
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.reject = AsyncMock(return_value=mock_h)
 
@@ -574,13 +530,9 @@ class TestHandoff:
             id="h2", from_agent_name="Agent C", status="completed"
         )
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
-            mock_proto.list_handoffs = AsyncMock(
-                return_value=[mock_h1, mock_h2]
-            )
+            mock_proto.list_handoffs = AsyncMock(return_value=[mock_h1, mock_h2])
 
             resp = test_client.get("/api/swarm/protocol/handoffs")
 
@@ -593,9 +545,7 @@ class TestHandoff:
 
     def test_list_handoffs_with_filters(self, test_client):
         """Query params are passed to service."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.list_handoffs = AsyncMock(return_value=[])
 
@@ -612,9 +562,7 @@ class TestHandoff:
 
     def test_list_handoffs_empty(self, test_client):
         """Empty list returns empty handoffs array."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.list_handoffs = AsyncMock(return_value=[])
 
@@ -630,15 +578,11 @@ class TestHandoff:
         root = _make_mock_handoff(id="root", task_description="Root task")
         child = _make_mock_handoff(id="child", task_description="Child task")
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.get_chain = AsyncMock(return_value=[root, child])
 
-            resp = test_client.get(
-                "/api/swarm/protocol/handoff/root/chain"
-            )
+            resp = test_client.get("/api/swarm/protocol/handoff/root/chain")
 
         assert resp.status_code == 200
         data = resp.json()
@@ -649,15 +593,11 @@ class TestHandoff:
 
     def test_get_chain_empty(self, test_client):
         """Empty chain returns empty list under handoff_id."""
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.get_chain = AsyncMock(return_value=[])
 
-            resp = test_client.get(
-                "/api/swarm/protocol/handoff/any-id/chain"
-            )
+            resp = test_client.get("/api/swarm/protocol/handoff/any-id/chain")
 
         assert resp.status_code == 200
         data = resp.json()
@@ -675,9 +615,7 @@ class TestHandoff:
             to_agent_id="agent-y",
         )
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(return_value=mock_h)
 
@@ -704,18 +642,14 @@ class TestHandoff:
             "from_agent_name": "Agent A",
             "task_description": "x" * 5001,
         }
-        resp = test_client.post(
-            "/api/swarm/protocol/handoff/delegate", json=payload
-        )
+        resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
         assert resp.status_code == 422
 
     def test_delegate_validation_task_at_boundary(self, test_client):
         """Task description exactly 5000 chars is accepted."""
         mock_h = _make_mock_handoff(task_description="x" * 5000)
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(return_value=mock_h)
 
@@ -737,17 +671,13 @@ class TestHandoff:
             "from_agent_name": "Agent A",
             "task_description": "",
         }
-        resp = test_client.post(
-            "/api/swarm/protocol/handoff/delegate", json=payload
-        )
+        resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
         assert resp.status_code == 422
 
     # ── Validation edge cases: priority boundaries ──────────────────
 
     @pytest.mark.parametrize("priority", [-2, 3])
-    def test_delegate_validation_priority_out_of_range(
-        self, test_client, priority
-    ):
+    def test_delegate_validation_priority_out_of_range(self, test_client, priority):
         """Priority outside -1..2 returns 422."""
         payload = {
             "from_agent_id": "agent-a",
@@ -755,23 +685,17 @@ class TestHandoff:
             "task_description": "Test",
             "priority": priority,
         }
-        resp = test_client.post(
-            "/api/swarm/protocol/handoff/delegate", json=payload
-        )
-        assert resp.status_code == 422, (
-            f"priority={priority} should return 422, got {resp.status_code}"
-        )
+        resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
+        assert (
+            resp.status_code == 422
+        ), f"priority={priority} should return 422, got {resp.status_code}"
 
     @pytest.mark.parametrize("priority", [-1, 2])
-    def test_delegate_validation_priority_boundaries(
-        self, test_client, priority
-    ):
+    def test_delegate_validation_priority_boundaries(self, test_client, priority):
         """Priority at boundaries -1 and 2 is accepted."""
         mock_h = _make_mock_handoff()
 
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.delegate = AsyncMock(return_value=mock_h)
 
@@ -785,9 +709,9 @@ class TestHandoff:
                 "/api/swarm/protocol/handoff/delegate", json=payload
             )
 
-        assert resp.status_code == 200, (
-            f"priority={priority} should be accepted, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 200
+        ), f"priority={priority} should be accepted, got {resp.status_code}"
         call_kwargs = mock_proto.delegate.call_args.kwargs
         assert call_kwargs["priority"] == priority
 
@@ -796,12 +720,10 @@ class TestHandoff:
     @pytest.mark.parametrize("limit", [0, 101])
     def test_list_handoffs_limit_out_of_range(self, test_client, limit):
         """Limit outside 1-100 returns 422."""
-        resp = test_client.get(
-            "/api/swarm/protocol/handoffs", params={"limit": limit}
-        )
-        assert resp.status_code == 422, (
-            f"limit={limit} should return 422, got {resp.status_code}"
-        )
+        resp = test_client.get("/api/swarm/protocol/handoffs", params={"limit": limit})
+        assert (
+            resp.status_code == 422
+        ), f"limit={limit} should return 422, got {resp.status_code}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -818,9 +740,7 @@ class TestEscalation:
         """Escalate creates record and returns correct shape."""
         mock_e = _make_mock_escalation()
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.escalate = AsyncMock(return_value=mock_e)
 
@@ -829,9 +749,7 @@ class TestEscalation:
                 "task_description": "Failed data extraction",
                 "error_message": "Timeout exceeded",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/escalate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/escalate", json=payload)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -848,9 +766,7 @@ class TestEscalation:
         """Policy parameter is passed to service."""
         mock_e = _make_mock_escalation()
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.escalate = AsyncMock(return_value=mock_e)
 
@@ -860,9 +776,7 @@ class TestEscalation:
                 "error_message": "error",
                 "policy": "aggressive",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/escalate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/escalate", json=payload)
 
         assert resp.status_code == 200
         mock_chain.escalate.assert_called_once()
@@ -891,9 +805,7 @@ class TestEscalation:
 
     def test_escalate_service_failure(self, test_client):
         """Generic service exception returns 500."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.escalate = AsyncMock(
                 side_effect=RuntimeError("Dead-letter queue full")
@@ -904,9 +816,7 @@ class TestEscalation:
                 "task_description": "test",
                 "error_message": "error",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/escalate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/escalate", json=payload)
 
         assert resp.status_code == 500
         assert "Dead-letter queue full" in resp.json()["detail"]
@@ -917,9 +827,7 @@ class TestEscalation:
         """Resolve marks escalation as resolved."""
         mock_e = _make_mock_escalation(resolved=True, status="resolved")
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.resolve = AsyncMock(return_value=mock_e)
 
@@ -938,9 +846,7 @@ class TestEscalation:
 
     def test_resolve_not_found(self, test_client):
         """Resolve non-existent escalation returns 404."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.resolve = AsyncMock(return_value=None)
 
@@ -961,13 +867,9 @@ class TestEscalation:
             id="e2", resolved=True, status="resolved", level=3
         )
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
-            mock_chain.list_escalations = AsyncMock(
-                return_value=[mock_e1, mock_e2]
-            )
+            mock_chain.list_escalations = AsyncMock(return_value=[mock_e1, mock_e2])
 
             resp = test_client.get("/api/swarm/protocol/escalations")
 
@@ -980,9 +882,7 @@ class TestEscalation:
 
     def test_list_escalations_filter_resolved(self, test_client):
         """Filter by resolved=true param."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.list_escalations = AsyncMock(return_value=[])
 
@@ -998,9 +898,7 @@ class TestEscalation:
 
     def test_list_escalations_filter_unresolved(self, test_client):
         """Filter by resolved=false param (coercion both ways)."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.list_escalations = AsyncMock(return_value=[])
 
@@ -1016,9 +914,7 @@ class TestEscalation:
 
     def test_list_escalations_empty(self, test_client):
         """Empty escalations returns empty list."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.list_escalations = AsyncMock(return_value=[])
 
@@ -1035,13 +931,9 @@ class TestEscalation:
             id="dl-001", status="dead_letter", level=3, resolved=True
         )
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
-            mock_chain.list_dead_letters = AsyncMock(
-                return_value=[mock_dl]
-            )
+            mock_chain.list_dead_letters = AsyncMock(return_value=[mock_dl])
 
             resp = test_client.get("/api/swarm/protocol/dead-letters")
 
@@ -1054,9 +946,7 @@ class TestEscalation:
 
     def test_list_dead_letters_with_limit(self, test_client):
         """Limit query param is passed."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.list_dead_letters = AsyncMock(return_value=[])
 
@@ -1071,9 +961,7 @@ class TestEscalation:
 
     def test_list_dead_letters_empty(self, test_client):
         """Empty dead letters returns empty list."""
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.list_dead_letters = AsyncMock(return_value=[])
 
@@ -1091,9 +979,7 @@ class TestEscalation:
             status="dead_letter",
         )
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.escalate = AsyncMock(return_value=mock_e)
 
@@ -1102,9 +988,7 @@ class TestEscalation:
                 "task_description": "test",
                 "error_message": "error",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/escalate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/escalate", json=payload)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -1126,9 +1010,7 @@ class TestEscalation:
         """Task description exactly 5000 chars is accepted."""
         mock_e = _make_mock_escalation()
 
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.escalate = AsyncMock(return_value=mock_e)
 
@@ -1159,9 +1041,9 @@ class TestEscalation:
         resp = test_client.get(
             "/api/swarm/protocol/escalations", params={"limit": limit}
         )
-        assert resp.status_code == 422, (
-            f"limit={limit} should return 422, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 422
+        ), f"limit={limit} should return 422, got {resp.status_code}"
 
     @pytest.mark.parametrize("limit", [0, 101])
     def test_list_dead_letters_limit_out_of_range(self, test_client, limit):
@@ -1169,9 +1051,9 @@ class TestEscalation:
         resp = test_client.get(
             "/api/swarm/protocol/dead-letters", params={"limit": limit}
         )
-        assert resp.status_code == 422, (
-            f"limit={limit} should return 422, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 422
+        ), f"limit={limit} should return 422, got {resp.status_code}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1195,14 +1077,10 @@ class TestRouteRegistration:
             ("POST", "/api/swarm/protocol/escalate", 422),
         ],
     )
-    def test_endpoint_registered(
-        self, test_client, method, path, expected_status
-    ):
+    def test_endpoint_registered(self, test_client, method, path, expected_status):
         """Endpoint returns expected status (not 404)."""
         # Patch services so GET endpoints don't error trying to use real DB
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_hp, patch(
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_hp, patch(
             "app.api.v1.swarm_protocol.EscalationChain"
         ) as mock_ec:
             mock_hp.return_value.list_handoffs = AsyncMock(return_value=[])
@@ -1221,9 +1099,7 @@ class TestRouteRegistration:
     def test_parameterized_routes_exist(self, test_client):
         """Parameterized routes return 404 for non-existent IDs (route itself exists)."""
         # GET debate/{id}
-        with patch(
-            "app.api.v1.swarm_protocol.DebateProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.get_debate = AsyncMock(return_value=[])
 
@@ -1231,9 +1107,7 @@ class TestRouteRegistration:
             assert resp.status_code == 404  # service-level not-found
 
         # POST handoff/{id}/accept
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.accept = AsyncMock(return_value=None)
 
@@ -1241,9 +1115,7 @@ class TestRouteRegistration:
             assert resp.status_code == 404
 
         # POST escalate/{id}/resolve
-        with patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_chain_cls:
+        with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
             mock_chain.resolve = AsyncMock(return_value=None)
 
@@ -1254,9 +1126,7 @@ class TestRouteRegistration:
             assert resp.status_code == 404
 
         # GET handoff/{id}/chain
-        with patch(
-            "app.api.v1.swarm_protocol.HandoffProtocol"
-        ) as mock_proto_cls:
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
             mock_proto.get_chain = AsyncMock(return_value=[])
 

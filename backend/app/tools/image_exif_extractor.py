@@ -77,7 +77,9 @@ def _extract_exif(image: Image.Image) -> dict[str, Any]:
             )
         if "GPSAltitude" in gps_data:
             alt = gps_data["GPSAltitude"]
-            gps_result["altitude_meters"] = float(alt) if isinstance(alt, (int, float)) else alt
+            gps_result["altitude_meters"] = (
+                float(alt) if isinstance(alt, (int, float)) else alt
+            )
 
         result["gps"] = gps_result
 
@@ -85,12 +87,30 @@ def _extract_exif(image: Image.Image) -> dict[str, Any]:
 
 
 _READABLE_EXIF_FIELDS = [
-    "Make", "Model", "DateTimeOriginal", "DateTimeDigitized",
-    "Software", "Artist", "Copyright", "ImageDescription",
-    "Orientation", "XResolution", "YResolution", "ResolutionUnit",
-    "ExposureTime", "FNumber", "ISOSpeedRatings", "FocalLength",
-    "Flash", "WhiteBalance", "ColorSpace", "MeteringMode",
-    "ExposureProgram", "SceneCaptureType", "LensMake", "LensModel",
+    "Make",
+    "Model",
+    "DateTimeOriginal",
+    "DateTimeDigitized",
+    "Software",
+    "Artist",
+    "Copyright",
+    "ImageDescription",
+    "Orientation",
+    "XResolution",
+    "YResolution",
+    "ResolutionUnit",
+    "ExposureTime",
+    "FNumber",
+    "ISOSpeedRatings",
+    "FocalLength",
+    "Flash",
+    "WhiteBalance",
+    "ColorSpace",
+    "MeteringMode",
+    "ExposureProgram",
+    "SceneCaptureType",
+    "LensMake",
+    "LensModel",
 ]
 
 # ---------------------------------------------------------------------------
@@ -184,7 +204,9 @@ class ImageExifExtractorTool(BaseTool):
                         # PIL exposes it via get_thumbnail() on some formats
                         thumb = image._getexif().get(0x0201)
                         if isinstance(thumb, bytes):
-                            result["thumbnail_base64"] = base64.b64encode(thumb).decode("ascii")
+                            result["thumbnail_base64"] = base64.b64encode(thumb).decode(
+                                "ascii"
+                            )
                             result["thumbnail_size_bytes"] = len(thumb)
                 except Exception:
                     logger.debug("exif_thumbnail_failed", exc_info=True)

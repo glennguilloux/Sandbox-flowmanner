@@ -1,44 +1,31 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="ChatFileCreate")
-
 
 
 @_attrs_define
 class ChatFileCreate:
-    """ 
-        Attributes:
-            filename (str):
-            mime_type (None | str | Unset):
-            path (str | Unset):  Default: ''.
-            size_bytes (int | None | Unset):
-     """
+    """
+    Attributes:
+        filename (str):
+        mime_type (None | str | Unset):
+        path (str | Unset):  Default: ''.
+        size_bytes (int | None | Unset):
+    """
 
     filename: str
     mime_type: None | str | Unset = UNSET
-    path: str | Unset = ''
+    path: str | Unset = ""
     size_bytes: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         filename = self.filename
@@ -57,12 +44,13 @@ class ChatFileCreate:
         else:
             size_bytes = self.size_bytes
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "filename": filename,
-        })
+        field_dict.update(
+            {
+                "filename": filename,
+            }
+        )
         if mime_type is not UNSET:
             field_dict["mime_type"] = mime_type
         if path is not UNSET:
@@ -71,8 +59,6 @@ class ChatFileCreate:
             field_dict["size_bytes"] = size_bytes
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -88,7 +74,6 @@ class ChatFileCreate:
 
         mime_type = _parse_mime_type(d.pop("mime_type", UNSET))
 
-
         path = d.pop("path", UNSET)
 
         def _parse_size_bytes(data: object) -> int | None | Unset:
@@ -100,14 +85,12 @@ class ChatFileCreate:
 
         size_bytes = _parse_size_bytes(d.pop("size_bytes", UNSET))
 
-
         chat_file_create = cls(
             filename=filename,
             mime_type=mime_type,
             path=path,
             size_bytes=size_bytes,
         )
-
 
         chat_file_create.additional_properties = d
         return chat_file_create

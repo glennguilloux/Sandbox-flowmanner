@@ -85,7 +85,9 @@ class MaintenanceStatus:
                 return data
             return cast(None | str | Unset, data)
 
-        estimated_duration = _parse_estimated_duration(d.pop("estimated_duration", UNSET))
+        estimated_duration = _parse_estimated_duration(
+            d.pop("estimated_duration", UNSET)
+        )
 
         def _parse_activated_at(data: object) -> None | str | Unset:
             if data is None:

@@ -7,7 +7,9 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_user_api_admin_users_user_id_patch_data import UpdateUserApiAdminUsersUserIdPatchData
+from ...models.update_user_api_admin_users_user_id_patch_data import (
+    UpdateUserApiAdminUsersUserIdPatchData,
+)
 from ...types import Response, Unset
 
 

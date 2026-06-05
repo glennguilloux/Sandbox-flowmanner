@@ -12,31 +12,21 @@ from ...models.dashboard_analytics_response import DashboardAnalyticsResponse
 from typing import cast
 
 
-
-def _get_kwargs(
-    
-) -> dict[str, Any]:
-    
-
-    
-
-    
+def _get_kwargs() -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/dashboard/analytics",
     }
 
-
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> DashboardAnalyticsResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> DashboardAnalyticsResponse | None:
     if response.status_code == 200:
         response_200 = DashboardAnalyticsResponse.from_dict(response.json())
-
-
 
         return response_200
 
@@ -46,7 +36,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[DashboardAnalyticsResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[DashboardAnalyticsResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,9 +50,8 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-
 ) -> Response[DashboardAnalyticsResponse]:
-    """ Read Dashboard Analytics
+    """Read Dashboard Analytics
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -68,12 +59,9 @@ def sync_detailed(
 
     Returns:
         Response[DashboardAnalyticsResponse]
-     """
+    """
 
-
-    kwargs = _get_kwargs(
-        
-    )
+    kwargs = _get_kwargs()
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -81,12 +69,12 @@ def sync_detailed(
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
-
 ) -> DashboardAnalyticsResponse | None:
-    """ Read Dashboard Analytics
+    """Read Dashboard Analytics
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,20 +82,18 @@ def sync(
 
     Returns:
         DashboardAnalyticsResponse
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-
 ) -> Response[DashboardAnalyticsResponse]:
-    """ Read Dashboard Analytics
+    """Read Dashboard Analytics
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -115,25 +101,20 @@ async def asyncio_detailed(
 
     Returns:
         Response[DashboardAnalyticsResponse]
-     """
+    """
 
+    kwargs = _get_kwargs()
 
-    kwargs = _get_kwargs(
-        
-    )
-
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient,
-
 ) -> DashboardAnalyticsResponse | None:
-    """ Read Dashboard Analytics
+    """Read Dashboard Analytics
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -141,10 +122,10 @@ async def asyncio(
 
     Returns:
         DashboardAnalyticsResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+        )
+    ).parsed

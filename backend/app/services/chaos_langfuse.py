@@ -21,7 +21,13 @@ logger = logging.getLogger(__name__)
 class ChaosMode:
     """Injects controlled failures into Langfuse SDK calls."""
 
-    def __init__(self, enabled: bool = False, fail_rate: float = 0.7, delay_rate: float = 0.2, timeout_rate: float = 0.1):
+    def __init__(
+        self,
+        enabled: bool = False,
+        fail_rate: float = 0.7,
+        delay_rate: float = 0.2,
+        timeout_rate: float = 0.1,
+    ):
         self.enabled = enabled
         self.fail_rate = fail_rate  # % of calls that fail entirely
         self.delay_rate = delay_rate  # % of calls that get delayed 2-5s
@@ -85,14 +91,21 @@ class ChaosMode:
 # Singleton
 _chaos: ChaosMode | None = None
 
+
 def get_chaos() -> ChaosMode:
     global _chaos
     if _chaos is None:
         import os
-        enabled = os.environ.get("CHAOS_LANGFUSE_FAIL", "false").lower() in ("true", "1", "yes")
+
+        enabled = os.environ.get("CHAOS_LANGFUSE_FAIL", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
         if not enabled:
             try:
                 from app.config import settings
+
                 enabled = getattr(settings, "CHAOS_LANGFUSE_FAIL", False)
             except Exception:
                 logger.debug("chaos_settings_read_failed", exc_info=True)

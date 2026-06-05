@@ -51,9 +51,7 @@ async def list_flags(
     db: AsyncSession = Depends(get_db),
 ):
     """List all feature flags (admin only)."""
-    result = await db.execute(
-        text("SELECT * FROM feature_flags ORDER BY key")
-    )
+    result = await db.execute(text("SELECT * FROM feature_flags ORDER BY key"))
     flags = result.fetchall()
     return {
         "flags": [
@@ -93,24 +91,25 @@ async def create_flag(
     """Create a new feature flag."""
     # Check if key exists
     existing = await db.execute(
-        text("SELECT id FROM feature_flags WHERE key = :key"),
-        {"key": payload.key}
+        text("SELECT id FROM feature_flags WHERE key = :key"), {"key": payload.key}
     )
     if existing.scalar():
         raise HTTPException(status_code=409, detail="Flag key already exists")
 
     result = await db.execute(
-        text("""
+        text(
+            """
             INSERT INTO feature_flags (key, name, description, enabled_globally, created_at, updated_at)
             VALUES (:key, :name, :description, :enabled, NOW(), NOW())
             RETURNING id, key, name, description, enabled_globally, created_at, updated_at
-        """),
+        """
+        ),
         {
             "key": payload.key,
             "name": payload.name,
             "description": payload.description,
             "enabled": payload.enabled_globally,
-        }
+        },
     )
     flag = result.fetchone()
     await db.commit()
@@ -153,13 +152,15 @@ async def update_flag(
     updates.append("updated_at = NOW()")
 
     result = await db.execute(
-        text(f"""
+        text(
+            f"""
             UPDATE feature_flags
             SET {', '.join(updates)}
             WHERE key = :key
             RETURNING id, key, name, description, enabled_globally, created_at, updated_at
-        """),
-        params
+        """
+        ),
+        params,
     )
     flag = result.fetchone()
     if not flag:
@@ -186,8 +187,7 @@ async def delete_flag(
 ):
     """Delete a feature flag."""
     result = await db.execute(
-        text("DELETE FROM feature_flags WHERE key = :key RETURNING id"),
-        {"key": key}
+        text("DELETE FROM feature_flags WHERE key = :key RETURNING id"), {"key": key}
     )
     if not result.scalar():
         raise HTTPException(status_code=404, detail="Flag not found")

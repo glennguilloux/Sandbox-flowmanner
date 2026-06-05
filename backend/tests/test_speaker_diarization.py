@@ -23,6 +23,7 @@ import pytest
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def generate_two_tone_wav_b64():
     """Generate audio with two distinct tones separated by silence (4s total).
     Pattern: 300Hz (1s) → silence (0.3s) → 500Hz (1s) → silence (0.3s) → 300Hz (1s)."""
@@ -33,8 +34,7 @@ def generate_two_tone_wav_b64():
     buf.write(b"RIFF")
     buf.write(struct.pack("<I", 36 + num_samples * 2))
     buf.write(b"WAVEfmt ")
-    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate,
-                          sample_rate * 2, 2, 16))
+    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16))
     buf.write(b"data")
     buf.write(struct.pack("<I", num_samples * 2))
 
@@ -69,10 +69,12 @@ def two_tone_b64():
 @pytest.fixture
 def diarization():
     from app.tools.speaker_diarization import SpeakerDiarizationTool
+
     return SpeakerDiarizationTool()
 
 
 # ── Input Validation ─────────────────────────────────────────────────
+
 
 class TestInputValidation:
     """Test input parsing and validation."""
@@ -86,35 +88,41 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_max_speakers_default(self, diarization):
         from app.tools.speaker_diarization import SpeakerDiarizationInput
+
         inp = SpeakerDiarizationInput(data="Zm9v")
         assert inp.max_speakers > 0
 
     @pytest.mark.asyncio
     async def test_min_segment_default(self, diarization):
         from app.tools.speaker_diarization import SpeakerDiarizationInput
+
         inp = SpeakerDiarizationInput(data="Zm9v")
         assert inp.min_segment_seconds > 0
 
     @pytest.mark.asyncio
     async def test_max_speakers_too_low(self, diarization):
         from app.tools.speaker_diarization import SpeakerDiarizationInput
+
         with pytest.raises(Exception):
             SpeakerDiarizationInput(data="Zm9v", max_speakers=0)
 
     @pytest.mark.asyncio
     async def test_max_speakers_too_high(self, diarization):
         from app.tools.speaker_diarization import SpeakerDiarizationInput
+
         with pytest.raises(Exception):
             SpeakerDiarizationInput(data="Zm9v", max_speakers=100)
 
     @pytest.mark.asyncio
     async def test_min_segment_too_low(self, diarization):
         from app.tools.speaker_diarization import SpeakerDiarizationInput
+
         with pytest.raises(Exception):
             SpeakerDiarizationInput(data="Zm9v", min_segment_seconds=0.05)
 
 
 # ── VAD: merge_speech_frames ─────────────────────────────────────────
+
 
 class TestMergeSpeechFrames:
     """Test the _merge_speech_frames static method."""
@@ -122,8 +130,9 @@ class TestMergeSpeechFrames:
     def test_single_contiguous_segment(self, diarization):
         # 100 frames, all speech
         speech = np.ones(100, dtype=bool)
-        segments = diarization._merge_speech_frames(speech, min_frames=1,
-                                                     hop_length=512, sr=16000)
+        segments = diarization._merge_speech_frames(
+            speech, min_frames=1, hop_length=512, sr=16000
+        )
         assert len(segments) == 1
         start, end = segments[0]
         assert start == 0
@@ -134,17 +143,19 @@ class TestMergeSpeechFrames:
         speech = np.zeros(60, dtype=bool)
         speech[:20] = True
         speech[40:] = True
-        segments = diarization._merge_speech_frames(speech, min_frames=1,
-                                                     hop_length=512, sr=16000)
+        segments = diarization._merge_speech_frames(
+            speech, min_frames=1, hop_length=512, sr=16000
+        )
         assert len(segments) == 2
 
     def test_min_frames_filter(self, diarization):
         """Segments shorter than min_frames should be dropped."""
         speech = np.zeros(100, dtype=bool)
-        speech[10:12] = True   # 2 frames — too short
-        speech[50:80] = True   # 30 frames — kept
-        segments = diarization._merge_speech_frames(speech, min_frames=5,
-                                                     hop_length=512, sr=16000)
+        speech[10:12] = True  # 2 frames — too short
+        speech[50:80] = True  # 30 frames — kept
+        segments = diarization._merge_speech_frames(
+            speech, min_frames=5, hop_length=512, sr=16000
+        )
         assert len(segments) == 1
         start, end = segments[0]
         assert start == 50 * 512
@@ -152,22 +163,25 @@ class TestMergeSpeechFrames:
 
     def test_no_speech_frames(self, diarization):
         speech = np.zeros(100, dtype=bool)
-        segments = diarization._merge_speech_frames(speech, min_frames=1,
-                                                     hop_length=512, sr=16000)
+        segments = diarization._merge_speech_frames(
+            speech, min_frames=1, hop_length=512, sr=16000
+        )
         assert len(segments) == 0
 
     def test_all_speech(self, diarization):
         speech = np.ones(50, dtype=bool)
-        segments = diarization._merge_speech_frames(speech, min_frames=1,
-                                                     hop_length=512, sr=16000)
+        segments = diarization._merge_speech_frames(
+            speech, min_frames=1, hop_length=512, sr=16000
+        )
         assert len(segments) == 1
 
     def test_trailing_speech(self, diarization):
         """Speech that continues to end should be captured."""
         speech = np.zeros(100, dtype=bool)
         speech[90:] = True
-        segments = diarization._merge_speech_frames(speech, min_frames=1,
-                                                     hop_length=512, sr=16000)
+        segments = diarization._merge_speech_frames(
+            speech, min_frames=1, hop_length=512, sr=16000
+        )
         assert len(segments) == 1
         start, end = segments[0]
         assert start == 90 * 512
@@ -175,6 +189,7 @@ class TestMergeSpeechFrames:
 
 
 # ── Clustering ────────────────────────────────────────────────────────
+
 
 class TestClusterSegments:
     """Test the _cluster_segments static method."""
@@ -221,6 +236,7 @@ class TestClusterSegments:
 
 
 # ── Full Pipeline (Real Audio) ───────────────────────────────────────
+
 
 class TestFullPipeline:
     """Test the full diarization pipeline with real generated audio."""
@@ -270,10 +286,12 @@ class TestFullPipeline:
 
     @pytest.mark.asyncio
     async def test_max_speakers_constraint(self, diarization, two_tone_b64):
-        r = await diarization.execute({
-            "data": two_tone_b64,
-            "max_speakers": 2,
-        })
+        r = await diarization.execute(
+            {
+                "data": two_tone_b64,
+                "max_speakers": 2,
+            }
+        )
         assert r.result["speaker_count"] <= 2
 
     @pytest.mark.asyncio
@@ -286,8 +304,9 @@ class TestFullPipeline:
         buf.write(b"RIFF")
         buf.write(struct.pack("<I", 36 + num_samples * 2))
         buf.write(b"WAVEfmt ")
-        buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate,
-                              sample_rate * 2, 2, 16))
+        buf.write(
+            struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16)
+        )
         buf.write(b"data")
         buf.write(struct.pack("<I", num_samples * 2))
         for i in range(num_samples):
@@ -301,6 +320,7 @@ class TestFullPipeline:
 
 
 # ── Tool Metadata ────────────────────────────────────────────────────
+
 
 class TestToolMetadata:
     """Test tool metadata and registration."""
@@ -322,6 +342,7 @@ class TestToolMetadata:
 
     def test_tool_registered(self, diarization):
         from app.tools.base import get_tool_registry
+
         registry = get_tool_registry()
         tool = registry.get("speaker_diarization")
         assert tool is not None
@@ -329,31 +350,38 @@ class TestToolMetadata:
 
 # ── Edge Cases ────────────────────────────────────────────────────────
 
+
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
     @pytest.mark.asyncio
     async def test_invalid_base64(self, diarization):
-        r = await diarization.execute({
-            "data": "!!!not-valid!!!",
-            "max_speakers": 2,
-        })
+        r = await diarization.execute(
+            {
+                "data": "!!!not-valid!!!",
+                "max_speakers": 2,
+            }
+        )
         assert not r.success
 
     @pytest.mark.asyncio
     async def test_empty_data(self, diarization):
-        r = await diarization.execute({
-            "data": "",
-            "max_speakers": 2,
-        })
+        r = await diarization.execute(
+            {
+                "data": "",
+                "max_speakers": 2,
+            }
+        )
         assert not r.success
 
     @pytest.mark.asyncio
     async def test_custom_min_segment(self, diarization, two_tone_b64):
-        r = await diarization.execute({
-            "data": two_tone_b64,
-            "min_segment_seconds": 1.0,
-        })
+        r = await diarization.execute(
+            {
+                "data": two_tone_b64,
+                "min_segment_seconds": 1.0,
+            }
+        )
         assert r.success
         # With min 1s segments, only longer segments should appear
         for seg in r.result["segments"]:

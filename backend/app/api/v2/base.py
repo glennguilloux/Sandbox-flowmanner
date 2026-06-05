@@ -19,12 +19,14 @@ T = TypeVar("T")
 
 class ResponseMeta(BaseModel):
     """Metadata included in every v2 response."""
+
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class ErrorDetail(BaseModel):
     """Structured error information."""
+
     code: str
     message: str
     details: dict[str, Any] | None = None
@@ -32,6 +34,7 @@ class ErrorDetail(BaseModel):
 
 class ResponseEnvelope(BaseModel):
     """Standard v2 response envelope."""
+
     data: Any = None
     meta: ResponseMeta = Field(default_factory=ResponseMeta)
     error: ErrorDetail | None = None
@@ -39,6 +42,7 @@ class ResponseEnvelope(BaseModel):
 
 class PaginatedData(BaseModel):
     """Pagination wrapper for list endpoints."""
+
     items: list[Any] = Field(default_factory=list)
     total: int = 0
     page: int = 1
@@ -48,6 +52,7 @@ class PaginatedData(BaseModel):
 
 class PaginatedEnvelope(BaseModel):
     """Standard v2 paginated response envelope."""
+
     data: PaginatedData = Field(default_factory=PaginatedData)
     meta: ResponseMeta = Field(default_factory=ResponseMeta)
     error: ErrorDetail | None = None

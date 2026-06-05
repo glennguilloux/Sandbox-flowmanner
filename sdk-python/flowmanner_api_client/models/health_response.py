@@ -1,35 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.health_response_components import HealthResponseComponents
-
-
-
+    from ..models.health_response_components import HealthResponseComponents
 
 
 T = TypeVar("T", bound="HealthResponse")
 
 
-
 @_attrs_define
 class HealthResponse:
-    """ 
-        Attributes:
-            status (str):
-            app (str):
-            env (str):
-            components (HealthResponseComponents):
-     """
+    """
+    Attributes:
+        status (str):
+        app (str):
+        env (str):
+        components (HealthResponseComponents):
+    """
 
     status: str
     app: str
@@ -37,12 +29,7 @@ class HealthResponse:
     components: HealthResponseComponents
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.health_response_components import HealthResponseComponents
         status = self.status
 
         app = self.app
@@ -51,23 +38,23 @@ class HealthResponse:
 
         components = self.components.to_dict()
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "status": status,
-            "app": app,
-            "env": env,
-            "components": components,
-        })
+        field_dict.update(
+            {
+                "status": status,
+                "app": app,
+                "env": env,
+                "components": components,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.health_response_components import HealthResponseComponents
+
         d = dict(src_dict)
         status = d.pop("status")
 
@@ -77,16 +64,12 @@ class HealthResponse:
 
         components = HealthResponseComponents.from_dict(d.pop("components"))
 
-
-
-
         health_response = cls(
             status=status,
             app=app,
             env=env,
             components=components,
         )
-
 
         health_response.additional_properties = d
         return health_response

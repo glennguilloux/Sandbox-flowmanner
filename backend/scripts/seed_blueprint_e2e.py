@@ -20,6 +20,7 @@ def get_token(user_id: int = 1) -> str:
     Must be run inside the backend container where 'app' is importable.
     """
     from app.services.auth_service import create_access_token
+
     return create_access_token(user_id=user_id)
 
 
@@ -60,8 +61,15 @@ def main() -> int:
         "input_schema": {
             "type": "object",
             "properties": {
-                "source_url": {"type": "string", "description": "URL to fetch data from"},
-                "format": {"type": "string", "enum": ["json", "csv"], "default": "json"},
+                "source_url": {
+                    "type": "string",
+                    "description": "URL to fetch data from",
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["json", "csv"],
+                    "default": "json",
+                },
             },
             "required": ["source_url"],
         },
@@ -89,7 +97,9 @@ def main() -> int:
                     "title": "Transform Data",
                     "description": "Clean and structure the raw data",
                     "dependencies": ["fetch"],
-                    "config": {"prompt": "Transform the fetched data into {{input.format}} format"},
+                    "config": {
+                        "prompt": "Transform the fetched data into {{input.format}} format"
+                    },
                     "assigned_model": "deepseek-chat",
                 },
                 {
@@ -117,7 +127,9 @@ def main() -> int:
     bp = r.json()["data"]
     bp_id = bp["id"]
     pretty("Created Blueprint", bp)
-    print(f"\n✅ Blueprint created: id={bp_id}  status={bp['status']}  version={bp['version']}")
+    print(
+        f"\n✅ Blueprint created: id={bp_id}  status={bp['status']}  version={bp['version']}"
+    )
 
     # ── 2. Get blueprint ──────────────────────────────────────────
     print("\n🔍 Step 2: Get blueprint…")
@@ -142,7 +154,9 @@ def main() -> int:
         print(f"❌ Update failed: {r.status_code} — {r.text[:300]}")
         return 1
     bp_upd = r.json()["data"]
-    print(f"✅ Updated: version={bp_upd['version']}  desc={bp_upd['description'][:60]}…")
+    print(
+        f"✅ Updated: version={bp_upd['version']}  desc={bp_upd['description'][:60]}…"
+    )
 
     # ── 4. List versions ──────────────────────────────────────────
     print("\n📋 Step 4: List versions…")
@@ -162,7 +176,9 @@ def main() -> int:
         print(f"❌ Publish failed: {r.status_code} — {r.text[:500]}")
         return 1
     bp_pub = r.json()["data"]
-    assert bp_pub["status"] == "published", f"Expected published, got {bp_pub['status']}"
+    assert (
+        bp_pub["status"] == "published"
+    ), f"Expected published, got {bp_pub['status']}"
     print(f"✅ Published: status={bp_pub['status']}")
 
     # ── 6. Run blueprint ──────────────────────────────────────────
@@ -173,7 +189,9 @@ def main() -> int:
             "format": "json",
         },
     }
-    r = requests.post(f"{API}/blueprints/{bp_id}/run", json=run_payload, headers=h, timeout=300)
+    r = requests.post(
+        f"{API}/blueprints/{bp_id}/run", json=run_payload, headers=h, timeout=300
+    )
     if r.status_code != 201:
         print(f"❌ Run failed: {r.status_code} — {r.text[:500]}")
         return 1
@@ -189,7 +207,9 @@ def main() -> int:
         print(f"❌ Get run failed: {r.status_code}")
         return 1
     run_get = r.json()["data"]
-    print(f"✅ Fetched run: status={run_get['status']}  snapshot_keys={list(run_get.get('snapshot', {}).keys())[:5]}")
+    print(
+        f"✅ Fetched run: status={run_get['status']}  snapshot_keys={list(run_get.get('snapshot', {}).keys())[:5]}"
+    )
 
     # ── 8. List runs ──────────────────────────────────────────────
     print("\n📋 Step 8: List runs…")
@@ -212,7 +232,8 @@ def main() -> int:
     print(f"✅ DAG blueprints: {len(bp_items)} blueprint(s)")
 
     # ── Summary ───────────────────────────────────────────────────
-    print(f"""
+    print(
+        f"""
 {'═' * 60}
   🎉  END-TO-END SEED COMPLETE
 {'═' * 60}
@@ -227,7 +248,8 @@ def main() -> int:
   Run Status   : {run['status']}
   Input        : source_url → api.example.com/data/sales-2026.json
 {'═' * 60}
-""")
+"""
+    )
     return 0
 
 
@@ -240,5 +262,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

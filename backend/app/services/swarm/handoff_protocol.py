@@ -51,9 +51,7 @@ class HandoffProtocol:
                 to_agent_id = match["agent_id"]
                 to_agent_name = match["name"]
             else:
-                raise ValueError(
-                    f"No agent found for task: {task_description[:100]}"
-                )
+                raise ValueError(f"No agent found for task: {task_description[:100]}")
         else:
             # Look up name
             cap = await self.registry.get_capability(self.db, to_agent_id)
@@ -266,6 +264,7 @@ class HandoffProtocol:
 
         if agent_id:
             from sqlalchemy import or_
+
             stmt = stmt.where(
                 or_(
                     HandoffRecord.from_agent_id == agent_id,

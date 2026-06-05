@@ -92,6 +92,7 @@ def make_task(status="pending", order_index=0):
 # Helpers — patch CQRS module-level service imports
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def patch_cqrs_query(*args, **overrides):
     """Patch CQRS query module's internal service imports.
 
@@ -165,14 +166,16 @@ class _MultiPatchContext:
 # List / Create handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleListMissions:
     @pytest.mark.asyncio
     async def test_returns_paginated_results(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_list = AsyncMock(return_value=([make_mission()], 1))
-        with patch("app.api._mission_cqrs.queries.list_missions", new=mock_list), \
-             patch("app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)):
+        with patch("app.api._mission_cqrs.queries.list_missions", new=mock_list), patch(
+            "app.api._mission_cqrs.queries.cache_list", new=AsyncMock(return_value=None)
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.list_missions(user_id=1, page=1, per_page=20)
             assert len(result.items) == 1
@@ -190,13 +193,20 @@ class TestHandleCreateMission:
         mock_created = make_mission()
         mock_create = AsyncMock(return_value=mock_created)
         mock_limit = LimitCheckResult(allowed=True)
-        with patch("app.api._mission_cqrs.commands.create_mission", new=mock_create), \
-             patch("app.api._mission_cqrs.commands.invalidate_user_caches",
-                   new=AsyncMock(return_value=None)), \
-             patch("app.services.subscription_service.check_mission_create_allowed",
-                   new=AsyncMock(return_value=mock_limit)):
+        with patch(
+            "app.api._mission_cqrs.commands.create_mission", new=mock_create
+        ), patch(
+            "app.api._mission_cqrs.commands.invalidate_user_caches",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.services.subscription_service.check_mission_create_allowed",
+            new=AsyncMock(return_value=mock_limit),
+        ):
             payload = SimpleNamespace(
-                title="New", description="desc", mission_type="general", priority="medium",
+                title="New",
+                description="desc",
+                mission_type="general",
+                priority="medium",
             )
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.create_mission(make_user(), payload)
@@ -207,17 +217,21 @@ class TestHandleCreateMission:
 # CRUD handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleGetMission:
     @pytest.mark.asyncio
     async def test_returns_mission(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.get_mission(user_id=1, mission_id=MISSION_ID)
             assert result.id == MISSION_ID
@@ -227,9 +241,12 @@ class TestHandleGetMission:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
         from app.services.mission_errors import MissionNotFoundError
 
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(side_effect=MissionNotFoundError("Mission not found"))):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(side_effect=MissionNotFoundError("Mission not found")),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             with pytest.raises(MissionNotFoundError):
                 await handler.get_mission(user_id=1, mission_id=MISSION_ID)
@@ -239,9 +256,12 @@ class TestHandleGetMission:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
         from app.services.mission_errors import MissionNotFoundError
 
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(side_effect=MissionNotFoundError("Access denied"))):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(side_effect=MissionNotFoundError("Access denied")),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             with pytest.raises(MissionNotFoundError):
                 await handler.get_mission(user_id=1, mission_id=MISSION_ID)
@@ -253,16 +273,26 @@ class TestHandleUpdateMission:
         from app.api._mission_cqrs.commands import MissionCommandHandlers
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.update_mission",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.invalidate_mission_cache",
-                   new=AsyncMock(return_value=None)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.update_mission",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.invalidate_mission_cache",
+            new=AsyncMock(return_value=None),
+        ):
             payload = SimpleNamespace(
-                title=None, description=None, status=None, priority=None,
-                mission_type=None, error_message=None, results=None,
-                tokens_used=None, actual_cost=None,
+                title=None,
+                description=None,
+                status=None,
+                priority=None,
+                mission_type=None,
+                error_message=None,
+                results=None,
+                tokens_used=None,
+                actual_cost=None,
             )
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.update_mission(make_user(), MISSION_ID, payload)
@@ -274,14 +304,23 @@ class TestHandleUpdateMission:
         from app.services.mission_errors import MissionNotFoundError
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.update_mission",
-                   new=AsyncMock(return_value=None)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.update_mission",
+            new=AsyncMock(return_value=None),
+        ):
             payload = SimpleNamespace(
-                title=None, description=None, status=None, priority=None,
-                mission_type=None, error_message=None, results=None,
-                tokens_used=None, actual_cost=None,
+                title=None,
+                description=None,
+                status=None,
+                priority=None,
+                mission_type=None,
+                error_message=None,
+                results=None,
+                tokens_used=None,
+                actual_cost=None,
             )
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionNotFoundError):
@@ -294,14 +333,19 @@ class TestHandleDeleteMission:
         from app.api._mission_cqrs.commands import MissionCommandHandlers
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.delete_mission",
-                   new=AsyncMock(return_value=True)), \
-             patch("app.api._mission_cqrs.commands.invalidate_user_caches",
-                   new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.commands.invalidate_mission_cache",
-                   new=AsyncMock(return_value=None)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.delete_mission",
+            new=AsyncMock(return_value=True),
+        ), patch(
+            "app.api._mission_cqrs.commands.invalidate_user_caches",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.commands.invalidate_mission_cache",
+            new=AsyncMock(return_value=None),
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             await handler.delete_mission(make_user(), MISSION_ID)
             # No exception = success
@@ -312,10 +356,13 @@ class TestHandleDeleteMission:
         from app.services.mission_errors import MissionNotFoundError
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.delete_mission",
-                   new=AsyncMock(return_value=False)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.delete_mission",
+            new=AsyncMock(return_value=False),
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionNotFoundError):
                 await handler.delete_mission(make_user(), MISSION_ID)
@@ -325,19 +372,24 @@ class TestHandleDeleteMission:
 # Tasks handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleListTasks:
     @pytest.mark.asyncio
     async def test_returns_task_list(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_tasks = [make_task(order_index=0), make_task(order_index=1)]
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=make_mission())), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()), \
-             patch("app.api._mission_cqrs.queries.get_mission_tasks",
-                   new=AsyncMock(return_value=mock_tasks)):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=make_mission()),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_tasks",
+            new=AsyncMock(return_value=mock_tasks),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.list_tasks(user_id=1, mission_id=MISSION_ID)
             assert len(result) == 2
@@ -347,9 +399,12 @@ class TestHandleListTasks:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
         from app.services.mission_errors import MissionNotFoundError
 
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(side_effect=MissionNotFoundError("Mission not found"))):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(side_effect=MissionNotFoundError("Mission not found")),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             with pytest.raises(MissionNotFoundError):
                 await handler.list_tasks(user_id=1, mission_id=MISSION_ID)
@@ -361,14 +416,22 @@ class TestHandleCreateTask:
         from app.api._mission_cqrs.commands import MissionCommandHandlers
 
         mock_task = make_task()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=make_mission())), \
-             patch("app.api._mission_cqrs.commands.create_mission_task",
-                   new=AsyncMock(return_value=mock_task)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=make_mission()),
+        ), patch(
+            "app.api._mission_cqrs.commands.create_mission_task",
+            new=AsyncMock(return_value=mock_task),
+        ):
             payload = SimpleNamespace(
-                title="New Task", description="desc", task_type="llm",
-                order_index=0, input_data={}, dependencies=None,
-                assigned_agent_id=None, assigned_model=None,
+                title="New Task",
+                description="desc",
+                task_type="llm",
+                order_index=0,
+                input_data={},
+                dependencies=None,
+                assigned_agent_id=None,
+                assigned_model=None,
             )
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.create_task(make_user(), MISSION_ID, payload)
@@ -394,14 +457,23 @@ class TestHandleUpdateTask:
         mock_db.flush = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        with patch("app.api._mission_cqrs.commands.get_mission",
-                   new=AsyncMock(return_value=mock_mission)):
+        with patch(
+            "app.api._mission_cqrs.commands.get_mission",
+            new=AsyncMock(return_value=mock_mission),
+        ):
             payload = SimpleNamespace(
-                title=None, description=None, status="running",
-                output_data=None, error_message=None, tokens_used=None, cost=None,
+                title=None,
+                description=None,
+                status="running",
+                output_data=None,
+                error_message=None,
+                tokens_used=None,
+                cost=None,
             )
             handler = MissionCommandHandlers(mock_db)
-            result = await handler.update_task(make_user(), MISSION_ID, TASK_ID, payload)
+            result = await handler.update_task(
+                make_user(), MISSION_ID, TASK_ID, payload
+            )
             assert mock_task.status == "running"
 
     @pytest.mark.asyncio
@@ -415,11 +487,18 @@ class TestHandleUpdateTask:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        with patch("app.api._mission_cqrs.commands.get_mission",
-                   new=AsyncMock(return_value=mock_mission)):
+        with patch(
+            "app.api._mission_cqrs.commands.get_mission",
+            new=AsyncMock(return_value=mock_mission),
+        ):
             payload = SimpleNamespace(
-                title=None, description=None, status=None,
-                output_data=None, error_message=None, tokens_used=None, cost=None,
+                title=None,
+                description=None,
+                status=None,
+                output_data=None,
+                error_message=None,
+                tokens_used=None,
+                cost=None,
             )
             handler = MissionCommandHandlers(mock_db)
             with pytest.raises(MissionNotFoundError):
@@ -430,20 +509,26 @@ class TestHandleUpdateTask:
 # Logs handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleListLogs:
     @pytest.mark.asyncio
     async def test_returns_logs_list(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=make_mission())), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()), \
-             patch("app.api._mission_cqrs.queries.get_mission_logs",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.api._mission_cqrs.queries.cache_get_logs",
-                   new=AsyncMock(return_value=None)):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=make_mission()),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_logs",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_get_logs",
+            new=AsyncMock(return_value=None),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.list_logs(user_id=1, mission_id=MISSION_ID)
             assert isinstance(result, list)
@@ -455,10 +540,13 @@ class TestHandleCreateLog:
         from app.api._mission_cqrs.commands import MissionCommandHandlers
 
         mock_log = SimpleNamespace(id=uuid4(), message="Test log")
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=make_mission())), \
-             patch("app.api._mission_cqrs.commands.create_mission_log",
-                   new=AsyncMock(return_value=mock_log)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=make_mission()),
+        ), patch(
+            "app.api._mission_cqrs.commands.create_mission_log",
+            new=AsyncMock(return_value=mock_log),
+        ):
             payload = SimpleNamespace(message="Test log", level="info")
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.create_log(make_user(), MISSION_ID, payload)
@@ -469,6 +557,7 @@ class TestHandleCreateLog:
 # Planning handler
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandlePlanMission:
     @pytest.mark.asyncio
     async def test_returns_execution_status_on_success(self):
@@ -478,12 +567,15 @@ class TestHandlePlanMission:
         mock_exec = MagicMock()
         mock_exec.plan_mission = AsyncMock(return_value={"success": True})
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.api._mission_cqrs.commands.MissionExecutor",
-                   return_value=mock_exec):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.plan_mission(make_user(), MISSION_ID)
             assert result.mission_id == MISSION_ID
@@ -495,12 +587,16 @@ class TestHandlePlanMission:
 
         mock_mission = make_mission()
         mock_exec = MagicMock()
-        mock_exec.plan_mission = AsyncMock(return_value={"success": False, "error": "Plan failed"})
+        mock_exec.plan_mission = AsyncMock(
+            return_value={"success": False, "error": "Plan failed"}
+        )
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.MissionExecutor",
-                   return_value=mock_exec):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionValidationError):
                 await handler.plan_mission(make_user(), MISSION_ID)
@@ -509,6 +605,7 @@ class TestHandlePlanMission:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Execution handlers
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleExecuteMission:
     @pytest.mark.asyncio
@@ -523,23 +620,36 @@ class TestHandleExecuteMission:
 
         # Mock require_mission_access to return mission directly, plus all execution deps
         mock_unified = MagicMock()
-        mock_unified.execute = AsyncMock(return_value=MagicMock(
-            success=True, status="completed", completed_nodes=[], failed_nodes=[],
-            data={}, error=None,
-        ))
+        mock_unified.execute = AsyncMock(
+            return_value=MagicMock(
+                success=True,
+                status="completed",
+                completed_nodes=[],
+                failed_nodes=[],
+                data={},
+                error=None,
+            )
+        )
         mock_workflow = MagicMock()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.services.analytics_service.track_event",
-                   new=AsyncMock(return_value=None)), \
-             patch("app.services.subscription_service.check_mission_execute_allowed",
-                   new=AsyncMock(return_value=mock_limit)), \
-             patch("app.services.substrate.executor.get_unified_executor",
-                   return_value=mock_unified), \
-             patch("app.services.substrate.adapters.mission_to_workflow",
-                   return_value=mock_workflow):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.services.analytics_service.track_event",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.services.subscription_service.check_mission_execute_allowed",
+            new=AsyncMock(return_value=mock_limit),
+        ), patch(
+            "app.services.substrate.executor.get_unified_executor",
+            return_value=mock_unified,
+        ), patch(
+            "app.services.substrate.adapters.mission_to_workflow",
+            return_value=mock_workflow,
+        ):
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.execute_mission(make_user(), MISSION_ID)
             assert result.mission_id == MISSION_ID
@@ -558,14 +668,18 @@ class TestHandleExecuteAsync:
         mock_limit = LimitCheckResult(allowed=True)
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.tasks.mission_execution.dispatch_mission_execution",
-                   new=MagicMock()), \
-             patch("app.services.subscription_service.check_mission_execute_allowed",
-                   new=AsyncMock(return_value=mock_limit)):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.tasks.mission_execution.dispatch_mission_execution", new=MagicMock()
+        ), patch(
+            "app.services.subscription_service.check_mission_execute_allowed",
+            new=AsyncMock(return_value=mock_limit),
+        ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.execute_async(make_user(), MISSION_ID)
             assert result.status == MissionStatus.QUEUED
@@ -574,6 +688,7 @@ class TestHandleExecuteAsync:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Abort handler
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleAbortMission:
     @pytest.mark.asyncio
@@ -590,12 +705,17 @@ class TestHandleAbortMission:
         mock_result.scalars().first.return_value = mock_mission
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        with patch("app.api._mission_cqrs.commands.get_mission",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.get_mission_tasks",
-                   new=AsyncMock(return_value=[])):
+        with patch(
+            "app.api._mission_cqrs.commands.get_mission",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
             handler = MissionCommandHandlers(mock_db)
-            result = await handler.abort_mission(make_user(), MISSION_ID, "user_requested")
+            result = await handler.abort_mission(
+                make_user(), MISSION_ID, "user_requested"
+            )
             assert result.status == MissionStatus.ABORTED
 
     @pytest.mark.asyncio
@@ -627,21 +747,27 @@ class TestHandleAbortMission:
 # Status handler
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleGetStatus:
     @pytest.mark.asyncio
     async def test_returns_execution_status(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_mission = make_mission(status="running")
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()), \
-             patch("app.api._mission_cqrs.queries.get_mission_tasks",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.api._mission_cqrs.queries.cache_get_status",
-                   new=AsyncMock(return_value=None)):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_get_status",
+            new=AsyncMock(return_value=None),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.get_status(user_id=1, mission_id=MISSION_ID)
             assert result.mission_id == MISSION_ID
@@ -651,6 +777,7 @@ class TestHandleGetStatus:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Active missions handler
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestHandleActiveMissions:
     @pytest.mark.asyncio
@@ -662,8 +789,10 @@ class TestHandleActiveMissions:
         mock_result.scalars().all.return_value = []
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        with patch("app.api._mission_cqrs.queries.cache_active",
-                   new=AsyncMock(return_value=None)):
+        with patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new=AsyncMock(return_value=None),
+        ):
             handler = MissionQueryHandlers(mock_db)
             result = await handler.list_active(user_id=1)
             assert isinstance(result, list)
@@ -682,6 +811,7 @@ class TestHandleActiveMissions:
 # Improvements handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleListImprovements:
     @pytest.mark.asyncio
     async def test_returns_improvements_list(self):
@@ -691,15 +821,20 @@ class TestHandleListImprovements:
         mock_engine = MagicMock()
         mock_engine.get_improvements = AsyncMock(return_value=[])
 
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()), \
-             patch("app.api._mission_cqrs.queries.cache_get_improvements",
-                   new=AsyncMock(return_value=None)), \
-             patch("app.api._mission_cqrs.queries.SelfImprovementEngine",
-                   return_value=mock_engine):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_get_improvements",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api._mission_cqrs.queries.SelfImprovementEngine",
+            return_value=mock_engine,
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.list_improvements(user_id=1, mission_id=MISSION_ID)
             assert isinstance(result, list)
@@ -715,16 +850,23 @@ class TestHandleCreateImprovement:
         mock_db.refresh = AsyncMock()
 
         mock_improvement = SimpleNamespace(
-            id=uuid4(), mission_id=MISSION_ID, suggestion="test",
-            priority="medium", status="pending", created_at="2026-01-01T00:00:00",
+            id=uuid4(),
+            mission_id=MISSION_ID,
+            suggestion="test",
+            priority="medium",
+            status="pending",
+            created_at="2026-01-01T00:00:00",
         )
         mock_engine = MagicMock()
         mock_engine.generate_strategy = AsyncMock(return_value=mock_improvement)
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.SelfImprovementEngine",
-                   return_value=mock_engine):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.SelfImprovementEngine",
+            return_value=mock_engine,
+        ):
             payload = SimpleNamespace(failure_type="error", failure_context="test")
             handler = MissionCommandHandlers(mock_db)
             result = await handler.create_improvement(make_user(), MISSION_ID, payload)
@@ -741,12 +883,17 @@ class TestHandleApplyImprovement:
         mock_engine = MagicMock()
         mock_engine.apply_strategy = AsyncMock(return_value=True)
 
-        with patch("app.api._mission_cqrs.commands.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.commands.SelfImprovementEngine",
-                   return_value=mock_engine):
+        with patch(
+            "app.api._mission_cqrs.commands.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.commands.SelfImprovementEngine",
+            return_value=mock_engine,
+        ):
             handler = MissionCommandHandlers(AsyncMock())
-            result = await handler.apply_improvement(make_user(), MISSION_ID, improvement_id)
+            result = await handler.apply_improvement(
+                make_user(), MISSION_ID, improvement_id
+            )
             assert result is True
 
 
@@ -754,27 +901,37 @@ class TestHandleApplyImprovement:
 # Analytics handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleMissionAnalytics:
     @pytest.mark.asyncio
     async def test_returns_analytics_dict(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_mission = make_mission()
-        with patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=mock_mission)), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()), \
-             patch("app.api._mission_cqrs.queries.get_mission_analytics",
-                   new=AsyncMock(return_value={"total": 1})), \
-             patch("app.api._mission_cqrs.queries.get_mission_analytics_over_time",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.api._mission_cqrs.queries.get_token_usage_breakdown",
-                   new=AsyncMock(return_value={})), \
-             patch("app.api._mission_cqrs.queries.get_failure_analysis",
-                   new=AsyncMock(return_value={})):
+        with patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=mock_mission),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_analytics",
+            new=AsyncMock(return_value={"total": 1}),
+        ), patch(
+            "app.api._mission_cqrs.queries.get_mission_analytics_over_time",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.api._mission_cqrs.queries.get_token_usage_breakdown",
+            new=AsyncMock(return_value={}),
+        ), patch(
+            "app.api._mission_cqrs.queries.get_failure_analysis",
+            new=AsyncMock(return_value={}),
+        ):
             handler = MissionQueryHandlers(MagicMock())
-            result = await handler.mission_analytics(user_id=1, mission_id=MISSION_ID, days=30)
+            result = await handler.mission_analytics(
+                user_id=1, mission_id=MISSION_ID, days=30
+            )
             assert "summary" in result
             assert "over_time" in result
             assert "token_usage" in result
@@ -785,6 +942,7 @@ class TestHandleMissionAnalytics:
 # Stream handler (CQRS)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHandleStreamStatus:
     """MissionQueryHandlers.stream_status(): SSE streaming responses."""
 
@@ -793,12 +951,17 @@ class TestHandleStreamStatus:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_mission = make_mission(status="completed")
-        with patch("app.api._mission_cqrs.queries.get_mission_tasks",
-                   new=AsyncMock(return_value=[])):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = handler.stream_status(user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission)
+            result = handler.stream_status(
+                user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission
+            )
 
         from fastapi.responses import StreamingResponse
+
         assert isinstance(result, StreamingResponse)
         assert result.media_type == "text/event-stream"
 
@@ -807,10 +970,14 @@ class TestHandleStreamStatus:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_mission = make_mission(status="completed")
-        with patch("app.api._mission_cqrs.queries.get_mission_tasks",
-                   new=AsyncMock(return_value=[])):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = handler.stream_status(user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission)
+            result = handler.stream_status(
+                user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission
+            )
 
         assert result.headers["Cache-Control"] == "no-cache"
         assert result.headers["Connection"] == "keep-alive"
@@ -822,15 +989,21 @@ class TestHandleStreamStatus:
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         mock_mission = make_mission(status="completed")
-        with patch("app.api._mission_cqrs.queries.get_mission_tasks",
-                   new=AsyncMock(return_value=[])), \
-             patch("app.api._mission_cqrs.queries.use_new_reads", return_value=False), \
-             patch("app.api._mission_cqrs.queries.require_mission_access",
-                   new=AsyncMock(return_value=make_mission(status="completed"))), \
-             patch("app.api._mission_cqrs.queries.cache_set",
-                   new=AsyncMock()):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.api._mission_cqrs.queries.use_new_reads", return_value=False
+        ), patch(
+            "app.api._mission_cqrs.queries.require_mission_access",
+            new=AsyncMock(return_value=make_mission(status="completed")),
+        ), patch(
+            "app.api._mission_cqrs.queries.cache_set", new=AsyncMock()
+        ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = handler.stream_status(user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission)
+            result = handler.stream_status(
+                user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission
+            )
 
             # Collect all SSE events from the async generator
             body = ""
@@ -846,8 +1019,10 @@ class TestHandleGlobalAnalytics:
     async def test_returns_analytics_dict(self):
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
-        with patch("app.api._mission_cqrs.queries.get_mission_analytics",
-                   new=AsyncMock(return_value={"total": 5})):
+        with patch(
+            "app.api._mission_cqrs.queries.get_mission_analytics",
+            new=AsyncMock(return_value={"total": 5}),
+        ):
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.global_analytics(user_id=1)
             assert "total" in result

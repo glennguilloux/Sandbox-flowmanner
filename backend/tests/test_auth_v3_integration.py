@@ -21,6 +21,7 @@ from app.api.deps import get_current_user
 # Helpers — build mock ORM objects & patch utilities
 # ═══════════════════════════════════════════════
 
+
 def _am(retval):
     """Shorthand: AsyncMock(return_value=retval) for patching async functions."""
     return AsyncMock(return_value=retval)
@@ -62,7 +63,9 @@ def _make_session(**overrides):
         device_os="Linux",
         browser="Chrome",
         location=None,
-        scopes=json.dumps(["sessions:read", "sessions:write", "api_keys:read", "api_keys:write"]),
+        scopes=json.dumps(
+            ["sessions:read", "sessions:write", "api_keys:read", "api_keys:write"]
+        ),
         is_active=True,
         revoked_at=None,
         last_used_at=datetime.now(timezone.utc),
@@ -97,23 +100,30 @@ def _make_api_key(**overrides):
 # Register Tests
 # ═══════════════════════════════════════════════
 
+
 class TestRegister:
     """POST /api/v3/auth/users"""
 
     def test_register_returns_201_with_session(self, v3_client: TestClient):
         """Happy path: new email + strong password → 201 + session + set-cookie."""
-        with patch("app.api.v3.auth.get_user_by_email", new=_am(None)), \
-             patch("app.api.v3.auth.get_user_by_username", new=_am(None)), \
-             patch("app.api.v3.auth.validate_password_strength", return_value=[]), \
-             patch("app.api.v3.auth.create_user", new=_am(_make_user())), \
-             patch("app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-abc"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
+        with patch("app.api.v3.auth.get_user_by_email", new=_am(None)), patch(
+            "app.api.v3.auth.get_user_by_username", new=_am(None)
+        ), patch("app.api.v3.auth.validate_password_strength", return_value=[]), patch(
+            "app.api.v3.auth.create_user", new=_am(_make_user())
+        ), patch(
+            "app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-abc"))
+        ), patch(
+            "app.api.v3.auth.create_access_token", return_value="acc-token"
+        ):
 
-            resp = v3_client.post("/api/v3/auth/users", json={
-                "email": "new@example.com",
-                "password": "ValidPass123!",
-                "full_name": "New User",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/users",
+                json={
+                    "email": "new@example.com",
+                    "password": "ValidPass123!",
+                    "full_name": "New User",
+                },
+            )
 
             assert resp.status_code == 201
             data = resp.json()
@@ -123,21 +133,31 @@ class TestRegister:
 
     def test_register_duplicate_email_returns_409(self, v3_client: TestClient):
         """Existing email → 409 Conflict."""
-        with patch("app.api.v3.auth.validate_password_strength", return_value=[]), \
-             patch("app.api.v3.auth.get_user_by_email", new=_am(_make_user())):
-            resp = v3_client.post("/api/v3/auth/users", json={
-                "email": "existing@example.com",
-                "password": "ValidPass123!",
-            })
+        with patch(
+            "app.api.v3.auth.validate_password_strength", return_value=[]
+        ), patch("app.api.v3.auth.get_user_by_email", new=_am(_make_user())):
+            resp = v3_client.post(
+                "/api/v3/auth/users",
+                json={
+                    "email": "existing@example.com",
+                    "password": "ValidPass123!",
+                },
+            )
             assert resp.status_code == 409
 
     def test_register_weak_password_returns_422(self, v3_client: TestClient):
         """Password fails strength check → 422."""
-        with patch("app.api.v3.auth.validate_password_strength", return_value=["Password too short"]):
-            resp = v3_client.post("/api/v3/auth/users", json={
-                "email": "a@b.com",
-                "password": "short",
-            })
+        with patch(
+            "app.api.v3.auth.validate_password_strength",
+            return_value=["Password too short"],
+        ):
+            resp = v3_client.post(
+                "/api/v3/auth/users",
+                json={
+                    "email": "a@b.com",
+                    "password": "short",
+                },
+            )
             assert resp.status_code == 422
 
 
@@ -151,6 +171,7 @@ class TestRegister:
 # chain uses a regular MagicMock (not AsyncMock) for the return_value to
 # avoid scalar_one_or_none() returning a coroutine.
 
+
 class TestLogin:
     """POST /api/v3/auth/sessions"""
 
@@ -162,36 +183,40 @@ class TestLogin:
         mock_db_session.execute.return_value = MagicMock()
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
-        with patch("app.api.v3.auth.verify_password", return_value=True), \
-             patch("app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
+        with patch("app.api.v3.auth.verify_password", return_value=True), patch(
+            "app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))
+        ), patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
 
-            resp = v3_client.post("/api/v3/auth/sessions", json={
-                "login": "test@example.com",
-                "password": "CorrectPass123!",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions",
+                json={
+                    "login": "test@example.com",
+                    "password": "CorrectPass123!",
+                },
+            )
 
             assert resp.status_code == 201
             data = resp.json()
             assert data["data"]["access_token"] == "acc-token"
             assert "set-cookie" in resp.headers
 
-    def test_login_username_returns_201(
-        self, v3_client: TestClient, mock_db_session
-    ):
+    def test_login_username_returns_201(self, v3_client: TestClient, mock_db_session):
         """Valid username + password → 201."""
         mock_user = _make_user()
         mock_db_session.execute.return_value = MagicMock()
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
-        with patch("app.api.v3.auth.verify_password", return_value=True), \
-             patch("app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
+        with patch("app.api.v3.auth.verify_password", return_value=True), patch(
+            "app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))
+        ), patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
 
-            resp = v3_client.post("/api/v3/auth/sessions", json={
-                "login": "testuser",
-                "password": "CorrectPass123!",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions",
+                json={
+                    "login": "testuser",
+                    "password": "CorrectPass123!",
+                },
+            )
             assert resp.status_code == 201
 
     def test_login_invalid_password_returns_401(
@@ -203,10 +228,13 @@ class TestLogin:
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
         with patch("app.api.v3.auth.verify_password", return_value=False):
-            resp = v3_client.post("/api/v3/auth/sessions", json={
-                "login": "test@example.com",
-                "password": "WrongPass!",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions",
+                json={
+                    "login": "test@example.com",
+                    "password": "WrongPass!",
+                },
+            )
             assert resp.status_code == 401
 
     def test_login_nonexistent_user_returns_401(
@@ -216,10 +244,13 @@ class TestLogin:
         mock_db_session.execute.return_value = MagicMock()
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = None
 
-        resp = v3_client.post("/api/v3/auth/sessions", json={
-            "login": "ghost@example.com",
-            "password": "DoesntMatter!",
-        })
+        resp = v3_client.post(
+            "/api/v3/auth/sessions",
+            json={
+                "login": "ghost@example.com",
+                "password": "DoesntMatter!",
+            },
+        )
         assert resp.status_code == 401
 
     def test_login_disabled_account_returns_403(
@@ -231,16 +262,20 @@ class TestLogin:
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
         with patch("app.api.v3.auth.verify_password", return_value=True):
-            resp = v3_client.post("/api/v3/auth/sessions", json={
-                "login": "test@example.com",
-                "password": "CorrectPass123!",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions",
+                json={
+                    "login": "test@example.com",
+                    "password": "CorrectPass123!",
+                },
+            )
             assert resp.status_code == 403
 
 
 # ═══════════════════════════════════════════════
 # 2FA Flow Tests
 # ═══════════════════════════════════════════════
+
 
 class TestTwoFactorAuth:
     """POST /api/v3/auth/sessions/verify"""
@@ -253,13 +288,17 @@ class TestTwoFactorAuth:
         mock_db_session.execute.return_value = MagicMock()
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
-        with patch("app.api.v3.auth.verify_password", return_value=True), \
-             patch("app.api.v3.auth.create_temp_token", return_value="temp-abc-456"):
+        with patch("app.api.v3.auth.verify_password", return_value=True), patch(
+            "app.api.v3.auth.create_temp_token", return_value="temp-abc-456"
+        ):
 
-            resp = v3_client.post("/api/v3/auth/sessions", json={
-                "login": "test@example.com",
-                "password": "CorrectPass123!",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions",
+                json={
+                    "login": "test@example.com",
+                    "password": "CorrectPass123!",
+                },
+            )
 
             assert resp.status_code == 200
             data = resp.json()
@@ -269,10 +308,13 @@ class TestTwoFactorAuth:
     def test_verify_2fa_invalid_token_returns_401(self, v3_client: TestClient):
         """Invalid temp_token → 401."""
         with patch("app.api.v3.auth.decode_temp_token", return_value=None):
-            resp = v3_client.post("/api/v3/auth/sessions/verify", json={
-                "temp_token": "bad-token",
-                "code": "123456",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions/verify",
+                json={
+                    "temp_token": "bad-token",
+                    "code": "123456",
+                },
+            )
             assert resp.status_code == 401
 
     def test_verify_2fa_valid_code_creates_session(
@@ -283,41 +325,50 @@ class TestTwoFactorAuth:
         mock_db_session.execute.return_value = MagicMock()
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
-        with patch("app.api.v3.auth.decode_temp_token", return_value={
-                "sub": "1", "role": "pro"
-            }), \
-             patch("app.api.v3.auth.verify_code", return_value=True), \
-             patch("app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
+        with patch(
+            "app.api.v3.auth.decode_temp_token",
+            return_value={"sub": "1", "role": "pro"},
+        ), patch("app.api.v3.auth.verify_code", return_value=True), patch(
+            "app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))
+        ), patch(
+            "app.api.v3.auth.create_access_token", return_value="acc-token"
+        ):
 
-            resp = v3_client.post("/api/v3/auth/sessions/verify", json={
-                "temp_token": "valid-temp",
-                "code": "123456",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions/verify",
+                json={
+                    "temp_token": "valid-temp",
+                    "code": "123456",
+                },
+            )
 
             assert resp.status_code == 200
             assert resp.json()["data"]["access_token"] == "acc-token"
 
-    def test_verify_2fa_backup_code_works(
-        self, v3_client: TestClient, mock_db_session
-    ):
+    def test_verify_2fa_backup_code_works(self, v3_client: TestClient, mock_db_session):
         """Valid backup code → session created."""
         mock_user = _make_user(totp_enabled=True, totp_backup_codes="backup1,backup2")
         mock_db_session.execute.return_value = MagicMock()
         mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_user
 
-        with patch("app.api.v3.auth.decode_temp_token", return_value={
-                "sub": "1", "role": "pro"
-            }), \
-             patch("app.api.v3.auth.verify_code", return_value=False), \
-             patch("app.api.v3.auth.consume_backup_code", return_value=(True, ["backup2"])), \
-             patch("app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="acc-token"):
+        with patch(
+            "app.api.v3.auth.decode_temp_token",
+            return_value={"sub": "1", "role": "pro"},
+        ), patch("app.api.v3.auth.verify_code", return_value=False), patch(
+            "app.api.v3.auth.consume_backup_code", return_value=(True, ["backup2"])
+        ), patch(
+            "app.api.v3.auth.create_session", new=_am((_make_session(), "refresh-xyz"))
+        ), patch(
+            "app.api.v3.auth.create_access_token", return_value="acc-token"
+        ):
 
-            resp = v3_client.post("/api/v3/auth/sessions/verify", json={
-                "temp_token": "valid-temp",
-                "code": "backup1",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions/verify",
+                json={
+                    "temp_token": "valid-temp",
+                    "code": "backup1",
+                },
+            )
             assert resp.status_code == 200
 
 
@@ -325,17 +376,21 @@ class TestTwoFactorAuth:
 # Refresh Token Tests
 # ═══════════════════════════════════════════════
 
+
 class TestRefreshSession:
     """POST /api/v3/auth/sessions/refresh"""
 
-    def test_refresh_with_cookie_returns_200(
-        self, v3_client: TestClient
-    ):
+    def test_refresh_with_cookie_returns_200(self, v3_client: TestClient):
         """Refresh via httpOnly cookie → 200 + new tokens."""
         mock_user = _make_user()
-        with patch("app.api.v3.auth.refresh_session", new=_am((_make_session(id="sess_refreshed"), "new-refresh"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="new-acc-token"), \
-             patch("app.api.v3.auth.get_user_by_id", new=_am(mock_user)):
+        with patch(
+            "app.api.v3.auth.refresh_session",
+            new=_am((_make_session(id="sess_refreshed"), "new-refresh")),
+        ), patch(
+            "app.api.v3.auth.create_access_token", return_value="new-acc-token"
+        ), patch(
+            "app.api.v3.auth.get_user_by_id", new=_am(mock_user)
+        ):
 
             resp = v3_client.post(
                 "/api/v3/auth/sessions/refresh",
@@ -347,18 +402,23 @@ class TestRefreshSession:
             assert data["data"]["access_token"] == "new-acc-token"
             assert data["data"]["session_id"] == "sess_refreshed"
 
-    def test_refresh_with_body_fallback_returns_200(
-        self, v3_client: TestClient
-    ):
+    def test_refresh_with_body_fallback_returns_200(self, v3_client: TestClient):
         """Refresh via JSON body (no cookie) → 200."""
         mock_user = _make_user()
-        with patch("app.api.v3.auth.refresh_session", new=_am((_make_session(), "new-refresh"))), \
-             patch("app.api.v3.auth.create_access_token", return_value="new-acc-token"), \
-             patch("app.api.v3.auth.get_user_by_id", new=_am(mock_user)):
+        with patch(
+            "app.api.v3.auth.refresh_session", new=_am((_make_session(), "new-refresh"))
+        ), patch(
+            "app.api.v3.auth.create_access_token", return_value="new-acc-token"
+        ), patch(
+            "app.api.v3.auth.get_user_by_id", new=_am(mock_user)
+        ):
 
-            resp = v3_client.post("/api/v3/auth/sessions/refresh", json={
-                "refresh_token": "old-refresh-body",
-            })
+            resp = v3_client.post(
+                "/api/v3/auth/sessions/refresh",
+                json={
+                    "refresh_token": "old-refresh-body",
+                },
+            )
             assert resp.status_code == 200
 
     def test_refresh_expired_token_returns_401(self, v3_client: TestClient):
@@ -375,16 +435,16 @@ class TestRefreshSession:
 # Session Management Tests
 # ═══════════════════════════════════════════════
 
+
 class TestSessionManagement:
     """GET /api/v3/auth/sessions, DELETE /api/v3/auth/sessions/{id}"""
 
-    def test_list_sessions_returns_200(
-        self, v3_client: TestClient
-    ):
+    def test_list_sessions_returns_200(self, v3_client: TestClient):
         """List active sessions → 200 with array."""
         sessions = [_make_session(id="s1"), _make_session(id="s2")]
-        with patch("app.api.v3.auth.get_active_sessions", new=_am(sessions)), \
-             patch("app.api.v3.auth.decode_access_token", return_value={"session_id": "s1"}):
+        with patch("app.api.v3.auth.get_active_sessions", new=_am(sessions)), patch(
+            "app.api.v3.auth.decode_access_token", return_value={"session_id": "s1"}
+        ):
 
             resp = v3_client.get(
                 "/api/v3/auth/sessions",
@@ -396,9 +456,7 @@ class TestSessionManagement:
             assert len(data["data"]) == 2
             assert data["data"][0]["id"] == "s1"
 
-    def test_list_sessions_unauthenticated_returns_401(
-        self, v3_client: TestClient
-    ):
+    def test_list_sessions_unauthenticated_returns_401(self, v3_client: TestClient):
         """No auth → 401."""
         saved = v3_client.app.dependency_overrides.pop(get_current_user, None)
         try:
@@ -430,6 +488,7 @@ class TestSessionManagement:
 # ═══════════════════════════════════════════════
 # User Profile Tests
 # ═══════════════════════════════════════════════
+
 
 class TestUserProfile:
     """GET /api/v3/auth/users/me, PATCH /api/v3/auth/users/me"""
@@ -466,9 +525,11 @@ class TestUserProfile:
 
     def test_update_me_password_revokes_sessions(self, v3_client: TestClient):
         """Password change → revokes all sessions."""
-        with patch("app.api.v3.auth.validate_password_strength", return_value=[]), \
-             patch("app.api.v3.auth.hash_password", return_value="hash"), \
-             patch("app.api.v3.auth.revoke_all_user_sessions", new=_am(1)) as mk_revoke_all:
+        with patch(
+            "app.api.v3.auth.validate_password_strength", return_value=[]
+        ), patch("app.api.v3.auth.hash_password", return_value="hash"), patch(
+            "app.api.v3.auth.revoke_all_user_sessions", new=_am(1)
+        ) as mk_revoke_all:
             resp = v3_client.patch(
                 "/api/v3/auth/users/me",
                 json={"password": "NewValidPass123!"},
@@ -482,6 +543,7 @@ class TestUserProfile:
 # API Key Tests
 # ═══════════════════════════════════════════════
 
+
 class TestApiKeys:
     """POST/GET/DELETE /api/v3/auth/api-keys"""
 
@@ -489,7 +551,9 @@ class TestApiKeys:
         """Create API key → 201 with full key returned once."""
         mock_key = _make_api_key()
         mock_key.scopes = json.dumps(["missions:read"])
-        with patch("app.api.v3.auth.create_api_key", new=_am((mock_key, "fm_full_key_abc123"))):
+        with patch(
+            "app.api.v3.auth.create_api_key", new=_am((mock_key, "fm_full_key_abc123"))
+        ):
 
             resp = v3_client.post(
                 "/api/v3/auth/api-keys",
@@ -504,7 +568,10 @@ class TestApiKeys:
 
     def test_create_api_key_invalid_scopes_returns_400(self, v3_client: TestClient):
         """Invalid scopes → 400."""
-        with patch("app.api.v3.auth.create_api_key", new=AsyncMock(side_effect=ValueError("Invalid scopes"))):
+        with patch(
+            "app.api.v3.auth.create_api_key",
+            new=AsyncMock(side_effect=ValueError("Invalid scopes")),
+        ):
             resp = v3_client.post(
                 "/api/v3/auth/api-keys",
                 json={"name": "Bad Key", "scopes": ["superadmin:destroy"]},
@@ -553,6 +620,7 @@ class TestApiKeys:
 # Error Envelope Tests
 # ═══════════════════════════════════════════════
 
+
 class TestErrorEnvelope:
     """Verify v3 error response format: { data, meta, error }."""
 
@@ -572,10 +640,13 @@ class TestErrorEnvelope:
 
     def test_422_schema_error_returns_details(self, v3_client: TestClient):
         """422 response on invalid schema."""
-        resp = v3_client.post("/api/v3/auth/users", json={
-            "email": "not-an-email",
-            "password": "short",
-        })
+        resp = v3_client.post(
+            "/api/v3/auth/users",
+            json={
+                "email": "not-an-email",
+                "password": "short",
+            },
+        )
         assert resp.status_code == 422
 
 
@@ -583,14 +654,16 @@ class TestErrorEnvelope:
 # Feature Flag Tests
 # ═══════════════════════════════════════════════
 
+
 class TestFeatureFlags:
     """Verify that v3 endpoints exist (no 404) even with flags off."""
 
     def test_v3_endpoints_exist_even_with_flags_off(self, v3_client: TestClient):
         """Endpoints route to v3 router — no 404 regardless of flag state."""
         sessions = [_make_session(id="s1")]
-        with patch("app.api.v3.auth.get_active_sessions", new=_am(sessions)), \
-             patch("app.api.v3.auth.decode_access_token", return_value={"session_id": "s1"}):
+        with patch("app.api.v3.auth.get_active_sessions", new=_am(sessions)), patch(
+            "app.api.v3.auth.decode_access_token", return_value={"session_id": "s1"}
+        ):
             resp = v3_client.get(
                 "/api/v3/auth/sessions",
                 headers={"Authorization": "Bearer test-token"},

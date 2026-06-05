@@ -65,17 +65,24 @@ async def _list_agents(db: AsyncSession, user: User, page: int, per_page: int):
 async def list_items(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    cursor: str | None = Query(None, description="Opaque cursor token for keyset pagination"),
+    cursor: str | None = Query(
+        None, description="Opaque cursor token for keyset pagination"
+    ),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     if cursor:
         cp = CursorParams(cursor=cursor, direction="after", limit=per_page)
         decoded = cp.decoded
-        query = select(Agent).where(
-            Agent.owner_id == str(user.id),
-            Agent.id > str(decoded["id"]),
-        ).order_by(Agent.id.asc()).limit(per_page + 1)
+        query = (
+            select(Agent)
+            .where(
+                Agent.owner_id == str(user.id),
+                Agent.id > str(decoded["id"]),
+            )
+            .order_by(Agent.id.asc())
+            .limit(per_page + 1)
+        )
         result = await db.execute(query)
         items = list(result.scalars().all())
         serialized = [AgentResponse.model_validate(a).model_dump() for a in items]

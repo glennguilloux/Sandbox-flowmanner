@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class IssueSeverity(str, Enum):
     """Sentry issue severity levels"""
+
     CRITICAL = "critical"
     ERROR = "error"
     WARNING = "warning"
@@ -28,6 +29,7 @@ class IssueSeverity(str, Enum):
 
 class IssueStatus(str, Enum):
     """Sentry issue status"""
+
     UNRESOLVED = "unresolved"
     RESOLVED = "resolved"
     IGNORED = "ignored"
@@ -37,6 +39,7 @@ class IssueStatus(str, Enum):
 @dataclass
 class SeerAnalysis:
     """Seer AI analysis result"""
+
     issue_id: str
     root_cause: str
     confidence: float  # 0.0 to 1.0
@@ -45,7 +48,7 @@ class SeerAnalysis:
     similar_issues: list[str]
     analysis_timestamp: datetime = field(default_factory=datetime.utcnow)
     raw_response: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "issue_id": self.issue_id,
@@ -61,6 +64,7 @@ class SeerAnalysis:
 @dataclass
 class FixRecommendation:
     """AI-generated fix recommendation"""
+
     issue_id: str
     title: str
     description: str
@@ -70,7 +74,7 @@ class FixRecommendation:
     requires_approval: bool  # True if confidence < 0.95
     estimated_impact: str  # "low", "medium", "high"
     created_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "issue_id": self.issue_id,
@@ -88,6 +92,7 @@ class FixRecommendation:
 @dataclass
 class SentryIssue:
     """Sentry issue data"""
+
     id: str
     short_id: str
     title: str
@@ -100,7 +105,7 @@ class SentryIssue:
     severity: IssueSeverity
     status: IssueStatus
     project: dict[str, Any]
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -121,7 +126,7 @@ class SentryIssue:
 class SentryMCPClient:
     """
     Client for Sentry MCP Server with Seer AI integration.
-    
+
     Provides:
     - Error capture with workflow context
     - Seer AI root cause analysis
@@ -129,14 +134,14 @@ class SentryMCPClient:
     - Similar issue search
     - Issue management
     """
-    
+
     def __init__(
         self,
         mcp_url: str = "https://mcp.sentry.dev/mcp",
         org_slug: str | None = None,
         project_slug: str | None = None,
         api_token: str | None = None,
-        confidence_threshold: float = 0.95
+        confidence_threshold: float = 0.95,
     ):
         self.mcp_url = mcp_url.rstrip("/")
         self.org_slug = org_slug or os.getenv("SENTRY_ORG_SLUG")
@@ -144,7 +149,7 @@ class SentryMCPClient:
         self.api_token = api_token or os.getenv("SENTRY_API_TOKEN")
         self.confidence_threshold = confidence_threshold
         self._session: aiohttp.ClientSession | None = None
-        
+
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create HTTP session."""
         if self._session is None or self._session.closed:
@@ -155,76 +160,76 @@ class SentryMCPClient:
                 headers["Authorization"] = f"Bearer {self.api_token}"
             self._session = aiohttp.ClientSession(headers=headers)
         return self._session
-    
+
     async def close(self):
         """Close the HTTP session."""
         if self._session and not self._session.closed:
             await self._session.close()
-    
+
     async def _mcp_request(
-        self,
-        method: str,
-        params: dict[str, Any] | None = None
+        self, method: str, params: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Make an MCP JSON-RPC request.
-        
+
         Args:
             method: MCP method name
             params: Method parameters
-            
+
         Returns:
             Response result
         """
         session = await self._get_session()
-        
+
         payload = {
             "jsonrpc": "2.0",
             "id": datetime.now(UTC).timestamp(),
             "method": method,
-            "params": params or {}
+            "params": params or {},
         }
-        
+
         try:
             async with session.post(self.mcp_url, json=payload) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error(f"MCP request failed: {response.status} - {error_text}")
+                    logger.error(
+                        f"MCP request failed: {response.status} - {error_text}"
+                    )
                     raise Exception(f"MCP request failed: {response.status}")
-                
+
                 data = await response.json()
-                
+
                 if "error" in data:
                     logger.error(f"MCP error: {data['error']}")
                     raise Exception(f"MCP error: {data['error']}")
-                
+
                 return data.get("result", {})
-                
+
         except aiohttp.ClientError as e:
             logger.error(f"MCP request error: {e}")
             raise
-    
+
     async def capture_execution_error(
         self,
         workflow_id: str,
         agent_id: str,
         error: Exception,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> str:
         """
         Capture an error from workflow execution.
-        
+
         Args:
             workflow_id: ID of the workflow
             agent_id: ID of the agent
             error: The exception that occurred
             context: Additional context
-            
+
         Returns:
             Sentry event ID
         """
         import traceback
-        
+
         params = {
             "message": str(error),
             "level": "error",
@@ -239,7 +244,7 @@ class SentryMCPClient:
             },
             "project": self.project_slug,
         }
-        
+
         try:
             result = await self._mcp_request("sentry/capture_event", params)
             event_id = result.get("event_id")
@@ -249,14 +254,14 @@ class SentryMCPClient:
             logger.error(f"Failed to capture execution error: {e}")
             # Return a placeholder - the local Sentry SDK will handle it
             return ""
-    
+
     async def analyze_with_seer(self, issue_id: str) -> SeerAnalysis | None:
         """
         Trigger Seer AI root cause analysis for an issue.
-        
+
         Args:
             issue_id: Sentry issue ID
-            
+
         Returns:
             SeerAnalysis with root cause and suggestions
         """
@@ -265,14 +270,14 @@ class SentryMCPClient:
             "org_slug": self.org_slug,
             "project_slug": self.project_slug,
         }
-        
+
         try:
             result = await self._mcp_request("sentry/seer_analyze", params)
-            
+
             if not result:
                 logger.warning(f"No Seer analysis result for issue {issue_id}")
                 return None
-            
+
             analysis = SeerAnalysis(
                 issue_id=issue_id,
                 root_cause=result.get("root_cause", "Unknown"),
@@ -282,21 +287,23 @@ class SentryMCPClient:
                 similar_issues=result.get("similar_issues", []),
                 raw_response=result,
             )
-            
-            logger.info(f"Seer analysis complete for {issue_id}: confidence={analysis.confidence}")
+
+            logger.info(
+                f"Seer analysis complete for {issue_id}: confidence={analysis.confidence}"
+            )
             return analysis
-            
+
         except Exception as e:
             logger.error(f"Seer analysis failed: {e}")
             return None
-    
+
     async def get_fix_recommendation(self, issue_id: str) -> FixRecommendation | None:
         """
         Get AI-generated fix recommendation for an issue.
-        
+
         Args:
             issue_id: Sentry issue ID
-            
+
         Returns:
             FixRecommendation with code changes
         """
@@ -305,16 +312,16 @@ class SentryMCPClient:
             "org_slug": self.org_slug,
             "project_slug": self.project_slug,
         }
-        
+
         try:
             result = await self._mcp_request("sentry/seer_fix", params)
-            
+
             if not result:
                 logger.warning(f"No fix recommendation for issue {issue_id}")
                 return None
-            
+
             confidence = result.get("confidence", 0.0)
-            
+
             recommendation = FixRecommendation(
                 issue_id=issue_id,
                 title=result.get("title", "Fix Recommendation"),
@@ -325,28 +332,27 @@ class SentryMCPClient:
                 requires_approval=confidence < self.confidence_threshold,
                 estimated_impact=result.get("estimated_impact", "medium"),
             )
-            
-            logger.info(f"Fix recommendation for {issue_id}: auto_applicable={recommendation.auto_applicable}")
+
+            logger.info(
+                f"Fix recommendation for {issue_id}: auto_applicable={recommendation.auto_applicable}"
+            )
             return recommendation
-            
+
         except Exception as e:
             logger.error(f"Fix recommendation failed: {e}")
             return None
-    
+
     async def search_similar_issues(
-        self,
-        fingerprint: str | None = None,
-        query: str | None = None,
-        limit: int = 10
+        self, fingerprint: str | None = None, query: str | None = None, limit: int = 10
     ) -> list[SentryIssue]:
         """
         Search for similar issues across projects.
-        
+
         Args:
             fingerprint: Issue fingerprint to match
             query: Search query
             limit: Maximum results
-            
+
         Returns:
             List of similar issues
         """
@@ -354,15 +360,15 @@ class SentryMCPClient:
             "org_slug": self.org_slug,
             "limit": limit,
         }
-        
+
         if fingerprint:
             params["fingerprint"] = fingerprint
         if query:
             params["query"] = query
-        
+
         try:
             result = await self._mcp_request("sentry/search_issues", params)
-            
+
             issues = []
             for item in result.get("issues", []):
                 try:
@@ -384,27 +390,27 @@ class SentryMCPClient:
                 except Exception as e:
                     logger.warning(f"Failed to parse issue: {e}")
                     continue
-            
+
             logger.info(f"Found {len(issues)} similar issues")
             return issues
-            
+
         except Exception as e:
             logger.error(f"Issue search failed: {e}")
             return []
-    
+
     async def get_issue(self, issue_id: str) -> SentryIssue | None:
         """Get details of a specific issue."""
         params = {
             "issue_id": issue_id,
             "org_slug": self.org_slug,
         }
-        
+
         try:
             result = await self._mcp_request("sentry/get_issue", params)
-            
+
             if not result:
                 return None
-            
+
             return SentryIssue(
                 id=result["id"],
                 short_id=result.get("short_id", ""),
@@ -419,11 +425,11 @@ class SentryMCPClient:
                 status=IssueStatus(result.get("status", "unresolved")),
                 project=result.get("project", {}),
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to get issue: {e}")
             return None
-    
+
     async def resolve_issue(self, issue_id: str) -> bool:
         """Mark an issue as resolved."""
         params = {
@@ -431,7 +437,7 @@ class SentryMCPClient:
             "org_slug": self.org_slug,
             "status": "resolved",
         }
-        
+
         try:
             await self._mcp_request("sentry/update_issue", params)
             logger.info(f"Resolved issue {issue_id}")
@@ -439,11 +445,9 @@ class SentryMCPClient:
         except Exception as e:
             logger.error(f"Failed to resolve issue: {e}")
             return False
-    
+
     async def get_project_issues(
-        self,
-        query: str | None = None,
-        limit: int = 100
+        self, query: str | None = None, limit: int = 100
     ) -> list[SentryIssue]:
         """Get all issues for the project."""
         return await self.search_similar_issues(query=query, limit=limit)

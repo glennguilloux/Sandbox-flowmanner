@@ -19,6 +19,7 @@ import jwt
 BASE_URL = "http://127.0.0.1:8000"
 API_BASE = f"{BASE_URL}/api/missions"
 
+
 # Load secrets from .env
 def load_env():
     env = {}
@@ -30,9 +31,11 @@ def load_env():
                 env[k.strip()] = v.strip()
     return env
 
+
 ENV = load_env()
 JWT_SECRET = ENV.get("JWT_SECRET_KEY", "change-me-in-production")
 JWT_EXPIRES = int(ENV.get("JWT_ACCESS_TOKEN_EXPIRES", "3600"))
+
 
 def make_token(user_id=1):
     payload = {
@@ -43,6 +46,7 @@ def make_token(user_id=1):
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
+
 TOKEN = make_token(1)
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
@@ -50,32 +54,56 @@ HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json
 results = []
 errors_found = []
 
+
 def record(mission_num, name, outcome):
     results.append({"num": mission_num, "name": name, **outcome})
 
+
 # ── API Helpers ──────────────────────────────────────────────
+
 
 async def api_post(path, data, timeout=120):
     async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.post(f"{API_BASE}{path}", json=data, headers=HEADERS)
-        return r.status_code, r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return r.status_code, (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else r.text
+        )
+
 
 async def api_get(path, timeout=30):
     async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.get(f"{API_BASE}{path}", headers=HEADERS)
-        return r.status_code, r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return r.status_code, (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else r.text
+        )
+
 
 async def api_patch(path, data, timeout=30):
     async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.patch(f"{API_BASE}{path}", json=data, headers=HEADERS)
-        return r.status_code, r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return r.status_code, (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else r.text
+        )
+
 
 async def api_delete(path, timeout=30):
     async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.delete(f"{API_BASE}{path}", headers=HEADERS)
-        return r.status_code, r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return r.status_code, (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else r.text
+        )
+
 
 # ── Test Runner ──────────────────────────────────────────────
+
 
 async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120):
     """Create a mission, plan it, execute it, and return results."""
@@ -116,22 +144,32 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
             outcome["errors"].append(f"Plan failed HTTP {status}: {plan_data}")
             print(f"  ❌ Plan failed: {plan_data}")
         else:
-            print(f"  ✓ Plan result: success={plan_data.get('status')}, tasks={plan_data.get('total_tasks', '?')}")
+            print(
+                f"  ✓ Plan result: success={plan_data.get('status')}, tasks={plan_data.get('total_tasks', '?')}"
+            )
 
         # 3. Execute
         print(f"  [3/4] Executing mission...")
         t0 = time.time()
-        status, exec_data = await api_post(f"/{mission_id}/execute", {}, timeout=timeout)
+        status, exec_data = await api_post(
+            f"/{mission_id}/execute", {}, timeout=timeout
+        )
         elapsed = time.time() - t0
-        outcome["execute_result"] = {"status": status, "data": exec_data, "elapsed_sec": round(elapsed, 2)}
+        outcome["execute_result"] = {
+            "status": status,
+            "data": exec_data,
+            "elapsed_sec": round(elapsed, 2),
+        }
         if status != 200:
             outcome["errors"].append(f"Execute failed HTTP {status}: {exec_data}")
             print(f"  ❌ Execute failed ({elapsed:.1f}s): {exec_data}")
         else:
             outcome["final_status"] = exec_data.get("status")
-            print(f"  ✓ Execute done ({elapsed:.1f}s): status={exec_data.get('status')}, "
-                  f"completed={exec_data.get('completed_tasks')}, "
-                  f"failed={exec_data.get('failed_tasks')}")
+            print(
+                f"  ✓ Execute done ({elapsed:.1f}s): status={exec_data.get('status')}, "
+                f"completed={exec_data.get('completed_tasks')}, "
+                f"failed={exec_data.get('failed_tasks')}"
+            )
 
         # 4. Get tasks
         print(f"  [4/4] Fetching tasks & logs...")
@@ -139,9 +177,11 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
         if status == 200:
             outcome["tasks"] = tasks_data
             for t in tasks_data:
-                print(f"    Task: {t['title']} — {t['status']}"
-                      f"{' (retry #' + str(t.get('retry_count',0)) + ')' if t.get('retry_count') else ''}"
-                      f" | error: {t.get('error_message','')[:80] if t.get('error_message') else 'none'}")
+                print(
+                    f"    Task: {t['title']} — {t['status']}"
+                    f"{' (retry #' + str(t.get('retry_count',0)) + ')' if t.get('retry_count') else ''}"
+                    f" | error: {t.get('error_message','')[:80] if t.get('error_message') else 'none'}"
+                )
 
         status, logs_data = await api_get(f"/{mission_id}/logs")
         if status == 200:
@@ -155,7 +195,9 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
                 for b in bugs:
                     print(f"  🐛 BUG: {b}")
 
-        print(f"  Summary: {len(outcome['errors'])} errors, {len(outcome.get('tasks',[]))} tasks")
+        print(
+            f"  Summary: {len(outcome['errors'])} errors, {len(outcome.get('tasks',[]))} tasks"
+        )
 
     except Exception as e:
         outcome["errors"].append(f"Exception: {str(e)}\n{traceback.format_exc()}")
@@ -168,12 +210,14 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
 
 # ── Bug Checkers ────────────────────────────────────────────
 
+
 def check_analytics_swallowing(outcome):
     """Does analytics error handling swallow real errors?"""
     # Analytics is wrapped in try/except — check if mission completed but analytics might have silently failed
     bugs = []
     # If mission completed but tasks have issues, analytics might miss them
     return bugs
+
 
 def check_db_rollback(outcome):
     """Does DB rollback correctly on failure?"""
@@ -187,6 +231,7 @@ def check_db_rollback(outcome):
             pass  # DB should have rolled back properly
     return bugs
 
+
 def check_output_truncation(outcome):
     """Check if task output was truncated."""
     bugs = []
@@ -194,8 +239,11 @@ def check_output_truncation(outcome):
         if t.get("status") == "completed" and t.get("output_data"):
             output = json.dumps(t["output_data"])
             if len(output) > 10000:
-                bugs.append(f"Task '{t['title']}' output is very large ({len(output)} chars)")
+                bugs.append(
+                    f"Task '{t['title']}' output is very large ({len(output)} chars)"
+                )
     return bugs
+
 
 def check_dependency_resolution(outcome):
     """Does Task 2 get Task 1's output?"""
@@ -204,10 +252,16 @@ def check_dependency_resolution(outcome):
     if len(tasks) >= 2:
         t2 = tasks[1] if len(tasks) > 1 else None
         t1 = tasks[0] if len(tasks) > 0 else None
-        if t1 and t2 and t1.get("status") == "completed" and t2.get("status") == "completed":
+        if (
+            t1
+            and t2
+            and t1.get("status") == "completed"
+            and t2.get("status") == "completed"
+        ):
             # Check if t2's input includes dep_0
             pass  # Needs deeper inspection
     return bugs
+
 
 def check_retry_logic(outcome):
     """Does retry actually work or fail immediately?"""
@@ -216,8 +270,11 @@ def check_retry_logic(outcome):
         retry_count = t.get("retry_count", 0)
         max_retries = t.get("max_retries", 0)
         if t.get("status") == "failed" and retry_count == 0 and max_retries > 0:
-            bugs.append(f"Task '{t['title']}' never retried (retry_count=0, max_retries={max_retries})")
+            bugs.append(
+                f"Task '{t['title']}' never retried (retry_count=0, max_retries={max_retries})"
+            )
     return bugs
+
 
 def check_mission_status_after_partial(outcome):
     """Mission status after partial failure."""
@@ -229,8 +286,11 @@ def check_mission_status_after_partial(outcome):
     status = exec_data.get("status")
     if failed > 0 and completed > 0:
         if status not in ("failed", "partial_success"):
-            bugs.append(f"Mission had {failed} failed + {completed} completed but status={status} (expected 'failed')")
+            bugs.append(
+                f"Mission had {failed} failed + {completed} completed but status={status} (expected 'failed')"
+            )
     return bugs
+
 
 def check_exception_blocks_fired(outcome):
     """Which except Exception blocks were hit?"""
@@ -247,6 +307,7 @@ def check_exception_blocks_fired(outcome):
 
 
 # ── MAIN ────────────────────────────────────────────────────
+
 
 async def main():
     global TOKEN
@@ -269,80 +330,121 @@ async def main():
         print(f"  LLM: {health.get('components',{}).get('llm_provider',{})}")
 
     # ── Mission 1: Code Review (simple LLM task) ──────────
-    await run_mission(1, "Code Review (simple LLM)", {
-        "title": "Code Review: Python Auth Module",
-        "description": "Review the following Python code for security issues and suggest improvements:\n\n```python\ndef login(username, password):\n    query = f\"SELECT * FROM users WHERE username='{username}' AND password='{password}'\"\n    result = db.execute(query)\n    return result.first()\n```\n\nCheck for: SQL injection, password handling, return value issues, and logging concerns.",
-        "mission_type": "review",
-        "priority": "normal",
-    })
+    await run_mission(
+        1,
+        "Code Review (simple LLM)",
+        {
+            "title": "Code Review: Python Auth Module",
+            "description": "Review the following Python code for security issues and suggest improvements:\n\n```python\ndef login(username, password):\n    query = f\"SELECT * FROM users WHERE username='{username}' AND password='{password}'\"\n    result = db.execute(query)\n    return result.first()\n```\n\nCheck for: SQL injection, password handling, return value issues, and logging concerns.",
+            "mission_type": "review",
+            "priority": "normal",
+        },
+    )
 
     # ── Mission 2: Multi-step Code Analysis (LLM + dependency chain) ──
-    await run_mission(2, "Multi-step Code Analysis (LLM + deps)", {
-        "title": "Multi-step: Code Analysis Pipeline",
-        "description": "Step 1: Analyze the Python code for bugs\nStep 2: Based on the analysis, suggest specific fixes\nStep 3: Generate improved code with the fixes applied\n\nCode to analyze:\n```python\ndef process_data(items):\n    results = []\n    for item in items:\n        try:\n            result = item.process()\n            results.append(result)\n        except:\n            continue\n    return results\n```",
-        "mission_type": "code_analysis",
-        "priority": "normal",
-    })
+    await run_mission(
+        2,
+        "Multi-step Code Analysis (LLM + deps)",
+        {
+            "title": "Multi-step: Code Analysis Pipeline",
+            "description": "Step 1: Analyze the Python code for bugs\nStep 2: Based on the analysis, suggest specific fixes\nStep 3: Generate improved code with the fixes applied\n\nCode to analyze:\n```python\ndef process_data(items):\n    results = []\n    for item in items:\n        try:\n            result = item.process()\n            results.append(result)\n        except:\n            continue\n    return results\n```",
+            "mission_type": "code_analysis",
+            "priority": "normal",
+        },
+    )
 
     # ── Mission 3: Web Search Task ──
-    await run_mission(3, "Web Search Task", {
-        "title": "Web Search: Latest AI Research",
-        "description": "Search for the latest developments in AI agents (2024-2025) and summarize the top 3 findings.",
-        "mission_type": "web_search",
-        "priority": "normal",
-    })
+    await run_mission(
+        3,
+        "Web Search Task",
+        {
+            "title": "Web Search: Latest AI Research",
+            "description": "Search for the latest developments in AI agents (2024-2025) and summarize the top 3 findings.",
+            "mission_type": "web_search",
+            "priority": "normal",
+        },
+    )
 
     # ── Mission 4: Code Execution Task ──
-    await run_mission(4, "Code Execution Task", {
-        "title": "Code Execution: Compute Fibonacci Stats",
-        "description": "Write and execute Python code to compute the first 20 Fibonacci numbers, then calculate their mean, median, and standard deviation. Print the results.",
-        "mission_type": "code",
-        "priority": "normal",
-    })
+    await run_mission(
+        4,
+        "Code Execution Task",
+        {
+            "title": "Code Execution: Compute Fibonacci Stats",
+            "description": "Write and execute Python code to compute the first 20 Fibonacci numbers, then calculate their mean, median, and standard deviation. Print the results.",
+            "mission_type": "code",
+            "priority": "normal",
+        },
+    )
 
     # ── Mission 5: RAG Query Task ──
-    await run_mission(5, "RAG Query Task", {
-        "title": "RAG Query: Project Documentation",
-        "description": "Query the knowledge base for information about the Flowmanner mission execution system. Find: 1) How missions are planned, 2) How tasks are executed, 3) What retry logic exists.",
-        "mission_type": "rag",
-        "priority": "normal",
-    })
+    await run_mission(
+        5,
+        "RAG Query Task",
+        {
+            "title": "RAG Query: Project Documentation",
+            "description": "Query the knowledge base for information about the Flowmanner mission execution system. Find: 1) How missions are planned, 2) How tasks are executed, 3) What retry logic exists.",
+            "mission_type": "rag",
+            "priority": "normal",
+        },
+    )
 
     # ── Mission 6: Unknown Task Type (edge case) ──
-    await run_mission(6, "Unknown Task Type (edge case)", {
-        "title": "Unknown Task Type Test",
-        "description": "This mission should use a completely unknown task type to test the fallback/error handling.",
-        "mission_type": "quantum_computing_task",
-        "priority": "low",
-    })
+    await run_mission(
+        6,
+        "Unknown Task Type (edge case)",
+        {
+            "title": "Unknown Task Type Test",
+            "description": "This mission should use a completely unknown task type to test the fallback/error handling.",
+            "mission_type": "quantum_computing_task",
+            "priority": "low",
+        },
+    )
 
     # ── Mission 7: Empty Mission (edge case) ──
-    await run_mission(7, "Empty Mission (edge case)", {
-        "title": "",
-        "description": "",
-        "mission_type": "general",
-        "priority": "low",
-    })
+    await run_mission(
+        7,
+        "Empty Mission (edge case)",
+        {
+            "title": "",
+            "description": "",
+            "mission_type": "general",
+            "priority": "low",
+        },
+    )
 
     # ── Mission 8: Large Prompt (stress test) ──
     large_description = (
-        "Analyze this large codebase and provide a comprehensive report. " +
-        "Here is the code:\n" +
-        "\n".join([f"# File {i}: This is line {j} of many lines in a large file to stress test the system's handling of big prompts. " * 5
-                   for i in range(1, 50) for j in range(1, 10)])
-    )[:8000]  # keep it reasonable for API
-    await run_mission(8, "Large Prompt (stress test)", {
-        "title": "Large Prompt Stress Test",
-        "description": large_description,
-        "mission_type": "llm",
-        "priority": "normal",
-    })
+        "Analyze this large codebase and provide a comprehensive report. "
+        + "Here is the code:\n"
+        + "\n".join(
+            [
+                f"# File {i}: This is line {j} of many lines in a large file to stress test the system's handling of big prompts. "
+                * 5
+                for i in range(1, 50)
+                for j in range(1, 10)
+            ]
+        )
+    )[
+        :8000
+    ]  # keep it reasonable for API
+    await run_mission(
+        8,
+        "Large Prompt (stress test)",
+        {
+            "title": "Large Prompt Stress Test",
+            "description": large_description,
+            "mission_type": "llm",
+            "priority": "normal",
+        },
+    )
 
     # ── Mission 9: Concurrent Missions (race conditions) ──
     print(f"\n{'='*60}")
     print(f"MISSION 9: Concurrent Missions (race conditions)")
     print(f"{'='*60}")
     m9_outcomes = []
+
     async def run_concurrent(i, name, data):
         outcome = await run_mission(9, f"{name} #{i}", data)
         m9_outcomes.append(outcome)
@@ -351,12 +453,15 @@ async def main():
     # Create 3 missions first, then execute concurrently
     m9_ids = []
     for i in range(3):
-        status, data = await api_post("/", {
-            "title": f"Concurrent Mission {i+1}",
-            "description": f"This is concurrent mission {i+1} running simultaneously with others. Write a {i+2}-line poem about concurrency.",
-            "mission_type": "general",
-            "priority": "normal",
-        })
+        status, data = await api_post(
+            "/",
+            {
+                "title": f"Concurrent Mission {i+1}",
+                "description": f"This is concurrent mission {i+1} running simultaneously with others. Write a {i+2}-line poem about concurrency.",
+                "mission_type": "general",
+                "priority": "normal",
+            },
+        )
         if status in (200, 201):
             m9_ids.append(data["id"])
             print(f"  Created concurrent mission: {data['id']}")
@@ -389,33 +494,45 @@ async def main():
                 print(f"    Task [{mid[:8]}]: {t['title']} — {t['status']}")
 
     # Record concurrent results
-    results.append({
-        "num": 9,
-        "name": "Concurrent Missions (race conditions)",
-        "concurrent_results": [{"id": mid, "result": str(cr)} for mid, cr in zip(m9_ids, concurrent_results)],
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    results.append(
+        {
+            "num": 9,
+            "name": "Concurrent Missions (race conditions)",
+            "concurrent_results": [
+                {"id": mid, "result": str(cr)}
+                for mid, cr in zip(m9_ids, concurrent_results)
+            ],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
 
     # ── Mission 10: Failing LLM Model (retry logic test) ──
-    await run_mission(10, "Failing LLM Model (retry logic)", {
-        "title": "Retry Logic Test: Non-existent Model",
-        "description": "This mission should use a non-existent LLM model to test retry/fallback behavior.",
-        "mission_type": "llm",
-        "priority": "normal",
-    })
+    await run_mission(
+        10,
+        "Failing LLM Model (retry logic)",
+        {
+            "title": "Retry Logic Test: Non-existent Model",
+            "description": "This mission should use a non-existent LLM model to test retry/fallback behavior.",
+            "mission_type": "llm",
+            "priority": "normal",
+        },
+    )
 
     # ── After all: add custom task with non-existent model ──
     # We'll patch mission 10 to have a bad model on its task
     if results and results[-1].get("mission_id"):
         mid = results[-1]["mission_id"]
         # Create a task with a bad model explicitly
-        status, task_data = await api_post(f"/{mid}/tasks", {
-            "title": "Call with bad model",
-            "description": "Test with non-existent model",
-            "task_type": "llm",
-            "order_index": 99,
-            "assigned_model": "nonexistent-model-v999",
-        })
+        status, task_data = await api_post(
+            f"/{mid}/tasks",
+            {
+                "title": "Call with bad model",
+                "description": "Test with non-existent model",
+                "task_type": "llm",
+                "order_index": 99,
+                "assigned_model": "nonexistent-model-v999",
+            },
+        )
         print(f"  Added bad-model task: HTTP {status}")
 
     # ── Write Results ──────────────────────────────────────
@@ -435,7 +552,11 @@ async def main():
         f.write(f"---\n\n")
 
         f.write(f"## Summary\n\n")
-        total_ok = sum(1 for r in results if r.get("final_status") == "completed" or not r.get("create_error"))
+        total_ok = sum(
+            1
+            for r in results
+            if r.get("final_status") == "completed" or not r.get("create_error")
+        )
         total_fail = sum(1 for r in results if r.get("errors"))
         f.write(f"| Metric | Value |\n|---|---|\n")
         f.write(f"| Total missions run | {len(results)} |\n")
@@ -445,7 +566,7 @@ async def main():
         all_errors = []
         for r in results:
             all_errors.extend(r.get("errors", []))
-        
+
         f.write(f"### All Errors Found\n\n")
         if all_errors:
             for e in all_errors:
@@ -468,8 +589,12 @@ async def main():
             exec_r = r.get("execute_result", {})
             if exec_r:
                 data = exec_r.get("data", {})
-                f.write(f"- **Execute result:** HTTP {exec_r.get('status')}, elapsed {exec_r.get('elapsed_sec')}s\n")
-                f.write(f"  - Completed: {data.get('completed_tasks', '?')}, Failed: {data.get('failed_tasks', '?')}\n")
+                f.write(
+                    f"- **Execute result:** HTTP {exec_r.get('status')}, elapsed {exec_r.get('elapsed_sec')}s\n"
+                )
+                f.write(
+                    f"  - Completed: {data.get('completed_tasks', '?')}, Failed: {data.get('failed_tasks', '?')}\n"
+                )
 
             f.write(f"\n#### Tasks\n\n")
             tasks = r.get("tasks", [])
@@ -477,8 +602,10 @@ async def main():
                 f.write(f"| # | Title | Type | Status | Retries | Error |\n")
                 f.write(f"|---|---|---|---|---|---|\n")
                 for t in tasks:
-                    error = (t.get('error_message') or '')[:60]
-                    f.write(f"| {t.get('order_index', '?')} | {t.get('title','?')[:40]} | {t.get('task_type','?')} | {t.get('status','?')} | {t.get('retry_count',0)} | {error} |\n")
+                    error = (t.get("error_message") or "")[:60]
+                    f.write(
+                        f"| {t.get('order_index', '?')} | {t.get('title','?')[:40]} | {t.get('task_type','?')} | {t.get('status','?')} | {t.get('retry_count',0)} | {error} |\n"
+                    )
             else:
                 f.write(f"(No tasks)\n")
 
@@ -506,10 +633,18 @@ async def main():
         for r in results:
             bugs = []
             for t in r.get("tasks", []):
-                if t.get("retry_count", 0) == 0 and t.get("status") == "failed" and t.get("max_retries", 5) > 0:
-                    bugs.append(f"**Retry not triggered:** Task '{t['title']}' failed but retry_count=0 (max_retries={t.get('max_retries')})")
+                if (
+                    t.get("retry_count", 0) == 0
+                    and t.get("status") == "failed"
+                    and t.get("max_retries", 5) > 0
+                ):
+                    bugs.append(
+                        f"**Retry not triggered:** Task '{t['title']}' failed but retry_count=0 (max_retries={t.get('max_retries')})"
+                    )
                 if t.get("task_type") == "":
-                    bugs.append(f"**Empty task type:** Task '{t['title']}' has empty task_type")
+                    bugs.append(
+                        f"**Empty task type:** Task '{t['title']}' has empty task_type"
+                    )
             if r.get("create_error"):
                 bugs.append(f"**Mission creation failed:** {r['create_error']}")
             if not r.get("mission_id"):
@@ -524,15 +659,21 @@ async def main():
         else:
             f.write(f"(No specific bugs found — all missions ran cleanly)\n")
 
-        f.write(f"\n### code_searcher: except Exception blocks in mission_executor.py\n\n")
+        f.write(
+            f"\n### code_searcher: except Exception blocks in mission_executor.py\n\n"
+        )
         f.write(f"Total `except Exception` blocks in mission_executor.py: **29**\n\n")
         f.write(f"These are the areas where exceptions could be silently swallowed:\n")
         f.write(f"- `_get_model_router()` — 2 except blocks\n")
         f.write(f"- `_get_rag_service()` — 2 except blocks\n")
         f.write(f"- `_update_step_status()` — 1 except block\n")
-        f.write(f"- `plan_mission()` — 3 except blocks (permanent, retryable, general)\n")
+        f.write(
+            f"- `plan_mission()` — 3 except blocks (permanent, retryable, general)\n"
+        )
         f.write(f"- `_generate_plan()` — 3 except blocks\n")
-        f.write(f"- `execute_mission()` — 3 except blocks (task-level + analytics + audit)\n")
+        f.write(
+            f"- `execute_mission()` — 3 except blocks (task-level + analytics + audit)\n"
+        )
         f.write(f"- `execute_task()` — 2 except blocks\n")
         f.write(f"- `_execute_llm()` — 2 except blocks\n")
         f.write(f"- `_execute_tool()` — 2 except blocks\n")

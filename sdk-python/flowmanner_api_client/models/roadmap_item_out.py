@@ -1,39 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="RoadmapItemOut")
-
 
 
 @_attrs_define
 class RoadmapItemOut:
-    """ 
-        Attributes:
-            id (str):
-            title (str):
-            description (str):
-            status (str):
-            category (str):
-            sort_order (int):
-            is_public (bool):
-            vote_count (int):
-            created_by (str):
-            created_at (str):
-            updated_at (str):
-     """
+    """
+    Attributes:
+        id (str):
+        title (str):
+        description (str):
+        status (str):
+        category (str):
+        sort_order (int):
+        is_public (bool):
+        vote_count (int):
+        created_by (str):
+        created_at (str):
+        updated_at (str):
+    """
 
     id: str
     title: str
@@ -47,10 +38,6 @@ class RoadmapItemOut:
     created_at: str
     updated_at: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -75,26 +62,25 @@ class RoadmapItemOut:
 
         updated_at = self.updated_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "title": title,
-            "description": description,
-            "status": status,
-            "category": category,
-            "sort_order": sort_order,
-            "is_public": is_public,
-            "vote_count": vote_count,
-            "created_by": created_by,
-            "created_at": created_at,
-            "updated_at": updated_at,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "title": title,
+                "description": description,
+                "status": status,
+                "category": category,
+                "sort_order": sort_order,
+                "is_public": is_public,
+                "vote_count": vote_count,
+                "created_by": created_by,
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -134,7 +120,6 @@ class RoadmapItemOut:
             created_at=created_at,
             updated_at=updated_at,
         )
-
 
         roadmap_item_out.additional_properties = d
         return roadmap_item_out

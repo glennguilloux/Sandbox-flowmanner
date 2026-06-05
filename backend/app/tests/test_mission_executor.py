@@ -29,6 +29,7 @@ class TestMissionExecutorInterface:
 
 # ── LlmExecutor tests (moved from MissionExecutor._execute_llm) ───────────────
 
+
 class TestExecuteLlmErrorPropagation:
     """LlmExecutor.execute_llm must NOT swallow success=False from ModelRouter."""
 
@@ -117,6 +118,7 @@ class TestExecuteLlmErrorPropagation:
 
 # ── MissionExecutor._classify_error (still on executor) ───────────────────────
 
+
 class TestClassifyError:
     """_classify_error: retryable vs permanent classification."""
 
@@ -140,7 +142,9 @@ class TestClassifyError:
         executor = MissionExecutor()
         mock_response = MagicMock()
         mock_response.status_code = 429
-        exc = httpx.HTTPStatusError("rate limited", request=MagicMock(), response=mock_response)
+        exc = httpx.HTTPStatusError(
+            "rate limited", request=MagicMock(), response=mock_response
+        )
         result = executor._classify_error(exc)
         assert isinstance(result, RetryableMissionError)
 
@@ -153,7 +157,9 @@ class TestClassifyError:
         executor = MissionExecutor()
         mock_response = MagicMock()
         mock_response.status_code = 401
-        exc = httpx.HTTPStatusError("unauthorized", request=MagicMock(), response=mock_response)
+        exc = httpx.HTTPStatusError(
+            "unauthorized", request=MagicMock(), response=mock_response
+        )
         result = executor._classify_error(exc)
         assert isinstance(result, PermanentMissionError)
 
@@ -177,6 +183,7 @@ class TestClassifyError:
 
 
 # ── MissionExecutor._transition_status (still on executor) ────────────────────
+
 
 class TestTransitionStatus:
     """_transition_status: both valid and invalid transitions."""
@@ -233,6 +240,7 @@ class TestTransitionStatus:
 
 # ── MissionPlanner tests (moved from MissionExecutor._build_plan_prompt) ──────
 
+
 class TestBuildPlanPrompt:
     """_build_plan_prompt: verify prompt structure (now on MissionPlanner)."""
 
@@ -254,6 +262,7 @@ class TestBuildPlanPrompt:
 
 
 # ── TaskExecutor._aggregate_results tests ─────────────────────────────────────
+
 
 class TestAggregateResults:
     """_aggregate_results: edge cases (now on TaskExecutor)."""
@@ -293,6 +302,7 @@ class TestAggregateResults:
 
 # ── CostTracker.estimate_cost tests ───────────────────────────────────────────
 
+
 class TestEstimateCost:
     """CostTracker.estimate_cost: correct arithmetic."""
 
@@ -312,6 +322,7 @@ class TestEstimateCost:
 
 
 # ── Concurrency safety ────────────────────────────────────────────────────────
+
 
 class TestConcurrencySafety:
     """execute_mission must use with_for_update() and validate state after lock."""

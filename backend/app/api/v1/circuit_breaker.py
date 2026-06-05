@@ -69,7 +69,9 @@ async def reset_circuit_breaker(
     service = CircuitBreakerService(db)
     breaker = await service.get_breaker(mission_id)
     if breaker is None:
-        raise HTTPException(status_code=404, detail="No circuit breaker for this mission")
+        raise HTTPException(
+            status_code=404, detail="No circuit breaker for this mission"
+        )
     if breaker.state == CircuitBreakerState.ARMED.value:
         return {"message": "Breaker is already armed", **_breaker_to_dict(breaker)}
 
@@ -102,7 +104,9 @@ async def update_circuit_breaker(
     if body.max_tool_calls is not None:
         breaker.max_tool_calls = body.max_tool_calls
     if body.destructive_actions_require_approval is not None:
-        breaker.destructive_actions_require_approval = body.destructive_actions_require_approval
+        breaker.destructive_actions_require_approval = (
+            body.destructive_actions_require_approval
+        )
     if body.destructive_actions is not None:
         breaker.destructive_actions = body.destructive_actions
 
@@ -125,7 +129,9 @@ def _breaker_to_dict(breaker) -> dict[str, Any]:
         "cost_accumulated_usd": round(breaker.cost_accumulated_usd, 6),
         "started_at": breaker.started_at.isoformat() if breaker.started_at else None,
         "trigger_reason": breaker.trigger_reason,
-        "triggered_at": breaker.triggered_at.isoformat() if breaker.triggered_at else None,
+        "triggered_at": (
+            breaker.triggered_at.isoformat() if breaker.triggered_at else None
+        ),
         "trigger_count": breaker.trigger_count,
         "destructive_actions": breaker.destructive_actions,
     }

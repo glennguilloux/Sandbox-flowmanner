@@ -40,15 +40,18 @@ async def test_user():
 
 # ── Auth bypass ────────────────────────────────────────────────
 
+
 @pytest_asyncio.fixture
 async def client(test_user):
     """Create an async TestClient with auth bypassed."""
+
     async def override_get_current_user():
         return test_user
 
     async def override_get_db():
         # Use the app's default session for real DB access
         from app.db.session import AsyncSessionLocal
+
         async with AsyncSessionLocal() as session:
             yield session
 
@@ -65,6 +68,7 @@ async def client(test_user):
 
 
 # ── Workflow definition ────────────────────────────────────────
+
 
 def classify_route_workflow():
     """Build a simple linear workflow: start -> task -> log -> end."""
@@ -135,6 +139,7 @@ def classify_route_workflow():
 
 # ── Tests ──────────────────────────────────────────────────────
 
+
 class TestClassifyRouteWorkflow:
     """Integration tests for the classify-and-route workflow."""
 
@@ -177,6 +182,7 @@ class TestClassifyRouteWorkflow:
 
         # Poll until complete (or timeout)
         import asyncio
+
         status = execution["status"]
         for _ in range(60):  # up to 30 seconds
             await asyncio.sleep(0.5)
@@ -215,13 +221,16 @@ class TestClassifyRouteWorkflow:
         exec_resp = await client.post(
             f"/api/graphs/{workflow_id}/execute", json=exec_payload
         )
-        assert exec_resp.status_code == 200, f"Subgraph execute failed: {exec_resp.text}"
+        assert (
+            exec_resp.status_code == 200
+        ), f"Subgraph execute failed: {exec_resp.text}"
 
         execution = exec_resp.json()
         execution_id = execution["id"]
 
         # Poll until complete
         import asyncio
+
         status = execution["status"]
         detail = None
         for _ in range(60):
@@ -235,22 +244,29 @@ class TestClassifyRouteWorkflow:
                 if status in ("completed", "failed"):
                     break
 
-        assert status == "completed", f"Subgraph execution did not complete: status={status}"
+        assert (
+            status == "completed"
+        ), f"Subgraph execution did not complete: status={status}"
 
         # Verify node states: start and classify should be "not_executed" or absent
         if detail and detail.get("node_states"):
             node_states = detail["node_states"]
             executed_nodes = {
-                ns["node_id"] for ns in node_states
-                if ns.get("status") == "completed"
+                ns["node_id"] for ns in node_states if ns.get("status") == "completed"
             }
             # n-process, n-log, n-end should have executed
-            assert "n-process" in executed_nodes, f"Expected n-process in executed nodes, got {executed_nodes}"
+            assert (
+                "n-process" in executed_nodes
+            ), f"Expected n-process in executed nodes, got {executed_nodes}"
             assert "n-log" in executed_nodes
             assert "n-end" in executed_nodes
             # n-start and n-classify should NOT have executed (subgraph skip)
-            assert "n-start" not in executed_nodes, "n-start should NOT have executed in subgraph"
-            assert "n-classify" not in executed_nodes, "n-classify should NOT have executed in subgraph"
+            assert (
+                "n-start" not in executed_nodes
+            ), "n-start should NOT have executed in subgraph"
+            assert (
+                "n-classify" not in executed_nodes
+            ), "n-classify should NOT have executed in subgraph"
 
     @pytest.mark.asyncio
     async def test_subgraph_execution_curl_equivalent(self, client: AsyncClient):
@@ -269,9 +285,7 @@ class TestClassifyRouteWorkflow:
 
         response = await client.post(
             f"/api/graphs/{workflow_id}/execute",
-            content=json.dumps({
-                "input_data": {"start_node_id": "n-process"}
-            }),
+            content=json.dumps({"input_data": {"start_node_id": "n-process"}}),
             headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 200

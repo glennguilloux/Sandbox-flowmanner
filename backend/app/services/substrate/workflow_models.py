@@ -22,12 +22,14 @@ from app.models.capability_models import Budget
 
 # ── Node types (union of all old executor node types) ────────────────
 
+
 class NodeType(str, Enum):
     """Every node type supported by the unified executor.
 
     Each old executor contributes its node types here.  The shared
     execute_node() dispatches on node.type.
     """
+
     # From mission_executor
     LLM_CALL = "llm_call"
     TOOL_CALL = "tool_call"
@@ -47,36 +49,40 @@ class NodeType(str, Enum):
     BROWSER_CLOSE = "browser_close"
 
     # Strategy-specific
-    APPROVAL = "approval"           # Human-in-the-loop pause
-    SUB_WORKFLOW = "sub_workflow"   # Recursive execution
-    PHASE_GATE = "phase_gate"       # Pipeline phase boundary
-    FAN_OUT = "fan_out"             # Swarm decomposition
-    FAN_IN = "fan_in"               # Swarm synthesis
+    APPROVAL = "approval"  # Human-in-the-loop pause
+    SUB_WORKFLOW = "sub_workflow"  # Recursive execution
+    PHASE_GATE = "phase_gate"  # Pipeline phase boundary
+    FAN_OUT = "fan_out"  # Swarm decomposition
+    FAN_IN = "fan_in"  # Swarm synthesis
 
 
 # ── Workflow types (maps 1:1 to old executors) ──────────────────────
+
 
 class WorkflowType(str, Enum):
     """Each old executor maps to one WorkflowType.
 
     New workflow types can be added without writing new executors.
     """
-    SOLO = "solo"           # mission_executor.py
-    DAG = "dag"             # dag_executor.py
-    SWARM = "swarm"         # swarm/orchestrator.py
-    PIPELINE = "pipeline"   # swarm_pipeline/orchestrator.py
-    GRAPH = "graph"         # graph_executor.py
-    META = "meta"           # nexus/meta_loop_orchestrator.py
-    LANGGRAPH = "langgraph" # langgraph/agent.py
+
+    SOLO = "solo"  # mission_executor.py
+    DAG = "dag"  # dag_executor.py
+    SWARM = "swarm"  # swarm/orchestrator.py
+    PIPELINE = "pipeline"  # swarm_pipeline/orchestrator.py
+    GRAPH = "graph"  # graph_executor.py
+    META = "meta"  # nexus/meta_loop_orchestrator.py
+    LANGGRAPH = "langgraph"  # langgraph/agent.py
 
 
 # ── Workflow components ──────────────────────────────────────────────
+
 
 class WorkflowNode(BaseModel):
     """A single node in a workflow.
 
     Replaces MissionTask, OrchestratorTask, GraphNode, and others.
     """
+
     id: str
     type: NodeType
     title: str = ""
@@ -98,6 +104,7 @@ class WorkflowNode(BaseModel):
 
 class WorkflowEdge(BaseModel):
     """A directed edge between two workflow nodes."""
+
     source: str
     target: str
     condition: str | None = None  # e.g., "{{node_id.output.status}} == 'success'"
@@ -111,18 +118,21 @@ class Workflow(BaseModel):
     before execution.  The UnifiedExecutor operates exclusively on
     Workflow instances.
     """
+
     id: str
     type: WorkflowType
     title: str
     description: str | None = None
     nodes: list[WorkflowNode] = Field(default_factory=list)
     edges: list[WorkflowEdge] = Field(default_factory=list)
-    budget: Budget = Field(default_factory=lambda: Budget(
-        max_cost_usd=Decimal("10.00"),
-        max_wall_time_seconds=300,
-        max_iterations=100,
-        max_depth=5,
-    ))
+    budget: Budget = Field(
+        default_factory=lambda: Budget(
+            max_cost_usd=Decimal("10.00"),
+            max_wall_time_seconds=300,
+            max_iterations=100,
+            max_depth=5,
+        )
+    )
     user_id: str | None = None
     input_schema: dict[str, Any] | None = None
     output_schema: dict[str, Any] | None = None
@@ -153,12 +163,14 @@ class Workflow(BaseModel):
 
 # ── Strategy result (returned by all strategies) ────────────────────
 
+
 class StrategyResult(BaseModel):
     """Result from any strategy execution.
 
     All 7 strategies return this type.  Consumers only need to check
     success and status; details are in the fields below.
     """
+
     success: bool
     status: str  # "completed", "failed", "aborted", "paused"
     data: Any = None

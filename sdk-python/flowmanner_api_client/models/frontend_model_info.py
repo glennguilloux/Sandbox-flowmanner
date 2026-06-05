@@ -1,52 +1,39 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="FrontendModelInfo")
-
 
 
 @_attrs_define
 class FrontendModelInfo:
-    """ 
-        Attributes:
-            model_id (str):
-            display_name (str):
-            status (str | Unset):  Default: 'available'.
-            context_length (int | Unset):  Default: 0.
-            vram_usage_gb (float | None | Unset):
-            quantization (None | str | Unset):
-            provider (None | str | Unset):
-            description (None | str | Unset):
-     """
+    """
+    Attributes:
+        model_id (str):
+        display_name (str):
+        status (str | Unset):  Default: 'available'.
+        context_length (int | Unset):  Default: 0.
+        vram_usage_gb (float | None | Unset):
+        quantization (None | str | Unset):
+        provider (None | str | Unset):
+        description (None | str | Unset):
+    """
 
     model_id: str
     display_name: str
-    status: str | Unset = 'available'
+    status: str | Unset = "available"
     context_length: int | Unset = 0
     vram_usage_gb: float | None | Unset = UNSET
     quantization: None | str | Unset = UNSET
     provider: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         model_id = self.model_id
@@ -81,13 +68,14 @@ class FrontendModelInfo:
         else:
             description = self.description
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "model_id": model_id,
-            "display_name": display_name,
-        })
+        field_dict.update(
+            {
+                "model_id": model_id,
+                "display_name": display_name,
+            }
+        )
         if status is not UNSET:
             field_dict["status"] = status
         if context_length is not UNSET:
@@ -102,8 +90,6 @@ class FrontendModelInfo:
             field_dict["description"] = description
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -125,7 +111,6 @@ class FrontendModelInfo:
 
         vram_usage_gb = _parse_vram_usage_gb(d.pop("vram_usage_gb", UNSET))
 
-
         def _parse_quantization(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -134,7 +119,6 @@ class FrontendModelInfo:
             return cast(None | str | Unset, data)
 
         quantization = _parse_quantization(d.pop("quantization", UNSET))
-
 
         def _parse_provider(data: object) -> None | str | Unset:
             if data is None:
@@ -145,7 +129,6 @@ class FrontendModelInfo:
 
         provider = _parse_provider(d.pop("provider", UNSET))
 
-
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -154,7 +137,6 @@ class FrontendModelInfo:
             return cast(None | str | Unset, data)
 
         description = _parse_description(d.pop("description", UNSET))
-
 
         frontend_model_info = cls(
             model_id=model_id,
@@ -166,7 +148,6 @@ class FrontendModelInfo:
             provider=provider,
             description=description,
         )
-
 
         frontend_model_info.additional_properties = d
         return frontend_model_info

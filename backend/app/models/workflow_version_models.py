@@ -26,13 +26,15 @@ class WorkflowVersion(Base, TimestampMixin):
     __tablename__ = "workflow_versions"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: str(uuid4()),
     )
     workflow_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workflows.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
@@ -50,30 +52,38 @@ class ExecutionEvent(Base, TimestampMixin):
     __tablename__ = "execution_events"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True,
+        String(36),
+        primary_key=True,
         default=lambda: str(uuid4()),
     )
     execution_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workflow_executions.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     event_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True,
+        String(50),
+        nullable=False,
+        index=True,
         comment="'started', 'node_started', 'node_completed', 'node_failed', "
-                "'completed', 'failed', 'paused', 'resumed', 'side_effect'",
+        "'completed', 'failed', 'paused', 'resumed', 'side_effect'",
     )
     node_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
         comment="ID of the workflow node this event relates to (if any)",
     )
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     level: Mapped[str] = mapped_column(
-        String(20), default="info", nullable=False,
+        String(20),
+        default="info",
+        nullable=False,
         comment="'debug', 'info', 'warn', 'error'",
     )
     sequence: Mapped[int] = mapped_column(
-        Integer, nullable=False,
+        Integer,
+        nullable=False,
         comment="Monotonically increasing sequence within the execution",
     )

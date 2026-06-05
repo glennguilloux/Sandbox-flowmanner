@@ -73,14 +73,10 @@ class TestExecute:
             task_type="visualization",
         )
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
-            mock_orch.get_tasks = AsyncMock(
-                return_value=[mock_task, mock_task2]
-            )
+            mock_orch.get_tasks = AsyncMock(return_value=[mock_task, mock_task2])
 
             payload = {
                 "goal": "Analyze sales data across all regions",
@@ -122,9 +118,7 @@ class TestExecute:
         """All three valid strategies are accepted and passed through."""
         mock_exec = _make_mock_execution(strategy=strategy)
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[])
@@ -146,9 +140,7 @@ class TestExecute:
         """Boundary values for max_agents: 1 (min), 5 (default), 10 (max)."""
         mock_exec = _make_mock_execution(agent_count=max_agents)
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[])
@@ -168,9 +160,7 @@ class TestExecute:
         """Metadata dict is passed through to orchestrator."""
         mock_exec = _make_mock_execution()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[])
@@ -191,9 +181,7 @@ class TestExecute:
         """When strategy is omitted, default 'parallel' is used."""
         mock_exec = _make_mock_execution()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[])
@@ -212,9 +200,7 @@ class TestExecute:
         """When max_agents is omitted, default 5 is used."""
         mock_exec = _make_mock_execution()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[])
@@ -235,9 +221,7 @@ class TestExecute:
         mock_exec = _make_mock_execution()
         mock_task = _make_mock_task(output=long_output)
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[mock_task])
@@ -258,9 +242,7 @@ class TestExecute:
         mock_exec = _make_mock_execution()
         mock_task = _make_mock_task(output=exact_output)
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[mock_task])
@@ -328,9 +310,7 @@ class TestExecute:
         boundary_goal = "x" * 10000
         mock_exec = _make_mock_execution()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[])
@@ -351,9 +331,7 @@ class TestExecute:
 
     def test_execute_service_failure(self, test_client):
         """Generic orchestrator exception returns 500."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(
                 side_effect=RuntimeError("LLM API rate limit exceeded")
@@ -371,9 +349,7 @@ class TestExecute:
         """Orchestrator fails during get_tasks returns 500."""
         mock_exec = _make_mock_execution()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(
@@ -395,9 +371,7 @@ class TestExecute:
         mock_exec = _make_mock_execution(started_at=None, completed_at=None)
         mock_task = _make_mock_task()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(return_value=[mock_task])
@@ -434,13 +408,9 @@ class TestList:
             total_tokens=8000,
         )
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
-            mock_orch.list_executions = AsyncMock(
-                return_value=[mock_e1, mock_e2]
-            )
+            mock_orch.list_executions = AsyncMock(return_value=[mock_e1, mock_e2])
 
             resp = test_client.get("/api/swarm")
 
@@ -461,9 +431,7 @@ class TestList:
 
     def test_list_executions_with_limit(self, test_client):
         """Limit query param is passed to service."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(return_value=[])
 
@@ -476,9 +444,7 @@ class TestList:
 
     def test_list_executions_default_limit(self, test_client):
         """Default limit=20 is used when not specified."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(return_value=[])
 
@@ -491,24 +457,18 @@ class TestList:
     @pytest.mark.parametrize("limit", [1, 100])
     def test_list_executions_boundary_limits(self, test_client, limit):
         """Boundary limits 1 (min) and 100 (max) are accepted."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(return_value=[])
 
             resp = test_client.get("/api/swarm", params={"limit": limit})
 
-        assert resp.status_code == 200, (
-            f"limit={limit} should be accepted"
-        )
+        assert resp.status_code == 200, f"limit={limit} should be accepted"
         assert mock_orch.list_executions.call_args.kwargs["limit"] == limit
 
     def test_list_executions_empty(self, test_client):
         """Empty list returns empty executions array."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(return_value=[])
 
@@ -522,9 +482,7 @@ class TestList:
         long_goal = "y" * 500
         mock_e = _make_mock_execution(goal=long_goal)
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(return_value=[mock_e])
 
@@ -540,9 +498,7 @@ class TestList:
         boundary_goal = "z" * 200
         mock_e = _make_mock_execution(goal=boundary_goal)
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(return_value=[mock_e])
 
@@ -557,15 +513,13 @@ class TestList:
     def test_list_executions_limit_out_of_range(self, test_client, limit):
         """Limit outside 1-100 range returns 422."""
         resp = test_client.get("/api/swarm", params={"limit": limit})
-        assert resp.status_code == 422, (
-            f"limit={limit} should return 422, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 422
+        ), f"limit={limit} should return 422, got {resp.status_code}"
 
     def test_list_executions_service_failure(self, test_client):
         """Service exception returns 500."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.list_executions = AsyncMock(
                 side_effect=RuntimeError("Database unavailable")
@@ -598,14 +552,10 @@ class TestGetById:
             output="Generated PDF report: 42 pages",
         )
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.get_execution = AsyncMock(return_value=mock_exec)
-            mock_orch.get_tasks = AsyncMock(
-                return_value=[mock_task, mock_task2]
-            )
+            mock_orch.get_tasks = AsyncMock(return_value=[mock_task, mock_task2])
 
             resp = test_client.get("/api/swarm/exec-001")
 
@@ -646,9 +596,7 @@ class TestGetById:
 
     def test_get_execution_not_found(self, test_client):
         """Non-existent execution returns 404."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.get_execution = AsyncMock(return_value=None)
 
@@ -659,9 +607,7 @@ class TestGetById:
 
     def test_get_execution_service_failure(self, test_client):
         """Service exception during get returns 500."""
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.get_execution = AsyncMock(
                 side_effect=RuntimeError("Connection pool exhausted")
@@ -676,9 +622,7 @@ class TestGetById:
         """Orchestrator fails during get_tasks returns 500 after successful get_execution."""
         mock_exec = _make_mock_execution()
 
-        with patch(
-            "app.api.v1.swarm.SwarmOrchestrator"
-        ) as mock_orch_cls:
+        with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.get_execution = AsyncMock(return_value=mock_exec)
             mock_orch.get_tasks = AsyncMock(
@@ -707,9 +651,7 @@ class TestRouteRegistration:
             ("POST", "/api/swarm/execute", 422),  # route exists, missing body
         ],
     )
-    def test_endpoints_registered(
-        self, test_client, method, path, expected_status
-    ):
+    def test_endpoints_registered(self, test_client, method, path, expected_status):
         """Endpoint returns expected status (not 404 for the route itself)."""
         # Patch orchestrator so endpoints don't error trying to use real DB
         with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:

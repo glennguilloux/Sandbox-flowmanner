@@ -17,6 +17,7 @@ class StrategyRegistry:
 
     Lazy-loaded: strategies are imported on first access, not at boot.
     """
+
     _strategies: dict[WorkflowType, type] = {}
     _imported: set[str] = set()
 
@@ -46,6 +47,7 @@ class StrategyRegistry:
                 cls._strategies[WorkflowType(wf_type)] = getattr(mod, class_name)
             except ImportError as e:
                 import logging
+
                 logging.getLogger(__name__).warning(
                     "Could not import strategy %s: %s", wf_type, e
                 )

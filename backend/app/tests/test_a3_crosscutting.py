@@ -22,14 +22,21 @@ from app.models.mission_models import MissionLog, MissionStatus
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def _make_user(id: int = 1) -> SimpleNamespace:
     return SimpleNamespace(
-        id=id, email="test@example.com", username="testuser",
-        is_active=True, role="user", is_admin=False,
+        id=id,
+        email="test@example.com",
+        username="testuser",
+        is_active=True,
+        role="user",
+        is_admin=False,
     )
 
 
-def _make_mission(user_id: int = 1, status: MissionStatus = MissionStatus.PENDING) -> MagicMock:
+def _make_mission(
+    user_id: int = 1, status: MissionStatus = MissionStatus.PENDING
+) -> MagicMock:
     m = MagicMock()
     m.user_id = user_id
     m.id = "550e8400-e29b-41d4-a716-446655440000"
@@ -140,7 +147,9 @@ class TestSoftDeleteVisibility:
         session.flush = AsyncMock()
 
         result = await delete_mission(
-            session, "550e8400-e29b-41d4-a716-446655440000", deleted_by=42,
+            session,
+            "550e8400-e29b-41d4-a716-446655440000",
+            deleted_by=42,
         )
         assert result is True
         assert mission.deleted_at is not None
@@ -210,9 +219,9 @@ class TestIdempotency:
 
         h = _hash_request("POST", "/api/v2/missions", '{"title":"Test"}')
         assert len(h) == 64  # SHA-256 hex
-        assert h == hashlib.sha256(
-            b'POST:/api/v2/missions:{"title":"Test"}'
-        ).hexdigest()
+        assert (
+            h == hashlib.sha256(b'POST:/api/v2/missions:{"title":"Test"}').hexdigest()
+        )
 
     @pytest.mark.asyncio
     async def test_existing_key_with_matching_hash_returns_cached(self, session, user):
@@ -240,12 +249,8 @@ class TestIdempotency:
         """Same key + different payload hash → checks hash comparison."""
         import hashlib
 
-        h1 = hashlib.sha256(
-            b"POST:/api/v2/missions:body1"
-        ).hexdigest()
-        h2 = hashlib.sha256(
-            b"POST:/api/v2/missions:body2"
-        ).hexdigest()
+        h1 = hashlib.sha256(b"POST:/api/v2/missions:body1").hexdigest()
+        h2 = hashlib.sha256(b"POST:/api/v2/missions:body2").hexdigest()
 
         assert h1 != h2, "Different payloads must produce different hashes"
 

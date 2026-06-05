@@ -90,6 +90,7 @@ async def verify_setup_2fa(
 
     # Enable 2FA
     from datetime import UTC, datetime
+
     user.totp_enabled = True
     user.totp_verified_at = datetime.now(UTC)
 
@@ -205,5 +206,7 @@ async def get_2fa_status(
     return User2FAStatusResponse(
         totp_enabled=user.totp_enabled or False,
         backup_codes_count=backup_count,
-        totp_verified_at=user.totp_verified_at.isoformat() if user.totp_verified_at else None,
+        totp_verified_at=(
+            user.totp_verified_at.isoformat() if user.totp_verified_at else None
+        ),
     )

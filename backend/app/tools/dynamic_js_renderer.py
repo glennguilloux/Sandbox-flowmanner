@@ -112,14 +112,16 @@ class DynamicJsRendererTool(BaseTool):
                     }
 
                     if validated.extract_text:
-                        text = await page.evaluate("""
+                        text = await page.evaluate(
+                            """
                             () => {
                                 // Remove script and style content
                                 const clone = document.body.cloneNode(true);
                                 clone.querySelectorAll('script, style, noscript').forEach(el => el.remove());
                                 return clone.innerText || '';
                             }
-                        """)
+                        """
+                        )
                         result["text"] = text.strip()
                         result["text_length"] = len(text.strip())
 
@@ -130,8 +132,11 @@ class DynamicJsRendererTool(BaseTool):
 
                     if validated.screenshot:
                         import base64
+
                         screenshot_bytes = await page.screenshot(full_page=True)
-                        result["screenshot_base64"] = base64.b64encode(screenshot_bytes).decode()
+                        result["screenshot_base64"] = base64.b64encode(
+                            screenshot_bytes
+                        ).decode()
 
                 finally:
                     await browser.close()

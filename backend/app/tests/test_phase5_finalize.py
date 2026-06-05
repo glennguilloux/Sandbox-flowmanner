@@ -26,22 +26,36 @@ class TestCacheHitAvoidsDbForGetMission:
         valid_id = str(uuid.uuid4())
         mock_cache_get = mocker.patch(
             "app.api._mission_cqrs.queries.cache_get",
-            new=AsyncMock(return_value={
-                "id": valid_id, "user_id": 1, "title": "Cached",
-                "description": "", "mission_type": "general",
-                "status": "running", "priority": "medium",
-                "plan": {}, "results": {}, "error_message": None,
-                "tokens_used": 100, "estimated_cost": 0.01, "actual_cost": 0.01,
-                "started_at": None, "completed_at": None,
-                "created_at": None, "updated_at": None,
-                "progress": 50, "eta": None,
-            }),
+            new=AsyncMock(
+                return_value={
+                    "id": valid_id,
+                    "user_id": 1,
+                    "title": "Cached",
+                    "description": "",
+                    "mission_type": "general",
+                    "status": "running",
+                    "priority": "medium",
+                    "plan": {},
+                    "results": {},
+                    "error_message": None,
+                    "tokens_used": 100,
+                    "estimated_cost": 0.01,
+                    "actual_cost": 0.01,
+                    "started_at": None,
+                    "completed_at": None,
+                    "created_at": None,
+                    "updated_at": None,
+                    "progress": 50,
+                    "eta": None,
+                }
+            ),
         )
         mock_get_mission = mocker.patch(
             "app.api._mission_cqrs.queries.get_mission",
             new=AsyncMock(),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         handlers = MissionQueryHandlers(session)
         result = await handlers.get_mission_response(user_id=1, mission_id=valid_id)
@@ -60,11 +74,13 @@ class TestCacheHitAvoidsDbForGetMission:
 
         async def mock_get(user_id: int, mission_id: str) -> dict | None:
             import json
+
             raw = cache_store.get(mission_id)
             return json.loads(raw) if raw else None
 
         async def mock_set(user_id: int, mission_id: str, data: dict, ttl=None) -> None:
             import json
+
             cache_store[mission_id] = json.dumps(data)
 
         mocker.patch("app.api._mission_cqrs.queries.cache_get", side_effect=mock_get)
@@ -96,6 +112,7 @@ class TestCacheHitAvoidsDbForGetMission:
         )
 
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         # Configure session.execute to avoid coroutine leakage
         execute_mock = AsyncMock()
@@ -110,6 +127,7 @@ class TestCacheHitAvoidsDbForGetMission:
 
         # Manually seed the cache store to simulate fire-and-forget completion
         import json
+
         cache_store[valid_id] = json.dumps(result1.model_dump(mode="json"))
         assert cache_store.get(valid_id) is not None
 
@@ -163,6 +181,7 @@ class TestLogsCacheWiring:
             new=AsyncMock(return_value=[]),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         # Configure session.execute to avoid coroutine leakage
         execute_mock = AsyncMock()
@@ -177,9 +196,12 @@ class TestLogsCacheWiring:
         """Cache hit returns logs without DB fetch for logs."""
         valid_id = str(uuid.uuid4())
         log_data = {
-            "id": str(uuid.uuid4()), "mission_id": valid_id,
-            "level": "info", "message": "Test log",
-            "data": {}, "created_at": "2026-06-02T00:00:00Z",
+            "id": str(uuid.uuid4()),
+            "mission_id": valid_id,
+            "level": "info",
+            "message": "Test log",
+            "data": {},
+            "created_at": "2026-06-02T00:00:00Z",
         }
         mock_cache_get_logs = mocker.patch(
             "app.api._mission_cqrs.queries.cache_get_logs",
@@ -212,6 +234,7 @@ class TestLogsCacheWiring:
             new=AsyncMock(return_value=mission),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         # Configure session.execute to avoid coroutine leakage
         execute_mock = AsyncMock()
@@ -235,12 +258,18 @@ class TestStatusCacheWiring:
         valid_id = str(uuid.uuid4())
         mock_cache_get_status = mocker.patch(
             "app.api._mission_cqrs.queries.cache_get_status",
-            new=AsyncMock(return_value={
-                "mission_id": valid_id, "status": "running",
-                "total_tasks": 5, "completed_tasks": 3,
-                "failed_tasks": 0, "total_tokens_used": 1000,
-                "started_at": None, "estimated_completion": None,
-            }),
+            new=AsyncMock(
+                return_value={
+                    "mission_id": valid_id,
+                    "status": "running",
+                    "total_tasks": 5,
+                    "completed_tasks": 3,
+                    "failed_tasks": 0,
+                    "total_tokens_used": 1000,
+                    "started_at": None,
+                    "estimated_completion": None,
+                }
+            ),
         )
         mock_get_mission_tasks = mocker.patch(
             "app.api._mission_cqrs.queries.get_mission_tasks",
@@ -269,6 +298,7 @@ class TestStatusCacheWiring:
             new=AsyncMock(return_value=mission),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         # Configure session.execute to avoid coroutine leakage
         execute_mock = AsyncMock()
@@ -302,6 +332,7 @@ class TestSoftDeleteCacheSafety:
             new=AsyncMock(return_value=([], 0)),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         handlers = MissionQueryHandlers(session)
         result = await handlers.list_missions(user_id=1, page=1, per_page=20)
@@ -313,21 +344,36 @@ class TestSoftDeleteCacheSafety:
         id1 = str(uuid.uuid4())
         mocker.patch(
             "app.api._mission_cqrs.queries.cache_active",
-            new=AsyncMock(return_value={
-                "missions": [{
-                    "id": id1, "user_id": 1, "title": "Active",
-                    "description": "", "mission_type": "general",
-                    "status": "running", "priority": "medium",
-                    "plan": {}, "results": {}, "error_message": None,
-                    "tokens_used": 0, "estimated_cost": 0.0, "actual_cost": 0.0,
-                    "started_at": None, "completed_at": None,
-                    "created_at": None, "updated_at": None,
-                    "deleted_at": "2026-01-01T00:00:00",
-                }],
-                "total": 1,
-            }),
+            new=AsyncMock(
+                return_value={
+                    "missions": [
+                        {
+                            "id": id1,
+                            "user_id": 1,
+                            "title": "Active",
+                            "description": "",
+                            "mission_type": "general",
+                            "status": "running",
+                            "priority": "medium",
+                            "plan": {},
+                            "results": {},
+                            "error_message": None,
+                            "tokens_used": 0,
+                            "estimated_cost": 0.0,
+                            "actual_cost": 0.0,
+                            "started_at": None,
+                            "completed_at": None,
+                            "created_at": None,
+                            "updated_at": None,
+                            "deleted_at": "2026-01-01T00:00:00",
+                        }
+                    ],
+                    "total": 1,
+                }
+            ),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
+
         session = AsyncMock()
         handlers = MissionQueryHandlers(session)
         result = await handlers.active_missions(user_id=1, user_role="pro")
@@ -348,19 +394,33 @@ class TestOwnershipOnCachePaths:
         valid_id = str(uuid.uuid4())
         mocker.patch(
             "app.api._mission_cqrs.queries.cache_get",
-            new=AsyncMock(return_value={
-                "id": valid_id, "user_id": 2, "title": "Other User's",
-                "description": "", "mission_type": "general",
-                "status": "pending", "priority": "medium",
-                "plan": {}, "results": {}, "error_message": None,
-                "tokens_used": 0, "estimated_cost": 0.0, "actual_cost": 0.0,
-                "started_at": None, "completed_at": None,
-                "created_at": None, "updated_at": None,
-                "progress": 0, "eta": None,
-            }),
+            new=AsyncMock(
+                return_value={
+                    "id": valid_id,
+                    "user_id": 2,
+                    "title": "Other User's",
+                    "description": "",
+                    "mission_type": "general",
+                    "status": "pending",
+                    "priority": "medium",
+                    "plan": {},
+                    "results": {},
+                    "error_message": None,
+                    "tokens_used": 0,
+                    "estimated_cost": 0.0,
+                    "actual_cost": 0.0,
+                    "started_at": None,
+                    "completed_at": None,
+                    "created_at": None,
+                    "updated_at": None,
+                    "progress": 0,
+                    "eta": None,
+                }
+            ),
         )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
         from app.services.mission_errors import MissionNotFoundError
+
         session = AsyncMock()
         handlers = MissionQueryHandlers(session)
         with pytest.raises(MissionNotFoundError):
@@ -377,18 +437,21 @@ class TestNoEnsureFutureInMissionCode:
 
     def test_no_ensure_future_in_queries(self):
         from pathlib import Path
+
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "queries.py"
         content = path.read_text()
         assert "asyncio.ensure_future" not in content
 
     def test_no_ensure_future_in_commands(self):
         from pathlib import Path
+
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "commands.py"
         content = path.read_text()
         assert "asyncio.ensure_future" not in content
 
     def test_no_ensure_future_in_cache_service(self):
         from pathlib import Path
+
         path = Path(__file__).parent.parent / "services" / "mission_cache.py"
         content = path.read_text()
         assert "asyncio.ensure_future" not in content
@@ -415,6 +478,7 @@ class TestInvalidationCausesFreshRead:
         )
 
         from app.services.mission_cache import invalidate_mission_cache
+
         await invalidate_mission_cache(1, valid_id)
 
         mock_redis.delete.assert_awaited_once()
@@ -449,6 +513,7 @@ class TestInvalidationCausesFreshRead:
         """delete_mission in commands.py triggers both invalidate_user_caches
         AND invalidate_mission_cache."""
         from pathlib import Path
+
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "commands.py"
         content = path.read_text()
         # delete_mission should call both invalidation functions
@@ -499,6 +564,7 @@ class TestNewCacheKeysExist:
             _status_key,
             _tasks_key,
         )
+
         assert callable(_tasks_key)
         assert callable(_logs_key)
         assert callable(_status_key)
@@ -513,6 +579,7 @@ class TestNewCacheKeysExist:
             cache_set_status,
             cache_set_tasks,
         )
+
         assert callable(cache_get_tasks)
         assert callable(cache_set_tasks)
         assert callable(cache_get_logs)
@@ -523,6 +590,7 @@ class TestNewCacheKeysExist:
     def test_invalidation_clears_new_keys(self):
         """invalidate_mission_cache now also deletes tasks/logs/status/improvements keys."""
         from pathlib import Path
+
         path = Path(__file__).parent.parent / "services" / "mission_cache.py"
         content = path.read_text()
         assert "_tasks_key" in content

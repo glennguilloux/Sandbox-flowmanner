@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +33,15 @@ SHOPIFY_API_VERSION = os.getenv("SHOPIFY_API_VERSION", "2024-01")
 SHOPIFY_TIMEOUT = int(os.getenv("SHOPIFY_TIMEOUT", "30"))
 
 
-
 # ── Input ─────────────────────────────────────────────────────────────
 
 SHOPIFY_ACTIONS = (
-    "list_products", "get_product", "update_product",
-    "list_inventory_levels", "get_inventory_item", "update_inventory",
+    "list_products",
+    "get_product",
+    "update_product",
+    "list_inventory_levels",
+    "get_inventory_item",
+    "update_inventory",
 )
 
 
@@ -151,9 +161,7 @@ class ShopifyInventorySyncTool(BaseTool):
             if validated.action == "list_products":
                 return await self._list_products(client, base, params)
             elif validated.action == "get_product":
-                return await self._get_product(
-                    client, base, validated.product_id
-                )
+                return await self._get_product(client, base, validated.product_id)
             elif validated.action == "update_product":
                 return await self._update_product(
                     client, base, validated.product_id, validated.data
@@ -239,9 +247,7 @@ class ShopifyInventorySyncTool(BaseTool):
             return {"error": "product_id is required for update_product"}
         if not data:
             return {"error": "data payload is required for update_product"}
-        resp = await client.put(
-            f"{base}/products/{product_id}.json", json=data
-        )
+        resp = await client.put(f"{base}/products/{product_id}.json", json=data)
         resp.raise_for_status()
         product = resp.json().get("product", {})
         return {
@@ -256,9 +262,7 @@ class ShopifyInventorySyncTool(BaseTool):
     async def _list_inventory_levels(
         self, client: httpx.AsyncClient, base: str, params: dict
     ) -> dict[str, Any]:
-        resp = await client.get(
-            f"{base}/inventory_levels.json", params=params
-        )
+        resp = await client.get(f"{base}/inventory_levels.json", params=params)
         resp.raise_for_status()
         levels = resp.json().get("inventory_levels", [])
         return {
@@ -304,9 +308,7 @@ class ShopifyInventorySyncTool(BaseTool):
             return {"error": "inventory_item_id is required"}
         if not data:
             return {"error": "data payload is required for update_inventory"}
-        resp = await client.put(
-            f"{base}/inventory_items/{item_id}.json", json=data
-        )
+        resp = await client.put(f"{base}/inventory_items/{item_id}.json", json=data)
         resp.raise_for_status()
         return {
             "action": "update_inventory",

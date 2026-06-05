@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 async def get_user_sessions(db: AsyncSession, user_id: int) -> list[dict]:
     """Get all active sessions for a user with device info."""
     result = await db.execute(
-        select(RefreshToken).where(
+        select(RefreshToken)
+        .where(
             RefreshToken.user_id == user_id,
             RefreshToken.is_revoked == False,
-        ).order_by(RefreshToken.created_at.desc())
+        )
+        .order_by(RefreshToken.created_at.desc())
     )
     tokens = result.scalars().all()
 
@@ -32,16 +34,26 @@ async def get_user_sessions(db: AsyncSession, user_id: int) -> list[dict]:
         if is_expired:
             continue
 
-        sessions.append({
-            "id": token.id,
-            "token_prefix": token.token[:8] + "..." if len(token.token) > 8 else token.token,
-            "device_name": token.device_name or "Unknown device",
-            "ip_address": token.ip_address,
-            "user_agent": token.user_agent,
-            "created_at": token.created_at.isoformat() if token.created_at else None,
-            "last_used_at": token.last_used_at.isoformat() if token.last_used_at else None,
-            "expires_at": token.expires_at.isoformat() if token.expires_at else None,
-        })
+        sessions.append(
+            {
+                "id": token.id,
+                "token_prefix": (
+                    token.token[:8] + "..." if len(token.token) > 8 else token.token
+                ),
+                "device_name": token.device_name or "Unknown device",
+                "ip_address": token.ip_address,
+                "user_agent": token.user_agent,
+                "created_at": (
+                    token.created_at.isoformat() if token.created_at else None
+                ),
+                "last_used_at": (
+                    token.last_used_at.isoformat() if token.last_used_at else None
+                ),
+                "expires_at": (
+                    token.expires_at.isoformat() if token.expires_at else None
+                ),
+            }
+        )
 
     return sessions
 
@@ -65,7 +77,9 @@ async def revoke_session(db: AsyncSession, user_id: int, session_id: int) -> boo
     return True
 
 
-async def revoke_all_other_sessions(db: AsyncSession, user_id: int, current_token: str) -> int:
+async def revoke_all_other_sessions(
+    db: AsyncSession, user_id: int, current_token: str
+) -> int:
     """Revoke all sessions except the current one. Returns count of revoked sessions."""
     result = await db.execute(
         select(RefreshToken).where(
@@ -85,7 +99,12 @@ async def revoke_all_other_sessions(db: AsyncSession, user_id: int, current_toke
     return count
 
 
-async def update_session_activity(db: AsyncSession, token: str, ip_address: str | None = None, user_agent: str | None = None) -> None:
+async def update_session_activity(
+    db: AsyncSession,
+    token: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> None:
     """Update last_used_at for a refresh token."""
     result = await db.execute(
         select(RefreshToken).where(

@@ -12,23 +12,65 @@ import tempfile
 from typing import Any
 
 DANGEROUS_PATTERNS = [
-    "__import__", "import os", "import sys", "import subprocess",
-    "import socket", "import urllib", "import http", "import ftplib",
-    "import smtplib", "import telnetlib", "import xmlrpc",
-    "exec(", "eval(", "compile(", "execfile",
-    "open(", "file(", ".read(", ".write(",
-    "os.system", "os.popen", "os.exec", "os.spawn",
-    "os.fork", "os.kill", "os.remove", "os.unlink", "os.rmdir",
-    "os.chdir", "os.chmod", "os.chown", "os.link", "os.symlink",
-    "shutil.rmtree", "shutil.move", "shutil.copy",
-    "sys.exit", "sys.modules", "sys.path",
-    "globals()", "locals()", "vars()", "dir()",
-    "getattr(", "setattr(", "delattr(",
-    "breakpoint", "input(", "raw_input",
-    "/etc/passwd", "/etc/shadow", "~/.ssh",
+    "__import__",
+    "import os",
+    "import sys",
+    "import subprocess",
+    "import socket",
+    "import urllib",
+    "import http",
+    "import ftplib",
+    "import smtplib",
+    "import telnetlib",
+    "import xmlrpc",
+    "exec(",
+    "eval(",
+    "compile(",
+    "execfile",
+    "open(",
+    "file(",
+    ".read(",
+    ".write(",
+    "os.system",
+    "os.popen",
+    "os.exec",
+    "os.spawn",
+    "os.fork",
+    "os.kill",
+    "os.remove",
+    "os.unlink",
+    "os.rmdir",
+    "os.chdir",
+    "os.chmod",
+    "os.chown",
+    "os.link",
+    "os.symlink",
+    "shutil.rmtree",
+    "shutil.move",
+    "shutil.copy",
+    "sys.exit",
+    "sys.modules",
+    "sys.path",
+    "globals()",
+    "locals()",
+    "vars()",
+    "dir()",
+    "getattr(",
+    "setattr(",
+    "delattr(",
+    "breakpoint",
+    "input(",
+    "raw_input",
+    "/etc/passwd",
+    "/etc/shadow",
+    "~/.ssh",
 ]
 
-DEFAULT_RESOURCE_LIMITS = {"cpu_seconds": 60, "memory_mb": 512, "output_size_bytes": 1_000_000}
+DEFAULT_RESOURCE_LIMITS = {
+    "cpu_seconds": 60,
+    "memory_mb": 512,
+    "output_size_bytes": 1_000_000,
+}
 
 
 def _build_restricted_wrapper(code: str, workspace: str) -> str:
@@ -37,11 +79,10 @@ def _build_restricted_wrapper(code: str, workspace: str) -> str:
     # Empty code, whitespace-only, or comment-only would produce invalid try: block
     stripped = code.strip()
     if not stripped or all(
-        line.strip() == "" or line.strip().startswith("#")
-        for line in code.split("\n")
+        line.strip() == "" or line.strip().startswith("#") for line in code.split("\n")
     ):
         code = "pass"
-    return f'''
+    return f"""
 import sys
 import json
 import math
@@ -102,13 +143,15 @@ try:
 except Exception as _exec_err:
     print("SANDBOX_ERROR: " + str(_exec_err), file=sys.stderr)
     sys.exit(1)
-'''
+"""
 
 
 def _indent(text: str, spaces: int) -> str:
     """Indent every non-empty line by `spaces` spaces."""
     prefix = " " * spaces
-    return "\n".join(prefix + line if line.strip() else line for line in text.split("\n"))
+    return "\n".join(
+        prefix + line if line.strip() else line for line in text.split("\n")
+    )
 
 
 def scan_for_dangerous_patterns(code: str) -> str | None:
@@ -182,7 +225,8 @@ def execute_python_in_sandbox(
         if proc.returncode != 0:
             return {
                 "success": False,
-                "error": stderr.strip() or f"Process exited with code {proc.returncode}",
+                "error": stderr.strip()
+                or f"Process exited with code {proc.returncode}",
                 "output": stdout,
             }
 

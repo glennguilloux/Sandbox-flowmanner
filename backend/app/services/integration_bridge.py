@@ -59,7 +59,12 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "id": "create_issue",
             "name": "Create GitHub Issue",
             "description": "Create a new issue on a GitHub repository",
-            "params": {"owner": "string", "repo": "string", "title": "string", "body": "string"},
+            "params": {
+                "owner": "string",
+                "repo": "string",
+                "title": "string",
+                "body": "string",
+            },
         },
         {
             "id": "list_issues",
@@ -71,7 +76,13 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "id": "create_pr",
             "name": "Create GitHub Pull Request",
             "description": "Create a pull request on a GitHub repository",
-            "params": {"owner": "string", "repo": "string", "title": "string", "head": "string", "base": "string"},
+            "params": {
+                "owner": "string",
+                "repo": "string",
+                "title": "string",
+                "head": "string",
+                "base": "string",
+            },
         },
         {
             "id": "list_prs",
@@ -159,13 +170,22 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "id": "edit_message",
             "name": "Edit Discord Message",
             "description": "Edit a previously sent message in a Discord channel",
-            "params": {"channel_id": "string", "message_id": "string", "content": "string"},
+            "params": {
+                "channel_id": "string",
+                "message_id": "string",
+                "content": "string",
+            },
         },
         {
             "id": "get_channel_messages",
             "name": "Get Discord Channel Messages",
             "description": "Read recent messages from a Discord channel",
-            "params": {"channel_id": "string", "limit": "integer", "before": "string", "after": "string"},
+            "params": {
+                "channel_id": "string",
+                "limit": "integer",
+                "before": "string",
+                "after": "string",
+            },
         },
         {
             "id": "list_channels",
@@ -201,7 +221,11 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "id": "add_reaction",
             "name": "Add Discord Reaction",
             "description": "Add an emoji reaction to a message",
-            "params": {"channel_id": "string", "message_id": "string", "emoji": "string"},
+            "params": {
+                "channel_id": "string",
+                "message_id": "string",
+                "emoji": "string",
+            },
         },
         {
             "id": "create_channel",
@@ -215,13 +239,23 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "id": "create_issue",
             "name": "Create Linear Issue",
             "description": "Create a new issue in Linear",
-            "params": {"title": "string", "team_id": "string", "description": "string", "priority": "integer"},
+            "params": {
+                "title": "string",
+                "team_id": "string",
+                "description": "string",
+                "priority": "integer",
+            },
         },
         {
             "id": "update_issue",
             "name": "Update Linear Issue",
             "description": "Update an existing Linear issue (title, status, priority, etc.)",
-            "params": {"issue_id": "string", "title": "string", "state_id": "string", "priority": "integer"},
+            "params": {
+                "issue_id": "string",
+                "title": "string",
+                "state_id": "string",
+                "priority": "integer",
+            },
         },
         {
             "id": "get_issue",
@@ -304,13 +338,23 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "id": "calendar_list_events",
             "name": "List Calendar Events",
             "description": "List events from Google Calendar",
-            "params": {"calendar_id": "string", "max_results": "integer", "time_min": "string", "time_max": "string"},
+            "params": {
+                "calendar_id": "string",
+                "max_results": "integer",
+                "time_min": "string",
+                "time_max": "string",
+            },
         },
         {
             "id": "calendar_create_event",
             "name": "Create Calendar Event",
             "description": "Create a new event in Google Calendar",
-            "params": {"summary": "string", "start": "object", "end": "object", "description": "string"},
+            "params": {
+                "summary": "string",
+                "start": "object",
+                "end": "object",
+                "description": "string",
+            },
         },
         {
             "id": "calendar_get_event",
@@ -409,9 +453,7 @@ class IntegrationBridge:
                         properties[pname] = {"type": ptype}
 
                     # Create a handler that executes the action via the bridge
-                    async def make_handler(
-                        uid=user_id, s=slug, action=cap_def["id"]
-                    ):
+                    async def make_handler(uid=user_id, s=slug, action=cap_def["id"]):
                         async def handler(params: dict[str, Any]) -> dict[str, Any]:
                             bridge = get_integration_bridge()
                             result = await bridge.execute_integration_action(
@@ -574,7 +616,9 @@ class IntegrationBridge:
         connector = cls(config)
         connected = await connector.connect()
         if not connected:
-            logger.warning("Failed to connect %s connector (check %s)", slug, cfg["label"])
+            logger.warning(
+                "Failed to connect %s connector (check %s)", slug, cfg["label"]
+            )
             return None
 
         return connector
@@ -622,9 +666,7 @@ class IntegrationBridge:
         conn = result.scalar_one_or_none()
 
         if not conn or not conn.encrypted_access_token:
-            logger.warning(
-                f"No active token for user {user_id}, integration {slug}"
-            )
+            logger.warning(f"No active token for user {user_id}, integration {slug}")
             return None
 
         # Decrypt the token
@@ -642,19 +684,25 @@ class IntegrationBridge:
                 )
                 if new_token:
                     # Encrypt and store the fresh token
-                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    conn.encrypted_access_token = encrypt_token(
+                        new_token["access_token"]
+                    )
                     if new_token.get("refresh_token"):
-                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                        conn.encrypted_refresh_token = encrypt_token(
+                            new_token["refresh_token"]
+                        )
                     if new_token.get("expires_in"):
                         from datetime import timedelta
-                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
-                            seconds=int(new_token["expires_in"])
-                        )
+
+                        conn.expires_at = datetime.now(UTC).replace(
+                            tzinfo=None
+                        ) + timedelta(seconds=int(new_token["expires_in"]))
                     await db.commit()
                     access_token = new_token["access_token"]
                     logger.info(
                         "Refreshed Google token for user %s (expires in %ss)",
-                        user_id, new_token.get("expires_in", "?"),
+                        user_id,
+                        new_token.get("expires_in", "?"),
                     )
             except Exception as e:
                 logger.warning(
@@ -679,9 +727,7 @@ class IntegrationBridge:
         connector = cls(config)
         connected = await connector.connect()
         if not connected:
-            logger.warning(
-                f"Failed to connect {slug} connector for user {user_id}"
-            )
+            logger.warning(f"Failed to connect {slug} connector for user {user_id}")
             return None
 
         return connector
@@ -728,7 +774,9 @@ class IntegrationBridge:
         """
         provider = OAUTH_PROVIDERS.get("google")
         if not provider or not provider.is_configured:
-            logger.warning("Google OAuth provider not configured — cannot refresh token")
+            logger.warning(
+                "Google OAuth provider not configured — cannot refresh token"
+            )
             return None
 
         data = {

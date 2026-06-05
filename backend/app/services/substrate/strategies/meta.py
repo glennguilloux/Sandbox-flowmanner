@@ -78,7 +78,8 @@ class MetaStrategy(ExecutionStrategy):
     ) -> StrategyResult:
         if current_depth >= max_depth:
             return StrategyResult(
-                success=False, status="failed",
+                success=False,
+                status="failed",
                 error=f"Max recursion depth ({max_depth}) reached",
             )
 
@@ -105,7 +106,9 @@ class MetaStrategy(ExecutionStrategy):
                 total_cost += result.get("cost", 0.0)
             else:
                 error = result.get("error", "Unknown")
-                logger.warning("Meta node %s failed at depth %d: %s", node.id, current_depth, error)
+                logger.warning(
+                    "Meta node %s failed at depth %d: %s", node.id, current_depth, error
+                )
 
                 if current_depth + 1 < max_depth:
                     return await self._run_cycle(
@@ -120,13 +123,18 @@ class MetaStrategy(ExecutionStrategy):
                     )
 
                 return StrategyResult(
-                    success=False, status="failed", error=error,
+                    success=False,
+                    status="failed",
+                    error=error,
                     completed_nodes=completed,
-                    total_tokens=total_tokens, total_cost_usd=total_cost,
+                    total_tokens=total_tokens,
+                    total_cost_usd=total_cost,
                 )
 
         return StrategyResult(
-            success=True, status="completed",
+            success=True,
+            status="completed",
             completed_nodes=completed,
-            total_tokens=total_tokens, total_cost_usd=total_cost,
+            total_tokens=total_tokens,
+            total_cost_usd=total_cost,
         )

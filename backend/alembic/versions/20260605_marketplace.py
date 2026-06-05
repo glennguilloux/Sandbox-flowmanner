@@ -50,30 +50,52 @@ CATEGORY_MAP = {
 
 def upgrade() -> None:
     # ── marketplace_categories: add slug column ─────────────────────
-    op.add_column("marketplace_categories", sa.Column(
-        "slug", sa.String(255), nullable=True,
-    ))
+    op.add_column(
+        "marketplace_categories",
+        sa.Column(
+            "slug",
+            sa.String(255),
+            nullable=True,
+        ),
+    )
     # Backfill slug from name
-    op.execute("""
+    op.execute(
+        """
         UPDATE marketplace_categories
         SET slug = LOWER(REPLACE(REPLACE(name, ' ', '-'), '_', '-'))
         WHERE slug IS NULL
-    """)
+    """
+    )
     op.create_unique_constraint("uq_mc_slug", "marketplace_categories", ["slug"])
 
     # ── marketplace_listings: add new columns ───────────────────────
-    op.add_column("marketplace_listings", sa.Column(
-        "artifact_type", sa.String(50), nullable=True,
-        comment="'tool', 'capability', 'agent_template', 'workflow'",
-    ))
-    op.add_column("marketplace_listings", sa.Column(
-        "artifact_id", sa.String(36), nullable=True,
-        comment="FK to the canonical catalog table row",
-    ))
-    op.add_column("marketplace_listings", sa.Column(
-        "artifact_version_id", sa.String(36), nullable=True,
-        comment="FK to the version snapshot row",
-    ))
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "artifact_type",
+            sa.String(50),
+            nullable=True,
+            comment="'tool', 'capability', 'agent_template', 'workflow'",
+        ),
+    )
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "artifact_id",
+            sa.String(36),
+            nullable=True,
+            comment="FK to the canonical catalog table row",
+        ),
+    )
+    op.add_column(
+        "marketplace_listings",
+        sa.Column(
+            "artifact_version_id",
+            sa.String(36),
+            nullable=True,
+            comment="FK to the version snapshot row",
+        ),
+    )
 
     # ── Indexes on new columns ──────────────────────────────────────
     op.create_index("ix_ml_artifact_type", "marketplace_listings", ["artifact_type"])
@@ -81,20 +103,26 @@ def upgrade() -> None:
 
     # ── Normalize category_id to match existing category IDs ────────
     for freeform, target_id in CATEGORY_MAP.items():
-        op.execute(sa.text(
-            "UPDATE marketplace_listings SET category_id = :target "
-            "WHERE LOWER(category_id) = LOWER(:freeform)"
-        ).bindparams(target=target_id, freeform=freeform))
+        op.execute(
+            sa.text(
+                "UPDATE marketplace_listings SET category_id = :target "
+                "WHERE LOWER(category_id) = LOWER(:freeform)"
+            ).bindparams(target=target_id, freeform=freeform)
+        )
 
     # Catch remaining unknown values and NULLs → cat-ai as default
-    op.execute(sa.text("""
+    op.execute(
+        sa.text(
+            """
         UPDATE marketplace_listings
         SET category_id = 'cat-ai'
         WHERE category_id IS NULL
            OR category_id NOT IN (
             SELECT id FROM marketplace_categories
         )
-    """))
+    """
+        )
+    )
 
     # ── Add FK constraint on category_id ────────────────────────────
     op.create_foreign_key(

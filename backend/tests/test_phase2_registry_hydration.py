@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_tool_row():
     """A fake tools_catalog row as returned by SQLAlchemy."""
@@ -68,6 +69,7 @@ def _make_mock_session(rows):
 # ToolRegistry.hydrate_from_db
 # ---------------------------------------------------------------------------
 
+
 class TestToolRegistryHydrateFromDB:
     @pytest.mark.asyncio
     async def test_hydrate_from_db_returns_count(self, mock_tool_row):
@@ -87,7 +89,9 @@ class TestToolRegistryHydrateFromDB:
         mock_tool_instance.category = "general"
         mock_tool_instance.tags = []
 
-        with patch.object(ToolRegistry, "_resolve_handler", return_value=lambda: mock_tool_instance):
+        with patch.object(
+            ToolRegistry, "_resolve_handler", return_value=lambda: mock_tool_instance
+        ):
             count = await registry.hydrate_from_db(session)
 
         assert count == 1
@@ -134,6 +138,7 @@ class TestToolRegistryHydrateFromDB:
 # CapabilityRegistry.hydrate_from_db
 # ---------------------------------------------------------------------------
 
+
 class TestCapabilityRegistryHydrateFromDB:
     @pytest.mark.asyncio
     async def test_hydrate_from_db_returns_count(self, mock_capability_row):
@@ -168,7 +173,9 @@ class TestCapabilityRegistryHydrateFromDB:
         assert count == 0
 
     @pytest.mark.asyncio
-    async def test_hydrate_from_db_creates_passthrough_on_unresolvable(self, mock_capability_row):
+    async def test_hydrate_from_db_creates_passthrough_on_unresolvable(
+        self, mock_capability_row
+    ):
         """When handler_ref can't be resolved, a passthrough handler is created."""
         from app.services.nexus.capability_registry import CapabilityRegistry
 
@@ -192,19 +199,23 @@ class TestCapabilityRegistryHydrateFromDB:
 # Binding models — table existence via Alembic migration
 # ---------------------------------------------------------------------------
 
+
 class TestBindingModelsExist:
     """Verify the binding tables were created by migration 20260604_bindings."""
 
     def test_agent_tool_binding_model_importable(self):
         from app.models.binding_models import AgentToolBinding
+
         assert AgentToolBinding.__tablename__ == "agent_tool_bindings"
 
     def test_agent_capability_binding_model_importable(self):
         from app.models.binding_models import AgentCapabilityBinding
+
         assert AgentCapabilityBinding.__tablename__ == "agent_capability_bindings"
 
     def test_capability_dependency_model_importable(self):
         from app.models.binding_models import CapabilityDependency
+
         assert CapabilityDependency.__tablename__ == "capability_dependencies"
 
     def test_binding_models_registered_with_base(self):
@@ -214,6 +225,7 @@ class TestBindingModelsExist:
             AgentCapabilityBinding,
             CapabilityDependency,
         )
+
         tables = Base.metadata.tables
         assert "agent_tool_bindings" in tables
         assert "agent_capability_bindings" in tables
@@ -224,26 +236,55 @@ class TestBindingModelsExist:
 # Binding models — field coverage
 # ---------------------------------------------------------------------------
 
+
 class TestBindingModelFields:
     def test_agent_tool_binding_columns(self):
         from app.models.binding_models import AgentToolBinding
+
         cols = {c.name for c in AgentToolBinding.__table__.columns}
-        expected = {"id", "agent_id", "tool_id", "enabled", "priority",
-                    "config_override", "metadata", "created_at", "updated_at"}
+        expected = {
+            "id",
+            "agent_id",
+            "tool_id",
+            "enabled",
+            "priority",
+            "config_override",
+            "metadata",
+            "created_at",
+            "updated_at",
+        }
         assert expected.issubset(cols)
 
     def test_agent_capability_binding_columns(self):
         from app.models.binding_models import AgentCapabilityBinding
+
         cols = {c.name for c in AgentCapabilityBinding.__table__.columns}
-        expected = {"id", "agent_id", "capability_id", "enabled", "priority",
-                    "config_override", "metadata", "created_at", "updated_at"}
+        expected = {
+            "id",
+            "agent_id",
+            "capability_id",
+            "enabled",
+            "priority",
+            "config_override",
+            "metadata",
+            "created_at",
+            "updated_at",
+        }
         assert expected.issubset(cols)
 
     def test_capability_dependency_columns(self):
         from app.models.binding_models import CapabilityDependency
+
         cols = {c.name for c in CapabilityDependency.__table__.columns}
-        expected = {"id", "capability_id", "depends_on_id", "dependency_type",
-                    "metadata", "created_at", "updated_at"}
+        expected = {
+            "id",
+            "capability_id",
+            "depends_on_id",
+            "dependency_type",
+            "metadata",
+            "created_at",
+            "updated_at",
+        }
         assert expected.issubset(cols)
 
 
@@ -251,18 +292,22 @@ class TestBindingModelFields:
 # _resolve_handler (ToolRegistry static method)
 # ---------------------------------------------------------------------------
 
+
 class TestResolveHandler:
     def test_resolve_valid_path(self):
         from app.tools.base import ToolRegistry
+
         result = ToolRegistry._resolve_handler("app.tools.base.ToolRegistry")
         assert result is ToolRegistry
 
     def test_resolve_invalid_module(self):
         from app.tools.base import ToolRegistry
+
         result = ToolRegistry._resolve_handler("nonexistent.module.Class")
         assert result is None
 
     def test_resolve_invalid_attr(self):
         from app.tools.base import ToolRegistry
+
         result = ToolRegistry._resolve_handler("app.tools.base.NonexistentClass")
         assert result is None

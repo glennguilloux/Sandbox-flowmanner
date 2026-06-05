@@ -1,42 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="RoleCreate")
-
 
 
 @_attrs_define
 class RoleCreate:
-    """ 
-        Attributes:
-            name (str):
-            description (None | str | Unset):
-            permission_keys (list[str] | Unset):
-     """
+    """
+    Attributes:
+        name (str):
+        description (None | str | Unset):
+        permission_keys (list[str] | Unset):
+    """
 
     name: str
     description: None | str | Unset = UNSET
     permission_keys: list[str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
@@ -51,22 +38,19 @@ class RoleCreate:
         if not isinstance(self.permission_keys, Unset):
             permission_keys = self.permission_keys
 
-
-
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "name": name,
-        })
+        field_dict.update(
+            {
+                "name": name,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if permission_keys is not UNSET:
             field_dict["permission_keys"] = permission_keys
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -82,16 +66,13 @@ class RoleCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
         permission_keys = cast(list[str], d.pop("permission_keys", UNSET))
-
 
         role_create = cls(
             name=name,
             description=description,
             permission_keys=permission_keys,
         )
-
 
         role_create.additional_properties = d
         return role_create

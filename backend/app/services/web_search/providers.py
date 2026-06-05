@@ -2,6 +2,7 @@
 Web Search Providers - Abstraction Layer
 Supports SearXNG, Tavily, Exa, and DuckDuckGo
 """
+
 import logging
 import os
 import time
@@ -10,7 +11,13 @@ from datetime import datetime
 
 import httpx
 
-from .models import ProviderConfig, SearchProvider, SearchResponse, SearchResult, SearchType
+from .models import (
+    ProviderConfig,
+    SearchProvider,
+    SearchResponse,
+    SearchResult,
+    SearchType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +37,15 @@ class BaseSearchProvider(ABC):
 
     @abstractmethod
     async def search(
-        self,
-        query: str,
-        search_type: SearchType,
-        max_results: int
+        self, query: str, search_type: SearchType, max_results: int
     ) -> SearchResponse:
         pass
 
     @property
     def is_available(self) -> bool:
         return self.config.enabled and (
-            self.config.api_key is not None or 
-            self.provider_name in [SearchProvider.SEARXNG, SearchProvider.DUCKDUCKGO]
+            self.config.api_key is not None
+            or self.provider_name in [SearchProvider.SEARXNG, SearchProvider.DUCKDUCKGO]
         )
 
     def _create_result(self, **kwargs) -> SearchResult:
@@ -53,17 +57,16 @@ class SearXNGProvider(BaseSearchProvider):
 
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
-        self.base_url = config.base_url or os.getenv("SEARXNG_URL", "http://localhost:55510")
+        self.base_url = config.base_url or os.getenv(
+            "SEARXNG_URL", "http://localhost:55510"
+        )
 
     @property
     def provider_name(self) -> SearchProvider:
         return SearchProvider.SEARXNG
 
     async def search(
-        self,
-        query: str,
-        search_type: SearchType,
-        max_results: int
+        self, query: str, search_type: SearchType, max_results: int
     ) -> SearchResponse:
         start_time = time.time()
         results = []
@@ -77,33 +80,32 @@ class SearXNGProvider(BaseSearchProvider):
                 "q": query,
                 "format": "json",
                 "engines": "google,bing,duckduckgo",
-                "max_results": max_results
+                "max_results": max_results,
             }
 
             if categories:
                 params["categories"] = categories
 
             async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
-                response = await client.get(
-                    f"{self.base_url}/search",
-                    params=params
-                )
+                response = await client.get(f"{self.base_url}/search", params=params)
                 response.raise_for_status()
                 data = response.json()
 
             for i, item in enumerate(data.get("results", [])[:max_results]):
-                results.append(self._create_result(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    snippet=item.get("content", ""),
-                    rank=i + 1,
-                    score=1.0 - (i * 0.1),
-                    published_date=self._parse_date(item.get("publishedDate")),
-                    metadata={
-                        "engine": item.get("engine"),
-                        "category": item.get("category")
-                    }
-                ))
+                results.append(
+                    self._create_result(
+                        title=item.get("title", ""),
+                        url=item.get("url", ""),
+                        snippet=item.get("content", ""),
+                        rank=i + 1,
+                        score=1.0 - (i * 0.1),
+                        published_date=self._parse_date(item.get("publishedDate")),
+                        metadata={
+                            "engine": item.get("engine"),
+                            "category": item.get("category"),
+                        },
+                    )
+                )
 
         except Exception as e:
             logger.error(f"SearXNG search error: {e}")
@@ -120,7 +122,7 @@ class SearXNGProvider(BaseSearchProvider):
             search_type=search_type,
             total_results=len(results),
             latency_ms=latency,
-            error=error
+            error=error,
         )
 
     def _get_categories(self, search_type: SearchType) -> str | None:
@@ -153,10 +155,7 @@ class TavilyProvider(BaseSearchProvider):
         return SearchProvider.TAVILY
 
     async def search(
-        self,
-        query: str,
-        search_type: SearchType,
-        max_results: int
+        self, query: str, search_type: SearchType, max_results: int
     ) -> SearchResponse:
         start_time = time.time()
         results = []
@@ -170,7 +169,7 @@ class TavilyProvider(BaseSearchProvider):
                 search_type=search_type,
                 total_results=0,
                 latency_ms=0,
-                error="API key not configured"
+                error="API key not configured",
             )
 
         try:
@@ -190,24 +189,21 @@ class TavilyProvider(BaseSearchProvider):
                 payload["topic"] = "news"
 
             async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
-                response = await client.post(
-                    f"{self.base_url}/search",
-                    json=payload
-                )
+                response = await client.post(f"{self.base_url}/search", json=payload)
                 response.raise_for_status()
                 data = response.json()
 
             for i, item in enumerate(data.get("results", [])):
-                results.append(self._create_result(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    snippet=item.get("content", ""),
-                    rank=i + 1,
-                    score=item.get("score", 1.0 - (i * 0.1)),
-                    metadata={
-                        "tavily_score": item.get("score")
-                    }
-                ))
+                results.append(
+                    self._create_result(
+                        title=item.get("title", ""),
+                        url=item.get("url", ""),
+                        snippet=item.get("content", ""),
+                        rank=i + 1,
+                        score=item.get("score", 1.0 - (i * 0.1)),
+                        metadata={"tavily_score": item.get("score")},
+                    )
+                )
 
         except Exception as e:
             logger.error(f"Tavily search error: {e}")
@@ -224,7 +220,7 @@ class TavilyProvider(BaseSearchProvider):
             search_type=search_type,
             total_results=len(results),
             latency_ms=latency,
-            error=error
+            error=error,
         )
 
 
@@ -240,10 +236,7 @@ class ExaProvider(BaseSearchProvider):
         return SearchProvider.EXA
 
     async def search(
-        self,
-        query: str,
-        search_type: SearchType,
-        max_results: int
+        self, query: str, search_type: SearchType, max_results: int
     ) -> SearchResponse:
         start_time = time.time()
         results = []
@@ -257,7 +250,7 @@ class ExaProvider(BaseSearchProvider):
                 search_type=search_type,
                 total_results=0,
                 latency_ms=0,
-                error="API key not configured"
+                error="API key not configured",
             )
 
         try:
@@ -273,39 +266,37 @@ class ExaProvider(BaseSearchProvider):
                 "type": type_,
                 "numResults": max_results,
                 "useAutoprompt": use_autoprompt,
-                "contents": {
-                    "text": {"maxCharacters": 500}
-                }
+                "contents": {"text": {"maxCharacters": 500}},
             }
 
             headers = {
                 "x-api-key": self.config.api_key,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
                 response = await client.post(
-                    f"{self.base_url}/search",
-                    json=payload,
-                    headers=headers
+                    f"{self.base_url}/search", json=payload, headers=headers
                 )
                 response.raise_for_status()
                 data = response.json()
 
             for i, item in enumerate(data.get("results", [])):
-                results.append(self._create_result(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    snippet=item.get("text", "")[:500] if item.get("text") else "",
-                    rank=i + 1,
-                    score=item.get("score", 1.0 - (i * 0.1)),
-                    published_date=self._parse_exa_date(item.get("publishedDate")),
-                    content=item.get("text"),
-                    metadata={
-                        "exa_score": item.get("score"),
-                        "author": item.get("author")
-                    }
-                ))
+                results.append(
+                    self._create_result(
+                        title=item.get("title", ""),
+                        url=item.get("url", ""),
+                        snippet=item.get("text", "")[:500] if item.get("text") else "",
+                        rank=i + 1,
+                        score=item.get("score", 1.0 - (i * 0.1)),
+                        published_date=self._parse_exa_date(item.get("publishedDate")),
+                        content=item.get("text"),
+                        metadata={
+                            "exa_score": item.get("score"),
+                            "author": item.get("author"),
+                        },
+                    )
+                )
 
         except Exception as e:
             logger.error(f"Exa search error: {e}")
@@ -322,7 +313,7 @@ class ExaProvider(BaseSearchProvider):
             search_type=search_type,
             total_results=len(results),
             latency_ms=latency,
-            error=error
+            error=error,
         )
 
     def _parse_exa_date(self, date_str: str | None) -> datetime | None:
@@ -347,10 +338,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
         return SearchProvider.DUCKDUCKGO
 
     async def search(
-        self,
-        query: str,
-        search_type: SearchType,
-        max_results: int
+        self, query: str, search_type: SearchType, max_results: int
     ) -> SearchResponse:
         start_time = time.time()
         results = []
@@ -366,9 +354,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
 
             async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
                 response = await client.get(
-                    self.base_url,
-                    params=params,
-                    headers=headers
+                    self.base_url, params=params, headers=headers
                 )
                 response.raise_for_status()
                 html = response.text
@@ -391,7 +377,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
             search_type=search_type,
             total_results=len(results),
             latency_ms=latency,
-            error=error
+            error=error,
         )
 
     def _parse_html_results(self, html: str, max_results: int) -> list[SearchResult]:
@@ -410,15 +396,20 @@ class DuckDuckGoProvider(BaseSearchProvider):
                 # Extract actual URL from redirect
                 if "uddg=" in url:
                     from urllib.parse import unquote
+
                     url = unquote(url.split("uddg=")[-1].split("&")[0])
 
-                results.append(self._create_result(
-                    title=title_elem.get_text(strip=True),
-                    url=url,
-                    snippet=snippet_elem.get_text(strip=True) if snippet_elem else "",
-                    rank=i + 1,
-                    score=1.0 - (i * 0.1)
-                ))
+                results.append(
+                    self._create_result(
+                        title=title_elem.get_text(strip=True),
+                        url=url,
+                        snippet=(
+                            snippet_elem.get_text(strip=True) if snippet_elem else ""
+                        ),
+                        rank=i + 1,
+                        score=1.0 - (i * 0.1),
+                    )
+                )
 
         return results
 

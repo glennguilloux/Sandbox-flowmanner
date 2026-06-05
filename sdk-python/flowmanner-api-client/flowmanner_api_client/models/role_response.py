@@ -130,7 +130,9 @@ class RoleResponse:
         if _permissions is not UNSET:
             permissions = []
             for permissions_item_data in _permissions:
-                permissions_item = RolePermissionResponse.from_dict(permissions_item_data)
+                permissions_item = RolePermissionResponse.from_dict(
+                    permissions_item_data
+                )
 
                 permissions.append(permissions_item)
 

@@ -4,6 +4,7 @@ Revision ID: next_level_growth_wave2
 Revises: next_level_growth_wave1
 Create Date: 2026-06-03 13:00:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -39,7 +40,9 @@ def upgrade() -> None:
         sa.Column("auth_config_encrypted", sa.Text(), nullable=True),
         sa.Column("timeout_seconds", sa.Integer(), nullable=False, server_default="30"),
         sa.Column("max_retries", sa.Integer(), nullable=False, server_default="3"),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -132,9 +135,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_http_integration_logs_timestamp", table_name="http_integration_logs")
-    op.drop_index("ix_http_integration_logs_mission_id", table_name="http_integration_logs")
-    op.drop_index("ix_http_integration_logs_integration_id", table_name="http_integration_logs")
+    op.drop_index(
+        "ix_http_integration_logs_timestamp", table_name="http_integration_logs"
+    )
+    op.drop_index(
+        "ix_http_integration_logs_mission_id", table_name="http_integration_logs"
+    )
+    op.drop_index(
+        "ix_http_integration_logs_integration_id", table_name="http_integration_logs"
+    )
     op.drop_table("http_integration_logs")
-    op.drop_index("ix_http_integration_configs_user_id", table_name="http_integration_configs")
+    op.drop_index(
+        "ix_http_integration_configs_user_id", table_name="http_integration_configs"
+    )
     op.drop_table("http_integration_configs")

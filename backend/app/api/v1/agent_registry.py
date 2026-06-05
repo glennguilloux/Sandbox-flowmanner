@@ -7,6 +7,7 @@ plus additional endpoints the frontend expects (/start, /register).
 """
 
 from __future__ import annotations
+import uuid
 
 from typing import TYPE_CHECKING
 
@@ -27,7 +28,6 @@ from app.services.agent_service import (
 )
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 

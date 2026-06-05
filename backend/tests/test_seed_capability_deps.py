@@ -52,7 +52,9 @@ class TestSeedCapabilityDepsLogic:
 
         assert len(domain_members["academic-"]) == 2
         assert len(domain_members["customer-support"]) == 1  # only 1, no pair
-        assert "random-agent" not in [s for members in domain_members.values() for s in members]
+        assert "random-agent" not in [
+            s for members in domain_members.values() for s in members
+        ]
 
     def test_max_deps_per_agent_cap(self):
         """Dependencies should be capped per agent."""
@@ -88,11 +90,15 @@ class TestSeedCapabilityDepsLogic:
 
     def test_cap_to_agent_mapping(self):
         """agent__ prefix should be stripped correctly."""
-        cap_slugs = ["agent__general-assistant-v1", "agent__code-assistant-v1", "tool__web_search"]
+        cap_slugs = [
+            "agent__general-assistant-v1",
+            "agent__code-assistant-v1",
+            "tool__web_search",
+        ]
         cap_to_agent = {}
         for slug in cap_slugs:
             if slug.startswith("agent__"):
-                cap_to_agent[slug] = slug[len("agent__"):]
+                cap_to_agent[slug] = slug[len("agent__") :]
 
         assert cap_to_agent["agent__general-assistant-v1"] == "general-assistant-v1"
         assert cap_to_agent["agent__code-assistant-v1"] == "code-assistant-v1"

@@ -28,32 +28,40 @@ class ReliabilityMonitor:
         self._circuit_transitions: deque = deque(maxlen=100)
         self._lock = threading.Lock()
 
-    def record_llm_call(self, success: bool, latency_ms: float, error: str | None = None):
+    def record_llm_call(
+        self, success: bool, latency_ms: float, error: str | None = None
+    ):
         """Record an LLM call result."""
         with self._lock:
-            self._llm_calls.append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "success": success,
-                "latency_ms": latency_ms,
-                "error": error,
-            })
+            self._llm_calls.append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "success": success,
+                    "latency_ms": latency_ms,
+                    "error": error,
+                }
+            )
 
     def record_langfuse_failure(self, error_type: str):
         """Record a Langfuse failure."""
         with self._lock:
-            self._langfuse_failures.append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "error_type": error_type,
-            })
+            self._langfuse_failures.append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "error_type": error_type,
+                }
+            )
 
     def record_circuit_transition(self, from_state: str, to_state: str):
         """Record a circuit breaker state transition."""
         with self._lock:
-            self._circuit_transitions.append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "from": from_state,
-                "to": to_state,
-            })
+            self._circuit_transitions.append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "from": from_state,
+                    "to": to_state,
+                }
+            )
         logger.info(f"Circuit breaker transition: {from_state} -> {to_state}")
 
     def get_reliability_report(self) -> dict:
@@ -72,12 +80,17 @@ class ReliabilityMonitor:
             llm_success_rate = successful / total * 100
 
             # LLM calls with latency above bound
-            latency_violations = sum(1 for c in self._llm_calls if c["latency_ms"] > MAX_LLM_LATENCY_MS)
+            latency_violations = sum(
+                1 for c in self._llm_calls if c["latency_ms"] > MAX_LLM_LATENCY_MS
+            )
 
             # LLM failures attributed to Langfuse
             langfuse_caused_failures = sum(
-                1 for c in self._llm_calls
-                if not c["success"] and c.get("error") and "langfuse" in (c["error"] or "").lower()
+                1
+                for c in self._llm_calls
+                if not c["success"]
+                and c.get("error")
+                and "langfuse" in (c["error"] or "").lower()
             )
 
             return {
@@ -90,7 +103,11 @@ class ReliabilityMonitor:
                 "circuit_transitions": len(self._circuit_transitions),
                 "circuit_transition_log": list(self._circuit_transitions)[-10:],
                 "chaos_stats": None,  # Will be populated from chaos module
-                "assertion": "PASS" if llm_success_rate >= 99.0 and langfuse_caused_failures == 0 else "FAIL",
+                "assertion": (
+                    "PASS"
+                    if llm_success_rate >= 99.0 and langfuse_caused_failures == 0
+                    else "FAIL"
+                ),
                 "target_llm_success_rate": "~100%",
                 "actual_llm_success_rate": f"{round(llm_success_rate, 2)}%",
             }
@@ -98,6 +115,7 @@ class ReliabilityMonitor:
 
 # Singleton
 _monitor: ReliabilityMonitor | None = None
+
 
 def get_reliability_monitor() -> ReliabilityMonitor:
     global _monitor

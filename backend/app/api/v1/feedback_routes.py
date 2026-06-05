@@ -49,7 +49,9 @@ async def list_feedback(
     """List feedback reports for the current user."""
     offset = (page - 1) * per_page
 
-    count_q = select(func.count(FeedbackReport.id)).where(FeedbackReport.user_id == user.id)
+    count_q = select(func.count(FeedbackReport.id)).where(
+        FeedbackReport.user_id == user.id
+    )
     total = (await db.execute(count_q)).scalar() or 0
 
     q = (
@@ -87,11 +89,15 @@ async def get_feedback_stats(
 ):
     """Get feedback statistics for the current user."""
     base = select(FeedbackReport).where(FeedbackReport.user_id == user.id)
-    total_q = select(func.count(FeedbackReport.id)).where(FeedbackReport.user_id == user.id)
+    total_q = select(func.count(FeedbackReport.id)).where(
+        FeedbackReport.user_id == user.id
+    )
     total = (await db.execute(total_q)).scalar() or 0
 
     # Score-based sentiment
-    avg_q = select(func.avg(FeedbackReport.overall_score)).where(FeedbackReport.user_id == user.id)
+    avg_q = select(func.avg(FeedbackReport.overall_score)).where(
+        FeedbackReport.user_id == user.id
+    )
     avg_score = (await db.execute(avg_q)).scalar() or 0
 
     positive_q = select(func.count(FeedbackReport.id)).where(
@@ -127,6 +133,7 @@ def _bad_request(detail: str) -> HTTPException:
 
 # --- Synthesis ---
 
+
 @router.post("/missions/{mission_id}/synthesize", response_model=FeedbackReportResponse)
 async def synthesize_endpoint(
     mission_id: str,
@@ -141,7 +148,9 @@ async def synthesize_endpoint(
 
     try:
         report = await synthesize_feedback(
-            db, mission_id, user.id,
+            db,
+            mission_id,
+            user.id,
             mode=payload.mode,
             include_task_analysis=payload.include_task_analysis,
             include_patterns=payload.include_patterns,
@@ -165,6 +174,7 @@ async def bulk_synthesize_endpoint(
 
 # --- Reports ---
 
+
 @router.get("/reports/{report_id}", response_model=FeedbackReportResponse)
 async def get_report_endpoint(
     report_id: str,
@@ -178,7 +188,9 @@ async def get_report_endpoint(
     return report
 
 
-@router.get("/missions/{mission_id}/reports", response_model=list[FeedbackReportResponse])
+@router.get(
+    "/missions/{mission_id}/reports", response_model=list[FeedbackReportResponse]
+)
 async def list_reports_endpoint(
     mission_id: str,
     offset: int = Query(0, ge=0),
@@ -203,6 +215,7 @@ async def delete_report_endpoint(
 ):
     """Delete a feedback report."""
     from sqlalchemy import delete as sa_delete
+
     report = await get_feedback_report(db, report_id)
     if report is None or report.user_id != user.id:
         raise _not_found()
@@ -212,6 +225,7 @@ async def delete_report_endpoint(
 
 
 # --- Patterns ---
+
 
 @router.get("/patterns", response_model=list[FeedbackPatternResponse])
 async def list_patterns_endpoint(
@@ -224,7 +238,12 @@ async def list_patterns_endpoint(
 ):
     """List feedback patterns for the current user."""
     patterns, _ = await list_feedback_patterns(
-        db, user.id, pattern_type=pattern_type, status=status, offset=offset, limit=limit
+        db,
+        user.id,
+        pattern_type=pattern_type,
+        status=status,
+        offset=offset,
+        limit=limit,
     )
     return patterns
 
@@ -238,7 +257,8 @@ async def update_pattern_endpoint(
 ):
     """Update a feedback pattern (status, suggested_fix)."""
     pattern = await update_feedback_pattern(
-        db, pattern_id,
+        db,
+        pattern_id,
         status=payload.status,
         suggested_fix=payload.suggested_fix,
     )
@@ -257,7 +277,10 @@ async def delete_pattern_endpoint(
     from sqlalchemy import delete as sa_delete
 
     from app.models.feedback_models import FeedbackPattern
-    pattern = await db.execute(select(FeedbackPattern).where(FeedbackPattern.id == pattern_id))
+
+    pattern = await db.execute(
+        select(FeedbackPattern).where(FeedbackPattern.id == pattern_id)
+    )
     pattern = pattern.scalar_one_or_none()
     if pattern is None or pattern.user_id != user.id:
         raise _not_found()
@@ -267,6 +290,7 @@ async def delete_pattern_endpoint(
 
 
 # --- Analytics ---
+
 
 @router.get("/analytics", response_model=FeedbackAnalyticsResponse)
 async def analytics_endpoint(
@@ -278,6 +302,7 @@ async def analytics_endpoint(
 
 
 # --- Compare ---
+
 
 @router.post("/compare", response_model=FeedbackCompareResponse)
 async def compare_endpoint(
@@ -292,6 +317,7 @@ async def compare_endpoint(
 
 
 # --- Improvements Integration ---
+
 
 @router.get("/missions/{mission_id}/improvements")
 async def list_mission_improvements(

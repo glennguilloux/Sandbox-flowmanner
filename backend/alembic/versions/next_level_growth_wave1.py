@@ -8,6 +8,7 @@ Add:
 - missions.integration_config (JSONB, nullable) — for HTTP outbound integration config
 - mission_tasks.approval_required (Boolean, default False) — for human approval gating
 """
+
 from typing import Sequence, Union
 
 from alembic import op

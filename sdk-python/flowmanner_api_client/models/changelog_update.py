@@ -1,35 +1,26 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="ChangelogUpdate")
-
 
 
 @_attrs_define
 class ChangelogUpdate:
-    """ 
-        Attributes:
-            version (None | str | Unset):
-            title (None | str | Unset):
-            content (None | str | Unset):
-            entry_type (None | str | Unset):
-            published (bool | None | Unset):
-     """
+    """
+    Attributes:
+        version (None | str | Unset):
+        title (None | str | Unset):
+        content (None | str | Unset):
+        entry_type (None | str | Unset):
+        published (bool | None | Unset):
+    """
 
     version: None | str | Unset = UNSET
     title: None | str | Unset = UNSET
@@ -37,10 +28,6 @@ class ChangelogUpdate:
     entry_type: None | str | Unset = UNSET
     published: bool | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         version: None | str | Unset
@@ -73,11 +60,9 @@ class ChangelogUpdate:
         else:
             published = self.published
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if version is not UNSET:
             field_dict["version"] = version
         if title is not UNSET:
@@ -91,11 +76,10 @@ class ChangelogUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+
         def _parse_version(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -104,7 +88,6 @@ class ChangelogUpdate:
             return cast(None | str | Unset, data)
 
         version = _parse_version(d.pop("version", UNSET))
-
 
         def _parse_title(data: object) -> None | str | Unset:
             if data is None:
@@ -115,7 +98,6 @@ class ChangelogUpdate:
 
         title = _parse_title(d.pop("title", UNSET))
 
-
         def _parse_content(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -124,7 +106,6 @@ class ChangelogUpdate:
             return cast(None | str | Unset, data)
 
         content = _parse_content(d.pop("content", UNSET))
-
 
         def _parse_entry_type(data: object) -> None | str | Unset:
             if data is None:
@@ -135,7 +116,6 @@ class ChangelogUpdate:
 
         entry_type = _parse_entry_type(d.pop("entry_type", UNSET))
 
-
         def _parse_published(data: object) -> bool | None | Unset:
             if data is None:
                 return data
@@ -145,7 +125,6 @@ class ChangelogUpdate:
 
         published = _parse_published(d.pop("published", UNSET))
 
-
         changelog_update = cls(
             version=version,
             title=title,
@@ -153,7 +132,6 @@ class ChangelogUpdate:
             entry_type=entry_type,
             published=published,
         )
-
 
         changelog_update.additional_properties = d
         return changelog_update

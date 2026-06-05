@@ -167,7 +167,9 @@ async def register_user(
         import re as _re
 
         ws_id = str(uuid.uuid4())
-        ws_name = f"{payload.full_name or payload.username or user.username}'s Workspace"
+        ws_name = (
+            f"{payload.full_name or payload.username or user.username}'s Workspace"
+        )
         ws_slug = _re.sub(r"[^a-z0-9]+", "-", ws_name.lower()).strip("-") or "workspace"
         ws = Workspace(id=ws_id, name=ws_name, slug=ws_slug, owner_id=user.id)
         db.add(ws)
@@ -205,7 +207,7 @@ async def register_user(
 
     resp = JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content=ok(response_data.model_dump(mode='json')),
+        content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, refresh_token)
     return resp
@@ -214,6 +216,7 @@ async def register_user(
 # ═══════════════════════════════════════════════
 # POST /auth/sessions — Login
 # ═══════════════════════════════════════════════
+
 
 @router.post("/sessions", status_code=status.HTTP_201_CREATED)
 async def create_session_handler(
@@ -279,7 +282,7 @@ async def create_session_handler(
         temp_response = TempTokenResponse(temp_token=temp_token)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content=ok(temp_response.model_dump(mode='json')),
+            content=ok(temp_response.model_dump(mode="json")),
         )
 
     # Create session
@@ -315,7 +318,7 @@ async def create_session_handler(
 
     resp = JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content=ok(response_data.model_dump(mode='json')),
+        content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, refresh_token)
     return resp
@@ -324,6 +327,7 @@ async def create_session_handler(
 # ═══════════════════════════════════════════════
 # POST /auth/sessions/verify — 2FA Verification
 # ═══════════════════════════════════════════════
+
 
 @router.post("/sessions/verify", status_code=status.HTTP_200_OK)
 async def verify_session_2fa(
@@ -416,7 +420,7 @@ async def verify_session_2fa(
 
     resp = JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=ok(response_data.model_dump(mode='json')),
+        content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, refresh_token)
     return resp
@@ -425,6 +429,7 @@ async def verify_session_2fa(
 # ═══════════════════════════════════════════════
 # POST /auth/sessions/refresh — Refresh Token
 # ═══════════════════════════════════════════════
+
 
 @router.post("/sessions/refresh", status_code=status.HTTP_200_OK)
 async def refresh_session_handler(
@@ -499,7 +504,7 @@ async def refresh_session_handler(
 
     resp = JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=ok(response_data.model_dump(mode='json')),
+        content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, new_refresh_token)
     return resp
@@ -508,6 +513,7 @@ async def refresh_session_handler(
 # ═══════════════════════════════════════════════
 # GET /auth/sessions — List Sessions
 # ═══════════════════════════════════════════════
+
 
 @router.get("/sessions", status_code=status.HTTP_200_OK)
 async def list_sessions(
@@ -547,7 +553,7 @@ async def list_sessions(
                 last_used_at=s.last_used_at,
                 created_at=s.created_at,
                 expires_at=s.expires_at,
-            ).model_dump(mode='json')
+            ).model_dump(mode="json")
         )
 
     return ok(session_list)
@@ -556,6 +562,7 @@ async def list_sessions(
 # ═══════════════════════════════════════════════
 # DELETE /auth/sessions/{session_id} — Revoke Session
 # ═══════════════════════════════════════════════
+
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_session_handler(
@@ -598,8 +605,11 @@ async def revoke_session_handler(
 # GET /auth/users/me — Current User Profile
 # ═══════════════════════════════════════════════
 
+
 @router.get("/users/me", status_code=status.HTTP_200_OK)
-async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_me(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
     """Get current user profile.
 
     Returns:
@@ -622,13 +632,14 @@ async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depe
             last_login_at=user.last_login_at,
             onboarding_step=user.onboarding_step,
             onboarding_completed=user.onboarding_completed,
-        ).model_dump(mode='json')
+        ).model_dump(mode="json")
     )
 
 
 # ═══════════════════════════════════════════════
 # PATCH /auth/users/me — Update Current User
 # ═══════════════════════════════════════════════
+
 
 @router.patch("/users/me", status_code=status.HTTP_200_OK)
 async def update_me(
@@ -684,13 +695,14 @@ async def update_me(
             last_login_at=user.last_login_at,
             onboarding_step=user.onboarding_step,
             onboarding_completed=user.onboarding_completed,
-        ).model_dump(mode='json')
+        ).model_dump(mode="json")
     )
 
 
 # ═══════════════════════════════════════════════
 # POST /auth/api-keys — Create API Key
 # ═══════════════════════════════════════════════
+
 
 @router.post("/api-keys", status_code=status.HTTP_201_CREATED)
 async def create_api_key_handler(
@@ -725,6 +737,7 @@ async def create_api_key_handler(
         )
 
     import json
+
     scopes_list = json.loads(api_key.scopes) if api_key.scopes else []
 
     return ok(
@@ -736,13 +749,14 @@ async def create_api_key_handler(
             scopes=scopes_list,
             expires_at=api_key.expires_at,
             created_at=api_key.created_at,
-        ).model_dump(mode='json')
+        ).model_dump(mode="json")
     )
 
 
 # ═══════════════════════════════════════════════
 # GET /auth/api-keys — List API Keys
 # ═══════════════════════════════════════════════
+
 
 @router.get("/api-keys", status_code=status.HTTP_200_OK)
 async def list_api_keys(
@@ -774,7 +788,7 @@ async def list_api_keys(
                 last_used_at=k.last_used_at,
                 expires_at=k.expires_at,
                 created_at=k.created_at,
-            ).model_dump(mode='json')
+            ).model_dump(mode="json")
         )
 
     return ok(key_list)
@@ -783,6 +797,7 @@ async def list_api_keys(
 # ═══════════════════════════════════════════════
 # DELETE /auth/api-keys/{key_id} — Revoke API Key
 # ═══════════════════════════════════════════════
+
 
 @router.delete("/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_api_key_handler(

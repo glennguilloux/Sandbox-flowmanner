@@ -11,8 +11,12 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_execution_response_input_data_type_0 import GraphExecutionResponseInputDataType0
-    from ..models.graph_execution_response_output_data_type_0 import GraphExecutionResponseOutputDataType0
+    from ..models.graph_execution_response_input_data_type_0 import (
+        GraphExecutionResponseInputDataType0,
+    )
+    from ..models.graph_execution_response_output_data_type_0 import (
+        GraphExecutionResponseOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="GraphExecutionResponse")
@@ -45,8 +49,12 @@ class GraphExecutionResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_execution_response_input_data_type_0 import GraphExecutionResponseInputDataType0
-        from ..models.graph_execution_response_output_data_type_0 import GraphExecutionResponseOutputDataType0
+        from ..models.graph_execution_response_input_data_type_0 import (
+            GraphExecutionResponseInputDataType0,
+        )
+        from ..models.graph_execution_response_output_data_type_0 import (
+            GraphExecutionResponseOutputDataType0,
+        )
 
         id = self.id
 
@@ -119,8 +127,12 @@ class GraphExecutionResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_execution_response_input_data_type_0 import GraphExecutionResponseInputDataType0
-        from ..models.graph_execution_response_output_data_type_0 import GraphExecutionResponseOutputDataType0
+        from ..models.graph_execution_response_input_data_type_0 import (
+            GraphExecutionResponseInputDataType0,
+        )
+        from ..models.graph_execution_response_output_data_type_0 import (
+            GraphExecutionResponseOutputDataType0,
+        )
 
         d = dict(src_dict)
         id = d.pop("id")
@@ -131,7 +143,9 @@ class GraphExecutionResponse:
 
         created_at = isoparse(d.pop("created_at"))
 
-        def _parse_input_data(data: object) -> GraphExecutionResponseInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> GraphExecutionResponseInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -148,7 +162,9 @@ class GraphExecutionResponse:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-        def _parse_output_data(data: object) -> GraphExecutionResponseOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> GraphExecutionResponseOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -156,7 +172,9 @@ class GraphExecutionResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                output_data_type_0 = GraphExecutionResponseOutputDataType0.from_dict(data)
+                output_data_type_0 = GraphExecutionResponseOutputDataType0.from_dict(
+                    data
+                )
 
                 return output_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

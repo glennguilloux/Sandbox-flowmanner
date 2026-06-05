@@ -1,59 +1,46 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.tool_detail import ToolDetail
-from ...types import UNSET, Unset
-from typing import cast
-
+from ...types import Response, Unset
 
 
 def _get_kwargs(
     tool_id: str,
     *,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
 
-
-
-    
-
-    
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/tools/{tool_id}".format(tool_id=quote(str(tool_id), safe=""),),
+        "url": "/api/tools/{tool_id}".format(
+            tool_id=quote(str(tool_id), safe=""),
+        ),
     }
-
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | ToolDetail | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | ToolDetail | None:
     if response.status_code == 200:
         response_200 = ToolDetail.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -63,7 +50,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | ToolDetail]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | ToolDetail]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -76,10 +65,9 @@ def sync_detailed(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | ToolDetail]:
-    """ Get Tool
+    """Get Tool
 
      Get full metadata for a specific tool.
 
@@ -93,13 +81,11 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | ToolDetail]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         tool_id=tool_id,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -108,14 +94,14 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | ToolDetail | None:
-    """ Get Tool
+    """Get Tool
 
      Get full metadata for a specific tool.
 
@@ -129,24 +115,22 @@ def sync(
 
     Returns:
         HTTPValidationError | ToolDetail
-     """
-
+    """
 
     return sync_detailed(
         tool_id=tool_id,
-client=client,
-accept_version=accept_version,
-
+        client=client,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | ToolDetail]:
-    """ Get Tool
+    """Get Tool
 
      Get full metadata for a specific tool.
 
@@ -160,29 +144,25 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | ToolDetail]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         tool_id=tool_id,
-accept_version=accept_version,
-
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | ToolDetail | None:
-    """ Get Tool
+    """Get Tool
 
      Get full metadata for a specific tool.
 
@@ -196,12 +176,12 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | ToolDetail
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        tool_id=tool_id,
-client=client,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            tool_id=tool_id,
+            client=client,
+            accept_version=accept_version,
+        )
+    ).parsed

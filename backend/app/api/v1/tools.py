@@ -4,6 +4,7 @@ Unified Tools REST API — exposes the ToolRegistry via HTTP endpoints.
 All tools (browser, topology, terminal, etc.) are discoverable and executable
 through a single /api/tools/* interface. No changes to base.py needed.
 """
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -80,6 +81,7 @@ def _tool_to_detail(tool) -> ToolDetail:
 
 class ToolStats(BaseModel):
     """Public tool statistics — no auth required."""
+
     total_tools: int
     categories: list[str]
     category_counts: dict[str, int]

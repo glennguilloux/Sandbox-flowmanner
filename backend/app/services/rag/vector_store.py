@@ -194,12 +194,14 @@ class QdrantVectorStore:
         chunks = []
         for rec in page_records:
             p = rec.payload
-            chunks.append({
-                "id": rec.id,
-                "text": p.get("text", ""),
-                "topics": p.get("topics", []),
-                "relevance_score": p.get("relevance_score", 0),
-                "chunk_index": p.get("chunk_index", 0),
-            })
+            chunks.append(
+                {
+                    "id": rec.id,
+                    "text": p.get("text", ""),
+                    "topics": p.get("topics", []),
+                    "relevance_score": p.get("relevance_score", 0),
+                    "chunk_index": p.get("chunk_index", 0),
+                }
+            )
 
         return chunks, total

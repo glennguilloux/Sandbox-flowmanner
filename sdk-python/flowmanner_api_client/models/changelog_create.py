@@ -1,45 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
 T = TypeVar("T", bound="ChangelogCreate")
-
 
 
 @_attrs_define
 class ChangelogCreate:
-    """ 
-        Attributes:
-            version (str):
-            title (str):
-            content (str):
-            entry_type (str | Unset):  Default: 'feature'.
-            published (bool | Unset):  Default: False.
-     """
+    """
+    Attributes:
+        version (str):
+        title (str):
+        content (str):
+        entry_type (str | Unset):  Default: 'feature'.
+        published (bool | Unset):  Default: False.
+    """
 
     version: str
     title: str
     content: str
-    entry_type: str | Unset = 'feature'
+    entry_type: str | Unset = "feature"
     published: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         version = self.version
@@ -52,22 +40,21 @@ class ChangelogCreate:
 
         published = self.published
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "version": version,
-            "title": title,
-            "content": content,
-        })
+        field_dict.update(
+            {
+                "version": version,
+                "title": title,
+                "content": content,
+            }
+        )
         if entry_type is not UNSET:
             field_dict["entry_type"] = entry_type
         if published is not UNSET:
             field_dict["published"] = published
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -89,7 +76,6 @@ class ChangelogCreate:
             entry_type=entry_type,
             published=published,
         )
-
 
         changelog_create.additional_properties = d
         return changelog_create

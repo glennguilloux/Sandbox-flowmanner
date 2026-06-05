@@ -21,12 +21,14 @@ if TYPE_CHECKING:
 # Attempt to import graph executor at module level
 try:
     from app.services.graph_executor import GraphInterpreter
+
     _HAS_GRAPH_EXECUTOR = True
 except ImportError:
     _HAS_GRAPH_EXECUTOR = False
     GraphInterpreter = None  # type: ignore
 
 logger = logging.getLogger(__name__)
+
 
 def _add_deprecation_headers(response: Response):
     """Phase 5.5: Inject deprecation headers on every v1 flow-compat response."""
@@ -35,7 +37,9 @@ def _add_deprecation_headers(response: Response):
     response.headers["Link"] = '</api/v2/blueprints>; rel="successor-version"'
 
 
-router = APIRouter(tags=["flow-compat"], dependencies=[Depends(_add_deprecation_headers)])
+router = APIRouter(
+    tags=["flow-compat"], dependencies=[Depends(_add_deprecation_headers)]
+)
 
 
 @router.get("/runs")
@@ -51,9 +55,9 @@ async def get_flow_runs(
     """
     offset = (page - 1) * limit
     count_result = await db.execute(
-        select(func.count()).select_from(GraphExecution).where(
-            GraphExecution.user_id == current_user.id
-        )
+        select(func.count())
+        .select_from(GraphExecution)
+        .where(GraphExecution.user_id == current_user.id)
     )
     total = count_result.scalar() or 0
 
@@ -66,14 +70,16 @@ async def get_flow_runs(
     )
     runs = []
     for ex in page_r.scalars().all():
-        runs.append({
-            "id": str(ex.id),
-            "workflow_id": str(ex.workflow_id),
-            "status": ex.status,
-            "input_data": ex.input_data or {},
-            "output_data": ex.output_data or {},
-            "created_at": ex.created_at.isoformat() if ex.created_at else None,
-        })
+        runs.append(
+            {
+                "id": str(ex.id),
+                "workflow_id": str(ex.workflow_id),
+                "status": ex.status,
+                "input_data": ex.input_data or {},
+                "output_data": ex.output_data or {},
+                "created_at": ex.created_at.isoformat() if ex.created_at else None,
+            }
+        )
     return {"runs": runs, "total": total, "page": page, "limit": limit}
 
 
@@ -98,10 +104,12 @@ async def stream_flow_run(
 
             # Find an active workflow for this user
             workflow_result = await db.execute(
-                select(GraphWorkflow).where(
+                select(GraphWorkflow)
+                .where(
                     GraphWorkflow.user_id == current_user.id,
                     GraphWorkflow.status == "active",
-                ).limit(1)
+                )
+                .limit(1)
             )
             workflow = workflow_result.scalars().first()
 

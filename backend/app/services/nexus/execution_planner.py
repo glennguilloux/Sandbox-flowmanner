@@ -108,11 +108,25 @@ class ExecutionPlanner:
                 "category": "memory",
             },
             # Image generation patterns
-            {"patterns": [r"generate image", r"create image", r"make picture", r"draw"], "category": "generation"},
+            {
+                "patterns": [
+                    r"generate image",
+                    r"create image",
+                    r"make picture",
+                    r"draw",
+                ],
+                "category": "generation",
+            },
             # Analysis patterns
-            {"patterns": [r"analyze", r"examine", r"review", r"assess"], "category": "agent"},
+            {
+                "patterns": [r"analyze", r"examine", r"review", r"assess"],
+                "category": "agent",
+            },
             # Code patterns
-            {"patterns": [r"write code", r"implement", r"develop", r"code"], "category": "agent"},
+            {
+                "patterns": [r"write code", r"implement", r"develop", r"code"],
+                "category": "agent",
+            },
         ]
 
     def add_planning_rule(self, rule: dict[str, Any]) -> None:
@@ -120,7 +134,10 @@ class ExecutionPlanner:
         self._planning_rules.append(rule)
 
     async def create_plan(
-        self, goal: str, context: dict[str, Any] | None = None, available_capabilities: list[str] | None = None
+        self,
+        goal: str,
+        context: dict[str, Any] | None = None,
+        available_capabilities: list[str] | None = None,
     ) -> ExecutionPlan:
         """
         Create an execution plan for a goal.
@@ -148,7 +165,9 @@ class ExecutionPlanner:
 
         # Filter by available capabilities if specified
         if available_capabilities:
-            matched_capabilities = matched_capabilities.intersection(set(available_capabilities))
+            matched_capabilities = matched_capabilities.intersection(
+                set(available_capabilities)
+            )
 
         # Create steps for matched capabilities
         for cap_id in matched_capabilities:
@@ -269,6 +288,8 @@ class ExecutionPlanner:
             lines.append(f"  Step {step.step_id}: {step.capability_id}{deps}")
             lines.append(f"           {step.description[:60]}...")
 
-        lines.append(f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}")
+        lines.append(
+            f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}"
+        )
 
         return "\n".join(lines)

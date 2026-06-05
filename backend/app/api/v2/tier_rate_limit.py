@@ -126,7 +126,9 @@ async def _resolve_tier_from_db(user: User) -> str:
 
             # Fall back to workspace plan
             member_result = await session.execute(
-                select(WorkspaceMember).where(WorkspaceMember.user_id == user.id).limit(1)
+                select(WorkspaceMember)
+                .where(WorkspaceMember.user_id == user.id)
+                .limit(1)
             )
             member = member_result.scalar_one_or_none()
             if member:
@@ -184,7 +186,11 @@ def tier_rate_limit(
 
         # Check the module-level shared window
         allowed, remaining, retry_after = _inmem_allowed(
-            _shared_windows, key, effective_limit, window, _BURST_MULTIPLIER,
+            _shared_windows,
+            key,
+            effective_limit,
+            window,
+            _BURST_MULTIPLIER,
         )
 
         # Store state on request.state for the RateLimitHeadersMiddleware

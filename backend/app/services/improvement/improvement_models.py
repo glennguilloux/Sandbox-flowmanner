@@ -10,6 +10,7 @@ from typing import Any
 
 class ImprovementStatus(str, Enum):
     """Status of an improvement cycle"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -19,6 +20,7 @@ class ImprovementStatus(str, Enum):
 
 class ImprovementType(str, Enum):
     """Type of improvement"""
+
     PROMPT_OPTIMIZATION = "prompt_optimization"
     PARAMETER_TUNING = "parameter_tuning"
     TOOL_SELECTION = "tool_selection"
@@ -29,6 +31,7 @@ class ImprovementType(str, Enum):
 @dataclass
 class ImprovementCycle:
     """Tracks an improvement cycle"""
+
     id: str
     improvement_type: ImprovementType
     status: ImprovementStatus = ImprovementStatus.PENDING
@@ -44,6 +47,7 @@ class ImprovementCycle:
 @dataclass
 class ImprovementMetric:
     """A metric tracked during improvement"""
+
     name: str
     value: float
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -53,6 +57,7 @@ class ImprovementMetric:
 @dataclass
 class ImprovementInsight:
     """An insight generated from improvement analysis"""
+
     id: str
     category: str
     description: str
@@ -64,28 +69,19 @@ class ImprovementInsight:
 
 
 def create_improvement_cycle(
-    cycle_id: str,
-    improvement_type: ImprovementType
+    cycle_id: str, improvement_type: ImprovementType
 ) -> ImprovementCycle:
     """Create a new improvement cycle"""
     return ImprovementCycle(
-        id=cycle_id,
-        improvement_type=improvement_type,
-        started_at=datetime.now(UTC)
+        id=cycle_id, improvement_type=improvement_type, started_at=datetime.now(UTC)
     )
 
 
 def create_metric(
-    name: str,
-    value: float,
-    tags: dict[str, str] | None = None
+    name: str, value: float, tags: dict[str, str] | None = None
 ) -> ImprovementMetric:
     """Create a new improvement metric"""
-    return ImprovementMetric(
-        name=name,
-        value=value,
-        tags=tags or {}
-    )
+    return ImprovementMetric(name=name, value=value, tags=tags or {})
 
 
 def create_insight(
@@ -93,7 +89,7 @@ def create_insight(
     category: str,
     description: str,
     confidence: float,
-    suggested_action: str
+    suggested_action: str,
 ) -> ImprovementInsight:
     """Create a new improvement insight"""
     return ImprovementInsight(
@@ -101,13 +97,14 @@ def create_insight(
         category=category,
         description=description,
         confidence=confidence,
-        suggested_action=suggested_action
+        suggested_action=suggested_action,
     )
 
 
 @dataclass
 class AppliedImprovement:
     """Tracks an improvement that was applied"""
+
     id: str
     improvement_type: ImprovementType
     description: str
@@ -124,20 +121,21 @@ def create_applied_improvement(
     improvement_id: str,
     improvement_type: ImprovementType,
     description: str,
-    applied_by: str = "system"
+    applied_by: str = "system",
 ) -> AppliedImprovement:
     """Create a new applied improvement record"""
     return AppliedImprovement(
         id=improvement_id,
         improvement_type=improvement_type,
         description=description,
-        applied_by=applied_by
+        applied_by=applied_by,
     )
 
 
 @dataclass
 class FailureContextModel:
     """Database model for failure context"""
+
     id: str
     failure_type: str
     severity: str
@@ -150,6 +148,7 @@ class FailureContextModel:
 @dataclass
 class ImprovementSession:
     """Tracks an improvement session"""
+
     id: str
     started_at: datetime = field(default_factory=datetime.utcnow)
     completed_at: datetime | None = None
@@ -163,6 +162,7 @@ class ImprovementSession:
 @dataclass
 class ImprovementMetrics:
     """Aggregated improvement metrics"""
+
     total_cycles: int = 0
     successful_cycles: int = 0
     failed_cycles: int = 0
@@ -177,20 +177,18 @@ def create_failure_context(
     context_id: str,
     failure_type: str,
     severity: str,
-    context_data: dict[str, Any] | None = None
+    context_data: dict[str, Any] | None = None,
 ) -> FailureContextModel:
     """Create a new failure context record"""
     return FailureContextModel(
         id=context_id,
         failure_type=failure_type,
         severity=severity,
-        context_data=context_data or {}
+        context_data=context_data or {},
     )
 
 
-def create_improvement_session(
-    session_id: str
-) -> ImprovementSession:
+def create_improvement_session(session_id: str) -> ImprovementSession:
     """Create a new improvement session"""
     return ImprovementSession(id=session_id)
 

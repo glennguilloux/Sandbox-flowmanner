@@ -14,6 +14,7 @@ from app.models.models import MarketplaceListingModel, MarketplaceReviewModel
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _make_listing(**overrides) -> MagicMock:
     listing = MagicMock(spec=MarketplaceListingModel)
     listing.id = overrides.get("id", str(uuid4()))
@@ -57,9 +58,11 @@ def _make_review(**overrides) -> MagicMock:
 
 # ── Publish Workflow Tests ────────────────────────────────────────────────────
 
+
 class TestPublishWorkflow:
     def test_valid_statuses(self):
         from app.api.v1.marketplace import VALID_STATUSES
+
         assert "draft" in VALID_STATUSES
         assert "published" in VALID_STATUSES
         assert "deprecated" in VALID_STATUSES
@@ -159,10 +162,14 @@ class TestPublishWorkflow:
 
 # ── Rating Aggregation Tests ─────────────────────────────────────────────────
 
+
 class TestRatingAggregation:
     def test_rating_summary_schema(self):
         from app.api.v1.marketplace import RatingSummary
-        summary = RatingSummary(average=4.5, count=10, breakdown={5: 6, 4: 2, 3: 1, 2: 1, 1: 0})
+
+        summary = RatingSummary(
+            average=4.5, count=10, breakdown={5: 6, 4: 2, 3: 1, 2: 1, 1: 0}
+        )
         assert summary.average == 4.5
         assert summary.count == 10
 
@@ -188,7 +195,9 @@ class TestRatingAggregation:
                 return MagicMock(scalar_one_or_none=MagicMock(return_value=None))
             elif call_count == 3:
                 # Rating avg/count
-                return MagicMock(first=MagicMock(return_value=MagicMock(avg=4.0, cnt=1)))
+                return MagicMock(
+                    first=MagicMock(return_value=MagicMock(avg=4.0, cnt=1))
+                )
             elif call_count == 4:
                 # Listing for rating update
                 return MagicMock(scalar_one_or_none=MagicMock(return_value=listing))
@@ -201,6 +210,7 @@ class TestRatingAggregation:
 
         user = MagicMock(id=1)
         from app.api.v1.marketplace import ReviewCreateRequest
+
         payload = ReviewCreateRequest(rating=4, title="Good", comment="Nice tool")
 
         result = await submit_review(listing.id, payload, db, user)
@@ -209,18 +219,23 @@ class TestRatingAggregation:
 
 # ── Install-to-Workspace Tests ───────────────────────────────────────────────
 
+
 class TestInstallToWorkspace:
     def test_install_response_schema(self):
         from app.api.v1.marketplace import InstallResponse
+
         resp = InstallResponse(
-            success=True, installation_id="inst-1",
-            message="Installed", cloned_entity_id="wf-123",
+            success=True,
+            installation_id="inst-1",
+            message="Installed",
+            cloned_entity_id="wf-123",
         )
         assert resp.success is True
         assert resp.cloned_entity_id == "wf-123"
 
     def test_valid_artifact_types(self):
         from app.api.v1.marketplace import VALID_ARTIFACT_TYPES
+
         assert "workflow" in VALID_ARTIFACT_TYPES
         assert "tool" in VALID_ARTIFACT_TYPES
         assert "capability" in VALID_ARTIFACT_TYPES
@@ -228,6 +243,7 @@ class TestInstallToWorkspace:
 
 
 # ── Version Management Tests ─────────────────────────────────────────────────
+
 
 class TestVersionManagement:
     @pytest.mark.asyncio
@@ -267,12 +283,20 @@ class TestVersionManagement:
 
 # ── Response Schema Tests ────────────────────────────────────────────────────
 
+
 class TestSchemas:
     def test_listing_response_fields(self):
         from app.api.v1.marketplace import ListingResponse
+
         resp = ListingResponse(
-            id="l-1", name="Test", owner_id="1", listing_type="workflow",
-            status="published", version="1.0.0", rating=4.5, review_count=10,
+            id="l-1",
+            name="Test",
+            owner_id="1",
+            listing_type="workflow",
+            status="published",
+            version="1.0.0",
+            rating=4.5,
+            review_count=10,
         )
         assert resp.status == "published"
         assert resp.version == "1.0.0"
@@ -280,10 +304,12 @@ class TestSchemas:
 
     def test_publish_response(self):
         from app.api.v1.marketplace import PublishResponse
+
         resp = PublishResponse(success=True, status="published", version="1.0.0")
         assert resp.success is True
 
     def test_review_create_validation(self):
         from app.api.v1.marketplace import ReviewCreateRequest
+
         req = ReviewCreateRequest(rating=5, title="Amazing", comment="Best tool ever")
         assert req.rating == 5

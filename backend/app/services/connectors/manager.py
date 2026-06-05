@@ -30,14 +30,14 @@ logger = logging.getLogger(__name__)
 class ConnectorManager:
     """
     Central manager for all external API connectors.
-    
+
     Features:
     - Register and configure connectors
     - Execute actions on connectors
     - Monitor connector health
     - Manage connector lifecycle
     """
-    
+
     CONNECTOR_CLASSES = {
         "slack": SlackConnector,
         "discord": DiscordConnector,
@@ -48,42 +48,42 @@ class ConnectorManager:
         "notion": NotionConnector,
         "linear": LinearConnector,
     }
-    
+
     def __init__(self):
         self._connectors: dict[str, BaseConnector] = {}
         self._configs: dict[str, ConnectorConfig] = {}
         self._lock = asyncio.Lock()
-    
+
     @property
     def registered_connectors(self) -> list[str]:
         """List all registered connector IDs"""
         return list(self._connectors.keys())
-    
+
     @property
     def available_connector_types(self) -> list[str]:
         """List all available connector types"""
         return list(self.CONNECTOR_CLASSES.keys())
-    
+
     def get_connector_class(self, connector_type: str) -> type[BaseConnector] | None:
         """Get connector class by type"""
         return self.CONNECTOR_CLASSES.get(connector_type)
-    
+
     async def register_connector(
         self,
         connector_id: str,
         connector_type: str,
         config: dict[str, Any],
-        auto_connect: bool = True
+        auto_connect: bool = True,
     ) -> bool:
         """
         Register a new connector.
-        
+
         Args:
             connector_id: Unique identifier for this connector instance
             connector_type: Type of connector (slack, discord, email, webhook)
             config: Configuration dictionary
             auto_connect: Whether to automatically connect after registration
-            
+
         Returns:
             True if registration successful
         """
@@ -91,12 +91,12 @@ class ConnectorManager:
             if connector_id in self._connectors:
                 logger.warning(f"Connector '{connector_id}' already registered")
                 return False
-            
+
             connector_class = self.get_connector_class(connector_type)
             if not connector_class:
                 logger.error(f"Unknown connector type: {connector_type}")
                 return False
-            
+
             try:
                 # Create connector config
                 connector_config = ConnectorConfig(
@@ -111,34 +111,36 @@ class ConnectorManager:
                     retry_config=config.get("retry_config"),
                     metadata=config.get("metadata", {}),
                 )
-                
+
                 # Create connector instance
                 connector = connector_class(connector_config)
-                
+
                 # Connect if auto_connect
                 if auto_connect:
                     connected = await connector.connect()
                     if not connected:
                         logger.error(f"Failed to connect connector '{connector_id}'")
                         return False
-                
+
                 self._connectors[connector_id] = connector
                 self._configs[connector_id] = connector_config
-                
-                logger.info(f"Registered connector '{connector_id}' of type '{connector_type}'")
+
+                logger.info(
+                    f"Registered connector '{connector_id}' of type '{connector_type}'"
+                )
                 return True
-                
+
             except Exception as e:
                 logger.error(f"Failed to register connector '{connector_id}': {e}")
                 return False
-    
+
     async def unregister_connector(self, connector_id: str) -> bool:
         """
         Unregister and disconnect a connector.
-        
+
         Args:
             connector_id: ID of connector to unregister
-            
+
         Returns:
             True if unregistration successful
         """
@@ -146,31 +148,31 @@ class ConnectorManager:
             if connector_id not in self._connectors:
                 logger.warning(f"Connector '{connector_id}' not found")
                 return False
-            
+
             try:
                 connector = self._connectors[connector_id]
                 await connector.disconnect()
-                
+
                 del self._connectors[connector_id]
                 del self._configs[connector_id]
-                
+
                 logger.info(f"Unregistered connector '{connector_id}'")
                 return True
-                
+
             except Exception as e:
                 logger.error(f"Failed to unregister connector '{connector_id}': {e}")
                 return False
-    
+
     def get_connector(self, connector_id: str) -> BaseConnector | None:
         """Get a connector instance by ID"""
         return self._connectors.get(connector_id)
-    
+
     def get_connector_info(self, connector_id: str) -> dict[str, Any] | None:
         """Get connector information"""
         connector = self._connectors.get(connector_id)
         if not connector:
             return None
-        
+
         return {
             "id": connector_id,
             "type": connector.connector_type,
@@ -179,14 +181,16 @@ class ConnectorManager:
             "available_actions": connector.available_actions,
             "stats": connector.get_stats(),
         }
-    
-    def list_connectors(self, connector_type: str | None = None) -> list[dict[str, Any]]:
+
+    def list_connectors(
+        self, connector_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         List all registered connectors.
-        
+
         Args:
             connector_type: Filter by connector type (optional)
-            
+
         Returns:
             List of connector info dictionaries
         """
@@ -194,31 +198,30 @@ class ConnectorManager:
         for connector_id, connector in self._connectors.items():
             if connector_type and connector.connector_type != connector_type:
                 continue
-            
-            result.append({
-                "id": connector_id,
-                "type": connector.connector_type,
-                "name": connector.config.name,
-                "status": connector.status.value,
-                "available_actions": connector.available_actions,
-            })
-        
+
+            result.append(
+                {
+                    "id": connector_id,
+                    "type": connector.connector_type,
+                    "name": connector.config.name,
+                    "status": connector.status.value,
+                    "available_actions": connector.available_actions,
+                }
+            )
+
         return result
-    
+
     async def execute(
-        self,
-        connector_id: str,
-        action: str,
-        params: dict[str, Any]
+        self, connector_id: str, action: str, params: dict[str, Any]
     ) -> ConnectorResponse:
         """
         Execute an action on a connector.
-        
+
         Args:
             connector_id: ID of the connector
             action: Action to execute
             params: Action parameters
-            
+
         Returns:
             ConnectorResponse with result
         """
@@ -227,49 +230,46 @@ class ConnectorManager:
             return ConnectorResponse(
                 success=False,
                 error=f"Connector '{connector_id}' not found",
-                status_code=404
+                status_code=404,
             )
-        
+
         if connector.status != ConnectorStatus.ACTIVE:
             return ConnectorResponse(
                 success=False,
                 error=f"Connector '{connector_id}' is not active (status: {connector.status.value})",
-                status_code=503
+                status_code=503,
             )
-        
+
         return await connector.execute_action(action, params)
-    
+
     async def execute_batch(
-        self,
-        operations: list[dict[str, Any]]
+        self, operations: list[dict[str, Any]]
     ) -> list[ConnectorResponse]:
         """
         Execute multiple operations in parallel.
-        
+
         Args:
             operations: List of {connector_id, action, params} dicts
-            
+
         Returns:
             List of ConnectorResponse objects
         """
         tasks = []
         for op in operations:
             task = self.execute(
-                op.get("connector_id"),
-                op.get("action"),
-                op.get("params", {})
+                op.get("connector_id"), op.get("action"), op.get("params", {})
             )
             tasks.append(task)
-        
+
         return await asyncio.gather(*tasks, return_exceptions=False)
-    
+
     async def health_check(self, connector_id: str | None = None) -> dict[str, Any]:
         """
         Check health of connectors.
-        
+
         Args:
             connector_id: Specific connector to check (optional, checks all if not provided)
-            
+
         Returns:
             Health check results
         """
@@ -277,7 +277,7 @@ class ConnectorManager:
             connector = self._connectors.get(connector_id)
             if not connector:
                 return {"error": f"Connector '{connector_id}' not found"}
-            
+
             is_healthy = await connector.health_check()
             return {
                 connector_id: {
@@ -286,8 +286,7 @@ class ConnectorManager:
                     "last_error": connector.last_error,
                 }
             }
-        
-        
+
         results = {}
         for cid, connector in self._connectors.items():
             is_healthy = await connector.health_check()
@@ -296,17 +295,16 @@ class ConnectorManager:
                 "status": connector.status.value,
                 "last_error": connector.last_error,
             }
-        
-        
+
         return results
-    
+
     async def reconnect(self, connector_id: str) -> bool:
         """
         Reconnect a connector.
-        
+
         Args:
             connector_id: ID of connector to reconnect
-            
+
         Returns:
             True if reconnection successful
         """
@@ -314,18 +312,18 @@ class ConnectorManager:
         if not connector:
             logger.warning(f"Connector '{connector_id}' not found")
             return False
-        
+
         try:
             await connector.disconnect()
             return await connector.connect()
         except Exception as e:
             logger.error(f"Failed to reconnect connector '{connector_id}': {e}")
             return False
-    
+
     async def reconnect_all(self) -> dict[str, bool]:
         """
         Reconnect all connectors.
-        
+
         Returns:
             Dictionary of connector_id -> success
         """
@@ -333,7 +331,7 @@ class ConnectorManager:
         for connector_id in self._connectors:
             results[connector_id] = await self.reconnect(connector_id)
         return results
-    
+
     async def disconnect_all(self) -> None:
         """Disconnect all connectors"""
         for connector in self._connectors.values():
@@ -341,20 +339,20 @@ class ConnectorManager:
                 await connector.disconnect()
             except Exception as e:
                 logger.error(f"Error disconnecting connector: {e}")
-    
+
     def get_stats(self) -> dict[str, Any]:
         """Get overall statistics"""
         connector_stats = {}
         for connector_id, connector in self._connectors.items():
             connector_stats[connector_id] = connector.get_stats()
-        
+
         return {
             "total_connectors": len(self._connectors),
             "connectors_by_type": self._count_by_type(),
             "connectors_by_status": self._count_by_status(),
             "connector_stats": connector_stats,
         }
-    
+
     def _count_by_type(self) -> dict[str, int]:
         """Count connectors by type"""
         counts = {}
@@ -362,7 +360,7 @@ class ConnectorManager:
             ctype = connector.connector_type
             counts[ctype] = counts.get(ctype, 0) + 1
         return counts
-    
+
     def _count_by_status(self) -> dict[str, int]:
         """Count connectors by status"""
         counts = {}

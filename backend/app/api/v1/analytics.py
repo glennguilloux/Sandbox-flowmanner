@@ -27,16 +27,19 @@ async def get_run_history(
     offset = (page - 1) * per_page
 
     # Count total runs for this user
-    count_query = text("""
+    count_query = text(
+        """
         SELECT COUNT(*) FROM mission_runs mr
         JOIN missions m ON m.id::text = mr.mission_id::text
         WHERE m.user_id = :uid
-    """)
+    """
+    )
     total_result = await db.execute(count_query, {"uid": current_user.id})
     total = total_result.scalar() or 0
 
     # Fetch paginated runs with mission title
-    data_query = text("""
+    data_query = text(
+        """
         SELECT
             mr.id::text,
             mr.mission_id::text,
@@ -53,7 +56,8 @@ async def get_run_history(
         WHERE m.user_id = :uid
         ORDER BY mr.created_at DESC
         LIMIT :limit OFFSET :offset
-    """)
+    """
+    )
     rows_result = await db.execute(
         data_query,
         {"uid": current_user.id, "limit": per_page, "offset": offset},
@@ -72,18 +76,20 @@ async def get_run_history(
         elif started:
             duration_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)
 
-        runs.append({
-            "id": row[0],
-            "mission_id": row[1],
-            "mission_name": row[2],
-            "status": row[3],
-            "started_at": row[4].isoformat() if row[4] else None,
-            "ended_at": row[5].isoformat() if row[5] else None,
-            "duration_ms": duration_ms,
-            "error_message": row[7],
-            "tokens_used": row[8],
-            "actual_cost": row[9],
-        })
+        runs.append(
+            {
+                "id": row[0],
+                "mission_id": row[1],
+                "mission_name": row[2],
+                "status": row[3],
+                "started_at": row[4].isoformat() if row[4] else None,
+                "ended_at": row[5].isoformat() if row[5] else None,
+                "duration_ms": duration_ms,
+                "error_message": row[7],
+                "tokens_used": row[8],
+                "actual_cost": row[9],
+            }
+        )
 
     return {
         "data": runs,
@@ -121,8 +127,12 @@ async def track_batch_events(
 ):
     """Track multiple events at once (e.g., on page unload)."""
     events = [
-        {"user_id": e.user_id, "event_type": e.event_type,
-         "properties": e.properties, "session_id": e.session_id}
+        {
+            "user_id": e.user_id,
+            "event_type": e.event_type,
+            "properties": e.properties,
+            "session_id": e.session_id,
+        }
         for e in req.events
     ]
     await track_events_batch(db, events)

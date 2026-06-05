@@ -23,6 +23,7 @@ os.environ["LANGFUSE_ENABLED"] = "false"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_mock_db():
     """Create a mock AsyncSession."""
     session = AsyncMock()
@@ -71,12 +72,18 @@ class TestAgentMessage:
         from app.models.agent import AgentMessage
 
         parent = AgentMessage(
-            sender_id="a", recipient_id="b", type="query",
-            content="What is the answer?", priority=0,
+            sender_id="a",
+            recipient_id="b",
+            type="query",
+            content="What is the answer?",
+            priority=0,
         )
         child = AgentMessage(
-            sender_id="b", recipient_id="a", type="response",
-            content="The answer is 42.", priority=0,
+            sender_id="b",
+            recipient_id="a",
+            type="response",
+            content="The answer is 42.",
+            priority=0,
             parent_message_id=parent.id,
             correlation_id=parent.id,
         )
@@ -86,7 +93,15 @@ class TestAgentMessage:
     def test_all_message_types(self):
         from app.models.agent import AgentMessage
 
-        types = ["task", "query", "response", "error", "handoff", "status", "debate_position"]
+        types = [
+            "task",
+            "query",
+            "response",
+            "error",
+            "handoff",
+            "status",
+            "debate_position",
+        ]
         for t in types:
             msg = AgentMessage(sender_id="a", recipient_id="b", type=t, content="test")
             assert msg.type == t, f"Type {t} failed"
@@ -179,14 +194,16 @@ class TestDebateProtocol:
         with patch("httpx.AsyncClient.post") as mock_post:
             # Mock 5 LLM calls: positions A+B, rebuttals A+B, judge, synthesis
             mock_post.return_value.raise_for_status = MagicMock()
-            mock_post.return_value.json = MagicMock(side_effect=[
-                make_llm_response("Position A: X is better because..."),
-                make_llm_response("Position B: Y is better because..."),
-                make_llm_response("Rebuttal A: B's argument has flaws..."),
-                make_llm_response("Rebuttal B: A missed key context..."),
-                make_llm_response(judge_json),
-                make_llm_response("Synthesis: Both X and Y have merits..."),
-            ])
+            mock_post.return_value.json = MagicMock(
+                side_effect=[
+                    make_llm_response("Position A: X is better because..."),
+                    make_llm_response("Position B: Y is better because..."),
+                    make_llm_response("Rebuttal A: B's argument has flaws..."),
+                    make_llm_response("Rebuttal B: A missed key context..."),
+                    make_llm_response(judge_json),
+                    make_llm_response("Synthesis: Both X and Y have merits..."),
+                ]
+            )
 
             protocol = DebateProtocol(db)
             result = await protocol.debate(
@@ -222,13 +239,15 @@ class TestDebateProtocol:
             # Round 1 + Round 2 = 10 calls (no synthesis since no consensus)
             responses = []
             for _ in range(2):  # 2 rounds
-                responses.extend([
-                    make_llm_response("Position A..."),
-                    make_llm_response("Position B..."),
-                    make_llm_response("Rebuttal A..."),
-                    make_llm_response("Rebuttal B..."),
-                    make_llm_response(judge_json),
-                ])
+                responses.extend(
+                    [
+                        make_llm_response("Position A..."),
+                        make_llm_response("Position B..."),
+                        make_llm_response("Rebuttal A..."),
+                        make_llm_response("Rebuttal B..."),
+                        make_llm_response(judge_json),
+                    ]
+                )
             mock_post.return_value.raise_for_status = MagicMock()
             mock_post.return_value.json = MagicMock(side_effect=responses)
 
@@ -262,7 +281,9 @@ class TestHandoffProtocol:
 
         protocol = HandoffProtocol(db)
         # Patch registry.get_capability
-        with patch.object(protocol.registry, "get_capability", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            protocol.registry, "get_capability", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = MagicMock(name="Data Analyst")
 
             handoff = await protocol.delegate(
@@ -286,8 +307,10 @@ class TestHandoffProtocol:
         db = make_mock_db()
 
         handoff = HandoffRecord(
-            from_agent_id="a", from_agent_name="Agent A",
-            to_agent_id="b", to_agent_name="Agent B",
+            from_agent_id="a",
+            from_agent_name="Agent A",
+            to_agent_id="b",
+            to_agent_name="Agent B",
             task_description="Do the thing",
             status="pending",
         )
@@ -310,8 +333,10 @@ class TestHandoffProtocol:
         db = make_mock_db()
 
         handoff = HandoffRecord(
-            from_agent_id="a", from_agent_name="Agent A",
-            to_agent_id="b", to_agent_name="Agent B",
+            from_agent_id="a",
+            from_agent_name="Agent A",
+            to_agent_id="b",
+            to_agent_name="Agent B",
             task_description="Do the thing",
             status="accepted",
         )
@@ -339,8 +364,10 @@ class TestHandoffProtocol:
         db = make_mock_db()
 
         handoff = HandoffRecord(
-            from_agent_id="a", to_agent_id="b",
-            task_description="Do the thing", status="pending",
+            from_agent_id="a",
+            to_agent_id="b",
+            task_description="Do the thing",
+            status="pending",
         )
         db.execute.side_effect = [
             MagicMock(scalar_one_or_none=MagicMock(return_value=handoff)),
@@ -360,8 +387,10 @@ class TestHandoffProtocol:
         db = make_mock_db()
 
         handoff = HandoffRecord(
-            from_agent_id="a", to_agent_id="b",
-            task_description="Do the thing", status="in_progress",
+            from_agent_id="a",
+            to_agent_id="b",
+            task_description="Do the thing",
+            status="in_progress",
         )
         db.execute.side_effect = [
             MagicMock(scalar_one_or_none=MagicMock(return_value=handoff)),
@@ -402,9 +431,11 @@ class TestEscalationChain:
         db = make_mock_db()
         # First query: _get_active returns None (no existing escalation)
         db.execute.side_effect = [
-            MagicMock(scalars=MagicMock(
-                return_value=MagicMock(first=MagicMock(return_value=None))
-            )),
+            MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=None))
+                )
+            ),
         ]
 
         chain = EscalationChain(db)
@@ -442,13 +473,20 @@ class TestEscalationChain:
         )
 
         db.execute.side_effect = [
-            MagicMock(scalars=MagicMock(
-                return_value=MagicMock(first=MagicMock(return_value=existing))
-            )),
+            MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=existing))
+                )
+            ),
         ]
 
-        with patch.object(EscalationChain, "_find_specialist", new_callable=AsyncMock) as mock_find:
-            mock_find.return_value = {"agent_id": "specialist-1", "name": "Specialist Agent"}
+        with patch.object(
+            EscalationChain, "_find_specialist", new_callable=AsyncMock
+        ) as mock_find:
+            mock_find.return_value = {
+                "agent_id": "specialist-1",
+                "name": "Specialist Agent",
+            }
 
             chain = EscalationChain(db)
             record = await chain.escalate(
@@ -479,9 +517,11 @@ class TestEscalationChain:
 
         db = make_mock_db()
         db.execute.side_effect = [
-            MagicMock(scalars=MagicMock(
-                return_value=MagicMock(first=MagicMock(return_value=None))
-            )),
+            MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=None))
+                )
+            ),
         ]
 
         chain = EscalationChain(db)
@@ -513,9 +553,11 @@ class TestEscalationChain:
 
         db = make_mock_db()
         db.execute.side_effect = [
-            MagicMock(scalars=MagicMock(
-                return_value=MagicMock(first=MagicMock(return_value=None))
-            )),
+            MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=None))
+                )
+            ),
         ]
 
         chain = EscalationChain(db)
@@ -550,9 +592,11 @@ class TestEscalationChain:
         )
 
         db.execute.side_effect = [
-            MagicMock(scalars=MagicMock(
-                return_value=MagicMock(first=MagicMock(return_value=existing))
-            )),
+            MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(first=MagicMock(return_value=existing))
+                )
+            ),
         ]
 
         # Use aggressive policy with total_max_retries=3

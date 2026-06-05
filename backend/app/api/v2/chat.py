@@ -75,7 +75,9 @@ async def list_folders(
     user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(ChatFolder).where(ChatFolder.user_id == user.id).order_by(ChatFolder.name)
+        select(ChatFolder)
+        .where(ChatFolder.user_id == user.id)
+        .order_by(ChatFolder.name)
     )
     folders = result.scalars().all()
     return ok([ChatFolderResponse.model_validate(f).model_dump() for f in folders])
@@ -102,7 +104,9 @@ async def rename_folder(
     user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(ChatFolder).where(ChatFolder.id == folder_id, ChatFolder.user_id == user.id)
+        select(ChatFolder).where(
+            ChatFolder.id == folder_id, ChatFolder.user_id == user.id
+        )
     )
     folder = result.scalar_one_or_none()
     if not folder:
@@ -120,14 +124,19 @@ async def delete_folder(
     user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(ChatFolder).where(ChatFolder.id == folder_id, ChatFolder.user_id == user.id)
+        select(ChatFolder).where(
+            ChatFolder.id == folder_id, ChatFolder.user_id == user.id
+        )
     )
     folder = result.scalar_one_or_none()
     if not folder:
         raise _not_found()
     from sqlalchemy import update as sa_update
+
     await db.execute(
-        sa_update(ChatThread).where(ChatThread.folder_id == folder_id).values(folder_id=None)
+        sa_update(ChatThread)
+        .where(ChatThread.folder_id == folder_id)
+        .values(folder_id=None)
     )
     await db.delete(folder)
 
@@ -136,18 +145,26 @@ async def delete_folder(
 async def list_threads_route(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    cursor: str | None = Query(None, description="Opaque cursor token for keyset pagination"),
+    cursor: str | None = Query(
+        None, description="Opaque cursor token for keyset pagination"
+    ),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     if cursor:
         from app.models.chat import ChatThread as ChatThreadModel
+
         cp = CursorParams(cursor=cursor, direction="after", limit=per_page)
         decoded = cp.decoded
-        query = select(ChatThreadModel).where(
-            ChatThreadModel.user_id == user.id,
-            ChatThreadModel.id > int(decoded["id"]),
-        ).order_by(ChatThreadModel.id.asc()).limit(per_page + 1)
+        query = (
+            select(ChatThreadModel)
+            .where(
+                ChatThreadModel.user_id == user.id,
+                ChatThreadModel.id > int(decoded["id"]),
+            )
+            .order_by(ChatThreadModel.id.asc())
+            .limit(per_page + 1)
+        )
         result = await db.execute(query)
         items = list(result.scalars().all())
         serialized = [ChatThreadResponse.model_validate(t).model_dump() for t in items]
@@ -174,7 +191,9 @@ async def create_thread(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    thread = await create_chat_thread(db, user.id, user.username, payload.title, payload.model_preference)
+    thread = await create_chat_thread(
+        db, user.id, user.username, payload.title, payload.model_preference
+    )
     return ok(ChatThreadResponse.model_validate(thread).model_dump())
 
 
@@ -198,7 +217,9 @@ async def update_thread(
 ):
     thread = await get_chat_thread(db, thread_id)
     _require_owner(thread, user)
-    updated = await update_chat_thread(db, thread_id, title=payload.title, is_archived=payload.is_archived)
+    updated = await update_chat_thread(
+        db, thread_id, title=payload.title, is_archived=payload.is_archived
+    )
     if updated is None:
         raise _not_found()
     return ok(ChatThreadResponse.model_validate(updated).model_dump())
@@ -269,7 +290,12 @@ async def create_file(
     thread = await get_chat_thread(db, thread_id)
     _require_owner(thread, user)
     f = await create_chat_file(
-        db, thread_id, payload.filename, payload.mime_type, payload.path, payload.size_bytes or 0
+        db,
+        thread_id,
+        payload.filename,
+        payload.mime_type,
+        payload.path,
+        payload.size_bytes or 0,
     )
     return ok(ChatFileResponse.model_validate(f).model_dump())
 
@@ -406,8 +432,12 @@ async def chat_with_llm(
         thread.metadata_ = meta
         await db.flush()
 
-    user_api_key = request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
-    user_base_url = request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
+    user_api_key = (
+        request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
+    )
+    user_base_url = (
+        request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
+    )
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
     attachments_data = None
@@ -433,12 +463,14 @@ async def chat_with_llm(
             detail=result.get("error", "LLM request failed"),
         )
 
-    return ok({
-        "content": result["content"],
-        "model": result["model"],
-        "token_count": result.get("token_count"),
-        "message_id": result.get("message_id"),
-    })
+    return ok(
+        {
+            "content": result["content"],
+            "model": result["model"],
+            "token_count": result.get("token_count"),
+            "message_id": result.get("message_id"),
+        }
+    )
 
 
 async def _sse_stream(generator: AsyncGenerator) -> AsyncGenerator:
@@ -464,8 +496,12 @@ async def chat_with_llm_stream(
         thread.metadata_ = meta
         await db.flush()
 
-    user_api_key = request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
-    user_base_url = request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
+    user_api_key = (
+        request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
+    )
+    user_base_url = (
+        request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
+    )
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
     attachments_data = None
@@ -473,7 +509,20 @@ async def chat_with_llm_stream(
         attachments_data = [a.model_dump() for a in payload.attachments]
 
     return StreamingResponse(
-        _sse_stream(stream_message_to_llm(db, thread_id, payload.content, user.id, _get_model_preference(thread), user_api_key=user_api_key, user_base_url=user_base_url, model_id=requested_model, attachments=attachments_data, web_search=payload.web_search)),
+        _sse_stream(
+            stream_message_to_llm(
+                db,
+                thread_id,
+                payload.content,
+                user.id,
+                _get_model_preference(thread),
+                user_api_key=user_api_key,
+                user_base_url=user_base_url,
+                model_id=requested_model,
+                attachments=attachments_data,
+                web_search=payload.web_search,
+            )
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

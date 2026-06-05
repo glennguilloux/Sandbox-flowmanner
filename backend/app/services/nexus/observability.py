@@ -80,7 +80,13 @@ class Span:
 
     def add_event(self, name: str, attributes: dict[str, Any] | None = None):
         """Add an event to the span"""
-        self.events.append({"name": name, "timestamp": datetime.now(UTC).isoformat(), "attributes": attributes or {}})
+        self.events.append(
+            {
+                "name": name,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "attributes": attributes or {},
+            }
+        )
 
     def set_attribute(self, key: str, value: Any):
         """Set an attribute on the span"""
@@ -91,7 +97,9 @@ class Span:
         self.status = SpanStatus.ERROR
         self.error = str(error)
         self.error_stack = traceback.format_exc()
-        self.add_event("exception", {"type": type(error).__name__, "message": str(error)})
+        self.add_event(
+            "exception", {"type": type(error).__name__, "message": str(error)}
+        )
 
     def finish(self):
         """Mark span as complete"""
@@ -146,7 +154,9 @@ class Trace:
     def finish(self):
         """Mark trace as complete"""
         self.end_time = datetime.now(UTC)
-        self.total_duration_ms = (self.end_time - self.start_time).total_seconds() * 1000
+        self.total_duration_ms = (
+            self.end_time - self.start_time
+        ).total_seconds() * 1000
 
     def get_span_tree(self) -> dict[str, Any]:
         """Build hierarchical span tree"""
@@ -288,7 +298,9 @@ class ObservabilityService:
         """Register handler for error alerts"""
         self._error_handlers.append(handler)
 
-    def register_performance_handler(self, handler: Callable[[str, float], Awaitable[None]]):
+    def register_performance_handler(
+        self, handler: Callable[[str, float], Awaitable[None]]
+    ):
         """Register handler for performance alerts"""
         self._performance_handlers.append(handler)
 
@@ -305,7 +317,10 @@ class ObservabilityService:
         return uuid.uuid4().hex[:16]
 
     def start_trace(
-        self, operation_name: str, agent_id: str | None = None, metadata: dict[str, Any] | None = None
+        self,
+        operation_name: str,
+        agent_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Trace:
         """
         Start a new trace.
@@ -355,7 +370,9 @@ class ObservabilityService:
         """
         span_id = self._generate_id()
         trace_id = self._context.get("current_trace_id", self._generate_id())
-        parent_span_id = parent_span.span_id if parent_span else self._context.get("current_span_id")
+        parent_span_id = (
+            parent_span.span_id if parent_span else self._context.get("current_span_id")
+        )
 
         span = Span(
             span_id=span_id,
@@ -402,7 +419,9 @@ class ObservabilityService:
 
         # Update performance stats
         if span.operation_name not in self._performance_stats:
-            self._performance_stats[span.operation_name] = PerformanceStats(operation=span.operation_name)
+            self._performance_stats[span.operation_name] = PerformanceStats(
+                operation=span.operation_name
+            )
 
         self._performance_stats[span.operation_name].update(
             span.duration_ms or 0, is_error=(span.status == SpanStatus.ERROR)
@@ -428,7 +447,9 @@ class ObservabilityService:
         if self._context.get("current_span_id") == span.span_id:
             self._context.pop("current_span_id", None)
 
-        logger.debug(f"Ended span {span.span_id}: {span.operation_name} ({span.duration_ms:.2f}ms)")
+        logger.debug(
+            f"Ended span {span.span_id}: {span.operation_name} ({span.duration_ms:.2f}ms)"
+        )
 
     def end_trace(self, trace: Trace):
         """End a trace"""
@@ -452,7 +473,10 @@ class ObservabilityService:
                 # ... operation code ...
         """
         span = self.start_span(
-            operation_name=operation_name, agent_id=agent_id, tool_name=tool_name, attributes=attributes
+            operation_name=operation_name,
+            agent_id=agent_id,
+            tool_name=tool_name,
+            attributes=attributes,
         )
 
         try:
@@ -460,14 +484,23 @@ class ObservabilityService:
         except Exception as e:
             span.set_error(e)
             await self.record_error(
-                error=e, agent_id=agent_id, tool_name=tool_name, trace_id=span.trace_id, span_id=span.span_id
+                error=e,
+                agent_id=agent_id,
+                tool_name=tool_name,
+                trace_id=span.trace_id,
+                span_id=span.span_id,
             )
             raise
         finally:
             self.end_span(span)
 
     async def record_metric(
-        self, name: str, value: float, metric_type: str = "gauge", labels: dict[str, str] | None = None, unit: str = ""
+        self,
+        name: str,
+        value: float,
+        metric_type: str = "gauge",
+        labels: dict[str, str] | None = None,
+        unit: str = "",
     ):
         """
         Record a metric.
@@ -479,7 +512,13 @@ class ObservabilityService:
             labels: Optional labels for filtering
             unit: Unit of measurement
         """
-        metric = Metric(name=name, value=value, metric_type=metric_type, labels=labels or {}, unit=unit)
+        metric = Metric(
+            name=name,
+            value=value,
+            metric_type=metric_type,
+            labels=labels or {},
+            unit=unit,
+        )
 
         async with self._lock:
             self._metrics.append(metric)
@@ -538,7 +577,9 @@ class ObservabilityService:
             if len(self._errors) > 1000:
                 self._errors = self._errors[-1000:]
 
-        logger.error(f"Recorded error {error_record.error_id}: {error_record.error_type}: {error_record.message}")
+        logger.error(
+            f"Recorded error {error_record.error_id}: {error_record.error_type}: {error_record.message}"
+        )
 
         # Send alert
         await self._send_error_alert(error_record)
@@ -554,7 +595,10 @@ class ObservabilityService:
         return self._active_spans.get(span_id)
 
     async def get_metrics(
-        self, name: str | None = None, start_time: datetime | None = None, end_time: datetime | None = None
+        self,
+        name: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> list[Metric]:
         """Get metrics, optionally filtered"""
         metrics = self._metrics_by_name.get(name, []) if name else self._metrics
@@ -567,7 +611,11 @@ class ObservabilityService:
         return metrics
 
     async def get_errors(
-        self, agent_id: str | None = None, tool_name: str | None = None, resolved: bool | None = None, limit: int = 100
+        self,
+        agent_id: str | None = None,
+        tool_name: str | None = None,
+        resolved: bool | None = None,
+        limit: int = 100,
     ) -> list[ErrorRecord]:
         """Get errors, optionally filtered"""
         errors = self._errors
@@ -581,7 +629,9 @@ class ObservabilityService:
 
         return errors[-limit:]
 
-    async def get_performance_stats(self, operation: str | None = None) -> dict[str, Any]:
+    async def get_performance_stats(
+        self, operation: str | None = None
+    ) -> dict[str, Any]:
         """Get performance statistics"""
         if operation:
             stats = self._performance_stats.get(operation)

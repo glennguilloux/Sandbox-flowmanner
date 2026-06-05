@@ -22,6 +22,7 @@ from app.services.mission_code_sandbox import (
 
 # ── _indent ───────────────────────────────────────────────────────────────────
 
+
 class TestIndent:
     def test_single_line(self):
         assert _indent("hello", 4) == "    hello"
@@ -48,19 +49,26 @@ class TestIndent:
 
 # ── scan_for_dangerous_patterns ──────────────────────────────────────────────
 
+
 class TestScanForDangerousPatterns:
     def test_clean_code_returns_none(self):
         assert scan_for_dangerous_patterns("x = 1 + 2\nprint(x)") is None
 
     def test_clean_function_returns_none(self):
-        assert scan_for_dangerous_patterns(
-            "def factorial(n):\n    return 1 if n <= 1 else n * factorial(n-1)"
-        ) is None
+        assert (
+            scan_for_dangerous_patterns(
+                "def factorial(n):\n    return 1 if n <= 1 else n * factorial(n-1)"
+            )
+            is None
+        )
 
     def test_clean_data_analysis_returns_none(self):
-        assert scan_for_dangerous_patterns(
-            "import json\nimport csv\nprint(json.dumps([1,2,3]))"
-        ) is None
+        assert (
+            scan_for_dangerous_patterns(
+                "import json\nimport csv\nprint(json.dumps([1,2,3]))"
+            )
+            is None
+        )
 
     def test_detects_os_system(self):
         result = scan_for_dangerous_patterns("os.system('rm -rf /')")
@@ -121,6 +129,7 @@ class TestScanForDangerousPatterns:
 
 # ── _build_restricted_wrapper ────────────────────────────────────────────────
 
+
 class TestBuildRestrictedWrapper:
     def setup_method(self):
         self.workspace = "/tmp/test_ws"
@@ -170,6 +179,7 @@ class TestBuildRestrictedWrapper:
 
 
 # ── execute_python_in_sandbox ────────────────────────────────────────────────
+
 
 class TestExecutePythonInSandbox:
 
@@ -286,7 +296,11 @@ class TestExecutePythonInSandbox:
         code = "import time\nwhile True:\n    time.sleep(10)\n"
         result = execute_python_in_sandbox(
             code,
-            resource_limits={"cpu_seconds": 1, "memory_mb": 512, "output_size_bytes": 10000},
+            resource_limits={
+                "cpu_seconds": 1,
+                "memory_mb": 512,
+                "output_size_bytes": 10000,
+            },
         )
         assert result["success"] is False
         assert "timed out" in result["error"].lower()
@@ -295,7 +309,11 @@ class TestExecutePythonInSandbox:
         code = "for i in range(10000):\n    print('x' * 100)"
         result = execute_python_in_sandbox(
             code,
-            resource_limits={"cpu_seconds": 10, "memory_mb": 512, "output_size_bytes": 100},
+            resource_limits={
+                "cpu_seconds": 10,
+                "memory_mb": 512,
+                "output_size_bytes": 100,
+            },
         )
         assert result["success"] is True
         assert "[OUTPUT TRUNCATED]" in result["output"]
@@ -352,7 +370,9 @@ class TestExecutePythonInSandbox:
 
     def test_whitespace_only(self):
         result = execute_python_in_sandbox("   \n  \n  ")
-        assert result["success"] is True, f"Whitespace-only failed: {result.get('error')}"
+        assert (
+            result["success"] is True
+        ), f"Whitespace-only failed: {result.get('error')}"
 
     def test_large_code_output(self):
         code = "print('hello' * 1000)"
@@ -375,6 +395,7 @@ class TestExecutePythonInSandbox:
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
+
 
 class TestConstants:
     def test_dangerous_patterns_not_empty(self):

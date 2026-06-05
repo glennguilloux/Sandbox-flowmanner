@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +152,7 @@ class TwilioSmsSenderTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: TwilioSmsSenderInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: TwilioSmsSenderInput) -> dict[str, Any]:
         if validated.action == "send_sms":
             return await self._send_sms(validated)
         else:
@@ -161,9 +166,7 @@ class TwilioSmsSenderTool(BaseTool):
         if not from_number:
             return {"error": "No sender number. Set from_number or TWILIO_FROM_NUMBER."}
 
-        url = (
-            f"{TWILIO_API_BASE}/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
-        )
+        url = f"{TWILIO_API_BASE}/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
 
         # Twilio uses form-encoded POST with Basic auth
         form_data = {

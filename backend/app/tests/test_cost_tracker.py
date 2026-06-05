@@ -179,7 +179,10 @@ class TestRecordLlmCall:
 
         tracker = CostTracker()
 
-        with patch("app.services.cost_tracker.record_llm_request", side_effect=RuntimeError("metrics down")):
+        with patch(
+            "app.services.cost_tracker.record_llm_request",
+            side_effect=RuntimeError("metrics down"),
+        ):
             # Should not raise
             await tracker.record_llm_call(
                 db=None,

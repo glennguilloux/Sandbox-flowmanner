@@ -1,40 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="TenantMemberUpdate")
-
 
 
 @_attrs_define
 class TenantMemberUpdate:
-    """ 
-        Attributes:
-            role (None | str | Unset):
-            is_primary (bool | None | Unset):
-     """
+    """
+    Attributes:
+        role (None | str | Unset):
+        is_primary (bool | None | Unset):
+    """
 
     role: None | str | Unset = UNSET
     is_primary: bool | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         role: None | str | Unset
@@ -49,11 +36,9 @@ class TenantMemberUpdate:
         else:
             is_primary = self.is_primary
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-        })
+        field_dict.update({})
         if role is not UNSET:
             field_dict["role"] = role
         if is_primary is not UNSET:
@@ -61,11 +46,10 @@ class TenantMemberUpdate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+
         def _parse_role(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -74,7 +58,6 @@ class TenantMemberUpdate:
             return cast(None | str | Unset, data)
 
         role = _parse_role(d.pop("role", UNSET))
-
 
         def _parse_is_primary(data: object) -> bool | None | Unset:
             if data is None:
@@ -85,12 +68,10 @@ class TenantMemberUpdate:
 
         is_primary = _parse_is_primary(d.pop("is_primary", UNSET))
 
-
         tenant_member_update = cls(
             role=role,
             is_primary=is_primary,
         )
-
 
         tenant_member_update.additional_properties = d
         return tenant_member_update

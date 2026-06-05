@@ -171,7 +171,9 @@ class OcrTextExtractorTool(BaseTool):
         img_height = image.height
         image.close()
 
-        avg_confidence = round(total_confidence / word_count, 1) if word_count > 0 else 0.0
+        avg_confidence = (
+            round(total_confidence / word_count, 1) if word_count > 0 else 0.0
+        )
 
         return {
             "full_text": full_text,

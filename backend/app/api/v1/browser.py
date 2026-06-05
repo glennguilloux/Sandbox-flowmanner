@@ -403,9 +403,7 @@ async def toggle_ad_blocking(
     from app.services.browser_service import get_browser_service
 
     service = get_browser_service()
-    result = await service.toggle_ad_blocking(
-        str(current_user.id), request.enabled
-    )
+    result = await service.toggle_ad_blocking(str(current_user.id), request.enabled)
     if result.get("success"):
         return AdBlockResponse(success=True, ad_blocking=result["ad_blocking"])
     return AdBlockResponse(success=False, error=result.get("error"))
@@ -532,9 +530,13 @@ async def browser_agent_chat(
                             if not final_url:
                                 final_url = ss.get("url")
                 except Exception:
-                    logger.debug("browser_agent_screenshot_fallback_failed", exc_info=True)
+                    logger.debug(
+                        "browser_agent_screenshot_fallback_failed", exc_info=True
+                    )
 
-        logger.info(f"Browser agent completed for user {user_id}: {result.get('response', '')[:100]}")
+        logger.info(
+            f"Browser agent completed for user {user_id}: {result.get('response', '')[:100]}"
+        )
 
         return BrowserChatResponse(
             response=result.get("response", "Task completed."),
@@ -551,4 +553,3 @@ async def browser_agent_chat(
             actions=[],
             success=False,
         )
-

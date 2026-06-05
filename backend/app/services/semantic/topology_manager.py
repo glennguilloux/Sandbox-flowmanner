@@ -7,7 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 class TopologyManager:
-    def __init__(self, graph_path: str = "/mnt/workflows/workflows/graphify-out/graph.json"):
+    def __init__(
+        self, graph_path: str = "/mnt/workflows/workflows/graphify-out/graph.json"
+    ):
         self.graph_path = Path(graph_path)
         self.G = None
         self.communities: dict[int, list[str]] | None = None
@@ -20,9 +22,11 @@ class TopologyManager:
             data = json.loads(self.graph_path.read_text())
         try:
             from graphify.build import build_from_json
+
             self.G = build_from_json(data)
         except ImportError:
             import networkx as nx
+
             self.G = nx.DiGraph()
             for node in data.get("nodes", []):
                 self.G.add_node(node["id"], **node)
@@ -30,6 +34,7 @@ class TopologyManager:
                 self.G.add_edge(edge["source"], edge["target"], **edge)
         try:
             from graphify.cluster import cluster
+
             self.communities = cluster(self.G)
         except ImportError:
             self.communities = {0: list(self.G.nodes())} if self.G else {}
@@ -49,9 +54,7 @@ class TopologyManager:
         from app.models.topology_models import TopologySnapshot
 
         result = await session.execute(
-            select(TopologySnapshot)
-            .order_by(desc(TopologySnapshot.version))
-            .limit(1)
+            select(TopologySnapshot).order_by(desc(TopologySnapshot.version)).limit(1)
         )
         snapshot = result.scalar_one_or_none()
 
@@ -115,7 +118,10 @@ class TopologyManager:
 
         logger.info(
             "Saved topology snapshot v%d: %d nodes, %d edges (id=%s)",
-            max_version + 1, len(nodes), len(edges), snapshot_id,
+            max_version + 1,
+            len(nodes),
+            len(edges),
+            snapshot_id,
         )
         return snapshot_id
 
@@ -125,11 +131,15 @@ class TopologyManager:
             return embeddings
         for cid, node_ids in self.communities.items():
             degs = [self.G.degree(n) for n in node_ids if self.G.has_node(n)]
-            avg_deg = sum(degs)/len(degs) if degs else 0.0
+            avg_deg = sum(degs) / len(degs) if degs else 0.0
             embeddings[cid] = {
                 "avg_degree": round(avg_deg, 2),
                 "node_count": len(node_ids),
-                "edge_count": sum(1 for n in node_ids for _ in self.G.neighbors(n)) if hasattr(self.G, "neighbors") else 0
+                "edge_count": (
+                    sum(1 for n in node_ids for _ in self.G.neighbors(n))
+                    if hasattr(self.G, "neighbors")
+                    else 0
+                ),
             }
         return embeddings
 
@@ -139,25 +149,31 @@ class TopologyManager:
             return {"nodes": nodes, "edges": edges, "communities": 0}
         for nid, ndata in self.G.nodes(data=True):
             cid = ndata.get("community")
-            nodes.append({
-                "id": nid,
-                "label": ndata.get("label", nid),
-                "stack": ndata.get("stack", "unknown"),
-                "community": cid,
-                "embedding": self.embeddings.get(cid, {}) if cid is not None else {}
-            })
+            nodes.append(
+                {
+                    "id": nid,
+                    "label": ndata.get("label", nid),
+                    "stack": ndata.get("stack", "unknown"),
+                    "community": cid,
+                    "embedding": (
+                        self.embeddings.get(cid, {}) if cid is not None else {}
+                    ),
+                }
+            )
         for src, tgt, edata in self.G.edges(data=True):
-            edges.append({
-                "source": src,
-                "target": tgt,
-                "relation": edata.get("relation", "calls"),
-                "confidence": edata.get("confidence", "INFERRED")
-            })
+            edges.append(
+                {
+                    "source": src,
+                    "target": tgt,
+                    "relation": edata.get("relation", "calls"),
+                    "confidence": edata.get("confidence", "INFERRED"),
+                }
+            )
         return {
             "nodes": nodes,
             "edges": edges,
             "communities": len(self.communities) if self.communities else 0,
-            "graphify_path": str(self.graph_path)
+            "graphify_path": str(self.graph_path),
         }
 
     def get_dynamic_topology(self, intent: str = None) -> dict:

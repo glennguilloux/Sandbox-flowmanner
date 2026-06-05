@@ -88,17 +88,25 @@ class TestUsageSummary:
         assert len(data["breakdown"]) == 1
         assert data["breakdown"][0]["model_id"] == "gpt-4o"
 
-    def test_summary_calls_service_with_correct_period(self, auth_client, mock_usage_service):
+    def test_summary_calls_service_with_correct_period(
+        self, auth_client, mock_usage_service
+    ):
         auth_client.get("/api/v1/usage/summary?period=7d")
-        mock_usage_service.get_summary.assert_called_once_with(user_id="1", period="week")
+        mock_usage_service.get_summary.assert_called_once_with(
+            user_id="1", period="week"
+        )
 
     def test_summary_30d_maps_to_month(self, auth_client, mock_usage_service):
         auth_client.get("/api/v1/usage/summary?period=30d")
-        mock_usage_service.get_summary.assert_called_once_with(user_id="1", period="month")
+        mock_usage_service.get_summary.assert_called_once_with(
+            user_id="1", period="month"
+        )
 
     def test_summary_default_period_is_30d(self, auth_client, mock_usage_service):
         auth_client.get("/api/v1/usage/summary")
-        mock_usage_service.get_summary.assert_called_once_with(user_id="1", period="month")
+        mock_usage_service.get_summary.assert_called_once_with(
+            user_id="1", period="month"
+        )
 
     def test_summary_401_without_auth(self, unauth_client):
         response = unauth_client.get("/api/v1/usage/summary")
@@ -121,11 +129,15 @@ class TestUsageTimeseries:
 
     def test_timeseries_7d_uses_hour_granularity(self, auth_client, mock_usage_service):
         auth_client.get("/api/v1/usage/timeseries?period=7d")
-        mock_usage_service.get_timeseries.assert_called_once_with(user_id="1", period="week", granularity="hour")
+        mock_usage_service.get_timeseries.assert_called_once_with(
+            user_id="1", period="week", granularity="hour"
+        )
 
     def test_timeseries_30d_uses_day_granularity(self, auth_client, mock_usage_service):
         auth_client.get("/api/v1/usage/timeseries?period=30d")
-        mock_usage_service.get_timeseries.assert_called_once_with(user_id="1", period="month", granularity="day")
+        mock_usage_service.get_timeseries.assert_called_once_with(
+            user_id="1", period="month", granularity="day"
+        )
 
     def test_timeseries_empty_result(self, auth_client, mock_usage_service):
         mock_usage_service.get_timeseries.return_value = []
@@ -158,7 +170,9 @@ class TestUsageBreakdown:
         data = response.json()
         assert all(item["provider"] == "openai" for item in data)
 
-    def test_breakdown_provider_filter_case_insensitive(self, auth_client, mock_usage_service):
+    def test_breakdown_provider_filter_case_insensitive(
+        self, auth_client, mock_usage_service
+    ):
         response = auth_client.get("/api/v1/usage/breakdown?provider=OpenAI")
         assert response.status_code == 200
         assert len(response.json()) == 1

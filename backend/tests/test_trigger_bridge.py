@@ -155,12 +155,14 @@ class TestNotifyTriggerDue:
         await notify_trigger_due()
         await notify_trigger_due(next_fire_at=None)
         from datetime import datetime
+
         await notify_trigger_due(next_fire_at=datetime.now())
 
 
 class TestGetTriggerBridge:
     def test_returns_singleton(self):
         import app.services.substrate.trigger_bridge as mod
+
         # Reset singleton
         original = mod._bridge
         mod._bridge = None
@@ -177,6 +179,7 @@ class TestStartStopLifecycle:
     @pytest.mark.asyncio
     async def test_start_trigger_bridge_starts_bridge(self):
         import app.services.substrate.trigger_bridge as mod
+
         original = mod._bridge
         mod._bridge = None
         try:
@@ -191,6 +194,7 @@ class TestStartStopLifecycle:
     @pytest.mark.asyncio
     async def test_stop_trigger_bridge_stops_bridge(self):
         import app.services.substrate.trigger_bridge as mod
+
         original = mod._bridge
         mod._bridge = None
         try:
@@ -205,6 +209,7 @@ class TestStartStopLifecycle:
     @pytest.mark.asyncio
     async def test_stop_trigger_bridge_safe_when_none(self):
         import app.services.substrate.trigger_bridge as mod
+
         original = mod._bridge
         mod._bridge = None
         try:

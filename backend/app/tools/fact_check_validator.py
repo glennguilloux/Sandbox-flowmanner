@@ -14,7 +14,14 @@ from typing import Any
 import httpx
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +151,9 @@ class FactCheckValidatorTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(self, validated: FactCheckValidatorInput) -> dict[str, Any]:
+    async def _execute_action(
+        self, validated: FactCheckValidatorInput
+    ) -> dict[str, Any]:
         if validated.action == "check_claim":
             return await self._check_claim(validated)
         elif validated.action == "search_claims":
@@ -162,11 +171,13 @@ class FactCheckValidatorTool(BaseTool):
         # Collect ratings
         ratings = []
         for cr in claim:
-            ratings.append({
-                "rating": cr.get("textualRating", "Unrated"),
-                "source": cr.get("url", ""),
-                "title": cr.get("title", ""),
-            })
+            ratings.append(
+                {
+                    "rating": cr.get("textualRating", "Unrated"),
+                    "source": cr.get("url", ""),
+                    "title": cr.get("title", ""),
+                }
+            )
 
         return {
             "text": review.get("text", ""),
@@ -212,12 +223,22 @@ class FactCheckValidatorTool(BaseTool):
             confidence = "unknown"
         else:
             true_signal = sum(
-                v for k, v in ratings_summary.items()
+                v
+                for k, v in ratings_summary.items()
                 if k in ("true", "mostly true", "correct", "accurate")
             )
             false_signal = sum(
-                v for k, v in ratings_summary.items()
-                if k in ("false", "mostly false", "incorrect", "inaccurate", "fake", "misleading")
+                v
+                for k, v in ratings_summary.items()
+                if k
+                in (
+                    "false",
+                    "mostly false",
+                    "incorrect",
+                    "inaccurate",
+                    "fake",
+                    "misleading",
+                )
             )
 
             if false_signal > true_signal * 2:
@@ -246,7 +267,9 @@ class FactCheckValidatorTool(BaseTool):
             "reviews": reviews,
         }
 
-    async def _search_claims(self, validated: FactCheckValidatorInput) -> dict[str, Any]:
+    async def _search_claims(
+        self, validated: FactCheckValidatorInput
+    ) -> dict[str, Any]:
         """Search for recent fact-checks on a broad topic."""
         params: dict[str, Any] = {
             "key": FACT_CHECK_API_KEY,

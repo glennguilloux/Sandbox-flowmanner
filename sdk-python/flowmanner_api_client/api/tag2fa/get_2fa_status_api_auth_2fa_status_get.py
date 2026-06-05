@@ -1,42 +1,28 @@
 from http import HTTPStatus
-from typing import Any, cast
-from urllib.parse import quote
+from typing import Any
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.user_2fa_status_response import User2FAStatusResponse
-from typing import cast
+from ...types import Response
 
 
-
-def _get_kwargs(
-    
-) -> dict[str, Any]:
-    
-
-    
-
-    
-
+def _get_kwargs() -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/auth/2fa/status",
     }
 
-
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> User2FAStatusResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> User2FAStatusResponse | None:
     if response.status_code == 200:
         response_200 = User2FAStatusResponse.from_dict(response.json())
-
-
 
         return response_200
 
@@ -46,7 +32,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[User2FAStatusResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[User2FAStatusResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,9 +46,8 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-
 ) -> Response[User2FAStatusResponse]:
-    """ Get 2Fa Status
+    """Get 2Fa Status
 
      Get current 2FA status.
 
@@ -70,12 +57,9 @@ def sync_detailed(
 
     Returns:
         Response[User2FAStatusResponse]
-     """
+    """
 
-
-    kwargs = _get_kwargs(
-        
-    )
+    kwargs = _get_kwargs()
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -83,12 +67,12 @@ def sync_detailed(
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
-
 ) -> User2FAStatusResponse | None:
-    """ Get 2Fa Status
+    """Get 2Fa Status
 
      Get current 2FA status.
 
@@ -98,20 +82,18 @@ def sync(
 
     Returns:
         User2FAStatusResponse
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-
 ) -> Response[User2FAStatusResponse]:
-    """ Get 2Fa Status
+    """Get 2Fa Status
 
      Get current 2FA status.
 
@@ -121,25 +103,20 @@ async def asyncio_detailed(
 
     Returns:
         Response[User2FAStatusResponse]
-     """
+    """
 
+    kwargs = _get_kwargs()
 
-    kwargs = _get_kwargs(
-        
-    )
-
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient,
-
 ) -> User2FAStatusResponse | None:
-    """ Get 2Fa Status
+    """Get 2Fa Status
 
      Get current 2FA status.
 
@@ -149,10 +126,10 @@ async def asyncio(
 
     Returns:
         User2FAStatusResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+        )
+    ).parsed

@@ -59,7 +59,9 @@ async def log_auth_event(
                 {
                     "id": str(__import__("uuid").uuid4()),
                     "action": action,
-                    "action_details": json.dumps({**(details or {}), "success": success}),
+                    "action_details": json.dumps(
+                        {**(details or {}), "success": success}
+                    ),
                     "ip_address": ip_address,
                     "user_id": str(user_id) if user_id else None,
                     "user_email": user_email,
@@ -84,6 +86,7 @@ async def log_event(
 ):
     """Convenience wrapper for non-auth audit events (BYOK, missions, etc.)."""
     from app.database import AsyncSessionLocal
+
     await log_auth_event(
         db_session_factory=AsyncSessionLocal,
         user_id=user_id,
@@ -141,7 +144,10 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         user_agent=user_agent,
                         endpoint=path,
                         method=method,
-                        details={"status_code": response.status_code, "duration_ms": round(duration_ms, 2)},
+                        details={
+                            "status_code": response.status_code,
+                            "duration_ms": round(duration_ms, 2),
+                        },
                     )
                 )
             except Exception:

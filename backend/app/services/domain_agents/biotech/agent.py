@@ -10,12 +10,14 @@ class BiotechAgent(BaseDomainAgent):
     Biotech-specific AI assistant for drug discovery,
     clinical trials, and regulatory affairs.
     """
-    
+
     domain_name = "biotech"
     domain_icon = "🧬"
     domain_color = "#7ED321"
-    domain_description = "Biotech assistant for drug discovery, clinical trials, and regulatory affairs"
-    
+    domain_description = (
+        "Biotech assistant for drug discovery, clinical trials, and regulatory affairs"
+    )
+
     def get_system_prompt(self) -> str:
         return """You are a specialized biotech AI assistant with expertise in:
 
@@ -37,7 +39,7 @@ Guidelines:
 Remember: You provide informational assistance for research purposes. 
 Always recommend consulting with qualified medical and regulatory professionals 
 for clinical and regulatory decisions."""
-    
+
     def get_tools(self) -> list[dict[str, Any]]:
         return [
             {
@@ -46,8 +48,8 @@ for clinical and regulatory decisions."""
                 "parameters": {
                     "indication": "string",
                     "phase": "I|II|III",
-                    "population": "dict"
-                }
+                    "population": "dict",
+                },
             },
             {
                 "name": "regulatory_analyzer",
@@ -55,19 +57,19 @@ for clinical and regulatory decisions."""
                 "parameters": {
                     "product_type": "drug|biologic|device",
                     "jurisdiction": "FDA|EMA|PMDA",
-                    "indication": "string"
-                }
+                    "indication": "string",
+                },
             },
             {
                 "name": "literature_search",
                 "description": "Search biomedical literature databases",
                 "parameters": {
                     "query": "string",
-                    "databases": ["PubMed", "ClinicalTrials.gov", "FDA"]
-                }
-            }
+                    "databases": ["PubMed", "ClinicalTrials.gov", "FDA"],
+                },
+            },
         ]
-    
+
     def process_response(self, response: str) -> dict[str, Any]:
         return {
             "response": response,
@@ -75,7 +77,7 @@ for clinical and regulatory decisions."""
             "disclaimer": "This is for research purposes only. Consult qualified medical and regulatory professionals for clinical decisions.",
             "references_required": True,
         }
-    
+
     def get_capabilities(self) -> list[str]:
         return [
             "Clinical trial design",
@@ -85,10 +87,12 @@ for clinical and regulatory decisions."""
             "Safety profile assessment",
             "CMC documentation",
         ]
-    
+
     async def run(self, query: str, context: dict[str, Any] = None) -> dict[str, Any]:
         """Execute a biotech query"""
         result = await super().run(query, context)
-        result["disclaimer"] = "This is for research purposes only. Consult qualified medical and regulatory professionals for clinical decisions."
+        result["disclaimer"] = (
+            "This is for research purposes only. Consult qualified medical and regulatory professionals for clinical decisions."
+        )
         result["capabilities"] = self.get_capabilities()
         return result

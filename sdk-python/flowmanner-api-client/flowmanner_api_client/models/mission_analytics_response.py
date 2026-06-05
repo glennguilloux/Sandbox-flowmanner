@@ -68,7 +68,9 @@ class MissionAnalyticsResponse:
                 return data
             return cast(float | None | Unset, data)
 
-        avg_completion_time = _parse_avg_completion_time(d.pop("avg_completion_time", UNSET))
+        avg_completion_time = _parse_avg_completion_time(
+            d.pop("avg_completion_time", UNSET)
+        )
 
         total_tokens_used = d.pop("total_tokens_used", UNSET)
 

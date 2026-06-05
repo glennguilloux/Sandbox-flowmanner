@@ -40,7 +40,9 @@ class TestProcessMission:
         db = AsyncMock(spec=AsyncSession)
         mid = str(uuid4())
 
-        await worker.process_mission(db, mid, user_id=42, payload=_make_mission_payload())
+        await worker.process_mission(
+            db, mid, user_id=42, payload=_make_mission_payload()
+        )
 
         calls = [c.args[0] for c in db.add.call_args_list]
         sessions = [o for o in calls if isinstance(o, MemorySession)]
@@ -61,7 +63,9 @@ class TestProcessMission:
         mid = str(uuid4())
 
         await worker.process_mission(
-            db, mid, user_id=1,
+            db,
+            mid,
+            user_id=1,
             payload=_make_mission_payload(status="failed", error_message="boom"),
         )
 
@@ -78,7 +82,9 @@ class TestProcessMission:
         db = AsyncMock(spec=AsyncSession)
         mid = str(uuid4())
 
-        await worker.process_mission(db, mid, user_id=1, payload=_make_mission_payload())
+        await worker.process_mission(
+            db, mid, user_id=1, payload=_make_mission_payload()
+        )
 
         calls = [c.args[0] for c in db.add.call_args_list]
         memories = [o for o in calls if isinstance(o, Memory)]
@@ -100,12 +106,22 @@ class TestRetrieveByMission:
         db = AsyncMock(spec=AsyncSession)
         mid = str(uuid4())
 
-        m1 = Memory(id=str(uuid4()), session_id=str(uuid4()),
-                    user_id=1, content='{"test":1}',
-                    source_mission_id=mid, meta={"type": "episode"})
-        m2 = Memory(id=str(uuid4()), session_id=str(uuid4()),
-                    user_id=1, content='{"test":2}',
-                    source_mission_id=mid, meta={"type": "episode"})
+        m1 = Memory(
+            id=str(uuid4()),
+            session_id=str(uuid4()),
+            user_id=1,
+            content='{"test":1}',
+            source_mission_id=mid,
+            meta={"type": "episode"},
+        )
+        m2 = Memory(
+            id=str(uuid4()),
+            session_id=str(uuid4()),
+            user_id=1,
+            content='{"test":2}',
+            source_mission_id=mid,
+            meta={"type": "episode"},
+        )
 
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [m1, m2]
@@ -141,10 +157,14 @@ class TestRetrieveByAgent:
         db = AsyncMock(spec=AsyncSession)
         agent = str(uuid4())
 
-        m = Memory(id=str(uuid4()), session_id=str(uuid4()),
-                   user_id=1, content='{"test":1}',
-                   source_mission_id=str(uuid4()),
-                   meta={"type": "episode", "agent_id": agent})
+        m = Memory(
+            id=str(uuid4()),
+            session_id=str(uuid4()),
+            user_id=1,
+            content='{"test":1}',
+            source_mission_id=str(uuid4()),
+            meta={"type": "episode", "agent_id": agent},
+        )
 
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [m]

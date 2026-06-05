@@ -9,7 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
+    from ..models.mission_task_update_output_data_type_0 import (
+        MissionTaskUpdateOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="MissionTaskUpdate")
@@ -38,7 +40,9 @@ class MissionTaskUpdate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
+        from ..models.mission_task_update_output_data_type_0 import (
+            MissionTaskUpdateOutputDataType0,
+        )
 
         title: None | str | Unset
         if isinstance(self.title, Unset):
@@ -106,7 +110,9 @@ class MissionTaskUpdate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
+        from ..models.mission_task_update_output_data_type_0 import (
+            MissionTaskUpdateOutputDataType0,
+        )
 
         d = dict(src_dict)
 
@@ -137,7 +143,9 @@ class MissionTaskUpdate:
 
         status = _parse_status(d.pop("status", UNSET))
 
-        def _parse_output_data(data: object) -> MissionTaskUpdateOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> MissionTaskUpdateOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

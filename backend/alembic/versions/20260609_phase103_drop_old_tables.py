@@ -43,13 +43,27 @@ def upgrade() -> None:
     # Drop external FK constraints from active tables that reference tables
     # being retired. These active tables keep their data — only the FK is
     # removed so the old parent tables can be dropped.
-    op.execute("ALTER TABLE feedback_reports DROP CONSTRAINT IF EXISTS feedback_reports_mission_id_fkey")
-    op.execute("ALTER TABLE http_integration_logs DROP CONSTRAINT IF EXISTS http_integration_logs_mission_id_fkey")
-    op.execute("ALTER TABLE human_interrupts DROP CONSTRAINT IF EXISTS human_interrupts_mission_id_fkey")
-    op.execute("ALTER TABLE inbox_items DROP CONSTRAINT IF EXISTS inbox_items_mission_id_fkey")
-    op.execute("ALTER TABLE mission_circuit_breakers DROP CONSTRAINT IF EXISTS mission_circuit_breakers_mission_id_fkey")
-    op.execute("ALTER TABLE mission_runs DROP CONSTRAINT IF EXISTS mission_runs_mission_id_fkey")
-    op.execute("ALTER TABLE mission_triggers DROP CONSTRAINT IF EXISTS mission_triggers_mission_id_fkey")
+    op.execute(
+        "ALTER TABLE feedback_reports DROP CONSTRAINT IF EXISTS feedback_reports_mission_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE http_integration_logs DROP CONSTRAINT IF EXISTS http_integration_logs_mission_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE human_interrupts DROP CONSTRAINT IF EXISTS human_interrupts_mission_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE inbox_items DROP CONSTRAINT IF EXISTS inbox_items_mission_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE mission_circuit_breakers DROP CONSTRAINT IF EXISTS mission_circuit_breakers_mission_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE mission_runs DROP CONSTRAINT IF EXISTS mission_runs_mission_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE mission_triggers DROP CONSTRAINT IF EXISTS mission_triggers_mission_id_fkey"
+    )
 
     # Drop in dependency order (children first)
     op.drop_table("mission_logs")

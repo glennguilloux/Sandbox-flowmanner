@@ -114,7 +114,9 @@ def _ws_to_response(ws: Workspace, member_count: int = 0) -> WorkspaceResponse:
     )
 
 
-async def _verify_membership(db: AsyncSession, workspace_id: str, user_id: int) -> WorkspaceMember:
+async def _verify_membership(
+    db: AsyncSession, workspace_id: str, user_id: int
+) -> WorkspaceMember:
     result = await db.execute(
         select(WorkspaceMember).where(
             and_(
@@ -126,7 +128,9 @@ async def _verify_membership(db: AsyncSession, workspace_id: str, user_id: int) 
     )
     member = result.scalar_one_or_none()
     if not member:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
+        )
     return member
 
 
@@ -159,7 +163,10 @@ async def list_my_workspaces(
     for ws in workspaces:
         count_result = await db.execute(
             select(WorkspaceMember).where(
-                and_(WorkspaceMember.workspace_id == ws.id, WorkspaceMember.is_active == True)
+                and_(
+                    WorkspaceMember.workspace_id == ws.id,
+                    WorkspaceMember.is_active == True,
+                )
             )
         )
         member_count = len(count_result.scalars().all())
@@ -221,7 +228,9 @@ async def get_workspace(
 
     count_result = await db.execute(
         select(WorkspaceMember).where(
-            and_(WorkspaceMember.workspace_id == ws.id, WorkspaceMember.is_active == True)
+            and_(
+                WorkspaceMember.workspace_id == ws.id, WorkspaceMember.is_active == True
+            )
         )
     )
     return _ws_to_response(ws, member_count=len(count_result.scalars().all()))
@@ -237,7 +246,9 @@ async def update_workspace(
     """Update workspace name (owner only)."""
     member = await _verify_membership(db, workspace_id, user.id)
     if member.role != "owner":
-        raise HTTPException(status_code=403, detail="Only the owner can update the workspace")
+        raise HTTPException(
+            status_code=403, detail="Only the owner can update the workspace"
+        )
 
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
@@ -261,7 +272,9 @@ async def delete_workspace(
     """Delete workspace (owner only)."""
     member = await _verify_membership(db, workspace_id, user.id)
     if member.role != "owner":
-        raise HTTPException(status_code=403, detail="Only the owner can delete the workspace")
+        raise HTTPException(
+            status_code=403, detail="Only the owner can delete the workspace"
+        )
 
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
@@ -273,6 +286,7 @@ async def delete_workspace(
 
 
 # ── Workspace Settings Schemas ──────────────────────────────────────────────
+
 
 class CircuitBreakerDefaults(BaseModel):
     max_llm_calls: int = 100
@@ -334,8 +348,14 @@ async def get_workspace_settings(
 
     # Merge stored settings with defaults (stored values take precedence)
     stored = ws.settings or {}
-    cb_defaults = {**DEFAULT_SETTINGS["circuit_breaker_defaults"], **stored.get("circuit_breaker_defaults", {})}
-    approval = {**DEFAULT_SETTINGS["approval_policies"], **stored.get("approval_policies", {})}
+    cb_defaults = {
+        **DEFAULT_SETTINGS["circuit_breaker_defaults"],
+        **stored.get("circuit_breaker_defaults", {}),
+    }
+    approval = {
+        **DEFAULT_SETTINGS["approval_policies"],
+        **stored.get("approval_policies", {}),
+    }
 
     return {
         "circuit_breaker_defaults": cb_defaults,
@@ -353,7 +373,10 @@ async def update_workspace_settings(
     """Update workspace settings. Owner/admin only. Merges with existing settings."""
     member = await _verify_membership(db, workspace_id, user.id)
     if member.role not in ("owner", "admin"):
-        raise HTTPException(status_code=403, detail="Only owners and admins can update workspace settings")
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and admins can update workspace settings",
+        )
 
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
@@ -365,7 +388,9 @@ async def update_workspace_settings(
     updated = dict(current)
 
     if payload.circuit_breaker_defaults is not None:
-        updated["circuit_breaker_defaults"] = payload.circuit_breaker_defaults.model_dump()
+        updated["circuit_breaker_defaults"] = (
+            payload.circuit_breaker_defaults.model_dump()
+        )
     if payload.approval_policies is not None:
         updated["approval_policies"] = payload.approval_policies.model_dump()
 
@@ -374,8 +399,14 @@ async def update_workspace_settings(
     await db.refresh(ws)
 
     # Merge with defaults for response
-    cb_defaults = {**DEFAULT_SETTINGS["circuit_breaker_defaults"], **updated.get("circuit_breaker_defaults", {})}
-    approval = {**DEFAULT_SETTINGS["approval_policies"], **updated.get("approval_policies", {})}
+    cb_defaults = {
+        **DEFAULT_SETTINGS["circuit_breaker_defaults"],
+        **updated.get("circuit_breaker_defaults", {}),
+    }
+    approval = {
+        **DEFAULT_SETTINGS["approval_policies"],
+        **updated.get("approval_policies", {}),
+    }
 
     logger.info(f"Workspace {workspace_id} settings updated by user {user.id}")
     return {
@@ -454,13 +485,17 @@ def _team_to_response(team: Team, member_count: int = 0) -> TeamResponse:
 
 
 @team_router.get("/{workspace_id}")
-async def list_teams(workspace_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_teams(
+    workspace_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await _verify_membership(db, workspace_id, user.id)
 
     result = await db.execute(
-        select(Team).where(
-            and_(Team.workspace_id == workspace_id, Team.is_active == True)
-        ).order_by(Team.created_at)
+        select(Team)
+        .where(and_(Team.workspace_id == workspace_id, Team.is_active == True))
+        .order_by(Team.created_at)
     )
     teams = result.scalars().all()
 
@@ -484,7 +519,9 @@ async def create_team(
 ):
     member = await _verify_membership(db, workspace_id, user.id)
     if member.role not in ("owner", "admin"):
-        raise HTTPException(status_code=403, detail="Only owners and admins can create teams")
+        raise HTTPException(
+            status_code=403, detail="Only owners and admins can create teams"
+        )
 
     team = Team(
         id=str(uuid4()),
@@ -515,13 +552,21 @@ async def get_team(
     await _verify_membership(db, workspace_id, user.id)
 
     result = await db.execute(
-        select(Team).where(and_(Team.id == team_id, Team.workspace_id == workspace_id, Team.is_active == True))
+        select(Team).where(
+            and_(
+                Team.id == team_id,
+                Team.workspace_id == workspace_id,
+                Team.is_active == True,
+            )
+        )
     )
     team = result.scalar_one_or_none()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    count_result = await db.execute(select(TeamMember).where(TeamMember.team_id == team.id))
+    count_result = await db.execute(
+        select(TeamMember).where(TeamMember.team_id == team.id)
+    )
     return _team_to_response(team, member_count=len(count_result.scalars().all()))
 
 
@@ -536,7 +581,13 @@ async def update_team(
     await _verify_membership(db, workspace_id, user.id)
 
     result = await db.execute(
-        select(Team).where(and_(Team.id == team_id, Team.workspace_id == workspace_id, Team.is_active == True))
+        select(Team).where(
+            and_(
+                Team.id == team_id,
+                Team.workspace_id == workspace_id,
+                Team.is_active == True,
+            )
+        )
     )
     team = result.scalar_one_or_none()
     if not team:
@@ -561,10 +612,18 @@ async def delete_team(
 ):
     member = await _verify_membership(db, workspace_id, user.id)
     if member.role not in ("owner", "admin"):
-        raise HTTPException(status_code=403, detail="Only owners and admins can delete teams")
+        raise HTTPException(
+            status_code=403, detail="Only owners and admins can delete teams"
+        )
 
     result = await db.execute(
-        select(Team).where(and_(Team.id == team_id, Team.workspace_id == workspace_id, Team.is_active == True))
+        select(Team).where(
+            and_(
+                Team.id == team_id,
+                Team.workspace_id == workspace_id,
+                Team.is_active == True,
+            )
+        )
     )
     team = result.scalar_one_or_none()
     if not team:
@@ -616,7 +675,13 @@ async def add_team_member(
     await _verify_membership(db, workspace_id, user.id)
 
     result = await db.execute(
-        select(Team).where(and_(Team.id == team_id, Team.workspace_id == workspace_id, Team.is_active == True))
+        select(Team).where(
+            and_(
+                Team.id == team_id,
+                Team.workspace_id == workspace_id,
+                Team.is_active == True,
+            )
+        )
     )
     team = result.scalar_one_or_none()
     if not team:
@@ -688,7 +753,9 @@ invitation_router = APIRouter(prefix="/invitations", tags=["invitations"])
 INVITATION_EXPIRY_DAYS = 7
 
 
-def _invitation_to_response(inv: WorkspaceInvitation, inviter_name: str = "") -> InvitationResponse:
+def _invitation_to_response(
+    inv: WorkspaceInvitation, inviter_name: str = ""
+) -> InvitationResponse:
     return InvitationResponse(
         id=inv.id,
         workspace_id=inv.workspace_id,
@@ -703,7 +770,11 @@ def _invitation_to_response(inv: WorkspaceInvitation, inviter_name: str = "") ->
 
 
 @invitation_router.get("/workspace/{workspace_id}")
-async def list_invitations(workspace_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_invitations(
+    workspace_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await _verify_membership(db, workspace_id, user.id)
 
     result = await db.execute(
@@ -719,11 +790,18 @@ async def list_invitations(workspace_id: str, user: User = Depends(get_current_u
     )
     rows = result.all()
 
-    return [_invitation_to_response(inv, inviter.full_name or inviter.email if inviter else "") for inv, inviter in rows]
+    return [
+        _invitation_to_response(
+            inv, inviter.full_name or inviter.email if inviter else ""
+        )
+        for inv, inviter in rows
+    ]
 
 
 @invitation_router.get("/my")
-async def my_invitations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def my_invitations(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
     result = await db.execute(
         select(WorkspaceInvitation, Workspace, User)
         .join(Workspace, Workspace.id == WorkspaceInvitation.workspace_id)
@@ -741,7 +819,9 @@ async def my_invitations(user: User = Depends(get_current_user), db: AsyncSessio
 
     return [
         {
-            **_invitation_to_response(inv, inviter.full_name or inviter.email if inviter else "").model_dump(),
+            **_invitation_to_response(
+                inv, inviter.full_name or inviter.email if inviter else ""
+            ).model_dump(),
             "workspace_name": ws.name,
         }
         for inv, ws, inviter in rows
@@ -749,7 +829,11 @@ async def my_invitations(user: User = Depends(get_current_user), db: AsyncSessio
 
 
 @invitation_router.get("/{invitation_id}")
-async def get_invitation(invitation_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_invitation(
+    invitation_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(WorkspaceInvitation, User)
         .join(User, User.id == WorkspaceInvitation.invited_by, isouter=True)
@@ -760,7 +844,9 @@ async def get_invitation(invitation_id: str, user: User = Depends(get_current_us
         raise HTTPException(status_code=404, detail="Invitation not found")
 
     inv, inviter = row
-    return _invitation_to_response(inv, inviter.full_name or inviter.email if inviter else "")
+    return _invitation_to_response(
+        inv, inviter.full_name or inviter.email if inviter else ""
+    )
 
 
 @invitation_router.get("/token/{token}/preview")
@@ -791,7 +877,11 @@ async def preview_invitation(token: str, db: AsyncSession = Depends(get_db)):
 
 
 @invitation_router.post("/token/{token}/accept")
-async def accept_invitation(token: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def accept_invitation(
+    token: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(WorkspaceInvitation).where(
             and_(
@@ -806,7 +896,9 @@ async def accept_invitation(token: str, user: User = Depends(get_current_user), 
         raise HTTPException(status_code=404, detail="Invitation not found or expired")
 
     if inv.email.lower() != user.email.lower():
-        raise HTTPException(status_code=403, detail="This invitation is for a different email address")
+        raise HTTPException(
+            status_code=403, detail="This invitation is for a different email address"
+        )
 
     # Check if already a member
     existing = await db.execute(
@@ -847,12 +939,18 @@ async def accept_invitation(token: str, user: User = Depends(get_current_user), 
 
     await db.commit()
 
-    logger.info(f"Invitation accepted: {inv.id} — user {user.id} joined workspace {inv.workspace_id}")
+    logger.info(
+        f"Invitation accepted: {inv.id} — user {user.id} joined workspace {inv.workspace_id}"
+    )
     return {"message": "Invitation accepted", "workspace_id": inv.workspace_id}
 
 
 @invitation_router.post("/token/{token}/decline")
-async def decline_invitation(token: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def decline_invitation(
+    token: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(WorkspaceInvitation).where(
             and_(
@@ -872,7 +970,11 @@ async def decline_invitation(token: str, user: User = Depends(get_current_user),
 
 
 @invitation_router.delete("/{invitation_id}", status_code=204)
-async def cancel_invitation(invitation_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def cancel_invitation(
+    invitation_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(WorkspaceInvitation).where(WorkspaceInvitation.id == invitation_id)
     )
@@ -883,14 +985,20 @@ async def cancel_invitation(invitation_id: str, user: User = Depends(get_current
     # Only workspace owner/admin or the inviter can cancel
     member = await _verify_membership(db, inv.workspace_id, user.id)
     if member.role not in ("owner", "admin") and inv.invited_by != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to cancel this invitation")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to cancel this invitation"
+        )
 
     await db.delete(inv)
     await db.commit()
 
 
 @invitation_router.post("/{invitation_id}/resend")
-async def resend_invitation(invitation_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def resend_invitation(
+    invitation_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(WorkspaceInvitation).where(
             and_(
@@ -920,7 +1028,9 @@ async def create_invite_link(
 ):
     member = await _verify_membership(db, workspace_id, user.id)
     if member.role not in ("owner", "admin"):
-        raise HTTPException(status_code=403, detail="Only owners and admins can create invitations")
+        raise HTTPException(
+            status_code=403, detail="Only owners and admins can create invitations"
+        )
 
     # Check if already invited
     existing = await db.execute(
@@ -934,7 +1044,9 @@ async def create_invite_link(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="An active invitation already exists for this email")
+        raise HTTPException(
+            status_code=409, detail="An active invitation already exists for this email"
+        )
 
     # Check if already a member
     ws_result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
@@ -943,7 +1055,9 @@ async def create_invite_link(
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     # Check if user with this email is already a member
-    user_result = await db.execute(select(User).where(User.email == payload.email.lower()))
+    user_result = await db.execute(
+        select(User).where(User.email == payload.email.lower())
+    )
     target_user = user_result.scalar_one_or_none()
     if target_user:
         member_check = await db.execute(
@@ -956,7 +1070,9 @@ async def create_invite_link(
             )
         )
         if member_check.scalar_one_or_none():
-            raise HTTPException(status_code=409, detail="User is already a workspace member")
+            raise HTTPException(
+                status_code=409, detail="User is already a workspace member"
+            )
 
     token = uuid4().hex
     inv = WorkspaceInvitation(
@@ -973,5 +1089,7 @@ async def create_invite_link(
     await db.commit()
     await db.refresh(inv)
 
-    logger.info(f"Invitation created: {inv.id} for {payload.email} to workspace {workspace_id}")
+    logger.info(
+        f"Invitation created: {inv.id} for {payload.email} to workspace {workspace_id}"
+    )
     return {"id": inv.id, "token": token, "url": f"/invite/{token}"}

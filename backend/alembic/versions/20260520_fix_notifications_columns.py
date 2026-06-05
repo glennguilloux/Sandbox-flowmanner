@@ -24,9 +24,13 @@ def upgrade() -> None:
     columns = [c["name"] for c in inspector.get_columns("notifications")]
 
     if "entity_type" not in columns:
-        op.add_column("notifications", sa.Column("entity_type", sa.String(50), nullable=True))
+        op.add_column(
+            "notifications", sa.Column("entity_type", sa.String(50), nullable=True)
+        )
     if "entity_id" not in columns:
-        op.add_column("notifications", sa.Column("entity_id", sa.String(50), nullable=True))
+        op.add_column(
+            "notifications", sa.Column("entity_id", sa.String(50), nullable=True)
+        )
     if "meta" not in columns:
         op.add_column("notifications", sa.Column("meta", sa.Text, nullable=True))
 

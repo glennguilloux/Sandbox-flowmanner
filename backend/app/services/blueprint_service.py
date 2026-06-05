@@ -140,9 +140,7 @@ class BlueprintService:
 
     # ── Update ──────────────────────────────────────────────────────
 
-    async def update(
-        self, blueprint_id: str, user_id: int, **kwargs
-    ) -> Blueprint:
+    async def update(self, blueprint_id: str, user_id: int, **kwargs) -> Blueprint:
         """Update blueprint. If definition changed, creates a new version."""
         bp = await self.get(blueprint_id, user_id)
 
@@ -187,7 +185,9 @@ class BlueprintService:
 
     # ── Version history ─────────────────────────────────────────────
 
-    async def get_versions(self, blueprint_id: str, user_id: int) -> list[BlueprintVersion]:
+    async def get_versions(
+        self, blueprint_id: str, user_id: int
+    ) -> list[BlueprintVersion]:
         """Get version history for a blueprint."""
         await self.get(blueprint_id, user_id)  # ownership check
         result = await self.db.execute(

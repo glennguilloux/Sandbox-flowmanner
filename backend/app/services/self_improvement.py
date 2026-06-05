@@ -18,8 +18,12 @@ class SelfImprovementEngine:
         )
         return list(result.scalars().all())
 
-    async def generate_strategy(self, mission_id: str, failure_type: str, failure_context: str) -> MissionImprovement:
-        mission_result = await self.db.execute(select(Mission).where(Mission.id == mission_id))
+    async def generate_strategy(
+        self, mission_id: str, failure_type: str, failure_context: str
+    ) -> MissionImprovement:
+        mission_result = await self.db.execute(
+            select(Mission).where(Mission.id == mission_id)
+        )
         mission = mission_result.scalar_one_or_none()
         if not mission:
             raise ValueError("Mission not found")
@@ -40,7 +44,9 @@ class SelfImprovementEngine:
         return improvement
 
     async def apply_strategy(self, improvement_id: str) -> bool:
-        result = await self.db.execute(select(MissionImprovement).where(MissionImprovement.id == improvement_id))
+        result = await self.db.execute(
+            select(MissionImprovement).where(MissionImprovement.id == improvement_id)
+        )
         improvement = result.scalar_one_or_none()
         if not improvement:
             return False
@@ -48,7 +54,9 @@ class SelfImprovementEngine:
         await self.db.flush()
         return True
 
-    def _analyze_failure(self, mission: Mission, failure_type: str, failure_context: str) -> str:
+    def _analyze_failure(
+        self, mission: Mission, failure_type: str, failure_context: str
+    ) -> str:
         if failure_type == "code":
             return f"Review code execution strategy: {failure_context[:100] if failure_context else 'Task failed'}. Consider adding input validation, error handling, or switching to a more capable model."
         elif failure_type == "api":

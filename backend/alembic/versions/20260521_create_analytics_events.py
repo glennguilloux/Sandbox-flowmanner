@@ -20,11 +20,18 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger, primary_key=True, autoincrement=True),
         sa.Column("user_id", sa.String, nullable=False),
         sa.Column("event_type", sa.String(50), nullable=False),
-        sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "timestamp",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
         sa.Column("properties", sa.JSON, default={}),
         sa.Column("session_id", sa.String),
     )
-    op.create_index("idx_analytics_user_type", "analytics_events", ["user_id", "event_type"])
+    op.create_index(
+        "idx_analytics_user_type", "analytics_events", ["user_id", "event_type"]
+    )
     op.create_index("idx_analytics_timestamp", "analytics_events", ["timestamp"])
     op.create_index("idx_analytics_event_type", "analytics_events", ["event_type"])
 

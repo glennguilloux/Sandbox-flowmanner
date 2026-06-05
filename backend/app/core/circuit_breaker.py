@@ -93,7 +93,9 @@ class CircuitBreaker:
         return self._failure_count() >= self.config.failure_threshold
 
     def _should_attempt_reset(self) -> bool:
-        return (time.monotonic() - self._last_state_change) >= self.config.recovery_timeout
+        return (
+            time.monotonic() - self._last_state_change
+        ) >= self.config.recovery_timeout
 
     async def _transition(self, new_state: CircuitState) -> None:
         old = self._state
@@ -109,12 +111,16 @@ class CircuitBreaker:
 
         logger.info(
             "Circuit breaker [%s] %s → %s (failures=%d)",
-            self.config.name, old.value, new_state.value, self._failure_count(),
+            self.config.name,
+            old.value,
+            new_state.value,
+            self._failure_count(),
         )
 
         # Fire alert on state change (non-blocking)
         try:
             from app.services.alerting import send_circuit_alert
+
             asyncio.get_event_loop().create_task(
                 send_circuit_alert(
                     dependency=self.config.name,
@@ -137,14 +143,12 @@ class CircuitBreaker:
 
     def record_failure(self) -> None:
         self._failures.append(time.monotonic())
-        _CB_FAILURE_GAUGE.labels(dependency=self.config.name).set(
-            self._failure_count()
-        )
+        _CB_FAILURE_GAUGE.labels(dependency=self.config.name).set(self._failure_count())
 
-        if self._state == CircuitState.HALF_OPEN or (self._state == CircuitState.CLOSED and self._should_trip()):
-            asyncio.get_event_loop().create_task(
-                self._transition(CircuitState.OPEN)
-            )
+        if self._state == CircuitState.HALF_OPEN or (
+            self._state == CircuitState.CLOSED and self._should_trip()
+        ):
+            asyncio.get_event_loop().create_task(self._transition(CircuitState.OPEN))
 
     @asynccontextmanager
     async def protect(self):
@@ -244,7 +248,9 @@ def _init_default_breakers() -> None:
         _breakers[cfg.name] = CircuitBreaker(cfg)
         logger.info(
             "Circuit breaker [%s] initialized: threshold=%d, recovery=%ds",
-            cfg.name, cfg.failure_threshold, int(cfg.recovery_timeout),
+            cfg.name,
+            cfg.failure_threshold,
+            int(cfg.recovery_timeout),
         )
 
 

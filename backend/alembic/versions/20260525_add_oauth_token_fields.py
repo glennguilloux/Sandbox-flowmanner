@@ -5,6 +5,7 @@ Revises: 20260721_agent_protocol
 Create Date: 2026-05-25 05:30:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -19,9 +20,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("integration_connections", sa.Column("encrypted_access_token", sa.Text(), nullable=True))
-    op.add_column("integration_connections", sa.Column("encrypted_refresh_token", sa.Text(), nullable=True))
-    op.add_column("integration_connections", sa.Column("token_type", sa.String(50), nullable=True, server_default="Bearer"))
+    op.add_column(
+        "integration_connections",
+        sa.Column("encrypted_access_token", sa.Text(), nullable=True),
+    )
+    op.add_column(
+        "integration_connections",
+        sa.Column("encrypted_refresh_token", sa.Text(), nullable=True),
+    )
+    op.add_column(
+        "integration_connections",
+        sa.Column("token_type", sa.String(50), nullable=True, server_default="Bearer"),
+    )
 
 
 def downgrade() -> None:

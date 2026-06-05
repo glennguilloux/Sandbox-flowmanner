@@ -1,34 +1,25 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.oidc_login_response import OIDCLoginResponse
-from ...types import UNSET, Unset
-from typing import cast
-
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     provider: str,
     *,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(accept_version, Unset):
         headers["Accept-Version"] = accept_version
-
-
-
-    
 
     params: dict[str, Any] = {}
 
@@ -39,34 +30,30 @@ def _get_kwargs(
         json_redirect_uri = redirect_uri
     params["redirect_uri"] = json_redirect_uri
 
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/auth/oidc/{provider}/login".format(provider=quote(str(provider), safe=""),),
+        "url": "/api/auth/oidc/{provider}/login".format(
+            provider=quote(str(provider), safe=""),
+        ),
         "params": params,
     }
-
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | OIDCLoginResponse | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | OIDCLoginResponse | None:
     if response.status_code == 200:
         response_200 = OIDCLoginResponse.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -76,7 +63,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | OIDCLoginResponse]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | OIDCLoginResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -90,10 +79,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCLoginResponse]:
-    """ Oidc Login
+    """Oidc Login
 
      Initiate OIDC login flow with PKCE.
 
@@ -114,14 +102,12 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | OIDCLoginResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         provider=provider,
-redirect_uri=redirect_uri,
-accept_version=accept_version,
-
+        redirect_uri=redirect_uri,
+        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -130,15 +116,15 @@ accept_version=accept_version,
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCLoginResponse | None:
-    """ Oidc Login
+    """Oidc Login
 
      Initiate OIDC login flow with PKCE.
 
@@ -159,26 +145,24 @@ def sync(
 
     Returns:
         HTTPValidationError | OIDCLoginResponse
-     """
-
+    """
 
     return sync_detailed(
         provider=provider,
-client=client,
-redirect_uri=redirect_uri,
-accept_version=accept_version,
-
+        client=client,
+        redirect_uri=redirect_uri,
+        accept_version=accept_version,
     ).parsed
+
 
 async def asyncio_detailed(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCLoginResponse]:
-    """ Oidc Login
+    """Oidc Login
 
      Initiate OIDC login flow with PKCE.
 
@@ -199,31 +183,27 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | OIDCLoginResponse]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         provider=provider,
-redirect_uri=redirect_uri,
-accept_version=accept_version,
-
+        redirect_uri=redirect_uri,
+        accept_version=accept_version,
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = 'v1',
-
+    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCLoginResponse | None:
-    """ Oidc Login
+    """Oidc Login
 
      Initiate OIDC login flow with PKCE.
 
@@ -244,13 +224,13 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | OIDCLoginResponse
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        provider=provider,
-client=client,
-redirect_uri=redirect_uri,
-accept_version=accept_version,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            provider=provider,
+            client=client,
+            redirect_uri=redirect_uri,
+            accept_version=accept_version,
+        )
+    ).parsed

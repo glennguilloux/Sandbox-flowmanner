@@ -17,14 +17,24 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 logger = logging.getLogger(__name__)
 
-_SUPPORTED_FILTERS = ["default_ext", "to_json", "trim", "upper", "lower", "code_block", "length", "first_sentence"]
+_SUPPORTED_FILTERS = [
+    "default_ext",
+    "to_json",
+    "trim",
+    "upper",
+    "lower",
+    "code_block",
+    "length",
+    "first_sentence",
+]
 
 
 class PromptTemplateRendererInput(ToolInput):
     """Input schema: template, variables, engine, validate_only, strict_mode, trim_blocks, autoescape."""
 
     template: str | list[dict[str, str]] = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="Template string with {{ variable }} placeholders or list of chat messages [{role, content}]",
     )
     variables: dict[str, Any] | None = Field(
@@ -77,10 +87,19 @@ class PromptTemplateRendererTool(BaseTool):
                 "type": "object",
                 "properties": {
                     "rendered": {"type": "string"},
-                    "variables_provided": {"type": "array", "items": {"type": "string"}},
+                    "variables_provided": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
                     "variable_count": {"type": "integer"},
-                    "variables_extracted": {"type": "array", "items": {"type": "string"}},
-                    "unresolved_placeholders": {"type": "array", "items": {"type": "string"}},
+                    "variables_extracted": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "unresolved_placeholders": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
                     "fully_resolved": {"type": "boolean"},
                     "success": {"type": "boolean"},
                 },
@@ -95,7 +114,9 @@ class PromptTemplateRendererTool(BaseTool):
         try:
             validated = PromptTemplateRendererInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         variables = validated.variables or {}
 
@@ -103,19 +124,23 @@ class PromptTemplateRendererTool(BaseTool):
         extracted = self._extract_variables(validated.template)
 
         if validated.validate_only:
-            return ToolResult.success_result(tool_id=self.tool_id, result={
-                "variables_extracted": extracted,
-                "variable_count": len(extracted),
-                "provided_variables": list(variables.keys()),
-                "missing_variables": [v for v in extracted if v not in variables],
-                "fully_resolved": all(v in variables for v in extracted),
-                "available_filters": _SUPPORTED_FILTERS,
-                "success": True,
-            })
+            return ToolResult.success_result(
+                tool_id=self.tool_id,
+                result={
+                    "variables_extracted": extracted,
+                    "variable_count": len(extracted),
+                    "provided_variables": list(variables.keys()),
+                    "missing_variables": [v for v in extracted if v not in variables],
+                    "fully_resolved": all(v in variables for v in extracted),
+                    "available_filters": _SUPPORTED_FILTERS,
+                    "success": True,
+                },
+            )
 
         try:
             rendered = await self._render(
-                validated.template, variables,
+                validated.template,
+                variables,
                 strict=validated.strict_variables,
                 engine=validated.engine,
                 trim_blocks=validated.trim_blocks,
@@ -124,32 +149,42 @@ class PromptTemplateRendererTool(BaseTool):
             )
             unresolved = self._find_unresolved(rendered)
 
-            return ToolResult.success_result(tool_id=self.tool_id, result={
-                "rendered": rendered,
-                "variables_provided": list(variables.keys()),
-                "variable_count": len(variables),
-                "variables_extracted": extracted,
-                "unresolved_placeholders": unresolved,
-                "fully_resolved": len(unresolved) == 0,
-                "success": True,
-            })
+            return ToolResult.success_result(
+                tool_id=self.tool_id,
+                result={
+                    "rendered": rendered,
+                    "variables_provided": list(variables.keys()),
+                    "variable_count": len(variables),
+                    "variables_extracted": extracted,
+                    "unresolved_placeholders": unresolved,
+                    "fully_resolved": len(unresolved) == 0,
+                    "success": True,
+                },
+            )
         except Exception as e:
             logger.exception("prompt_template_renderer failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
     async def _render(
-        self, template: str | list, variables: dict,
-        strict: bool = True, engine: str = "jinja2",
-        trim_blocks: bool = True, autoescape: bool = False,
+        self,
+        template: str | list,
+        variables: dict,
+        strict: bool = True,
+        engine: str = "jinja2",
+        trim_blocks: bool = True,
+        autoescape: bool = False,
         custom_filters: dict[str, str] | None = None,
     ) -> str:
 
         # Extract plain text from chat message list
         if isinstance(template, list):
             template = "\n".join(
-                f"{{{{ {'assistant' if m.get('role') == 'assistant' else m.get('role', 'user')}_message }}}}"
-                if m.get("role") in ("user", "assistant", "system") and m.get("content", "").startswith("{{")
-                else m.get("content", "")
+                (
+                    f"{{{{ {'assistant' if m.get('role') == 'assistant' else m.get('role', 'user')}_message }}}}"
+                    if m.get("role") in ("user", "assistant", "system")
+                    and m.get("content", "").startswith("{{")
+                    else m.get("content", "")
+                )
                 for m in template
             )
 
@@ -160,7 +195,12 @@ class PromptTemplateRendererTool(BaseTool):
             return self._mustache_render(template, variables)
 
         try:
-            from jinja2 import BaseLoader, SandboxedEnvironment, TemplateSyntaxError, UndefinedError
+            from jinja2 import (
+                BaseLoader,
+                SandboxedEnvironment,
+                TemplateSyntaxError,
+                UndefinedError,
+            )
 
             env = SandboxedEnvironment(
                 loader=BaseLoader(),
@@ -173,25 +213,37 @@ class PromptTemplateRendererTool(BaseTool):
             env.filters["trim"] = lambda v: v.strip() if isinstance(v, str) else v
             env.filters["upper"] = lambda v: v.upper() if isinstance(v, str) else v
             env.filters["lower"] = lambda v: v.lower() if isinstance(v, str) else v
-            env.filters["code_block"] = lambda v, lang="": f"```{lang}\n{v}\n```" if v else ""
+            env.filters["code_block"] = lambda v, lang="": (
+                f"```{lang}\n{v}\n```" if v else ""
+            )
             env.filters["length"] = len
-            env.filters["first_sentence"] = lambda v: (v.split(".")[0].strip() + ".") if isinstance(v, str) and v else v
+            env.filters["first_sentence"] = lambda v: (
+                (v.split(".")[0].strip() + ".") if isinstance(v, str) and v else v
+            )
 
             # Register custom user-provided filters
             if custom_filters:
                 for name, expr in custom_filters.items():
                     try:
                         compiled = compile(expr, "<custom_filter>", "eval")
-                        env.filters[name] = lambda v, _c=compiled: eval(_c, {"v": v, "__builtins__": {}}, {})
+                        env.filters[name] = lambda v, _c=compiled: eval(
+                            _c, {"v": v, "__builtins__": {}}, {}
+                        )
                     except Exception as e:
-                        logger.warning("Failed to register custom filter '%s': %s", name, e)
+                        logger.warning(
+                            "Failed to register custom filter '%s': %s", name, e
+                        )
 
             tmpl = env.from_string(template)
             return tmpl.render(**variables)
 
         except ImportError:
             logger.debug("Jinja2 not installed, using simple variable substitution")
-            return self._simple_substitute(template, variables) if strict else self._simple_substitute(template, variables)
+            return (
+                self._simple_substitute(template, variables)
+                if strict
+                else self._simple_substitute(template, variables)
+            )
 
         except TemplateSyntaxError as e:
             raise ValueError(f"Template syntax error at line {e.lineno}: {e.message}")
@@ -228,17 +280,25 @@ class PromptTemplateRendererTool(BaseTool):
 
     def _find_unresolved(self, text: str) -> list[str]:
         import re
+
         return [m.strip() for m in re.findall(r"\{\{(.+?)\}\}", text)]
 
     def _extract_variables(self, template: str) -> list[str]:
         """Extract all variable names from the template."""
         import re
+
         # Match {{ variable_name }} and {{ variable_name|filter }}
         matches = re.findall(r"\{\{\s*(\w+)(?:\s*[\|\}])", template)
         seen = set()
         result = []
         for m in matches:
-            if m not in seen and m not in ("else", "endif", "endfor", "endblock", "endmacro"):
+            if m not in seen and m not in (
+                "else",
+                "endif",
+                "endfor",
+                "endblock",
+                "endmacro",
+            ):
                 seen.add(m)
                 result.append(m)
         return result
@@ -246,22 +306,29 @@ class PromptTemplateRendererTool(BaseTool):
     @staticmethod
     def _strict_undefined(*args, **kwargs):
         from jinja2 import UndefinedError
-        raise UndefinedError(f"Variable '{args[0] if args else 'unknown'}' is undefined")
+
+        raise UndefinedError(
+            f"Variable '{args[0] if args else 'unknown'}' is undefined"
+        )
 
     def _fstring_render(self, template: str, variables: dict) -> str:
         """Simple Python f-string-style {variable} substitution."""
         import re
+
         def replacer(m):
             key = m.group(1).strip()
             return str(variables.get(key, m.group(0)))
+
         return re.sub(r"\{([^}]+)\}", replacer, template)
 
     def _mustache_render(self, template: str, variables: dict) -> str:
         """Mustache-style {{variable}} substitution without logic."""
         import re
+
         def replacer(m):
             key = m.group(1).strip()
             return str(variables.get(key, m.group(0)))
+
         return re.sub(r"\{\{\s*(\w+)\s*\}\}", replacer, template)
 
 

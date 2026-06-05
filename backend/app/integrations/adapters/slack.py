@@ -167,9 +167,7 @@ class SlackAdapter(BaseIntegrationAdapter):
 
     # ── Token refresh ──────────────────────────────────────────────────────
 
-    async def _refresh_token(
-        self, connection: UserOAuthConnection
-    ) -> str | None:
+    async def _refresh_token(self, connection: UserOAuthConnection) -> str | None:
         """Attempt to refresh the Slack OAuth token.
 
         Slack supports token refresh via ``oauth.v2.access`` with
@@ -177,7 +175,9 @@ class SlackAdapter(BaseIntegrationAdapter):
         """
         refresh_token = connection.get_refresh_token()
         if not refresh_token:
-            logger.warning("No refresh token available for Slack connection %s", connection.id)
+            logger.warning(
+                "No refresh token available for Slack connection %s", connection.id
+            )
             return None
 
         try:
@@ -221,6 +221,7 @@ class SlackAdapter(BaseIntegrationAdapter):
                     new_access = data.get("access_token")
                     if new_access:
                         from app.integrations.oauth import encrypt_token
+
                         # Merge the connection into this session so changes persist
                         db_conn = await db.merge(connection)
                         db_conn.encrypted_access_token = encrypt_token(new_access)
@@ -255,7 +256,10 @@ def _parse_slack_response(resp: httpx.Response) -> dict[str, Any]:
         }
 
     if not isinstance(data, dict):
-        return {"success": False, "error": f"Unexpected Slack response type: {type(data).__name__}"}
+        return {
+            "success": False,
+            "error": f"Unexpected Slack response type: {type(data).__name__}",
+        }
 
     if data.get("ok"):
         return {
@@ -269,7 +273,11 @@ def _parse_slack_response(resp: httpx.Response) -> dict[str, Any]:
 
     # Detect token-related errors
     if error_code in ("token_expired", "not_authed", "invalid_auth"):
-        return {"success": False, "error": "token_expired", "error_detail": error_detail}
+        return {
+            "success": False,
+            "error": "token_expired",
+            "error_detail": error_detail,
+        }
 
     return {
         "success": False,

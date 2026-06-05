@@ -64,11 +64,13 @@ class TokenStorage:
             return
 
         token.revoked = True
-        self._revocation_log.append({
-            "token_id": str(token_id),
-            "reason": reason,
-            "revoked_at": revoked_at.isoformat(),
-        })
+        self._revocation_log.append(
+            {
+                "token_id": str(token_id),
+                "reason": reason,
+                "revoked_at": revoked_at.isoformat(),
+            }
+        )
         logger.info("Revoked token %s: %s", token_id, reason)
 
     def get_children(self, parent_id: UUID) -> list[CapabilityToken]:
@@ -83,7 +85,8 @@ class TokenStorage:
         """Get all active (non-revoked, non-expired) tokens."""
         now = datetime.now(UTC)
         return [
-            t for t in self._tokens.values()
+            t
+            for t in self._tokens.values()
             if not t.revoked and (t.expires_at is None or t.expires_at > now)
         ]
 
@@ -156,7 +159,10 @@ class CapabilityEngine:
         self.storage.persist(token)
         logger.info(
             "Issued token %s: resource=%s actions=%s to=%s",
-            token.id, resource, [a.value for a in actions], to,
+            token.id,
+            resource,
+            [a.value for a in actions],
+            to,
         )
         return token
 
@@ -202,9 +208,7 @@ class CapabilityEngine:
 
         return token
 
-    def revoke(
-        self, token_id: UUID, reason: str, *, cascade: bool = True
-    ) -> int:
+    def revoke(self, token_id: UUID, reason: str, *, cascade: bool = True) -> int:
         """Revoke a token and optionally all its children.
 
         Args:
@@ -236,9 +240,7 @@ class CapabilityEngine:
                     cascade=True,
                 )
 
-        logger.info(
-            "Revoked %d tokens starting from %s: %s", count, token_id, reason
-        )
+        logger.info("Revoked %d tokens starting from %s: %s", count, token_id, reason)
         return count
 
     def attenuate(
@@ -274,7 +276,8 @@ class CapabilityEngine:
         self.storage.persist(child)
         logger.info(
             "Attenuated token %s → %s (actions: %s → %s)",
-            parent.id, child.id,
+            parent.id,
+            child.id,
             [a.value for a in parent.actions],
             [a.value for a in child.actions],
         )
@@ -288,17 +291,15 @@ class CapabilityEngine:
 
     def get_active_tokens(self, principal_id: UUID) -> list[CapabilityToken]:
         """Get all active tokens held by a principal."""
-        return [
-            t for t in self.storage.all_active()
-            if t.issued_to == principal_id
-        ]
+        return [t for t in self.storage.all_active() if t.issued_to == principal_id]
 
     def get_authorized_actions(
         self, principal_id: UUID, resource: ResourceRef
     ) -> set[Action]:
         """Get all actions a principal is authorized for on a resource."""
         tokens = [
-            t for t in self.storage.all_active()
+            t
+            for t in self.storage.all_active()
             if t.issued_to == principal_id and t.resource == resource
         ]
         if not tokens:
@@ -318,10 +319,13 @@ class CapabilityEngine:
             "total_tokens": len(all_tokens),
             "active_tokens": len(active),
             "revoked_tokens": len([t for t in all_tokens if t.revoked]),
-            "expired_tokens": len([
-                t for t in all_tokens
-                if t.expires_at and t.expires_at <= datetime.now(UTC)
-            ]),
+            "expired_tokens": len(
+                [
+                    t
+                    for t in all_tokens
+                    if t.expires_at and t.expires_at <= datetime.now(UTC)
+                ]
+            ),
             "revocation_count": len(self.storage._revocation_log),
         }
 

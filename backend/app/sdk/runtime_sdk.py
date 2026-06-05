@@ -13,6 +13,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
 class RuntimeStatus(Enum):
     INITIALIZING = "initializing"
     HEALTHY = "healthy"
@@ -20,6 +21,7 @@ class RuntimeStatus(Enum):
     UNHEALTHY = "unhealthy"
     MAINTENANCE = "maintenance"
     SHUTTING_DOWN = "shutting_down"
+
 
 @dataclass
 class ExecutionResult:
@@ -30,6 +32,7 @@ class ExecutionResult:
     duration_ms: float = 0
     metadata: dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class QueueStats:
     total_queued: int
@@ -39,14 +42,15 @@ class QueueStats:
     avg_wait_time_ms: float
     avg_execution_time_ms: float
 
+
 class RuntimeSDK:
     """Python SDK for runtime control"""
 
     def __init__(
-        self, 
+        self,
         base_url: str = "http://localhost:8000",
         api_key: str | None = None,
-        timeout: float = 30.0
+        timeout: float = 30.0,
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -55,9 +59,7 @@ class RuntimeSDK:
 
     async def __aenter__(self):
         self._client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            headers=self._get_headers()
+            base_url=self.base_url, timeout=self.timeout, headers=self._get_headers()
         )
         return self
 
@@ -72,18 +74,13 @@ class RuntimeSDK:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    async def _request(
-        self, 
-        method: str, 
-        endpoint: str, 
-        **kwargs
-    ) -> dict[str, Any]:
+    async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
         """Make HTTP request"""
         if not self._client:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
-                headers=self._get_headers()
+                headers=self._get_headers(),
             )
 
         response = await self._client.request(method, endpoint, **kwargs)
@@ -116,9 +113,7 @@ class RuntimeSDK:
         return QueueStats(**data)
 
     async def get_queue_items(
-        self, 
-        status: str | None = None,
-        limit: int = 100
+        self, status: str | None = None, limit: int = 100
     ) -> list[dict[str, Any]]:
         """Get items in the execution queue"""
         params = {"limit": limit}
@@ -129,21 +124,16 @@ class RuntimeSDK:
     async def cancel_execution(self, execution_id: str) -> bool:
         """Cancel a queued or running execution"""
         result = await self._request(
-            "POST", 
-            f"/api/runtime/queue/{execution_id}/cancel"
+            "POST", f"/api/runtime/queue/{execution_id}/cancel"
         )
         return result.get("cancelled", False)
 
-    async def prioritize_execution(
-        self, 
-        execution_id: str, 
-        priority: int
-    ) -> bool:
+    async def prioritize_execution(self, execution_id: str, priority: int) -> bool:
         """Change execution priority"""
         result = await self._request(
             "POST",
             f"/api/runtime/queue/{execution_id}/priority",
-            json={"priority": priority}
+            json={"priority": priority},
         )
         return result.get("updated", False)
 
@@ -157,23 +147,19 @@ class RuntimeSDK:
         params: dict[str, Any],
         priority: str = "normal",
         timeout: float | None = None,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> ExecutionResult:
         """Execute a tool synchronously"""
         payload = {
             "tool": tool_name,
             "params": params,
             "priority": priority,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
         if timeout:
             payload["timeout"] = timeout
 
-        data = await self._request(
-            "POST",
-            "/api/runtime/execute",
-            json=payload
-        )
+        data = await self._request("POST", "/api/runtime/execute", json=payload)
 
         return ExecutionResult(
             execution_id=data.get("execution_id", ""),
@@ -181,7 +167,7 @@ class RuntimeSDK:
             result=data.get("result"),
             error=data.get("error"),
             duration_ms=data.get("duration_ms", 0),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
     async def execute_async(
@@ -189,38 +175,31 @@ class RuntimeSDK:
         tool_name: str,
         params: dict[str, Any],
         priority: str = "normal",
-        callback_url: str | None = None
+        callback_url: str | None = None,
     ) -> str:
         """Execute a tool asynchronously, returns execution ID"""
         payload = {
             "tool": tool_name,
             "params": params,
             "priority": priority,
-            "async": True
+            "async": True,
         }
         if callback_url:
             payload["callback_url"] = callback_url
 
-        data = await self._request(
-            "POST",
-            "/api/runtime/execute",
-            json=payload
-        )
+        data = await self._request("POST", "/api/runtime/execute", json=payload)
         return data.get("execution_id", "")
 
     async def get_execution(self, execution_id: str) -> ExecutionResult:
         """Get execution result by ID"""
-        data = await self._request(
-            "GET",
-            f"/api/runtime/executions/{execution_id}"
-        )
+        data = await self._request("GET", f"/api/runtime/executions/{execution_id}")
         return ExecutionResult(
             execution_id=data.get("execution_id", ""),
             status=data.get("status", "unknown"),
             result=data.get("result"),
             error=data.get("error"),
             duration_ms=data.get("duration_ms", 0),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
     # ====================
@@ -234,17 +213,13 @@ class RuntimeSDK:
     async def scale_up(self, count: int = 1) -> dict[str, Any]:
         """Manually scale up workers"""
         return await self._request(
-            "POST",
-            "/api/runtime/scaling/scale-up",
-            json={"count": count}
+            "POST", "/api/runtime/scaling/scale-up", json={"count": count}
         )
 
     async def scale_down(self, count: int = 1) -> dict[str, Any]:
         """Manually scale down workers"""
         return await self._request(
-            "POST",
-            "/api/runtime/scaling/scale-down",
-            json={"count": count}
+            "POST", "/api/runtime/scaling/scale-down", json={"count": count}
         )
 
     async def set_scaling_policy(
@@ -252,7 +227,7 @@ class RuntimeSDK:
         min_workers: int,
         max_workers: int,
         target_cpu: float = 70.0,
-        target_memory: float = 80.0
+        target_memory: float = 80.0,
     ) -> dict[str, Any]:
         """Set auto-scaling policy"""
         return await self._request(
@@ -262,8 +237,8 @@ class RuntimeSDK:
                 "min_workers": min_workers,
                 "max_workers": max_workers,
                 "target_cpu": target_cpu,
-                "target_memory": target_memory
-            }
+                "target_memory": target_memory,
+            },
         )
 
     # ====================
@@ -277,9 +252,7 @@ class RuntimeSDK:
     async def get_anomalies(self, hours: int = 24) -> list[dict[str, Any]]:
         """Get detected anomalies"""
         return await self._request(
-            "GET",
-            "/api/runtime/anomalies",
-            params={"hours": hours}
+            "GET", "/api/runtime/anomalies", params={"hours": hours}
         )
 
     async def get_scaling_recommendations(self) -> dict[str, Any]:
@@ -297,24 +270,18 @@ class RuntimeSDK:
     async def get_recovery_history(self, hours: int = 24) -> list[dict[str, Any]]:
         """Get recovery attempt history"""
         return await self._request(
-            "GET",
-            "/api/runtime/recovery/history",
-            params={"hours": hours}
+            "GET", "/api/runtime/recovery/history", params={"hours": hours}
         )
 
     async def trigger_recovery(
-        self,
-        error_id: str,
-        strategy: str | None = None
+        self, error_id: str, strategy: str | None = None
     ) -> dict[str, Any]:
         """Manually trigger recovery"""
         payload = {"error_id": error_id}
         if strategy:
             payload["strategy"] = strategy
         return await self._request(
-            "POST",
-            "/api/runtime/recovery/trigger",
-            json=payload
+            "POST", "/api/runtime/recovery/trigger", json=payload
         )
 
     # ====================
@@ -327,21 +294,20 @@ class RuntimeSDK:
 
     async def update_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """Update runtime configuration"""
-        return await self._request(
-            "PUT",
-            "/api/runtime/config",
-            json=config
-        )
+        return await self._request("PUT", "/api/runtime/config", json=config)
 
     async def reset_config(self) -> dict[str, Any]:
         """Reset configuration to defaults"""
         return await self._request("POST", "/api/runtime/config/reset")
 
+
 # Sync wrapper for non-async code
 class RuntimeSDKSync:
     """Synchronous wrapper for RuntimeSDK"""
 
-    def __init__(self, base_url: str = "http://localhost:8000", api_key: str | None = None):
+    def __init__(
+        self, base_url: str = "http://localhost:8000", api_key: str | None = None
+    ):
         self._async_sdk = RuntimeSDK(base_url, api_key)
 
     def _run(self, coro):

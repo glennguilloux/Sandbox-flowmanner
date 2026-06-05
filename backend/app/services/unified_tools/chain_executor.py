@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class ChainExecutionError(Exception):
     """Error during chain execution"""
+
     def __init__(self, message: str, step: int = None, tool_id: str = None):
         self.message = message
         self.step = step
@@ -53,7 +54,7 @@ class UnifiedChainExecutor:
         input_data: dict[str, Any],
         user_id: int | None = None,
         session_id: str | None = None,
-        execution_mode: str = "sequential"
+        execution_mode: str = "sequential",
     ) -> dict[str, Any]:
         """
         Execute a tool chain.
@@ -134,7 +135,7 @@ class UnifiedChainExecutor:
         input_data: dict[str, Any],
         user_id: int | None,
         session_id: str | None,
-        execution: ToolChainExecution
+        execution: ToolChainExecution,
     ) -> dict[str, Any]:
         """Execute steps sequentially, passing context between steps."""
         context = input_data.copy()
@@ -154,7 +155,7 @@ class UnifiedChainExecutor:
                 tool_id=tool_id,
                 params=params,
                 user_id=str(user_id) if user_id else None,
-                session_id=session_id
+                session_id=session_id,
             )
 
             step_output = {
@@ -170,9 +171,7 @@ class UnifiedChainExecutor:
 
             if not result.success:
                 raise ChainExecutionError(
-                    f"Step {i+1} failed: {result.error}",
-                    step=i,
-                    tool_id=tool_id
+                    f"Step {i+1} failed: {result.error}", step=i, tool_id=tool_id
                 )
 
             # Update context with step output for next steps
@@ -191,7 +190,7 @@ class UnifiedChainExecutor:
         input_data: dict[str, Any],
         user_id: int | None,
         session_id: str | None,
-        execution: ToolChainExecution
+        execution: ToolChainExecution,
     ) -> dict[str, Any]:
         """Execute steps in parallel."""
         tasks = []
@@ -200,12 +199,14 @@ class UnifiedChainExecutor:
             tool_id = step.get("tool_id") or step.get("tool")
             params = self._resolve_params(step.get("params", {}), input_data)
 
-            tasks.append(self.bridge.execute_tool(
-                tool_id=tool_id,
-                params=params,
-                user_id=str(user_id) if user_id else None,
-                session_id=session_id
-            ))
+            tasks.append(
+                self.bridge.execute_tool(
+                    tool_id=tool_id,
+                    params=params,
+                    user_id=str(user_id) if user_id else None,
+                    session_id=session_id,
+                )
+            )
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -215,21 +216,25 @@ class UnifiedChainExecutor:
 
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                step_outputs.append({
-                    "step": i,
-                    "tool_id": steps[i].get("tool_id"),
-                    "success": False,
-                    "error": str(result),
-                })
+                step_outputs.append(
+                    {
+                        "step": i,
+                        "tool_id": steps[i].get("tool_id"),
+                        "success": False,
+                        "error": str(result),
+                    }
+                )
             else:
-                step_outputs.append({
-                    "step": i,
-                    "tool_id": steps[i].get("tool_id"),
-                    "success": result.success,
-                    "result": result.result,
-                    "error": result.error,
-                    "execution_time_ms": result.execution_time_ms,
-                })
+                step_outputs.append(
+                    {
+                        "step": i,
+                        "tool_id": steps[i].get("tool_id"),
+                        "success": result.success,
+                        "result": result.result,
+                        "error": result.error,
+                        "execution_time_ms": result.execution_time_ms,
+                    }
+                )
                 total_time += result.execution_time_ms
 
                 if result.success and result.result:
@@ -249,9 +254,7 @@ class UnifiedChainExecutor:
         return output
 
     def _resolve_params(
-        self,
-        params: dict[str, Any],
-        context: dict[str, Any]
+        self, params: dict[str, Any], context: dict[str, Any]
     ) -> dict[str, Any]:
         """Resolve parameter references from context."""
         resolved = {}

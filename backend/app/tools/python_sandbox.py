@@ -92,9 +92,9 @@ _BLOCKED_FUNCTIONS: list[str] = [
 
 # Allowlisted patterns — safe uses of blocked-sounding functions
 _ALLOW_EXCEPTIONS: list[str] = [
-    r"from\s+os\s+import\s+path",         # os.path is benign
-    r"import\s+os\.path",                  # import os.path
-    r"os\.path\.",                         # os.path.* usage
+    r"from\s+os\s+import\s+path",  # os.path is benign
+    r"import\s+os\.path",  # import os.path
+    r"os\.path\.",  # os.path.* usage
 ]
 
 
@@ -111,7 +111,10 @@ def _is_code_allowed(code: str) -> tuple[bool, str | None]:
                 if re.search(exception, code):
                     break
             else:
-                return False, f"Blocked module: 'import {mod}' is not allowed in sandbox"
+                return (
+                    False,
+                    f"Blocked module: 'import {mod}' is not allowed in sandbox",
+                )
 
         # from mod import ...
         if re.search(rf"^\s*from\s+{re.escape(mod)}\s+import", code, re.MULTILINE):
@@ -119,7 +122,10 @@ def _is_code_allowed(code: str) -> tuple[bool, str | None]:
                 if re.search(exception, code):
                     break
             else:
-                return False, f"Blocked module: 'from {mod} import ...' is not allowed in sandbox"
+                return (
+                    False,
+                    f"Blocked module: 'from {mod} import ...' is not allowed in sandbox",
+                )
 
         # import os, sys — comma-separated
         if re.search(rf"^\s*import\s+.+\b{re.escape(mod)}\b", code, re.MULTILINE):
@@ -145,6 +151,7 @@ def _is_code_allowed(code: str) -> tuple[bool, str | None]:
 
 # ── Input ─────────────────────────────────────────────────────────────
 
+
 class PythonSandboxInput(ToolInput):
     code: str = Field(
         ...,
@@ -164,6 +171,7 @@ class PythonSandboxInput(ToolInput):
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
+
 
 class PythonSandboxTool(BaseTool):
     """Execute Python code in a resource-limited subprocess."""
@@ -206,9 +214,7 @@ class PythonSandboxTool(BaseTool):
             # Scan for dangerous imports before running
             allowed, reason = _is_code_allowed(validated.code)
             if not allowed:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id, error=reason
-                )
+                return ToolResult.error_result(tool_id=self.tool_id, error=reason)
 
             result = await self._run_python(
                 validated.code,
@@ -308,8 +314,8 @@ class PythonSandboxTool(BaseTool):
         """Build the python3 command with resource limits."""
         return [
             "python3",
-            "-I",        # Isolated mode — ignore PYTHON* env vars
-            "-B",        # Don't write .pyc files
+            "-I",  # Isolated mode — ignore PYTHON* env vars
+            "-B",  # Don't write .pyc files
             script_path,
         ]
 

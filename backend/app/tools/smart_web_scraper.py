@@ -22,14 +22,47 @@ logger = logging.getLogger(__name__)
 
 # ── HTML text extractor ───────────────────────────────────────────────────
 
+
 class _TextExtractor(HTMLParser):
     """Extract readable text while stripping script, style, nav, footer, etc."""
 
-    SKIP_TAGS = {"script", "style", "nav", "footer", "header", "aside",
-                  "noscript", "iframe", "svg", "form", "select", "button"}
-    BLOCK_TAGS = {"div", "p", "h1", "h2", "h3", "h4", "h5", "h6",
-                  "li", "tr", "section", "article", "main", "blockquote",
-                  "pre", "table", "ul", "ol", "dl", "hr", "br"}
+    SKIP_TAGS = {
+        "script",
+        "style",
+        "nav",
+        "footer",
+        "header",
+        "aside",
+        "noscript",
+        "iframe",
+        "svg",
+        "form",
+        "select",
+        "button",
+    }
+    BLOCK_TAGS = {
+        "div",
+        "p",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "li",
+        "tr",
+        "section",
+        "article",
+        "main",
+        "blockquote",
+        "pre",
+        "table",
+        "ul",
+        "ol",
+        "dl",
+        "hr",
+        "br",
+    }
 
     def __init__(self):
         super().__init__()
@@ -41,7 +74,11 @@ class _TextExtractor(HTMLParser):
         tag_lower = tag.lower()
         if tag_lower in self.SKIP_TAGS:
             self.skip_depth += 1
-        elif tag_lower in self.BLOCK_TAGS and self.parts and not self.parts[-1].endswith("\n"):
+        elif (
+            tag_lower in self.BLOCK_TAGS
+            and self.parts
+            and not self.parts[-1].endswith("\n")
+        ):
             self.parts.append("\n")
 
     def handle_endtag(self, tag):
@@ -49,7 +86,11 @@ class _TextExtractor(HTMLParser):
         if tag_lower in self.SKIP_TAGS:
             if self.skip_depth > 0:
                 self.skip_depth -= 1
-        elif tag_lower in self.BLOCK_TAGS and self.parts and not self.parts[-1].endswith("\n"):
+        elif (
+            tag_lower in self.BLOCK_TAGS
+            and self.parts
+            and not self.parts[-1].endswith("\n")
+        ):
             self.parts.append("\n")
 
     def handle_data(self, data):
@@ -75,7 +116,7 @@ def _extract_links(html: str, base_url: str) -> list[dict[str, str]]:
         r'<a\s+(?:[^>]*?\s+)?href=["\']([^"\']+)["\']',
         re.IGNORECASE,
     )
-    text_pattern = re.compile(r'>([^<]+)</a>', re.IGNORECASE)
+    text_pattern = re.compile(r">([^<]+)</a>", re.IGNORECASE)
 
     for match in link_pattern.finditer(html):
         href = match.group(1)
@@ -107,10 +148,13 @@ def _extract_meta(html: str) -> dict[str, str]:
 
 # ── Input ─────────────────────────────────────────────────────────────────
 
+
 class SmartWebScraperInput(ToolInput):
     url: str = Field(..., description="URL of the web page to scrape")
     extract_links: bool = Field(True, description="Extract all links from the page")
-    extract_meta: bool = Field(True, description="Extract meta tags (description, keywords)")
+    extract_meta: bool = Field(
+        True, description="Extract meta tags (description, keywords)"
+    )
     max_text_length: int = Field(50000, description="Maximum text length to return")
 
 
@@ -167,7 +211,7 @@ class SmartWebScraperTool(BaseTool):
 
             # Truncate
             if len(text) > validated.max_text_length:
-                text = text[:validated.max_text_length] + "\n\n... [truncated]"
+                text = text[: validated.max_text_length] + "\n\n... [truncated]"
 
             result: dict[str, Any] = {
                 "url": url,

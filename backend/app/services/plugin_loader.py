@@ -39,8 +39,10 @@ def load_manifest_from_fmp(fmp_path: Path) -> PluginManifest:
 
     with zipfile.ZipFile(fmp_path, "r") as zf:
         manifest_names = [
-            n for n in zf.namelist()
-            if n.endswith("flowmanner-plugin.yaml") and "/" not in n.replace("\\", "/").lstrip("/")
+            n
+            for n in zf.namelist()
+            if n.endswith("flowmanner-plugin.yaml")
+            and "/" not in n.replace("\\", "/").lstrip("/")
         ]
         if not manifest_names:
             raise ManifestError("No flowmanner-plugin.yaml found in .fmp package")
@@ -48,6 +50,7 @@ def load_manifest_from_fmp(fmp_path: Path) -> PluginManifest:
         raw = zf.read(manifest_names[0]).decode("utf-8")
 
     import yaml
+
     data = yaml.safe_load(raw)
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a YAML mapping")
@@ -188,6 +191,7 @@ def load_plugin_from_dir(plugin_dir: Path) -> tuple[PluginManifest, Any]:
         raise ManifestError(f"Manifest not found: {manifest_path}")
 
     import yaml
+
     with open(manifest_path) as f:
         raw = yaml.safe_load(f)
 

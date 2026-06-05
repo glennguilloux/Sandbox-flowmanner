@@ -24,7 +24,9 @@ class TopologyTool(BaseTool):
         try:
             validated = TopologyInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             from sqlalchemy import select
@@ -44,7 +46,8 @@ class TopologyTool(BaseTool):
                     workflow = result.scalar_one_or_none()
                     if not workflow:
                         return ToolResult.error_result(
-                            tool_id=self.tool_id, error=f"Workflow not found: {workflow_id}"
+                            tool_id=self.tool_id,
+                            error=f"Workflow not found: {workflow_id}",
                         )
 
                     graph_def = workflow.graph_definition or {}
@@ -64,18 +67,26 @@ class TopologyTool(BaseTool):
                     mission = result.scalar_one_or_none()
                     if not mission:
                         return ToolResult.error_result(
-                            tool_id=self.tool_id, error=f"Mission not found: {mission_id}"
+                            tool_id=self.tool_id,
+                            error=f"Mission not found: {mission_id}",
                         )
 
                     nodes = []
                     edges = []
-                    if hasattr(mission, "graph_definition") and mission.graph_definition:
+                    if (
+                        hasattr(mission, "graph_definition")
+                        and mission.graph_definition
+                    ):
                         nodes = mission.graph_definition.get("nodes", [])
                         edges = mission.graph_definition.get("edges", [])
 
                     return ToolResult.success_result(
                         tool_id=self.tool_id,
-                        result={"nodes": nodes, "edges": edges, "name": getattr(mission, "title", mission_id)},
+                        result={
+                            "nodes": nodes,
+                            "edges": edges,
+                            "name": getattr(mission, "title", mission_id),
+                        },
                     )
 
             async with get_db_session() as session:
@@ -88,7 +99,10 @@ class TopologyTool(BaseTool):
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={
-                    "workflows": [{"id": str(w.id), "name": w.name, "status": w.status} for w in workflows],
+                    "workflows": [
+                        {"id": str(w.id), "name": w.name, "status": w.status}
+                        for w in workflows
+                    ],
                     "missions": [{"id": str(m.id), "name": m.name} for m in missions],
                 },
             )

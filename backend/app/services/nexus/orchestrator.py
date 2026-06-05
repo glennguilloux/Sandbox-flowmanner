@@ -60,7 +60,11 @@ class NexusOrchestrator:
     - Execution Planning: Determines which services to invoke
     """
 
-    def __init__(self, discovery_service: ToolDiscoveryService = None, distributed_mode: bool = False):
+    def __init__(
+        self,
+        discovery_service: ToolDiscoveryService = None,
+        distributed_mode: bool = False,
+    ):
         self.registry = get_capability_registry()
         self.discovery_service = discovery_service or get_discovery_service()
         self.learning_service = get_learning_service()
@@ -82,7 +86,9 @@ class NexusOrchestrator:
         """Initialize the orchestrator and register default capabilities"""
         logger.info("Initializing Nexus Orchestrator...")
         await self._register_builtin_capabilities()
-        logger.info(f"Nexus Orchestrator initialized with {len(self.registry._capabilities)} capabilities")
+        logger.info(
+            f"Nexus Orchestrator initialized with {len(self.registry._capabilities)} capabilities"
+        )
 
     async def _register_builtin_capabilities(self):
         """Register built-in system capabilities from the tools ecosystem"""
@@ -102,7 +108,11 @@ class NexusOrchestrator:
                     capability = Capability(
                         id=f"tool:{tool_name}",
                         name=tool.name if hasattr(tool, "name") else tool_name,
-                        description=tool.description if hasattr(tool, "description") else f"Execute {tool_name} tool",
+                        description=(
+                            tool.description
+                            if hasattr(tool, "description")
+                            else f"Execute {tool_name} tool"
+                        ),
                         category="tools",
                         handler=self._create_tool_handler(tool),
                         input_schema=getattr(tool, "input_schema", {}),
@@ -138,7 +148,9 @@ class NexusOrchestrator:
         self.registry.register(capability)
         logger.info(f"Registered capability: {capability.id}")
 
-    def register_context_builder(self, source: str, builder: Callable[[ExecutionContext], Awaitable[dict]]):
+    def register_context_builder(
+        self, source: str, builder: Callable[[ExecutionContext], Awaitable[dict]]
+    ):
         """Register a context builder for a specific source"""
         self._context_builders[source] = builder
         logger.info(f"Registered context builder for: {source}")
@@ -165,7 +177,10 @@ class NexusOrchestrator:
         return context
 
     async def execute(
-        self, capability_id: str, params: dict[str, Any], ctx: ExecutionContext | None = None
+        self,
+        capability_id: str,
+        params: dict[str, Any],
+        ctx: ExecutionContext | None = None,
     ) -> OperationResult:
         """Execute a single capability.
 
@@ -176,7 +191,9 @@ class NexusOrchestrator:
         try:
             capability = self.registry.get(capability_id)
             if not capability:
-                return OperationResult(success=False, error=f"Capability not found: {capability_id}")
+                return OperationResult(
+                    success=False, error=f"Capability not found: {capability_id}"
+                )
 
             if ctx:
                 params["_context"] = await self.build_context(ctx)
@@ -221,7 +238,10 @@ class NexusOrchestrator:
                 execution_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
                 return OperationResult(
-                    success=True, data=result, execution_time_ms=execution_time, capabilities_used=[capability_id]
+                    success=True,
+                    data=result,
+                    execution_time_ms=execution_time,
+                    capabilities_used=[capability_id],
                 )
 
         except Exception as e:
@@ -255,15 +275,22 @@ class NexusOrchestrator:
         execution_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         return OperationResult(
-            success=True, data=accumulated_data, execution_time_ms=execution_time, capabilities_used=capabilities_used
+            success=True,
+            data=accumulated_data,
+            execution_time_ms=execution_time,
+            capabilities_used=capabilities_used,
         )
 
-    async def plan_and_execute(self, goal: str, ctx: ExecutionContext | None = None) -> OperationResult:
+    async def plan_and_execute(
+        self, goal: str, ctx: ExecutionContext | None = None
+    ) -> OperationResult:
         """Given a goal, determine which capabilities to invoke and execute."""
         plan = await self._create_plan_ai(goal) or await self._create_plan(goal)
 
         if not plan:
-            return OperationResult(success=False, error=f"Could not create plan for goal: {goal}")
+            return OperationResult(
+                success=False, error=f"Could not create plan for goal: {goal}"
+            )
 
         return await self.execute_chain(plan, ctx)
 
@@ -274,11 +301,15 @@ class NexusOrchestrator:
             learning_context = None
             if self.learning_service:
                 try:
-                    learning_context = await self.learning_service.inject_into_planner_context(
-                        task_description=goal, mission_type=None
+                    learning_context = (
+                        await self.learning_service.inject_into_planner_context(
+                            task_description=goal, mission_type=None
+                        )
                     )
                     if learning_context and learning_context.get("has_historical_data"):
-                        logger.info(f"Injected learning context: {learning_context.get('context_summary', '')[:100]}")
+                        logger.info(
+                            f"Injected learning context: {learning_context.get('context_summary', '')[:100]}"
+                        )
                 except Exception as e:
                     logger.warning(f"Failed to inject learning context: {e}")
 
@@ -321,10 +352,17 @@ class NexusOrchestrator:
 
             user_message = f"Goal: {goal}\n\nAvailable capabilities:\n{chr(10).join(cap_descriptions)}\n\nCreate an execution plan (JSON array only):"
 
-            messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_message}]
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ]
 
             response = await model_router.route_request(
-                messages=messages, user_id="system", is_admin=True, max_tokens=500, temperature=0.3
+                messages=messages,
+                user_id="system",
+                is_admin=True,
+                max_tokens=500,
+                temperature=0.3,
             )
 
             if response and "content" in response:
@@ -367,7 +405,9 @@ class NexusOrchestrator:
                     )
 
                 if plan:
-                    logger.info(f"Semantic search found {len(plan)} relevant capabilities")
+                    logger.info(
+                        f"Semantic search found {len(plan)} relevant capabilities"
+                    )
                     return plan
             except Exception as e:
                 logger.warning(f"Semantic search failed: {e}")
@@ -377,7 +417,9 @@ class NexusOrchestrator:
 
         if "search" in goal_lower or "find" in goal_lower:
             if "knowledge" in goal_lower or "document" in goal_lower:
-                plan.append({"capability": "tool:search_knowledge", "params": {"query": goal}})
+                plan.append(
+                    {"capability": "tool:search_knowledge", "params": {"query": goal}}
+                )
 
         if "agent" in goal_lower or "execute" in goal_lower:
             plan.append({"capability": "tool:spawn_agent", "params": {"task": goal}})

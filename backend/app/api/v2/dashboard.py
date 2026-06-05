@@ -13,7 +13,13 @@ from app.api.deps import get_current_user
 from app.api.v2.base import ok, paginated
 from app.database import get_db
 from app.models.llm_call_record import LLMCallRecord
-from app.models.mission_models import Mission, MissionLog, MissionStatus, MissionTask, MissionTaskStatus
+from app.models.mission_models import (
+    Mission,
+    MissionLog,
+    MissionStatus,
+    MissionTask,
+    MissionTaskStatus,
+)
 from app.observability.cost_engine import CostAttributionEngine
 from app.schemas.dashboard_v2 import (
     CostAnalyticsResponse,
@@ -36,6 +42,7 @@ router = APIRouter(prefix="/dashboard", tags=["v2-dashboard"])
 
 # ── Mission History ───────────────────────────────────────────────────────────
 
+
 @router.get("/missions")
 @router.get("/missions/")
 async def list_missions(
@@ -43,7 +50,9 @@ async def list_missions(
     per_page: int = Query(20, ge=1, le=100),
     status: str | None = Query(None, description="Filter by mission status"),
     search: str | None = Query(None, description="Search by title"),
-    sort_by: str = Query("started_at", pattern="^(started_at|completed_at|actual_cost|duration)$"),
+    sort_by: str = Query(
+        "started_at", pattern="^(started_at|completed_at|actual_cost|duration)$"
+    ),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     date_from: str | None = Query(None, description="ISO date filter start"),
     date_to: str | None = Query(None, description="ISO date filter end"),
@@ -52,30 +61,40 @@ async def list_missions(
 ):
     """Paginated mission history for the current user."""
     # Base query — only this user's missions
-    query = select(
-        Mission.id,
-        Mission.title,
-        Mission.status,
-        Mission.mission_type,
-        Mission.started_at,
-        Mission.completed_at,
-        Mission.actual_cost,
-        Mission.tokens_used,
-        Mission.error_message,
-        func.count(MissionTask.id).label("task_count"),
-        func.count().filter(MissionTask.status == MissionTaskStatus.COMPLETED).label("completed_tasks"),
-        func.count().filter(MissionTask.status == MissionTaskStatus.FAILED).label("failed_tasks"),
-        func.extract(
-            "epoch",
-            func.coalesce(Mission.completed_at, datetime.now(UTC))
-            - func.coalesce(Mission.started_at, Mission.created_at),
-        ).label("duration_seconds"),
-    ).outerjoin(
-        MissionTask, MissionTask.mission_id == Mission.id,
-    ).where(
-        Mission.user_id == user.id,
-        Mission.deleted_at.is_(None),
-    ).group_by(Mission.id)
+    query = (
+        select(
+            Mission.id,
+            Mission.title,
+            Mission.status,
+            Mission.mission_type,
+            Mission.started_at,
+            Mission.completed_at,
+            Mission.actual_cost,
+            Mission.tokens_used,
+            Mission.error_message,
+            func.count(MissionTask.id).label("task_count"),
+            func.count()
+            .filter(MissionTask.status == MissionTaskStatus.COMPLETED)
+            .label("completed_tasks"),
+            func.count()
+            .filter(MissionTask.status == MissionTaskStatus.FAILED)
+            .label("failed_tasks"),
+            func.extract(
+                "epoch",
+                func.coalesce(Mission.completed_at, datetime.now(UTC))
+                - func.coalesce(Mission.started_at, Mission.created_at),
+            ).label("duration_seconds"),
+        )
+        .outerjoin(
+            MissionTask,
+            MissionTask.mission_id == Mission.id,
+        )
+        .where(
+            Mission.user_id == user.id,
+            Mission.deleted_at.is_(None),
+        )
+        .group_by(Mission.id)
+    )
 
     # Filters
     if status:
@@ -88,9 +107,7 @@ async def list_missions(
         query = query.where(Mission.created_at <= date_to)
 
     # Count
-    count_query = select(func.count()).select_from(
-        query.subquery()
-    )
+    count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
 
     # Sort
@@ -101,7 +118,11 @@ async def list_missions(
         "duration": text("duration_seconds"),
     }
     sort_col = sort_cols.get(sort_by, Mission.started_at)
-    query = query.order_by(desc(sort_col)) if sort_order == "desc" else query.order_by(sort_col)
+    query = (
+        query.order_by(desc(sort_col))
+        if sort_order == "desc"
+        else query.order_by(sort_col)
+    )
 
     # Paginate
     offset = (page - 1) * per_page
@@ -111,26 +132,29 @@ async def list_missions(
 
     items = []
     for row in rows:
-        items.append(MissionHistoryItem(
-            id=str(row.id),
-            title=row.title,
-            status=str(row.status) if row.status else "unknown",
-            mission_type=row.mission_type,
-            started_at=row.started_at.isoformat() if row.started_at else None,
-            completed_at=row.completed_at.isoformat() if row.completed_at else None,
-            duration_seconds=round(float(row.duration_seconds or 0), 1),
-            actual_cost=round(row.actual_cost, 6) if row.actual_cost else None,
-            tokens_used=row.tokens_used,
-            task_count=row.task_count,
-            completed_tasks=row.completed_tasks,
-            failed_tasks=row.failed_tasks,
-            error_message=row.error_message,
-        ).model_dump())
+        items.append(
+            MissionHistoryItem(
+                id=str(row.id),
+                title=row.title,
+                status=str(row.status) if row.status else "unknown",
+                mission_type=row.mission_type,
+                started_at=row.started_at.isoformat() if row.started_at else None,
+                completed_at=row.completed_at.isoformat() if row.completed_at else None,
+                duration_seconds=round(float(row.duration_seconds or 0), 1),
+                actual_cost=round(row.actual_cost, 6) if row.actual_cost else None,
+                tokens_used=row.tokens_used,
+                task_count=row.task_count,
+                completed_tasks=row.completed_tasks,
+                failed_tasks=row.failed_tasks,
+                error_message=row.error_message,
+            ).model_dump()
+        )
 
     return paginated(items=items, total=total, page=page, per_page=per_page)
 
 
 # ── Cost Analytics ────────────────────────────────────────────────────────────
+
 
 @router.get("/costs")
 @router.get("/costs/")
@@ -175,8 +199,9 @@ async def get_cost_analytics(
     if mission_ids:
         # Sum cost from LLMCallRecord
         cost_result = await db.execute(
-            select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0))
-            .where(LLMCallRecord.mission_id.in_(mission_ids))
+            select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0)).where(
+                LLMCallRecord.mission_id.in_(mission_ids)
+            )
         )
         total_cost = round(float(cost_result.scalar() or 0), 6)
 
@@ -225,28 +250,36 @@ async def get_cost_analytics(
             Mission.created_at < start,
         )
         if workspace_id:
-            prev_missions_query = prev_missions_query.where(Mission.workspace_id == workspace_id)
+            prev_missions_query = prev_missions_query.where(
+                Mission.workspace_id == workspace_id
+            )
         prev_mission_rows = (await db.execute(prev_missions_query)).all()
         prev_mission_ids = [str(row[0]) for row in prev_mission_rows]
         if prev_mission_ids:
             prev_cost_result = await db.execute(
-                select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0))
-                .where(LLMCallRecord.mission_id.in_(prev_mission_ids))
+                select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0)).where(
+                    LLMCallRecord.mission_id.in_(prev_mission_ids)
+                )
             )
             previous_period_cost = round(float(prev_cost_result.scalar() or 0), 6)
             if previous_period_cost > 0:
-                trend_pct = round((total_cost - previous_period_cost) / previous_period_cost * 100, 1)
+                trend_pct = round(
+                    (total_cost - previous_period_cost) / previous_period_cost * 100, 1
+                )
 
-    return ok(CostAnalyticsResponse(
-        total_cost=total_cost,
-        previous_period_cost=previous_period_cost,
-        trend_pct=trend_pct,
-        by_agent=by_agent,
-        by_model=by_model,
-    ).model_dump())
+    return ok(
+        CostAnalyticsResponse(
+            total_cost=total_cost,
+            previous_period_cost=previous_period_cost,
+            trend_pct=trend_pct,
+            by_agent=by_agent,
+            by_model=by_model,
+        ).model_dump()
+    )
 
 
 # ── Search Logs ───────────────────────────────────────────────────────────────
+
 
 @router.get("/logs")
 @router.get("/logs/")
@@ -287,7 +320,9 @@ async def search_logs(
 
     # Count
     count_subq = query.subquery()
-    total = (await db.execute(select(func.count()).select_from(count_subq))).scalar() or 0
+    total = (
+        await db.execute(select(func.count()).select_from(count_subq))
+    ).scalar() or 0
 
     # Paginate
     query = query.order_by(desc(MissionLog.timestamp))
@@ -316,6 +351,7 @@ async def search_logs(
 
 # ── Aggregate Stats ───────────────────────────────────────────────────────────
 
+
 @router.get("/stats")
 @router.get("/stats/")
 async def get_dashboard_stats(
@@ -327,7 +363,9 @@ async def get_dashboard_stats(
     status_result = await db.execute(
         select(
             func.count().label("total"),
-            func.count().filter(Mission.status == MissionStatus.COMPLETED).label("completed"),
+            func.count()
+            .filter(Mission.status == MissionStatus.COMPLETED)
+            .label("completed"),
             func.count().filter(Mission.status == MissionStatus.FAILED).label("failed"),
         ).where(
             Mission.user_id == user.id,
@@ -339,13 +377,21 @@ async def get_dashboard_stats(
     total_missions = status_row.total or 0
     completed = status_row.completed or 0
     failed = status_row.failed or 0
-    success_rate = round(completed / total_missions * 100, 1) if total_missions > 0 else 0.0
+    success_rate = (
+        round(completed / total_missions * 100, 1) if total_missions > 0 else 0.0
+    )
 
     # Average duration
     dur_result = await db.execute(
-        select(func.avg(
-            func.extract("epoch", Mission.completed_at - func.coalesce(Mission.started_at, Mission.created_at))
-        )).where(
+        select(
+            func.avg(
+                func.extract(
+                    "epoch",
+                    Mission.completed_at
+                    - func.coalesce(Mission.started_at, Mission.created_at),
+                )
+            )
+        ).where(
             Mission.user_id == user.id,
             Mission.status.in_([MissionStatus.COMPLETED, MissionStatus.FAILED]),
             Mission.deleted_at.is_(None),
@@ -363,17 +409,20 @@ async def get_dashboard_stats(
 
     # Total tokens
     tokens_result = await db.execute(
-        select(func.coalesce(func.sum(Mission.tokens_used), 0))
-        .where(Mission.user_id == user.id, Mission.deleted_at.is_(None))
+        select(func.coalesce(func.sum(Mission.tokens_used), 0)).where(
+            Mission.user_id == user.id, Mission.deleted_at.is_(None)
+        )
     )
     total_tokens = int(tokens_result.scalar() or 0)
 
-    return ok(DashboardStats(
-        total_missions=total_missions,
-        completed_missions=completed,
-        failed_missions=failed,
-        success_rate=success_rate,
-        avg_duration_seconds=avg_duration,
-        total_cost=total_cost,
-        total_tokens=total_tokens,
-    ).model_dump())
+    return ok(
+        DashboardStats(
+            total_missions=total_missions,
+            completed_missions=completed,
+            failed_missions=failed,
+            success_rate=success_rate,
+            avg_duration_seconds=avg_duration,
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+        ).model_dump()
+    )

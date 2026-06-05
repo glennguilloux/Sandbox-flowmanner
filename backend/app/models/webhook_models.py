@@ -65,18 +65,30 @@ class WebhookLog(Base, TimestampMixin):
     endpoint_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     event_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default=WebhookStatus.PENDING.value)
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default=WebhookStatus.PENDING.value
+    )
     headers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     raw_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_body: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    processing_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    processing_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     processing_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_retries: Mapped[int] = mapped_column(Integer, default=3)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
-    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

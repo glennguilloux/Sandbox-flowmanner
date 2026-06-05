@@ -37,7 +37,8 @@ def upgrade() -> None:
 
     # ── missions_compat view ─────────────────────────────────────────
     # Maps old mission columns to blueprints + latest run
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE VIEW missions_compat AS
         SELECT
             b.id,
@@ -66,11 +67,13 @@ def upgrade() -> None:
             ORDER BY r.created_at DESC
             LIMIT 1
         ) latest_run ON true
-    """)
+    """
+    )
 
     # ── workflows_compat view ────────────────────────────────────────
     # Maps old workflow columns to blueprints
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE VIEW workflows_compat AS
         SELECT
             b.id,
@@ -84,11 +87,13 @@ def upgrade() -> None:
             b.updated_at
         FROM blueprints b
         WHERE b.blueprint_type IN ('graph', 'dag')
-    """)
+    """
+    )
 
     # ── workflow_executions_compat view ──────────────────────────────
     # Maps old execution columns to runs
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE VIEW workflow_executions_compat AS
         SELECT
             r.id,
@@ -103,7 +108,8 @@ def upgrade() -> None:
             r.completed_at,
             r.workspace_id
         FROM runs r
-    """)
+    """
+    )
 
 
 def downgrade() -> None:

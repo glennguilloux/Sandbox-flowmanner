@@ -49,7 +49,9 @@ class BrowserManager:
                     del self._user_sessions[user_id]
 
             if self.is_full:
-                raise SessionCapacityError(f"Browser session capacity reached ({MAX_SESSIONS} max)")
+                raise SessionCapacityError(
+                    f"Browser session capacity reached ({MAX_SESSIONS} max)"
+                )
 
             from app.services.browser_session import BrowserSession
 

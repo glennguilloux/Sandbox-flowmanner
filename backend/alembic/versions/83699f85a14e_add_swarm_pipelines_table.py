@@ -23,7 +23,13 @@ def upgrade() -> None:
     op.create_table(
         "swarm_pipelines",
         sa.Column("id", sa.String(12), primary_key=True),
-        sa.Column("swarm_id", sa.String(64), sa.ForeignKey("swarm_profiles.swarm_id"), nullable=False, index=True),
+        sa.Column(
+            "swarm_id",
+            sa.String(64),
+            sa.ForeignKey("swarm_profiles.swarm_id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("objective", sa.Text, nullable=False),
         sa.Column("current_phase", sa.String(50), server_default="pending"),
         sa.Column("status", sa.String(50), server_default="pending"),
@@ -32,8 +38,15 @@ def upgrade() -> None:
         sa.Column("result", JSON, nullable=True),
         sa.Column("error", sa.Text, nullable=True),
         sa.Column("phase_history", JSON, server_default="[]"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )
 

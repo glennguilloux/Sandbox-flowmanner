@@ -1,38 +1,28 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="TenantResponse")
-
 
 
 @_attrs_define
 class TenantResponse:
-    """ 
-        Attributes:
-            id (int):
-            name (str):
-            slug (str):
-            description (None | str):
-            max_members (int):
-            max_missions_per_day (int):
-            subscription_tier (None | str):
-            member_count (int):
-            is_active (bool):
-     """
+    """
+    Attributes:
+        id (int):
+        name (str):
+        slug (str):
+        description (None | str):
+        max_members (int):
+        max_missions_per_day (int):
+        subscription_tier (None | str):
+        member_count (int):
+        is_active (bool):
+    """
 
     id: int
     name: str
@@ -44,10 +34,6 @@ class TenantResponse:
     member_count: int
     is_active: bool
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -70,24 +56,23 @@ class TenantResponse:
 
         is_active = self.is_active
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "name": name,
-            "slug": slug,
-            "description": description,
-            "max_members": max_members,
-            "max_missions_per_day": max_missions_per_day,
-            "subscription_tier": subscription_tier,
-            "member_count": member_count,
-            "is_active": is_active,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "name": name,
+                "slug": slug,
+                "description": description,
+                "max_members": max_members,
+                "max_missions_per_day": max_missions_per_day,
+                "subscription_tier": subscription_tier,
+                "member_count": member_count,
+                "is_active": is_active,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -105,7 +90,6 @@ class TenantResponse:
 
         description = _parse_description(d.pop("description"))
 
-
         max_members = d.pop("max_members")
 
         max_missions_per_day = d.pop("max_missions_per_day")
@@ -116,7 +100,6 @@ class TenantResponse:
             return cast(None | str, data)
 
         subscription_tier = _parse_subscription_tier(d.pop("subscription_tier"))
-
 
         member_count = d.pop("member_count")
 
@@ -133,7 +116,6 @@ class TenantResponse:
             member_count=member_count,
             is_active=is_active,
         )
-
 
         tenant_response.additional_properties = d
         return tenant_response

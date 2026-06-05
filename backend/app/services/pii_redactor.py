@@ -15,12 +15,8 @@ from dataclasses import dataclass, field
 # ── Compiled patterns ──────────────────────────────────────────────────
 
 PATTERNS: dict[str, re.Pattern] = {
-    "email": re.compile(
-        r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"
-    ),
-    "phone": re.compile(
-        r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
-    ),
+    "email": re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
+    "phone": re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
     "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "credit_card": re.compile(r"\b(?:\d[ \-]*?){13,19}\b"),
     "api_key": re.compile(
@@ -122,14 +118,21 @@ def redact_pii(
 
             label = _MASK_LABELS.get(pii_type, f"[{pii_type.upper()}_REDACTED]")
             hits.append(
-                PIIHit(type=pii_type, start=match.start(), end=match.end(), masked_value=label)
+                PIIHit(
+                    type=pii_type,
+                    start=match.start(),
+                    end=match.end(),
+                    masked_value=label,
+                )
             )
 
     # Apply standard replacements from end-to-start so offsets stay valid
     hits.sort(key=lambda h: h.start, reverse=True)
     result_text = text
     for hit in hits:
-        result_text = result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
+        result_text = (
+            result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
+        )
 
     standard_count = len(hits)
 
@@ -143,11 +146,18 @@ def redact_pii(
             if raw.islower() and not any(c.isdigit() for c in raw):
                 continue
             strict_hits.append(
-                PIIHit(type="potential_secret", start=match.start(), end=match.end(), masked_value="[SECRET_REDACTED]")
+                PIIHit(
+                    type="potential_secret",
+                    start=match.start(),
+                    end=match.end(),
+                    masked_value="[SECRET_REDACTED]",
+                )
             )
         strict_hits.sort(key=lambda h: h.start, reverse=True)
         for hit in strict_hits:
-            result_text = result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
+            result_text = (
+                result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
+            )
 
     all_hits = sorted(hits + strict_hits, key=lambda h: h.start)
     return RedactionResult(

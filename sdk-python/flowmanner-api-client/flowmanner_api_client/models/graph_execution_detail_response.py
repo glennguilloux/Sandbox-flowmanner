@@ -11,9 +11,15 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_execution_detail_response_input_data_type_0 import GraphExecutionDetailResponseInputDataType0
-    from ..models.graph_execution_detail_response_node_states_item import GraphExecutionDetailResponseNodeStatesItem
-    from ..models.graph_execution_detail_response_output_data_type_0 import GraphExecutionDetailResponseOutputDataType0
+    from ..models.graph_execution_detail_response_input_data_type_0 import (
+        GraphExecutionDetailResponseInputDataType0,
+    )
+    from ..models.graph_execution_detail_response_node_states_item import (
+        GraphExecutionDetailResponseNodeStatesItem,
+    )
+    from ..models.graph_execution_detail_response_output_data_type_0 import (
+        GraphExecutionDetailResponseOutputDataType0,
+    )
 
 
 T = TypeVar("T", bound="GraphExecutionDetailResponse")
@@ -138,7 +144,9 @@ class GraphExecutionDetailResponse:
         from ..models.graph_execution_detail_response_input_data_type_0 import (
             GraphExecutionDetailResponseInputDataType0,
         )
-        from ..models.graph_execution_detail_response_node_states_item import GraphExecutionDetailResponseNodeStatesItem
+        from ..models.graph_execution_detail_response_node_states_item import (
+            GraphExecutionDetailResponseNodeStatesItem,
+        )
         from ..models.graph_execution_detail_response_output_data_type_0 import (
             GraphExecutionDetailResponseOutputDataType0,
         )
@@ -152,7 +160,9 @@ class GraphExecutionDetailResponse:
 
         created_at = isoparse(d.pop("created_at"))
 
-        def _parse_input_data(data: object) -> GraphExecutionDetailResponseInputDataType0 | None | Unset:
+        def _parse_input_data(
+            data: object,
+        ) -> GraphExecutionDetailResponseInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -160,7 +170,9 @@ class GraphExecutionDetailResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                input_data_type_0 = GraphExecutionDetailResponseInputDataType0.from_dict(data)
+                input_data_type_0 = (
+                    GraphExecutionDetailResponseInputDataType0.from_dict(data)
+                )
 
                 return input_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -169,7 +181,9 @@ class GraphExecutionDetailResponse:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-        def _parse_output_data(data: object) -> GraphExecutionDetailResponseOutputDataType0 | None | Unset:
+        def _parse_output_data(
+            data: object,
+        ) -> GraphExecutionDetailResponseOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -177,12 +191,16 @@ class GraphExecutionDetailResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                output_data_type_0 = GraphExecutionDetailResponseOutputDataType0.from_dict(data)
+                output_data_type_0 = (
+                    GraphExecutionDetailResponseOutputDataType0.from_dict(data)
+                )
 
                 return output_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(GraphExecutionDetailResponseOutputDataType0 | None | Unset, data)
+            return cast(
+                GraphExecutionDetailResponseOutputDataType0 | None | Unset, data
+            )
 
         output_data = _parse_output_data(d.pop("output_data", UNSET))
 
@@ -234,7 +252,9 @@ class GraphExecutionDetailResponse:
         if _node_states is not UNSET:
             node_states = []
             for node_states_item_data in _node_states:
-                node_states_item = GraphExecutionDetailResponseNodeStatesItem.from_dict(node_states_item_data)
+                node_states_item = GraphExecutionDetailResponseNodeStatesItem.from_dict(
+                    node_states_item_data
+                )
 
                 node_states.append(node_states_item)
 

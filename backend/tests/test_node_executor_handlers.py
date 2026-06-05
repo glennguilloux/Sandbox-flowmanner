@@ -14,8 +14,12 @@ from app.services.substrate.node_executor import NodeExecutor
 from app.services.substrate.workflow_models import WorkflowNode, WorkflowType, NodeType
 
 
-def _make_node(node_type: str = "llm_call", title: str = "Test Node", config: dict | None = None) -> WorkflowNode:
-    return WorkflowNode(id=str(uuid4()), type=node_type, title=title, config=config or {})
+def _make_node(
+    node_type: str = "llm_call", title: str = "Test Node", config: dict | None = None
+) -> WorkflowNode:
+    return WorkflowNode(
+        id=str(uuid4()), type=node_type, title=title, config=config or {}
+    )
 
 
 def _make_executor_with_node_executor():
@@ -29,6 +33,7 @@ def _make_executor_with_node_executor():
 
 
 # ── _execute_code_sandboxed ─────────────────────────────────────────
+
 
 class TestExecuteCodeSandboxed:
     @pytest.mark.asyncio
@@ -70,7 +75,9 @@ class TestExecuteCodeSandboxed:
     @pytest.mark.asyncio
     async def test_blocked_pattern_subprocess(self):
         ne, _ = _make_executor_with_node_executor()
-        result = await ne._execute_code_sandboxed("import subprocess\nsubprocess.run(['ls'])")
+        result = await ne._execute_code_sandboxed(
+            "import subprocess\nsubprocess.run(['ls'])"
+        )
         assert result["success"] is False
         assert "Blocked pattern" in result["error"]
 
@@ -128,7 +135,9 @@ class TestExecuteCodeSandboxed:
         code = "print('x' * 2_000_000)"
         result = await ne._execute_code_sandboxed(code)
         assert result["success"] is True
-        assert len(result["output"]["stdout"]) <= 1_000_010  # some margin for truncation message
+        assert (
+            len(result["output"]["stdout"]) <= 1_000_010
+        )  # some margin for truncation message
 
     @pytest.mark.asyncio
     async def test_blocked_pattern_case_insensitive(self):
@@ -163,6 +172,7 @@ class TestExecuteCodeSandboxed:
     async def test_cleanup_removes_workspace(self):
         """Temp workspace is cleaned up after execution."""
         import os
+
         ne, _ = _make_executor_with_node_executor()
         # Capture the workspace path by checking temp dirs
         initial_tmp = set(os.listdir("/tmp"))
@@ -176,11 +186,15 @@ class TestExecuteCodeSandboxed:
 
 # ── _handle_browser ─────────────────────────────────────────────────
 
+
 class TestHandleBrowser:
     @pytest.mark.asyncio
     async def test_browser_success(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.BROWSER_NAVIGATE, config={"params": {"url": "https://example.com"}})
+        node = _make_node(
+            node_type=NodeType.BROWSER_NAVIGATE,
+            config={"params": {"url": "https://example.com"}},
+        )
 
         mock_tool = MagicMock()
         mock_result = MagicMock()
@@ -250,10 +264,15 @@ class TestHandleBrowser:
         mock_result.data = {"ok": True}
         mock_tool.run = AsyncMock(return_value=mock_result)
 
-        for bt in [NodeType.BROWSER_NAVIGATE, NodeType.BROWSER_SNAPSHOT,
-                   NodeType.BROWSER_CLICK, NodeType.BROWSER_TYPE,
-                   NodeType.BROWSER_SCROLL, NodeType.BROWSER_SCREENSHOT,
-                   NodeType.BROWSER_CLOSE]:
+        for bt in [
+            NodeType.BROWSER_NAVIGATE,
+            NodeType.BROWSER_SNAPSHOT,
+            NodeType.BROWSER_CLICK,
+            NodeType.BROWSER_TYPE,
+            NodeType.BROWSER_SCROLL,
+            NodeType.BROWSER_SCREENSHOT,
+            NodeType.BROWSER_CLOSE,
+        ]:
             node = _make_node(node_type=bt, config={"params": {}})
             with patch("app.tools.base.ToolRegistry") as mock_registry:
                 mock_registry.get.return_value = mock_tool
@@ -263,19 +282,27 @@ class TestHandleBrowser:
 
 # ── _handle_file ────────────────────────────────────────────────────
 
+
 class TestHandleFile:
     @pytest.mark.asyncio
     async def test_file_read_success(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.FILE_OPERATION, config={"file_id": "f123", "operation": "read"})
+        node = _make_node(
+            node_type=NodeType.FILE_OPERATION,
+            config={"file_id": "f123", "operation": "read"},
+        )
 
         import tempfile, os
+
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         tmp.write("Hello, world!")
         tmp.close()
 
         mock_storage = MagicMock()
-        mock_storage.get_file_info.return_value = {"path": tmp.name, "filename": "test.txt"}
+        mock_storage.get_file_info.return_value = {
+            "path": tmp.name,
+            "filename": "test.txt",
+        }
         mock_fs_module = MagicMock()
         mock_fs_module.FileStorageService.return_value = mock_storage
 
@@ -290,7 +317,10 @@ class TestHandleFile:
     @pytest.mark.asyncio
     async def test_file_list_success(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.FILE_OPERATION, config={"file_id": "f123", "operation": "list"})
+        node = _make_node(
+            node_type=NodeType.FILE_OPERATION,
+            config={"file_id": "f123", "operation": "list"},
+        )
 
         mock_storage = MagicMock()
         mock_storage.get_file_info.return_value = {"path": "/tmp", "filename": "dir"}
@@ -306,7 +336,9 @@ class TestHandleFile:
     @pytest.mark.asyncio
     async def test_file_no_file_id(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.FILE_OPERATION, config={"operation": "read"})
+        node = _make_node(
+            node_type=NodeType.FILE_OPERATION, config={"operation": "read"}
+        )
 
         result = await ne._handle_file(node, {})
         assert result["success"] is False
@@ -315,7 +347,10 @@ class TestHandleFile:
     @pytest.mark.asyncio
     async def test_file_not_found(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.FILE_OPERATION, config={"file_id": "missing", "operation": "read"})
+        node = _make_node(
+            node_type=NodeType.FILE_OPERATION,
+            config={"file_id": "missing", "operation": "read"},
+        )
 
         mock_storage = MagicMock()
         mock_storage.get_file_info.return_value = None
@@ -331,10 +366,16 @@ class TestHandleFile:
     @pytest.mark.asyncio
     async def test_file_unknown_operation(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.FILE_OPERATION, config={"file_id": "f1", "operation": "delete"})
+        node = _make_node(
+            node_type=NodeType.FILE_OPERATION,
+            config={"file_id": "f1", "operation": "delete"},
+        )
 
         mock_storage = MagicMock()
-        mock_storage.get_file_info.return_value = {"path": "/tmp/test", "filename": "test"}
+        mock_storage.get_file_info.return_value = {
+            "path": "/tmp/test",
+            "filename": "test",
+        }
         mock_fs_module = MagicMock()
         mock_fs_module.FileStorageService.return_value = mock_storage
 
@@ -378,11 +419,14 @@ class TestHandleFile:
 
 # ── _handle_web_search success path ─────────────────────────────────
 
+
 class TestHandleWebSearch:
     @pytest.mark.asyncio
     async def test_web_search_success(self):
         ne, _ = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.WEB_SEARCH, config={"query": "Python testing"})
+        node = _make_node(
+            node_type=NodeType.WEB_SEARCH, config={"query": "Python testing"}
+        )
 
         mock_service = MagicMock()
         mock_result_1 = MagicMock()
@@ -397,7 +441,14 @@ class TestHandleWebSearch:
         mock_ws_service.get_search_service.return_value = mock_service
         mock_ws_models = MagicMock()
 
-        with patch.dict("sys.modules", {"app.services.web_search": MagicMock(), "app.services.web_search.service": mock_ws_service, "app.services.web_search.models": mock_ws_models}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "app.services.web_search": MagicMock(),
+                "app.services.web_search.service": mock_ws_service,
+                "app.services.web_search.models": mock_ws_models,
+            },
+        ):
             result = await ne._handle_web_search(node, {})
 
         assert result["success"] is True
@@ -420,7 +471,14 @@ class TestHandleWebSearch:
         mock_ws_service.get_search_service.return_value = mock_service
         mock_ws_models = MagicMock()
 
-        with patch.dict("sys.modules", {"app.services.web_search": MagicMock(), "app.services.web_search.service": mock_ws_service, "app.services.web_search.models": mock_ws_models}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "app.services.web_search": MagicMock(),
+                "app.services.web_search.service": mock_ws_service,
+                "app.services.web_search.models": mock_ws_models,
+            },
+        ):
             result = await ne._handle_web_search(node, {"query": "from context"})
 
         assert result["success"] is True
@@ -431,7 +489,10 @@ class TestHandleWebSearch:
         ne, _ = _make_executor_with_node_executor()
         node = _make_node(node_type=NodeType.WEB_SEARCH, config={"query": "test"})
 
-        with patch("app.services.web_search.service.get_search_service", side_effect=RuntimeError("no network")):
+        with patch(
+            "app.services.web_search.service.get_search_service",
+            side_effect=RuntimeError("no network"),
+        ):
             result = await ne._handle_web_search(node, {})
 
         assert result["success"] is False
@@ -439,6 +500,7 @@ class TestHandleWebSearch:
 
 
 # ── _tool_* helpers ─────────────────────────────────────────────────
+
 
 class TestToolHelpers:
     @pytest.mark.asyncio
@@ -458,7 +520,14 @@ class TestToolHelpers:
         mock_ws_service.get_search_service.return_value = mock_service
         mock_ws_models = MagicMock()
 
-        with patch.dict("sys.modules", {"app.services.web_search": MagicMock(), "app.services.web_search.service": mock_ws_service, "app.services.web_search.models": mock_ws_models}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "app.services.web_search": MagicMock(),
+                "app.services.web_search.service": mock_ws_service,
+                "app.services.web_search.models": mock_ws_models,
+            },
+        ):
             result = await ne._tool_web_search({"query": "test"}, {})
 
         assert result["success"] is True
@@ -484,7 +553,14 @@ class TestToolHelpers:
         mock_ws_service.get_search_service.return_value = mock_service
         mock_ws_models = MagicMock()
 
-        with patch.dict("sys.modules", {"app.services.web_search": MagicMock(), "app.services.web_search.service": mock_ws_service, "app.services.web_search.models": mock_ws_models}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "app.services.web_search": MagicMock(),
+                "app.services.web_search.service": mock_ws_service,
+                "app.services.web_search.models": mock_ws_models,
+            },
+        ):
             result = await ne._tool_web_search({}, {"query": "ctx query"})
 
         assert result["success"] is True
@@ -524,10 +600,14 @@ class TestToolHelpers:
 
         mock_storage = MagicMock()
         import tempfile, os
+
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         tmp.write("file content here")
         tmp.close()
-        mock_storage.get_file_info.return_value = {"path": tmp.name, "filename": "test.txt"}
+        mock_storage.get_file_info.return_value = {
+            "path": tmp.name,
+            "filename": "test.txt",
+        }
 
         mock_fs_module = MagicMock()
         mock_fs_module.FileStorageService.return_value = mock_storage
@@ -577,13 +657,16 @@ class TestToolHelpers:
     @pytest.mark.asyncio
     async def test_tool_rag_search_exception(self):
         ne, _ = _make_executor_with_node_executor()
-        with patch("app.services.rag_service.RAGService", side_effect=ImportError("no qdrant")):
+        with patch(
+            "app.services.rag_service.RAGService", side_effect=ImportError("no qdrant")
+        ):
             result = await ne._tool_rag_search({"query": "test"}, {})
         assert result["success"] is False
         assert "RAG search failed" in result["error"]
 
 
 # ── _handle_sub_workflow ────────────────────────────────────────────
+
 
 class TestHandleSubWorkflow:
     @pytest.mark.asyncio
@@ -600,7 +683,9 @@ class TestHandleSubWorkflow:
     async def test_sub_workflow_aborted(self):
         ne, mock_executor = _make_executor_with_node_executor()
         mock_executor.is_aborted = MagicMock(return_value=True)
-        node = _make_node(node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "wf-1"})
+        node = _make_node(
+            node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "wf-1"}
+        )
         db = AsyncMock()
         budget = MagicMock()
         result = await ne._handle_sub_workflow(db, node, {}, budget, "run-1")
@@ -610,7 +695,9 @@ class TestHandleSubWorkflow:
     @pytest.mark.asyncio
     async def test_sub_workflow_not_found(self):
         ne, mock_executor = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "nonexistent"})
+        node = _make_node(
+            node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "nonexistent"}
+        )
         db = AsyncMock()
         budget = MagicMock()
 
@@ -624,11 +711,12 @@ class TestHandleSubWorkflow:
         assert result["success"] is False
         assert "not found" in result["error"]
 
-
     @pytest.mark.asyncio
     async def test_sub_workflow_max_depth(self):
         ne, mock_executor = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "wf-1"})
+        node = _make_node(
+            node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "wf-1"}
+        )
         db = AsyncMock()
         budget = MagicMock()
         context = {"_sub_workflow_depth": 10}  # exceeds _MAX_SUB_WORKFLOW_DEPTH (5)
@@ -639,17 +727,28 @@ class TestHandleSubWorkflow:
 
 # ── _handle_tool with specific tool routing ─────────────────────────
 
+
 class TestHandleToolRouting:
     @pytest.mark.asyncio
     async def test_tool_web_search_via_dispatch(self):
         """When tool_name=web_search, routes to _tool_web_search."""
         ne, mock_executor = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.TOOL_CALL, config={"tool_name": "web_search", "params": {"query": "test"}})
+        node = _make_node(
+            node_type=NodeType.TOOL_CALL,
+            config={"tool_name": "web_search", "params": {"query": "test"}},
+        )
         db = AsyncMock()
         budget = MagicMock()
         run_id = str(uuid4())
         from app.services.substrate.workflow_models import Workflow
-        workflow = Workflow(id="wf-1", type=WorkflowType.SOLO, title="T", nodes=[node], user_id=str(uuid4()))
+
+        workflow = Workflow(
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="T",
+            nodes=[node],
+            user_id=str(uuid4()),
+        )
 
         mock_cap = MagicMock()
         mock_token = MagicMock()
@@ -659,8 +758,15 @@ class TestHandleToolRouting:
         mock_ce_module = MagicMock()
         mock_ce_module.get_capability_engine.return_value = mock_cap
 
-        with patch.dict("sys.modules", {"app.services.capability_engine": mock_ce_module}):
-            with patch.object(ne, "_tool_web_search", new_callable=AsyncMock, return_value={"success": True, "output": {}}) as mock_ws:
+        with patch.dict(
+            "sys.modules", {"app.services.capability_engine": mock_ce_module}
+        ):
+            with patch.object(
+                ne,
+                "_tool_web_search",
+                new_callable=AsyncMock,
+                return_value={"success": True, "output": {}},
+            ) as mock_ws:
                 result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
 
         assert result["success"] is True
@@ -669,12 +775,21 @@ class TestHandleToolRouting:
     @pytest.mark.asyncio
     async def test_tool_unknown_tool_name(self):
         ne, mock_executor = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.TOOL_CALL, config={"tool_name": "nonexistent_tool"})
+        node = _make_node(
+            node_type=NodeType.TOOL_CALL, config={"tool_name": "nonexistent_tool"}
+        )
         db = AsyncMock()
         budget = MagicMock()
         run_id = str(uuid4())
         from app.services.substrate.workflow_models import Workflow
-        workflow = Workflow(id="wf-1", type=WorkflowType.SOLO, title="T", nodes=[node], user_id=str(uuid4()))
+
+        workflow = Workflow(
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="T",
+            nodes=[node],
+            user_id=str(uuid4()),
+        )
 
         mock_cap = MagicMock()
         mock_token = MagicMock()
@@ -684,7 +799,9 @@ class TestHandleToolRouting:
         mock_ce_module = MagicMock()
         mock_ce_module.get_capability_engine.return_value = mock_cap
 
-        with patch.dict("sys.modules", {"app.services.capability_engine": mock_ce_module}):
+        with patch.dict(
+            "sys.modules", {"app.services.capability_engine": mock_ce_module}
+        ):
             result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
 
         assert result["success"] is False
@@ -693,12 +810,21 @@ class TestHandleToolRouting:
     @pytest.mark.asyncio
     async def test_tool_capability_denied(self):
         ne, mock_executor = _make_executor_with_node_executor()
-        node = _make_node(node_type=NodeType.TOOL_CALL, config={"tool_name": "web_search"})
+        node = _make_node(
+            node_type=NodeType.TOOL_CALL, config={"tool_name": "web_search"}
+        )
         db = AsyncMock()
         budget = MagicMock()
         run_id = str(uuid4())
         from app.services.substrate.workflow_models import Workflow
-        workflow = Workflow(id="wf-1", type=WorkflowType.SOLO, title="T", nodes=[node], user_id=str(uuid4()))
+
+        workflow = Workflow(
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="T",
+            nodes=[node],
+            user_id=str(uuid4()),
+        )
 
         mock_cap = MagicMock()
         mock_token = MagicMock()
@@ -708,7 +834,9 @@ class TestHandleToolRouting:
         mock_ce_module = MagicMock()
         mock_ce_module.get_capability_engine.return_value = mock_cap
 
-        with patch.dict("sys.modules", {"app.services.capability_engine": mock_ce_module}):
+        with patch.dict(
+            "sys.modules", {"app.services.capability_engine": mock_ce_module}
+        ):
             result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
 
         assert result["success"] is False

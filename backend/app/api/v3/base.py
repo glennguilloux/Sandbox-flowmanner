@@ -21,12 +21,14 @@ from pydantic import BaseModel, Field
 
 class ResponseMeta(BaseModel):
     """Metadata included in every v3 response."""
+
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class ErrorDetail(BaseModel):
     """Structured error information with trace_id for log correlation."""
+
     code: str
     message: str
     details: dict[str, Any] | None = None
@@ -35,6 +37,7 @@ class ErrorDetail(BaseModel):
 
 class PaginatedData(BaseModel):
     """Pagination wrapper for list endpoints."""
+
     items: list[Any] = Field(default_factory=list)
     total: int = 0
     page: int = 1

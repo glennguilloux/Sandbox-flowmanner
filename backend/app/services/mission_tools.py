@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # ── Web Search ────────────────────────────────────────────────────────────────
 
+
 async def tool_web_search(params: dict, input_data: dict) -> dict[str, Any]:
     """Search the web using the configured search service."""
     query = params.get("query", input_data.get("query"))
@@ -38,13 +39,15 @@ async def tool_web_search(params: dict, input_data: dict) -> dict[str, Any]:
 
         results = []
         for r in response.results:
-            results.append({
-                "title": r.title,
-                "url": r.url,
-                "snippet": r.snippet,
-                "score": r.score,
-                "domain": r.domain if hasattr(r, "domain") else "",
-            })
+            results.append(
+                {
+                    "title": r.title,
+                    "url": r.url,
+                    "snippet": r.snippet,
+                    "score": r.score,
+                    "domain": r.domain if hasattr(r, "domain") else "",
+                }
+            )
 
         if not results and response.error:
             return {
@@ -74,6 +77,7 @@ async def tool_web_search(params: dict, input_data: dict) -> dict[str, Any]:
 
 
 # ── File Reader ───────────────────────────────────────────────────────────────
+
 
 async def tool_file_reader(params: dict, input_data: dict) -> dict[str, Any]:
     """Read a file from the file storage service."""
@@ -107,14 +111,21 @@ async def tool_file_reader(params: dict, input_data: dict) -> dict[str, Any]:
 
 # ── API Caller ────────────────────────────────────────────────────────────────
 
+
 async def execute_web_request(
-    url: str, method: str = "GET", headers: dict | None = None, body: Any = None,
+    url: str,
+    method: str = "GET",
+    headers: dict | None = None,
+    body: Any = None,
 ) -> dict[str, Any]:
     """Make an HTTP request and return the response."""
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             response = await client.request(
-                method, url, headers=headers or {}, json=body if body else None,
+                method,
+                url,
+                headers=headers or {},
+                json=body if body else None,
             )
             return {
                 "success": True,
@@ -141,6 +152,7 @@ async def tool_api_caller(params: dict, input_data: dict) -> dict[str, Any]:
 
 
 # ── Web Scrape ────────────────────────────────────────────────────────────────
+
 
 async def execute_web_scrape(url: str) -> dict[str, Any]:
     """Scrape a web page and extract readable text."""
@@ -176,6 +188,7 @@ async def execute_web_scrape(url: str) -> dict[str, Any]:
 
 
 # ── Code / Data Analysis (delegates to sandbox) ───────────────────────────────
+
 
 async def tool_code_executor(params: dict, input_data: dict) -> dict[str, Any]:
     """Execute arbitrary Python code in a sandbox."""

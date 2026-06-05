@@ -47,19 +47,21 @@ async def get_user_audit_log(
 
     entries = []
     for row in rows:
-        entries.append({
-            "id": row[0] if len(row) > 0 else None,
-            "action": row[1] if len(row) > 1 else None,
-            "details": row[2] if len(row) > 2 else None,
-            "ip_address": row[3] if len(row) > 3 else None,
-            "user_id": row[4] if len(row) > 4 else None,
-            "user_email": row[5] if len(row) > 5 else None,
-            "endpoint": row[6] if len(row) > 6 else None,
-            "method": row[7] if len(row) > 7 else None,
-            "user_agent": row[8] if len(row) > 8 else None,
-            "success": row[9] if len(row) > 9 else None,
-            "timestamp": row[10].isoformat() if len(row) > 10 and row[10] else None,
-        })
+        entries.append(
+            {
+                "id": row[0] if len(row) > 0 else None,
+                "action": row[1] if len(row) > 1 else None,
+                "details": row[2] if len(row) > 2 else None,
+                "ip_address": row[3] if len(row) > 3 else None,
+                "user_id": row[4] if len(row) > 4 else None,
+                "user_email": row[5] if len(row) > 5 else None,
+                "endpoint": row[6] if len(row) > 6 else None,
+                "method": row[7] if len(row) > 7 else None,
+                "user_agent": row[8] if len(row) > 8 else None,
+                "success": row[9] if len(row) > 9 else None,
+                "timestamp": row[10].isoformat() if len(row) > 10 and row[10] else None,
+            }
+        )
 
     return {
         "entries": entries,

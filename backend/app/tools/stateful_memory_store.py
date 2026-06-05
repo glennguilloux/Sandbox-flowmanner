@@ -47,6 +47,7 @@ def _get_redis() -> redis_asyncio.Redis | None:
 
 # ── Input ─────────────────────────────────────────────────────────────────
 
+
 class StatefulMemoryStoreInput(ToolInput):
     action: str = Field(
         ...,
@@ -86,6 +87,7 @@ class StatefulMemoryStoreInput(ToolInput):
 
 # ── Tool ──────────────────────────────────────────────────────────────────
 
+
 class StatefulMemoryStoreTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
@@ -94,7 +96,14 @@ class StatefulMemoryStoreTool(BaseTool):
             description="Save and retrieve long-term context across multiple agent sessions",
             category="ai-agent",
             input_schema=StatefulMemoryStoreInput.schema_extra(),
-            tags=["memory", "stateful", "persistence", "context", "agent", "differentiator"],
+            tags=[
+                "memory",
+                "stateful",
+                "persistence",
+                "context",
+                "agent",
+                "differentiator",
+            ],
             requires_auth=True,
         )
         super().__init__(metadata=metadata)
@@ -197,7 +206,9 @@ class StatefulMemoryStoreTool(BaseTool):
                 pg_stored = True
                 logger.info(
                     "Stateful memory saved to PG: id=%s key=%s namespace=%s",
-                    entry_id, key, namespace,
+                    entry_id,
+                    key,
+                    namespace,
                 )
         except Exception as e:
             logger.error("Failed to save stateful memory to PostgreSQL: %s", e)
@@ -214,13 +225,15 @@ class StatefulMemoryStoreTool(BaseTool):
         if r:
             try:
                 rk = self._redis_key(namespace, key)
-                payload = json.dumps({
-                    "id": entry_id,
-                    "key": key,
-                    "value": validated.value,
-                    "metadata": validated.metadata,
-                    "created_at": now.isoformat(),
-                })
+                payload = json.dumps(
+                    {
+                        "id": entry_id,
+                        "key": key,
+                        "value": validated.value,
+                        "metadata": validated.metadata,
+                        "created_at": now.isoformat(),
+                    }
+                )
                 # Try async first, fall back to sync
                 try:
                     await r.setex(rk, MEMORY_TTL, payload)
@@ -244,9 +257,11 @@ class StatefulMemoryStoreTool(BaseTool):
                 "key": key,
                 "namespace": namespace,
                 "created_at": now.isoformat(),
-                "persisted_to": [s for s, ok in [
-                    ("postgresql", pg_stored), ("redis", redis_stored)
-                ] if ok],
+                "persisted_to": [
+                    s
+                    for s, ok in [("postgresql", pg_stored), ("redis", redis_stored)]
+                    if ok
+                ],
             },
         )
 
@@ -283,11 +298,21 @@ class StatefulMemoryStoreTool(BaseTool):
                             "action": "retrieve",
                             "key": key,
                             "namespace": namespace,
-                            "value": data.get("value", raw) if isinstance(data, dict) else raw,
+                            "value": (
+                                data.get("value", raw)
+                                if isinstance(data, dict)
+                                else raw
+                            ),
                             "source": "redis",
                             "id": data.get("id") if isinstance(data, dict) else None,
-                            "metadata": data.get("metadata") if isinstance(data, dict) else None,
-                            "created_at": data.get("created_at") if isinstance(data, dict) else None,
+                            "metadata": (
+                                data.get("metadata") if isinstance(data, dict) else None
+                            ),
+                            "created_at": (
+                                data.get("created_at")
+                                if isinstance(data, dict)
+                                else None
+                            ),
                         },
                     )
             except Exception as e:
@@ -324,7 +349,9 @@ class StatefulMemoryStoreTool(BaseTool):
                         "value": row.content,
                         "source": "postgresql",
                         "id": row.id,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "created_at": (
+                            row.created_at.isoformat() if row.created_at else None
+                        ),
                         "metadata": row.metadata_json,
                     },
                 )
@@ -367,10 +394,20 @@ class StatefulMemoryStoreTool(BaseTool):
                 memories = [
                     {
                         "id": row.id,
-                        "key": row.agent_id.replace(f"{namespace}:", "", 1) if row.agent_id else "",
+                        "key": (
+                            row.agent_id.replace(f"{namespace}:", "", 1)
+                            if row.agent_id
+                            else ""
+                        ),
                         "namespace": namespace,
-                        "value": row.content[:500] + "..." if len(row.content) > 500 else row.content,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "value": (
+                            row.content[:500] + "..."
+                            if len(row.content) > 500
+                            else row.content
+                        ),
+                        "created_at": (
+                            row.created_at.isoformat() if row.created_at else None
+                        ),
                         "metadata": row.metadata_json,
                     }
                     for row in rows
@@ -406,7 +443,11 @@ class StatefulMemoryStoreTool(BaseTool):
                     .where(
                         AgentMemory.user_id == (user_id or 0),
                         AgentMemory.content_type == "stateful_memory",
-                        AgentMemory.agent_id.like(f"{namespace}:%") if namespace != "*" else True,
+                        (
+                            AgentMemory.agent_id.like(f"{namespace}:%")
+                            if namespace != "*"
+                            else True
+                        ),
                     )
                     .order_by(AgentMemory.created_at.desc())
                     .limit(validated.max_results)
@@ -421,10 +462,24 @@ class StatefulMemoryStoreTool(BaseTool):
                 memories = [
                     {
                         "id": row.id,
-                        "key": (row.agent_id.split(":", 1)[1] if ":" in (row.agent_id or "") else row.agent_id),
-                        "namespace": row.agent_id.split(":", 1)[0] if row.agent_id and ":" in row.agent_id else namespace,
-                        "value_preview": row.content[:200] + "..." if len(row.content) > 200 else row.content,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "key": (
+                            row.agent_id.split(":", 1)[1]
+                            if ":" in (row.agent_id or "")
+                            else row.agent_id
+                        ),
+                        "namespace": (
+                            row.agent_id.split(":", 1)[0]
+                            if row.agent_id and ":" in row.agent_id
+                            else namespace
+                        ),
+                        "value_preview": (
+                            row.content[:200] + "..."
+                            if len(row.content) > 200
+                            else row.content
+                        ),
+                        "created_at": (
+                            row.created_at.isoformat() if row.created_at else None
+                        ),
                     }
                     for row in rows
                 ]

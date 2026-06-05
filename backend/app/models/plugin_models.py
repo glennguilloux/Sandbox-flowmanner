@@ -17,6 +17,7 @@ from app.models import Base, TimestampMixin
 
 class PluginStatus:
     """Plugin lifecycle states."""
+
     INSTALLED = "installed"
     LOADED = "loaded"
     ENABLED = "enabled"
@@ -38,12 +39,8 @@ class InstalledPlugin(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid4())
     )
-    workspace_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True
-    )
-    name: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
-    )
+    workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     author: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -52,9 +49,7 @@ class InstalledPlugin(Base, TimestampMixin):
     manifest_json: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Plugin source: "marketplace", "upload", "git"
-    source: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="upload"
-    )
+    source: Mapped[str] = mapped_column(String(50), nullable=False, default="upload")
     # Marketplace listing ID if installed from marketplace
     listing_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, index=True
@@ -98,9 +93,7 @@ class InstalledPlugin(Base, TimestampMixin):
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Phase 9.6: Runtime monitoring
-    p99_latency_ms: Mapped[float] = mapped_column(
-        default=0.0, server_default="0"
-    )
+    p99_latency_ms: Mapped[float] = mapped_column(default=0.0, server_default="0")
     crash_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     last_health_check_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

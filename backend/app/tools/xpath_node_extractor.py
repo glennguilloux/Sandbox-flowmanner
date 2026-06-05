@@ -23,16 +23,22 @@ class XpathNodeExtractorInput(ToolInput):
     """Input schema: html, xpath, extract, namespaces, limit, format."""
 
     html: str = Field(
-        ..., min_length=1, max_length=500000,
+        ...,
+        min_length=1,
+        max_length=500000,
         description="Raw HTML or XML content to query with XPath",
     )
     queries: list[str] = Field(
-        ..., min_length=1, max_length=50,
+        ...,
+        min_length=1,
+        max_length=50,
         description="XPath expressions (e.g., ['//div[@class=\"product\"]/h2', '//p[contains(text(),\"price\")]'])",
     )
-    return_type: Literal["text", "html", "attribute", "all", "node_name", "count"] = Field(
-        "text",
-        description="What to return: 'text', 'html', 'attribute', 'all', 'node_name' (tag name), or 'count' (match count only)",
+    return_type: Literal["text", "html", "attribute", "all", "node_name", "count"] = (
+        Field(
+            "text",
+            description="What to return: 'text', 'html', 'attribute', 'all', 'node_name' (tag name), or 'count' (match count only)",
+        )
     )
     attribute_name: str | None = Field(
         None,
@@ -43,7 +49,9 @@ class XpathNodeExtractorInput(ToolInput):
         description="XML namespace mapping (e.g., {'re': 'http://example.com/ns'})",
     )
     max_results: int | None = Field(
-        None, ge=1, le=10000,
+        None,
+        ge=1,
+        le=10000,
         description="Maximum number of results per query",
     )
     first_only: bool = Field(
@@ -95,7 +103,9 @@ class XpathNodeExtractorTool(BaseTool):
         try:
             validated = XpathNodeExtractorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         if validated.return_type == "attribute" and not validated.attribute_name:
             return ToolResult.error_result(
@@ -127,36 +137,61 @@ class XpathNodeExtractorTool(BaseTool):
                 else:
                     results = self._extract_results(elements, validated)
                 total_matches += len(results)
-                all_query_results.append({
-                    "xpath": xpath_expr,
-                    "match_count": len(results),
-                    "results": results,
-                })
+                all_query_results.append(
+                    {
+                        "xpath": xpath_expr,
+                        "match_count": len(results),
+                        "results": results,
+                    }
+                )
 
-            return ToolResult.success_result(tool_id=self.tool_id, result={
-                "queries": validated.queries,
-                "total_match_count": total_matches,
-                "per_query": all_query_results,
-                "first_match": all_query_results[0]["results"][0] if all_query_results and all_query_results[0]["results"] else None,
-                "success": True,
-            })
+            return ToolResult.success_result(
+                tool_id=self.tool_id,
+                result={
+                    "queries": validated.queries,
+                    "total_match_count": total_matches,
+                    "per_query": all_query_results,
+                    "first_match": (
+                        all_query_results[0]["results"][0]
+                        if all_query_results and all_query_results[0]["results"]
+                        else None
+                    ),
+                    "success": True,
+                },
+            )
         except etree.XPathEvalError as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid XPath expression: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid XPath expression: {e}"
+            )
         except Exception as e:
             logger.exception("xpath_node_extractor failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    def _extract_results(self, elements: list, validated: XpathNodeExtractorInput) -> list[Any]:
+    def _extract_results(
+        self, elements: list, validated: XpathNodeExtractorInput
+    ) -> list[Any]:
         results: list[Any] = []
 
         for el in elements:
             if validated.return_type == "text":
-                text = "".join(el.itertext()) if hasattr(el, "itertext") else str(el.text or "")
-                text = re.sub(r"\s+", " ", text.strip()) if validated.normalize_text else text.strip()
+                text = (
+                    "".join(el.itertext())
+                    if hasattr(el, "itertext")
+                    else str(el.text or "")
+                )
+                text = (
+                    re.sub(r"\s+", " ", text.strip())
+                    if validated.normalize_text
+                    else text.strip()
+                )
                 results.append(text)
             elif validated.return_type == "html":
                 method = "xml" if validated.as_xml else "html"
-                results.append(etree.tostring(el, encoding="unicode", method=method) if hasattr(el, "tag") else str(el))
+                results.append(
+                    etree.tostring(el, encoding="unicode", method=method)
+                    if hasattr(el, "tag")
+                    else str(el)
+                )
             elif validated.return_type == "attribute":
                 val = el.get(validated.attribute_name) if hasattr(el, "get") else ""
                 results.append(val or "")

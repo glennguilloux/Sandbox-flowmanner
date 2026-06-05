@@ -1,40 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-
-
-
-
-
-
 T = TypeVar("T", bound="ImportResponse")
-
 
 
 @_attrs_define
 class ImportResponse:
-    """ 
-        Attributes:
-            mission_id (str):
-            title (str):
-            tasks_imported (int):
-     """
+    """
+    Attributes:
+        mission_id (str):
+        title (str):
+        tasks_imported (int):
+    """
 
     mission_id: str
     title: str
     tasks_imported: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         mission_id = self.mission_id
@@ -43,18 +30,17 @@ class ImportResponse:
 
         tasks_imported = self.tasks_imported
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "mission_id": mission_id,
-            "title": title,
-            "tasks_imported": tasks_imported,
-        })
+        field_dict.update(
+            {
+                "mission_id": mission_id,
+                "title": title,
+                "tasks_imported": tasks_imported,
+            }
+        )
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -70,7 +56,6 @@ class ImportResponse:
             title=title,
             tasks_imported=tasks_imported,
         )
-
 
         import_response.additional_properties = d
         return import_response

@@ -26,7 +26,9 @@ class UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload:
         d = dict(src_dict)
         update_agent_registry_api_agent_registry_agents_agent_id_put_payload = cls()
 
-        update_agent_registry_api_agent_registry_agents_agent_id_put_payload.additional_properties = d
+        update_agent_registry_api_agent_registry_agents_agent_id_put_payload.additional_properties = (
+            d
+        )
         return update_agent_registry_api_agent_registry_agents_agent_id_put_payload
 
     @property

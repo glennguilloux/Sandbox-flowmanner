@@ -10,7 +10,12 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.extension import Extension
 from app.models.user import User
-from app.schemas.extension import ExtensionCreate, ExtensionListResponse, ExtensionResponse, ExtensionUpdate
+from app.schemas.extension import (
+    ExtensionCreate,
+    ExtensionListResponse,
+    ExtensionResponse,
+    ExtensionUpdate,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/extensions", tags=["extensions"])
@@ -38,7 +43,10 @@ async def list_extensions(
 ):
     result = await db.execute(select(Extension).order_by(Extension.created_at.desc()))
     extensions = result.scalars().all()
-    return {"extensions": [_to_response(e) for e in extensions], "total": len(extensions)}
+    return {
+        "extensions": [_to_response(e) for e in extensions],
+        "total": len(extensions),
+    }
 
 
 @router.post("", response_model=ExtensionResponse, status_code=status.HTTP_201_CREATED)

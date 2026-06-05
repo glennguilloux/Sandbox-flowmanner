@@ -30,17 +30,21 @@ import pytest
 
 _mock_nexus_orch_instance = MagicMock()
 _mock_nexus_orch_instance.plan_and_execute = AsyncMock(
-    return_value=MagicMock(success=True, data={"ok": True},
-                          error=None, capabilities_used=["test:cap"]))
+    return_value=MagicMock(
+        success=True, data={"ok": True}, error=None, capabilities_used=["test:cap"]
+    )
+)
 _mock_nexus_orch_instance.initialize = AsyncMock()
 
 _mock_orchestrator_module = MagicMock()
 _mock_orchestrator_module.NexusOrchestrator = MagicMock(
-    return_value=_mock_nexus_orch_instance)
+    return_value=_mock_nexus_orch_instance
+)
 _mock_orchestrator_module.ExecutionContext = MagicMock()
 _mock_orchestrator_module.OperationResult = MagicMock()
 _mock_orchestrator_module.get_nexus_orchestrator = MagicMock(
-    return_value=_mock_nexus_orch_instance)
+    return_value=_mock_nexus_orch_instance
+)
 
 sys.modules["app.services.nexus.orchestrator"] = _mock_orchestrator_module
 # Also mock capability_registry and distributed_executor that orchestrator imports
@@ -63,6 +67,7 @@ from app.services.nexus.meta_loop_orchestrator import (
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def _mock_analyzer():
     """Create a mock FailureAnalyzer."""
     analyzer = MagicMock(spec=FailureAnalyzer)
@@ -82,6 +87,7 @@ def _mock_analyzer():
 # ═══════════════════════════════════════════════════════════════════
 # MetaLoopOrchestrator: plan_execute_observe() budget reset
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestPlanExecuteObserveBudgetReset:
 
@@ -163,6 +169,7 @@ class TestPlanExecuteObserveBudgetReset:
 # MetaLoopOrchestrator: _handle_failure()
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestHandleFailure:
 
     def test_handle_failure_passes_wall_clock_and_cost(self):
@@ -170,14 +177,14 @@ class TestHandleFailure:
         nexus = MagicMock()
         nexus.plan_and_execute = AsyncMock(
             return_value=MagicMock(
-                success=False, error="timeout error",
-                data=None, capabilities_used=["test:cap"],
+                success=False,
+                error="timeout error",
+                data=None,
+                capabilities_used=["test:cap"],
             )
         )
         analyzer = _mock_analyzer()
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=nexus, failure_analyzer=analyzer
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=nexus, failure_analyzer=analyzer)
 
         mission_id = str(uuid4())
         asyncio.run(orch.plan_execute_observe("goal", mission_id=mission_id))
@@ -192,8 +199,10 @@ class TestHandleFailure:
         nexus = MagicMock()
         nexus.plan_and_execute = AsyncMock(
             return_value=MagicMock(
-                success=False, error="timeout",
-                data=None, capabilities_used=["test:cap"],
+                success=False,
+                error="timeout",
+                data=None,
+                capabilities_used=["test:cap"],
             )
         )
         analyzer = _mock_analyzer()
@@ -204,9 +213,7 @@ class TestHandleFailure:
             suggested_recovery="Retry",
             retry_recommended=True,
         )
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=nexus, failure_analyzer=analyzer
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=nexus, failure_analyzer=analyzer)
 
         asyncio.run(orch.plan_execute_observe("goal", mission_id=str(uuid4())))
 
@@ -218,8 +225,10 @@ class TestHandleFailure:
         nexus = MagicMock()
         nexus.plan_and_execute = AsyncMock(
             return_value=MagicMock(
-                success=False, error="permission denied",
-                data=None, capabilities_used=[],
+                success=False,
+                error="permission denied",
+                data=None,
+                capabilities_used=[],
             )
         )
         analyzer = _mock_analyzer()
@@ -231,13 +240,9 @@ class TestHandleFailure:
             retry_recommended=False,
             alternative_tools=[],
         )
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=nexus, failure_analyzer=analyzer
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=nexus, failure_analyzer=analyzer)
 
-        result = asyncio.run(
-            orch.plan_execute_observe("goal", mission_id=str(uuid4()))
-        )
+        result = asyncio.run(orch.plan_execute_observe("goal", mission_id=str(uuid4())))
 
         assert result.success is False
         assert result.failure_analysis is not None
@@ -249,8 +254,10 @@ class TestHandleFailure:
         nexus = MagicMock()
         nexus.plan_and_execute = AsyncMock(
             return_value=MagicMock(
-                success=False, error="permission denied",
-                data=None, capabilities_used=[],
+                success=False,
+                error="permission denied",
+                data=None,
+                capabilities_used=[],
             )
         )
         analyzer = _mock_analyzer()
@@ -262,9 +269,7 @@ class TestHandleFailure:
             retry_recommended=False,
             alternative_tools=[],
         )
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=nexus, failure_analyzer=analyzer
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=nexus, failure_analyzer=analyzer)
 
         asyncio.run(orch.plan_execute_observe("goal", mission_id=str(uuid4())))
 
@@ -273,17 +278,11 @@ class TestHandleFailure:
     def test_exception_in_plan_and_execute_is_handled(self):
         """Exceptions from plan_and_execute are caught and analyzed."""
         nexus = MagicMock()
-        nexus.plan_and_execute = AsyncMock(
-            side_effect=RuntimeError("unexpected boom")
-        )
+        nexus.plan_and_execute = AsyncMock(side_effect=RuntimeError("unexpected boom"))
         analyzer = _mock_analyzer()
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=nexus, failure_analyzer=analyzer
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=nexus, failure_analyzer=analyzer)
 
-        result = asyncio.run(
-            orch.plan_execute_observe("goal", mission_id=str(uuid4()))
-        )
+        result = asyncio.run(orch.plan_execute_observe("goal", mission_id=str(uuid4())))
 
         assert analyzer.analyze_failure.call_count >= 1
         assert result.success is False
@@ -293,13 +292,12 @@ class TestHandleFailure:
 # MetaLoopOrchestrator: _get_effective_max_depth()
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestGetEffectiveMaxDepth:
 
     def test_falls_back_to_requested_when_no_lattice(self):
         """_get_effective_max_depth() returns requested when lattice import fails."""
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=_mock_nexus_orch_instance
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=_mock_nexus_orch_instance)
         with patch(
             "app.services.nexus.capability_lattice.get_capability_lattice",
             side_effect=ImportError("no lattice"),
@@ -316,9 +314,7 @@ class TestGetEffectiveMaxDepth:
             mock_lattice.max_depth = 3
             mock_get_lattice.return_value = mock_lattice
 
-            orch = MetaLoopOrchestrator(
-                nexus_orchestrator=_mock_nexus_orch_instance
-            )
+            orch = MetaLoopOrchestrator(nexus_orchestrator=_mock_nexus_orch_instance)
             depth = orch._get_effective_max_depth(10)
             assert depth == 3
 
@@ -331,9 +327,7 @@ class TestGetEffectiveMaxDepth:
             mock_lattice.max_depth = 3
             mock_get_lattice.return_value = mock_lattice
 
-            orch = MetaLoopOrchestrator(
-                nexus_orchestrator=_mock_nexus_orch_instance
-            )
+            orch = MetaLoopOrchestrator(nexus_orchestrator=_mock_nexus_orch_instance)
             depth = orch._get_effective_max_depth(3)
             assert depth == 3
 
@@ -341,6 +335,7 @@ class TestGetEffectiveMaxDepth:
 # ═══════════════════════════════════════════════════════════════════
 # MetaLoopOrchestrator: max depth reached
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestMaxDepthReached:
 
@@ -364,6 +359,7 @@ class TestMaxDepthReached:
 # MetaLoopOrchestrator: alternative tools path
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestAlternativeToolsPath:
 
     def test_alternative_tools_triggered_when_recoverable_no_retry(self):
@@ -371,8 +367,10 @@ class TestAlternativeToolsPath:
         nexus = MagicMock()
         nexus.plan_and_execute = AsyncMock(
             return_value=MagicMock(
-                success=False, error="not found",
-                data=None, capabilities_used=[],
+                success=False,
+                error="not found",
+                data=None,
+                capabilities_used=[],
             )
         )
         analyzer = _mock_analyzer()
@@ -384,9 +382,7 @@ class TestAlternativeToolsPath:
             retry_recommended=False,
             alternative_tools=["search_knowledge", "web_search"],
         )
-        orch = MetaLoopOrchestrator(
-            nexus_orchestrator=nexus, failure_analyzer=analyzer
-        )
+        orch = MetaLoopOrchestrator(nexus_orchestrator=nexus, failure_analyzer=analyzer)
 
         asyncio.run(orch.plan_execute_observe("goal", mission_id=str(uuid4())))
 
@@ -397,6 +393,7 @@ class TestAlternativeToolsPath:
 # ═══════════════════════════════════════════════════════════════════
 # MetaLoopOrchestrator: singleton
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestMetaLoopOrchestratorSingleton:
 

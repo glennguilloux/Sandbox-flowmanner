@@ -10,6 +10,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 # ── execute_llm ────────────────────────────────────────────────────────────────
 
+
 class TestExecuteLlm:
     """LlmExecutor.execute_llm: LLM task execution."""
 
@@ -18,10 +19,12 @@ class TestExecuteLlm:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": False,
-            "error": "No models available",
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "No models available",
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -38,11 +41,13 @@ class TestExecuteLlm:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "This is the LLM response",
-            "cost": {"input_tokens": 10, "output_tokens": 20},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "This is the LLM response",
+                "cost": {"input_tokens": 10, "output_tokens": 20},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -60,11 +65,13 @@ class TestExecuteLlm:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "",
-            "cost": {"input_tokens": 5, "output_tokens": 0},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "",
+                "cost": {"input_tokens": 5, "output_tokens": 0},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -81,11 +88,13 @@ class TestExecuteLlm:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "   \n  ",
-            "cost": {"input_tokens": 3, "output_tokens": 1},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "   \n  ",
+                "cost": {"input_tokens": 3, "output_tokens": 1},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -114,11 +123,13 @@ class TestExecuteLlm:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "OK",
-            "cost": {"input_tokens": 1, "output_tokens": 1},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "OK",
+                "cost": {"input_tokens": 1, "output_tokens": 1},
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -141,13 +152,15 @@ class TestExecuteLlm:
         mock_cost_tracker.estimate_cost = MagicMock(return_value=0.0042)
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "Response text",
-            "model": "deepseek-chat",
-            "provider": "deepseek",
-            "cost": {"input_tokens": 10, "output_tokens": 20},
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "Response text",
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {"input_tokens": 10, "output_tokens": 20},
+            }
+        )
 
         executor = LlmExecutor(
             cost_tracker=mock_cost_tracker,
@@ -197,7 +210,8 @@ class TestExecuteLlm:
 
         # Should record the failed call
         failure_calls = [
-            c for c in mock_cost_tracker.record_llm_call.call_args_list
+            c
+            for c in mock_cost_tracker.record_llm_call.call_args_list
             if c[1]["success"] is False
         ]
         assert len(failure_calls) == 1
@@ -208,10 +222,12 @@ class TestExecuteLlm:
         from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(return_value={
-            "success": True,
-            "response": "OK",
-        })
+        mock_router.route_request = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "OK",
+            }
+        )
         executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
@@ -228,7 +244,9 @@ class TestExecuteLlm:
         from app.services.mission_errors import RetryableMissionError
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(side_effect=RetryableMissionError("overloaded"))
+        mock_router.route_request = AsyncMock(
+            side_effect=RetryableMissionError("overloaded")
+        )
 
         executor = LlmExecutor(get_model_router=lambda: mock_router)
         mock_task = MagicMock()
@@ -260,6 +278,7 @@ class TestExecuteLlm:
 
 # ── _build_llm_messages ───────────────────────────────────────────────────────
 
+
 class TestBuildLlmMessages:
     """LlmExecutor._build_llm_messages: message array construction."""
 
@@ -273,8 +292,11 @@ class TestBuildLlmMessages:
         mock_task.assigned_agent_id = "agent-1"
         mock_task.id = "task-1"
 
-        with patch.object(executor, "_resolve_agent_system_prompt",
-                          return_value="You are a helpful assistant"):
+        with patch.object(
+            executor,
+            "_resolve_agent_system_prompt",
+            return_value="You are a helpful assistant",
+        ):
             messages = await executor._build_llm_messages(mock_task, "Do something")
 
         assert len(messages) == 2
@@ -314,6 +336,7 @@ class TestBuildLlmMessages:
 
 
 # ── _resolve_agent_system_prompt ──────────────────────────────────────────────
+
 
 class TestResolveAgentSystemPrompt:
     """LlmExecutor._resolve_agent_system_prompt: agent template resolution."""

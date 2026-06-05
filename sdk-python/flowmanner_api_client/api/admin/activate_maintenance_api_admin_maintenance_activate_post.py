@@ -8,24 +8,19 @@ from ...client import AuthenticatedClient, Client
 from ...types import Response, UNSET
 from ... import errors
 
-from ...models.activate_maintenance_api_admin_maintenance_activate_post_data import ActivateMaintenanceApiAdminMaintenanceActivatePostData
+from ...models.activate_maintenance_api_admin_maintenance_activate_post_data import (
+    ActivateMaintenanceApiAdminMaintenanceActivatePostData,
+)
 from ...models.http_validation_error import HTTPValidationError
 from ...models.maintenance_status import MaintenanceStatus
 from typing import cast
 
 
-
 def _get_kwargs(
     *,
     body: ActivateMaintenanceApiAdminMaintenanceActivatePostData,
-
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-
-
-    
-
-    
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -34,26 +29,22 @@ def _get_kwargs(
 
     _kwargs["json"] = body.to_dict()
 
-
     headers["Content-Type"] = "application/json"
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HTTPValidationError | MaintenanceStatus | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> HTTPValidationError | MaintenanceStatus | None:
     if response.status_code == 200:
         response_200 = MaintenanceStatus.from_dict(response.json())
-
-
 
         return response_200
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
-
-
 
         return response_422
 
@@ -63,7 +54,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HTTPValidationError | MaintenanceStatus]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[HTTPValidationError | MaintenanceStatus]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -76,9 +69,8 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: ActivateMaintenanceApiAdminMaintenanceActivatePostData,
-
 ) -> Response[HTTPValidationError | MaintenanceStatus]:
-    """ Activate Maintenance
+    """Activate Maintenance
 
     Args:
         body (ActivateMaintenanceApiAdminMaintenanceActivatePostData):
@@ -89,12 +81,10 @@ def sync_detailed(
 
     Returns:
         Response[HTTPValidationError | MaintenanceStatus]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         body=body,
-
     )
 
     response = client.get_httpx_client().request(
@@ -103,13 +93,13 @@ def sync_detailed(
 
     return _build_response(client=client, response=response)
 
+
 def sync(
     *,
     client: AuthenticatedClient,
     body: ActivateMaintenanceApiAdminMaintenanceActivatePostData,
-
 ) -> HTTPValidationError | MaintenanceStatus | None:
-    """ Activate Maintenance
+    """Activate Maintenance
 
     Args:
         body (ActivateMaintenanceApiAdminMaintenanceActivatePostData):
@@ -120,22 +110,20 @@ def sync(
 
     Returns:
         HTTPValidationError | MaintenanceStatus
-     """
-
+    """
 
     return sync_detailed(
         client=client,
-body=body,
-
+        body=body,
     ).parsed
+
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: ActivateMaintenanceApiAdminMaintenanceActivatePostData,
-
 ) -> Response[HTTPValidationError | MaintenanceStatus]:
-    """ Activate Maintenance
+    """Activate Maintenance
 
     Args:
         body (ActivateMaintenanceApiAdminMaintenanceActivatePostData):
@@ -146,27 +134,23 @@ async def asyncio_detailed(
 
     Returns:
         Response[HTTPValidationError | MaintenanceStatus]
-     """
-
+    """
 
     kwargs = _get_kwargs(
         body=body,
-
     )
 
-    response = await client.get_async_httpx_client().request(
-        **kwargs
-    )
+    response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
 
 async def asyncio(
     *,
     client: AuthenticatedClient,
     body: ActivateMaintenanceApiAdminMaintenanceActivatePostData,
-
 ) -> HTTPValidationError | MaintenanceStatus | None:
-    """ Activate Maintenance
+    """Activate Maintenance
 
     Args:
         body (ActivateMaintenanceApiAdminMaintenanceActivatePostData):
@@ -177,11 +161,11 @@ async def asyncio(
 
     Returns:
         HTTPValidationError | MaintenanceStatus
-     """
+    """
 
-
-    return (await asyncio_detailed(
-        client=client,
-body=body,
-
-    )).parsed
+    return (
+        await asyncio_detailed(
+            client=client,
+            body=body,
+        )
+    ).parsed

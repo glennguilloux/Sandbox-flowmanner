@@ -75,7 +75,9 @@ class ReplayEngine:
 
         logger.info(
             "Replayed %d events for run %s → status=%s",
-            state.current_sequence, run_id, state.status,
+            state.current_sequence,
+            run_id,
+            state.status,
         )
         return state
 
@@ -92,9 +94,7 @@ class ReplayEngine:
         """
         return await self.rebuild_state(db, run_id, up_to_sequence=sequence)
 
-    async def verify_determinism(
-        self, db: AsyncSession, run_id: str
-    ) -> bool:
+    async def verify_determinism(self, db: AsyncSession, run_id: str) -> bool:
         """Verify that replaying the event log yields the same state.
 
         Replays the entire event log twice and compares the resulting states.
@@ -113,9 +113,10 @@ class ReplayEngine:
 
         if not same:
             logger.warning(
-                "Non-deterministic replay detected for run %s: "
-                "state1=%s state2=%s",
-                run_id, state1.to_dict(), state2.to_dict(),
+                "Non-deterministic replay detected for run %s: " "state1=%s state2=%s",
+                run_id,
+                state1.to_dict(),
+                state2.to_dict(),
             )
 
         return same

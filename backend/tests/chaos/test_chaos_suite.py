@@ -24,6 +24,7 @@ import pytest
 # Test 1: Kill worker mid-mission (Durable execution)
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestKillWorkerMidMission:
     """Verify that the event-sourced substrate survives worker crashes.
 
@@ -37,13 +38,26 @@ class TestKillWorkerMidMission:
 
         run_id = str(uuid4())
         events = [
-            {"type": SubstrateEventType.MISSION_STARTED, "payload": {"title": "test"}, "actor": "test"},
-            {"type": SubstrateEventType.TASK_STARTED, "payload": {"task_id": "t1"}, "actor": "test"},
-            {"type": SubstrateEventType.TASK_COMPLETED, "payload": {"task_id": "t1", "tokens": 42}, "actor": "test"},
+            {
+                "type": SubstrateEventType.MISSION_STARTED,
+                "payload": {"title": "test"},
+                "actor": "test",
+            },
+            {
+                "type": SubstrateEventType.TASK_STARTED,
+                "payload": {"task_id": "t1"},
+                "actor": "test",
+            },
+            {
+                "type": SubstrateEventType.TASK_COMPLETED,
+                "payload": {"task_id": "t1", "tokens": 42},
+                "actor": "test",
+            },
         ]
 
         # Verify events can be constructed (append needs DB, but construction doesn't)
         from app.models.substrate_models import SubstrateEvent
+
         for event_dict in events:
             event = SubstrateEvent(
                 id=str(uuid4()),
@@ -72,50 +86,58 @@ class TestKillWorkerMidMission:
         state = SubstrateRunState(run_id=run_id)
 
         # Apply mission.started
-        state.apply(SubstrateEvent(
-            id=str(uuid4()),
-            sequence=1,
-            run_id=run_id,
-            type=SubstrateEventType.MISSION_STARTED,
-            payload={"title": "test"},
-            actor="test",
-        ))
+        state.apply(
+            SubstrateEvent(
+                id=str(uuid4()),
+                sequence=1,
+                run_id=run_id,
+                type=SubstrateEventType.MISSION_STARTED,
+                payload={"title": "test"},
+                actor="test",
+            )
+        )
         assert state.status == "executing"
 
         # Apply task.started
-        state.apply(SubstrateEvent(
-            id=str(uuid4()),
-            sequence=2,
-            run_id=run_id,
-            type=SubstrateEventType.TASK_STARTED,
-            payload={"task_id": "t1"},
-            actor="test",
-        ))
+        state.apply(
+            SubstrateEvent(
+                id=str(uuid4()),
+                sequence=2,
+                run_id=run_id,
+                type=SubstrateEventType.TASK_STARTED,
+                payload={"task_id": "t1"},
+                actor="test",
+            )
+        )
         assert state.task_states.get("t1", {}).get("status") == "running"
 
         # Apply task.completed
-        state.apply(SubstrateEvent(
-            id=str(uuid4()),
-            sequence=3,
-            run_id=run_id,
-            type=SubstrateEventType.TASK_COMPLETED,
-            payload={"task_id": "t1", "tokens": 42, "cost_usd": 0.01},
-            actor="test",
-        ))
+        state.apply(
+            SubstrateEvent(
+                id=str(uuid4()),
+                sequence=3,
+                run_id=run_id,
+                type=SubstrateEventType.TASK_COMPLETED,
+                payload={"task_id": "t1", "tokens": 42, "cost_usd": 0.01},
+                actor="test",
+            )
+        )
         assert "t1" in state.completed_tasks
         assert state.total_tokens == 42
         assert state.total_cost_usd == 0.01
 
         # Apply mission.failed (simulate crash after completion)
         state2 = SubstrateRunState(run_id=run_id)
-        state2.apply(SubstrateEvent(
-            id=str(uuid4()),
-            sequence=4,
-            run_id=run_id,
-            type=SubstrateEventType.MISSION_FAILED,
-            payload={"error": "worker crash"},
-            actor="test",
-        ))
+        state2.apply(
+            SubstrateEvent(
+                id=str(uuid4()),
+                sequence=4,
+                run_id=run_id,
+                type=SubstrateEventType.MISSION_FAILED,
+                payload={"error": "worker crash"},
+                actor="test",
+            )
+        )
         assert state2.status == "failed"
         assert state2.error_message == "worker crash"
 
@@ -131,7 +153,10 @@ class TestKillWorkerMidMission:
         events_data = [
             (SubstrateEventType.MISSION_STARTED, {"title": "replay_test"}),
             (SubstrateEventType.TASK_STARTED, {"task_id": "a"}),
-            (SubstrateEventType.TASK_COMPLETED, {"task_id": "a", "tokens": 100, "cost_usd": 0.05}),
+            (
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "a", "tokens": 100, "cost_usd": 0.05},
+            ),
             (SubstrateEventType.TASK_STARTED, {"task_id": "b"}),
             (SubstrateEventType.TASK_FAILED, {"task_id": "b", "error": "timeout"}),
             (SubstrateEventType.MISSION_COMPLETED, {}),
@@ -140,14 +165,16 @@ class TestKillWorkerMidMission:
         def build_state():
             state = SubstrateRunState(run_id=run_id)
             for seq, (etype, payload) in enumerate(events_data, start=1):
-                state.apply(SubstrateEvent(
-                    id=str(uuid4()),
-                    sequence=seq,
-                    run_id=run_id,
-                    type=etype,
-                    payload=payload,
-                    actor="test",
-                ))
+                state.apply(
+                    SubstrateEvent(
+                        id=str(uuid4()),
+                        sequence=seq,
+                        run_id=run_id,
+                        type=etype,
+                        payload=payload,
+                        actor="test",
+                    )
+                )
             return state
 
         state1 = build_state()
@@ -163,6 +190,7 @@ class TestKillWorkerMidMission:
 # ═══════════════════════════════════════════════════════════════════
 # Test 2: Revoke capability mid-run (OCap security)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestRevokeCapabilityMidRun:
     """Verify that capability revocation takes effect immediately."""
@@ -198,6 +226,7 @@ class TestRevokeCapabilityMidRun:
 
         agent_id = uuid4()
         from app.models.capability_models import ResourceRef
+
         parent = engine.issue(
             resource=ResourceRef(kind="tool", name="dangerous_tool"),
             actions={Action.EXECUTE},
@@ -231,6 +260,7 @@ class TestRevokeCapabilityMidRun:
 
         agent_id = uuid4()
         from app.models.capability_models import ResourceRef
+
         token = engine.issue(
             resource=ResourceRef(kind="tool", name="test_tool"),
             actions={Action.EXECUTE},
@@ -245,6 +275,7 @@ class TestRevokeCapabilityMidRun:
 # ═══════════════════════════════════════════════════════════════════
 # Test 3: Exhaust budget (Bounded execution)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestExhaustBudget:
     """Verify that the budget enforcer aborts when limits are hit."""
@@ -338,6 +369,7 @@ class TestExhaustBudget:
 # Test 4: Type violation rejected (Type-checked composition)
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestTypeViolationRejected:
     """Verify that the type system rejects invalid compositions."""
 
@@ -368,12 +400,16 @@ class TestTypeViolationRejected:
         assert "query" in error
 
         # Valid input
-        is_valid, error = PydanticAdapter.validate_input(cap, {"query": "hello", "limit": 5})
+        is_valid, error = PydanticAdapter.validate_input(
+            cap, {"query": "hello", "limit": 5}
+        )
         assert is_valid is True
         assert error is None
 
         # Type mismatch
-        is_valid, error = PydanticAdapter.validate_input(cap, {"query": "hello", "limit": "not_a_number"})
+        is_valid, error = PydanticAdapter.validate_input(
+            cap, {"query": "hello", "limit": "not_a_number"}
+        )
         assert is_valid is False
         assert "limit" in error
 
@@ -417,16 +453,21 @@ class TestTypeViolationRejected:
         lattice.register_composed("xy", "X-Y", ["x", "y"], CompositionType.SEQUENTIAL)
 
         # Depth 2: compose xy with x (SEQUENTIAL: depth = 1 + 1 + 0 = 2) — within limit
-        lattice.register_composed("xyx", "XY-X", ["xy", "x"], CompositionType.SEQUENTIAL)
+        lattice.register_composed(
+            "xyx", "XY-X", ["xy", "x"], CompositionType.SEQUENTIAL
+        )
 
         # Depth would be 1 + sum(2 + 1) = 4 > max_depth 2 — REJECTED
         with pytest.raises(LatticeError, match="exceeds max_depth"):
-            lattice.register_composed("deep", "Deep", ["xyx", "xy"], CompositionType.SEQUENTIAL)
+            lattice.register_composed(
+                "deep", "Deep", ["xyx", "xy"], CompositionType.SEQUENTIAL
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Test 5: Replay yields same state (Deterministic replay)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestReplayYieldsSameState:
     """Verify that replaying the event log produces identical state."""
@@ -446,20 +487,28 @@ class TestReplayYieldsSameState:
             events = [
                 (SubstrateEventType.MISSION_STARTED, {"title": "deterministic_test"}),
                 (SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-                (SubstrateEventType.TASK_COMPLETED, {"task_id": "t1", "tokens": 150, "cost_usd": 0.02}),
+                (
+                    SubstrateEventType.TASK_COMPLETED,
+                    {"task_id": "t1", "tokens": 150, "cost_usd": 0.02},
+                ),
                 (SubstrateEventType.TASK_STARTED, {"task_id": "t2"}),
-                (SubstrateEventType.TASK_COMPLETED, {"task_id": "t2", "tokens": 200, "cost_usd": 0.03}),
+                (
+                    SubstrateEventType.TASK_COMPLETED,
+                    {"task_id": "t2", "tokens": 200, "cost_usd": 0.03},
+                ),
                 (SubstrateEventType.MISSION_COMPLETED, {}),
             ]
             for seq, (etype, payload) in enumerate(events, start=1):
-                state.apply(SubstrateEvent(
-                    id=str(uuid4()),
-                    sequence=seq,
-                    run_id=run_id,
-                    type=etype,
-                    payload=payload,
-                    actor="test",
-                ))
+                state.apply(
+                    SubstrateEvent(
+                        id=str(uuid4()),
+                        sequence=seq,
+                        run_id=run_id,
+                        type=etype,
+                        payload=payload,
+                        actor="test",
+                    )
+                )
             return state
 
         state1 = build_full_run()
@@ -483,7 +532,10 @@ class TestReplayYieldsSameState:
         events = [
             (SubstrateEventType.MISSION_STARTED, {"title": "partial"}),
             (SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-            (SubstrateEventType.TASK_COMPLETED, {"task_id": "t1", "tokens": 50, "cost_usd": 0.01}),
+            (
+                SubstrateEventType.TASK_COMPLETED,
+                {"task_id": "t1", "tokens": 50, "cost_usd": 0.01},
+            ),
             (SubstrateEventType.TASK_STARTED, {"task_id": "t2"}),
             (SubstrateEventType.MISSION_FAILED, {"error": "later error"}),
         ]
@@ -491,14 +543,16 @@ class TestReplayYieldsSameState:
         # Replay only first 3 events
         state = SubstrateRunState(run_id=run_id)
         for seq, (etype, payload) in enumerate(events[:3], start=1):
-            state.apply(SubstrateEvent(
-                id=str(uuid4()),
-                sequence=seq,
-                run_id=run_id,
-                type=etype,
-                payload=payload,
-                actor="test",
-            ))
+            state.apply(
+                SubstrateEvent(
+                    id=str(uuid4()),
+                    sequence=seq,
+                    run_id=run_id,
+                    type=etype,
+                    payload=payload,
+                    actor="test",
+                )
+            )
 
         assert state.status == "executing"  # not failed yet
         assert "t1" in state.completed_tasks
@@ -508,6 +562,7 @@ class TestReplayYieldsSameState:
 # ═══════════════════════════════════════════════════════════════════
 # Test 6: Attenuation preserves subset (OCap attenuation)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestAttenuationPreservesSubset:
     """Verify that attenuated tokens have strictly subset actions."""
@@ -576,6 +631,7 @@ class TestAttenuationPreservesSubset:
 
         agent_id = uuid4()
         from app.models.capability_models import ResourceRef
+
         parent = engine.issue(
             resource=ResourceRef(kind="tool", name="full_access_tool"),
             actions={Action.READ, Action.WRITE, Action.EXECUTE},
@@ -593,6 +649,7 @@ class TestAttenuationPreservesSubset:
 # ═══════════════════════════════════════════════════════════════════
 # Test 7: No ambient authority (OCap enforcement)
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestNoAmbientAuthority:
     """Verify that the runtime refuses tool invocation without a valid token."""
@@ -624,11 +681,13 @@ class TestNoAmbientAuthority:
 
         agent_id = uuid4()
         from app.models.capability_models import ResourceRef
+
         token = engine.issue(
             resource=ResourceRef(kind="tool", name="expired_tool"),
             actions={Action.EXECUTE},
             to=agent_id,
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),  # already expired
+            expires_at=datetime.now(timezone.utc)
+            - timedelta(hours=1),  # already expired
         )
 
         with pytest.raises(PermissionError, match="expired"):
@@ -647,6 +706,7 @@ class TestNoAmbientAuthority:
 
         agent_id = uuid4()
         from app.models.capability_models import ResourceRef
+
         token = engine.issue(
             resource=ResourceRef(kind="tool", name="valid_tool"),
             actions={Action.EXECUTE},
@@ -669,6 +729,7 @@ class TestNoAmbientAuthority:
         engine = CapabilityEngine()
 
         from app.models.capability_models import ResourceRef
+
         with pytest.raises(ValueError, match="no actions"):
             engine.issue(
                 resource=ResourceRef(kind="tool", name="empty_tool"),

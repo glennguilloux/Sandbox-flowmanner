@@ -1,47 +1,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
 if TYPE_CHECKING:
-  from ..models.graph_workflow_create_graph_definition_type_0 import GraphWorkflowCreateGraphDefinitionType0
-
-
-
+    from ..models.graph_workflow_create_graph_definition_type_0 import (
+        GraphWorkflowCreateGraphDefinitionType0,
+    )
 
 
 T = TypeVar("T", bound="GraphWorkflowCreate")
 
 
-
 @_attrs_define
 class GraphWorkflowCreate:
-    """ 
-        Attributes:
-            name (str):
-            description (None | str | Unset):
-            graph_definition (GraphWorkflowCreateGraphDefinitionType0 | None | Unset):
-     """
+    """
+    Attributes:
+        name (str):
+        description (None | str | Unset):
+        graph_definition (GraphWorkflowCreateGraphDefinitionType0 | None | Unset):
+    """
 
     name: str
     description: None | str | Unset = UNSET
     graph_definition: GraphWorkflowCreateGraphDefinitionType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-
-
-
-
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_workflow_create_graph_definition_type_0 import GraphWorkflowCreateGraphDefinitionType0
+        from ..models.graph_workflow_create_graph_definition_type_0 import (
+            GraphWorkflowCreateGraphDefinitionType0,
+        )
+
         name = self.name
 
         description: None | str | Unset
@@ -58,12 +52,13 @@ class GraphWorkflowCreate:
         else:
             graph_definition = self.graph_definition
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "name": name,
-        })
+        field_dict.update(
+            {
+                "name": name,
+            }
+        )
         if description is not UNSET:
             field_dict["description"] = description
         if graph_definition is not UNSET:
@@ -71,11 +66,12 @@ class GraphWorkflowCreate:
 
         return field_dict
 
-
-
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_workflow_create_graph_definition_type_0 import GraphWorkflowCreateGraphDefinitionType0
+        from ..models.graph_workflow_create_graph_definition_type_0 import (
+            GraphWorkflowCreateGraphDefinitionType0,
+        )
+
         d = dict(src_dict)
         name = d.pop("name")
 
@@ -88,8 +84,9 @@ class GraphWorkflowCreate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-
-        def _parse_graph_definition(data: object) -> GraphWorkflowCreateGraphDefinitionType0 | None | Unset:
+        def _parse_graph_definition(
+            data: object,
+        ) -> GraphWorkflowCreateGraphDefinitionType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -97,9 +94,9 @@ class GraphWorkflowCreate:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                graph_definition_type_0 = GraphWorkflowCreateGraphDefinitionType0.from_dict(data)
-
-
+                graph_definition_type_0 = (
+                    GraphWorkflowCreateGraphDefinitionType0.from_dict(data)
+                )
 
                 return graph_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -108,13 +105,11 @@ class GraphWorkflowCreate:
 
         graph_definition = _parse_graph_definition(d.pop("graph_definition", UNSET))
 
-
         graph_workflow_create = cls(
             name=name,
             description=description,
             graph_definition=graph_definition,
         )
-
 
         graph_workflow_create.additional_properties = d
         return graph_workflow_create

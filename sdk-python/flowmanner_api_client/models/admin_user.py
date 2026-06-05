@@ -1,38 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, BinaryIO, TextIO, TYPE_CHECKING, Generator
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-from ..types import UNSET, Unset
-from typing import cast
-
-
-
-
-
-
 T = TypeVar("T", bound="AdminUser")
-
 
 
 @_attrs_define
 class AdminUser:
-    """ 
-        Attributes:
-            id (int):
-            email (str):
-            role (str):
-            is_admin (bool):
-            is_active (bool):
-            username (None | str | Unset):
-            full_name (None | str | Unset):
-            created_at (None | str | Unset):
-     """
+    """
+    Attributes:
+        id (int):
+        email (str):
+        role (str):
+        is_admin (bool):
+        is_active (bool):
+        username (None | str | Unset):
+        full_name (None | str | Unset):
+        created_at (None | str | Unset):
+    """
 
     id: int
     email: str
@@ -43,10 +34,6 @@ class AdminUser:
     full_name: None | str | Unset = UNSET
     created_at: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-
-
-
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
@@ -77,16 +64,17 @@ class AdminUser:
         else:
             created_at = self.created_at
 
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({
-            "id": id,
-            "email": email,
-            "role": role,
-            "is_admin": is_admin,
-            "is_active": is_active,
-        })
+        field_dict.update(
+            {
+                "id": id,
+                "email": email,
+                "role": role,
+                "is_admin": is_admin,
+                "is_active": is_active,
+            }
+        )
         if username is not UNSET:
             field_dict["username"] = username
         if full_name is not UNSET:
@@ -95,8 +83,6 @@ class AdminUser:
             field_dict["created_at"] = created_at
 
         return field_dict
-
-
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
@@ -120,7 +106,6 @@ class AdminUser:
 
         username = _parse_username(d.pop("username", UNSET))
 
-
         def _parse_full_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -130,7 +115,6 @@ class AdminUser:
 
         full_name = _parse_full_name(d.pop("full_name", UNSET))
 
-
         def _parse_created_at(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -139,7 +123,6 @@ class AdminUser:
             return cast(None | str | Unset, data)
 
         created_at = _parse_created_at(d.pop("created_at", UNSET))
-
 
         admin_user = cls(
             id=id,
@@ -151,7 +134,6 @@ class AdminUser:
             full_name=full_name,
             created_at=created_at,
         )
-
 
         admin_user.additional_properties = d
         return admin_user

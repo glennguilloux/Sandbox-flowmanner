@@ -190,7 +190,11 @@ async def _bump_version(db: AsyncSession, listing: MarketplaceListingModel) -> s
     parts = current.split(".")
     try:
         patch = int(parts[2]) + 1 if len(parts) >= 3 else 1
-        parts = (parts[0], parts[1], str(patch)) if len(parts) >= 2 else ("1", "0", str(patch))
+        parts = (
+            (parts[0], parts[1], str(patch))
+            if len(parts) >= 2
+            else ("1", "0", str(patch))
+        )
     except (ValueError, IndexError):
         parts = ("1", "0", "1")
     new_version = ".".join(parts)
@@ -227,7 +231,9 @@ async def list_listings(
         count_base = count_base.where(MarketplaceListingModel.name.ilike(f"%{search}%"))
     if listing_type:
         base = base.where(MarketplaceListingModel.listing_type == listing_type)
-        count_base = count_base.where(MarketplaceListingModel.listing_type == listing_type)
+        count_base = count_base.where(
+            MarketplaceListingModel.listing_type == listing_type
+        )
     if category:
         base = base.where(MarketplaceListingModel.category_id == category)
         count_base = count_base.where(MarketplaceListingModel.category_id == category)
@@ -249,7 +255,10 @@ async def list_listings(
     items = [_to_listing_response(m) for m in result.scalars().all()]
 
     return ListResponse(
-        items=items, total=total, page=page, per_page=per_page,
+        items=items,
+        total=total,
+        page=page,
+        per_page=per_page,
         has_more=(page * per_page) < total,
     )
 
@@ -285,7 +294,9 @@ async def get_listing(
     return _to_listing_response(listing)
 
 
-@router.post("/listings", response_model=ListingResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/listings", response_model=ListingResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_listing(
     payload: ListingCreateRequest,
     db: AsyncSession = Depends(get_db),
@@ -402,8 +413,11 @@ async def publish_listing(
         raise HTTPException(403, detail="Not authorized")
     if listing.status == "published":
         return PublishResponse(
-            success=True, status="published",
-            published_at=listing.published_at.isoformat() if listing.published_at else None,
+            success=True,
+            status="published",
+            published_at=(
+                listing.published_at.isoformat() if listing.published_at else None
+            ),
             version=listing.version,
         )
 
@@ -413,9 +427,14 @@ async def publish_listing(
     await db.flush()
     await db.refresh(listing)
 
-    logger.info("marketplace_listing_published listing_id=%s version=%s", listing_id, listing.version)
+    logger.info(
+        "marketplace_listing_published listing_id=%s version=%s",
+        listing_id,
+        listing.version,
+    )
     return PublishResponse(
-        success=True, status="published",
+        success=True,
+        status="published",
         published_at=listing.published_at.isoformat(),
         version=listing.version,
     )
@@ -501,7 +520,9 @@ async def install_listing(
     )
     if existing.scalar_one_or_none():
         return InstallResponse(
-            success=True, installation_id="", message="Already installed",
+            success=True,
+            installation_id="",
+            message="Already installed",
         )
 
     cloned_entity_id = None
@@ -561,10 +582,13 @@ async def install_listing(
                     plugin_id = plugin_row.id
                     logger.info(
                         "marketplace_plugin_installed listing_id=%s plugin_id=%s",
-                        listing_id, plugin_id,
+                        listing_id,
+                        plugin_id,
                     )
                 except Exception as e:
-                    logger.error("Plugin install failed for listing %s: %s", listing_id, e)
+                    logger.error(
+                        "Plugin install failed for listing %s: %s", listing_id, e
+                    )
                     raise HTTPException(400, f"Plugin install failed: {e}")
             else:
                 raise HTTPException(
@@ -586,7 +610,10 @@ async def install_listing(
 
     logger.info(
         "marketplace_install listing_id=%s user_id=%s cloned=%s plugin=%s",
-        listing_id, user.id, cloned_entity_id, plugin_id,
+        listing_id,
+        user.id,
+        cloned_entity_id,
+        plugin_id,
     )
     return InstallResponse(
         success=True,
@@ -644,10 +671,18 @@ async def get_my_listings(
     total = (await db.execute(count_base)).scalar() or 0
     offset = (page - 1) * per_page
     result = await db.execute(
-        base.order_by(MarketplaceListingModel.created_at.desc()).offset(offset).limit(per_page)
+        base.order_by(MarketplaceListingModel.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
     )
     items = [_to_listing_response(m) for m in result.scalars().all()]
-    return ListResponse(items=items, total=total, page=page, per_page=per_page, has_more=(page * per_page) < total)
+    return ListResponse(
+        items=items,
+        total=total,
+        page=page,
+        per_page=per_page,
+        has_more=(page * per_page) < total,
+    )
 
 
 @router.get("/my-installations")
@@ -674,18 +709,30 @@ async def get_my_installations(
     installations = []
     for inst in result.scalars().all():
         lr = await db.execute(
-            select(MarketplaceListingModel).where(MarketplaceListingModel.id == inst.listing_id)
+            select(MarketplaceListingModel).where(
+                MarketplaceListingModel.id == inst.listing_id
+            )
         )
         listing = lr.scalar_one_or_none()
-        installations.append({
-            "id": inst.id,
-            "listing_id": inst.listing_id,
-            "listing_name": listing.name if listing else "Unknown",
-            "installed_at": inst.installed_at.isoformat() if inst.installed_at else "",
-            "version": listing.version if listing else None,
-        })
+        installations.append(
+            {
+                "id": inst.id,
+                "listing_id": inst.listing_id,
+                "listing_name": listing.name if listing else "Unknown",
+                "installed_at": (
+                    inst.installed_at.isoformat() if inst.installed_at else ""
+                ),
+                "version": listing.version if listing else None,
+            }
+        )
 
-    return {"installations": installations, "total": total, "page": page, "per_page": per_page, "has_more": (page * per_page) < total}
+    return {
+        "installations": installations,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "has_more": (page * per_page) < total,
+    }
 
 
 # ── Reviews & Ratings ────────────────────────────────────────────────────────
@@ -730,15 +777,17 @@ async def get_reviews(
     )
     reviews = []
     for r in result.scalars().all():
-        reviews.append(ReviewResponse(
-            id=r.id,
-            listing_id=r.listing_id,
-            user_id=r.user_id,
-            rating=r.rating,
-            title=getattr(r, "title", None),
-            comment=r.comment,
-            created_at=r.created_at.isoformat() if r.created_at else "",
-        ))
+        reviews.append(
+            ReviewResponse(
+                id=r.id,
+                listing_id=r.listing_id,
+                user_id=r.user_id,
+                rating=r.rating,
+                title=getattr(r, "title", None),
+                comment=r.comment,
+                created_at=r.created_at.isoformat() if r.created_at else "",
+            )
+        )
 
     return {
         "reviews": reviews,
@@ -779,7 +828,11 @@ async def get_rating_summary(
     return RatingSummary(average=avg_rating, count=count, breakdown=breakdown)
 
 
-@router.post("/listings/{listing_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/listings/{listing_id}/reviews",
+    response_model=ReviewResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def submit_review(
     listing_id: str,
     payload: ReviewCreateRequest,

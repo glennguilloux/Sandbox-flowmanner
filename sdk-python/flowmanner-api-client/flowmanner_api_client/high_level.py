@@ -18,6 +18,10 @@ import httpx
 from .client import AuthenticatedClient
 
 
+class FlowmannerError(Exception):
+    """Raised when an API call fails or returns an unexpected response."""
+
+
 class FlowmannerClient:
     """High-level client for the Flowmanner API.
 
@@ -83,12 +87,15 @@ class FlowmannerClient:
         priority: str = "medium",
     ) -> dict:
         """Create a new mission."""
-        return self._post("/api/v1/missions", json={
-            "title": title,
-            "description": description,
-            "mission_type": mission_type,
-            "priority": priority,
-        })
+        return self._post(
+            "/api/v1/missions",
+            json={
+                "title": title,
+                "description": description,
+                "mission_type": mission_type,
+                "priority": priority,
+            },
+        )
 
     def get_mission(self, mission_id: str) -> dict:
         """Get a mission by ID."""

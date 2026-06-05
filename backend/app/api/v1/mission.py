@@ -1,6 +1,7 @@
 """V1 Missions endpoints — thin wrappers using CQRS handler DI."""
 
 from __future__ import annotations
+import uuid
 
 from typing import TYPE_CHECKING
 
@@ -25,7 +26,6 @@ from app.schemas.mission import (
 )
 
 if TYPE_CHECKING:
-    import uuid
 
     from app.api._mission_cqrs.commands import MissionCommandHandlers
     from app.api._mission_cqrs.queries import MissionQueryHandlers
@@ -39,10 +39,15 @@ def _add_deprecation_headers(response: Response):
     response.headers["Link"] = '</api/v2/blueprints>; rel="successor-version"'
 
 
-router = APIRouter(prefix="/missions", tags=["missions"], dependencies=[Depends(_add_deprecation_headers)])
+router = APIRouter(
+    prefix="/missions",
+    tags=["missions"],
+    dependencies=[Depends(_add_deprecation_headers)],
+)
 
 
 # ── List / Create (CQRS DI) ───────────────────────────────────────────────────
+
 
 @router.get("")
 @router.get("/")
@@ -54,7 +59,13 @@ async def list_items(
     q: MissionQueryHandlers = Depends(get_mission_queries),
 ):
     r = await q.list_missions(user.id, page, per_page, workspace_id=workspace_id)
-    return {"items": r.items, "total": r.total, "page": r.page, "per_page": r.per_page, "pages": r.pages}
+    return {
+        "items": r.items,
+        "total": r.total,
+        "page": r.page,
+        "per_page": r.per_page,
+        "pages": r.pages,
+    }
 
 
 @router.post("/", response_model=MissionResponse, status_code=status.HTTP_201_CREATED)
@@ -69,6 +80,7 @@ async def create_item(
 
 # ── Active (CQRS DI) ──────────────────────────────────────────────────────────
 
+
 @router.get("/active", response_model=list[MissionResponse])
 async def list_active_missions(
     user: User = Depends(get_current_user),
@@ -77,11 +89,14 @@ async def list_active_missions(
 ):
     """Active missions with progress/ETA (pro required)."""
     is_pro = getattr(user, "is_pro", False) or getattr(user, "role", None) == "pro"
-    result = await q.active_missions(user.id, getattr(user, "role", ""), is_pro, workspace_id=workspace_id)
+    result = await q.active_missions(
+        user.id, getattr(user, "role", ""), is_pro, workspace_id=workspace_id
+    )
     return result.missions
 
 
 # ── CRUD (CQRS DI) ────────────────────────────────────────────────────────────
+
 
 @router.get("/{mission_id}/", response_model=MissionResponse)
 @router.get("/{mission_id}", response_model=MissionResponse)
@@ -114,6 +129,7 @@ async def delete_item(
 
 # ── Tasks (CQRS DI) ───────────────────────────────────────────────────────────
 
+
 @router.get("/{mission_id}/tasks/", response_model=list[MissionTaskResponse])
 @router.get("/{mission_id}/tasks", response_model=list[MissionTaskResponse])
 async def list_tasks(
@@ -124,7 +140,11 @@ async def list_tasks(
     return await q.list_tasks(user.id, mission_id)
 
 
-@router.post("/{mission_id}/tasks", response_model=MissionTaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{mission_id}/tasks",
+    response_model=MissionTaskResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_task(
     mission_id: uuid.UUID,
     payload: MissionTaskCreate,
@@ -147,6 +167,7 @@ async def update_task(
 
 # ── Logs (CQRS DI) ────────────────────────────────────────────────────────────
 
+
 @router.get("/{mission_id}/logs/", response_model=list[MissionLogResponse])
 @router.get("/{mission_id}/logs", response_model=list[MissionLogResponse])
 async def list_logs(
@@ -157,7 +178,11 @@ async def list_logs(
     return await q.list_logs(user.id, mission_id)
 
 
-@router.post("/{mission_id}/logs", response_model=MissionLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{mission_id}/logs",
+    response_model=MissionLogResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_log(
     mission_id: uuid.UUID,
     payload: MissionLogCreate,
@@ -169,6 +194,7 @@ async def create_log(
 
 # ── Planning (CQRS DI) ────────────────────────────────────────────────────────
 
+
 @router.post("/{mission_id}/plan", response_model=MissionExecutionStatus)
 async def plan_mission(
     mission_id: uuid.UUID,
@@ -179,6 +205,7 @@ async def plan_mission(
 
 
 # ── Execution (CQRS DI) ───────────────────────────────────────────────────────
+
 
 @router.post("/{mission_id}/execute", response_model=MissionExecutionStatus)
 async def execute_mission(
@@ -212,6 +239,7 @@ async def execute_mission_async(
 
 # ── Status / Streaming ────────────────────────────────────────────────────────
 
+
 @router.get("/{mission_id}/status/", response_model=MissionExecutionStatus)
 @router.get("/{mission_id}/status", response_model=MissionExecutionStatus)
 async def get_mission_status(
@@ -236,8 +264,13 @@ async def stream_mission_status(
 
 # ── Improvements (CQRS DI) ────────────────────────────────────────────────────
 
-@router.get("/{mission_id}/improvements/", response_model=list[MissionImprovementResponse])
-@router.get("/{mission_id}/improvements", response_model=list[MissionImprovementResponse])
+
+@router.get(
+    "/{mission_id}/improvements/", response_model=list[MissionImprovementResponse]
+)
+@router.get(
+    "/{mission_id}/improvements", response_model=list[MissionImprovementResponse]
+)
 async def list_improvements(
     mission_id: uuid.UUID,
     user: User = Depends(get_current_user),
@@ -272,6 +305,7 @@ async def apply_improvement(
 
 # ── Event History & State (Phase 3.2 — CQRS DI) ─────────────────────────────
 
+
 @router.get("/{mission_id}/events")
 async def get_mission_events(
     mission_id: uuid.UUID,
@@ -285,7 +319,9 @@ async def get_mission_events(
     Returns the append-only event log from the substrate_events table.
     Events are ordered by sequence ascending.
     """
-    events = await q.get_events(user.id, mission_id, from_sequence=from_sequence, limit=limit)
+    events = await q.get_events(
+        user.id, mission_id, from_sequence=from_sequence, limit=limit
+    )
     return {"mission_id": str(mission_id), "events": events, "count": len(events)}
 
 
@@ -305,6 +341,7 @@ async def get_mission_substrate_state(
 
 
 # ── Analytics (CQRS DI) ───────────────────────────────────────────────────────
+
 
 @router.get("/{mission_id}/analytics/")
 @router.get("/{mission_id}/analytics")

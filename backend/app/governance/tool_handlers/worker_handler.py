@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WorkerConfig:
     """Worker configuration"""
+
     timeout: int = 300
     max_retries: int = 3
     concurrency: int = 4
@@ -44,10 +45,10 @@ class WorkerHandler:
 
         # Task registry
         self._task_registry = {
-            'step_2a_generate_request': 'workers.step_2a_generate_request',
-            'step_2b_process_response': 'workers.step_2b_process_response',
-            'data_fetch': 'workers.data_fetch',
-            'data_transform': 'workers.data_transform',
+            "step_2a_generate_request": "workers.step_2a_generate_request",
+            "step_2b_process_response": "workers.step_2b_process_response",
+            "data_fetch": "workers.data_fetch",
+            "data_transform": "workers.data_transform",
         }
 
         logger.info(
@@ -61,14 +62,12 @@ class WorkerHandler:
         """Load configuration from environment variables"""
         import os
 
-        timeout = int(os.getenv('WORKER_TIMEOUT', '300'))
-        max_retries = int(os.getenv('WORKER_MAX_RETRIES', '3'))
-        concurrency = int(os.getenv('WORKER_CONCURRENCY', '4'))
+        timeout = int(os.getenv("WORKER_TIMEOUT", "300"))
+        max_retries = int(os.getenv("WORKER_MAX_RETRIES", "3"))
+        concurrency = int(os.getenv("WORKER_CONCURRENCY", "4"))
 
         return WorkerConfig(
-            timeout=timeout,
-            max_retries=max_retries,
-            concurrency=concurrency
+            timeout=timeout, max_retries=max_retries, concurrency=concurrency
         )
 
     def execute(
@@ -76,7 +75,7 @@ class WorkerHandler:
         action: str,
         params: dict[str, Any],
         timeout: int | None = None,
-        blocking: bool = True
+        blocking: bool = True,
     ) -> dict[str, Any]:
         """Execute a worker task"""
         from app.tasks.celery_app import celery_app
@@ -95,7 +94,9 @@ class WorkerHandler:
 
         # Execute task
         logger.info(f"Executing task: {task_name}")
-        result = celery_app.send_task(task_name, args=[task_request], expires=task_timeout)
+        result = celery_app.send_task(
+            task_name, args=[task_request], expires=task_timeout
+        )
 
         if blocking:
             try:
@@ -104,17 +105,17 @@ class WorkerHandler:
             except Exception as e:
                 logger.error(f"Task execution failed: {e}", exc_info=True)
                 return {
-                    'success': False,
-                    'error': str(e),
-                    'error_type': type(e).__name__,
-                    'timestamp': datetime.now(UTC).isoformat()
+                    "success": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
         else:
             return {
-                'task_id': result.id,
-                'task_name': task_name,
-                'status': 'submitted',
-                'timestamp': datetime.now(UTC).isoformat()
+                "task_id": result.id,
+                "task_name": task_name,
+                "status": "submitted",
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     def execute_chain(
@@ -122,7 +123,7 @@ class WorkerHandler:
         actions: list,
         params_list: list,
         timeout: int | None = None,
-        blocking: bool = True
+        blocking: bool = True,
     ) -> dict[str, Any]:
         """Execute a chain of worker tasks"""
         if len(actions) != len(params_list):
@@ -144,6 +145,7 @@ class WorkerHandler:
 
         # Create chain
         from celery import chain
+
         task_chain = chain(*tasks)
 
         logger.info(f"Executing chain of {len(tasks)} tasks")
@@ -154,25 +156,29 @@ class WorkerHandler:
             try:
                 chain_result = result.get(timeout=task_timeout)
                 return {
-                    'success': True,
-                    'results': chain_result if isinstance(chain_result, list) else [chain_result],
-                    'chain_length': len(tasks),
-                    'timestamp': datetime.now(UTC).isoformat()
+                    "success": True,
+                    "results": (
+                        chain_result
+                        if isinstance(chain_result, list)
+                        else [chain_result]
+                    ),
+                    "chain_length": len(tasks),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             except Exception as e:
                 logger.error(f"Chain execution failed: {e}", exc_info=True)
                 return {
-                    'success': False,
-                    'error': str(e),
-                    'error_type': type(e).__name__,
-                    'timestamp': datetime.now(UTC).isoformat()
+                    "success": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
         else:
             return {
-                'chain_id': result.id,
-                'chain_length': len(tasks),
-                'status': 'submitted',
-                'timestamp': datetime.now(UTC).isoformat()
+                "chain_id": result.id,
+                "chain_length": len(tasks),
+                "status": "submitted",
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     def get_task_status(self, task_id: str) -> dict[str, Any]:
@@ -184,12 +190,12 @@ class WorkerHandler:
         result = AsyncResult(task_id, app=celery_app)
 
         return {
-            'task_id': task_id,
-            'status': result.status,
-            'successful': result.successful() if result.ready() else None,
-            'failed': result.failed() if result.ready() else None,
-            'result': result.result if result.ready() else None,
-            'timestamp': datetime.now(UTC).isoformat()
+            "task_id": task_id,
+            "status": result.status,
+            "successful": result.successful() if result.ready() else None,
+            "failed": result.failed() if result.ready() else None,
+            "result": result.result if result.ready() else None,
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     def cancel_task(self, task_id: str) -> bool:
@@ -214,11 +220,15 @@ class WorkerHandler:
     def _prepare_request(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
         """Prepare task request in standard format"""
         request = {
-            'workflow_id': params.get('workflow_id', f'wf_{datetime.now(UTC).timestamp()}'),
-            'execution_id': params.get('execution_id', f'ex_{datetime.now(UTC).timestamp()}'),
-            'step_name': action,
-            'params': params,
-            'metadata': params.get('metadata', {})
+            "workflow_id": params.get(
+                "workflow_id", f"wf_{datetime.now(UTC).timestamp()}"
+            ),
+            "execution_id": params.get(
+                "execution_id", f"ex_{datetime.now(UTC).timestamp()}"
+            ),
+            "step_name": action,
+            "params": params,
+            "metadata": params.get("metadata", {}),
         }
 
         return request

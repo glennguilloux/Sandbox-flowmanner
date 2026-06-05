@@ -45,4 +45,6 @@ async def send_onboarding_email(db, user, email_type: str) -> None:
                 "no email provider configured (set RESEND_API_KEY or SMTP_* env vars)"
             )
     except Exception as e:
-        logger.warning(f"Failed to send onboarding email to {getattr(user, 'email', 'unknown')}: {e}")
+        logger.warning(
+            f"Failed to send onboarding email to {getattr(user, 'email', 'unknown')}: {e}"
+        )

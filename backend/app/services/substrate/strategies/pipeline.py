@@ -30,8 +30,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 PHASES = [
-    "dispatch", "research", "draft", "debate",
-    "consensus", "synthesis", "review",
+    "dispatch",
+    "research",
+    "draft",
+    "debate",
+    "consensus",
+    "synthesis",
+    "review",
 ]
 
 
@@ -49,7 +54,9 @@ class PipelineStrategy(ExecutionStrategy):
 
         for node in workflow.nodes:
             if node.type != NodeType.PHASE_GATE:
-                errors.append(f"Pipeline node '{node.id}' must be PHASE_GATE, got {node.type.value}")
+                errors.append(
+                    f"Pipeline node '{node.id}' must be PHASE_GATE, got {node.type.value}"
+                )
 
         # Validate that all required phases have nodes
         phase_configs = {n.config.get("phase") for n in workflow.nodes}
@@ -80,9 +87,12 @@ class PipelineStrategy(ExecutionStrategy):
             for phase in current_phases:
                 if executor.is_aborted(run_id):
                     return StrategyResult(
-                        success=False, status="aborted", error="Aborted",
+                        success=False,
+                        status="aborted",
+                        error="Aborted",
                         completed_nodes=completed,
-                        total_tokens=total_tokens, total_cost_usd=total_cost,
+                        total_tokens=total_tokens,
+                        total_cost_usd=total_cost,
                     )
 
                 phase_node = next(
@@ -92,10 +102,12 @@ class PipelineStrategy(ExecutionStrategy):
                 if phase_node is None:
                     # Should not happen — validate() catches this
                     return StrategyResult(
-                        success=False, status="failed",
+                        success=False,
+                        status="failed",
                         error=f"Missing phase node for '{phase}'",
                         completed_nodes=completed,
-                        total_tokens=total_tokens, total_cost_usd=total_cost,
+                        total_tokens=total_tokens,
+                        total_cost_usd=total_cost,
                     )
 
                 result = await executor.execute_node(
@@ -115,41 +127,54 @@ class PipelineStrategy(ExecutionStrategy):
                     completed.append(phase_node.id)
                     total_tokens += result.get("tokens", 0)
                     total_cost += result.get("cost", 0.0)
-                    await executor.ws_manager.broadcast_phase(run_id, phase, "completed")
+                    await executor.ws_manager.broadcast_phase(
+                        run_id, phase, "completed"
+                    )
                 else:
                     logger.error("Phase %s failed: %s", phase, result.get("error"))
                     return StrategyResult(
-                        success=False, status="failed",
+                        success=False,
+                        status="failed",
                         error=f"Phase {phase} failed: {result.get('error')}",
                         completed_nodes=completed,
-                        total_tokens=total_tokens, total_cost_usd=total_cost,
+                        total_tokens=total_tokens,
+                        total_cost_usd=total_cost,
                     )
 
                 if phase == "review":
                     output = result.get("output", {})
                     if isinstance(output, dict) and output.get("verdict") == "PASS":
                         return StrategyResult(
-                            success=True, status="completed", data=output,
+                            success=True,
+                            status="completed",
+                            data=output,
                             completed_nodes=completed,
-                            total_tokens=total_tokens, total_cost_usd=total_cost,
+                            total_tokens=total_tokens,
+                            total_cost_usd=total_cost,
                         )
                     else:
                         retry_count += 1
                         if retry_count > 3:
                             return StrategyResult(
-                                success=False, status="failed",
+                                success=False,
+                                status="failed",
                                 error="Max review retries exceeded",
                                 completed_nodes=completed,
-                                total_tokens=total_tokens, total_cost_usd=total_cost,
+                                total_tokens=total_tokens,
+                                total_cost_usd=total_cost,
                             )
-                        review_feedback = output.get("feedback") if isinstance(output, dict) else None
+                        review_feedback = (
+                            output.get("feedback") if isinstance(output, dict) else None
+                        )
                         current_phases = ["debate", "consensus", "synthesis", "review"]
                         break
             else:
                 break
 
         return StrategyResult(
-            success=True, status="completed",
+            success=True,
+            status="completed",
             completed_nodes=completed,
-            total_tokens=total_tokens, total_cost_usd=total_cost,
+            total_tokens=total_tokens,
+            total_cost_usd=total_cost,
         )

@@ -1,6 +1,7 @@
 """Integrations v2 API — HTTP outbound integration CRUD and logs."""
 
 from __future__ import annotations
+import uuid
 
 import json
 import logging
@@ -22,7 +23,6 @@ from app.schemas.integration_v2 import (
 from app.utils.encryption import encrypt_api_key
 
 if TYPE_CHECKING:
-    import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,6 +50,7 @@ def _to_response(config: HttpIntegrationConfig) -> dict:
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
+
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -112,15 +113,16 @@ async def get_integration(
 ):
     """Get a single HTTP integration config."""
     result = await db.execute(
-        select(HttpIntegrationConfig)
-        .where(
+        select(HttpIntegrationConfig).where(
             HttpIntegrationConfig.id == str(integration_id),
             HttpIntegrationConfig.user_id == user.id,
         )
     )
     config = result.scalars().first()
     if not config:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
+        )
     return ok(_to_response(config))
 
 
@@ -133,15 +135,16 @@ async def update_integration(
 ):
     """Update an HTTP integration config."""
     result = await db.execute(
-        select(HttpIntegrationConfig)
-        .where(
+        select(HttpIntegrationConfig).where(
             HttpIntegrationConfig.id == str(integration_id),
             HttpIntegrationConfig.user_id == user.id,
         )
     )
     config = result.scalars().first()
     if not config:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
+        )
 
     if payload.name is not None:
         config.name = payload.name
@@ -153,7 +156,9 @@ async def update_integration(
         config.auth_type = payload.auth_type
     if payload.auth_config is not None:
         try:
-            config.auth_config_encrypted = encrypt_api_key(json.dumps(payload.auth_config))
+            config.auth_config_encrypted = encrypt_api_key(
+                json.dumps(payload.auth_config)
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -179,21 +184,23 @@ async def delete_integration(
 ):
     """Delete an HTTP integration config."""
     result = await db.execute(
-        select(HttpIntegrationConfig)
-        .where(
+        select(HttpIntegrationConfig).where(
             HttpIntegrationConfig.id == str(integration_id),
             HttpIntegrationConfig.user_id == user.id,
         )
     )
     config = result.scalars().first()
     if not config:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
+        )
 
     await db.delete(config)
     await db.commit()
 
 
 # ── Execution Logs ────────────────────────────────────────────────────────────
+
 
 @router.get("/{integration_id}/logs")
 @router.get("/{integration_id}/logs/")
@@ -207,19 +214,24 @@ async def list_integration_logs(
     """List execution logs for an integration config."""
     # Verify ownership
     config_result = await db.execute(
-        select(HttpIntegrationConfig)
-        .where(
+        select(HttpIntegrationConfig).where(
             HttpIntegrationConfig.id == str(integration_id),
             HttpIntegrationConfig.user_id == user.id,
         )
     )
     if not config_result.scalars().first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
+        )
 
     # Count
-    total = (await db.execute(
-        select(func.count()).where(HttpIntegrationLog.integration_id == str(integration_id))
-    )).scalar() or 0
+    total = (
+        await db.execute(
+            select(func.count()).where(
+                HttpIntegrationLog.integration_id == str(integration_id)
+            )
+        )
+    ).scalar() or 0
 
     # Fetch logs
     result = await db.execute(

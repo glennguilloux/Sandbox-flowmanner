@@ -13,7 +13,14 @@ from typing import Any
 
 from pydantic import Field
 
-from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, is_placeholder, register_tool
+from app.tools.base import (
+    BaseTool,
+    ToolInput,
+    ToolMetadata,
+    ToolResult,
+    is_placeholder,
+    register_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +30,6 @@ AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "us-east-1"))
 DEFAULT_EXPIRES = int(os.getenv("S3_URL_EXPIRES", "3600"))
-
 
 
 S3_ACTIONS: tuple[str, ...] = (
@@ -38,6 +44,7 @@ S3_ACTIONS: tuple[str, ...] = (
 
 
 # ── Input ───────────────────────────────────────────────────────────
+
 
 class AwsS3UploaderInput(ToolInput):
     action: str = Field(
@@ -82,6 +89,7 @@ class AwsS3UploaderInput(ToolInput):
 
 
 # ── Tool ────────────────────────────────────────────────────────────
+
 
 class AwsS3UploaderTool(BaseTool):
     """Upload, download, and manage S3 objects with presigned URL support."""
@@ -145,6 +153,7 @@ class AwsS3UploaderTool(BaseTool):
     def _get_client(self):
         """Get a boto3 S3 client (lazy import to avoid crash on missing boto3)."""
         import boto3
+
         return boto3.client(
             "s3",
             aws_access_key_id=AWS_ACCESS_KEY,
@@ -155,6 +164,7 @@ class AwsS3UploaderTool(BaseTool):
     async def _run_s3(self, func, *args, **kwargs) -> Any:
         """Run a synchronous boto3 call in a thread to avoid blocking the event loop."""
         import asyncio
+
         return await asyncio.to_thread(func, *args, **kwargs)
 
     def _summarize_object(self, obj: dict[str, Any]) -> dict[str, Any]:
@@ -192,7 +202,10 @@ class AwsS3UploaderTool(BaseTool):
             return {"action": "upload_file", "error": "key is required for upload_file"}
 
         if not v.data:
-            return {"action": "upload_file", "error": "data is required (base64-encoded file content)"}
+            return {
+                "action": "upload_file",
+                "error": "data is required (base64-encoded file content)",
+            }
 
         try:
             file_bytes = base64.b64decode(v.data)
@@ -313,7 +326,10 @@ class AwsS3UploaderTool(BaseTool):
 
         except Exception as e:
             logger.exception("S3 presigned URL failed: %s", e)
-            return {"action": "generate_presigned_url", "error": f"Failed to generate URL: {e}"}
+            return {
+                "action": "generate_presigned_url",
+                "error": f"Failed to generate URL: {e}",
+            }
 
     async def _delete_object(self, v: AwsS3UploaderInput) -> dict[str, Any]:
         if not v.key:

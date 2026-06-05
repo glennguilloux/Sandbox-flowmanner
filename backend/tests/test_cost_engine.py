@@ -45,7 +45,9 @@ class TestCostEvent:
 
     def test_from_record_normalizes_all_fields(self):
         rec = _make_record()
-        event = CostEvent.from_record(rec, agent_id="agent-1", user_id=42, workspace_id="ws-1")
+        event = CostEvent.from_record(
+            rec, agent_id="agent-1", user_id=42, workspace_id="ws-1"
+        )
         assert event.provider == "deepseek"
         assert event.model == "deepseek-chat"
         assert event.cost_usd == 0.21
@@ -127,7 +129,9 @@ class TestAgentCostByPeriod:
         result_mock.all.return_value = [("agent-a", 0.50)]
         db.execute = AsyncMock(return_value=result_mock)
 
-        costs = await engine.agent_cost_by_period(db, agent_ids=["agent-a"], year=2026, month=6)
+        costs = await engine.agent_cost_by_period(
+            db, agent_ids=["agent-a"], year=2026, month=6
+        )
         assert costs == {"agent-a": 0.50}
 
 

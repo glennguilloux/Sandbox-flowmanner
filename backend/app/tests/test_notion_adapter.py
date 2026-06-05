@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.integrations.adapters.notion import NotionAdapter, _notion_error_code, _parse_notion_response
+from app.integrations.adapters.notion import (
+    NotionAdapter,
+    _notion_error_code,
+    _parse_notion_response,
+)
 
 
 @pytest.fixture
@@ -309,7 +313,13 @@ class TestAppendBlock:
                 "append_block",
                 {
                     "block_id": "abc-123",
-                    "children": [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}],
+                    "children": [
+                        {
+                            "object": "block",
+                            "type": "paragraph",
+                            "paragraph": {"rich_text": []},
+                        }
+                    ],
                 },
                 connection,
             )
@@ -336,8 +346,6 @@ class TestAppendBlock:
 
     @pytest.mark.asyncio
     async def test_missing_children(self, adapter, connection):
-        result = await adapter.execute(
-            "append_block", {"block_id": "abc"}, connection
-        )
+        result = await adapter.execute("append_block", {"block_id": "abc"}, connection)
         assert result["success"] is False
         assert "children" in result["error"]

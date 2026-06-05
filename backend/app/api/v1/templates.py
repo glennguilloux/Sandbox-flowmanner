@@ -4,7 +4,6 @@ Queries MissionTemplate from the database with optional category/style filtering
 Returns enriched data: name, description, category, rating, downloads, author, icon, tags.
 """
 
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

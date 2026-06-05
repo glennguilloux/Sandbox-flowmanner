@@ -60,8 +60,16 @@ class GraphStrategy(ExecutionStrategy):
         run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
         start_node_id = context.get("start_node_id")
 
-        active_ids = self._get_subgraph_ids(workflow, start_node_id) if start_node_id else {n.id for n in workflow.nodes}
-        active_edges = [e for e in workflow.edges if e.source in active_ids and e.target in active_ids]
+        active_ids = (
+            self._get_subgraph_ids(workflow, start_node_id)
+            if start_node_id
+            else {n.id for n in workflow.nodes}
+        )
+        active_edges = [
+            e
+            for e in workflow.edges
+            if e.source in active_ids and e.target in active_ids
+        ]
         layers = self._topological_sort_for_ids(workflow, active_ids, active_edges)
 
         completed_nodes: list[str] = []
@@ -73,9 +81,13 @@ class GraphStrategy(ExecutionStrategy):
         for layer in layers:
             if executor.is_aborted(run_id):
                 return StrategyResult(
-                    success=False, status="aborted", error="Aborted",
-                    completed_nodes=completed_nodes, failed_nodes=failed_nodes,
-                    total_tokens=total_tokens, total_cost_usd=total_cost,
+                    success=False,
+                    status="aborted",
+                    error="Aborted",
+                    completed_nodes=completed_nodes,
+                    failed_nodes=failed_nodes,
+                    total_tokens=total_tokens,
+                    total_cost_usd=total_cost,
                 )
 
             executable = []
@@ -107,11 +119,17 @@ class GraphStrategy(ExecutionStrategy):
                     total_tokens += result.get("tokens", 0)
                     total_cost += result.get("cost", 0.0)
                     node_outputs[nid] = result.get("output", {})
-                    if isinstance(result.get("output"), dict) and result["output"].get("pause"):
+                    if isinstance(result.get("output"), dict) and result["output"].get(
+                        "pause"
+                    ):
                         return StrategyResult(
-                            success=False, status="paused", data=node_outputs,
-                            completed_nodes=completed_nodes, failed_nodes=failed_nodes,
-                            total_tokens=total_tokens, total_cost_usd=total_cost,
+                            success=False,
+                            status="paused",
+                            data=node_outputs,
+                            completed_nodes=completed_nodes,
+                            failed_nodes=failed_nodes,
+                            total_tokens=total_tokens,
+                            total_cost_usd=total_cost,
                         )
                 else:
                     failed_nodes.append(nid)

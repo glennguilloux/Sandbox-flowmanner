@@ -155,11 +155,16 @@ class GraphInterpreter:
             return {"status": "completed", "outputs": {}}
 
         # Filter to subgraph if start_node_id specified
-        active_node_ids = self._get_subgraph_nodes(start_node_id) if start_node_id else {n["id"] for n in self.nodes}
+        active_node_ids = (
+            self._get_subgraph_nodes(start_node_id)
+            if start_node_id
+            else {n["id"] for n in self.nodes}
+        )
 
         # Filter edges to only those within active nodes
         active_edges = [
-            e for e in self.edges
+            e
+            for e in self.edges
             if e.get("source") in active_node_ids and e.get("target") in active_node_ids
         ]
 
@@ -171,9 +176,7 @@ class GraphInterpreter:
         all_outputs: dict[str, dict] = {}
 
         for layer in layers:
-            tasks = [
-                self._execute_node(node_id, all_outputs) for node_id in layer
-            ]
+            tasks = [self._execute_node(node_id, all_outputs) for node_id in layer]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for node_id, result in zip(layer, results, strict=False):
@@ -193,7 +196,11 @@ class GraphInterpreter:
                     # Check for pause signal (approval node)
                     if isinstance(result, dict) and result.get("pause"):
                         logger.info("Execution paused at node %s", node_id)
-                        return {"status": "paused", "outputs": all_outputs, "paused_at": node_id}
+                        return {
+                            "status": "paused",
+                            "outputs": all_outputs,
+                            "paused_at": node_id,
+                        }
 
         return {"status": "completed", "outputs": all_outputs}
 
@@ -242,9 +249,7 @@ class GraphInterpreter:
             return None
         return layers
 
-    async def _execute_node(
-        self, node_id: str, all_outputs: dict[str, dict]
-    ) -> dict:
+    async def _execute_node(self, node_id: str, all_outputs: dict[str, dict]) -> dict:
         node = next((n for n in self.nodes if n["id"] == node_id), None)
         if node is None:
             return {"success": False, "error": f"Node {node_id} not found"}
@@ -256,6 +261,7 @@ class GraphInterpreter:
         if handler is None:
             try:
                 from app.services.plugin_runtime import get_plugin_runtime
+
                 plugin_handler = get_plugin_runtime().get_handler(node_type)
                 if plugin_handler is not None:
                     handler = plugin_handler
@@ -289,17 +295,33 @@ class GraphInterpreter:
             import asyncio
 
             from app.websocket.mission_ws import sio as _sio
+
             try:
                 loop = asyncio.get_running_loop()
                 asyncio.create_task(
-                    _sio.emit("graph:node_state", {
-                        "execution_id": self.execution.id,
-                        "node_id": node_id,
-                        "status": "failed" if isinstance(output, dict) and not output.get("success", True) else "completed",
-                        "output": output,
-                    }, room=f"graph_exec_{self.execution.id}")
+                    _sio.emit(
+                        "graph:node_state",
+                        {
+                            "execution_id": self.execution.id,
+                            "node_id": node_id,
+                            "status": (
+                                "failed"
+                                if isinstance(output, dict)
+                                and not output.get("success", True)
+                                else "completed"
+                            ),
+                            "output": output,
+                        },
+                        room=f"graph_exec_{self.execution.id}",
+                    )
                 )
             except RuntimeError as e:
-                logger.debug("graph_ws_emit_no_loop", execution_id=self.execution.id, error=str(e))
+                logger.debug(
+                    "graph_ws_emit_no_loop",
+                    execution_id=self.execution.id,
+                    error=str(e),
+                )
         except Exception as e:
-            logger.debug("graph_ws_emit_failed", execution_id=self.execution.id, error=str(e))
+            logger.debug(
+                "graph_ws_emit_failed", execution_id=self.execution.id, error=str(e)
+            )

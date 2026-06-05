@@ -73,9 +73,13 @@ class DAGStrategy(ExecutionStrategy):
             # Check abort signal between layers
             if executor.is_aborted(run_id):
                 return StrategyResult(
-                    success=False, status="aborted", error="Aborted",
-                    completed_nodes=completed_nodes, failed_nodes=failed_nodes,
-                    total_tokens=total_tokens, total_cost_usd=total_cost,
+                    success=False,
+                    status="aborted",
+                    error="Aborted",
+                    completed_nodes=completed_nodes,
+                    failed_nodes=failed_nodes,
+                    total_tokens=total_tokens,
+                    total_cost_usd=total_cost,
                 )
 
             tasks = [

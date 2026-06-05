@@ -24,10 +24,12 @@ def setup_telemetry(app, engine=None):
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-    resource = Resource.create({
-        "service.name": os.getenv("OTEL_SERVICE_NAME", "workflow-backend"),
-        "deployment.environment": os.getenv("DEPLOY_TARGET", "unknown"),
-    })
+    resource = Resource.create(
+        {
+            "service.name": os.getenv("OTEL_SERVICE_NAME", "workflow-backend"),
+            "deployment.environment": os.getenv("DEPLOY_TARGET", "unknown"),
+        }
+    )
 
     provider = TracerProvider(resource=resource)
     provider.add_span_processor(
@@ -41,6 +43,7 @@ def setup_telemetry(app, engine=None):
     if engine is not None:
         try:
             from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
             SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
         except Exception as e:
             logger.warning(f"SQLAlchemy instrumentation failed: {e}")
