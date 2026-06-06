@@ -119,8 +119,10 @@ hitl_router = _import_router("hitl")
 circuit_breaker_router = _import_router("circuit_breaker")
 cost_attribution_router = _import_router("cost_attribution")
 plugins_router = _import_router("plugins")
-
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
+agent_personalities_router = _import_router(
+    "agent_personalities", tier=RouterTier.OPTIONAL
+)
 
 community_router = _import_router("community", tier=RouterTier.OPTIONAL)
 integrations_router = _import_router("integrations", tier=RouterTier.OPTIONAL)
@@ -223,6 +225,7 @@ for _name, _router in [
     ("circuit-breaker", circuit_breaker_router),
     ("costs", cost_attribution_router),
     ("plugins", plugins_router),
+    ("agent-personalities", agent_personalities_router),
 ]:
     if _router:
         _prefix = None

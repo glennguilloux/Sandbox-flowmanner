@@ -199,13 +199,14 @@ async def test_stream_message_byok_creates_per_request_client(mock_db):
             thread_id=1,
             content="stream me",
             user_id=3,
-            user_api_key="sk-stream-key",
+            user_api_key="sk-proj-stream-key",
+            model_id="openai/gpt-4o",
         ):
             events.append(event)
 
     MockAsyncOpenAI.assert_called_once()
     init_kwargs = MockAsyncOpenAI.call_args.kwargs
-    assert init_kwargs.get("api_key") == "sk-stream-key"
+    assert init_kwargs.get("api_key") == "sk-proj-stream-key"
 
     import json
 
@@ -271,7 +272,7 @@ class TestProviderDetection:
         """Keys starting with sk- should be detected as openai."""
         from app.services.chat_service import _detect_provider_from_key
 
-        result = _detect_provider_from_key("sk-test-key-12345")
+        result = _detect_provider_from_key("sk-proj-test-key-12345")
         assert result == "openai"
 
     def test_detect_aiza_is_google(self):
@@ -331,7 +332,7 @@ class TestProviderMismatchValidation:
         """OpenAI key should work with openai/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model("sk-test-key", "openai/gpt-4o")
+        result = _validate_byok_key_matches_model("sk-proj-test-key", "openai/gpt-4o")
         assert result is None
 
     def test_openai_key_with_openai_compatible_model_valid(self):
@@ -393,7 +394,7 @@ class TestProviderMismatchValidation:
         from app.services.chat_service import _validate_byok_key_matches_model
 
         result = _validate_byok_key_matches_model(
-            "sk-test-key", "ollama/qwen2.5:latest"
+            "sk-proj-test-key", "ollama/qwen2.5:latest"
         )
         assert result is None
 
@@ -594,7 +595,7 @@ class TestAPIReceivesCorrectModelName:
                 thread_id=1,
                 content="test",
                 user_id=1,
-                user_api_key="sk-test-key",
+                user_api_key="sk-proj-test-key",
                 model_id="openai_compatible/gpt-4o-mini-2024-07-18",
             )
 

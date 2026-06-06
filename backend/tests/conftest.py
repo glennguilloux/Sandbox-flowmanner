@@ -81,6 +81,20 @@ async def _noop_dispatch(self, request, call_next):
 
 rl_module.GlobalRateLimitMiddleware.dispatch = _noop_dispatch
 
+
+# ---------------------------------------------------------------------------
+# 5b. Disable auth rate limiter (Redis mock returns MagicMock, breaks comparisons)
+# ---------------------------------------------------------------------------
+def _noop_check_rate_limit(key: str, max_requests: int, window_seconds: int):
+    """Always allow requests — rate limiting disabled for tests."""
+    return True, max_requests, 0
+
+
+import app.services.auth_rate_limiter as auth_rl_module
+
+auth_rl_module.check_rate_limit = _noop_check_rate_limit
+auth_rl_module._rate_limiter = None  # reset singleton so it doesn't try Redis
+
 # ---------------------------------------------------------------------------
 # 6. Now safe to import FastAPI app and routers
 # ---------------------------------------------------------------------------
@@ -95,6 +109,7 @@ from app.main_fastapi import (
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.swarm import router as swarm_router
 from app.api.v1.swarm_protocol import router as protocol_router
+from app.api.v1.agent import router as agent_router
 
 
 # ===========================================================================
@@ -117,6 +132,7 @@ def test_app():
     api_router.include_router(swarm_router)
     api_router.include_router(protocol_router, prefix="/swarm")
     api_router.include_router(dashboard_router)
+    api_router.include_router(agent_router)
     app.include_router(api_router)
 
     return app

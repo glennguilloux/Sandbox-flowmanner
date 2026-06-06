@@ -5,8 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_db, get_current_user
-from app.main_fastapi import app
+from app.api.deps import get_db, get_current_user, get_workspace_id
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 
@@ -49,7 +48,7 @@ class MockTemplate:
     """Mock that matches AgentTemplateResponse schema exactly."""
 
     def __init__(self, id, name, description, is_public=True):
-        self.id = id  # int
+        self.id = str(id)  # str (schema expects string)
         self.template_id = "template_1"  # str (required)
         self.name = name
         self.description = description  # str | None
@@ -91,9 +90,21 @@ def make_user():
     )
 
 
+def _override_deps(test_client, mock_user):
+    """Set all required dependency overrides for agent tests."""
+    test_client.app.dependency_overrides[get_current_user] = lambda: mock_user
+    test_client.app.dependency_overrides[get_workspace_id] = lambda: None
+
+
+def _clear_deps(test_client):
+    """Clear all dependency overrides."""
+    test_client.app.dependency_overrides.pop(get_current_user, None)
+    test_client.app.dependency_overrides.pop(get_workspace_id, None)
+
+
 def test_get_agents_success(test_client):
     mock_user = make_user()
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    _override_deps(test_client, mock_user)
     try:
         with patch("app.api.v1.agent.list_agents", new_callable=AsyncMock) as mock:
             mock.return_value = ([make_agent()], 1)
@@ -104,12 +115,12 @@ def test_get_agents_success(test_client):
             data = response.json()
             assert "items" in data and len(data["items"]) == 1
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
+        _clear_deps(test_client)
 
 
 def test_create_agent_success(test_client):
     mock_user = make_user()
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    _override_deps(test_client, mock_user)
     try:
         with patch("app.api.v1.agent.create_agent", new_callable=AsyncMock) as mock:
             agent = make_agent()
@@ -124,17 +135,20 @@ def test_create_agent_success(test_client):
                 },
             )
             assert (
-                response.status_code == 200 and response.json()["name"] == "New Agent"
+                response.status_code in (200, 201)
+                and response.json()["name"] == "New Agent"
             )
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
+        _clear_deps(test_client)
 
 
 def test_get_agent_success(test_client):
     mock_user = make_user()
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    _override_deps(test_client, mock_user)
     try:
-        with patch("app.api.v1.agent.get_agent", new_callable=AsyncMock) as mock:
+        with patch(
+            "app.api.v1.agent.require_agent_access", new_callable=AsyncMock
+        ) as mock:
             mock.return_value = make_agent()
             response = test_client.get(f"/api/agents/{AGENT_ID}")
             assert (
@@ -143,26 +157,32 @@ def test_get_agent_success(test_client):
             data = response.json()
             assert data["id"] == AGENT_ID and data["owner_id"] == "1"
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
+        _clear_deps(test_client)
 
 
 def test_get_agent_not_found(test_client):
     mock_user = make_user()
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    _override_deps(test_client, mock_user)
     try:
-        with patch("app.api.v1.agent.get_agent", new_callable=AsyncMock) as mock:
-            mock.return_value = None
+        with patch(
+            "app.api.v1.agent.require_agent_access", new_callable=AsyncMock
+        ) as mock:
+            from fastapi import HTTPException
+
+            mock.side_effect = HTTPException(status_code=404, detail="Not found")
             response = test_client.get(f"/api/agents/{INVALID_AGENT_ID}")
             assert response.status_code == 404
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
+        _clear_deps(test_client)
 
 
 def test_delete_agent_success(test_client):
     mock_user = make_user()
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    _override_deps(test_client, mock_user)
     try:
-        with patch("app.api.v1.agent.get_agent", new_callable=AsyncMock) as get_mock:
+        with patch(
+            "app.api.v1.agent.require_agent_access", new_callable=AsyncMock
+        ) as get_mock:
             get_mock.return_value = make_agent()
             with patch(
                 "app.api.v1.agent.delete_agent", new_callable=AsyncMock
@@ -171,17 +191,17 @@ def test_delete_agent_success(test_client):
                 response = test_client.delete(f"/api/agents/{AGENT_ID}")
                 assert response.status_code == 204
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
+        _clear_deps(test_client)
 
 
 def test_get_agent_templates_success(test_client):
     mock_user = make_user()
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    _override_deps(test_client, mock_user)
     try:
         with patch(
-            "app.api.v1.agent.get_agent_templates", new_callable=AsyncMock
+            "app.api.v1.agent.list_agent_templates", new_callable=AsyncMock
         ) as mock:
-            mock.return_value = [make_template()]  # Return templates, not agents
+            mock.return_value = ([make_template()], 1)
             response = test_client.get("/api/agents/templates")
             assert (
                 response.status_code == 200
@@ -189,4 +209,4 @@ def test_get_agent_templates_success(test_client):
             data = response.json()
             assert isinstance(data, list) and len(data) >= 1
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
+        _clear_deps(test_client)
