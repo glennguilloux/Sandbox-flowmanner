@@ -155,6 +155,13 @@ class Settings(BaseSettings):
     MISSION_DEFAULT_SCROLL_X: int = 0
     MISSION_DEFAULT_SCROLL_Y: int = 300
 
+    # sandboxd integration
+    SANDBOXD_API_URL: str = "http://127.0.0.1:9090"
+    SANDBOXD_AUTH_TOKEN: str = ""
+    SANDBOXD_PREVIEW_DOMAIN: str = "preview.flowmanner.com"
+    SANDBOXD_ENABLED: bool = True
+    SANDBOXD_DEFAULT_TEMPLATE: str = "react-standard"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

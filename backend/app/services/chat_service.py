@@ -37,6 +37,7 @@ PROVIDER_MAP = {
     "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
     "google": ("https://generativelanguage.googleapis.com/v1beta", "GOOGLE_API_KEY"),
     "openai_compatible": ("https://api.openai.com/v1", None),
+    "glennguilloux": ("https://ai.glennguilloux.com:9443/v1", None),
 }
 
 OPENAI_PROVIDER_FAMILIES = frozenset(("openai", "openai_compatible"))
@@ -200,7 +201,18 @@ async def _lookup_stored_byok_key(
                         provider_hint,
                         k.id,
                     )
-            return k.get_api_key(), k.base_url
+                    return k.get_api_key(), k.base_url
+
+            # No provider match found — do NOT fall back to a random key.
+            # Returning a key for the wrong provider causes 400 errors
+            # (e.g. sending demo-llm to OpenRouter instead of glennguilloux).
+            logger.info(
+                "BYOK lookup NO MATCH: user=%s provider=%s available=%s",
+                user_id,
+                provider_hint,
+                [k.provider for k in keys],
+            )
+            return None, None
 
         # Fall back to the first active key
         logger.debug(
@@ -245,6 +257,34 @@ def _validate_byok_key_matches_model(
         return f"Provider mismatch: model '{model_id}' requires {model_provider.title()}, but X-User-API-Key appears to be for {key_provider.title()}"
 
     return None
+
+
+# Sandboxd preview guidance appended to system prompt when enabled
+_SANDBOXD_SYSTEM_GUIDANCE = """
+
+## Live Preview Tools (sandboxd)
+
+When the user asks you to build something visual (landing page, dashboard,
+chart, tool, app, or any HTML/CSS/JS project), use the sandboxd tools to
+create a live preview:
+
+1. **sandboxd_preview** — call without arguments to create a new sandbox.
+   Returns the sandbox_id. Save this for subsequent calls.
+2. **sandboxd_file_write** — write your HTML/CSS/JS files to the sandbox
+   workspace. Start with index.html.
+3. **sandboxd_exec** — run shell commands inside the sandbox. Use this to
+   start a dev server: ["bash", "-lc", "npx serve -l 3000"] or
+   ["bash", "-lc", "python3 -m http.server 3000"].
+4. **sandboxd_preview(sandbox_id)** — call again with the sandbox_id to get
+   the live preview URL. Share this URL with the user in your response.
+
+The preview URL format is:
+https://s-<sandbox_id>-3000.preview.flowmanner.com
+
+The URL is publicly accessible. The sandbox stays alive for 35 minutes."""
+
+# Maximum number of tool-call rounds before forcing a text response
+_MAX_TOOL_ROUNDS = 10
 
 
 # LLM configuration from environment
@@ -810,6 +850,10 @@ async def _build_chat_messages(
         if custom and custom.strip():
             system_prompt = custom
 
+    # Append sandboxd preview guidance when sandboxd is enabled
+    if settings.SANDBOXD_ENABLED:
+        system_prompt += _SANDBOXD_SYSTEM_GUIDANCE
+
     messages = [{"role": "system", "content": system_prompt}]
 
     history_stmt = (
@@ -894,6 +938,8 @@ async def send_message_to_llm(
     llm_start = time.time()
 
     try:
+        openai_tools = _get_chat_openai_tools()
+
         async with breaker.protect():
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
@@ -905,22 +951,96 @@ async def send_message_to_llm(
             if web_search:
                 messages_for_llm = await _inject_web_search(messages_for_llm, content)
 
-            response = await client.chat.completions.create(
-                model=model,
-                messages=messages_for_llm,
-            )
+            # ── Tool-calling loop (non-streaming) ───────────────────
+            total_prompt_tokens = 0
+            total_completion_tokens = 0
+            total_total_tokens = 0
 
-        assistant_content = response.choices[0].message.content
-        total_tokens = response.usage.total_tokens if response.usage else 0
-        prompt_tokens = response.usage.prompt_tokens if response.usage else 0
-        completion_tokens = response.usage.completion_tokens if response.usage else 0
+            for _round in range(_MAX_TOOL_ROUNDS):
+                create_kwargs: dict = {
+                    "model": model,
+                    "messages": messages_for_llm,
+                }
+                if openai_tools:
+                    create_kwargs["tools"] = openai_tools
+
+                response = await client.chat.completions.create(**create_kwargs)
+                assistant_message = response.choices[0].message
+
+                # Accumulate token usage across all rounds
+                if response.usage:
+                    total_prompt_tokens += response.usage.prompt_tokens or 0
+                    total_completion_tokens += response.usage.completion_tokens or 0
+                    total_total_tokens += response.usage.total_tokens or 0
+
+                # Check for tool calls
+                if assistant_message.tool_calls:
+                    # Add assistant message with tool_calls to history
+                    messages_for_llm.append(
+                        {
+                            "role": "assistant",
+                            "content": assistant_message.content,
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments,
+                                    },
+                                }
+                                for tc in assistant_message.tool_calls
+                            ],
+                        }
+                    )
+
+                    # Execute each tool and add results
+                    for tc in assistant_message.tool_calls:
+                        tool_result = await _execute_tool_call(
+                            tc.function.name, tc.function.arguments
+                        )
+                        messages_for_llm.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": tool_result,
+                            }
+                        )
+
+                    continue  # Loop for next LLM call
+
+                # No tool calls — final text response
+                break
+            else:
+                # Loop exhausted — all rounds were tool calls
+                assistant_message.content = (
+                    assistant_message.content
+                    or "I reached the maximum number of tool calls "
+                    f"({_MAX_TOOL_ROUNDS}) without producing a final response."
+                )
+
+            # Fallback: retry without tools if the response is empty
+            # (some models don't support function calling)
+            if not (assistant_message.content or "").strip() and openai_tools:
+                logger.info(
+                    "send_message_to_llm: empty response with tools for %s, retrying without tools",
+                    raw_model,
+                )
+                no_tools_response = await client.chat.completions.create(
+                    model=model, messages=messages_for_llm
+                )
+                if no_tools_response.choices:
+                    assistant_message = no_tools_response.choices[0].message
+                    response = no_tools_response
+
+        assistant_content = assistant_message.content
 
         llm_duration = time.time() - llm_start
         record_llm_request(
             provider=provider_name,
             duration_seconds=llm_duration,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
+            prompt_tokens=total_prompt_tokens,
+            completion_tokens=total_completion_tokens,
             success=True,
         )
 
@@ -933,9 +1053,9 @@ async def send_message_to_llm(
                 user_id=str(user_id),
                 model_id=model,
                 provider="byok" if user_api_key else "system",
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                cost=total_tokens * 0.000002,
+                prompt_tokens=total_prompt_tokens,
+                completion_tokens=total_completion_tokens,
+                cost=total_total_tokens * 0.000002,
             )
         except Exception as ue:
             logger.warning("Usage recording failed (non-fatal): %s", ue)
@@ -943,7 +1063,7 @@ async def send_message_to_llm(
         return {
             "success": True,
             "content": assistant_content,
-            "tokens": total_tokens,
+            "tokens": total_total_tokens,
             "model": model,
         }
     except CircuitOpenError as e:
@@ -965,6 +1085,48 @@ async def send_message_to_llm(
         )
         logger.error("send_message_to_llm failed: %s", e)
         return {"success": False, "content": str(e), "tokens": 0, "model": model}
+
+
+def _get_chat_openai_tools() -> list[dict] | None:
+    """Return sandboxd tools in OpenAI function-calling format, or None if disabled."""
+    if not settings.SANDBOXD_ENABLED:
+        return None
+    try:
+        from app.tools.base import get_tool_registry
+
+        registry = get_tool_registry()
+        sandboxd_ids = {"sandboxd_preview", "sandboxd_exec", "sandboxd_file_write"}
+        tools = [
+            t.to_openai_schema()
+            for t in registry.list_all()
+            if t.tool_id in sandboxd_ids
+        ]
+        return tools or None
+    except Exception:
+        logger.debug("Failed to get chat tools from registry", exc_info=True)
+        return None
+
+
+async def _execute_tool_call(tool_name: str, arguments_json: str) -> str:
+    """Execute a single tool call via the registry and return the result as JSON."""
+    try:
+        from app.tools.base import get_tool_registry
+
+        registry = get_tool_registry()
+        tool = registry.get(tool_name)
+        if tool is None:
+            return json.dumps({"error": f"Unknown tool: {tool_name}"})
+
+        args = json.loads(arguments_json) if arguments_json else {}
+        result = await tool.execute(args)
+        if result.success:
+            return json.dumps(result.result)
+        return json.dumps({"error": result.error})
+    except json.JSONDecodeError:
+        return json.dumps({"error": f"Invalid JSON arguments: {arguments_json}"})
+    except Exception as e:
+        logger.exception("Tool execution failed: %s", tool_name)
+        return json.dumps({"error": str(e)})
 
 
 async def stream_message_to_llm(
@@ -1030,6 +1192,8 @@ async def stream_message_to_llm(
     llm_start = time.time()
 
     try:
+        openai_tools = _get_chat_openai_tools()
+
         async with breaker.protect():
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
@@ -1041,25 +1205,207 @@ async def stream_message_to_llm(
             if web_search:
                 messages_for_llm = await _inject_web_search(messages_for_llm, content)
 
-            response = await client.chat.completions.create(
-                model=model,
-                messages=messages_for_llm,
-                stream=True,
-            )
+            full_response = ""
+            accumulated_prompt_tokens = 0
+            accumulated_completion_tokens = 0
 
-            async for chunk in response:
-                delta = chunk.choices[0].delta.content or ""
-                if delta:
-                    collected_chunks.append(delta)
-                    yield json.dumps({"type": "token", "content": delta})
+            # ── Tool-calling loop ───────────────────────────────────
+            for _round in range(_MAX_TOOL_ROUNDS):
+                create_kwargs: dict = {
+                    "model": model,
+                    "messages": messages_for_llm,
+                    "stream": True,
+                }
+                if openai_tools:
+                    create_kwargs["tools"] = openai_tools
 
-        full_response = "".join(collected_chunks)
+                response = await client.chat.completions.create(**create_kwargs)
+
+                # Accumulate streaming chunks — we need to detect both
+                # content tokens AND tool_call deltas in the same stream.
+                round_content_chunks: list[str] = []
+                # tool_calls_by_index tracks partial tool call arguments
+                tool_calls_by_index: dict[int, dict] = {}
+
+                async for chunk in response:
+                    choice = chunk.choices[0] if chunk.choices else None
+                    if not choice:
+                        continue
+
+                    delta = choice.delta
+
+                    # Stream text content to the frontend
+                    if delta.content:
+                        round_content_chunks.append(delta.content)
+                        collected_chunks.append(delta.content)
+                        yield json.dumps({"type": "token", "content": delta.content})
+
+                    # Accumulate tool calls from streaming deltas
+                    if delta.tool_calls:
+                        for tc_delta in delta.tool_calls:
+                            idx = tc_delta.index
+                            if idx not in tool_calls_by_index:
+                                tool_calls_by_index[idx] = {
+                                    "id": "",
+                                    "function": {"name": "", "arguments": ""},
+                                }
+                            tc = tool_calls_by_index[idx]
+                            if tc_delta.id:
+                                tc["id"] = tc_delta.id
+                            if tc_delta.function:
+                                if tc_delta.function.name:
+                                    tc["function"]["name"] = tc_delta.function.name
+                                if tc_delta.function.arguments:
+                                    tc["function"][
+                                        "arguments"
+                                    ] += tc_delta.function.arguments
+
+                    # Capture usage from streaming chunks (if provider includes it)
+                    chunk_usage = getattr(chunk, "usage", None)
+                    if chunk_usage and isinstance(
+                        getattr(chunk_usage, "prompt_tokens", None), int
+                    ):
+                        accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
+                        accumulated_completion_tokens += (
+                            chunk_usage.completion_tokens or 0
+                        )
+
+                    # Detect finish_reason
+                    if choice.finish_reason == "tool_calls":
+                        break
+
+                # ── Process tool calls ──────────────────────────────
+                if tool_calls_by_index:
+                    # Build the assistant message with tool_calls for the history
+                    assistant_tool_calls = []
+                    for idx in sorted(tool_calls_by_index.keys()):
+                        tc = tool_calls_by_index[idx]
+                        assistant_tool_calls.append(
+                            {
+                                "id": tc["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": tc["function"]["name"],
+                                    "arguments": tc["function"]["arguments"],
+                                },
+                            }
+                        )
+
+                    # Add assistant message with tool_calls to history
+                    messages_for_llm.append(
+                        {
+                            "role": "assistant",
+                            "content": "".join(round_content_chunks) or None,
+                            "tool_calls": assistant_tool_calls,
+                        }
+                    )
+
+                    # Execute each tool and add results to history
+                    for tc in assistant_tool_calls:
+                        tool_name = tc["function"]["name"]
+                        tool_args = tc["function"]["arguments"]
+                        call_id = tc["id"]
+
+                        yield json.dumps(
+                            {
+                                "type": "tool_call_start",
+                                "tool": tool_name,
+                                "arguments": tool_args,
+                                "call_id": call_id,
+                            }
+                        )
+
+                        tool_result = await _execute_tool_call(tool_name, tool_args)
+
+                        yield json.dumps(
+                            {
+                                "type": "tool_call_result",
+                                "tool": tool_name,
+                                "result": tool_result,
+                                "call_id": call_id,
+                            }
+                        )
+
+                        messages_for_llm.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": call_id,
+                                "content": tool_result,
+                            }
+                        )
+
+                    # Loop back for the next LLM call with tool results
+                    continue
+
+                # No tool calls — we have a final text response
+                full_response = "".join(round_content_chunks) or "".join(
+                    collected_chunks
+                )
+                break  # Exit the tool-calling loop
+
+            else:
+                # Loop exhausted — all rounds were tool calls
+                full_response = "".join(collected_chunks) or (
+                    "I reached the maximum number of tool calls "
+                    f"({_MAX_TOOL_ROUNDS}) without producing a final response."
+                )
+
+            # Fallback: some providers return 0 streaming chunks even
+            # though non-streaming works fine.
+            if not full_response.strip():
+                logger.info(
+                    "stream_message_to_llm: empty stream for %s, retrying without streaming",
+                    raw_model,
+                )
+                try:
+                    non_stream_kwargs: dict = {
+                        "model": model,
+                        "messages": messages_for_llm,
+                    }
+                    if openai_tools:
+                        non_stream_kwargs["tools"] = openai_tools
+                    non_stream_response = await client.chat.completions.create(
+                        **non_stream_kwargs
+                    )
+                    if non_stream_response.choices:
+                        full_response = (
+                            non_stream_response.choices[0].message.content or ""
+                        )
+                    # Second fallback: retry without tools if still empty
+                    # (some models don't support function calling)
+                    if not full_response.strip() and openai_tools:
+                        logger.info(
+                            "stream_message_to_llm: empty response with tools for %s, retrying without tools",
+                            raw_model,
+                        )
+                        non_stream_kwargs.pop("tools", None)
+                        no_tools_response = await client.chat.completions.create(
+                            **non_stream_kwargs
+                        )
+                        if no_tools_response.choices:
+                            full_response = (
+                                no_tools_response.choices[0].message.content or ""
+                            )
+                    if full_response:
+                        yield json.dumps({"type": "token", "content": full_response})
+                except Exception as retry_err:
+                    logger.error(
+                        "stream_message_to_llm: non-streaming retry also failed for %s: %s",
+                        raw_model,
+                        retry_err,
+                    )
+
+        # Use actual token counts if available from streaming, else estimate
+        prompt_tokens = accumulated_prompt_tokens or len(content.split())
+        completion_tokens = accumulated_completion_tokens or len(full_response.split())
+        total_tokens = prompt_tokens + completion_tokens
+
         llm_duration = time.time() - llm_start
         record_llm_request(
             provider=provider_name,
             duration_seconds=llm_duration,
-            prompt_tokens=len(content.split()),
-            completion_tokens=len(full_response.split()),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
             success=True,
         )
 
@@ -1070,14 +1416,13 @@ async def stream_message_to_llm(
         try:
             from app.services.usage_service import get_usage_service
 
-            estimated_tokens = len(full_response.split())
             get_usage_service().record_usage(
                 user_id=str(user_id),
                 model_id=model,
                 provider="byok" if user_api_key else "system",
-                prompt_tokens=len(content.split()),
-                completion_tokens=estimated_tokens,
-                cost=estimated_tokens * 0.000002,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                cost=total_tokens * 0.000002,
             )
         except Exception as ue:
             logger.warning("Usage recording failed (non-fatal): %s", ue)

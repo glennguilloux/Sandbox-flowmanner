@@ -29,8 +29,9 @@ ignore = [
     "RUF006", # asyncio-dangling-task — intentional fire-and-forget in FastAPI
     "RUF012", # mutable-class-default — Pydantic models use class attributes
     "RUF013", # implicit-optional — too noisy with X | None already in use
-    "PT028",  # pytest-parameter-with-default-argument — intentional in parametrize
+
     "F821",   # undefined-name — ~97 from TCH refactor (FastAPI/Strawberry runtime deps). Fix per-file.
+    "PT028",  # removed in newer ruff versions
 ]
 
 [lint.per-file-ignores]

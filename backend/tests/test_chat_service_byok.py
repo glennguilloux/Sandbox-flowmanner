@@ -1,8 +1,9 @@
 """Tests for BYOK key injection and model selection in chat_service.py."""
 
 import os
+from unittest.mock import AsyncMock, MagicMock, call, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
@@ -11,7 +12,7 @@ class FakeCompletion:
     """Minimal non-streaming completion response."""
 
     def __init__(self, content: str = "hello", tokens: int = 10):
-        self.choices = [MagicMock(message=MagicMock(content=content))]
+        self.choices = [MagicMock(message=MagicMock(content=content, tool_calls=None))]
         self.usage = MagicMock(
             total_tokens=tokens, prompt_tokens=4, completion_tokens=tokens - 4
         )
@@ -22,7 +23,7 @@ class FakeChunk:
         self.choices = [MagicMock(delta=MagicMock(content=content))]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_db():
     """Async db session that returns a dummy ChatMessage on flush/refresh."""
     db = AsyncMock()
@@ -48,6 +49,7 @@ async def test_default_key_path(mock_db):
         patch(
             "app.services.chat_service.create_chat_message", new_callable=AsyncMock
         ) as mock_msg,
+        patch("app.services.chat_service._get_chat_openai_tools", return_value=None),
     ):
         mock_msg.return_value = MagicMock(id=1)
         mock_client.chat.completions.create = AsyncMock(return_value=fake_response)
@@ -85,6 +87,7 @@ async def test_byok_key_injection(mock_db):
         MockAsyncOpenAI.return_value = per_req_client
 
         from importlib import reload
+
         import app.services.chat_service as cs
 
         result = await cs.send_message_to_llm(
@@ -563,11 +566,14 @@ class TestAPIReceivesCorrectModelName:
     @pytest.mark.asyncio
     async def test_send_message_strips_openai_compatible_prefix(self, mock_db):
         """send_message_to_llm should send gpt-4o-mini-2024-07-18 to API, not openai_compatible/gpt-4o-mini-2024-07-18."""
-        from app.services.chat_service import send_message_to_llm
         from unittest.mock import AsyncMock, MagicMock
 
+        from app.services.chat_service import send_message_to_llm
+
         fake_response = MagicMock()
-        fake_response.choices = [MagicMock(message=MagicMock(content="test response"))]
+        fake_response.choices = [
+            MagicMock(message=MagicMock(content="test response", tool_calls=None))
+        ]
         fake_response.usage = MagicMock(
             total_tokens=10, prompt_tokens=4, completion_tokens=6
         )
