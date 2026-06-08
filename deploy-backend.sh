@@ -198,8 +198,8 @@ build_and_deploy() {
     return 0
   fi
 
-  # Build new image
-  docker build -t "$BACKEND_IMAGE" "$BACKEND_SOURCE"
+  # Build new image (target runtime — test stage is last, not default)
+  docker build --target runtime -t "$BACKEND_IMAGE" "$BACKEND_SOURCE"
 
   log_step "Deploying backend container"
 
