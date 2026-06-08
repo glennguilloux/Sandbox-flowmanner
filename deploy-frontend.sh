@@ -15,6 +15,10 @@ rsync -avz --progress \
 echo "=== Rebuilding frontend on VPS ==="
 ssh $SSH_OPTS root@${VPS_HOST} "cd /opt/flowmanner && docker compose build frontend && docker compose up -d --no-deps frontend"
 
+echo "=== Syncing nginx config ==="
+ssh $SSH_OPTS root@${VPS_HOST} "mkdir -p /opt/flowmanner/nginx"
+scp $SSH_OPTS /opt/flowmanner/nginx/default.conf root@${VPS_HOST}:/opt/flowmanner/nginx/default.conf
+
 echo "=== Restarting nginx ==="
 ssh $SSH_OPTS root@${VPS_HOST} "cd /opt/flowmanner && docker compose restart nginx"
 
