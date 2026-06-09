@@ -342,8 +342,9 @@ class TelegramBotTool(BaseTool):
 
         result = await self._call_api("getUpdates", payload)
         if "error" in result:
-            return result                updates: list[Any] = result if isinstance(result, list) else []
-                return {
+            return result
+        updates: list[Any] = result if isinstance(result, list) else []
+        return {
             "action": "get_updates",
             "update_count": len(updates),
             "updates": updates[: validated.limit],

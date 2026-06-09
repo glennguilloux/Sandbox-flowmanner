@@ -279,8 +279,9 @@ class ResultDeduplicator:
         Remove duplicate/near-duplicate results
         """
         if not results:
-            return results                unique_results = []
-                seen_hashes: set[str] = set()
+            return results
+        unique_results = []
+        seen_hashes: set[str] = set()
 
         # Sort by score first
         sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
