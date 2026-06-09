@@ -155,7 +155,7 @@ class EnhancedWebSearchService:
 
             provider = self.providers[provider_name]
             try:
-                search_resp = await provider.search(query, search_type, max_results)
+                search_resp = await provider.search(query, search_type, max_results)  # type: ignore[attr-defined]
                 if search_resp and hasattr(search_resp, "results"):
                     results = search_resp.results
                 elif isinstance(search_resp, list):
@@ -219,7 +219,7 @@ class EnhancedWebSearchService:
             cache_resp = SearchResponse(
                 query=query,
                 results=deduped_results,  # type: ignore[arg-type]
-                provider=SearchProvider.SEARCH,
+                provider=SearchProvider.SEARCH,  # type: ignore[attr-defined]
                 search_type=search_type,
                 total_results=len(deduped_results),
                 latency_ms=(time.time() - start_time) * 1000,

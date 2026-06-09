@@ -631,11 +631,11 @@ class ProactiveScheduler:
                 ("increase_timeout", 1.5),
                 ("enable_early_cancel", True),
             ],
-            FailureType.MEMORY_EXHAUSTION: [
+            FailureType.MEMORY_EXHAUSTION: [  # type: ignore[attr-defined]
                 ("reduce_cache_size", 0.7),
                 ("trigger_gc", True),
             ],
-            FailureType.LLM_TIMEOUT: [
+            FailureType.LLM_TIMEOUT: [  # type: ignore[attr-defined]
                 ("reduce_prompt_size", 0.8),
                 ("enable_streaming", True),
             ],
@@ -769,7 +769,7 @@ class ProactiveScheduler:
             # Pre-cache common results
             result["resources_prewarmed"].append("tool_cache")
 
-        elif action.failure_type == FailureType.MEMORY_EXHAUSTION:
+        elif action.failure_type == FailureType.MEMORY_EXHAUSTION:  # type: ignore[attr-defined]
             # Trigger early GC
             result["resources_prewarmed"].append("memory_pools")
 

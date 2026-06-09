@@ -606,7 +606,7 @@ class NodeExecutor:
 
             service = get_search_service()
             request = SearchRequest(
-                query=query, search_type=SearchType.GENERAL, max_results=5
+                query=query, search_type=SearchType.GENERAL, max_results=5  # type: ignore[attr-defined]
             )
             response = await service.search(request)
 
@@ -680,7 +680,7 @@ class NodeExecutor:
                 }
 
             tool_input = node.config.get("params", {})
-            result = await tool.run(tool_input, {"user_id": "system"})
+            result = await tool.run(tool_input, {"user_id": "system"})  # type: ignore[attr-defined]
 
             if result.status.value == "success":
                 return {"success": True, "output": result.data}
@@ -1145,7 +1145,7 @@ class NodeExecutor:
 
             service = get_search_service()
             request = SearchRequest(
-                query=query, search_type=SearchType.GENERAL, max_results=5
+                query=query, search_type=SearchType.GENERAL, max_results=5  # type: ignore[attr-defined]
             )
             response = await service.search(request)
             results = [

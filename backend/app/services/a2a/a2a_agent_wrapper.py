@@ -127,7 +127,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                     )
 
             # Process through LangGraph
-            result = await self._agent.ainvoke(
+            result = await self._agent.ainvoke(  # type: ignore[attr-defined]
                 {"messages": [{"role": "user", "content": message.content}]},
                 config=self._config,
             )
@@ -179,7 +179,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                     yield "LangGraph agent not available"
                     return
 
-            async for event in self._agent.astream(
+            async for event in self._agent.astream(  # type: ignore[attr-defined]
                 {"messages": [{"role": "user", "content": message.content}]},
                 config=self._config,
             ):

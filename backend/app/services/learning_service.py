@@ -352,7 +352,7 @@ class LearningService:
             from qdrant_client.models import PointStruct
 
             point_id = str(uuid4())
-            self._qdrant_client.upsert(
+            self._qdrant_client.upsert(  # type: ignore[attr-defined]
                 collection_name=MISSION_EMBEDDINGS_COLLECTION,
                 points=[
                     PointStruct(
@@ -388,7 +388,7 @@ class LearningService:
 
         try:
             # Use query_points (qdrant-client >=1.15) instead of deprecated search
-            response = self._qdrant_client.query_points(
+            response = self._qdrant_client.query_points(  # type: ignore[attr-defined]
                 collection_name=MISSION_EMBEDDINGS_COLLECTION,
                 query=vector,
                 limit=limit,

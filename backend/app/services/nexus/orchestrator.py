@@ -324,7 +324,7 @@ class NexusOrchestrator:
                 if tool_plan and tool_plan.recommended_tools:
                     plan = []
                     for tool_result in tool_plan.recommended_tools:
-                        tool_id = tool_result.tool.tool_id
+                        tool_id = tool_result.tool.tool_id  # type: ignore[attr-defined]
                         # Map tool_id to capability format
                         capability_id = f"tool:{tool_id}"
                         plan.append(
@@ -399,7 +399,7 @@ class NexusOrchestrator:
                 results = self.discovery_service.search(goal, top_k=5)
 
                 for result in results:
-                    tool_id = result.tool.tool_id
+                    tool_id = result.tool.tool_id  # type: ignore[attr-defined]
                     capability_id = f"tool:{tool_id}"
                     plan.append(
                         {
@@ -463,11 +463,11 @@ class NexusOrchestrator:
 
         return [
             {
-                "capability_id": f"tool:{r.tool.tool_id}",
-                "name": r.tool.name,
-                "description": r.tool.description,
-                "tier": r.tool.tier,
-                "category": r.tool.category,
+                "capability_id": f"tool:{r.tool.tool_id}",  # type: ignore[attr-defined]
+                "name": r.tool.name,  # type: ignore[attr-defined]
+                "description": r.tool.description,  # type: ignore[attr-defined]
+                "tier": r.tool.tier,  # type: ignore[attr-defined]
+                "category": r.tool.category,  # type: ignore[attr-defined]
                 "score": r.score,
                 "match_reasons": r.match_reasons,
             }

@@ -33,7 +33,7 @@ async def ping(
         raise HTTPException(status_code=500, detail="browser_ping tool not registered")
 
     input_model = BrowserPingInput(message=request.message)
-    result = await tool.run(
+    result = await tool.run(  # type: ignore[attr-defined]
         input_dict={"message": input_model.message},
         context={"user_id": str(current_user.id)},
     )

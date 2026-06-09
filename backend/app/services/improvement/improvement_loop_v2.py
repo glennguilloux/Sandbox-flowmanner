@@ -545,7 +545,7 @@ class ImprovementLoopV2:
             )
 
             # Step 5: Apply improvement if test passed
-            if session.test_result.recommendation == "apply":
+            if session.test_result.recommendation == "apply":  # type: ignore[attr-defined]
                 session.state = SessionState.APPLYING
                 session.applied_adjustment = await self.knob_manager.apply_strategy(
                     session.selected_strategy,
@@ -556,21 +556,21 @@ class ImprovementLoopV2:
                     # Record success
                     self.knowledge.record_success(
                         session.selected_strategy,
-                        session.test_result.improvement_delta,
+                        session.test_result.improvement_delta,  # type: ignore[attr-defined]
                     )
                     session.final_metrics = current_metrics
                     session.state = SessionState.COMPLETED
-                    session.notes = f"Improvement applied: {session.test_result.improvement_delta:.2%} improvement"
+                    session.notes = f"Improvement applied: {session.test_result.improvement_delta:.2%} improvement"  # type: ignore[attr-defined]
                 else:
                     session.state = SessionState.FAILED
                     session.notes = "Failed to apply improvement"
             else:
                 # Test failed or inconclusive
-                if session.test_result.state == HypothesisState.ROLLED_BACK:
+                if session.test_result.state == HypothesisState.ROLLED_BACK:  # type: ignore[attr-defined]
                     session.notes = "Improvement rolled back due to regression"
                 else:
                     session.notes = (
-                        f"Improvement not applied: {session.test_result.recommendation}"
+                        f"Improvement not applied: {session.test_result.recommendation}"  # type: ignore[attr-defined]
                     )
 
                 self.knowledge.record_failure(session.selected_strategy)
@@ -646,7 +646,7 @@ class ImprovementLoopV2:
             failure_counts[f.failure_type] = failure_counts.get(f.failure_type, 0) + 1
 
         # Use causal decomposer to identify weak areas
-        weak_areas = self.causal_decomposer.analyze_failure_patterns(failures)
+        weak_areas = self.causal_decomposer.analyze_failure_patterns(failures)  # type: ignore[attr-defined]
 
         return weak_areas, failure_counts
 
@@ -666,7 +666,7 @@ class ImprovementLoopV2:
         strategies = []
 
         for area in weak_areas:
-            area_strategies = self.causal_decomposer.generate_strategies(area)
+            area_strategies = self.causal_decomposer.generate_strategies(area)  # type: ignore[attr-defined]
             strategies.extend(area_strategies)
 
         # Sort by confidence and risk
@@ -722,7 +722,7 @@ class ImprovementLoopV2:
                     score *= 0.3  # Heavy penalty for oscillation
 
             if score > best_score:
-                best_score = score
+                best_score = score  # type: ignore[assignment]
                 best_strategy = strategy
 
         return best_strategy

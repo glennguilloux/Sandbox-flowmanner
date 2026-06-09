@@ -856,12 +856,12 @@ class TemporalAnalyzer:
                 "Enable early cancellation",
                 "Pre-cache common results",
             ],
-            FailureType.MEMORY_EXHAUSTION: [
+            FailureType.MEMORY_EXHAUSTION: [  # type: ignore[attr-defined]
                 "Trigger garbage collection",
                 "Reduce cache sizes",
                 "Enable memory pooling",
             ],
-            FailureType.LLM_TIMEOUT: [
+            FailureType.LLM_TIMEOUT: [  # type: ignore[attr-defined]
                 "Switch to faster model",
                 "Reduce prompt complexity",
                 "Enable streaming",

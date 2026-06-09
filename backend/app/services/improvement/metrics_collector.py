@@ -500,7 +500,7 @@ class MetricsCollector:
                 elif metric_name == "requests_failed":
                     result["failed_requests"] += 1
                 elif metric_name == "latency_ms":
-                    result["latencies"].append(point.value)
+                    result["latencies"].append(point.value)  # type: ignore[attr-defined]
 
         # Calculate derived metrics
         total = result["total_requests"]

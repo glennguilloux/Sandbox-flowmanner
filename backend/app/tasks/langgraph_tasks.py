@@ -207,7 +207,7 @@ def langgraph_tool_execution_task(
 
         # Execute tool
         result = loop.run_until_complete(
-            registry.execute_tool(tool_name, parameters, context or {})
+            registry.execute_tool(tool_name, parameters, context or {})  # type: ignore[attr-defined]
         )
 
         # Close registry

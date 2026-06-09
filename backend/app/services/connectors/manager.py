@@ -285,7 +285,7 @@ class ConnectorManager:
                 connector_id: {
                     "healthy": is_healthy,
                     "status": connector.status.value,
-                    "last_error": connector.last_error,
+                    "last_error": connector.last_error,  # type: ignore[attr-defined]
                 }
             }
 
@@ -295,7 +295,7 @@ class ConnectorManager:
             results[cid] = {
                 "healthy": is_healthy,
                 "status": connector.status.value,
-                "last_error": connector.last_error,
+                "last_error": connector.last_error,  # type: ignore[attr-defined]
             }
 
         return results

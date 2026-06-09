@@ -96,7 +96,7 @@ class LinearConnector(BaseConnector):
                 return False
 
             self._linear_client = LinearClient(api_key)
-            teams = await self._linear_client.get_teams()
+            teams = await self._linear_client.get_teams()  # type: ignore[attr-defined]
             if teams:
                 self._authenticated_team = teams[0].get("name")
                 return True
@@ -162,7 +162,7 @@ class LinearConnector(BaseConnector):
                 status_code=400,
             )
 
-        issue = await self._linear_client.create_issue(
+        issue = await self._linear_client.create_issue(  # type: ignore[attr-defined]
             team_id=team_id,
             title=title,
             description=params.get("description"),
@@ -185,7 +185,7 @@ class LinearConnector(BaseConnector):
                 status_code=400,
             )
 
-        issue = await self._linear_client.update_issue(
+        issue = await self._linear_client.update_issue(  # type: ignore[attr-defined]
             issue_id=issue_id,
             title=params.get("title"),
             description=params.get("description"),
@@ -203,11 +203,11 @@ class LinearConnector(BaseConnector):
         """Get a Linear issue by ID or identifier."""
         # Support lookup by identifier (e.g., "TEAM-123") or UUID ID
         if params.get("identifier"):
-            issue = await self._linear_client.get_issue_by_identifier(
+            issue = await self._linear_client.get_issue_by_identifier(  # type: ignore[attr-defined]
                 params["identifier"]
             )
         elif params.get("issue_id"):
-            issue = await self._linear_client.get_issue(params["issue_id"])
+            issue = await self._linear_client.get_issue(params["issue_id"])  # type: ignore[attr-defined]
         else:
             return ConnectorResponse(
                 success=False,
@@ -240,7 +240,7 @@ class LinearConnector(BaseConnector):
 
         # First, try lookup by exact identifier (e.g., "TEAM-123")
         if "-" in q:
-            issue = await self._linear_client.get_issue_by_identifier(q)
+            issue = await self._linear_client.get_issue_by_identifier(q)  # type: ignore[attr-defined]
             if issue:
                 return ConnectorResponse(
                     success=True,
@@ -286,7 +286,7 @@ class LinearConnector(BaseConnector):
                 }
             }
             """
-            result = await client._execute(
+            result = await client._execute(  # type: ignore[attr-defined]
                 query,
                 {"teamId": team_id, "first": params.get("max_results", 20)},
             )
@@ -326,7 +326,7 @@ class LinearConnector(BaseConnector):
                 status_code=400,
             )
 
-        comment = await self._linear_client.add_comment(issue_id, body)
+        comment = await self._linear_client.add_comment(issue_id, body)  # type: ignore[attr-defined]
 
         return ConnectorResponse(
             success=True,
@@ -340,7 +340,7 @@ class LinearConnector(BaseConnector):
 
     async def _list_teams(self, params: dict[str, Any]) -> ConnectorResponse:
         """List all Linear teams."""
-        teams = await self._linear_client.get_teams()
+        teams = await self._linear_client.get_teams()  # type: ignore[attr-defined]
 
         return ConnectorResponse(
             success=True,

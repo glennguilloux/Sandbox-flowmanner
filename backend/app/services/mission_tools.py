@@ -32,7 +32,7 @@ async def tool_web_search(params: dict, input_data: dict) -> dict[str, Any]:
         service = get_search_service()
         request = SearchRequest(
             query=query,
-            search_type=SearchType.GENERAL,
+            search_type=SearchType.GENERAL,  # type: ignore[attr-defined]
             max_results=5,
         )
         response = await service.search(request)

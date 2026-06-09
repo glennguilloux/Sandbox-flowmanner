@@ -364,13 +364,13 @@ class SuccessLearner:
         # Generate recommendations
         recommendations = []
 
-        for tool, data in differentiators["tool_usage"].items():
+        for tool, data in differentiators["tool_usage"].items():  # type: ignore[attr-defined]
             if data["recommendation"] == "use_more":
                 recommendations.append(f"Prefer using {tool} tool more often")
             else:
                 recommendations.append(f"Consider alternatives to {tool} tool")
 
-        for key, data in differentiators["config_differences"].items():
+        for key, data in differentiators["config_differences"].items():  # type: ignore[attr-defined]
             recommendations.append(data["recommendation"])
 
         differentiators["recommendations"] = recommendations

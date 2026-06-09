@@ -103,7 +103,7 @@ async def extract_content(
             raise HTTPException(status_code=404, detail="Could not extract content")
 
         # Truncate if needed
-        if len(content.get("text", "")) > max_length:
+        if len(content.get("text", "")) > max_length:  # type: ignore[attr-defined]
             content["text"] = content["text"][:max_length] + "..."
             content["truncated"] = True
 

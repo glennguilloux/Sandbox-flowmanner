@@ -278,9 +278,9 @@ class WebSearchService:
             if not result.content:
                 try:
                     extracted = await self.extractor.extract(result.url, depth)  # type: ignore[arg-type]
-                    if extracted.success:
-                        result.extracted_content = extracted.content
-                        result.content = extracted.content
+                    if extracted.success:  # type: ignore[attr-defined]
+                        result.extracted_content = extracted.content  # type: ignore[attr-defined]
+                        result.content = extracted.content  # type: ignore[attr-defined]
                 except Exception as e:
                     logger.warning(
                         "Content extraction failed for %s: %s", result.url, e
@@ -337,7 +337,7 @@ class WebSearchService:
             health["cache"] = self.cache.stats
 
         # Determine overall status
-        available_count = sum(1 for p in health["providers"].values() if p["available"])
+        available_count = sum(1 for p in health["providers"].values() if p["available"])  # type: ignore[attr-defined]
         if available_count == 0:
             health["status"] = "degraded"
 

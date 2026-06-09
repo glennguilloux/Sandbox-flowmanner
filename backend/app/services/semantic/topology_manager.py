@@ -29,15 +29,15 @@ class TopologyManager:
 
             self.G = nx.DiGraph()
             for node in data.get("nodes", []):
-                self.G.add_node(node["id"], **node)
+                self.G.add_node(node["id"], **node)  # type: ignore[attr-defined]
             for edge in data.get("links", data.get("edges", [])):
-                self.G.add_edge(edge["source"], edge["target"], **edge)
+                self.G.add_edge(edge["source"], edge["target"], **edge)  # type: ignore[attr-defined]
         try:
             from graphify.cluster import cluster
 
             self.communities = cluster(self.G)
         except ImportError:
-            self.communities = {0: list(self.G.nodes())} if self.G else {}
+            self.communities = {0: list(self.G.nodes())} if self.G else {}  # type: ignore[attr-defined]
         self.embeddings = self._compute_community_embeddings()
         return self._to_topology_dict()
 

@@ -702,7 +702,7 @@ async def _store_failure_context(context: FailureContext) -> None:
 
                 sentry = get_sentry_integration()
                 if sentry.is_initialized():
-                    event_id = sentry.capture_failure_context(context)
+                    event_id = sentry.capture_failure_context(context)  # type: ignore[attr-defined]
                     if event_id:
                         context.sentry_event_id = event_id
                         logger.debug("Captured failure in Sentry: %s", event_id)

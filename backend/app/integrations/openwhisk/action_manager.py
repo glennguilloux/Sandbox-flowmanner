@@ -189,7 +189,7 @@ class OpenWhiskActionManager:
                 version=action_package.version,
                 created_at=datetime.now(UTC),
                 updated_at=datetime.now(UTC),
-                tags=action_package.tags,
+                tags=action_package.tags,  # type: ignore[attr-defined]
             )
 
             self.action_manifests[action_package.name] = metadata

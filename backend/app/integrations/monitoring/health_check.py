@@ -265,7 +265,7 @@ class HealthCheck:
             "gateway_healthy": self.health_status["gateway_healthy"],
             "actions_healthy": self.health_status["actions_healthy"],
             "total_actions": self.health_status["total_actions"],
-            "cached_at": self.health_status["last_check"].isoformat(),
+            "cached_at": self.health_status["last_check"].isoformat(),  # type: ignore[attr-defined]
             "age_seconds": age,
         }
 

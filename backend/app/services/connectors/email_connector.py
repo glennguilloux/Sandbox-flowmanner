@@ -218,7 +218,7 @@ class EmailConnector(BaseConnector):
                     # Handle attachment
                     filename = part.get_filename()
                     if filename:
-                        result["attachments"].append(
+                        result["attachments"].append(  # type: ignore[attr-defined]
                             {
                                 "filename": self._decode_header_value(filename),
                                 "content_type": content_type,

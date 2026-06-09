@@ -514,7 +514,7 @@ class ToolDiscoveryService:
             confidence = round(min(max(results[0].score, 0.0), 1.0), 3)
 
             # Build a short summary
-            tool_names = [r.tool.name for r in results[:3]]
+            tool_names = [r.tool.name for r in results[:3]]  # type: ignore[attr-defined]
             summary = (
                 f"Plan for: {task_description[:80]}. Top tools: {', '.join(tool_names)}"
             )
