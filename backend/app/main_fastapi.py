@@ -147,11 +147,65 @@ app.add_middleware(MetricsMiddleware)
 app.add_middleware(GlobalRateLimitMiddleware)
 
 
+class GraphQLDeprecationMiddleware:
+    """ASGI middleware that adds Deprecation / Sunset / Link headers to
+    responses served by the legacy ``/api/v2/graphql`` endpoint.
+
+    The endpoint is on the 5-step removal path (see
+    ``backend/app/api/v2/AGENTS.md`` — sunset 2026-07-09). This middleware
+    advertises the sunset date so any well-behaved client can detect the
+    deprecation via standard HTTP headers (RFC 8594 Deprecation / Sunset).
+    """
+
+    SUNSET_DATE = "Wed, 09 Jul 2026 00:00:00 GMT"
+    LINK_URL = "/api/v2/missions"
+    LINK_REL = "successor-version"
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if not path.startswith("/api/v2/graphql"):
+            await self.app(scope, receive, send)
+            return
+
+        sunset = self.SUNSET_DATE.encode()
+        link = f'<{self.LINK_URL}>; rel="{self.LINK_REL}"'.encode()
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"deprecation", b"true"))
+                headers.append((b"sunset", sunset))
+                headers.append((b"link", link))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+# Register the GraphQL deprecation middleware.
+# NOTE: The class is defined above so it is in scope at registration time.
+# (Earlier bisect attempt placed the registration above the class def, which
+# caused silent health-check failures — see AGENTS.md bisect record.)
+app.add_middleware(GraphQLDeprecationMiddleware)
+
+
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     structlog.contextvars.clear_contextvars()
-    structlog.contextvars.bind_contextvars(request_id=request_id)
+    structlog.contextvars.bind_contextvars(
+        request_id=request_id,
+        path=request.url.path,
+        method=request.method,
+        deprecated_endpoint=request.url.path.startswith("/api/v2/graphql"),
+    )
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     return response

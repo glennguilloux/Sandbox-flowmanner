@@ -183,3 +183,23 @@ curl http://127.0.0.1:8000/api/health  (verify)                         (instant
 - Do NOT commit `.env` files — they contain secrets
 - Do NOT run Alembic without checking current migration state first
 - Do NOT forget to restart celery workers if you changed tasks
+
+## Middleware registration order
+
+**Rule:** When registering a custom middleware class via `app.add_middleware(MyClass)`, the class must be **defined earlier in the file** than the `add_middleware` call. Python's `add_middleware` defers class resolution, so a forward reference produces a **silent** failure mode:
+
+- The module imports without error.
+- Uvicorn reports `Application startup complete`.
+- `/api/health` returns non-2xx on every attempt.
+- No Python traceback is written to stdout/stderr.
+- `deploy-backend.sh` auto-rolls back to the previous image.
+
+**Diagnosis shortcut:** if a deploy fails 15/15 health checks with no traceback, the first thing to check is whether a newly registered middleware class is defined below its `add_middleware` call.
+
+**Fix:** move the class definition above the `add_middleware` call. Re-deploy; the issue resolves immediately.
+
+**Exception:** inside a function (closure), class lookups are resolved at call time via LEGB — order does not matter.
+
+## Recent changes (bisect record)
+
+**`feat: GraphQL deprecation middleware` (5-step bisect, completed clean).** Adds four structured fields to every request's structlog context and registers a pure ASGI middleware that advertises RFC 8594 `Deprecation` / `Sunset` / `Link` headers on the legacy `/api/v2/graphql` endpoint (sunset 2026-07-09). The middleware class is defined above the `app.add_middleware` call in `main_fastapi.py` per the rule above.

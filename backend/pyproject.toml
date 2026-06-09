@@ -4,3 +4,19 @@ testpaths = ["tests"]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
+
+# ── mypy ─────────────────────────────────────────────────────────────────────
+# Migrations use alembic's runtime-injected `op` context proxy; mypy cannot
+# see this attribute statically (caused ~220 [attr-defined] errors across
+# every file in app/migrations/versions/). Suppress that code in the subtree.
+# (CLI args from .pre-commit-config.yaml: --ignore-missing-imports
+# --no-strict-optional.)
+
+[tool.mypy]
+ignore_missing_imports = true
+no_strict_optional = true
+
+[[tool.mypy.overrides]]
+module = "app.migrations.versions.*"
+disable_error_code = ["attr-defined"]
+
