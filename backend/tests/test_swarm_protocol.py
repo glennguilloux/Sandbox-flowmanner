@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
 # ── Mock factories (cannot live in conftest — not importable in pytest) ────
 
 
@@ -1079,10 +1080,9 @@ class TestRouteRegistration:
     def test_endpoint_registered(self, test_client, method, path, expected_status):
         """Endpoint returns expected status (not 404)."""
         # Patch services so GET endpoints don't error trying to use real DB
-        with (
-            patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_hp,
-            patch("app.api.v1.swarm_protocol.EscalationChain") as mock_ec,
-        ):
+        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_hp, patch(
+            "app.api.v1.swarm_protocol.EscalationChain"
+        ) as mock_ec:
             mock_hp.return_value.list_handoffs = AsyncMock(return_value=[])
             mock_ec.return_value.list_escalations = AsyncMock(return_value=[])
             mock_ec.return_value.list_dead_letters = AsyncMock(return_value=[])
@@ -1091,9 +1091,10 @@ class TestRouteRegistration:
                 resp = test_client.get(path)
             else:
                 resp = test_client.post(path, json={})
-            assert (
-                resp.status_code == expected_status
-            ), f"Expected {expected_status} for {method} {path}, got {resp.status_code}"
+            assert resp.status_code == expected_status, (
+                f"Expected {expected_status} for {method} {path}, "
+                f"got {resp.status_code}"
+            )
 
     def test_parameterized_routes_exist(self, test_client):
         """Parameterized routes return 404 for non-existent IDs (route itself exists)."""

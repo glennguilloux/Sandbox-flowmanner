@@ -15,7 +15,7 @@ from app.services.usage_service import get_usage_service
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_usage_service():
     svc = MagicMock()
     svc.get_summary.return_value = UsageSummaryResponse(
@@ -43,7 +43,7 @@ def mock_usage_service():
     return svc
 
 
-@pytest.fixture
+@pytest.fixture()
 def auth_client(mock_db_session, sample_user, mock_usage_service):
     async def override_get_db():
         yield mock_db_session
@@ -63,7 +63,7 @@ def auth_client(mock_db_session, sample_user, mock_usage_service):
     app.dependency_overrides.pop(get_usage_service, None)
 
 
-@pytest.fixture
+@pytest.fixture()
 def unauth_client(mock_db_session):
     async def override_get_db():
         yield mock_db_session

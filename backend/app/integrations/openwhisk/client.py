@@ -556,7 +556,7 @@ class OpenWhiskClient:
                     ActionInvocation(success=False, error=str(result))
                 )
             else:
-                processed_results.append(result)  # type: ignore[arg-type]
+                processed_results.append(result)
 
         logger.info(
             "Batch invocation completed: %s success, %s failures",

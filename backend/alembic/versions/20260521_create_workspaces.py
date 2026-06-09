@@ -5,17 +5,17 @@ Revises: 20260521_marketplace_integrations_tags
 Create Date: 2026-05-20 16:00:00.000000
 """
 
-from collections.abc import Sequence
-from typing import Union
-
-import sqlalchemy as sa
+from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 revision: str = "20260521_create_workspaces"
-down_revision: str | Sequence[str] | None = "20260521_marketplace_integrations_tags"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, Sequence[str], None] = (
+    "20260521_marketplace_integrations_tags"
+)
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

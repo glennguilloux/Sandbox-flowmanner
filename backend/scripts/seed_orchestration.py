@@ -3,10 +3,8 @@
 import asyncio
 import json
 import uuid
-
-from sqlalchemy import text
-
 from app.database import AsyncSessionLocal
+from sqlalchemy import text
 
 AGENTS = [
     {

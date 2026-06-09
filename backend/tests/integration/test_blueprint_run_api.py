@@ -19,11 +19,10 @@ Usage:
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timezone
+import pytest
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
-
-import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault(
@@ -71,8 +70,8 @@ def _bp(
         last_run_at=None,
         deleted_at=None,
         deleted_by=None,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -105,18 +104,20 @@ def _run(
         total_cost_usd=total_cost_usd,
         budget_limit_usd=budget_limit_usd,
         started_at=(
-            datetime.now(UTC)
+            datetime.now(timezone.utc)
             if status in ("executing", "completed", "failed", "aborted")
             else None
         ),
         completed_at=(
-            datetime.now(UTC) if status in ("completed", "failed", "aborted") else None
+            datetime.now(timezone.utc)
+            if status in ("completed", "failed", "aborted")
+            else None
         ),
         parent_run_id=None,
         input_data=input_data,
         meta=None,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -139,7 +140,7 @@ def _event(
         payload=payload or {},
         causal_parent=None,
         actor="unified_executor",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
     )
 
 
@@ -188,12 +189,12 @@ def mock_db():
 @pytest.fixture
 def app(mock_db, mock_user):
     """Minimal FastAPI app with V2 blueprint + run routers."""
-    from fastapi.responses import JSONResponse
-
-    from app.api.deps import get_current_user, get_workspace_id
     from app.api.v2.blueprints import router as blueprints_router
     from app.api.v2.runs import router as runs_router
+    from app.api.deps import get_current_user, get_workspace_id
     from app.database import get_db_session
+
+    from fastapi.responses import JSONResponse
     from app.services.blueprint_service import (
         BlueprintNotFoundError,
         BlueprintValidationError,
@@ -513,7 +514,7 @@ class TestListVersions:
                 snapshot={},
                 description="Updated",
                 created_by=42,
-                created_at=datetime.now(UTC),
+                created_at=datetime.now(timezone.utc),
             ),
             MagicMock(
                 id=str(uuid4()),
@@ -522,7 +523,7 @@ class TestListVersions:
                 snapshot={},
                 description="Initial",
                 created_by=42,
-                created_at=datetime.now(UTC),
+                created_at=datetime.now(timezone.utc),
             ),
         ]
 
@@ -700,7 +701,7 @@ class TestRunEvents:
                 actor="system",
                 task_id=None,
                 causal_parent=None,
-                timestamp=datetime.now(UTC),
+                timestamp=datetime.now(timezone.utc),
             ),
             MagicMock(
                 id=str(uuid4()),
@@ -712,7 +713,7 @@ class TestRunEvents:
                 actor="system",
                 task_id=None,
                 causal_parent=None,
-                timestamp=datetime.now(UTC),
+                timestamp=datetime.now(timezone.utc),
             ),
         ]
 

@@ -17,6 +17,7 @@ import pytest
 
 from app.services.mission_errors import MissionNotFoundError
 
+
 # ──────────────────────────────────────────────────────────────
 # 1. get_workspace_id — denied workspace resolution
 # ──────────────────────────────────────────────────────────────
@@ -163,8 +164,9 @@ class TestRequireMissionAccessAudit:
             mock_result.scalar_one_or_none.return_value = None
             db.execute = AsyncMock(return_value=mock_result)
 
-            with caplog.at_level(logging.WARNING), pytest.raises(MissionNotFoundError):
-                await require_mission_access(db, "m-123", user_id=99)
+            with caplog.at_level(logging.WARNING):
+                with pytest.raises(MissionNotFoundError):
+                    await require_mission_access(db, "m-123", user_id=99)
 
         assert any("entity_access_denied" in r.message for r in caplog.records)
         assert any("entity_type=mission" in r.message for r in caplog.records)
@@ -247,8 +249,9 @@ class TestRequireGraphAccessAudit:
             mock_result.scalar_one_or_none.return_value = None
             db.execute = AsyncMock(return_value=mock_result)
 
-            with caplog.at_level(logging.WARNING), pytest.raises(GraphNotFoundError):
-                await require_graph_access(db, "wf-abc", user_id=99)
+            with caplog.at_level(logging.WARNING):
+                with pytest.raises(GraphNotFoundError):
+                    await require_graph_access(db, "wf-abc", user_id=99)
 
         assert any("entity_access_denied" in r.message for r in caplog.records)
         assert any("entity_type=workflow" in r.message for r in caplog.records)
@@ -268,14 +271,12 @@ class TestRequireGraphAccessAudit:
 
         db = AsyncMock()
 
-        with (
-            patch(
-                "app.services.graph_service.get_graph_workflow", return_value=workflow
-            ),
-            caplog.at_level(logging.WARNING),
-            pytest.raises(GraphNotFoundError),
+        with patch(
+            "app.services.graph_service.get_graph_workflow", return_value=workflow
         ):
-            await require_graph_access(db, "wf-def", user_id=99)
+            with caplog.at_level(logging.WARNING):
+                with pytest.raises(GraphNotFoundError):
+                    await require_graph_access(db, "wf-def", user_id=99)
 
         assert any("entity_access_denied" in r.message for r in caplog.records)
         assert any("reason=owner_mismatch" in r.message for r in caplog.records)
@@ -405,13 +406,12 @@ class TestAuditLogFormatConsistency:
     async def test_all_access_denied_events_logged(self, caplog):
         """Every entity access denial fires exactly one structured warning."""
         from unittest.mock import MagicMock
-
         from fastapi import HTTPException
 
         from app.api.deps import get_workspace_id
-        from app.services.chat_service import require_chat_thread_access
-        from app.services.graph_service import require_graph_access
         from app.services.mission_service import require_mission_access
+        from app.services.graph_service import require_graph_access
+        from app.services.chat_service import require_chat_thread_access
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -449,8 +449,9 @@ class TestAuditLogFormatConsistency:
         mission.user_id = 1
         with patch("app.services.mission_service.get_mission", return_value=mission):
             db.execute = AsyncMock(return_value=mock_result)
-            with caplog.at_level(logging.WARNING), pytest.raises(MissionNotFoundError):
-                await require_mission_access(db, "m-1", user_id=2)
+            with caplog.at_level(logging.WARNING):
+                with pytest.raises(MissionNotFoundError):
+                    await require_mission_access(db, "m-1", user_id=2)
         entity_denials = [
             r for r in caplog.records if "entity_access_denied" in r.message
         ]

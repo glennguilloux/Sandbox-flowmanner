@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import json
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-import pytest
-
 from app.services.substrate.strategies.swarm import SwarmStrategy
 from app.services.substrate.workflow_models import (
-    NodeType,
-    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
+    NodeType,
+    StrategyResult,
 )
+
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
-
-import pytest
 
 from app.models.capability_models import Budget
 from app.services.substrate.strategies.meta import MetaStrategy
 from app.services.substrate.workflow_models import (
-    NodeType,
-    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
+    NodeType,
+    StrategyResult,
 )
+from decimal import Decimal
+
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

@@ -15,17 +15,16 @@ Revises: 20260605_entity_versioning
 Create Date: 2026-06-06 10:00:00.000000
 """
 
-from collections.abc import Sequence
-from typing import Union
-
-import sqlalchemy as sa
+from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
+
 
 revision: str = "20260606_workspace_native"
-down_revision: str | Sequence[str] | None = "20260605_entity_versioning"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, Sequence[str], None] = "20260605_entity_versioning"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

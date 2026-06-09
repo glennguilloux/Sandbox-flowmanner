@@ -8,10 +8,9 @@ rows in agent_tool_bindings / agent_capability_bindings.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timezone
 
 
 def _make_agent_row(template_id, slug, name, definition_dict):
@@ -94,12 +93,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with (
-            patch(
-                "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
-            ),
-            patch("app.config.settings") as mock_settings,
-        ):
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
@@ -157,12 +153,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with (
-            patch(
-                "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
-            ),
-            patch("app.config.settings") as mock_settings,
-        ):
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
@@ -204,12 +197,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with (
-            patch(
-                "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
-            ),
-            patch("app.config.settings") as mock_settings,
-        ):
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 
@@ -252,12 +242,9 @@ class TestImportBindingsLogic:
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_engine.dispose = AsyncMock()
 
-        with (
-            patch(
-                "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
-            ),
-            patch("app.config.settings") as mock_settings,
-        ):
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", return_value=mock_engine
+        ), patch("app.config.settings") as mock_settings:
             mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
             await run()
 

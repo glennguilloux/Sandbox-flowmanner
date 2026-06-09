@@ -17,7 +17,7 @@ Usage (inside container):
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Generator
+from typing import Generator
 from uuid import uuid4
 
 import pytest
@@ -26,9 +26,9 @@ from sqlalchemy import text
 try:
     from app.database import AsyncSessionLocal
     from app.models.agent import Agent, AgentVersion
-    from app.models.mission_advanced_models import MissionVersion
-    from app.models.mission_models import Mission, MissionStatus
     from app.models.workspace_models import Workspace, WorkspaceVersion
+    from app.models.mission_models import Mission, MissionStatus
+    from app.models.mission_advanced_models import MissionVersion
     from app.services.versioning import (
         create_version_snapshot,
         get_version_history,
@@ -65,6 +65,7 @@ pytestmark = [
 
 
 class TestAgentVersioningIntegration:
+
     @pytest.mark.asyncio
     async def test_create_agent_and_version_it(self):
         """Create a real Agent, version it, verify DB rows."""
@@ -257,6 +258,7 @@ class TestAgentVersioningIntegration:
 
 
 class TestWorkspaceVersioningIntegration:
+
     @pytest.mark.asyncio
     async def test_create_workspace_and_version_it(self):
         """Create a real Workspace, version it, verify DB rows."""
@@ -373,6 +375,7 @@ class TestWorkspaceVersioningIntegration:
 
 
 class TestMissionVersioningIntegration:
+
     @pytest.mark.asyncio
     async def test_create_mission_and_version_it(self):
         """Create a real Mission, version it, verify the normalized column name."""
@@ -495,6 +498,7 @@ class TestMissionVersioningIntegration:
 
 
 class TestUniqueIndexIntegration:
+
     @pytest.mark.asyncio
     async def test_agent_versions_unique_constraint(self):
         """Two agent_versions with same (agent_id, version) should fail."""
@@ -602,6 +606,7 @@ class TestUniqueIndexIntegration:
 
 
 class TestEmptyHistoryIntegration:
+
     @pytest.mark.asyncio
     async def test_version_history_empty_for_unknown_entity(self):
         """Querying history for a non-existent entity returns empty list."""

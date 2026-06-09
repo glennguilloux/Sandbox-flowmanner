@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
 # ── Mock factories ──────────────────────────────────────────────────────────
 
 
@@ -665,9 +666,10 @@ class TestRouteRegistration:
             else:
                 resp = test_client.post(path, json={})
 
-            assert (
-                resp.status_code == expected_status
-            ), f"Expected {expected_status} for {method} {path}, got {resp.status_code}"
+            assert resp.status_code == expected_status, (
+                f"Expected {expected_status} for {method} {path}, "
+                f"got {resp.status_code}"
+            )
 
     def test_swarm_and_protocol_routes_do_not_conflict(self, test_client):
         """Verify both swarm and protocol routers coexist without route conflicts."""

@@ -7,15 +7,15 @@ and can be reloaded into a fresh KnowledgeGraph instance.
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
-from app.services.improvement.causal_decomposer import StrategyType
-from app.services.improvement.failure_types import FailureType
 from app.services.improvement.knowledge_graph import (
-    EdgeType,
     KnowledgeGraph,
     NodeType,
+    EdgeType,
 )
+from app.services.improvement.failure_types import FailureType
+from app.services.improvement.causal_decomposer import StrategyType
 
 pytestmark = pytest.mark.integration
 

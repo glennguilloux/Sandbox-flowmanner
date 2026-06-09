@@ -36,6 +36,7 @@ from app.models.substrate_models import (
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine
 
+
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -500,18 +501,20 @@ class TestTrueSIGKILLRecovery:
         os.kill(proc.pid, signal.SIGKILL)
         proc.join(timeout=5)
         assert not proc.is_alive(), "Worker should be dead after SIGKILL"
-        assert (
-            proc.exitcode == -signal.SIGKILL
-        ), f"Exit code should be -SIGKILL ({-signal.SIGKILL}), got {proc.exitcode}"
+        assert proc.exitcode == -signal.SIGKILL, (
+            f"Exit code should be -SIGKILL ({-signal.SIGKILL}), " f"got {proc.exitcode}"
+        )
 
         # Read surviving events — MUST be fewer than total (8)
         surviving = _deserialize_events_from_file(str(event_log))
-        assert (
-            len(surviving) >= target_seq
-        ), f"At least {target_seq} events should survive SIGKILL, got {len(surviving)}"
-        assert (
-            len(surviving) < 8
-        ), f"SIGKILL should interrupt before all 8 events, got {len(surviving)} — worker may have finished"
+        assert len(surviving) >= target_seq, (
+            f"At least {target_seq} events should survive SIGKILL, "
+            f"got {len(surviving)}"
+        )
+        assert len(surviving) < 8, (
+            f"SIGKILL should interrupt before all 8 events, "
+            f"got {len(surviving)} — worker may have finished"
+        )
 
         run_id = surviving[0].run_id
         for e in surviving:
@@ -599,9 +602,10 @@ class TestTrueSIGKILLRecovery:
         rebuilt = asyncio.run(engine.rebuild_state(db, run_id))
 
         # Task A must be completed (seq 4 was reached before kill)
-        assert (
-            "sig_a" in rebuilt.completed_tasks
-        ), f"Task A should be completed (seq {target_seq} reached), completed_tasks={rebuilt.completed_tasks}"
+        assert "sig_a" in rebuilt.completed_tasks, (
+            f"Task A should be completed (seq {target_seq} reached), "
+            f"completed_tasks={rebuilt.completed_tasks}"
+        )
         assert (
             rebuilt.total_tokens >= 120
         ), f"Task A should add 120 tokens, got {rebuilt.total_tokens}"

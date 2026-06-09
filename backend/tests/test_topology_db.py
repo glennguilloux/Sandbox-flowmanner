@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timezone
 
 
 class TestBuildFromDB:
@@ -133,9 +132,8 @@ class TestSaveSnapshot:
     @pytest.mark.asyncio
     async def test_save_snapshot_creates_new_version(self):
         """Should create a new snapshot with version = max + 1."""
-        import networkx as nx
-
         from app.services.semantic.topology_manager import TopologyManager
+        import networkx as nx
 
         topo = TopologyManager()
         topo.G = nx.DiGraph()

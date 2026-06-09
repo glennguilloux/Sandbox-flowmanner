@@ -8,9 +8,8 @@ Usage (inside container):
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestBootstrapReport:
@@ -106,7 +105,7 @@ class TestBootstrapDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_skips_all_steps(self):
-        from app.cli.bootstrap import StepStatus, bootstrap
+        from app.cli.bootstrap import bootstrap, StepStatus
 
         report = await bootstrap(dry_run=True)
         assert report.all_ok is True
@@ -138,7 +137,7 @@ class TestBootstrapSkips:
 
     @pytest.mark.asyncio
     async def test_skip_migrations(self):
-        from app.cli.bootstrap import StepStatus, bootstrap
+        from app.cli.bootstrap import bootstrap, StepStatus
 
         report = await bootstrap(skip_migrations=True, dry_run=True)
         migration_step = next(s for s in report.steps if "migration" in s.name.lower())
@@ -146,7 +145,7 @@ class TestBootstrapSkips:
 
     @pytest.mark.asyncio
     async def test_skip_qdrant(self):
-        from app.cli.bootstrap import StepStatus, bootstrap
+        from app.cli.bootstrap import bootstrap, StepStatus
 
         report = await bootstrap(skip_qdrant=True, dry_run=True)
         qdrant_step = next(s for s in report.steps if "qdrant" in s.name.lower())

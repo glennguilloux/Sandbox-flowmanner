@@ -5,18 +5,17 @@ Revises: next_level_growth_wave1
 Create Date: 2026-06-03 13:00:00.000000
 """
 
-from collections.abc import Sequence
-from typing import Union
+from typing import Sequence, Union
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from alembic import op
 
 revision: str = "next_level_growth_wave2"
-down_revision: str | Sequence[str] | None = "next_level_growth_wave1"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, Sequence[str], None] = "next_level_growth_wave1"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

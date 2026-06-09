@@ -5,21 +5,20 @@ Tests the ORM → Workflow conversion functions.
 
 from __future__ import annotations
 
+import pytest
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.services.substrate.adapters import (
-    _MISSION_TYPE_MAP,
-    _TASK_TYPE_MAP,
-    _resolve_deps,
-    blueprint_to_workflow,
+    mission_to_workflow,
     flow_to_workflow,
     graph_to_workflow,
-    mission_to_workflow,
+    blueprint_to_workflow,
+    _resolve_deps,
+    _TASK_TYPE_MAP,
+    _MISSION_TYPE_MAP,
 )
-from app.services.substrate.workflow_models import NodeType, WorkflowType
+from app.services.substrate.workflow_models import WorkflowType, NodeType
 
 
 def _make_mission(**overrides):
@@ -34,7 +33,7 @@ def _make_mission(**overrides):
     m.budget_seconds = overrides.get("budget_seconds", 120)
     m.actual_cost = overrides.get("actual_cost", 0.5)
     m.tokens_used = overrides.get("tokens_used", 500)
-    m.plan = overrides.get("plan")
+    m.plan = overrides.get("plan", None)
     m.fallback_strategy = overrides.get("fallback_strategy", "human_escalate")
     return m
 
@@ -46,17 +45,17 @@ def _make_task(**overrides):
     t.title = overrides.get("title", "Test Task")
     t.description = overrides.get("description", "Do something")
     t.task_type = overrides.get("task_type", "llm")
-    t.tool_id = overrides.get("tool_id")
+    t.tool_id = overrides.get("tool_id", None)
     t.assigned_model = overrides.get("assigned_model", "deepseek-chat")
-    t.assigned_agent_id = overrides.get("assigned_agent_id")
+    t.assigned_agent_id = overrides.get("assigned_agent_id", None)
     t.max_retries = overrides.get("max_retries", 3)
     t.status = overrides.get("status", "pending")
-    t.output_data = overrides.get("output_data")
-    t.error_message = overrides.get("error_message")
+    t.output_data = overrides.get("output_data", None)
+    t.error_message = overrides.get("error_message", None)
     t.retry_count = overrides.get("retry_count", 0)
     t.tokens_used = overrides.get("tokens_used", 0)
     t.cost = overrides.get("cost", 0.0)
-    t.dependencies = overrides.get("dependencies")
+    t.dependencies = overrides.get("dependencies", None)
     return t
 
 

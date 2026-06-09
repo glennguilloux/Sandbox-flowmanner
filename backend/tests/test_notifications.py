@@ -1,8 +1,8 @@
 """Tests for notification endpoints (Phase 3: DB-backed + web push)."""
 
 import os
-from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,7 +50,7 @@ def make_mock_notification(
     n.entity_type = None
     n.entity_id = None
     n.meta = None
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     n.created_at = now.isoformat()
     n.updated_at = now.isoformat()
     return n

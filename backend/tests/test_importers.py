@@ -118,8 +118,8 @@ class TestToolTypeInference:
         assert _tool_type_from_module("stripe_operations") == "integration"
 
     def test_handler_ref_format(self):
-        from app.tools.browser_ping import BrowserPingTool
         from scripts.import_builtin_tools import _handler_ref
+        from app.tools.browser_ping import BrowserPingTool
 
         tool = BrowserPingTool()
         ref = _handler_ref(tool)

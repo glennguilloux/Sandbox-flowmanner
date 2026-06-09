@@ -16,7 +16,8 @@ from __future__ import annotations
 import asyncio
 import socket
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone
+
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -34,7 +35,6 @@ def db_reachable() -> bool:
 async def table_count(table: str) -> int:
     """Return row count for a table, or -1 if unreachable."""
     from sqlalchemy import text
-
     from app.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
@@ -48,12 +48,11 @@ async def table_count(table: str) -> int:
 async def table_exists(table: str) -> bool:
     """Check whether a table exists in the current database."""
     from sqlalchemy import text
-
     from app.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            text("SELECT 1 FROM information_schema.tables WHERE table_name = :name"),
+            text("SELECT 1 FROM information_schema.tables " "WHERE table_name = :name"),
             {"name": table},
         )
         return result.fetchone() is not None
@@ -135,9 +134,9 @@ class DRTestRunner:
             self.skip("Hydration: tools", "tools_catalog is empty")
             return
 
-        import app.tools.base as base_mod
         from app.lifespan import _hydrate_tools_from_db, _resolve_handler_ref
         from app.tools.base import get_tool_registry
+        import app.tools.base as base_mod
 
         old_registry = base_mod._tool_registry
         base_mod._tool_registry = None
@@ -163,9 +162,9 @@ class DRTestRunner:
             self.skip("Hydration: capabilities", "capabilities_catalog is empty")
             return
 
-        import app.services.nexus.capability_registry as cap_mod
         from app.lifespan import _hydrate_capabilities_from_db
         from app.services.nexus.capability_registry import get_capability_registry
+        import app.services.nexus.capability_registry as cap_mod
 
         old_registry = cap_mod._capability_registry
         cap_mod._capability_registry = None
@@ -209,7 +208,6 @@ class DRTestRunner:
     async def check_memory_service(self):
         """Verify MemoryService works with mocked session."""
         from unittest.mock import AsyncMock, MagicMock
-
         from app.services.memory_service import MemoryService
 
         # Agent memory store
@@ -246,9 +244,9 @@ class DRTestRunner:
 
     def check_topology_models(self):
         from app.models.topology_models import (
-            TopologyEdge,
-            TopologyNode,
             TopologySnapshot,
+            TopologyNode,
+            TopologyEdge,
         )
 
         if (
@@ -292,7 +290,7 @@ class DRTestRunner:
         print("\n" + "=" * 60)
         print("  DISASTER RECOVERY RECONSTRUCTION REPORT")
         print("=" * 60)
-        print(f"  Generated: {datetime.now(UTC).isoformat()}")
+        print(f"  Generated: {datetime.now(timezone.utc).isoformat()}")
         print("-" * 60)
         for label, count in report.items():
             icon = "✅" if count > 0 else "⚠️"

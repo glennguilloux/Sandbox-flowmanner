@@ -89,7 +89,7 @@ async def log_event(
 
     await log_auth_event(
         db_session_factory=AsyncSessionLocal,
-        user_id=user_id,  # type: ignore[arg-type]
+        user_id=user_id,
         user_email=None,
         action=action,
         success=True,

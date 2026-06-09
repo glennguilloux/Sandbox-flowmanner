@@ -8,21 +8,21 @@ Tests cover:
 - HumanInterrupt exception behavior
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+import pytest
+from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
-import pytest
-
-from app.models.circuit_breaker_models import (
-    CircuitBreakerState,
-    MissionCircuitBreaker,
-)
 from app.models.hitl_models import (
+    InboxItem,
     HumanInterrupt,
     HumanInterruptType,
-    InboxItem,
     InboxItemStatus,
 )
+from app.models.circuit_breaker_models import (
+    MissionCircuitBreaker,
+    CircuitBreakerState,
+)
+
 
 # ── HITL Models ────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ class TestCircuitBreakerModel:
             id=str(uuid4()),
             mission_id=str(uuid4()),
             max_duration_seconds=60,
-            started_at=datetime.now(UTC) - timedelta(seconds=120),
+            started_at=datetime.now(timezone.utc) - timedelta(seconds=120),
             max_llm_calls=100,
             max_cost_usd=100.0,
             max_tool_calls=100,
@@ -262,7 +262,7 @@ class TestHITLServiceLogic:
     """Test HITLService static/logic methods."""
 
     def test_item_to_dict(self):
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         item = InboxItem(
             id="test-id",
             workspace_id="ws-1",
@@ -290,7 +290,7 @@ class TestHITLServiceLogic:
         assert d["proposed_action"] == {"tool": "deploy"}
 
     def test_item_to_dict_resolved(self):
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         item = InboxItem(
             id="test-id-2",
             user_id=1,
@@ -314,20 +314,20 @@ class TestHITLServiceLogic:
 
 def test_imports():
     """Verify all Phase 6 models and services can be imported."""
-    from app.models.circuit_breaker_models import (
-        CircuitBreakerState,
-        MissionCircuitBreaker,
-    )
     from app.models.hitl_models import (
+        InboxItem,
         HumanInterrupt,
         HumanInterruptType,
-        InboxItem,
         InboxItemStatus,
     )
+    from app.models.circuit_breaker_models import (
+        MissionCircuitBreaker,
+        CircuitBreakerState,
+    )
+    from app.services.hitl_service import HITLService
     from app.services.circuit_breaker_service import CircuitBreakerService
     from app.services.cost_attribution_service import CostAttributionService
     from app.services.episodic_memory_worker import EpisodicMemoryWorker
-    from app.services.hitl_service import HITLService
 
     assert InboxItem is not None
     assert HumanInterrupt is not None

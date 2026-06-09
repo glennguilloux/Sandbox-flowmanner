@@ -672,7 +672,7 @@ class NodeExecutor:
             from app.tools.base import ToolRegistry
 
             tool_name = node.type.value
-            tool = ToolRegistry.get(tool_name)  # type: ignore[arg-type]
+            tool = ToolRegistry.get(tool_name)
             if tool is None:
                 return {
                     "success": False,

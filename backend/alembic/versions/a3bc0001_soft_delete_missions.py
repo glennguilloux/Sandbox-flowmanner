@@ -8,18 +8,16 @@ Adds deleted_at and deleted_by columns to missions table for soft-delete support
 Includes indexes for efficient soft-delete query filtering.
 """
 
-from collections.abc import Sequence
-from typing import Union
-
-import sqlalchemy as sa
+from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers
 revision: str = "a3bc0001"
-down_revision: str | Sequence[str] | None = "2c8ebb094375"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, Sequence[str], None] = "2c8ebb094375"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

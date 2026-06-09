@@ -1,7 +1,7 @@
 """rename password_hash to hashed_password
 
 Revision ID: 202605051230
-Revises:
+Revises: 
 Create Date: 2026-05-05 12:30:00.000000
 
 """

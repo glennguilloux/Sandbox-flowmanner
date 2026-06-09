@@ -5,10 +5,9 @@ Revises: flo79_user_custom_roles
 Create Date: 2026-05-16
 """
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-
-from alembic import op
 
 # revision identifiers
 revision = "flo108_feedback"

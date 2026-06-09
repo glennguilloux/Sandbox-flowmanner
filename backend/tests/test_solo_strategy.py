@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
-
-import pytest
 
 from app.models.capability_models import Budget
 from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.workflow_models import (
-    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
+    StrategyResult,
 )
 
 

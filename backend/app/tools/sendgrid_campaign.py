@@ -215,9 +215,9 @@ class SendgridCampaignTool(BaseTool):
             "to": self._parse_recipients(validated.to),
         }
         if validated.cc:
-            p["cc"] = self._parse_recipients(validated.cc)  # type: ignore[arg-type]
+            p["cc"] = self._parse_recipients(validated.cc)
         if validated.bcc:
-            p["bcc"] = self._parse_recipients(validated.bcc)  # type: ignore[arg-type]
+            p["bcc"] = self._parse_recipients(validated.bcc)
         if validated.subject and validated.action == "send":
             p["subject"] = validated.subject
         if validated.template_data:

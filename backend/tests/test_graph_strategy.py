@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-import pytest
-
 from app.services.substrate.strategies.graph import GraphStrategy
 from app.services.substrate.workflow_models import (
-    StrategyResult,
     Workflow,
-    WorkflowEdge,
     WorkflowNode,
+    WorkflowEdge,
     WorkflowType,
+    StrategyResult,
 )
+
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

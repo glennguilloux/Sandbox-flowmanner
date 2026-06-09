@@ -15,11 +15,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import pytest
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
-
-import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault(
@@ -30,18 +29,18 @@ from app.models.capability_models import Budget, BudgetExhausted
 from app.models.substrate_models import SubstrateEventType
 from app.services.substrate.executor import UnifiedExecutor, _find_resume_point
 from app.services.substrate.node_executor import NodeExecutor
+from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.strategies.dag import DAGStrategy
 from app.services.substrate.strategies.graph import GraphStrategy
 from app.services.substrate.strategies.pipeline import PipelineStrategy
-from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.strategies.swarm import SwarmStrategy
 from app.services.substrate.workflow_models import (
+    Workflow,
+    WorkflowNode,
+    WorkflowEdge,
+    WorkflowType,
     NodeType,
     StrategyResult,
-    Workflow,
-    WorkflowEdge,
-    WorkflowNode,
-    WorkflowType,
 )
 
 pytestmark = pytest.mark.integration
@@ -328,10 +327,9 @@ def _patch_budget_and_event_log(mock_enforcer=None, mock_el=None):
     @contextmanager
     def _ctx():
         enforcer = mock_enforcer or AsyncMock()
-        with (
-            patch(BUDGET_ENFORCER_PATCH) as mock_get_enf,
-            patch("app.services.substrate.node_executor.get_event_log") as mock_get_el,
-        ):
+        with patch(BUDGET_ENFORCER_PATCH) as mock_get_enf, patch(
+            "app.services.substrate.node_executor.get_event_log"
+        ) as mock_get_el:
             mock_get_enf.return_value = enforcer
             mock_get_el.return_value = mock_el or _make_mock_event_log()
             yield enforcer
@@ -1194,14 +1192,11 @@ class TestNodeExecutorDispatch:
         workflow = _make_solo_workflow(node=node)
         executor = _make_executor(event_log=mock_event_log)
 
-        with (
-            patch(
-                "app.services.substrate.node_executor.get_event_log",
-                return_value=mock_event_log,
-            ),
-            patch.object(
-                NodeExecutor, "_dispatch", side_effect=RuntimeError("Unexpected crash")
-            ),
+        with patch(
+            "app.services.substrate.node_executor.get_event_log",
+            return_value=mock_event_log,
+        ), patch.object(
+            NodeExecutor, "_dispatch", side_effect=RuntimeError("Unexpected crash")
         ):
             result = await executor.execute_node(
                 db=mock_db,
@@ -1288,18 +1283,13 @@ class TestCircuitBreakerIntegration:
         # Don't override _ensure_circuit_breaker — let the real method run.
         # Instead, make the CircuitBreakerService.get_or_create raise.
 
-        with (
-            _patch_budget_and_event_log(
-                mock_enforcer=AsyncMock(
-                    call=AsyncMock(return_value=_mock_llm_response())
-                ),
-                mock_el=mock_event_log,
-            ),
-            patch.object(
-                CircuitBreakerService,
-                "get_or_create",
-                side_effect=Exception("FK violation: mission_id not in missions"),
-            ),
+        with _patch_budget_and_event_log(
+            mock_enforcer=AsyncMock(call=AsyncMock(return_value=_mock_llm_response())),
+            mock_el=mock_event_log,
+        ), patch.object(
+            CircuitBreakerService,
+            "get_or_create",
+            side_effect=Exception("FK violation: mission_id not in missions"),
         ):
             result = await executor.execute(db=mock_db, workflow=workflow)
 

@@ -670,7 +670,7 @@ async def create_dataset_from_template(
     builder = DatasetBuilder(db)
     ds = await builder.create_dataset(
         name=name or f"{template['name']} Dataset",
-        category=template["category"],  # type: ignore[arg-type]
+        category=template["category"],
         description=f"Created from template: {template['name']}",
     )
 

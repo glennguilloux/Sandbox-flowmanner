@@ -355,7 +355,7 @@ class Query:
         db = _get_db(info)
         from app.services.agent_service import get_agent
 
-        agent = await get_agent(db, id)  # type: ignore[arg-type]
+        agent = await get_agent(db, id)
         if agent is None or str(agent.owner_id) != str(user.id):
             raise ValueError("Agent not found")
         return _agent_to_gql(agent)
@@ -551,7 +551,7 @@ class Mutation:
             input.description,
             input.system_prompt,
             input.model_preference,
-            input.config,  # type: ignore[arg-type]
+            input.config,
         )
         return _agent_to_gql(agent)
 
@@ -561,10 +561,10 @@ class Mutation:
         db = _get_db(info)
         from app.services.agent_service import delete_agent, get_agent
 
-        agent = await get_agent(db, id)  # type: ignore[arg-type]
+        agent = await get_agent(db, id)
         if agent is None or str(agent.owner_id) != str(user.id):
             raise ValueError("Agent not found")
-        return await delete_agent(db, id)  # type: ignore[arg-type]
+        return await delete_agent(db, id)
 
     @strawberry.mutation
     async def create_chat_thread(

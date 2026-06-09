@@ -5,10 +5,10 @@ Revises: auth_v3_001
 Create Date: 2026-06-08
 """
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-from alembic import op
 
 revision = "workspaces_v3_001"
 down_revision = "auth_v3_001"

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
+from unittest.mock import AsyncMock, MagicMock
+from collections import defaultdict
 
 
 class TestSeedCapabilityDepsLogic:

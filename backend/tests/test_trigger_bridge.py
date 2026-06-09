@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.services.substrate.trigger_bridge import (
-    FALLBACK_TICK_SECONDS,
     TriggerBridge,
+    FALLBACK_TICK_SECONDS,
     get_trigger_bridge,
-    notify_trigger_due,
     start_trigger_bridge,
     stop_trigger_bridge,
+    notify_trigger_due,
 )
 
 
@@ -107,13 +106,10 @@ class TestPollOnce:
         # Inject a mock module into sys.modules so the local import resolves.
         mock_ts_module = MagicMock()
         mock_ts_module.process_cron_triggers = mock_process
-        with (
-            patch(
-                "app.services.substrate.trigger_bridge.AsyncSessionLocal",
-                return_value=mock_session,
-            ),
-            patch.dict("sys.modules", {"app.services.trigger_service": mock_ts_module}),
-        ):
+        with patch(
+            "app.services.substrate.trigger_bridge.AsyncSessionLocal",
+            return_value=mock_session,
+        ), patch.dict("sys.modules", {"app.services.trigger_service": mock_ts_module}):
             await bridge._poll_once()
 
         assert bridge._tick_count == 1
@@ -130,13 +126,10 @@ class TestPollOnce:
         mock_process = AsyncMock(return_value=2)
         mock_ts_module = MagicMock()
         mock_ts_module.process_cron_triggers = mock_process
-        with (
-            patch(
-                "app.services.substrate.trigger_bridge.AsyncSessionLocal",
-                return_value=mock_session,
-            ),
-            patch.dict("sys.modules", {"app.services.trigger_service": mock_ts_module}),
-        ):
+        with patch(
+            "app.services.substrate.trigger_bridge.AsyncSessionLocal",
+            return_value=mock_session,
+        ), patch.dict("sys.modules", {"app.services.trigger_service": mock_ts_module}):
             await bridge._poll_once()
 
         mock_session.commit.assert_awaited_once()

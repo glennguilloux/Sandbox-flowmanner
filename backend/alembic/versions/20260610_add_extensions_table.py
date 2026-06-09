@@ -5,9 +5,8 @@ Revises: phase85_webhook_delivered_at, phase104_retarget_aux_tables, add_communi
 Create Date: 2026-06-10
 """
 
-import sqlalchemy as sa
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "add_extensions_table"
 down_revision = (

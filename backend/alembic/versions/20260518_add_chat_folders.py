@@ -5,9 +5,8 @@ Revises: mission_advanced_001
 Create Date: 2026-05-18
 """
 
-import sqlalchemy as sa
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "chat_folders_001"
 down_revision = "mission_advanced_001"

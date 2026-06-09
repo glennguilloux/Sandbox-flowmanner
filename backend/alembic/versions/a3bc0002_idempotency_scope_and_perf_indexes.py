@@ -10,17 +10,15 @@ Create Date: 2026-06-02 14:00:00.000000
 3. Adds performance indexes for hot mission/task queries (B4)
 """
 
-from collections.abc import Sequence
-from typing import Union
-
-import sqlalchemy as sa
+from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 revision: str = "a3bc0002"
-down_revision: str | Sequence[str] | None = "a3bc0001"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, Sequence[str], None] = "a3bc0001"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

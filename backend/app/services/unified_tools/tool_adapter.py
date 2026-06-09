@@ -237,17 +237,17 @@ class ToolAdapter:
 
             # Create the tool
             tool = Tool(
-                tool_id=tool_def["tool_id"],  # type: ignore[arg-type]
-                name=tool_def["name"],  # type: ignore[arg-type]
-                description=tool_def["description"],  # type: ignore[arg-type]
-                category=tool_def["category"],  # type: ignore[arg-type]
-                input_schema=tool_def.get("input_schema", {}),  # type: ignore[arg-type]
-                output_schema=tool_def.get("output_schema", {}),  # type: ignore[arg-type]
+                tool_id=tool_def["tool_id"],
+                name=tool_def["name"],
+                description=tool_def["description"],
+                category=tool_def["category"],
+                input_schema=tool_def.get("input_schema", {}),
+                output_schema=tool_def.get("output_schema", {}),
                 handler=handler,
                 source_service=service_name,
-                requires_auth=tool_def.get("requires_auth", True),  # type: ignore[arg-type]
-                cost_estimate=tool_def.get("cost_estimate", {}),  # type: ignore[arg-type]
-                tags=tool_def.get("tags", []),  # type: ignore[arg-type]
+                requires_auth=tool_def.get("requires_auth", True),
+                cost_estimate=tool_def.get("cost_estimate", {}),
+                tags=tool_def.get("tags", []),
             )
 
             # Register the tool

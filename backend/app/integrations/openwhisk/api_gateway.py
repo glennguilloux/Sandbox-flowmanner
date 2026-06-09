@@ -333,7 +333,7 @@ class OpenWhiskAPIGateway:
                     }
                 )
             else:
-                processed_results.append(result)  # type: ignore[arg-type]
+                processed_results.append(result)
 
         return processed_results
 

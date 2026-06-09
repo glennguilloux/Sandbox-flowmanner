@@ -15,9 +15,9 @@ import asyncio
 import importlib
 import json
 import logging
-import os
 import sys
-from datetime import UTC, datetime, timezone
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -64,43 +64,41 @@ def _handler_ref(tool) -> str:
 
 
 async def run():
-    from sqlalchemy import select
-    from sqlalchemy import text as sa_text
+    from sqlalchemy import select, text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
-
     from app.config import settings
 
     # ── 1. Bootstrap the in-memory ToolRegistry ──────────────────────
     from app.tools.base import get_tool_registry, register_tool
-    from app.tools.browser_click import BrowserClickTool
-    from app.tools.browser_close import BrowserCloseTool
-    from app.tools.browser_navigate import BrowserNavigateTool
 
     # Import and register all core tools (same as lifespan._register_core_tools)
     from app.tools.browser_ping import BrowserPingTool
+    from app.tools.browser_navigate import BrowserNavigateTool
     from app.tools.browser_screenshot import BrowserScreenshotTool
-    from app.tools.browser_scroll import BrowserScrollTool
+    from app.tools.browser_close import BrowserCloseTool
     from app.tools.browser_snapshot import BrowserSnapshotTool
+    from app.tools.browser_click import BrowserClickTool
     from app.tools.browser_type import BrowserTypeTool
-    from app.tools.data import CsvParseTool, JsonTransformTool, RegexExtractTool
+    from app.tools.browser_scroll import BrowserScrollTool
+    from app.tools.topology import TopologyTool
+    from app.tools.terminal import TerminalTool
+    from app.tools.integration import ListIntegrationsTool, ExecuteIntegrationTool
+    from app.tools.llm import LLMSummarizeTool, LLMTranslateTool, LLMClassifyTool
+    from app.tools.data import JsonTransformTool, CsvParseTool, RegexExtractTool
+    from app.tools.utility import UUIDGeneratorTool, TimestampConverterTool
+    from app.tools.external import WeatherCurrentTool, CurrencyConvertTool
     from app.tools.differentiators import (
+        PersistentAgentMemoryTool,
+        SemanticMemoryIndexTool,
+        KnowledgeBaseConnectorTool,
         BrandVoiceEnforcerTool,
         CollaborativeTeamSpaceTool,
-        KnowledgeBaseConnectorTool,
-        PersistentAgentMemoryTool,
         PIIRedactorTool,
-        RAGContextBuilderTool,
         SemanticChunkingTool,
-        SemanticMemoryIndexTool,
         SubAgentRouterTool,
         TaskPlannerTool,
+        RAGContextBuilderTool,
     )
-    from app.tools.external import CurrencyConvertTool, WeatherCurrentTool
-    from app.tools.integration import ExecuteIntegrationTool, ListIntegrationsTool
-    from app.tools.llm import LLMClassifyTool, LLMSummarizeTool, LLMTranslateTool
-    from app.tools.terminal import TerminalTool
-    from app.tools.topology import TopologyTool
-    from app.tools.utility import TimestampConverterTool, UUIDGeneratorTool
 
     core_tools = [
         BrowserPingTool(),
@@ -157,7 +155,7 @@ async def run():
 
     # ── 2. Upsert into Postgres ──────────────────────────────────────
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     new_count = 0
     updated_count = 0

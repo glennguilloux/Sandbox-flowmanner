@@ -9,19 +9,18 @@ Add:
 - mission_tasks.approval_required (Boolean, default False) — for human approval gating
 """
 
-from collections.abc import Sequence
-from typing import Union
+from typing import Sequence, Union
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "next_level_growth_wave1"
-down_revision: str | Sequence[str] | None = "f637dac6c054"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, Sequence[str], None] = "f637dac6c054"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

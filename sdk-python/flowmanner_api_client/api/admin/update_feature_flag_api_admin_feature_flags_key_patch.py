@@ -1,17 +1,20 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
 import httpx
 
-from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...types import Response, UNSET
+from ... import errors
+
 from ...models.feature_flag import FeatureFlag
 from ...models.http_validation_error import HTTPValidationError
 from ...models.update_feature_flag_api_admin_feature_flags_key_patch_data import (
     UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
 )
-from ...types import Response, Unset
+from ...types import UNSET, Unset
+from typing import cast
 
 
 def _get_kwargs(

@@ -190,8 +190,8 @@ class GraphInterpreter:
                     raise result
                 else:
                     all_outputs[node_id] = result
-                    self.context.set_node_output(node_id, result)  # type: ignore[arg-type]
-                    await self._record_state(node_id, result)  # type: ignore[arg-type]
+                    self.context.set_node_output(node_id, result)
+                    await self._record_state(node_id, result)
 
                     # Check for pause signal (approval node)
                     if isinstance(result, dict) and result.get("pause"):

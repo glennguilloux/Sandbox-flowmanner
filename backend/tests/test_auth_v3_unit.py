@@ -6,8 +6,6 @@ scope validation, and session token utilities.
 
 from __future__ import annotations
 
-from datetime import UTC
-
 import pytest
 from pydantic import ValidationError
 
@@ -17,8 +15,8 @@ from app.models.auth_v3_models import (
     AuthWebhookSubscription,
 )
 from app.schemas.auth_v3 import (
-    ApiKeyListResponse,
     ApiKeyResponse,
+    ApiKeyListResponse,
     CreateApiKeyRequest,
     LoginRequest,
     RegisterRequest,
@@ -33,6 +31,7 @@ from app.services.auth_v3_service import (
     validate_api_key_scopes,
     validate_role,
 )
+
 
 # ═══════════════════════════════════════════════
 # LoginRequest Schema Tests
@@ -153,7 +152,7 @@ class TestSessionResponseSchema:
         resp = SessionResponse(
             access_token="eyJ...",
             session_id="sess_abc123",
-            expires_at=datetime.now(UTC),
+            expires_at=datetime.now(timezone.utc),
             user=UserSummary(
                 id=1,
                 email="a@b.com",

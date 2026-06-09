@@ -3,10 +3,9 @@
 Phase 26 Week 3: Agent Protocol - inter-agent communication infrastructure.
 """
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-
-from alembic import op
 
 # revision identifiers
 revision = "20260721_agent_protocol"

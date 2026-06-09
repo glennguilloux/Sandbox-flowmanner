@@ -1,17 +1,20 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
-from uuid import UUID
 
 import httpx
 
-from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...types import Response, UNSET
+from ... import errors
+
 from ...models.http_validation_error import HTTPValidationError
 from ...models.start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0 import (
     StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0,
 )
-from ...types import UNSET, Response, Unset
+from ...types import UNSET, Unset
+from typing import cast
+from uuid import UUID
 
 
 def _get_kwargs(

@@ -13,7 +13,7 @@ Covers:
 - Unknown slugs get zero actions
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -80,7 +80,7 @@ def _make_connection(
     conn.account_id = account_id
     conn.scopes = scopes
     conn.is_active = is_active
-    conn.created_at = created_at or datetime(2025, 1, 1, tzinfo=UTC)
+    conn.created_at = created_at or datetime(2025, 1, 1, tzinfo=timezone.utc)
     conn.expires_at = expires_at
     return conn
 

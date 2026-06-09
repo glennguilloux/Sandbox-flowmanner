@@ -4,9 +4,8 @@ Revision ID: phase82_workspace_api_keys
 Revises: (latest)
 """
 
-import sqlalchemy as sa
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "phase82_workspace_api_keys"
 down_revision = "phase6_hitl_cost_cb"

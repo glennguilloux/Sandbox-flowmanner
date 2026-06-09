@@ -12,7 +12,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -22,12 +22,14 @@ from app.orchestration.circuit_breaker import (
     MissionLimits,
 )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # MissionLimits
 # ═══════════════════════════════════════════════════════════════════
 
 
 class TestMissionLimits:
+
     def test_defaults(self):
         limits = MissionLimits()
         assert limits.max_llm_calls == 150
@@ -62,6 +64,7 @@ class TestMissionLimits:
 
 
 class TestCircuitBreakerTrip:
+
     def test_exception_stores_limit_details(self):
         trip = CircuitBreakerTrip("too many calls", "max_llm_calls", 151, 150)
         assert trip.reason == "too many calls"
@@ -78,6 +81,7 @@ class TestCircuitBreakerTrip:
 
 
 class TestLLMCallLimit:
+
     def test_exceeding_calls_trips_breaker(self):
         limits = MissionLimits(max_llm_calls=3)
         breaker = MissionCircuitBreaker(limits=limits)
@@ -104,6 +108,7 @@ class TestLLMCallLimit:
 
 
 class TestCostLimit:
+
     def test_exceeding_cost_trips_breaker(self):
         limits = MissionLimits(max_cost_usd=1.00)
         breaker = MissionCircuitBreaker(limits=limits)
@@ -129,12 +134,13 @@ class TestCostLimit:
 
 
 class TestDurationLimit:
+
     def test_exceeding_duration_trips_breaker(self):
         limits = MissionLimits(max_duration_seconds=1)
         breaker = MissionCircuitBreaker(limits=limits)
 
         # Set started_at in the past
-        breaker.started_at = datetime.now(UTC) - timedelta(seconds=2)
+        breaker.started_at = datetime.now(timezone.utc) - timedelta(seconds=2)
 
         with pytest.raises(CircuitBreakerTrip) as exc:
             breaker.check()
@@ -152,6 +158,7 @@ class TestDurationLimit:
 
 
 class TestAgentToolCallLimit:
+
     def test_exceeding_agent_calls_trips_breaker(self):
         limits = MissionLimits(max_tool_calls_per_agent=2)
         breaker = MissionCircuitBreaker(limits=limits)
@@ -186,6 +193,7 @@ class TestAgentToolCallLimit:
 
 
 class TestDestructiveActionGate:
+
     def test_destructive_action_blocked_by_default(self):
         limits = MissionLimits(destructive_actions_allowed=False)
         breaker = MissionCircuitBreaker(limits=limits)
@@ -219,6 +227,7 @@ class TestDestructiveActionGate:
 
 
 class TestBreakerStatus:
+
     def test_status_reports_current_state(self):
         limits = MissionLimits(max_llm_calls=10)
         breaker = MissionCircuitBreaker(limits=limits)

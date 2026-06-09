@@ -1,7 +1,6 @@
 import os
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import patch, MagicMock
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
@@ -56,9 +55,8 @@ def test_get_usage_service_singleton():
 @pytest.mark.asyncio
 async def test_sse_stream_basic():
     """Test _sse_stream only takes generator, no sink."""
-    import json
-
     from app.api.v1.chat import _sse_stream
+    import json
 
     async def fake_generator():
         yield json.dumps({"type": "token", "content": "Hello"})
@@ -77,9 +75,8 @@ async def test_sse_stream_basic():
 @pytest.mark.asyncio
 async def test_sse_stream_no_complete_event():
     """Test _sse_stream with no complete event."""
-    import json
-
     from app.api.v1.chat import _sse_stream
+    import json
 
     async def fake_generator():
         yield json.dumps({"type": "token", "content": "A"})

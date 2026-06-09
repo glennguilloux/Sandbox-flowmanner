@@ -2,14 +2,13 @@ import os
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
-from datetime import UTC, datetime, timedelta
-
 import pytest
+from datetime import UTC, datetime, timedelta
 
 from app.services.usage_service import UsageService, get_usage_service
 
 
-@pytest.fixture
+@pytest.fixture()
 def svc() -> UsageService:
     service = UsageService()
     return service

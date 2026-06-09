@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from app.models.models import MarketplaceListingModel, MarketplaceReviewModel
+
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -20,25 +21,25 @@ def _make_listing(**overrides) -> MagicMock:
     listing.name = overrides.get("name", "Test Listing")
     listing.description = overrides.get("description", "A test listing")
     listing.owner_id = overrides.get("owner_id", "1")
-    listing.workspace_id = overrides.get("workspace_id")
+    listing.workspace_id = overrides.get("workspace_id", None)
     listing.listing_type = overrides.get("listing_type", "workflow")
     listing.artifact_type = overrides.get("artifact_type", "workflow")
     listing.artifact_id = overrides.get("artifact_id", str(uuid4()))
-    listing.artifact_version_id = overrides.get("artifact_version_id")
+    listing.artifact_version_id = overrides.get("artifact_version_id", None)
     listing.category_id = overrides.get("category_id", "cat-ai")
     listing.price = overrides.get("price", 0.0)
     listing.status = overrides.get("status", "draft")
     listing.is_published = overrides.get("is_published", False)
     listing.version = overrides.get("version", "1.0.0")
-    listing.published_at = overrides.get("published_at")
+    listing.published_at = overrides.get("published_at", None)
     listing.rating = overrides.get("rating", 0.0)
     listing.review_count = overrides.get("review_count", 0)
     listing.download_count = overrides.get("download_count", 0)
-    listing.tags = overrides.get("tags")
+    listing.tags = overrides.get("tags", None)
     listing.config = None
     listing.integrations = None
-    listing.created_at = overrides.get("created_at", datetime.now(UTC))
-    listing.updated_at = overrides.get("updated_at", datetime.now(UTC))
+    listing.created_at = overrides.get("created_at", datetime.now(timezone.utc))
+    listing.updated_at = overrides.get("updated_at", datetime.now(timezone.utc))
     return listing
 
 
@@ -51,7 +52,7 @@ def _make_review(**overrides) -> MagicMock:
     review.title = overrides.get("title", "Great!")
     review.comment = overrides.get("comment", "Works well")
     review.is_approved = True
-    review.created_at = datetime.now(UTC)
+    review.created_at = datetime.now(timezone.utc)
     return review
 
 
@@ -128,9 +129,8 @@ class TestPublishWorkflow:
 
     @pytest.mark.asyncio
     async def test_publish_non_owner_denied(self):
-        from fastapi import HTTPException
-
         from app.api.v1.marketplace import publish_listing
+        from fastapi import HTTPException
 
         listing = _make_listing(owner_id="999")
         db = AsyncMock()
@@ -175,7 +175,7 @@ class TestRatingAggregation:
 
     @pytest.mark.asyncio
     async def test_submit_review_updates_rating(self):
-        from app.api.v1.marketplace import _recalculate_rating, submit_review
+        from app.api.v1.marketplace import submit_review, _recalculate_rating
 
         listing = _make_listing(rating=0.0, review_count=0, status="published")
         db = AsyncMock()

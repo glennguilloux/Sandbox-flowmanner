@@ -19,6 +19,7 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.discord_connector import DiscordConnector
 
+
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -104,7 +105,7 @@ def test_constructor_defaults():
 
 def test_init_falls_back_to_settings_token():
     """When auth_config has no token, reads DISCORD_BOT_TOKEN from settings."""
-    from app.services.connectors.base import AuthType, ConnectorConfig
+    from app.services.connectors.base import ConnectorConfig, AuthType
 
     with patch(
         "app.services.connectors.discord_connector.settings.DISCORD_BOT_TOKEN",

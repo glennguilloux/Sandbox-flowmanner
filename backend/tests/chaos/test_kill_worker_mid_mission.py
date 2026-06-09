@@ -30,6 +30,7 @@ from app.models.substrate_models import (
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine
 
+
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -151,6 +152,7 @@ def _mock_event_log(events):
 
 
 class TestKillWorkerMidMission:
+
     def test_crash_after_task_started(self):
         """Crash after 2 tasks started: replay shows mission=executing."""
         run_id = str(uuid4())
@@ -342,6 +344,7 @@ class TestKillWorkerMidMission:
 
 
 class TestResumeAfterCrash:
+
     def test_pending_tasks_identified(self):
         """After crash, tasks not in completed/failed sets are pending."""
         run_id = str(uuid4())

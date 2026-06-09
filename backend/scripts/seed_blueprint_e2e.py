@@ -234,20 +234,20 @@ def main() -> int:
     # ── Summary ───────────────────────────────────────────────────
     print(
         f"""
-{"═" * 60}
+{'═' * 60}
   🎉  END-TO-END SEED COMPLETE
-{"═" * 60}
+{'═' * 60}
   Blueprint ID : {bp_id}
-  Title        : {bp_pub["title"]}
-  Type         : {bp_pub["blueprint_type"]}
-  Status       : {bp_pub["status"]}
-  Version      : {bp_pub["version"]}
-  Nodes        : {len(payload["definition"]["nodes"])}
+  Title        : {bp_pub['title']}
+  Type         : {bp_pub['blueprint_type']}
+  Status       : {bp_pub['status']}
+  Version      : {bp_pub['version']}
+  Nodes        : {len(payload['definition']['nodes'])}
 
   Run ID       : {run_id}
-  Run Status   : {run["status"]}
+  Run Status   : {run['status']}
   Input        : source_url → api.example.com/data/sales-2026.json
-{"═" * 60}
+{'═' * 60}
 """
     )
     return 0

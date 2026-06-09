@@ -5,9 +5,8 @@ Revises: 20260603_phase91_plugins
 Create Date: 2026-06-03
 """
 
-import sqlalchemy as sa
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "20260603_phase96_plugin_security"
 down_revision = "20260603_phase91_plugins"

@@ -17,7 +17,7 @@ Usage:
 
 import asyncio
 import uuid
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -192,7 +192,7 @@ async def _seed_connection(
         account_id=account_id,
         is_active=is_active,
         encrypted_access_token=access_token,
-        created_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
     )
     session.add(conn)
     await session.commit()

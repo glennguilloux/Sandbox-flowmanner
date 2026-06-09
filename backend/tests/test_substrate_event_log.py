@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.substrate.event_log import EventLog, get_event_log
 
+
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -67,6 +68,7 @@ def _make_db_mock(existing_count=0, max_seq=0):
 
 
 class TestEventLogAppend:
+
     def test_append_empty_events_raises(self):
         el = EventLog()
         db = AsyncMock(spec=AsyncSession)
@@ -164,6 +166,7 @@ class TestEventLogAppend:
 
 
 class TestEventLogGetLatestSequence:
+
     def test_returns_zero_for_new_run(self):
         el = EventLog()
         db = AsyncMock(spec=AsyncSession)
@@ -191,6 +194,7 @@ class TestEventLogGetLatestSequence:
 
 
 class TestEventLogRunExists:
+
     def test_returns_false_for_no_events(self):
         el = EventLog()
         db = AsyncMock(spec=AsyncSession)
@@ -218,6 +222,7 @@ class TestEventLogRunExists:
 
 
 class TestEventLogGetEvents:
+
     def test_get_events_returns_all_by_default(self):
         el = EventLog()
         run_id = str(uuid4())
@@ -462,6 +467,7 @@ class TestEventLogGetEvents:
 
 
 class TestEventLogSafetyLimit:
+
     def test_append_within_limit_succeeds(self):
         el = EventLog()
         run_id = str(uuid4())
@@ -487,6 +493,7 @@ class TestEventLogSafetyLimit:
 
 
 class TestAppendOnlySemantics:
+
     def test_migration_defines_append_only_trigger(self):
         # Resolve migration path relative to this test file so it works
         # both on the host (/opt/flowmanner/backend/...) and inside
@@ -528,6 +535,7 @@ class TestAppendOnlySemantics:
 
 
 class TestEventLogSingleton:
+
     def test_get_event_log_returns_same_instance(self):
         el1 = get_event_log()
         el2 = get_event_log()

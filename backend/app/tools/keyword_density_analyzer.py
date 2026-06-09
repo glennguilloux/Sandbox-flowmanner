@@ -577,7 +577,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
         if not keywords:
             ngram = tuple(validated.ngram_range) if validated.ngram_range else None
             tfidf_results = self._compute_tfidf(
-                [validated.text_content], validated.top_n, ngram_range=ngram  # type: ignore[arg-type]
+                [validated.text_content], validated.top_n, ngram_range=ngram
             )
             keywords = [k["keyword"] for k in tfidf_results[:10]]
             auto_extracted = True
@@ -593,7 +593,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
             # Compute TF-IDF for scoring
             ngram = tuple(validated.ngram_range) if validated.ngram_range else None
             tfidf_scores = self._compute_tfidf(
-                [validated.text_content], validated.top_n, ngram_range=ngram  # type: ignore[arg-type]
+                [validated.text_content], validated.top_n, ngram_range=ngram
             )
             tfidf_map = {k["keyword"]: k["score"] for k in tfidf_scores}
 
@@ -650,7 +650,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
         total_words = self._count_words(validated.text_content)
         ngram = tuple(validated.ngram_range) if validated.ngram_range else None
         keywords = self._compute_tfidf(
-            [validated.text_content], validated.top_n, ngram_range=ngram  # type: ignore[arg-type]
+            [validated.text_content], validated.top_n, ngram_range=ngram
         )
 
         # Format output per Plan 16: {term, count, density_pct, tfidf_score}
@@ -700,7 +700,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
         ngram = tuple(validated.ngram_range) if validated.ngram_range else None
         docs = [validated.text_content, validated.second_text]
         combined_keywords = self._compute_tfidf(
-            docs, validated.top_n, max_features=300, ngram_range=ngram  # type: ignore[arg-type]
+            docs, validated.top_n, max_features=300, ngram_range=ngram
         )
 
         keywords_list = [k["keyword"] for k in combined_keywords]

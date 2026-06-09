@@ -5,9 +5,8 @@ Revises: 20260521_create_analytics_events
 Create Date: 2026-05-21
 """
 
-import sqlalchemy as sa
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "20260521_marketplace_integrations_tags"
 down_revision = "20260521_create_analytics_events"

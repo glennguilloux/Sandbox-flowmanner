@@ -79,7 +79,6 @@ COPY pyproject.toml /app/pyproject.toml
 COPY mcp_gateway/ /app/mcp_gateway/
 COPY agent_definitions/ /app/agent_definitions/
 COPY scripts/ /app/scripts/
-COPY validate_constraints.py /app/validate_constraints.py
 
 # Ensure no stray __pycache__ or .pyc from the host leak in
 RUN find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
@@ -111,18 +110,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "app.main_fastapi:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
-
-# ---------- Stage 3: test ----------
-# Build: docker build --target test -t backend-test .
-# Run:   docker run --rm backend-test
-FROM runtime AS test
-
-# Copy test files (COPY runs as root regardless of USER)
-COPY tests/ /app/tests/
-USER root
-RUN chown -R flowmanner:flowmanner /app/tests
-
-# Switch to non-root user for test execution
-USER flowmanner
-
-CMD ["python", "-m", "pytest", "tests/", "-v", "--timeout=30"]

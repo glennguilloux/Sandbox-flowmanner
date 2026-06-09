@@ -5,10 +5,9 @@ Revises: 20260521_memories
 Create Date: 2026-05-21
 """
 
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSON
-
 from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSON, UUID
 
 revision = "20260521_missing_tables"
 down_revision = "20260521_memories"

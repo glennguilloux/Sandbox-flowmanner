@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
 # ── Mock factories (dicts — Pydantic serializes these cleanly) ──────────────
 
 
@@ -320,15 +321,12 @@ class TestRouteRegistration:
     )
     def test_endpoints_registered(self, test_client, mock_db, path, expected_status):
         """Endpoint returns expected status (not 404)."""
-        with (
-            patch(
-                "app.api.v1.dashboard.get_dashboard_analytics",
-                new=AsyncMock(return_value=_make_mock_analytics_response()),
-            ),
-            patch(
-                "app.api.v1.dashboard.get_firefighting_metrics",
-                new=AsyncMock(return_value=_make_mock_firefighting_response()),
-            ),
+        with patch(
+            "app.api.v1.dashboard.get_dashboard_analytics",
+            new=AsyncMock(return_value=_make_mock_analytics_response()),
+        ), patch(
+            "app.api.v1.dashboard.get_firefighting_metrics",
+            new=AsyncMock(return_value=_make_mock_firefighting_response()),
         ):
             mock_total = MagicMock()
             mock_total.scalar.return_value = 0

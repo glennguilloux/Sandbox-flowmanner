@@ -8,11 +8,11 @@ from uuid import uuid4
 import pytest
 
 from app.services.dag_executor import (
-    _has_cycle,
+    validate_dag,
+    topological_sort,
     get_downstream,
     get_ready_tasks,
-    topological_sort,
-    validate_dag,
+    _has_cycle,
 )
 
 

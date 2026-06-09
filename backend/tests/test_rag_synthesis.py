@@ -246,7 +246,11 @@ class TestParseResponse:
         assert result.temperature == 0.7
 
     def test_malformed_temperature_falls_back(self):
-        content = "## System Prompt\nHi\n\n## Rationale\n\n## Configuration\n- Temperature: not-a-number\n"
+        content = (
+            "## System Prompt\nHi\n\n"
+            "## Rationale\n\n"
+            "## Configuration\n- Temperature: not-a-number\n"
+        )
         result = PromptSynthesizer._parse_response(content)
         assert result.temperature == 0.7
 

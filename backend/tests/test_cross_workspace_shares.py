@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 
+
 # ──────────────────────────────────────────────────────────────
 # 1. CrossWorkspaceService — grant/revoke/check
 # ──────────────────────────────────────────────────────────────
@@ -86,8 +87,8 @@ class TestCrossWorkspaceService:
     @pytest.mark.asyncio
     async def test_grant_share_rejects_self_share(self):
         from app.services.cross_workspace_service import (
-            CrossWorkspaceError,
             grant_share,
+            CrossWorkspaceError,
         )
 
         db = AsyncMock()
@@ -103,8 +104,8 @@ class TestCrossWorkspaceService:
     @pytest.mark.asyncio
     async def test_grant_share_rejects_invalid_entity_type(self):
         from app.services.cross_workspace_service import (
-            CrossWorkspaceError,
             grant_share,
+            CrossWorkspaceError,
         )
 
         db = AsyncMock()
@@ -120,8 +121,8 @@ class TestCrossWorkspaceService:
     @pytest.mark.asyncio
     async def test_grant_share_rejects_invalid_permission(self):
         from app.services.cross_workspace_service import (
-            CrossWorkspaceError,
             grant_share,
+            CrossWorkspaceError,
         )
 
         db = AsyncMock()
@@ -155,8 +156,8 @@ class TestCrossWorkspaceService:
     @pytest.mark.asyncio
     async def test_revoke_share_not_found(self):
         from app.services.cross_workspace_service import (
-            ShareNotFoundError,
             revoke_share,
+            ShareNotFoundError,
         )
 
         db = AsyncMock()
@@ -344,8 +345,8 @@ class TestAccessCheckCrossWorkspaceIntegration:
 
     @pytest.mark.asyncio
     async def test_mission_access_cross_workspace_denied(self, caplog):
-        from app.services.mission_errors import MissionNotFoundError
         from app.services.mission_service import require_mission_access
+        from app.services.mission_errors import MissionNotFoundError
 
         mission = MagicMock()
         mission.workspace_id = "ws-owner"
@@ -364,8 +365,9 @@ class TestAccessCheckCrossWorkspaceIntegration:
 
             db.execute = AsyncMock(side_effect=mock_execute)
 
-            with caplog.at_level(logging.WARNING), pytest.raises(MissionNotFoundError):
-                await require_mission_access(db, "m-1", user_id=99)
+            with caplog.at_level(logging.WARNING):
+                with pytest.raises(MissionNotFoundError):
+                    await require_mission_access(db, "m-1", user_id=99)
 
             assert any("entity_access_denied" in r.message for r in caplog.records)
 

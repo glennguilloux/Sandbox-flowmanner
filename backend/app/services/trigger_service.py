@@ -270,7 +270,7 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
     async with AsyncSessionLocal() as db:
         try:
             executor = MissionExecutor()
-            result = await executor.execute_mission(mission_id)  # type: ignore[arg-type]
+            result = await executor.execute_mission(mission_id)
             duration_ms = int((time.monotonic() - start_time) * 1000)
 
             # Update log

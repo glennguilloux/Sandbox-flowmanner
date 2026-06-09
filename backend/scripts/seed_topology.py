@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -28,14 +28,12 @@ GRAPH_JSON_PATH = Path("/mnt/workflows/workflows/graphify-out/graph.json")
 
 
 async def run():
-    from sqlalchemy import func, select
-    from sqlalchemy import text as sa_text
+    from sqlalchemy import text as sa_text, select, func
     from sqlalchemy.ext.asyncio import create_async_engine
-
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     async with engine.begin() as conn:
         # Check if snapshot already exists

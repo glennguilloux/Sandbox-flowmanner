@@ -12,10 +12,11 @@ Verifies:
 from __future__ import annotations
 
 from datetime import datetime
+
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-import pytest
 
 # ── Model-level tests (no DB required) ─────────────────────────────
 
@@ -88,7 +89,7 @@ class TestModelSchema:
 
     def test_version_models_registered_with_base(self):
         """Verify all version models are importable via __init__.py."""
-        from app.models import AgentVersion, MissionVersion, WorkspaceVersion
+        from app.models import AgentVersion, WorkspaceVersion, MissionVersion
 
         assert AgentVersion.__tablename__ == "agent_versions"
         assert WorkspaceVersion.__tablename__ == "workspace_versions"
@@ -277,8 +278,8 @@ class TestVersionRetrieval:
 
     @pytest.mark.asyncio
     async def test_get_version_history_returns_list(self):
-        from app.models.agent import AgentVersion
         from app.services.versioning import get_version_history
+        from app.models.agent import AgentVersion
 
         # Mock the DB to return AgentVersion rows
         mock_row = MagicMock()
@@ -345,8 +346,8 @@ class TestMigrationStructure:
 
     def test_migration_file_imports(self):
         """Verify the migration module is importable."""
-        import importlib.util
         from pathlib import Path
+        import importlib.util
 
         migration_path = (
             Path(__file__).parent.parent

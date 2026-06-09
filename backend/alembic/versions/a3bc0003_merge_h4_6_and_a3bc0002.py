@@ -11,20 +11,18 @@ Merge two divergent head branches into a single head:
 This is a pure merge — no schema operations.
 """
 
-from collections.abc import Sequence
-from typing import Union
-
-import sqlalchemy as sa
+from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 revision: str = "a3bc0003"
-down_revision: str | Sequence[str] | None = (
+down_revision: Union[str, Sequence[str], None] = (
     "h4_6_drop_cancelled_status",
     "a3bc0002",
 )
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

@@ -5,9 +5,8 @@ Revises: fix_notifications_columns
 Create Date: 2026-05-21
 """
 
-import sqlalchemy as sa
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "20260521_create_analytics_events"
 down_revision = "fix_notifications_columns"

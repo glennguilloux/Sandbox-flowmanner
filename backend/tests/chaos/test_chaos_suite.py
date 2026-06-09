@@ -13,11 +13,12 @@ All tests must pass for CI to be green (Invariant I.19).
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Test 1: Kill worker mid-mission (Durable execution)
@@ -602,7 +603,7 @@ class TestAttenuationPreservesSubset:
         """Child inherits parent's expiry unless overridden."""
         from app.models.capability_models import Action, CapabilityToken, ResourceRef
 
-        parent_expiry = datetime.now(UTC) + timedelta(hours=1)
+        parent_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
         parent = CapabilityToken(
             resource=ResourceRef(kind="tool", name="timed_tool"),
             actions={Action.EXECUTE},
@@ -613,7 +614,7 @@ class TestAttenuationPreservesSubset:
         child = parent.attenuate(remove_actions=set())
         assert child.expires_at == parent_expiry
 
-        child_expiry = datetime.now(UTC) + timedelta(minutes=5)
+        child_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
         child2 = parent.attenuate(remove_actions=set(), expires_at=child_expiry)
         assert child2.expires_at == child_expiry
 
@@ -685,7 +686,8 @@ class TestNoAmbientAuthority:
             resource=ResourceRef(kind="tool", name="expired_tool"),
             actions={Action.EXECUTE},
             to=agent_id,
-            expires_at=datetime.now(UTC) - timedelta(hours=1),  # already expired
+            expires_at=datetime.now(timezone.utc)
+            - timedelta(hours=1),  # already expired
         )
 
         with pytest.raises(PermissionError, match="expired"):

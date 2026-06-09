@@ -14,9 +14,9 @@ This script:
 import asyncio
 import json
 import logging
-import os
 import sys
-from datetime import UTC, datetime, timezone
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -29,13 +29,12 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
-
     from app.config import settings
     from app.services.agent_parser import load_all_agents
     from app.services.nexus.agent_templates import AGENT_TEMPLATES
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     new_count = 0
     updated_count = 0
@@ -44,7 +43,8 @@ async def run():
         # Verify required columns exist (migration must have run first)
         has_slug = await conn.execute(
             sa_text(
-                "SELECT 1 FROM information_schema.columns WHERE table_name = 'agent_templates' AND column_name = 'slug'"
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'agent_templates' AND column_name = 'slug'"
             )
         )
         if not has_slug.fetchone():

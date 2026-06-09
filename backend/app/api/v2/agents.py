@@ -122,7 +122,7 @@ async def get_item(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    agent = await get_agent(db, agent_id)  # type: ignore[arg-type]
+    agent = await get_agent(db, agent_id)
     _require_owner(agent, user)
     return ok(AgentResponse.model_validate(agent).model_dump())
 
@@ -134,11 +134,11 @@ async def patch_item(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    agent = await get_agent(db, agent_id)  # type: ignore[arg-type]
+    agent = await get_agent(db, agent_id)
     _require_owner(agent, user)
     updated = await update_agent(
         db,
-        agent_id,  # type: ignore[arg-type]
+        agent_id,
         payload.name,
         payload.description,
         payload.system_prompt,
@@ -156,9 +156,9 @@ async def delete_item(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    agent = await get_agent(db, agent_id)  # type: ignore[arg-type]
+    agent = await get_agent(db, agent_id)
     _require_owner(agent, user)
-    if not await delete_agent(db, agent_id):  # type: ignore[arg-type]
+    if not await delete_agent(db, agent_id):
         raise _not_found()
 
 
@@ -205,7 +205,7 @@ async def update_template(
 ):
     updated = await update_agent_template(
         db,
-        template_id,  # type: ignore[arg-type]
+        template_id,
         payload.name,
         payload.description,
         payload.system_prompt,
@@ -222,5 +222,5 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await delete_agent_template(db, template_id):  # type: ignore[arg-type]
+    if not await delete_agent_template(db, template_id):
         raise _not_found()
