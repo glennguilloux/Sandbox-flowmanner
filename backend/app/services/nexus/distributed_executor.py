@@ -528,8 +528,8 @@ class DistributedExecutor:
 
         try:
             # Execute DAG nodes in topological order
-            completed_nodes = []
-            node_results = {}
+            completed_nodes: list[str] = []
+            node_results: dict[str, Any] = {}
 
             while len(completed_nodes) < len(dag.nodes):
                 # Get nodes ready for execution
@@ -624,8 +624,8 @@ class DistributedExecutor:
         self._tasks[dag_id] = task
 
         registry = get_capability_registry()
-        completed_nodes = []
-        node_results = {}
+        completed_nodes: list[str] = []
+        node_results: dict[str, Any] = {}
 
         while len(completed_nodes) < len(dag.nodes):
             ready_nodes = dag.get_ready_nodes(completed_nodes)

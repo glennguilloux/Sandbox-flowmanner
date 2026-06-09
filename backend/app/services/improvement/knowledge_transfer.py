@@ -500,7 +500,7 @@ class KnowledgeTransferAgent:
         min_applications: int,
     ) -> list[TransferableKnowledge]:
         """Identify transferable strategy knowledge."""
-        knowledge_items = []
+        knowledge_items: list[dict[str, Any]] = []
 
         if not self.strategy_evolver:
             return knowledge_items
@@ -544,7 +544,7 @@ class KnowledgeTransferAgent:
         min_applications: int,
     ) -> list[TransferableKnowledge]:
         """Identify transferable success patterns."""
-        knowledge_items = []
+        knowledge_items: list[dict[str, Any]] = []
 
         if not self.success_learner:
             return knowledge_items
@@ -585,7 +585,7 @@ class KnowledgeTransferAgent:
         min_confidence: float,
     ) -> list[TransferableKnowledge]:
         """Identify transferable failure-to-strategy mappings."""
-        knowledge_items = []
+        knowledge_items: list[dict[str, Any]] = []
 
         if not self.knowledge_graph:
             return knowledge_items
@@ -640,7 +640,7 @@ class KnowledgeTransferAgent:
         Returns:
             List of transfer results
         """
-        results = []
+        results: list[dict[str, Any]] = []
 
         # Calculate similarity
         similarity, similarity_score = await self.calculate_similarity(
@@ -866,7 +866,7 @@ class KnowledgeTransferAgent:
 
     def get_transfer_statistics(self) -> dict[str, Any]:
         """Get transfer statistics."""
-        status_counts = defaultdict(int)
+        status_counts: dict[str, int] = defaultdict(int)
         for result in self._transfer_history:
             status_counts[result.status.value] += 1
 

@@ -616,7 +616,7 @@ class ProactiveScheduler:
         action: ScheduledAction,
     ) -> dict[str, Any]:
         """Handle a preventive action."""
-        result = {"actions_taken": []}
+        result: dict[str, list[Any]] = {"actions_taken": []}
 
         if not action.failure_type:
             return result
@@ -662,7 +662,7 @@ class ProactiveScheduler:
         action: ScheduledAction,
     ) -> dict[str, Any]:
         """Handle an optimization action."""
-        result = {"optimizations": []}
+        result: dict[str, list[Any]] = {"optimizations": []}
 
         # Apply knob adjustments if specified
         for knob_name, knob_value in action.knob_adjustments.items():
@@ -756,7 +756,7 @@ class ProactiveScheduler:
         action: ScheduledAction,
     ) -> dict[str, Any]:
         """Handle a pre-warm action."""
-        result = {
+        result: dict[str, list[Any]] = {
             "resources_prewarmed": [],
         }
 
@@ -821,7 +821,7 @@ class ProactiveScheduler:
 
     def get_statistics(self) -> dict[str, Any]:
         """Get scheduler statistics."""
-        status_counts = defaultdict(int)
+        status_counts: dict[str, int] = defaultdict(int)
         for action in self._execution_history:
             status_counts[action.status.value] += 1
 

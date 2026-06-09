@@ -271,7 +271,7 @@ class SuccessLearner:
         Returns:
             Dictionary of differentiating factors
         """
-        differentiators = {
+        differentiators: dict[str, Any] = {
             "tool_usage": {},
             "config_differences": {},
             "latency_patterns": {},
@@ -280,8 +280,8 @@ class SuccessLearner:
         }
 
         # Analyze tool usage differences
-        success_tools = defaultdict(int)
-        failure_tools = defaultdict(int)
+        success_tools: dict[str, int] = defaultdict(int)
+        failure_tools: dict[str, int] = defaultdict(int)
 
         for outcome in success_outcomes:
             for tool in outcome.tools_used:
@@ -342,8 +342,8 @@ class SuccessLearner:
                     }
 
         # Analyze latency patterns
-        success_latencies = []
-        failure_latencies = []
+        success_latencies: list[float] = []
+        failure_latencies: list[float] = []
 
         for outcome in success_outcomes:
             success_latencies.extend(outcome.latencies.values())
