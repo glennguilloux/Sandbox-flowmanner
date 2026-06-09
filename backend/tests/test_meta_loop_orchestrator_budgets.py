@@ -22,7 +22,6 @@ from uuid import uuid4
 
 import pytest
 
-
 # ── Pre-mock to work around upstream _nexus_orchestrator bug ───────
 # The orchestrator.py file defines _nexus_orchestrator inside a class
 # method body, not at module level. This causes NameError when
@@ -53,8 +52,8 @@ sys.modules["app.services.nexus.distributed_executor"] = MagicMock()
 sys.modules["app.services.learning_service"] = MagicMock()
 
 from app.services.nexus.failure_analyzer import (
-    ErrorClass,
     ErrorBudget,
+    ErrorClass,
     FailureAnalysisResult,
     FailureAnalyzer,
 )
@@ -63,7 +62,6 @@ from app.services.nexus.meta_loop_orchestrator import (
     MetaLoopResult,
     get_meta_loop_orchestrator,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -90,7 +88,6 @@ def _mock_analyzer():
 
 
 class TestPlanExecuteObserveBudgetReset:
-
     def test_resets_budgets_for_new_mission(self):
         """plan_execute_observe() resets budgets when mission_id changes."""
         analyzer = _mock_analyzer()
@@ -171,7 +168,6 @@ class TestPlanExecuteObserveBudgetReset:
 
 
 class TestHandleFailure:
-
     def test_handle_failure_passes_wall_clock_and_cost(self):
         """_handle_failure() passes wall_clock_ms and cost_usd to analyzer."""
         nexus = MagicMock()
@@ -294,7 +290,6 @@ class TestHandleFailure:
 
 
 class TestGetEffectiveMaxDepth:
-
     def test_falls_back_to_requested_when_no_lattice(self):
         """_get_effective_max_depth() returns requested when lattice import fails."""
         orch = MetaLoopOrchestrator(nexus_orchestrator=_mock_nexus_orch_instance)
@@ -338,7 +333,6 @@ class TestGetEffectiveMaxDepth:
 
 
 class TestMaxDepthReached:
-
     def test_returns_failure_when_max_depth_reached(self):
         """plan_execute_observe() returns failure when depth limit reached."""
         analyzer = _mock_analyzer()
@@ -361,7 +355,6 @@ class TestMaxDepthReached:
 
 
 class TestAlternativeToolsPath:
-
     def test_alternative_tools_triggered_when_recoverable_no_retry(self):
         """When recoverable but no retry recommended with alt tools."""
         nexus = MagicMock()
@@ -396,7 +389,6 @@ class TestAlternativeToolsPath:
 
 
 class TestMetaLoopOrchestratorSingleton:
-
     def test_get_orchestrator_returns_same_instance(self):
         mlo1 = get_meta_loop_orchestrator()
         mlo2 = get_meta_loop_orchestrator()

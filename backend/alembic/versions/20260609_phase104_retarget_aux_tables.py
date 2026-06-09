@@ -13,9 +13,10 @@ Create Date: 2026-06-09
 
 import os
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "phase104_retarget_aux_tables"
 down_revision = "phase103_drop_old_tables"
@@ -28,8 +29,7 @@ def _table_exists(table_name: str) -> bool:
     bind = op.get_bind()
     return bind.execute(
         sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-            "WHERE table_schema='public' AND table_name=:tname)"
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:tname)"
         ),
         {"tname": table_name},
     ).scalar()
@@ -52,8 +52,7 @@ def _index_exists(index_name: str) -> bool:
     bind = op.get_bind()
     return bind.execute(
         sa.text(
-            "SELECT EXISTS (SELECT 1 FROM pg_indexes "
-            "WHERE schemaname='public' AND indexname=:iname)"
+            "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:iname)"
         ),
         {"iname": index_name},
     ).scalar()

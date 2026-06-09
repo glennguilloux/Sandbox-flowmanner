@@ -1,14 +1,13 @@
 """Seed 50 golden test cases across code (20), RAG (15), agent (10), creative (5)."""
 
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import AsyncSessionLocal
 from app.services.evaluation.dataset_builder import DatasetBuilder
-
 
 CODE_CASES = [
     {

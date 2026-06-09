@@ -13,10 +13,12 @@ down_revision = "h2_substrate_init"
 branch_labels = None
 depends_on = None
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
+
+import sqlalchemy as sa
 
 from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade() -> None:

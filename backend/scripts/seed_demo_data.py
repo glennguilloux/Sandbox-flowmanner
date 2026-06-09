@@ -17,7 +17,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 # Ensure the app package is importable
@@ -32,13 +32,12 @@ from app.models import (
     ChatMessage,
     ChatThread,
     Mission,
-    MissionTask,
     MissionLog,
+    MissionTask,
     User,
     Workspace,
     WorkspaceMember,
 )
-
 
 # ---------------------------------------------------------------------------
 # Demo data definitions
@@ -54,7 +53,7 @@ DEMO_USERS = [
         "is_active": True,
         "is_admin": False,
         "onboarding_completed": True,
-        "onboarding_completed_at": datetime.now(timezone.utc),
+        "onboarding_completed_at": datetime.now(UTC),
         "login_count": 42,
     },
     {
@@ -66,7 +65,7 @@ DEMO_USERS = [
         "is_active": True,
         "is_admin": False,
         "onboarding_completed": True,
-        "onboarding_completed_at": datetime.now(timezone.utc),
+        "onboarding_completed_at": datetime.now(UTC),
         "login_count": 15,
     },
     {
@@ -78,7 +77,7 @@ DEMO_USERS = [
         "is_active": True,
         "is_admin": True,
         "onboarding_completed": True,
-        "onboarding_completed_at": datetime.now(timezone.utc),
+        "onboarding_completed_at": datetime.now(UTC),
         "login_count": 120,
     },
 ]
@@ -455,7 +454,7 @@ CHAT_CONVERSATIONS = [
 
 
 def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ago(minutes: int) -> datetime:

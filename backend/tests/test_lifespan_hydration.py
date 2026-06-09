@@ -216,8 +216,8 @@ class TestLifespanHydrationSequence:
 
     def test_hydration_functions_importable(self):
         from app.lifespan import (
-            _hydrate_tools_from_db,
             _hydrate_capabilities_from_db,
+            _hydrate_tools_from_db,
             _resolve_handler_ref,
         )
 
@@ -228,11 +228,11 @@ class TestLifespanHydrationSequence:
     def test_fallback_functions_still_exist(self):
         """Old registration functions must still exist for fallback."""
         from app.lifespan import (
-            _register_core_tools,
+            _init_tool_discovery,
             _register_agent_capabilities,
+            _register_core_tools,
             _seed_agent_templates,
             _seed_marketplace,
-            _init_tool_discovery,
         )
 
         assert callable(_register_core_tools)

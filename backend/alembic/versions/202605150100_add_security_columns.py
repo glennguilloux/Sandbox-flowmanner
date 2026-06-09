@@ -1,8 +1,8 @@
 """Database migration: Add TOTP columns to users table and device tracking to refresh_tokens."""
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers
 revision = "202605150100_add_security_columns"

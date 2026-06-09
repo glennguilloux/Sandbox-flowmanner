@@ -9,15 +9,16 @@ Tests cover:
 - Tool metadata and registration
 """
 
-import io
-import os
 import base64
-import struct
+import io
 import math
+import os
+import struct
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+pydub = pytest.importorskip("pydub")
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

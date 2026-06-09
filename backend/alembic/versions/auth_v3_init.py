@@ -5,9 +5,9 @@ Revises: 9ebabc12fb98
 Create Date: 2026-06-01
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "auth_v3_001"
 down_revision = "9ebabc12fb98"

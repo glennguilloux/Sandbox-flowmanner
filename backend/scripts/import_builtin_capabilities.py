@@ -14,9 +14,9 @@ This script:
 import asyncio
 import json
 import logging
-import sys
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,20 +28,22 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     # ── 1. Bootstrap CapabilityRegistry ──────────────────────────────
     from app.services.nexus.capability_registry import (
-        get_capability_registry,
         Capability,
+        get_capability_registry,
     )
 
     registry = get_capability_registry()
 
     # Register agent templates as capabilities (same as lifespan._register_agent_capabilities)
     try:
-        from app.database import AsyncSessionLocal
         from sqlalchemy import select
+
+        from app.database import AsyncSessionLocal
         from app.models.agent import AgentTemplate
         from app.services.nexus.agent_templates import AGENT_TEMPLATES
 
@@ -125,7 +127,7 @@ async def run():
 
     # ── 2. Upsert into Postgres ──────────────────────────────────────
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     new_count = 0
     updated_count = 0

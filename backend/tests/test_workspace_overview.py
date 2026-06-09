@@ -10,12 +10,11 @@ Verifies:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -56,7 +55,7 @@ def _make_activity_event(
         "actor_name": "Alice",
         "description": description,
     }
-    event.timestamp = datetime.now(timezone.utc)
+    event.timestamp = datetime.now(UTC)
     return event
 
 
@@ -360,7 +359,7 @@ class TestWorkspaceOverviewData:
         event.event_type = "member_online"
         event.user_id = "1"
         event.properties = None
-        event.timestamp = datetime.now(timezone.utc)
+        event.timestamp = datetime.now(UTC)
 
         call_count = 0
 

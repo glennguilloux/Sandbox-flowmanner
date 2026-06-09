@@ -91,6 +91,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     # ⚠️ NO DOWNGRADE — restore from backup if rollback needed
     raise NotImplementedError(
-        "Phase 10.3 drop migration has no downgrade. "
-        "Restore from the database backup taken before this migration."
+        "Phase 10.3 drop migration has no downgrade. Restore from the database backup taken before this migration."
     )

@@ -17,8 +17,8 @@ Usage:
 """
 
 import asyncio
-import uuid
 import time
+import uuid
 
 import pytest
 import pytest_asyncio
@@ -262,14 +262,12 @@ def _wait_for_execution(
             status = data.get("status", "unknown")
             error = data.get("error_message", "")
             pytest.fail(
-                f"Execution did not reach terminal state within {timeout}s. "
-                f"Current status: {status}. Error: {error}"
+                f"Execution did not reach terminal state within {timeout}s. Current status: {status}. Error: {error}"
             )
     except Exception:
         pass
     pytest.fail(
-        f"Execution did not reach terminal state within {timeout}s. "
-        f"Could not determine current status."
+        f"Execution did not reach terminal state within {timeout}s. Could not determine current status."
     )
 
 
@@ -372,28 +370,25 @@ class TestSubGraphExecution:
         execution_id = exec_resp.json()["id"]
 
         result = _wait_for_execution(client, workflow_id, execution_id)
-        assert result["status"] == "completed", (
-            f"Expected completed, got {result['status']}. "
-            f"Error: {result.get('error_message', 'none')}"
-        )
+        assert (
+            result["status"] == "completed"
+        ), f"Expected completed, got {result['status']}. Error: {result.get('error_message', 'none')}"
 
         # Verify: task-1, log-1, end-1 should have outputs
         output_data = result.get("output_data") or {}
         outputs = output_data.get("outputs", {})
         for nid in ("transform-1", "log-1", "end-1"):
-            assert nid in outputs, (
-                f"Missing output for downstream node {nid}. "
-                f"Got: {list(outputs.keys())}"
-            )
+            assert (
+                nid in outputs
+            ), f"Missing output for downstream node {nid}. Got: {list(outputs.keys())}"
             assert (
                 outputs[nid].get("success") is not False
             ), f"Node {nid} failed: {outputs[nid].get('error')}"
 
         # start-1 should NOT be in outputs
-        assert "start-1" not in outputs, (
-            f"start-1 should not have executed in subgraph mode, "
-            f"but it appears in outputs: {list(outputs.keys())}"
-        )
+        assert (
+            "start-1" not in outputs
+        ), f"start-1 should not have executed in subgraph mode, but it appears in outputs: {list(outputs.keys())}"
 
     def test_subgraph_from_log_only_log_and_end_execute(self, real_db_client):
         """Subgraph from log-1: only log and end execute."""

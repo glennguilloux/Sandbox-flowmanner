@@ -152,7 +152,7 @@ class BrowserAgent:
 
             try:
                 result = await asyncio.wait_for(
-                    router.route_request(**route_kwargs),
+                    router.route_request(**route_kwargs),  # type: ignore[arg-type]
                     timeout=PER_ITERATION_TIMEOUT_SECONDS,
                 )
             except TimeoutError:

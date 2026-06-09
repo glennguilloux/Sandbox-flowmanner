@@ -5,9 +5,10 @@ Revises: 20260525_add_oauth_token_fields
 Create Date: 2026-05-26
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "20260526_knowledge_graph"
 down_revision = "20260525_add_oauth_token_fields"

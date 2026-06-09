@@ -14,7 +14,7 @@ Usage (containerized):
 from __future__ import annotations
 
 import asyncio
-from typing import Generator
+from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
@@ -63,7 +63,6 @@ pytestmark = [
 
 
 class TestAppendOnlyTriggerIntegration:
-
     @pytest.mark.asyncio
     async def test_insert_succeeds(self):
         """A normal INSERT into substrate_events succeeds."""
@@ -141,8 +140,7 @@ class TestAppendOnlyTriggerIntegration:
             try:
                 await db.execute(
                     text(
-                        "UPDATE substrate_events SET type = 'test.modified' "
-                        "WHERE id = :eid"
+                        "UPDATE substrate_events SET type = 'test.modified' WHERE id = :eid"
                     ),
                     {"eid": event_id},
                 )
@@ -255,10 +253,9 @@ class TestAppendOnlyTriggerIntegration:
                 )
             )
             rows = result.fetchall()
-            assert len(rows) > 0, (
-                "Append-only trigger not found in database. "
-                "Run the H2 substrate migration first."
-            )
+            assert (
+                len(rows) > 0
+            ), "Append-only trigger not found in database. Run the H2 substrate migration first."
 
     @pytest.mark.asyncio
     async def test_trigger_catalog_matches_migration(self):
@@ -288,10 +285,9 @@ class TestAppendOnlyTriggerIntegration:
             )
             rows = result.fetchall()
 
-            assert len(rows) == 1, (
-                f"Expected exactly 1 trigger row, got {len(rows)}. "
-                "Run the H2 substrate migration first."
-            )
+            assert (
+                len(rows) == 1
+            ), f"Expected exactly 1 trigger row, got {len(rows)}. Run the H2 substrate migration first."
 
             trigger_name, table_name, function_name, tgtype = rows[0]
 
@@ -325,10 +321,9 @@ class TestAppendOnlyTriggerIntegration:
             assert (
                 tgtype & DELETE_BIT
             ), f"Trigger fires on DELETE: bit 4 not set (tgtype={tgtype})"
-            assert not (tgtype & INSERT_BIT), (
-                f"Trigger should NOT fire on INSERT (bit 2 is set), " f"tgtype={tgtype}"
-            )
-            assert not (tgtype & ROW_BIT), (
-                f"Trigger is STATEMENT-level (row bit 0 should be absent), "
-                f"got tgtype={tgtype}"
-            )
+            assert not (
+                tgtype & INSERT_BIT
+            ), f"Trigger should NOT fire on INSERT (bit 2 is set), tgtype={tgtype}"
+            assert not (
+                tgtype & ROW_BIT
+            ), f"Trigger is STATEMENT-level (row bit 0 should be absent), got tgtype={tgtype}"

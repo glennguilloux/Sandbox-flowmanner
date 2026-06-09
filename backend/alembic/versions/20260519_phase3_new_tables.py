@@ -5,9 +5,10 @@ Revises: 20260518_add_mission_advanced_tables
 Create Date: 2026-05-19
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "phase3_new_tables_001"

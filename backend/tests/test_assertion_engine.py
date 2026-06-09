@@ -11,7 +11,7 @@ Covers:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -22,6 +22,7 @@ from app.models.substrate_models import (
     SubstrateEventType,
     SubstrateRunState,
 )
+from app.observability.intervention_distance import compute_intervention_distance
 from app.services.substrate.assertion_engine import (
     AssertionResult,
     AssertionType,
@@ -31,8 +32,6 @@ from app.services.substrate.assertion_engine import (
 )
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine
-from app.observability.intervention_distance import compute_intervention_distance
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -76,12 +75,8 @@ def _make_run_state(
     state.failed_tasks = failed_tasks or set()
     state.total_tokens = total_tokens
     state.total_cost_usd = total_cost_usd
-    state.started_at = started_at or datetime(
-        2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc
-    )
-    state.last_event_at = last_event_at or datetime(
-        2026, 6, 12, 10, 2, 0, tzinfo=timezone.utc
-    )
+    state.started_at = started_at or datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
+    state.last_event_at = last_event_at or datetime(2026, 6, 12, 10, 2, 0, tzinfo=UTC)
     return state
 
 
@@ -112,7 +107,6 @@ def _mock_engine(
 
 
 class TestAssertionResult:
-
     def test_to_dict_serialization(self):
         """AssertionResult.to_dict() produces a JSON-safe dict."""
         result = AssertionResult(
@@ -149,7 +143,6 @@ class TestAssertionResult:
 
 
 class TestToolSequenceAssertion:
-
     def test_passes_when_expected_tools_called(self):
         """Assertion passes when all expected tools were called."""
         run_id = str(uuid4())
@@ -316,7 +309,6 @@ class TestToolSequenceAssertion:
 
 
 class TestCostCeilingAssertion:
-
     def test_passes_when_within_budget(self):
         """Cost assertion passes when actual cost is under ceiling."""
         run_id = str(uuid4())
@@ -379,14 +371,13 @@ class TestCostCeilingAssertion:
 
 
 class TestLatencyAssertion:
-
     def test_passes_when_within_limit(self):
         """Latency assertion passes when duration is under limit."""
         run_id = str(uuid4())
         state = _make_run_state(
             run_id,
-            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc),
-            last_event_at=datetime(2026, 6, 12, 10, 1, 30, tzinfo=timezone.utc),
+            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC),
+            last_event_at=datetime(2026, 6, 12, 10, 1, 30, tzinfo=UTC),
         )
         engine = _mock_engine(state, [])
         db = AsyncMock()
@@ -407,8 +398,8 @@ class TestLatencyAssertion:
         run_id = str(uuid4())
         state = _make_run_state(
             run_id,
-            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc),
-            last_event_at=datetime(2026, 6, 12, 10, 3, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC),
+            last_event_at=datetime(2026, 6, 12, 10, 3, 0, tzinfo=UTC),
         )
         engine = _mock_engine(state, [])
         db = AsyncMock()
@@ -431,7 +422,6 @@ class TestLatencyAssertion:
 
 
 class TestTaskCompletionAssertion:
-
     def test_passes_when_enough_tasks_completed(self):
         """Task completion assertion passes when minimum tasks completed."""
         run_id = str(uuid4())
@@ -511,7 +501,6 @@ class TestTaskCompletionAssertion:
 
 
 class TestNoCircuitBreakerAssertion:
-
     def test_passes_when_no_cb_events(self):
         """No-circuit-breaker assertion passes when no CB events exist."""
         run_id = str(uuid4())
@@ -560,7 +549,6 @@ class TestNoCircuitBreakerAssertion:
 
 
 class TestAssertionEngineEdgeCases:
-
     def test_empty_assertions_returns_empty(self):
         """Empty expected_behaviors list returns empty results."""
         run_id = str(uuid4())
@@ -636,7 +624,6 @@ class TestAssertionEngineEdgeCases:
 
 
 class TestInterventionDistance:
-
     def test_fully_autonomous_run(self):
         """Run with zero interventions has 100% autonomy."""
         run_id = str(uuid4())

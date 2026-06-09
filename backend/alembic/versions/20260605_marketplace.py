@@ -17,17 +17,18 @@ Revises: 20260605_workflow_versions
 Create Date: 2026-06-05 12:00:00.000000
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 revision: str = "20260605_marketplace"
-down_revision: Union[str, Sequence[str], None] = "20260605_workflow_versions"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "20260605_workflow_versions"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 # Existing category IDs from the DB
@@ -105,8 +106,7 @@ def upgrade() -> None:
     for freeform, target_id in CATEGORY_MAP.items():
         op.execute(
             sa.text(
-                "UPDATE marketplace_listings SET category_id = :target "
-                "WHERE LOWER(category_id) = LOWER(:freeform)"
+                "UPDATE marketplace_listings SET category_id = :target WHERE LOWER(category_id) = LOWER(:freeform)"
             ).bindparams(target=target_id, freeform=freeform)
         )
 

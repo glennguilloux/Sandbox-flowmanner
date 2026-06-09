@@ -1,13 +1,22 @@
-"""Integration tests for close-missions features: graphs list, execution history, resume, trigger-to-graph."""
+"""Tests for close-missions features: graphs list, execution history, resume, trigger-to-graph.
 
-import pytest
+The HTTP endpoint tests hit localhost:8000 and require a running server,
+so they are marked as integration tests.
+"""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.services.graph_executor import ExecutionContext, GraphInterpreter
 from app.services.graph_node_handlers import ApprovalNodeHandler
 
+# HTTP endpoint tests hit localhost:8000 — mark them as integration.
+# Pure unit tests (approval, handler) are NOT marked.
 
+
+@pytest.mark.integration
 class TestGraphsListAPI:
     """Test graphs list endpoint returns 401 (auth required)."""
 
@@ -18,6 +27,7 @@ class TestGraphsListAPI:
         assert resp.status_code == 401
 
 
+@pytest.mark.integration
 class TestExecutionHistoryAPI:
     """Test execution history endpoints return 401."""
 
@@ -36,6 +46,7 @@ class TestExecutionHistoryAPI:
         assert resp.status_code == 401
 
 
+@pytest.mark.integration
 class TestResumeAPI:
     """Test resume endpoint returns 401."""
 
@@ -48,6 +59,7 @@ class TestResumeAPI:
         assert resp.status_code == 401
 
 
+@pytest.mark.integration
 class TestTriggerGraphAPI:
     """Test trigger-to-graph endpoint returns 401."""
 
@@ -107,6 +119,7 @@ class TestApprovalPauseResume:
         assert result["output"]["status"] == "paused"
 
 
+@pytest.mark.integration
 class TestTriggerEndpointRegistration:
     """Verify trigger fire-graph endpoint is registered."""
 
@@ -119,6 +132,7 @@ class TestTriggerEndpointRegistration:
         assert resp.status_code == 401
 
 
+@pytest.mark.integration
 class TestEndpointRegistration:
     """Verify all new endpoints are registered."""
 

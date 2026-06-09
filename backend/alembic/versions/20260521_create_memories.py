@@ -5,9 +5,10 @@ Revises: 20260521_avatar
 Create Date: 2026-05-21
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSON, UUID
+
+from alembic import op
 
 revision = "20260521_memories"
 down_revision = "20260521_avatar"

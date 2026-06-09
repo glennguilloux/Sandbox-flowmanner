@@ -9,9 +9,10 @@ Verifies:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
+import pytest
 
 
 class TestUnifiedExecutorGA:
@@ -162,7 +163,7 @@ class TestRunStateProjection:
     """Test the SubstrateRunState in-memory projection."""
 
     def test_run_state_apply_mission_started(self):
-        from app.models.substrate_models import SubstrateRunState, SubstrateEventType
+        from app.models.substrate_models import SubstrateEventType, SubstrateRunState
 
         state = SubstrateRunState(run_id="test-run")
         event = MagicMock()
@@ -174,7 +175,7 @@ class TestRunStateProjection:
         assert state.status == "executing"
 
     def test_run_state_apply_task_completed(self):
-        from app.models.substrate_models import SubstrateRunState, SubstrateEventType
+        from app.models.substrate_models import SubstrateEventType, SubstrateRunState
 
         state = SubstrateRunState(run_id="test-run")
         event = MagicMock()
@@ -203,8 +204,8 @@ class TestWorkflowModels:
     def test_workflow_import(self):
         from app.services.substrate.workflow_models import (
             Workflow,
-            WorkflowNode,
             WorkflowEdge,
+            WorkflowNode,
         )
 
         assert Workflow is not None

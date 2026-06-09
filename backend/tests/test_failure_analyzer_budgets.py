@@ -27,14 +27,12 @@ from app.services.nexus.failure_analyzer import (
     get_failure_analyzer,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # ErrorBudget: initialization
 # ═══════════════════════════════════════════════════════════════════
 
 
 class TestErrorBudgetInit:
-
     def test_default_initialization(self):
         budget = ErrorBudget()
         assert budget.retry_count == 0
@@ -72,7 +70,6 @@ class TestErrorBudgetInit:
 
 
 class TestErrorBudgetExhaustion:
-
     def test_not_exhausted_initially(self):
         budget = ErrorBudget(max_retries=3)
         exhausted, reason = budget.is_exhausted()
@@ -134,7 +131,6 @@ class TestErrorBudgetExhaustion:
 
 
 class TestErrorBudgetRecordAttempt:
-
     def test_record_increments_retry_count(self):
         budget = ErrorBudget(max_retries=3)
         budget.record_attempt()
@@ -174,7 +170,6 @@ class TestErrorBudgetRecordAttempt:
 
 
 class TestErrorBudgetToDict:
-
     def test_to_dict_includes_all_fields(self):
         budget = ErrorBudget(max_retries=3, max_cost_usd=0.50)
         budget.record_attempt(wall_clock_ms=150.0, cost_usd=0.10)
@@ -192,7 +187,6 @@ class TestErrorBudgetToDict:
 
 
 class TestFailureAnalyzerBudgets:
-
     def setup_method(self):
         self.analyzer = FailureAnalyzer()
 
@@ -274,7 +268,6 @@ class TestFailureAnalyzerBudgets:
 
 
 class TestFailureAnalyzerResetBudgets:
-
     def test_reset_budgets_clears_retry_counts(self):
         analyzer = FailureAnalyzer()
         analyzer._budgets[ErrorClass.TIMEOUT].retry_count = 3
@@ -318,7 +311,6 @@ class TestFailureAnalyzerResetBudgets:
 
 
 class TestClassifyError:
-
     def setup_method(self):
         self.analyzer = FailureAnalyzer()
 
@@ -379,7 +371,6 @@ class TestClassifyError:
 
 
 class TestFailureAnalyzerOther:
-
     def setup_method(self):
         self.analyzer = FailureAnalyzer()
 
@@ -431,7 +422,6 @@ class TestFailureAnalyzerOther:
 
 
 class TestExecutionObservation:
-
     def test_default_timestamp(self):
         obs = ExecutionObservation(tool_id="test", status="success")
         assert obs.timestamp is not None
@@ -456,7 +446,6 @@ class TestExecutionObservation:
 
 
 class TestFailureAnalysisResult:
-
     def test_to_dict(self):
         result = FailureAnalysisResult(
             error_class=ErrorClass.TIMEOUT,
@@ -478,7 +467,6 @@ class TestFailureAnalysisResult:
 
 
 class TestFailureAnalyzerSingleton:
-
     def test_get_failure_analyzer_returns_same_instance(self):
         fa1 = get_failure_analyzer()
         fa2 = get_failure_analyzer()

@@ -5,8 +5,9 @@ Revises: phase104_retarget_aux_tables
 Create Date: 2026-06-10
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "add_community_comments"
 down_revision = "phase103_drop_old_tables"

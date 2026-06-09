@@ -198,7 +198,7 @@ class UnifiedExecutor:
             exec_context = context or {}
 
             try:
-                result = await strategy.execute(workflow, exec_context, self, db)
+                result = await strategy.execute(workflow, exec_context, self, db)  # type: ignore[arg-type]
             except BudgetExhausted as e:
                 logger.warning("Budget exhausted for run %s: %s", run_id, e)
                 await self._record_budget_exhausted(db, run_id, workflow, str(e))
@@ -520,7 +520,7 @@ class UnifiedExecutor:
                     result=result.data or {},
                     success=result.success,
                     mission_id=workflow.id,
-                    user_id=workflow.user_id,
+                    user_id=workflow.user_id,  # type: ignore[arg-type]
                     model_used=None,
                     tokens_used=result.total_tokens,
                     duration_seconds=result.execution_time_ms / 1000.0,

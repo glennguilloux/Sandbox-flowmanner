@@ -2,10 +2,11 @@ import os
 import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_db, get_current_user, get_workspace_id
+from app.api.deps import get_current_user, get_db, get_workspace_id
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 

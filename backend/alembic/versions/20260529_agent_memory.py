@@ -5,9 +5,10 @@ Revises: 20260526_add_knowledge_graph_tables
 Create Date: 2026-05-29
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSON
+
+from alembic import op
 
 revision = "20260529_agent_memory"
 down_revision = "20260526_knowledge_graph"

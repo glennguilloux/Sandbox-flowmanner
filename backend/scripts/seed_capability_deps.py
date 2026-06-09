@@ -19,7 +19,7 @@ import logging
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -56,10 +56,11 @@ MAX_DEPS_PER_AGENT = 10
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async with engine.begin() as conn:
         # ── 1. Load capability slug → id map ────────────────────────

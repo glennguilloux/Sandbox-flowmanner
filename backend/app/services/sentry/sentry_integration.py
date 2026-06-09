@@ -142,6 +142,9 @@ class SentryIntegration:
         if not self.config.dsn:
             logger.warning("SENTRY_DSN not configured, Sentry integration disabled")
             return False
+        if sentry_sdk is None:
+            logger.error("sentry_sdk module is unexpectedly None despite SENTRY_AVAILABLE")
+            return False
 
         if self._initialized:
             logger.debug("Sentry already initialized")
@@ -275,6 +278,8 @@ class SentryIntegration:
         """
         if not self._initialized or not SENTRY_AVAILABLE:
             return None
+        if sentry_sdk is None:
+            return None
 
         try:
             # Set context tags
@@ -318,6 +323,8 @@ class SentryIntegration:
         """
         if not self._initialized or not SENTRY_AVAILABLE:
             return None
+        if sentry_sdk is None:
+            return None
 
         try:
             with sentry_sdk.push_scope() as scope:
@@ -336,6 +343,8 @@ class SentryIntegration:
         """Set user context for Sentry events."""
         if not self._initialized or not SENTRY_AVAILABLE:
             return
+        if sentry_sdk is None:
+            return
 
         sentry_sdk.set_user(
             {
@@ -348,6 +357,8 @@ class SentryIntegration:
     def set_context(self, name: str, context: dict[str, Any]):
         """Set additional context for Sentry events."""
         if not self._initialized or not SENTRY_AVAILABLE:
+            return
+        if sentry_sdk is None:
             return
 
         sentry_sdk.set_context(name, context)
@@ -362,6 +373,8 @@ class SentryIntegration:
         """Add a breadcrumb for debugging."""
         if not self._initialized or not SENTRY_AVAILABLE:
             return
+        if sentry_sdk is None:
+            return
 
         sentry_sdk.add_breadcrumb(
             message=message, category=category, level=level, data=data or {}
@@ -370,6 +383,8 @@ class SentryIntegration:
     def start_transaction(self, name: str, op: str = "function", **kwargs):
         """Start a new Sentry transaction for performance monitoring."""
         if not self._initialized or not SENTRY_AVAILABLE:
+            return None
+        if sentry_sdk is None:
             return None
 
         return sentry_sdk.start_transaction(name=name, op=op, **kwargs)
@@ -435,8 +450,11 @@ class SentryIntegration:
 
     def flush(self, timeout: float = 2.0):
         """Flush pending Sentry events."""
-        if self._initialized and SENTRY_AVAILABLE:
-            sentry_sdk.flush(timeout=timeout)
+        if not self._initialized or not SENTRY_AVAILABLE:
+            return
+        if sentry_sdk is None:
+            return
+        sentry_sdk.flush(timeout=timeout)
 
 
 # Singleton instance

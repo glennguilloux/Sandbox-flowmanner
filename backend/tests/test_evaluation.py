@@ -1,11 +1,11 @@
 """Tests for the evaluation system — models, services, API (sync only)."""
 
 import json
-import pytest
 from datetime import datetime, timezone
 
-from app.models.evaluation_models import GoldenDataset, GoldenTestCase, EvalRun
+import pytest
 
+from app.models.evaluation_models import EvalRun, GoldenDataset, GoldenTestCase
 
 # ── Model tests ─────────────────────────────────────────────────────────
 

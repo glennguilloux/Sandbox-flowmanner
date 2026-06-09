@@ -5,9 +5,10 @@ Revises: flo118_triggers
 Create Date: 2026-05-17
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "roadmap_001"
 down_revision = "flo118_triggers"

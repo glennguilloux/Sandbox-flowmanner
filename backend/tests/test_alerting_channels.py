@@ -70,7 +70,6 @@ def _make_slo_payload() -> dict:
 
 
 class TestChannelParsing:
-
     @pytest.mark.parametrize(
         "env_val,expected",
         [
@@ -122,7 +121,6 @@ class TestChannelParsing:
 
 
 class TestNtfyFormatting:
-
     def test_ntfy_url_from_topic(self):
         """NTFY_TOPIC=my-topic → https://ntfy.sh/my-topic"""
         am = _reload_alerting(
@@ -217,7 +215,6 @@ class TestNtfyFormatting:
 
 
 class TestWebhookChannel:
-
     @pytest.mark.asyncio
     async def test_webhook_sends_json_payload(self):
         """_send_webhook() POSTs the payload as JSON to ALERT_WEBHOOK_URL."""
@@ -257,7 +254,6 @@ class TestWebhookChannel:
 
 
 class TestPlaceholderChannels:
-
     @pytest.mark.asyncio
     async def test_email_returns_false(self):
         """email channel is placeholder — returns False."""
@@ -279,7 +275,6 @@ class TestPlaceholderChannels:
 
 
 class TestMultiChannelDispatch:
-
     @pytest.mark.asyncio
     async def test_dispatches_to_all_configured_channels(self):
         """_dispatch_to_channels() sends to every channel in the list."""
@@ -382,7 +377,6 @@ class TestMultiChannelDispatch:
 
 
 class TestCircuitAlertEndToEnd:
-
     @pytest.mark.asyncio
     async def test_send_circuit_alert_dispatches_to_channels(self):
         """send_circuit_alert() dispatches through _dispatch_to_channels."""
@@ -479,7 +473,6 @@ class TestCircuitAlertEndToEnd:
 
 
 class TestSLOAlertEndToEnd:
-
     @pytest.mark.asyncio
     async def test_send_slo_alert_dispatches_to_channels(self):
         """send_slo_alert() dispatches through _dispatch_to_channels."""
@@ -581,7 +574,6 @@ class TestSLOAlertEndToEnd:
 
 
 class TestAlertingStatus:
-
     def test_status_includes_channels_and_config(self):
         """get_alerting_status() reports channel configuration."""
         am = _reload_alerting(

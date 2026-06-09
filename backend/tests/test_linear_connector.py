@@ -16,7 +16,6 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.linear_connector import LinearConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -121,10 +120,15 @@ async def test_validate_credentials_success():
     """connect() succeeds when Linear teams are reachable."""
     mock_client = _make_mock_linear_client()
 
-    with patch(
-        "app.services.linear.client.LinearClient",
-        return_value=mock_client,
+    with (
+        patch(
+            "app.services.linear.client.LinearClient",
+            return_value=mock_client,
+        ),
+        patch("app.services.connectors.linear_connector.settings") as mock_settings,
     ):
+        mock_settings.LINEAR_API_KEY = "lin_api_test123"
+        mock_settings.LINEAR_TEAM_ID = "team1"
         connector = LinearConnector(_make_config())
         ok = await connector.connect()
 
@@ -173,10 +177,13 @@ async def test_create_issue():
     """Create a Linear issue."""
     mock_client = _make_mock_linear_client()
 
-    with patch(
-        "app.services.linear.client.LinearClient",
-        return_value=mock_client,
-    ), patch("app.services.connectors.linear_connector.settings") as mock_settings:
+    with (
+        patch(
+            "app.services.linear.client.LinearClient",
+            return_value=mock_client,
+        ),
+        patch("app.services.connectors.linear_connector.settings") as mock_settings,
+    ):
         mock_settings.LINEAR_TEAM_ID = "team1"
         mock_settings.LINEAR_API_KEY = "test"
 

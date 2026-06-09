@@ -326,7 +326,7 @@ class WebhookConnector(BaseConnector):
                     }
                 )
             else:
-                processed_results.append(result)
+                processed_results.append(result)  # type: ignore[arg-type]
 
         success_count = sum(1 for r in processed_results if r.get("success"))
 

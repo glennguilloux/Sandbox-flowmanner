@@ -65,7 +65,7 @@ def langgraph_execute_task(
 
         # Process message
         result = loop.run_until_complete(
-            agent.process_message(message, session_id, context or {})
+            agent.process_message(message, session_id, context or {})  # type: ignore[arg-type]
         )
 
         # Close agent
@@ -137,7 +137,7 @@ def langgraph_approval_task(
 
         # Handle approval
         result = loop.run_until_complete(
-            agent.handle_approval(session_id, approval, notes)
+            agent.handle_approval(session_id, approval, notes)  # type: ignore[arg-type]
         )
 
         # Close agent
@@ -286,7 +286,7 @@ def langgraph_batch_process_task(
 
             try:
                 result = loop.run_until_complete(
-                    agent.process_message(message, session_id, context or {})
+                    agent.process_message(message, session_id, context or {})  # type: ignore[arg-type]
                 )
                 results.append({"message": message, "result": result, "success": True})
             except Exception as e:

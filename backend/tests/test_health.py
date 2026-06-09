@@ -1,7 +1,9 @@
 import os
 from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
+
 from app.main_fastapi import app
 
 pytestmark = pytest.mark.integration

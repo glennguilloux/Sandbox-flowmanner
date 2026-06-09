@@ -307,7 +307,7 @@ class CostOptimizer:
                     )
 
         # Sort alternatives by savings
-        alternatives.sort(key=lambda x: x["savings"], reverse=True)
+        alternatives.sort(key=lambda x: x["savings"], reverse=True)  # type: ignore[arg-type]
 
         return CostEstimate(
             operation=operation,

@@ -205,7 +205,7 @@ class NexusOrchestrator:
                     "Executing capability %s in distributed mode", capability_id
                 )
                 task_id = await self.distributed_executor.submit_task(
-                    coro=capability.execute(params),
+                    coro=capability.execute(params),  # type: ignore[arg-type]
                     task_name=f"capability:{capability_id}",
                     metadata={"capability_id": capability_id, "params": params},
                 )

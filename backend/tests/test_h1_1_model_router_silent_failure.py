@@ -4,9 +4,10 @@ success=False with a typed error, NOT success=True with empty output.
 """
 
 import os
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
@@ -83,10 +84,9 @@ class TestMissionExecutorNoSilentSuccess:
         )
 
         # The critical assertion: must NOT be a silent success
-        assert result["success"] is False, (
-            "H1.1 FAIL: Bogus model returned success=True — silent success bug!\n"
-            f"Result: {result}"
-        )
+        assert (
+            result["success"] is False
+        ), f"H1.1 FAIL: Bogus model returned success=True — silent success bug!\nResult: {result}"
 
         # Must contain a meaningful error message
         assert "error" in result
@@ -216,10 +216,9 @@ class TestMissionExecutorNoSilentSuccess:
             db=None,
         )
 
-        assert result["success"] is False, (
-            "H1.1 FAIL: Empty response with success=True was NOT treated as failure!\n"
-            f"Result: {result}"
-        )
+        assert (
+            result["success"] is False
+        ), f"H1.1 FAIL: Empty response with success=True was NOT treated as failure!\nResult: {result}"
         assert "empty" in str(result.get("error", "")).lower()
 
     @pytest.mark.asyncio
@@ -341,10 +340,9 @@ class TestModelRouterIsModelAvailable:
                 c.kwargs.get("user_id") or (c.args[1] if len(c.args) > 1 else None)
                 for c in calls
             ]
-            assert 42 in user_ids_used, (
-                f"H1.1 FAIL: user_id=42 was not passed to get_model. "
-                f"User IDs in calls: {user_ids_used}"
-            )
+            assert (
+                42 in user_ids_used
+            ), f"H1.1 FAIL: user_id=42 was not passed to get_model. User IDs in calls: {user_ids_used}"
 
     @pytest.mark.asyncio
     async def test_is_model_available_returns_false_when_no_model(self):

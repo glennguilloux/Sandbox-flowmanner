@@ -23,7 +23,6 @@ from app.models.substrate_models import (
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine, get_replay_engine
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -126,7 +125,6 @@ def _mock_event_log_with_events(events: list[SubstrateEvent]):
 
 
 class TestRebuildState:
-
     def test_rebuilds_empty_state_for_no_events(self):
         """rebuild_state() returns pending state when no events exist."""
         el = _mock_event_log_with_events([])
@@ -419,7 +417,6 @@ class TestRebuildState:
 
 
 class TestRebuildStateAtSequence:
-
     def test_rebuilds_at_specific_sequence(self):
         """rebuild_state_at_sequence() returns state as it was after given seq."""
         run_id = str(uuid4())
@@ -456,7 +453,6 @@ class TestRebuildStateAtSequence:
 
 
 class TestVerifyDeterminism:
-
     def test_deterministic_replay_returns_true(self):
         """verify_determinism() returns True for a stable event stream."""
         run_id = str(uuid4())
@@ -491,7 +487,6 @@ class TestVerifyDeterminism:
 
 
 class TestGetCheckpointSequences:
-
     def test_returns_checkpoint_sequences(self):
         """get_checkpoint_sequences() returns sequences of checkpoint events."""
         run_id = str(uuid4())
@@ -533,7 +528,6 @@ class TestGetCheckpointSequences:
 
 
 class TestReplayEngineSingleton:
-
     def test_get_replay_engine_returns_same_instance(self):
         re1 = get_replay_engine()
         re2 = get_replay_engine()

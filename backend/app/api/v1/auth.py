@@ -739,7 +739,7 @@ async def social_token_exchange(
         _link_oidc_account(
             db,
             user.id,
-            provider_id,
+            provider_id,  # type: ignore[arg-type]
             social["id"],
             social["login"],
             social["email"],
@@ -778,7 +778,7 @@ async def social_token_exchange(
     _link_oidc_account(
         db,
         user.id,
-        provider_id,
+        provider_id,  # type: ignore[arg-type]
         social["id"],
         social["login"],
         social["email"],

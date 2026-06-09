@@ -12,7 +12,6 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 from app.api.deps import get_current_user
 from app.main_fastapi import app
-
 from app.services.rag.prompt_synthesizer import GeneratedPrompt
 
 BASE = "/api/v1/rag"

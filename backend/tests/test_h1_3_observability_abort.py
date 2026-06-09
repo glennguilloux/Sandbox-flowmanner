@@ -12,9 +12,10 @@ Tests:
 """
 
 import os
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 from uuid import uuid4
+
+import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 

@@ -5,8 +5,9 @@ Revises: 20260521_marketplace
 Create Date: 2026-05-21
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "20260521_avatar"
 down_revision = "20260521_create_teams_invitations"

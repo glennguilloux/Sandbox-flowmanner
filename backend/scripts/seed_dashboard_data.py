@@ -1,14 +1,15 @@
 """Seed dashboard data for admin42 user (id=60)."""
 
 import asyncio
-import sys
 import os
+import sys
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from app.config import settings
 
 

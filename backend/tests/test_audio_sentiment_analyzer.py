@@ -10,15 +10,18 @@ Tests cover:
 - Tool metadata and registration
 """
 
-import io
-import os
 import base64
-import struct
+import io
 import math
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+import os
+import struct
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
+
+# pydub is an optional dependency; skip entire module if missing
+pytest.importorskip("pydub")
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 
@@ -412,11 +415,12 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_very_short_audio(self, analyzer):
         """Very short audio should not crash."""
-        from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
-
         # Test the internal method directly with a tiny signal
         import tempfile
+
         import numpy as np
+
+        from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             try:

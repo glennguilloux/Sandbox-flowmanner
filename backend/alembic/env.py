@@ -4,7 +4,6 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-
 from app.config import settings
 
 config = context.config

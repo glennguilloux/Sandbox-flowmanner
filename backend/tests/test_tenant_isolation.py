@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -108,7 +108,7 @@ class FakeMission:
         self.title = title
         self.status = status
         self.deleted_at = None
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
         self.started_at = None
         self.completed_at = None
         self.updated_at = None
@@ -475,13 +475,14 @@ class FakeWorkflow:
         self.user_id = user_id
         self.workspace_id = workspace_id
         self.name = name
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
 
 
 async def test_require_graph_access_workspace_member():
     """require_graph_access should allow access when user is a workspace member."""
-    from app.services.graph_service import require_graph_access
     from fastapi import HTTPException
+
+    from app.services.graph_service import require_graph_access
 
     ws_id = "ws-graph-access"
     workflow = FakeWorkflow(workspace_id=ws_id)
@@ -627,13 +628,14 @@ class FakeChatThread:
         self.user_id = user_id
         self.workspace_id = workspace_id
         self.title = title
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
 
 
 async def test_require_chat_thread_access_workspace_member():
     """require_chat_thread_access should allow access when user is a workspace member."""
-    from app.services.chat_service import require_chat_thread_access
     from fastapi import HTTPException
+
+    from app.services.chat_service import require_chat_thread_access
 
     ws_id = "ws-chat-access"
     thread = FakeChatThread(workspace_id=ws_id)
@@ -660,8 +662,9 @@ async def test_require_chat_thread_access_workspace_member():
 
 async def test_require_chat_thread_access_non_member_denied():
     """require_chat_thread_access should deny access when user is not a workspace member."""
-    from app.services.chat_service import require_chat_thread_access
     from fastapi import HTTPException
+
+    from app.services.chat_service import require_chat_thread_access
 
     ws_id = "ws-chat-denied"
     thread = FakeChatThread(workspace_id=ws_id, user_id=999)
@@ -713,8 +716,9 @@ async def test_require_chat_thread_access_fallback_to_user_id():
 
 async def test_require_chat_thread_access_wrong_user_denied():
     """require_chat_thread_access should deny access when user_id doesn't match and no workspace."""
-    from app.services.chat_service import require_chat_thread_access
     from fastapi import HTTPException
+
+    from app.services.chat_service import require_chat_thread_access
 
     thread = FakeChatThread(user_id=42, workspace_id=None)
 
@@ -739,8 +743,9 @@ async def test_require_chat_thread_access_wrong_user_denied():
 
 async def test_require_chat_thread_access_missing_thread():
     """require_chat_thread_access should 404 when thread doesn't exist."""
-    from app.services.chat_service import require_chat_thread_access
     from fastapi import HTTPException
+
+    from app.services.chat_service import require_chat_thread_access
 
     db = AsyncMock()
 
@@ -784,15 +789,15 @@ async def test_list_active_workspace_filter():
 
     handler = MissionQueryHandlers(session)
     # Patch cache to return None (cache miss)
-    with patch(
-        "app.api._mission_cqrs.queries.cache_active",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock),
     ):
-        with patch(
-            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
-        ):
-            result = await handler.list_active(user_id=1, workspace_id=ws_id)
+        result = await handler.list_active(user_id=1, workspace_id=ws_id)
     _assert(len(result) == 1, "list_active with workspace_id returns correct results")
 
 
@@ -810,15 +815,15 @@ async def test_list_active_fallback_to_user():
     session.execute = mock_execute
 
     handler = MissionQueryHandlers(session)
-    with patch(
-        "app.api._mission_cqrs.queries.cache_active",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock),
     ):
-        with patch(
-            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
-        ):
-            result = await handler.list_active(user_id=42, workspace_id=None)
+        result = await handler.list_active(user_id=42, workspace_id=None)
     _assert(len(result) == 1, "list_active without workspace_id falls back to user_id")
 
 
@@ -843,17 +848,17 @@ async def test_active_missions_workspace_filter():
     session.execute = mock_execute
 
     handler = MissionQueryHandlers(session)
-    with patch(
-        "app.api._mission_cqrs.queries.cache_active",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock),
     ):
-        with patch(
-            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
-        ):
-            result = await handler.active_missions(
-                user_id=1, user_role="pro", is_pro=True, workspace_id=ws_id
-            )
+        result = await handler.active_missions(
+            user_id=1, user_role="pro", is_pro=True, workspace_id=ws_id
+        )
     _assert(
         result.total == 1, "active_missions with workspace_id returns correct results"
     )
@@ -879,17 +884,17 @@ async def test_active_missions_fallback_to_user():
     session.execute = mock_execute
 
     handler = MissionQueryHandlers(session)
-    with patch(
-        "app.api._mission_cqrs.queries.cache_active",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.api._mission_cqrs.queries.cache_active",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock),
     ):
-        with patch(
-            "app.api._mission_cqrs.queries.cache_set_active", new_callable=AsyncMock
-        ):
-            result = await handler.active_missions(
-                user_id=42, user_role="pro", is_pro=True, workspace_id=None
-            )
+        result = await handler.active_missions(
+            user_id=42, user_role="pro", is_pro=True, workspace_id=None
+        )
     _assert(
         result.total == 1, "active_missions without workspace_id falls back to user_id"
     )

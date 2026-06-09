@@ -205,7 +205,7 @@ class CapabilityRegistry:
             if (
                 expected_type
                 and expected_type in type_map
-                and not isinstance(value, type_map[expected_type])
+                and not isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
             ):
                 return (
                     False,

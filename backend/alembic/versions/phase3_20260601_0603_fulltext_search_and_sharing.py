@@ -5,15 +5,18 @@ Revises: "c3d4e5f6a7b8"
 Create Date: 2026-06-01T06:03:52.029135
 """
 
-from typing import Sequence, Union
-from alembic import op
+from collections.abc import Sequence
+from typing import Union
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 revision: str = "phase3_20260601_0603"
-down_revision: Union[str, None] = "c3d4e5f6a7b8"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "c3d4e5f6a7b8"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -48,8 +51,7 @@ def upgrade() -> None:
     """
     )
     op.execute(
-        "UPDATE chat_messages "
-        "SET search_vector = to_tsvector('english', COALESCE(content, ''))"
+        "UPDATE chat_messages SET search_vector = to_tsvector('english', COALESCE(content, ''))"
     )
 
     # Shared links table
@@ -83,7 +85,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column(
-            "workspace_id", sa.Integer(), sa.ForeignKey("workspaces.id"), nullable=True
+            "workspace_id", sa.String(36), sa.ForeignKey("workspaces.id"), nullable=True
         ),
         sa.Column(
             "thread_id", sa.Integer(), sa.ForeignKey("chat_threads.id"), nullable=True

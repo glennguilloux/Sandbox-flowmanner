@@ -5,8 +5,9 @@ Revises: 20260603_phase82_workspace_api_keys
 Create Date: 2026-06-03
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers
 revision = "20260603_phase91_plugins"

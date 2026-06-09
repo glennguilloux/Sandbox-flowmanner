@@ -42,7 +42,7 @@ async def _fake_stream(*tokens):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_client(mock_db_session, sample_user):
     async def override_get_db():
         yield mock_db_session

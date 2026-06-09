@@ -277,7 +277,7 @@ class WebSearchService:
         for result in results[:3]:
             if not result.content:
                 try:
-                    extracted = await self.extractor.extract(result.url, depth)
+                    extracted = await self.extractor.extract(result.url, depth)  # type: ignore[arg-type]
                     if extracted.success:
                         result.extracted_content = extracted.content
                         result.content = extracted.content

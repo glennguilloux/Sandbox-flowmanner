@@ -14,7 +14,6 @@ import uuid
 
 import pytest
 
-
 # ── Import tests ──────────────────────────────────────────────────────
 
 
@@ -147,8 +146,8 @@ class TestMaterializationMigration:
         assert rev_path.exists(), f"Migration file not found at {rev_path}"
 
     def test_migration_has_upgrade_and_downgrade(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
         rev_path = (
             Path(__file__).resolve().parent.parent
@@ -169,8 +168,8 @@ class TestMaterializationMigration:
         assert callable(mod.downgrade)
 
     def test_migration_down_revision(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
         rev_path = (
             Path(__file__).resolve().parent.parent

@@ -10,9 +10,10 @@ Revises: 20260603_phase96_plugin_security
 Create Date: 2026-06-09
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "phase101_blueprints_runs"
 down_revision = "20260603_phase96_plugin_security"

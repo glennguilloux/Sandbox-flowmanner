@@ -1047,7 +1047,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             if r.get("aborted"):
                 _schedule_fire_and_forget(
                     dual_write_sync_run_status(
-                        r["mission_id"],
+                        r["mission_id"],  # type: ignore[arg-type]
                         user.id,
                         "aborted",
                         error_message=f"Batch aborted: {abort_reason.value}",
@@ -1127,7 +1127,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         engine = SelfImprovementEngine(self.session, str(user.id))
         improvement = await engine.generate_strategy(
-            mission_id,
+            mission_id,  # type: ignore[arg-type]
             payload.failure_type,
             payload.failure_context or "",
         )
@@ -1142,4 +1142,4 @@ class MissionCommandHandlers(CommandHandlerBase):
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         engine = SelfImprovementEngine(self.session, str(user.id))
-        return await engine.apply_strategy(improvement_id)
+        return await engine.apply_strategy(improvement_id)  # type: ignore[arg-type]

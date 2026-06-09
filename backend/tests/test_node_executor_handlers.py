@@ -6,12 +6,13 @@ _handle_web_search, _tool_* helpers, _handle_sub_workflow.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.services.substrate.node_executor import NodeExecutor
-from app.services.substrate.workflow_models import WorkflowNode, WorkflowType, NodeType
+from app.services.substrate.workflow_models import NodeType, WorkflowNode, WorkflowType
 
 
 def _make_node(
@@ -292,7 +293,8 @@ class TestHandleFile:
             config={"file_id": "f123", "operation": "read"},
         )
 
-        import tempfile, os
+        import os
+        import tempfile
 
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         tmp.write("Hello, world!")
@@ -599,7 +601,8 @@ class TestToolHelpers:
         ne, _ = _make_executor_with_node_executor()
 
         mock_storage = MagicMock()
-        import tempfile, os
+        import os
+        import tempfile
 
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         tmp.write("file content here")
@@ -758,16 +761,18 @@ class TestHandleToolRouting:
         mock_ce_module = MagicMock()
         mock_ce_module.get_capability_engine.return_value = mock_cap
 
-        with patch.dict(
-            "sys.modules", {"app.services.capability_engine": mock_ce_module}
-        ):
-            with patch.object(
+        with (
+            patch.dict(
+                "sys.modules", {"app.services.capability_engine": mock_ce_module}
+            ),
+            patch.object(
                 ne,
                 "_tool_web_search",
                 new_callable=AsyncMock,
                 return_value={"success": True, "output": {}},
-            ) as mock_ws:
-                result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
+            ) as mock_ws,
+        ):
+            result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
 
         assert result["success"] is True
         mock_ws.assert_awaited_once()

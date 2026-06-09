@@ -255,8 +255,7 @@ class FlowmannerClient:
             elapsed = time.monotonic() - start
             if elapsed >= timeout:
                 raise FlowmannerError(
-                    f"Timeout waiting for mission {mission_id} "
-                    f"(status={status}, elapsed={elapsed:.0f}s)"
+                    f"Timeout waiting for mission {mission_id} (status={status}, elapsed={elapsed:.0f}s)"
                 )
             time.sleep(poll_interval)
 

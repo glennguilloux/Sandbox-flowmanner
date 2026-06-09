@@ -1,11 +1,13 @@
 """Tests for graph execution engine: interpreter, context, and handlers."""
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.services.graph_executor import ExecutionContext, GraphInterpreter
 from app.services.graph_node_handlers import (
+    ApprovalNodeHandler,
     BaseNodeHandler,
     ConditionNodeHandler,
     DelayNodeHandler,
@@ -19,9 +21,7 @@ from app.services.graph_node_handlers import (
     TaskNodeHandler,
     TransformNodeHandler,
     WebhookNodeHandler,
-    ApprovalNodeHandler,
 )
-
 
 # ── ExecutionContext Tests ──
 

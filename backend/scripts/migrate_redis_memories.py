@@ -15,9 +15,9 @@ This is a ONE-TIME migration script. It:
 import asyncio
 import json
 import logging
-import sys
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -115,8 +115,7 @@ async def run(apply: bool = False):
 
     if not apply:
         logger.info(
-            "DRY RUN: Would migrate %d agent memories + %d KV memories = %d total. "
-            "Run with --apply to execute.",
+            "DRY RUN: Would migrate %d agent memories + %d KV memories = %d total. Run with --apply to execute.",
             len(agent_memories),
             len(kv_memories),
             total,
@@ -126,7 +125,7 @@ async def run(apply: bool = False):
         return
 
     # ── 5. Insert into Postgres ──────────────────────────────────────
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     migrated = 0
     skipped = 0
     errors = 0

@@ -5,15 +5,11 @@ Tests call main(argv=...) directly with mocked FlowmannerClient to avoid real HT
 
 from __future__ import annotations
 
-import json
-import os
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from flowmanner_api_client.cli import main
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 

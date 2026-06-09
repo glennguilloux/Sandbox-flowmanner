@@ -76,7 +76,7 @@ class _FakeAsyncClient:
         return self._response
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_user():
     return SimpleNamespace(
         id=1,
@@ -94,7 +94,7 @@ def sample_user():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_client(sample_user):
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock()

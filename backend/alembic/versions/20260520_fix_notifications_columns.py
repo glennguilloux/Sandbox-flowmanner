@@ -9,8 +9,9 @@ Revises: push_subscriptions_001
 Create Date: 2026-05-20
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "fix_notifications_columns"
 down_revision = "push_subscriptions_001"

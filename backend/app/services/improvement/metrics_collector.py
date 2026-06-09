@@ -509,10 +509,10 @@ class MetricsCollector:
         return {
             "success_rate": result["successful_requests"] / total if total > 0 else 1.0,
             "error_rate": result["failed_requests"] / total if total > 0 else 0.0,
-            "latency_avg": statistics.mean(latencies) if latencies else 0.0,
-            "latency_p50": self._percentile(latencies, 50),
-            "latency_p95": self._percentile(latencies, 95),
-            "latency_p99": self._percentile(latencies, 99),
+            "latency_avg": statistics.mean(latencies) if latencies else 0.0,  # type: ignore[arg-type]
+            "latency_p50": self._percentile(latencies, 50),  # type: ignore[arg-type]
+            "latency_p95": self._percentile(latencies, 95),  # type: ignore[arg-type]
+            "latency_p99": self._percentile(latencies, 99),  # type: ignore[arg-type]
             "total_requests": total,
             "successful_requests": result["successful_requests"],
             "failed_requests": result["failed_requests"],

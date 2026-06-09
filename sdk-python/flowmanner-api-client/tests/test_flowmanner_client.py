@@ -6,12 +6,11 @@ Tests use httpx.MockTransport to intercept HTTP requests without hitting a real 
 from __future__ import annotations
 
 import json
-import os
-import pytest
+
 import httpx
+import pytest
 
 from flowmanner_api_client.high_level import FlowmannerClient
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 

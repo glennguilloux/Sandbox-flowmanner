@@ -1,18 +1,18 @@
-"""Unit tests for UnifiedExecutor (app/services/substrate/executor.py).
-"""
+"""Unit tests for UnifiedExecutor (app/services/substrate/executor.py)."""
 
 from __future__ import annotations
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.services.substrate.workflow_models import (
+    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
-    StrategyResult,
 )
 
 

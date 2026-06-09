@@ -10,21 +10,22 @@ Validates:
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
-from app.services.memory_service import MemoryService, _MISSING
-
+from app.services.memory_service import _MISSING, MemoryService
 
 # ── Helpers ────────────────────────────────────────────────────────
 
 
 def _make_entry(**overrides):
     """Build a mock MemoryEntry row."""
-    from app.models.memory_models import MemoryEntry
     from datetime import datetime, timezone
+
+    from app.models.memory_models import MemoryEntry
 
     defaults = {
         "id": str(uuid4()),
@@ -33,8 +34,8 @@ def _make_entry(**overrides):
         "memory_type": "episodic",
         "content": "test content",
         "importance": 0.7,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
         "meta": {},
     }
     defaults.update(overrides)
@@ -51,7 +52,6 @@ def _make_entry(**overrides):
 
 
 class TestStoreAgentMemory:
-
     @pytest.mark.asyncio
     async def test_store_writes_to_postgres(self):
         """Agent memory store must create a MemoryEntry in Postgres."""
@@ -114,7 +114,6 @@ class TestStoreAgentMemory:
 
 
 class TestStoreSimpleKV:
-
     @pytest.mark.asyncio
     async def test_store_simple_returns_false_for_no_args(self):
         """Calling store() with no key and no agent_id should return False."""
@@ -207,7 +206,6 @@ class TestStoreSimpleKV:
 
 
 class TestRetrieveByQuery:
-
     @pytest.mark.asyncio
     async def test_returns_memories_from_postgres(self):
         """Should query Postgres and return formatted memory dicts."""
@@ -273,7 +271,6 @@ class TestRetrieveByQuery:
 
 
 class TestDeleteMemory:
-
     @pytest.mark.asyncio
     async def test_delete_returns_true_when_found(self):
         mock_session = AsyncMock()
@@ -307,7 +304,6 @@ class TestDeleteMemory:
 
 
 class TestRedisCacheOptional:
-
     @pytest.mark.asyncio
     async def test_store_succeeds_without_redis(self):
         """Memory store should work even when Redis is unavailable."""
@@ -352,12 +348,10 @@ class TestRedisCacheOptional:
 
 
 class TestSingleton:
-
     def test_get_memory_service_returns_instance(self):
-        from app.services.memory_service import get_memory_service
-
         # Reset singleton for test isolation
         import app.services.memory_service as mod
+        from app.services.memory_service import get_memory_service
 
         mod._memory_service_instance = None
 

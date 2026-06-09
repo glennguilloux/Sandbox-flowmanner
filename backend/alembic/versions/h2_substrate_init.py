@@ -11,11 +11,13 @@ down_revision = "h13_observability"
 branch_labels = None
 depends_on = None
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 
 def upgrade() -> None:

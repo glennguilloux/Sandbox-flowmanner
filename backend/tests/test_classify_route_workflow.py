@@ -11,13 +11,13 @@ Tests:
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.main_fastapi import app
 from app.api.deps import get_current_user, get_db
+from app.main_fastapi import app
+from app.models.graph import GraphExecution, GraphWorkflow
 from app.models.user import User
-from app.models.graph import GraphWorkflow, GraphExecution
 
 pytestmark = pytest.mark.integration
 

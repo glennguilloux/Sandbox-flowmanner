@@ -10,9 +10,10 @@ Revises: marketplace_v2_001
 Create Date: 2026-06-08
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "phase6_hitl_cost_cb"
 down_revision = "marketplace_v2_001"

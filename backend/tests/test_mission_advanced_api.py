@@ -137,12 +137,12 @@ def _mock_scalar_one(item):
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_user():
     return make_user()
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_client(mock_db_session, mock_user):
     """TestClient with auth (user id=1) and mocked DB."""
 
@@ -162,7 +162,7 @@ def auth_client(mock_db_session, mock_user):
     app.dependency_overrides.pop(get_current_user, None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def unauth_client(mock_db_session):
     """TestClient without auth (no get_current_user override)."""
 

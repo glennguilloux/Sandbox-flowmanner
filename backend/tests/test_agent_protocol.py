@@ -6,7 +6,7 @@ debate orchestration, task handoff delegation, and failure escalation chains.
 """
 
 import os
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -301,8 +301,8 @@ class TestHandoffProtocol:
 
     @pytest.mark.asyncio
     async def test_accept_handoff(self):
-        from app.services.swarm.handoff_protocol import HandoffProtocol
         from app.models.agent import HandoffRecord
+        from app.services.swarm.handoff_protocol import HandoffProtocol
 
         db = make_mock_db()
 
@@ -327,8 +327,8 @@ class TestHandoffProtocol:
 
     @pytest.mark.asyncio
     async def test_complete_handoff(self):
-        from app.services.swarm.handoff_protocol import HandoffProtocol
         from app.models.agent import HandoffRecord
+        from app.services.swarm.handoff_protocol import HandoffProtocol
 
         db = make_mock_db()
 
@@ -358,8 +358,8 @@ class TestHandoffProtocol:
 
     @pytest.mark.asyncio
     async def test_reject_handoff(self):
-        from app.services.swarm.handoff_protocol import HandoffProtocol
         from app.models.agent import HandoffRecord
+        from app.services.swarm.handoff_protocol import HandoffProtocol
 
         db = make_mock_db()
 
@@ -381,8 +381,8 @@ class TestHandoffProtocol:
 
     @pytest.mark.asyncio
     async def test_fail_handoff(self):
-        from app.services.swarm.handoff_protocol import HandoffProtocol
         from app.models.agent import HandoffRecord
+        from app.services.swarm.handoff_protocol import HandoffProtocol
 
         db = make_mock_db()
 
@@ -455,8 +455,8 @@ class TestEscalationChain:
 
     @pytest.mark.asyncio
     async def test_continue_escalation(self):
-        from app.services.swarm.escalation_chain import EscalationChain
         from app.models.agent import EscalationRecord
+        from app.services.swarm.escalation_chain import EscalationChain
 
         db = make_mock_db()
 
@@ -505,8 +505,8 @@ class TestEscalationChain:
     @pytest.mark.asyncio
     async def test_aggressive_policy(self):
         from app.services.swarm.escalation_chain import (
-            EscalationChain,
             POLICY_CONFIGS,
+            EscalationChain,
         )
 
         # Aggressive: max_retries_same=1 → first call stays at level 0 (one retry allowed)
@@ -575,8 +575,8 @@ class TestEscalationChain:
 
     @pytest.mark.asyncio
     async def test_dead_letter_after_max_retries(self):
-        from app.services.swarm.escalation_chain import EscalationChain
         from app.models.agent import EscalationRecord
+        from app.services.swarm.escalation_chain import EscalationChain
 
         db = make_mock_db()
 
@@ -615,8 +615,8 @@ class TestEscalationChain:
 
     @pytest.mark.asyncio
     async def test_resolve_escalation(self):
-        from app.services.swarm.escalation_chain import EscalationChain
         from app.models.agent import EscalationRecord
+        from app.services.swarm.escalation_chain import EscalationChain
 
         db = make_mock_db()
 

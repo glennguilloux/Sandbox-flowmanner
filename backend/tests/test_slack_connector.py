@@ -18,7 +18,6 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.slack_connector import SlackConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 

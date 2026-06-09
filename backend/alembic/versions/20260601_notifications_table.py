@@ -5,8 +5,9 @@ Revises: 66697531c2da
 Create Date: 2026-06-01
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "notifications_table_001"
 down_revision = "66697531c2da"

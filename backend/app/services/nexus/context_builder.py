@@ -129,7 +129,7 @@ class ContextBuilder:
 
         # Assemble the context string
         result["assembled"] = self._assemble_context(
-            result["sources"], query, max_tokens
+            result["sources"], query, max_tokens  # type: ignore[arg-type]
         )
 
         result["metadata"]["build_time_ms"] = (
@@ -196,7 +196,7 @@ class ContextBuilder:
         scores = []
         for scorer in self._scorers:
             try:
-                score = await scorer(context, query)
+                score = await scorer(context, query)  # type: ignore[arg-type]
                 scores.append(score)
             except Exception as e:
                 logger.warning("Scorer failed: %s", e)

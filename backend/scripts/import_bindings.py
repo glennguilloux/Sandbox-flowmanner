@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,10 +28,11 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # ── 1. Load slug→id maps from catalog tables ────────────────────
     async with engine.begin() as conn:
@@ -187,9 +188,7 @@ async def run():
 
     await engine.dispose()
     logger.info(
-        "Binding import complete: "
-        "tool_bindings=%d inserted / %d skipped, "
-        "capability_bindings=%d inserted / %d skipped",
+        "Binding import complete: tool_bindings=%d inserted / %d skipped, capability_bindings=%d inserted / %d skipped",
         tool_bindings_inserted,
         tool_bindings_skipped,
         cap_bindings_inserted,

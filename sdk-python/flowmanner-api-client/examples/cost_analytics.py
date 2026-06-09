@@ -12,7 +12,7 @@ def main():
 
         # Cost analytics
         costs = fm.get_cost_analytics(period="month")
-        print(f"\nCost by model:")
+        print("\nCost by model:")
         for model in costs.get("by_model", []):
             print(f"  {model.get('model')}: ${model.get('cost', 0):.4f}")
 
