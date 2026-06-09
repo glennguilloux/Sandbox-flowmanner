@@ -135,6 +135,9 @@ class FailureContext:
     failure_type: FailureType
     severity: FailureSeverity
     error_message: str
+    failure_id: str | None = None  # DB-side unique identifier
+    task_id: str | None = None  # Associated task ID
+    is_infrastructure: bool | None = None  # Cached classification flag
 
     # Timing information
     timestamp: datetime
@@ -172,6 +175,7 @@ class FailureContext:
     parent_span_id: str | None = None
 
     # Additional metadata
+    context: dict[str, Any] | None = None  # Arbitrary structured context
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # Tags for filtering/searching
