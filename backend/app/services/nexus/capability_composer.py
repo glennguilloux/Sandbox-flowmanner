@@ -472,15 +472,13 @@ class CapabilityComposer:
         if not composed:
             return CompositionResult(
                 success=False,
-                composed_id=composed_id,
-                outputs=[],
+                composed_id=composed_id,                outputs: list[Any] = [],
                 final_output=None,
                 error=f"Composed capability not found: {composed_id}",
             )
 
-        registry = self._get_registry()
-        outputs = []
-        capabilities_executed: list[str] = []
+        registry = self._get_registry()                outputs: list[Any] = []
+                capabilities_executed: list[str] = []
         current_params = params.copy()
 
         try:

@@ -397,7 +397,7 @@ class PydanticAdapter:
             stacklevel=2,
         )
 
-        cap = Capability(
+        cap: Any = Capability(
             id=capability_id,
             name=name,
             description=description,

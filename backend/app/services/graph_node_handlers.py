@@ -233,7 +233,7 @@ class ConditionNodeHandler(BaseNodeHandler):
                 }
 
         try:
-            safe_globals = {"__builtins__": {}}
+                    safe_globals: dict[str, dict[str, Any]] = {"__builtins__": {}}
             safe_locals = {"ctx": context, "True": True, "False": False, "None": None}
             result = eval(expr_str, safe_globals, safe_locals)
             return {

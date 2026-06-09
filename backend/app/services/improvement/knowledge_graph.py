@@ -781,8 +781,7 @@ class KnowledgeGraph:
         node_counts: dict[str, int] = defaultdict(int)
         for node in self._nodes.values():
             node_counts[node.node_type.value] += 1
-
-        edge_counts = defaultdict(int)
+        edge_counts: dict[str, int] = defaultdict(int)
         for edge in self._edges.values():
             edge_counts[edge.edge_type.value] += 1
 

@@ -255,9 +255,8 @@ class NexusOrchestrator:
         self, operations: list[dict[str, Any]], ctx: ExecutionContext | None = None
     ) -> OperationResult:
         """Execute a chain of operations."""
-        start_time = datetime.now(UTC)
-        accumulated_data: dict[str, Any] = {}
-        capabilities_used = []
+        start_time = datetime.now(UTC)                accumulated_data: dict[str, Any] = {}
+                capabilities_used: list[str] = []
 
         for op in operations:
             capability_id = op["capability"]

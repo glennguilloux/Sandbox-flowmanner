@@ -274,8 +274,7 @@ class SwarmOrchestrator:
             if item.get("depends_on"):
                 dep_outputs: list[Any] = []
                 for _dep_id in item["depends_on"]:
-                    # Find the dependency task record
-                    for _other in []:
+                    # Find the dependency task record                            for _other in []:  # type: list[Any]
                         pass  # Would need access to all task records
                 if dep_outputs:
                     dep_context = "\n\nContext from prior tasks:\n" + "\n---\n".join(
