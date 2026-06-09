@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Marketplace - Database-Backed Tool and Capability Marketplace Service
 

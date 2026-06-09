@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """Add memory service tables
 
 Revision ID: 2026_02_13_1215

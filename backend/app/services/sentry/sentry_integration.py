@@ -8,7 +8,7 @@ with the existing ObservabilityService for unified error tracking.
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Any
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -149,7 +149,7 @@ class SentryIntegration:
 
         try:
             # Configure integrations (only include those available in this sentry-sdk version)
-            integrations = []
+            integrations: list[Any] = []
             if FastApiIntegration is not None:
                 integrations.append(FastApiIntegration())
             if RedisIntegration is not None:
@@ -227,7 +227,7 @@ class SentryIntegration:
         if not isinstance(data, dict):
             return data
 
-        scrubbed = {}
+        scrubbed: dict[str, Any] = {}
         for key, value in data.items():
             key_lower = key.lower()
 

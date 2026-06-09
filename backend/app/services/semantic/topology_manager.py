@@ -126,7 +126,7 @@ class TopologyManager:
         return snapshot_id
 
     def _compute_community_embeddings(self) -> dict[int, dict]:
-        embeddings = {}
+        embeddings: dict[str, list[float]] = {}
         if not self.communities or not self.G:
             return embeddings
         for cid, node_ids in self.communities.items():
@@ -144,7 +144,8 @@ class TopologyManager:
         return embeddings
 
     def _to_topology_dict(self) -> dict:
-        nodes, edges = [], []
+        nodes: list[Any] = []
+        edges: list[Any] = []
         if not self.G:
             return {"nodes": nodes, "edges": edges, "communities": 0}
         for nid, ndata in self.G.nodes(data=True):

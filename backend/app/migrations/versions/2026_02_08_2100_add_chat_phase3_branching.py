@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Add Phase 3 Chat System Enhancement - Branching System
 

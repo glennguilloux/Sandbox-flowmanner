@@ -9,7 +9,7 @@ import inspect
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Any
 
 from .tool_registry import Tool, get_tool_registry
 
@@ -212,7 +212,7 @@ class ToolAdapter:
         Returns:
             List of created Tool objects
         """
-        tools = []
+        tools: list[Any] = []
 
         # Get tool definitions for this service
         tool_defs = self.SERVICE_TOOL_MAPPING.get(service_name, {})

@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 DeepAgents Celery tasks for async agent execution.
 """

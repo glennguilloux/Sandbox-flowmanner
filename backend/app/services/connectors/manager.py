@@ -7,7 +7,7 @@ Provides a unified interface for all external API integrations.
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Any
 
 from .base import (
     BaseConnector,
@@ -357,7 +357,7 @@ class ConnectorManager:
 
     def _count_by_type(self) -> dict[str, int]:
         """Count connectors by type"""
-        counts = {}
+        counts: dict[str, int] = {}
         for connector in self._connectors.values():
             ctype = connector.connector_type
             counts[ctype] = counts.get(ctype, 0) + 1
@@ -365,7 +365,7 @@ class ConnectorManager:
 
     def _count_by_status(self) -> dict[str, int]:
         """Count connectors by status"""
-        counts = {}
+        counts: dict[str, int] = {}
         for connector in self._connectors.values():
             status = connector.status.value
             counts[status] = counts.get(status, 0) + 1

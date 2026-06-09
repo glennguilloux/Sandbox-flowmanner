@@ -320,7 +320,7 @@ class SecurityService:
         schema: dict[str, dict[str, Any]],
         strict: bool = True,
     ) -> tuple[dict[str, Any], list[str]]:
-        sanitized = {}
+        sanitized: dict[str, Any] = {}
         all_errors = []
 
         for field_name, field_schema in schema.items():
@@ -355,7 +355,7 @@ class SecurityService:
                     all_errors.append(f"{field_name}: Invalid integer value")
             elif field_type == "float":
                 try:
-                    sanitized[field_name] = float(value)
+                    sanitized[field_name] = float(value)  # type: ignore[assignment]
                 except (ValueError, TypeError):
                     all_errors.append(f"{field_name}: Invalid float value")
             elif field_type == "boolean":

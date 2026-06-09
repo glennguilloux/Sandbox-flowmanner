@@ -131,7 +131,7 @@ async def get_stats(
         "FAILED": "failed",
         "CANCELLED": "cancelled",
     }
-    tasks_by_status = {}
+    tasks_by_status: dict[str, int] = {}
     for row_s in status_q.fetchall():
         key = _status_map.get(row_s[0], "pending") if row_s[0] else "pending"
         tasks_by_status[key] = tasks_by_status.get(key, 0) + row_s[1]

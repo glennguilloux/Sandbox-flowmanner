@@ -175,16 +175,16 @@ async def update_changelog_entry(
 
     if payload.version is not None:
         updates.append("version = :version")
-        params["version"] = payload.version
+        params["version"] = int(payload.version)
     if payload.title is not None:
         updates.append("title = :title")
-        params["title"] = payload.title
+        params["title"] = int(payload.title)
     if payload.content is not None:
         updates.append("content = :content")
-        params["content"] = payload.content
+        params["content"] = int(payload.content)
     if payload.entry_type is not None:
         updates.append("entry_type = :entry_type")
-        params["entry_type"] = payload.entry_type
+        params["entry_type"] = int(payload.entry_type)
     if payload.published is not None:
         updates.append("published = :published")
         params["published"] = payload.published

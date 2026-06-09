@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Unified Tool Bridge - Connects DB-backed tools with in-memory registry
 

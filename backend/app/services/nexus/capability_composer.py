@@ -20,7 +20,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Any
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -480,7 +480,7 @@ class CapabilityComposer:
 
         registry = self._get_registry()
         outputs = []
-        capabilities_executed = []
+        capabilities_executed: list[str] = []
         current_params = params.copy()
 
         try:

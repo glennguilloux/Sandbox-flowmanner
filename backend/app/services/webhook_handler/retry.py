@@ -65,7 +65,7 @@ class RetryManager:
             delay = self.config.initial_delay_seconds * retry_count
 
         elif self.config.strategy == RetryStrategy.EXPONENTIAL:
-            delay = self.config.initial_delay_seconds * (
+            delay = self.config.initial_delay_seconds * (  # type: ignore[assignment]
                 self.config.backoff_factor ** (retry_count - 1)
             )
 
@@ -74,7 +74,7 @@ class RetryManager:
                 self.config.backoff_factor ** (retry_count - 1)
             )
             jitter = base_delay * self.config.jitter_factor * random.random()
-            delay = base_delay + jitter
+            delay = base_delay + jitter  # type: ignore[assignment]
 
         else:
             delay = self.config.initial_delay_seconds

@@ -695,7 +695,7 @@ Response Format:
                     workflow_data is not None,
                 )
 
-                parameters = {}
+                parameters: dict[str, Any] = {}
                 if workflow_name:
                     parameters["workflow_id"] = workflow_name
 
@@ -953,18 +953,18 @@ Respond with JSON:
 
             # Check name match
             if config["name"].lower() in message_lower:
-                score += 0.5
+                score += 0.5  # type: ignore[assignment]
 
             # Check description match
             if config["description"]:
                 desc_words = config["description"].lower().split()
                 for word in desc_words:
                     if len(word) > 3 and word in message_lower:
-                        score += 0.1
+                        score += 0.1  # type: ignore[assignment]
 
             # Check tool name match
             if config["tool_name"].lower() in message_lower:
-                score += 0.3
+                score += 0.3  # type: ignore[assignment]
 
             if score > best_score:
                 best_score = score

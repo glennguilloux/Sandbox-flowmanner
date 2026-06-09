@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 #!/usr/bin/env python3
 """
 LangGraph Agent

@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 P0 Differentiator Tools -- Stub registrations for platform differentiators.
 

@@ -114,7 +114,7 @@ async def list_templates(
     params = {"lim": limit, "off": (page - 1) * limit}
     if category:
         conditions.append("category = :cat")
-        params["cat"] = category
+        params["cat"] = int(category)
     where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
     count_r = await db.execute(
         text("SELECT COUNT(*) FROM community_templates" + where_clause), params

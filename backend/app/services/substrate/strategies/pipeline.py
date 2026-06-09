@@ -11,7 +11,7 @@ Missing phase nodes are caught at validation time, not silently skipped.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Any
 from uuid import uuid4
 
 from app.services.substrate.strategies.base import ExecutionStrategy
@@ -77,7 +77,7 @@ class PipelineStrategy(ExecutionStrategy):
 
         total_tokens = 0
         total_cost = 0.0
-        completed = []
+        completed: list[str] = []
         review_feedback = None
         retry_count = 0
 

@@ -11,7 +11,7 @@ attempt to verify and require one via the CapabilityEngine.
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Any
 from uuid import UUID
 
 from app.tools.base import get_tool_registry
@@ -68,7 +68,7 @@ class UnifiedToolBridge:
         """Get list of all available tools with their schemas"""
         self._ensure_initialized()
 
-        tools = []
+        tools: list[Any] = []
         if self._tool_registry:
             for tool in self._tool_registry.list_all():
                 tools.append(

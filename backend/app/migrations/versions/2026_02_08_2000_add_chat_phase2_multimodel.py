@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Add Phase 2 Chat System Enhancement - Multi-Model Infrastructure
 

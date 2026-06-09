@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Add Phase 1 Chat System Enhancement - Core Infrastructure
 

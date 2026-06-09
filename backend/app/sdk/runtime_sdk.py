@@ -118,7 +118,7 @@ class RuntimeSDK:
         """Get items in the execution queue"""
         params = {"limit": limit}
         if status:
-            params["status"] = status
+            params["status"] = int(status)
         return await self._request("GET", "/api/runtime/queue/items", params=params)
 
     async def cancel_execution(self, execution_id: str) -> bool:
@@ -157,7 +157,7 @@ class RuntimeSDK:
             "metadata": metadata or {},
         }
         if timeout:
-            payload["timeout"] = timeout
+            payload["timeout"] = timeout  # type: ignore[assignment]
 
         data = await self._request("POST", "/api/runtime/execute", json=payload)
 

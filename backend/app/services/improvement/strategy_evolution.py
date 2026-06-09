@@ -15,7 +15,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Any
 
 logger = logging.getLogger(__name__)
 
@@ -731,7 +731,7 @@ class StrategyEvolver:
 
             elif isinstance(value, float):
                 # Mutate float
-                delta = value * intensity
+                delta = value * intensity  # type: ignore[assignment]
                 if random.random() > 0.5:
                     new_params[key] = value + delta
                 else:
@@ -784,7 +784,7 @@ class StrategyEvolver:
 
     def get_statistics(self) -> dict[str, Any]:
         """Get evolver statistics."""
-        status_counts = defaultdict(int)
+        status_counts: dict[str, int] = defaultdict(int)
         for variant in self._variants.values():
             status_counts[variant.status.value] += 1
 

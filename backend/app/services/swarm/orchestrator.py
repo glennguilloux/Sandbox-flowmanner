@@ -9,7 +9,7 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Any
 
 import httpx
 from sqlalchemy import select
@@ -272,7 +272,7 @@ class SwarmOrchestrator:
             # Build context from completed dependencies
             dep_context = ""
             if item.get("depends_on"):
-                dep_outputs = []
+                dep_outputs: list[Any] = []
                 for _dep_id in item["depends_on"]:
                     # Find the dependency task record
                     for _other in []:

@@ -9,7 +9,7 @@ Handles action lifecycle, versioning, and rollback.
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Any
 
 from .auth import OpenWhiskAuthManager
 from .client import OpenWhiskClient
@@ -353,7 +353,7 @@ class OpenWhiskIntegrationController:
         """
         import os
 
-        action_files = []
+        action_files: list[str] = []
 
         if not os.path.exists(actions_dir):
             logger.warning("Actions directory not found: %s", actions_dir)

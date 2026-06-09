@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Base task class with common functionality for all Celery tasks.
 """

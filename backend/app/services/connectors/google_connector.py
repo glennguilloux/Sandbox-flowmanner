@@ -11,7 +11,7 @@ import base64
 import json
 import logging
 from email.mime.text import MIMEText
-from typing import Any
+from typing import Any, Any
 
 from .base import (
     AuthType,
@@ -178,7 +178,7 @@ class GoogleConnector(BaseConnector):
         query_parts = ["trashed = false"]
         max_results = params.get("max_results", 100)
         page_token = None
-        all_files = []
+        all_files: list[Any] = []
 
         if params.get("folder_id"):
             query_parts.append(f"'{params['folder_id']}' in parents")

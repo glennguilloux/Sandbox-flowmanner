@@ -11,7 +11,7 @@ import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Any
 
 from app.services.learning_service import get_learning_service
 
@@ -256,7 +256,7 @@ class NexusOrchestrator:
     ) -> OperationResult:
         """Execute a chain of operations."""
         start_time = datetime.now(UTC)
-        accumulated_data = {}
+        accumulated_data: dict[str, Any] = {}
         capabilities_used = []
 
         for op in operations:

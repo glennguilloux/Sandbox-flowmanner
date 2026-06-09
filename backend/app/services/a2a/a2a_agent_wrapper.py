@@ -11,7 +11,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Any
 
 from .a2a_server import A2AMessage, MessageType, get_a2a_server
 
@@ -103,7 +103,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
             capabilities or ["chat", "reasoning", "tool_calling", "streaming"],
         )
         self._agent = None
-        self._config = {}
+        self._config: dict[str, Any] = {}
 
     def set_agent(self, agent: Any, config: dict[str, Any] = None):
         """Set the underlying LangGraph agent instance"""

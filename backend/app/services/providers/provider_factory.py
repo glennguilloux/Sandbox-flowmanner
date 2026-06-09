@@ -1,3 +1,4 @@
+from typing import Any
 """
 Provider Factory
 
@@ -21,7 +22,7 @@ class ProviderFactory:
     Supports user-specific API keys for 'bring your own LLM' feature.
     """
 
-    _instances = {}
+    _instances: dict[type, Any] = {}
 
     @staticmethod
     def create(provider: str, api_key: str | None = None) -> object | None:

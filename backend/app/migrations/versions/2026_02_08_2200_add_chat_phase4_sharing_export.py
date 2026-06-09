@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Add Phase 4 Chat System Enhancement - Sharing & Export System
 

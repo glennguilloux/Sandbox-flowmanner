@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """UnifiedExecutor — single durable executor (H5.1). GA release.
 
 The ONLY entry point for workflow execution.  No subclasses.

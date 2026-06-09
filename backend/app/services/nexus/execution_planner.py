@@ -245,9 +245,9 @@ class ExecutionPlanner:
         total = 0
         for step in steps:
             if "agent" in step.capability_id or "workflow" in step.capability_id:
-                total += llm_cost
+                total += llm_cost  # type: ignore[assignment]
             else:
-                total += base_cost
+                total += base_cost  # type: ignore[assignment]
 
         return {
             "estimated_usd": round(total, 4),

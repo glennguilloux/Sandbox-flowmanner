@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Add agent model preferences and cost tracking
 

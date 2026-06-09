@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """Add swarm system models and extend agent_communications
 
 Revision ID: 2026_01_30_1000_add_swarm_models

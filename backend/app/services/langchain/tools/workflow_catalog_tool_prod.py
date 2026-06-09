@@ -1,3 +1,4 @@
+from typing import Any
 """
 LangChain Tool: Workflow Catalog Agent - Production Ready
 Search and recommend workflows from the catalog
@@ -317,7 +318,7 @@ class CatalogClient:
     def _local_categories(self) -> list[dict]:
         """Local categories"""
         workflows = self._get_local_workflows()
-        categories = {}
+        categories: dict[str, Any] = {}
 
         for wf in workflows:
             cat = wf.get("category", "Other")

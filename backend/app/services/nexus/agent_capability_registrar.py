@@ -18,7 +18,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Any
 
 logger = logging.getLogger(__name__)
 
@@ -235,7 +235,7 @@ class AgentCapabilityRegistrar:
 
         Uses ToolDiscoveryService for semantic tool discovery.
         """
-        discovered = []
+        discovered: list[Any] = []
 
         if not self.tool_discovery:
             logger.warning("ToolDiscoveryService not available for tool discovery")
@@ -558,4 +558,4 @@ class AgentCapabilityRegistrar:
 
     def _count_by_field(self, items: list[Any], field: str) -> dict[str, int]:
         """Count items by a field value"""
-        counts = {}
+        counts: dict[str, int] = {}

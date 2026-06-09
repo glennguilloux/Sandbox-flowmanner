@@ -1,3 +1,4 @@
+from typing import Any
 #!/usr/bin/env python3
 """
 Webhook Dispatcher Task
@@ -246,7 +247,7 @@ def dispatch_webhook_event(event_type: str, event_id: str, payload: dict) -> dic
             return {"success": True, "deliveries": 0, "message": "No subscriptions"}
 
         # Deliver to all subscriptions
-        results = []
+        results: list[dict[str, Any]] = []
 
         async def deliver_all():
             tasks = [

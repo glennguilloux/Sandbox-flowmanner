@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -110,7 +110,7 @@ async def compare_mission(
 
     # Get template + expected behaviors
     template = await _get_template_for_mission(db, mission)
-    expected_behaviors = []
+    expected_behaviors: list[str] = []
     template_version = None
     if template:
         expected_behaviors = template.expected_behaviors or []

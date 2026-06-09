@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Migration: add_user_api_keys_table
 

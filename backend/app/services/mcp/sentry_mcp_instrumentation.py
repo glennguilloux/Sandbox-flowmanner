@@ -138,7 +138,7 @@ def _scrub_sensitive_data(data: dict[str, Any]) -> dict[str, Any]:
         "access_token",
     }
 
-    scrubbed = {}
+    scrubbed: dict[str, Any] = {}
     for key, value in data.items():
         key_lower = key.lower()
         if any(sensitive in key_lower for sensitive in sensitive_keys):

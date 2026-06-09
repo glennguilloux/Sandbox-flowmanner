@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Any
 
 logger = logging.getLogger(__name__)
 
@@ -778,7 +778,7 @@ class KnowledgeGraph:
 
     def get_statistics(self) -> dict[str, Any]:
         """Get graph statistics."""
-        node_counts = defaultdict(int)
+        node_counts: dict[str, int] = defaultdict(int)
         for node in self._nodes.values():
             node_counts[node.node_type.value] += 1
 

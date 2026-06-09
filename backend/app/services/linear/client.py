@@ -47,7 +47,7 @@ class LinearClient:
     ) -> dict[str, Any]:
         """Execute a GraphQL query/mutation."""
         client = await self._get_client()
-        payload = {"query": query}
+        payload: dict[str, Any] = {"query": query}
         if variables:
             payload["variables"] = variables
 

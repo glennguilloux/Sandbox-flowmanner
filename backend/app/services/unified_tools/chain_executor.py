@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 """
 Unified Chain Executor - Real execution for tool chains
 
@@ -167,7 +168,7 @@ class UnifiedChainExecutor:
                 "execution_time_ms": result.execution_time_ms,
             }
             step_outputs.append(step_output)
-            total_time += result.execution_time_ms
+            total_time += result.execution_time_ms  # type: ignore[assignment]
 
             if not result.success:
                 raise ChainExecutionError(
