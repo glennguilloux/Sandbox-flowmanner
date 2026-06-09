@@ -56,18 +56,18 @@ class MissionStatus(str, Enum):
 
     # Valid transitions from each state (use enum members, not strings)
     _TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
-        DRAFT: {PENDING, ABORTED},  # type: ignore[arg-type]
-        PENDING: {PLANNING, QUEUED, ABORTED},  # type: ignore[arg-type]
-        PLANNING: {PLANNED, ABORTED},  # type: ignore[arg-type]
-        PLANNED: {EXECUTING, ABORTED},  # type: ignore[arg-type]
-        EXECUTING: {RUNNING, ABORTED},  # type: ignore[arg-type]
-        QUEUED: {RUNNING, ABORTED},  # type: ignore[arg-type]
-        RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},  # type: ignore[arg-type]
-        PAUSED: {RUNNING, ABORTED},  # type: ignore[arg-type]
-        COMPLETED: {APPROVED},  # type: ignore[arg-type]  # completed can be promoted to approved
-        APPROVED: set(),  # type: ignore[arg-type]  # terminal
-        FAILED: set(),  # type: ignore[arg-type]  # terminal
-        ABORTED: set(),  # type: ignore[arg-type]  # terminal
+        DRAFT: {PENDING, ABORTED},  # type: ignore[arg-type, dict-item]
+        PENDING: {PLANNING, QUEUED, ABORTED},  # type: ignore[arg-type, dict-item]
+        PLANNING: {PLANNED, ABORTED},  # type: ignore[arg-type, dict-item]
+        PLANNED: {EXECUTING, ABORTED},  # type: ignore[arg-type, dict-item]
+        EXECUTING: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
+        QUEUED: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
+        RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},  # type: ignore[arg-type, dict-item]
+        PAUSED: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
+        COMPLETED: {APPROVED},  # type: ignore[arg-type, dict-item]  # completed can be promoted to approved
+        APPROVED: set(),  # type: ignore[arg-type, dict-item]  # terminal
+        FAILED: set(),  # type: ignore[arg-type, dict-item]  # terminal
+        ABORTED: set(),  # type: ignore[arg-type, dict-item]  # terminal
     }
 
     @property
@@ -96,10 +96,10 @@ class MissionTaskStatus(str, Enum):
 
     # Valid transitions from each state (use enum members, not strings)
     _TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
-        PENDING: {RUNNING},  # type: ignore[arg-type]
-        RUNNING: {COMPLETED, FAILED},  # type: ignore[arg-type]
-        FAILED: {PENDING},  # type: ignore[arg-type]  # allow retry
-        COMPLETED: set(),  # type: ignore[arg-type]  # terminal
+        PENDING: {RUNNING},  # type: ignore[arg-type, dict-item]
+        RUNNING: {COMPLETED, FAILED},  # type: ignore[arg-type, dict-item]
+        FAILED: {PENDING},  # type: ignore[arg-type, dict-item]  # allow retry
+        COMPLETED: set(),  # type: ignore[arg-type, dict-item]  # terminal
     }
 
     @property
