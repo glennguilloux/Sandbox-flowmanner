@@ -316,12 +316,6 @@ class GraphInterpreter:
                     )
                 )
             except RuntimeError as e:
-                logger.debug(
-                    "graph_ws_emit_no_loop",
-                    execution_id=self.execution.id,
-                    error=str(e),
-                )
+                logger.debug('graph_ws_emit_no_loop execution_id=%s error=%s', self.execution.id, str(e))
         except Exception as e:
-            logger.debug(
-                "graph_ws_emit_failed", execution_id=self.execution.id, error=str(e)
-            )
+            logger.debug('graph_ws_emit_failed execution_id=%s error=%s', self.execution.id, str(e))

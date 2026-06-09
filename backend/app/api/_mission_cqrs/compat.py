@@ -476,9 +476,7 @@ async def dual_write_sync_run_status(
                 run.completed_at = completed_at
             await db.commit()
     except Exception:
-        logger.debug(
-            "dual_write_sync_run_status_failed", mission_id=mission_id, exc_info=True
-        )
+        logger.debug('dual_write_sync_run_status_failed mission_id=%s', mission_id, exc_info=True)
 
 
 async def dual_write_sync_blueprint(
@@ -503,9 +501,7 @@ async def dual_write_sync_blueprint(
             bp.updated_at = datetime.now(UTC)
             await db.commit()
     except Exception:
-        logger.debug(
-            "dual_write_sync_blueprint_failed", mission_id=mission_id, exc_info=True
-        )
+        logger.debug('dual_write_sync_blueprint_failed mission_id=%s', mission_id, exc_info=True)
 
 
 async def dual_write_soft_delete_blueprint(
@@ -527,9 +523,7 @@ async def dual_write_soft_delete_blueprint(
             bp.deleted_by = user_id
             await db.commit()
     except Exception:
-        logger.debug(
-            "dual_write_soft_delete_failed", mission_id=mission_id, exc_info=True
-        )
+        logger.debug('dual_write_soft_delete_failed mission_id=%s', mission_id, exc_info=True)
 
 
 # ── MissionShim: Mission-compatible object for ORM callers ───────────────

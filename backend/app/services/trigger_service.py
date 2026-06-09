@@ -58,9 +58,7 @@ async def create_trigger(db: AsyncSession, user_id: int, payload) -> MissionTrig
 
             await notify_trigger_due(trigger.next_fire_at)
         except Exception as e:
-            logger.debug(
-                "trigger_notify_create_failed", trigger_id=trigger.id, error=str(e)
-            )
+            logger.debug('trigger_notify_create_failed trigger_id=%s error=%s', trigger.id, str(e))
 
     return trigger
 
@@ -146,9 +144,7 @@ async def update_trigger(
 
             await notify_trigger_due(trigger.next_fire_at)
         except Exception as e:
-            logger.debug(
-                "trigger_notify_update_failed", trigger_id=trigger.id, error=str(e)
-            )
+            logger.debug('trigger_notify_update_failed trigger_id=%s error=%s', trigger.id, str(e))
 
     return trigger
 
@@ -199,9 +195,7 @@ async def resume_trigger(
 
             await notify_trigger_due(trigger.next_fire_at)
         except Exception as e:
-            logger.debug(
-                "trigger_notify_resume_failed", trigger_id=trigger.id, error=str(e)
-            )
+            logger.debug('trigger_notify_resume_failed trigger_id=%s error=%s', trigger.id, str(e))
 
     return trigger
 
@@ -262,9 +256,7 @@ async def fire_trigger(
 
             asyncio.create_task(notify_trigger_due(trigger.next_fire_at))
         except Exception as e:
-            logger.debug(
-                "trigger_notify_fire_failed", trigger_id=trigger.id, error=str(e)
-            )
+            logger.debug('trigger_notify_fire_failed trigger_id=%s error=%s', trigger.id, str(e))
 
     return log
 

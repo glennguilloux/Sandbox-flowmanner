@@ -101,7 +101,7 @@ def record_sse_token_latency(latency_ms: float) -> None:
 
         _rec(latency_ms / 1000.0)  # convert ms to seconds for Histogram
     except Exception as e:
-        logger.debug("slo_record_sse_latency_failed", error=str(e))
+        logger.debug('slo_record_sse_latency_failed error=%s', str(e))
 
 
 def record_model_fallback(success: bool, provider: str = "unknown") -> None:
@@ -111,7 +111,7 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
 
         _rec(provider=provider, success=success)
     except Exception as e:
-        logger.debug("slo_record_fallback_failed", error=str(e))
+        logger.debug('slo_record_fallback_failed error=%s', str(e))
 
 
 def record_deploy(success: bool) -> None:
@@ -128,7 +128,7 @@ def record_deploy(success: bool) -> None:
         if success:
             deploy_success_total.inc()
     except Exception as e:
-        logger.debug("slo_record_deploy_failed", error=str(e))
+        logger.debug('slo_record_deploy_failed error=%s', str(e))
 
 
 # ── SLO calculation helpers ─────────────────────────────────────────────────
@@ -198,7 +198,7 @@ def _read_counter_total(counter, label_filter: dict | None = None) -> float:
                             continue
                     return s.value
     except Exception as e:
-        logger.debug("slo_read_counter_failed", error=str(e))
+        logger.debug('slo_read_counter_failed error=%s', str(e))
     return 0.0
 
 
@@ -210,7 +210,7 @@ def _read_gauge_value(gauge: Gauge) -> float:
                 if s.name == gauge._name:
                     return s.value
     except Exception as e:
-        logger.debug("slo_read_gauge_failed", error=str(e))
+        logger.debug('slo_read_gauge_failed error=%s', str(e))
     return 0.0
 
 

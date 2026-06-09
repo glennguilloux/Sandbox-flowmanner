@@ -135,7 +135,7 @@ class CostTracker:
                     success=success,
                 )
             except Exception as e:
-                logger.debug("cost_tracker_prometheus_record_failed", error=str(e))
+                logger.debug('cost_tracker_prometheus_record_failed error=%s', str(e))
         except Exception as e:
             logger.warning("Failed to record LLM call: %s", e)
 

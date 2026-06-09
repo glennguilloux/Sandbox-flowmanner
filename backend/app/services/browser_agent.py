@@ -472,11 +472,7 @@ class BrowserAgent:
                 title = await session.page.title()
                 return f"Currently on: {url}\nPage title: {title}"
             except Exception as e:
-                logger.debug(
-                    "browser_agent_page_context_failed",
-                    user_id=self.user_id,
-                    error=str(e),
-                )
+                logger.debug('browser_agent_page_context_failed user_id=%s error=%s', self.user_id, str(e))
         return ""
 
     def _touch_session(self) -> None:
@@ -512,11 +508,7 @@ class BrowserAgent:
                 try:
                     return json.loads(match.group(0))
                 except json.JSONDecodeError as e:
-                    logger.debug(
-                        "browser_agent_json_extraction_failed",
-                        snippet=llm_response[:100],
-                        error=str(e),
-                    )
+                    logger.debug('browser_agent_json_extraction_failed snippet=%s error=%s', llm_response[:100], str(e))
         logger.warning("Could not parse LLM response: %s", llm_response[:200])
         return None
 
@@ -563,11 +555,7 @@ class BrowserAgent:
                         screenshot_data = ss.get("screenshot")
                         screenshot_path = self._persist_screenshot(screenshot_data)
             except Exception as e:
-                logger.debug(
-                    "browser_agent_final_screenshot_failed",
-                    user_id=self.user_id,
-                    error=str(e),
-                )
+                logger.debug('browser_agent_final_screenshot_failed user_id=%s error=%s', self.user_id, str(e))
 
         return {
             "response": message,

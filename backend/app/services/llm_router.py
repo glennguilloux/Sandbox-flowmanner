@@ -365,11 +365,7 @@ class ModelRouter:
             if api_key and api_key not in ("", "sk-xxx", "sk-no-key-required"):
                 return True
         except Exception as e:
-            logger.debug(
-                "model_availability_resolve_provider_failed",
-                raw_model=raw_model,
-                error=str(e),
-            )
+            logger.debug('model_availability_resolve_provider_failed raw_model=%s error=%s', raw_model, str(e))
 
         # 2. Check for BYOK key
         effective_user_id = user_id or self.user_id or "system"
