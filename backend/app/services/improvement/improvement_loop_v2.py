@@ -384,7 +384,9 @@ class ImprovementLoopV2:
             success: Whether the mission succeeded
             metrics: Performance metrics from the mission
         """
-        logger.info('Mission complete hook: mission=%s, success=%s', mission_id, success)
+        logger.info(
+            "Mission complete hook: mission=%s, success=%s", mission_id, success
+        )
 
         # Capture success metrics for learning
         if success:
@@ -441,7 +443,11 @@ class ImprovementLoopV2:
         if len(self._failure_buffer) > 1000:
             self._failure_buffer = self._failure_buffer[-500:]
 
-        logger.debug('Failure buffered: %s, buffer size: %s', failure_context.failure_type.value, len(self._failure_buffer))
+        logger.debug(
+            "Failure buffered: %s, buffer size: %s",
+            failure_context.failure_type.value,
+            len(self._failure_buffer),
+        )
 
     async def run_improvement_session(
         self,
@@ -571,7 +577,7 @@ class ImprovementLoopV2:
                 session.state = SessionState.COMPLETED
 
         except Exception as e:
-            logger.error('Improvement session failed: %s', e)
+            logger.error("Improvement session failed: %s", e)
             session.state = SessionState.FAILED
             session.notes = str(e)
 
@@ -583,7 +589,11 @@ class ImprovementLoopV2:
             # Clear failure buffer after analysis
             self._failure_buffer = []
 
-        logger.info('Improvement session %s completed: %s', session.session_id, session.state.value)
+        logger.info(
+            "Improvement session %s completed: %s",
+            session.session_id,
+            session.state.value,
+        )
         return session
 
     async def _analyze_failures(

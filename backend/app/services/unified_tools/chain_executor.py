@@ -112,7 +112,7 @@ class UnifiedChainExecutor:
             execution.status = "failed"
             execution.error_message = str(e)
             execution.completed_at = datetime.now(UTC)
-            logger.error('Chain execution failed: %s', e)
+            logger.error("Chain execution failed: %s", e)
             raise
 
         finally:
@@ -149,7 +149,7 @@ class UnifiedChainExecutor:
             tool_id = step.get("tool_id") or step.get("tool")
             params = self._resolve_params(step.get("params", {}), context)
 
-            logger.info('Executing step %s/%s: %s', i + 1, len(steps), tool_id)
+            logger.info("Executing step %s/%s: %s", i + 1, len(steps), tool_id)
 
             result = await self.bridge.execute_tool(
                 tool_id=tool_id,

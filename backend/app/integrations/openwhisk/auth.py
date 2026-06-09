@@ -149,8 +149,8 @@ def get_auth_manager() -> OpenWhiskAuthManager | None:
     """
     try:
         manager = OpenWhiskAuthManager()
-        logger.info('Auth manager ready (namespace: %s)', manager.namespace)
+        logger.info("Auth manager ready (namespace: %s)", manager.namespace)
         return manager
     except ValueError as e:
-        logger.warning('Auth manager not configured: %s', e)
+        logger.warning("Auth manager not configured: %s", e)
         return None

@@ -80,7 +80,7 @@ class BrowserService:
                 "status": response.status if response else 200,
             }
         except Exception as e:
-            logger.error('Navigation error for user %s: %s', user_id, e)
+            logger.error("Navigation error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def screenshot(self, user_id: str) -> dict:
@@ -110,7 +110,7 @@ class BrowserService:
                 "title": title,
             }
         except Exception as e:
-            logger.error('Screenshot error for user %s: %s', user_id, e, exc_info=True)
+            logger.error("Screenshot error for user %s: %s", user_id, e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     async def close(self, user_id: str) -> dict:
@@ -120,7 +120,7 @@ class BrowserService:
             await manager.close_user_session(user_id)
             return {"success": True}
         except Exception as e:
-            logger.error('Close error for user %s: %s', user_id, e)
+            logger.error("Close error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def snapshot(self, user_id: str) -> dict:
@@ -250,7 +250,7 @@ class BrowserService:
                 "title": title,
             }
         except Exception as e:
-            logger.error('Snapshot error for user %s: %s', user_id, e)
+            logger.error("Snapshot error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def _click_by_coordinates(self, page, x: float, y: float) -> bool:
@@ -315,7 +315,7 @@ class BrowserService:
                 "suggest_resnapshot": True,
             }
         except Exception as e:
-            logger.error('Click error for user %s: %s', user_id, e)
+            logger.error("Click error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def type_text(
@@ -393,7 +393,7 @@ class BrowserService:
                 "method": "ref",
             }
         except Exception as e:
-            logger.error('Type error for user %s: %s', user_id, e)
+            logger.error("Type error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def scroll(self, user_id: str, x: int = 0, y: int = 300) -> dict:
@@ -411,7 +411,7 @@ class BrowserService:
 
             return {"success": True}
         except Exception as e:
-            logger.error('Scroll error for user %s: %s', user_id, e)
+            logger.error("Scroll error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def status(self, user_id: str) -> dict:
@@ -468,7 +468,9 @@ class BrowserService:
             session.touch()
             return {"success": True, "width": width, "height": height}
         except Exception as e:
-            logger.error('Viewport resize error for user %s: %s', user_id, e, exc_info=True)
+            logger.error(
+                "Viewport resize error for user %s: %s", user_id, e, exc_info=True
+            )
             return {"success": False, "error": str(e)}
 
     async def get_console_logs(self, user_id: str) -> dict:
@@ -501,7 +503,7 @@ class BrowserService:
                 "title": await page.title(),
             }
         except Exception as e:
-            logger.error('Full-page screenshot error for user %s: %s', user_id, e)
+            logger.error("Full-page screenshot error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def toggle_ad_blocking(self, user_id: str, enabled: bool) -> dict:
@@ -516,7 +518,7 @@ class BrowserService:
             session.touch()
             return {"success": True, "ad_blocking": enabled}
         except Exception as e:
-            logger.error('Ad blocking toggle error for user %s: %s', user_id, e)
+            logger.error("Ad blocking toggle error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def get_navigation_history(self, user_id: str) -> dict:

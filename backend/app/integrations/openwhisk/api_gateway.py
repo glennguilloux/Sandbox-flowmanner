@@ -67,7 +67,12 @@ class RequestLimiter:
 
         # Check if under limit
         if len(self.requests[key]) >= limit:
-            logger.warning('Rate limit exceeded for %s: %s >= %s', key, len(self.requests[key]), limit)
+            logger.warning(
+                "Rate limit exceeded for %s: %s >= %s",
+                key,
+                len(self.requests[key]),
+                limit,
+            )
             return False
 
         # Add current request
@@ -153,7 +158,7 @@ class OpenWhiskAPIGateway:
         )
 
         self.routes[path] = route
-        logger.info('Route registered: %s %s -> action: %s', method, path, action_name)
+        logger.info("Route registered: %s %s -> action: %s", method, path, action_name)
 
     def get_route(self, path: str, method: str) -> Route | None:
         """
@@ -272,7 +277,7 @@ class OpenWhiskAPIGateway:
                 }
 
         except Exception as e:
-            logger.error('Error handling request %s %s: %s', method, path, e)
+            logger.error("Error handling request %s %s: %s", method, path, e)
             self.metrics["failed_requests"] += 1
             return {
                 "success": False,
@@ -294,7 +299,7 @@ class OpenWhiskAPIGateway:
         Returns:
             List of response dicts
         """
-        logger.info('Batch handling %s requests', len(requests))
+        logger.info("Batch handling %s requests", len(requests))
 
         semaphore = asyncio.Semaphore(max_concurrent)
         tasks = []
@@ -318,7 +323,7 @@ class OpenWhiskAPIGateway:
         processed_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error('Batch request %s failed: %s', i, result)
+                logger.error("Batch request %s failed: %s", i, result)
                 processed_results.append(
                     {
                         "success": False,
@@ -434,5 +439,5 @@ def create_gateway(
         return gateway
 
     except Exception as e:
-        logger.error('Error creating gateway: %s', e)
+        logger.error("Error creating gateway: %s", e)
         return None

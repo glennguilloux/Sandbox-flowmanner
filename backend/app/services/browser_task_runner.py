@@ -143,11 +143,11 @@ class BrowserTaskRunner:
                 return {"success": False, "error": result.error}
 
         except RetryableMissionError as e:
-            logger.warning('Retryable browser error in task %s: %s', task.id, e)
+            logger.warning("Retryable browser error in task %s: %s", task.id, e)
             raise
         except PermanentMissionError as e:
-            logger.error('Permanent browser error in task %s: %s', task.id, e)
+            logger.error("Permanent browser error in task %s: %s", task.id, e)
             return {"success": False, "error": str(e), "permanent": True}
         except Exception as e:
-            logger.error('Browser tool %s failed: %s', tool_name, e)
+            logger.error("Browser tool %s failed: %s", tool_name, e)
             return {"success": False, "error": str(e)}

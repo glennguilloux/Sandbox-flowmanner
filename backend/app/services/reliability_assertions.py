@@ -62,7 +62,7 @@ class ReliabilityMonitor:
                     "to": to_state,
                 }
             )
-        logger.info('Circuit breaker transition: %s -> %s', from_state, to_state)
+        logger.info("Circuit breaker transition: %s -> %s", from_state, to_state)
 
     def get_reliability_report(self) -> dict:
         """

@@ -94,7 +94,7 @@ class ConnectorManager:
 
             connector_class = self.get_connector_class(connector_type)
             if not connector_class:
-                logger.error('Unknown connector type: %s', connector_type)
+                logger.error("Unknown connector type: %s", connector_type)
                 return False
 
             try:
@@ -125,7 +125,11 @@ class ConnectorManager:
                 self._connectors[connector_id] = connector
                 self._configs[connector_id] = connector_config
 
-                logger.info("Registered connector '%s' of type '%s'", connector_id, connector_type)
+                logger.info(
+                    "Registered connector '%s' of type '%s'",
+                    connector_id,
+                    connector_type,
+                )
                 return True
 
             except Exception as e:
@@ -336,7 +340,7 @@ class ConnectorManager:
             try:
                 await connector.disconnect()
             except Exception as e:
-                logger.error('Error disconnecting connector: %s', e)
+                logger.error("Error disconnecting connector: %s", e)
 
     def get_stats(self) -> dict[str, Any]:
         """Get overall statistics"""

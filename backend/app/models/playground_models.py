@@ -42,7 +42,10 @@ class PlaygroundSandbox(Base, TimestampMixin):
         UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
     )
     sandbox_id: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True,
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True,
         comment="sandboxd container ID",
     )
     user_id: Mapped[int | None] = mapped_column(
@@ -51,7 +54,10 @@ class PlaygroundSandbox(Base, TimestampMixin):
         index=True,
     )
     session_token: Mapped[str] = mapped_column(
-        String(128), nullable=False, unique=True, index=True,
+        String(128),
+        nullable=False,
+        unique=True,
+        index=True,
         comment="proves ownership before claiming",
     )
     workspace_id: Mapped[str | None] = mapped_column(
@@ -61,10 +67,12 @@ class PlaygroundSandbox(Base, TimestampMixin):
         index=True,
     )
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     claimed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(
         String(16),
@@ -73,20 +81,29 @@ class PlaygroundSandbox(Base, TimestampMixin):
         server_default="creating",
     )
     template: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="react-standard",
+        String(64),
+        nullable=False,
+        default="react-standard",
         server_default="react-standard",
     )
     project_id: Mapped[str | None] = mapped_column(
-        String(128), nullable=True,
+        String(128),
+        nullable=True,
     )
     is_persistent: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false",
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
     )
     last_active_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     anonymous_ip: Mapped[str | None] = mapped_column(
-        String(45), nullable=True, index=True,
+        String(45),
+        nullable=True,
+        index=True,
         comment="IPv4/IPv6 of anonymous creator for rate limiting",
     )
 

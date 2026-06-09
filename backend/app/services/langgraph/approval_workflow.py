@@ -182,7 +182,11 @@ class ApprovalWorkflow:
 
         # Store request
         self.pending_requests[request_id] = request
-        logger.info('[APPROVAL] Created approval request %s, saving to Redis: %s', request_id, self.redis_client is not None)
+        logger.info(
+            "[APPROVAL] Created approval request %s, saving to Redis: %s",
+            request_id,
+            self.redis_client is not None,
+        )
 
         # Save to Redis if available
         if self.redis_client:
@@ -204,18 +208,30 @@ class ApprovalWorkflow:
                 self.redis_client.setex(
                     redis_key, self.default_timeout + 60, redis_value
                 )
-                logger.info('[APPROVAL] Successfully saved approval request %s to Redis', request_id)
+                logger.info(
+                    "[APPROVAL] Successfully saved approval request %s to Redis",
+                    request_id,
+                )
             except Exception as e:
-                logger.warning('[APPROVAL] Failed to save approval request to Redis: %s', e)
+                logger.warning(
+                    "[APPROVAL] Failed to save approval request to Redis: %s", e
+                )
         else:
-            logger.warning('[APPROVAL] Redis not available, approval request %s only in memory', request_id)
+            logger.warning(
+                "[APPROVAL] Redis not available, approval request %s only in memory",
+                request_id,
+            )
 
         # Update state
         state["awaiting_approval"] = True
         state["current_approval_request"] = tool_execution
         state["pending_tools"] = state["pending_tools"] + [tool_execution]
 
-        logger.info('Created approval request for tool %s in session %s', tool_name, state['session_id'])
+        logger.info(
+            "Created approval request for tool %s in session %s",
+            tool_name,
+            state["session_id"],
+        )
 
         return {
             "success": True,
@@ -255,10 +271,10 @@ class ApprovalWorkflow:
             request.status = ApprovalStatus(data_dict["status"])
             request.created_at = datetime.fromisoformat(data_dict["created_at"])
 
-            logger.debug('Loaded approval request %s from Redis', request_id)
+            logger.debug("Loaded approval request %s from Redis", request_id)
             return request
         except Exception as e:
-            logger.warning('Failed to load approval request from Redis: %s', e)
+            logger.warning("Failed to load approval request from Redis: %s", e)
             return None
 
     def approve(
@@ -276,7 +292,12 @@ class ApprovalWorkflow:
         Returns:
             Dictionary with approval result
         """
-        logger.info('[APPROVAL] approve() called with request_id=%s, user_id=%s, has_redis=%s', request_id, user_id, self.redis_client is not None)
+        logger.info(
+            "[APPROVAL] approve() called with request_id=%s, user_id=%s, has_redis=%s",
+            request_id,
+            user_id,
+            self.redis_client is not None,
+        )
         request = self.pending_requests.get(request_id)
 
         # Try loading from Redis if not in memory
@@ -316,7 +337,7 @@ class ApprovalWorkflow:
         # Remove from pending and Redis
         self._remove_request(request_id)
 
-        logger.info('Approved tool execution %s by user %s', request_id, user_id)
+        logger.info("Approved tool execution %s by user %s", request_id, user_id)
 
         return {
             "success": True,
@@ -372,7 +393,9 @@ class ApprovalWorkflow:
         # Remove from pending
         self._remove_request(request_id)
 
-        logger.info('Rejected tool execution %s by user %s: %s', request_id, user_id, reason)
+        logger.info(
+            "Rejected tool execution %s by user %s: %s", request_id, user_id, reason
+        )
 
         return {
             "success": True,
@@ -425,7 +448,7 @@ class ApprovalWorkflow:
         # Remove from pending
         self._remove_request(request_id)
 
-        logger.info('Cancelled tool execution %s by user %s', request_id, user_id)
+        logger.info("Cancelled tool execution %s by user %s", request_id, user_id)
 
         return {
             "success": True,
@@ -491,7 +514,7 @@ class ApprovalWorkflow:
             self._remove_request(request_id)
 
         if expired_ids:
-            logger.info('Cleaned up %s expired approval requests', len(expired_ids))
+            logger.info("Cleaned up %s expired approval requests", len(expired_ids))
 
         return len(expired_ids)
 
@@ -523,9 +546,9 @@ class ApprovalWorkflow:
             try:
                 redis_key = f"langgraph:approval:{request_id}"
                 self.redis_client.delete(redis_key)
-                logger.debug('Removed approval request %s from Redis', request_id)
+                logger.debug("Removed approval request %s from Redis", request_id)
             except Exception as e:
-                logger.warning('Failed to remove approval request from Redis: %s', e)
+                logger.warning("Failed to remove approval request from Redis: %s", e)
 
     def _trigger_callbacks(
         self,
@@ -539,7 +562,7 @@ class ApprovalWorkflow:
             try:
                 callback(request_id, ApprovalStatus(status), request)
             except Exception as e:
-                logger.error('Error in approval callback: %s', e)
+                logger.error("Error in approval callback: %s", e)
 
     def get_approval_summary(
         self,

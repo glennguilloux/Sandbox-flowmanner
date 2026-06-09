@@ -56,7 +56,7 @@ class JWTAuth:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except jwt.InvalidTokenError as e:
-            logger.warning('Invalid token: %s', e)
+            logger.warning("Invalid token: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token",

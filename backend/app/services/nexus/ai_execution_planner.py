@@ -96,7 +96,9 @@ class AIExecutionPlanner:
                 self._topology_manager = get_topology_manager()
                 logger.info("AIExecutionPlanner initialized with semantic matching")
             except Exception as e:
-                logger.warning('Semantic layer unavailable, using rule-based fallback: %s', e)
+                logger.warning(
+                    "Semantic layer unavailable, using rule-based fallback: %s", e
+                )
                 self._use_semantic = False
 
     def _setup_default_rules(self):
@@ -166,10 +168,10 @@ class AIExecutionPlanner:
                     endpoint=endpoint,
                     config=config,
                 )
-                logger.info('Registered agent %s for semantic matching', agent_id)
+                logger.info("Registered agent %s for semantic matching", agent_id)
                 return True
             except Exception as e:
-                logger.error('Failed to register agent %s: %s', agent_id, e)
+                logger.error("Failed to register agent %s: %s", agent_id, e)
                 return False
         return False
 

@@ -82,7 +82,7 @@ class ModelRouter:
                 self.llm_manager = get_llm_manager()
                 logger.info("LLMManager loaded successfully")
             except Exception as e:
-                logger.warning('Could not load LLMManager: %s', e)
+                logger.warning("Could not load LLMManager: %s", e)
                 self.llm_manager = None
         return self.llm_manager
 
@@ -162,7 +162,7 @@ class ModelRouter:
                     if model is not None:
                         return True
             except Exception as e:
-                logger.warning('BYOK check failed for %s: %s', model_id, e)
+                logger.warning("BYOK check failed for %s: %s", model_id, e)
 
         # 2. Fall back to platform key — always forward user context if available
         try:
@@ -172,7 +172,7 @@ class ModelRouter:
                     model_id in self.model_health and not self.model_health[model_id]
                 )
         except Exception as e:
-            logger.warning('Platform model check failed for %s: %s', model_id, e)
+            logger.warning("Platform model check failed for %s: %s", model_id, e)
 
         return False
 
@@ -191,9 +191,18 @@ class ModelRouter:
                 if len(parts) >= 3:
                     byok_prefix_user = parts[1]
                     original_model_id = parts[2]
-                    logger.info('BYOK lookup: parsed model_id=%s -> original=%s, user=%s', model_id, original_model_id, user_id)
+                    logger.info(
+                        "BYOK lookup: parsed model_id=%s -> original=%s, user=%s",
+                        model_id,
+                        original_model_id,
+                        user_id,
+                    )
 
-            logger.info('BYOK lookup: searching for user_id=%s, original_model_id=%s', user_id, original_model_id)
+            logger.info(
+                "BYOK lookup: searching for user_id=%s, original_model_id=%s",
+                user_id,
+                original_model_id,
+            )
 
             if self._get_db_backend() == "postgresql":
                 # PostgreSQL: Use JSON containment operator
@@ -229,16 +238,20 @@ class ModelRouter:
                     )
                     .all()
                 )
-                logger.info('BYOK lookup (sqlite): found %s active keys for user', len(keys))
+                logger.info(
+                    "BYOK lookup (sqlite): found %s active keys for user", len(keys)
+                )
                 for key in keys:
-                    logger.info('BYOK lookup: checking key %s, models=%s', key.id, key.models)
+                    logger.info(
+                        "BYOK lookup: checking key %s, models=%s", key.id, key.models
+                    )
                     if key.models and original_model_id in key.models:
-                        logger.info('BYOK lookup: MATCH found! key_id=%s', key.id)
+                        logger.info("BYOK lookup: MATCH found! key_id=%s", key.id)
                         return key
-                logger.info('BYOK lookup: NO MATCH found for %s', original_model_id)
+                logger.info("BYOK lookup: NO MATCH found for %s", original_model_id)
                 return None
         except Exception as e:
-            logger.error('Error looking up BYOK key: %s', e)
+            logger.error("Error looking up BYOK key: %s", e)
             return None
 
     async def _execute_with_byok(
@@ -269,7 +282,7 @@ class ModelRouter:
             parts = model_id.split("_", 2)
             if len(parts) >= 3:
                 original_model_id = parts[2]
-                logger.info('  Parsed original_model_id: %s', original_model_id)
+                logger.info("  Parsed original_model_id: %s", original_model_id)
 
         start_time = time.time()
         latency_ms = 0
@@ -278,8 +291,15 @@ class ModelRouter:
 
         try:
             llm_manager = self._get_llm_manager()
-            logger.info('  LLM manager: %s', llm_manager is not None)
-            logger.info('  Has get_model_with_user_key: %s', hasattr(llm_manager, 'get_model_with_user_key') if llm_manager else False)
+            logger.info("  LLM manager: %s", llm_manager is not None)
+            logger.info(
+                "  Has get_model_with_user_key: %s",
+                (
+                    hasattr(llm_manager, "get_model_with_user_key")
+                    if llm_manager
+                    else False
+                ),
+            )
             if not llm_manager:
                 return {
                     "success": False,
@@ -327,7 +347,7 @@ class ModelRouter:
                         success=True,
                     )
                 except Exception as log_error:
-                    logger.warning('Usage logging failed: %s', log_error)
+                    logger.warning("Usage logging failed: %s", log_error)
 
             latency_ms = int((time.time() - start_time) * 1000)
             logger.info(
@@ -381,7 +401,7 @@ class ModelRouter:
                         error_message=str(e),
                     )
                 except Exception as log_error:
-                    logger.warning('Usage logging failed: %s', log_error)
+                    logger.warning("Usage logging failed: %s", log_error)
             return {
                 "success": False,
                 "error": str(e),
@@ -569,7 +589,7 @@ class ModelRouter:
                         "provider": "platform",
                     }
             except Exception as e:
-                logger.error('Platform model %s failed: %s', model_id, e)
+                logger.error("Platform model %s failed: %s", model_id, e)
 
             # Fallback: try any available platform model via fallback chain
             try:
@@ -606,7 +626,7 @@ class ModelRouter:
                         "provider": "platform",
                     }
             except Exception as fallback_err:
-                logger.error('Platform fallback also failed: %s', fallback_err)
+                logger.error("Platform fallback also failed: %s", fallback_err)
 
         # Last resort: try BYOK with user's any available key if user context present
         if user_id_int and db_session:
@@ -640,10 +660,12 @@ class ModelRouter:
                                 **kwargs,
                             )
                         except Exception as byok_err:
-                            logger.warning('BYOK fallback with key %s failed: %s', key.id, byok_err)
+                            logger.warning(
+                                "BYOK fallback with key %s failed: %s", key.id, byok_err
+                            )
                             continue
             except Exception as e:
-                logger.warning('BYOK fallback lookup failed: %s', e)
+                logger.warning("BYOK fallback lookup failed: %s", e)
 
         return {
             "success": False,

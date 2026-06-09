@@ -153,7 +153,9 @@ class DebateProtocol:
 
             # If consensus reached, return
             if debate_round.consensus_reached:
-                logger.info('Debate %s reached consensus in round %s', debate_id, round_num)
+                logger.info(
+                    "Debate %s reached consensus in round %s", debate_id, round_num
+                )
                 return debate_round
 
         # Max rounds reached without consensus — mark deadlock
@@ -411,7 +413,7 @@ class DebateProtocol:
                 cleaned = cleaned.rsplit("```", 1)[0]
             return json.loads(cleaned.strip())
         except json.JSONDecodeError:
-            logger.warning('Failed to parse judge output: %s', raw[:200])
+            logger.warning("Failed to parse judge output: %s", raw[:200])
             return {
                 "score_a": 5.0,
                 "score_b": 5.0,

@@ -664,12 +664,14 @@ async def send_notification(
                         except Exception as push_err:
                             # Subscription may be expired — deactivate
                             sub.is_active = False
-                            logger.warning('Web push failed for user %s: %s', user_id, push_err)
+                            logger.warning(
+                                "Web push failed for user %s: %s", user_id, push_err
+                            )
                 await db.flush()
         except Exception as e:
             import logging
 
-            logger.warning('Web push error: %s', e)
+            logger.warning("Web push error: %s", e)
 
     # Send email
     if settings.email_enabled and settings.email_address:
@@ -721,7 +723,7 @@ async def send_email_notification(
         )
 
     except Exception as e:
-        logger.warning('Email notification failed: %s', e)
+        logger.warning("Email notification failed: %s", e)
 
 
 async def send_slack_notification(

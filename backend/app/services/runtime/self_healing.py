@@ -69,7 +69,7 @@ class SelfHealing:
         if len(self._recovery_history) > self._max_history:
             self._recovery_history = self._recovery_history[-self._max_history :]
 
-        logger.info('Recovery attempt %s completed successfully', attempt_id)
+        logger.info("Recovery attempt %s completed successfully", attempt_id)
 
         return attempt
 

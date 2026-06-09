@@ -101,7 +101,7 @@ class LangGraphTraceEmitter:
             asyncio.create_task(namespace.emit("trace_event", event_data, room=room))
         except RuntimeError:
             # No running loop, emit synchronously (for sync contexts)
-            logger.debug('No async context, queuing event: %s', event.event_type)
+            logger.debug("No async context, queuing event: %s", event.event_type)
 
     def start_span(
         self,

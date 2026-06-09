@@ -192,19 +192,21 @@ class SentryMCPClient:
             async with session.post(self.mcp_url, json=payload) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error('MCP request failed: %s - %s', response.status, error_text)
+                    logger.error(
+                        "MCP request failed: %s - %s", response.status, error_text
+                    )
                     raise Exception(f"MCP request failed: {response.status}")
 
                 data = await response.json()
 
                 if "error" in data:
-                    logger.error('MCP error: %s', data['error'])
+                    logger.error("MCP error: %s", data["error"])
                     raise Exception(f"MCP error: {data['error']}")
 
                 return data.get("result", {})
 
         except aiohttp.ClientError as e:
-            logger.error('MCP request error: %s', e)
+            logger.error("MCP request error: %s", e)
             raise
 
     async def capture_execution_error(
@@ -246,10 +248,10 @@ class SentryMCPClient:
         try:
             result = await self._mcp_request("sentry/capture_event", params)
             event_id = result.get("event_id")
-            logger.info('Captured execution error: %s', event_id)
+            logger.info("Captured execution error: %s", event_id)
             return event_id
         except Exception as e:
-            logger.error('Failed to capture execution error: %s', e)
+            logger.error("Failed to capture execution error: %s", e)
             # Return a placeholder - the local Sentry SDK will handle it
             return ""
 
@@ -273,7 +275,7 @@ class SentryMCPClient:
             result = await self._mcp_request("sentry/seer_analyze", params)
 
             if not result:
-                logger.warning('No Seer analysis result for issue %s', issue_id)
+                logger.warning("No Seer analysis result for issue %s", issue_id)
                 return None
 
             analysis = SeerAnalysis(
@@ -286,11 +288,15 @@ class SentryMCPClient:
                 raw_response=result,
             )
 
-            logger.info('Seer analysis complete for %s: confidence=%s', issue_id, analysis.confidence)
+            logger.info(
+                "Seer analysis complete for %s: confidence=%s",
+                issue_id,
+                analysis.confidence,
+            )
             return analysis
 
         except Exception as e:
-            logger.error('Seer analysis failed: %s', e)
+            logger.error("Seer analysis failed: %s", e)
             return None
 
     async def get_fix_recommendation(self, issue_id: str) -> FixRecommendation | None:
@@ -313,7 +319,7 @@ class SentryMCPClient:
             result = await self._mcp_request("sentry/seer_fix", params)
 
             if not result:
-                logger.warning('No fix recommendation for issue %s', issue_id)
+                logger.warning("No fix recommendation for issue %s", issue_id)
                 return None
 
             confidence = result.get("confidence", 0.0)
@@ -329,11 +335,15 @@ class SentryMCPClient:
                 estimated_impact=result.get("estimated_impact", "medium"),
             )
 
-            logger.info('Fix recommendation for %s: auto_applicable=%s', issue_id, recommendation.auto_applicable)
+            logger.info(
+                "Fix recommendation for %s: auto_applicable=%s",
+                issue_id,
+                recommendation.auto_applicable,
+            )
             return recommendation
 
         except Exception as e:
-            logger.error('Fix recommendation failed: %s', e)
+            logger.error("Fix recommendation failed: %s", e)
             return None
 
     async def search_similar_issues(
@@ -382,14 +392,14 @@ class SentryMCPClient:
                     )
                     issues.append(issue)
                 except Exception as e:
-                    logger.warning('Failed to parse issue: %s', e)
+                    logger.warning("Failed to parse issue: %s", e)
                     continue
 
-            logger.info('Found %s similar issues', len(issues))
+            logger.info("Found %s similar issues", len(issues))
             return issues
 
         except Exception as e:
-            logger.error('Issue search failed: %s', e)
+            logger.error("Issue search failed: %s", e)
             return []
 
     async def get_issue(self, issue_id: str) -> SentryIssue | None:
@@ -421,7 +431,7 @@ class SentryMCPClient:
             )
 
         except Exception as e:
-            logger.error('Failed to get issue: %s', e)
+            logger.error("Failed to get issue: %s", e)
             return None
 
     async def resolve_issue(self, issue_id: str) -> bool:
@@ -434,10 +444,10 @@ class SentryMCPClient:
 
         try:
             await self._mcp_request("sentry/update_issue", params)
-            logger.info('Resolved issue %s', issue_id)
+            logger.info("Resolved issue %s", issue_id)
             return True
         except Exception as e:
-            logger.error('Failed to resolve issue: %s', e)
+            logger.error("Failed to resolve issue: %s", e)
             return False
 
     async def get_project_issues(

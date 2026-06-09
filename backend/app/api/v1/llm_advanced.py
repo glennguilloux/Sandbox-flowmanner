@@ -47,7 +47,7 @@ async def get_stats(user: User = Depends(get_current_user)):
                 "provider_distribution": {},
             }
     except Exception as e:
-        logger.warning('LLM stats query failed: %s', e)
+        logger.warning("LLM stats query failed: %s", e)
         return {
             "total_requests": 0,
             "total_tokens": 0,
@@ -226,7 +226,7 @@ async def route_request(
                 "alternatives": [],
             }
     except Exception as e:
-        logger.error('Route request failed: %s', e)
+        logger.error("Route request failed: %s", e)
         return {
             "selected_model": "deepseek/deepseek-v4-flash",
             "reason": f"Fallback (error: {e})",
@@ -266,5 +266,5 @@ async def get_health(user: User = Depends(get_current_user)):
             },
         }
     except Exception as e:
-        logger.error('LLM health check failed: %s', e)
+        logger.error("LLM health check failed: %s", e)
         return {"status": "error", "providers": {}, "error": str(e)}

@@ -37,7 +37,7 @@ class ServiceAuthManager:
             logger.warning("Service token expired")
             return None
         except jwt.InvalidTokenError as e:
-            logger.warning('Invalid service token: %s', e)
+            logger.warning("Invalid service token: %s", e)
             return None
 
     def is_service_allowed(
@@ -72,7 +72,7 @@ def require_service_auth(f):
         auth_header = request.headers.get("Authorization")
 
         if not auth_header:
-            logger.warning('No authorization header for request to: %s', request.path)
+            logger.warning("No authorization header for request to: %s", request.path)
             return (
                 jsonify(
                     {
@@ -110,7 +110,9 @@ def require_service_auth(f):
             if not auth_manager.is_service_allowed(
                 service_name, request.path, allowed_endpoints
             ):
-                logger.warning('Service %s not authorized for %s', service_name, request.path)
+                logger.warning(
+                    "Service %s not authorized for %s", service_name, request.path
+                )
                 return (
                     jsonify(
                         {
@@ -127,7 +129,7 @@ def require_service_auth(f):
                 "endpoints": allowed_endpoints,
             }
 
-            logger.info('Service %s authenticated for %s', service_name, request.path)
+            logger.info("Service %s authenticated for %s", service_name, request.path)
             return f(*args, **kwargs)
 
         except jwt.ExpiredSignatureError:
@@ -135,7 +137,7 @@ def require_service_auth(f):
         except jwt.InvalidTokenError:
             return jsonify({"error": "Invalid token"}), 401
         except Exception as e:
-            logger.error('Service authentication error: %s', e)
+            logger.error("Service authentication error: %s", e)
             return jsonify({"error": "Authentication failed"}), 500
 
     return decorated

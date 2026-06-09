@@ -53,17 +53,21 @@ class ComfyUIConfig:
             errors.append("COMFYUI_MAX_RETRIES must be non-negative")
 
         if errors:
-            logger.error('ComfyUI configuration errors: %s', errors)
+            logger.error("ComfyUI configuration errors: %s", errors)
             raise ValueError(f"Invalid configuration: {', '.join(errors)}")
 
-        logger.info('ComfyUI config validated - URL: %s, Timeout: %ss', cls.BASE_URL, cls.TIMEOUT)
+        logger.info(
+            "ComfyUI config validated - URL: %s, Timeout: %ss",
+            cls.BASE_URL,
+            cls.TIMEOUT,
+        )
 
 
 # Validate on import
 try:
     ComfyUIConfig.validate()
 except ValueError as e:
-    logger.warning('ComfyUI configuration issue: %s', e)
+    logger.warning("ComfyUI configuration issue: %s", e)
 
 # ==================== CUSTOM EXCEPTIONS ====================
 
@@ -186,7 +190,12 @@ class HTTPClient:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        logger.info('HTTP client initialized - base_url: %s, timeout: %ss, retries: %s', base_url, timeout, max_retries)
+        logger.info(
+            "HTTP client initialized - base_url: %s, timeout: %ss, retries: %s",
+            base_url,
+            timeout,
+            max_retries,
+        )
 
     def get(self, endpoint: str, params: dict | None = None) -> requests.Response:
         """GET request with retry logic"""
@@ -196,15 +205,15 @@ class HTTPClient:
             response.raise_for_status()
             return response
         except requests.exceptions.Timeout:
-            logger.error('GET timeout: %s', url)
+            logger.error("GET timeout: %s", url)
             raise ComfyUITimeoutError(
                 f"Request to {url} timed out after {self.timeout}s"
             )
         except requests.exceptions.ConnectionError:
-            logger.error('GET connection error: %s', url)
+            logger.error("GET connection error: %s", url)
             raise ComfyUIConnectionError(f"Cannot connect to {url}")
         except Exception as e:
-            logger.error('GET error: %s - %s', url, e)
+            logger.error("GET error: %s - %s", url, e)
             raise ComfyUIError(f"GET request failed: {e}")
 
     def post(self, endpoint: str, json_data: dict | None = None) -> requests.Response:
@@ -215,15 +224,15 @@ class HTTPClient:
             response.raise_for_status()
             return response
         except requests.exceptions.Timeout:
-            logger.error('POST timeout: %s', url)
+            logger.error("POST timeout: %s", url)
             raise ComfyUITimeoutError(
                 f"Request to {url} timed out after {self.timeout}s"
             )
         except requests.exceptions.ConnectionError:
-            logger.error('POST connection error: %s', url)
+            logger.error("POST connection error: %s", url)
             raise ComfyUIConnectionError(f"Cannot connect to {url}")
         except Exception as e:
-            logger.error('POST error: %s - %s', url, e)
+            logger.error("POST error: %s - %s", url, e)
             raise ComfyUIError(f"POST request failed: {e}")
 
     def close(self):
@@ -246,7 +255,7 @@ class ComfyUIClient:
             timeout=self.config.TIMEOUT,
             max_retries=self.config.MAX_RETRIES,
         )
-        logger.info('ComfyUIClient initialized for %s', self.config.BASE_URL)
+        logger.info("ComfyUIClient initialized for %s", self.config.BASE_URL)
 
     def check_health(self) -> bool:
         """Check if ComfyUI is available"""
@@ -254,12 +263,16 @@ class ComfyUIClient:
             response = self.http_client.get("/", params=None)
             return response.status_code == 200
         except Exception as e:
-            logger.warning('Health check failed: %s', e)
+            logger.warning("Health check failed: %s", e)
             return False
 
     def generate_image(self, request: ComfyUIRequest) -> dict:
         """Generate image using ComfyUI with full error handling"""
-        logger.info('Starting image generation - type: %s, style: %s', request.workflow_type, request.style)
+        logger.info(
+            "Starting image generation - type: %s, style: %s",
+            request.workflow_type,
+            request.style,
+        )
 
         try:
             # Health check
@@ -272,34 +285,34 @@ class ComfyUIClient:
 
             # Build workflow
             workflow = self._build_workflow(request)
-            logger.debug('Workflow built for %s', request.workflow_type)
+            logger.debug("Workflow built for %s", request.workflow_type)
 
             # Send to ComfyUI
             response = self.http_client.post("/prompt", json_data={"prompt": workflow})
             result = response.json()
             prompt_id = result.get("prompt_id")
 
-            logger.info('Workflow submitted - prompt_id: %s', prompt_id)
+            logger.info("Workflow submitted - prompt_id: %s", prompt_id)
 
             # Wait for completion
             return self._wait_for_image(prompt_id, request)
 
         except ComfyUIConnectionError as e:
-            logger.error('Connection error during generation: %s', e)
+            logger.error("Connection error during generation: %s", e)
             return {
                 "success": False,
                 "error": str(e),
                 "note": "Check if ComfyUI service is running",
             }
         except ComfyUITimeoutError as e:
-            logger.error('Timeout during generation: %s', e)
+            logger.error("Timeout during generation: %s", e)
             return {
                 "success": False,
                 "error": str(e),
                 "note": "Generation took too long, try with simpler prompt",
             }
         except Exception as e:
-            logger.error('Unexpected error during generation: %s', e, exc_info=True)
+            logger.error("Unexpected error during generation: %s", e, exc_info=True)
             return {
                 "success": False,
                 "error": f"Generation failed: {e!s}",
@@ -385,7 +398,7 @@ class ComfyUIClient:
         try:
             return int(resolution.split("x")[0])
         except:
-            logger.warning('Invalid resolution format, using default: %s', resolution)
+            logger.warning("Invalid resolution format, using default: %s", resolution)
             return 1920
 
     def _get_height(self, resolution: str) -> int:
@@ -393,7 +406,7 @@ class ComfyUIClient:
         try:
             return int(resolution.split("x")[1])
         except:
-            logger.warning('Invalid resolution format, using default: %s', resolution)
+            logger.warning("Invalid resolution format, using default: %s", resolution)
             return 1080
 
     def _build_prompt(self, request: ComfyUIRequest) -> str:
@@ -441,7 +454,9 @@ class ComfyUIClient:
         start_time = time.time()
         timeout = self.config.TIMEOUT
 
-        logger.info('Waiting for completion - prompt_id: %s, timeout: %ss', prompt_id, timeout)
+        logger.info(
+            "Waiting for completion - prompt_id: %s, timeout: %ss", prompt_id, timeout
+        )
 
         while time.time() - start_time < timeout:
             try:
@@ -457,7 +472,10 @@ class ComfyUIClient:
                             image = node_output["images"][0]
                             image_url = self._get_image_url(image)
 
-                            logger.info('Image generated successfully - prompt_id: %s', prompt_id)
+                            logger.info(
+                                "Image generated successfully - prompt_id: %s",
+                                prompt_id,
+                            )
                             return {
                                 "success": True,
                                 "message": f"Generated {request.workflow_type} with {request.style} style",
@@ -477,10 +495,10 @@ class ComfyUIClient:
                 # Retry on transient errors
                 time.sleep(2)
             except Exception as e:
-                logger.error('Error waiting for image: %s', e)
+                logger.error("Error waiting for image: %s", e)
                 time.sleep(2)
 
-        logger.warning('Generation timed out - prompt_id: %s', prompt_id)
+        logger.warning("Generation timed out - prompt_id: %s", prompt_id)
         return {
             "success": False,
             "message": f"Generation timed out after {timeout} seconds",
@@ -541,7 +559,7 @@ def generate_comfyui_image(
         return json.dumps(result, indent=2)
 
     except Exception as e:
-        logger.error('generate_comfyui_image failed: %s', e)
+        logger.error("generate_comfyui_image failed: %s", e)
         return json.dumps({"success": False, "error": str(e)}, indent=2)
     finally:
         client.close()

@@ -85,7 +85,7 @@ class OpenWhiskIntegrationController:
         Returns:
             DeploymentStatus with results
         """
-        logger.info('Starting deployment of actions from %s', actions_dir)
+        logger.info("Starting deployment of actions from %s", actions_dir)
 
         status = DeploymentStatus(
             total_actions=0,
@@ -131,16 +131,23 @@ class OpenWhiskIntegrationController:
                 )
 
                 status.deployed_actions += 1
-                logger.info('Action %s deployed successfully', action_name)
+                logger.info("Action %s deployed successfully", action_name)
 
             except Exception as e:
                 status.failed_actions += 1
                 status.errors.append(f"{action_file.get('name', 'unknown')}: {e!s}")
-                logger.error('Failed to deploy action %s: %s', action_file.get('name'), e)
+                logger.error(
+                    "Failed to deploy action %s: %s", action_file.get("name"), e
+                )
 
         status.end_time = datetime.now(UTC)
         duration = (status.end_time - status.start_time).total_seconds()
-        logger.info('Deployment completed: %s/%s actions in %ss', status.deployed_actions, status.total_actions, duration)
+        logger.info(
+            "Deployment completed: %s/%s actions in %ss",
+            status.deployed_actions,
+            status.total_actions,
+            duration,
+        )
 
         self.current_deployment = status
         return status
@@ -159,10 +166,10 @@ class OpenWhiskIntegrationController:
         Returns:
             True if update successful
         """
-        logger.info('Updating action: %s', action_name)
+        logger.info("Updating action: %s", action_name)
 
         if action_name not in self.deployments:
-            logger.warning('Action %s not deployed, cannot update', action_name)
+            logger.warning("Action %s not deployed, cannot update", action_name)
             return False
 
         try:
@@ -184,13 +191,13 @@ class OpenWhiskIntegrationController:
             deployment.deployed_at = datetime.now(UTC)
             deployment.status = "deployed"
 
-            logger.info('Action %s updated to %s', action_name, deployment.version)
+            logger.info("Action %s updated to %s", action_name, deployment.version)
             return True
 
         except Exception as e:
             deployment.status = "failed"
             deployment.error_count += 1
-            logger.error('Failed to update action %s: %s', action_name, e)
+            logger.error("Failed to update action %s: %s", action_name, e)
             return False
 
     async def rollback_action(
@@ -206,10 +213,12 @@ class OpenWhiskIntegrationController:
         Returns:
             True if rollback successful
         """
-        logger.warning('Rolling back action: %s to %s', action_name, target_version or 'previous')
+        logger.warning(
+            "Rolling back action: %s to %s", action_name, target_version or "previous"
+        )
 
         if action_name not in self.deployments:
-            logger.error('Cannot rollback: action %s not deployed', action_name)
+            logger.error("Cannot rollback: action %s not deployed", action_name)
             return False
 
         try:
@@ -221,11 +230,11 @@ class OpenWhiskIntegrationController:
             deployment.status = "failed_rollback"
             deployment.error_count += 1
 
-            logger.warning('Rollback requires manual intervention for %s', action_name)
+            logger.warning("Rollback requires manual intervention for %s", action_name)
             return False
 
         except Exception as e:
-            logger.error('Rollback failed for %s: %s', action_name, e)
+            logger.error("Rollback failed for %s: %s", action_name, e)
             return False
 
     async def get_action_status(self, action_name: str) -> dict[str, Any] | None:
@@ -261,7 +270,7 @@ class OpenWhiskIntegrationController:
                 "live_updated": action_info.updated.isoformat(),
             }
         except Exception as e:
-            logger.error('Error getting status for %s: %s', action_name, e)
+            logger.error("Error getting status for %s: %s", action_name, e)
             return {"action_name": action_name, "error": str(e), "status": "unknown"}
 
     async def health_check_all_actions(self) -> dict[str, Any]:
@@ -315,7 +324,7 @@ class OpenWhiskIntegrationController:
         Returns:
             True if removal successful
         """
-        logger.warning('Removing action: %s', action_name)
+        logger.warning("Removing action: %s", action_name)
 
         try:
             # Delete from OpenWhisk
@@ -324,12 +333,12 @@ class OpenWhiskIntegrationController:
             if success:
                 # Remove from local tracking
                 self.deployments.pop(action_name, None)
-                logger.info('Action %s removed successfully', action_name)
+                logger.info("Action %s removed successfully", action_name)
 
             return success
 
         except Exception as e:
-            logger.error('Error removing action %s: %s', action_name, e)
+            logger.error("Error removing action %s: %s", action_name, e)
             return False
 
     async def _discover_actions(self, actions_dir: str) -> list[dict[str, Any]]:
@@ -347,7 +356,7 @@ class OpenWhiskIntegrationController:
         action_files = []
 
         if not os.path.exists(actions_dir):
-            logger.warning('Actions directory not found: %s', actions_dir)
+            logger.warning("Actions directory not found: %s", actions_dir)
             return action_files
 
         for filename in os.listdir(actions_dir):
@@ -372,9 +381,9 @@ class OpenWhiskIntegrationController:
                 )
 
             except Exception as e:
-                logger.error('Error reading action file %s: %s', filename, e)
+                logger.error("Error reading action file %s: %s", filename, e)
 
-        logger.info('Discovered %s action files', len(action_files))
+        logger.info("Discovered %s action files", len(action_files))
         return action_files
 
     def _hash_code(self, code: str) -> str:
@@ -464,5 +473,5 @@ def create_integration_controller(
         return controller
 
     except Exception as e:
-        logger.error('Error creating integration controller: %s', e)
+        logger.error("Error creating integration controller: %s", e)
         return None

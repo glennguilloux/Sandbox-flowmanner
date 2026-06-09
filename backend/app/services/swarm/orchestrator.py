@@ -179,7 +179,7 @@ class SwarmOrchestrator:
             execution.completed_at = datetime.now(UTC)
 
         except Exception as e:
-            logger.error('Swarm execution failed: %s', e, exc_info=True)
+            logger.error("Swarm execution failed: %s", e, exc_info=True)
             await self._transition_execution_status(
                 execution, "failed", cause=f"Error: {e}"
             )
@@ -220,7 +220,7 @@ class SwarmOrchestrator:
             parsed = json.loads(cleaned.strip())
             return parsed.get("subtasks", [])
         except json.JSONDecodeError:
-            logger.warning('Failed to parse decomposition: %s', raw[:200])
+            logger.warning("Failed to parse decomposition: %s", raw[:200])
             # Fallback: single task
             return [{"id": "task_1", "description": goal, "task_type": "general"}]
 
@@ -294,7 +294,7 @@ class SwarmOrchestrator:
             task.tokens_used = len(output.split()) * 2  # rough estimate
 
         except Exception as e:
-            logger.error('Task %s failed: %s', task.id, e)
+            logger.error("Task %s failed: %s", task.id, e)
             task.status = "failed"
             task.error_message = str(e)
 
@@ -408,7 +408,7 @@ class SwarmOrchestrator:
             )
             self.db.add(record)
         except Exception as e:
-            logger.warning('Failed to record swarm LLM call: %s', e)
+            logger.warning("Failed to record swarm LLM call: %s", e)
 
         # Also record Prometheus metrics
         try:

@@ -35,7 +35,7 @@ def langgraph_execute_task(
     Returns:
         Agent response dictionary
     """
-    logger.info('Starting LangGraph task for message: %s...', message[:100])
+    logger.info("Starting LangGraph task for message: %s...", message[:100])
 
     # Create task record
     task_record = self.create_task_record(
@@ -77,11 +77,11 @@ def langgraph_execute_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info('LangGraph task completed successfully: %s', self.request.id)
+        logger.info("LangGraph task completed successfully: %s", self.request.id)
         return result
 
     except Exception as e:
-        logger.error('LangGraph task failed: %s', e, exc_info=True)
+        logger.error("LangGraph task failed: %s", e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"
@@ -107,7 +107,7 @@ def langgraph_approval_task(
     Returns:
         Approval result dictionary
     """
-    logger.info('Processing LangGraph approval for session: %s', session_id)
+    logger.info("Processing LangGraph approval for session: %s", session_id)
 
     # Create task record
     task_record = self.create_task_record(
@@ -149,11 +149,11 @@ def langgraph_approval_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info('LangGraph approval task completed: %s', self.request.id)
+        logger.info("LangGraph approval task completed: %s", self.request.id)
         return result
 
     except Exception as e:
-        logger.error('LangGraph approval task failed: %s', e, exc_info=True)
+        logger.error("LangGraph approval task failed: %s", e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"
@@ -182,7 +182,7 @@ def langgraph_tool_execution_task(
     Returns:
         Tool execution result
     """
-    logger.info('Executing LangGraph tool: %s', tool_name)
+    logger.info("Executing LangGraph tool: %s", tool_name)
 
     # Create task record
     task_record = self.create_task_record(
@@ -219,11 +219,11 @@ def langgraph_tool_execution_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info('LangGraph tool execution completed: %s', tool_name)
+        logger.info("LangGraph tool execution completed: %s", tool_name)
         return result
 
     except Exception as e:
-        logger.error('LangGraph tool execution failed: %s', e, exc_info=True)
+        logger.error("LangGraph tool execution failed: %s", e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"
@@ -252,7 +252,7 @@ def langgraph_batch_process_task(
     Returns:
         Batch processing results
     """
-    logger.info('Starting LangGraph batch processing for %s messages', len(messages))
+    logger.info("Starting LangGraph batch processing for %s messages", len(messages))
 
     # Create task record
     task_record = self.create_task_record(
@@ -282,7 +282,7 @@ def langgraph_batch_process_task(
 
         # Process each message
         for i, message in enumerate(messages):
-            logger.info('Processing batch message %s/%s', i + 1, len(messages))
+            logger.info("Processing batch message %s/%s", i + 1, len(messages))
 
             try:
                 result = loop.run_until_complete(
@@ -290,7 +290,7 @@ def langgraph_batch_process_task(
                 )
                 results.append({"message": message, "result": result, "success": True})
             except Exception as e:
-                logger.error('Failed to process batch message %s: %s', i + 1, e)
+                logger.error("Failed to process batch message %s: %s", i + 1, e)
                 results.append({"message": message, "error": str(e), "success": False})
 
         # Close agent
@@ -302,7 +302,7 @@ def langgraph_batch_process_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info('LangGraph batch processing completed: %s messages', len(results))
+        logger.info("LangGraph batch processing completed: %s messages", len(results))
         return {
             "processed": len(results),
             "successful": sum(1 for r in results if r.get("success", False)),
@@ -311,7 +311,7 @@ def langgraph_batch_process_task(
         }
 
     except Exception as e:
-        logger.error('LangGraph batch processing failed: %s', e, exc_info=True)
+        logger.error("LangGraph batch processing failed: %s", e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"

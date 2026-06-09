@@ -152,12 +152,16 @@ def auth_required(f: Callable) -> Callable:
             # Store user context in Flask's g object
             g.user_context = user_context
 
-            logger.info('Authenticated user: %s (ID: %s)', user_context.username, user_context.user_id)
+            logger.info(
+                "Authenticated user: %s (ID: %s)",
+                user_context.username,
+                user_context.user_id,
+            )
 
             return f(*args, **kwargs)
 
         except Exception as e:
-            logger.error('Authentication error: %s', e)
+            logger.error("Authentication error: %s", e)
             return (
                 jsonify(
                     {
@@ -324,7 +328,7 @@ def extract_user_context_from_request() -> UserContext | None:
         return UserContext.from_jwt(payload)
 
     except Exception as e:
-        logger.debug('Failed to extract user context: %s', e)
+        logger.debug("Failed to extract user context: %s", e)
         return None
 
 

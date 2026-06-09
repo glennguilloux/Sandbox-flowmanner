@@ -84,7 +84,7 @@ class CapabilityRegistry:
             True if registered successfully, False if ID already exists
         """
         if capability.id in self._capabilities:
-            logger.warning('Capability %s already registered, updating', capability.id)
+            logger.warning("Capability %s already registered, updating", capability.id)
 
         self._capabilities[capability.id] = capability
 
@@ -94,7 +94,7 @@ class CapabilityRegistry:
         if capability.id not in self._categories[capability.category]:
             self._categories[capability.category].append(capability.id)
 
-        logger.info('Registered capability: %s (%s)', capability.id, capability.name)
+        logger.info("Registered capability: %s (%s)", capability.id, capability.name)
         return True
 
     def unregister(self, capability_id: str) -> bool:
@@ -111,7 +111,7 @@ class CapabilityRegistry:
         # Remove any aliases pointing to this capability
         self._aliases = {k: v for k, v in self._aliases.items() if v != capability_id}
 
-        logger.info('Unregistered capability: %s', capability_id)
+        logger.info("Unregistered capability: %s", capability_id)
         return True
 
     def get(self, capability_id: str) -> Capability | None:
@@ -138,7 +138,7 @@ class CapabilityRegistry:
     def add_alias(self, alias: str, capability_id: str) -> bool:
         """Add an alias for a capability"""
         if capability_id not in self._capabilities:
-            logger.warning('Cannot add alias: capability %s not found', capability_id)
+            logger.warning("Cannot add alias: capability %s not found", capability_id)
             return False
         self._aliases[alias] = capability_id
         logger.info("Added alias '%s' -> '%s'", alias, capability_id)

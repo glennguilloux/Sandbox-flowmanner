@@ -218,7 +218,7 @@ class ToolAdapter:
         tool_defs = self.SERVICE_TOOL_MAPPING.get(service_name, {})
 
         if not tool_defs:
-            logger.warning('No tool definitions found for service: %s', service_name)
+            logger.warning("No tool definitions found for service: %s", service_name)
             return tools
 
         # Filter methods if specified
@@ -229,7 +229,7 @@ class ToolAdapter:
             # Get the method from the service
             method = getattr(service_instance, method_name, None)
             if method is None:
-                logger.warning('Method %s not found on %s', method_name, service_name)
+                logger.warning("Method %s not found on %s", method_name, service_name)
                 continue
 
             # Create wrapper handler
@@ -259,7 +259,7 @@ class ToolAdapter:
                 self._adapted_services[service_name] = []
             self._adapted_services[service_name].append(tool.tool_id)
 
-        logger.info('Adapted %s tools from %s', len(tools), service_name)
+        logger.info("Adapted %s tools from %s", len(tools), service_name)
         return tools
 
     def _create_handler(
@@ -276,7 +276,7 @@ class ToolAdapter:
                     result = method(**params)
                 return result
             except Exception as e:
-                logger.error('Error in %s.%s: %s', service_name, method_name, e)
+                logger.error("Error in %s.%s: %s", service_name, method_name, e)
                 raise
 
         return handler
@@ -370,4 +370,4 @@ class ToolAdapter:
     ) -> None:
         """Register custom service-to-tool mappings"""
         self.SERVICE_TOOL_MAPPING[service_name] = method_tools
-        logger.info('Registered custom mapping for %s', service_name)
+        logger.info("Registered custom mapping for %s", service_name)

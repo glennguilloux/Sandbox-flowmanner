@@ -160,7 +160,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
             )
 
         except Exception as e:
-            logger.error('LangGraph agent error: %s', e)
+            logger.error("LangGraph agent error: %s", e)
             return AgentResponse(
                 content=f"Error processing message: {e!s}",
                 success=False,
@@ -195,7 +195,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                     yield str(event)
 
         except Exception as e:
-            logger.error('LangGraph streaming error: %s', e)
+            logger.error("LangGraph streaming error: %s", e)
             yield f"Error: {e!s}"
 
 
@@ -288,7 +288,7 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
             )
 
         except Exception as e:
-            logger.error('MetaLoop agent error: %s', e)
+            logger.error("MetaLoop agent error: %s", e)
             return AgentResponse(
                 content=f"Error processing message: {e!s}",
                 success=False,
@@ -332,7 +332,7 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
                     yield "  Skipped\n"
 
         except Exception as e:
-            logger.error('MetaLoop streaming error: %s', e)
+            logger.error("MetaLoop streaming error: %s", e)
             yield f"Error: {e!s}"
 
 
@@ -432,7 +432,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
                 )
 
         except Exception as e:
-            logger.error('Nexus orchestrator error: %s', e)
+            logger.error("Nexus orchestrator error: %s", e)
             return AgentResponse(
                 content=f"Error processing message: {e!s}",
                 success=False,
@@ -460,7 +460,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
                 yield f"Result: {result.get('output', 'Completed')}\n"
 
         except Exception as e:
-            logger.error('Nexus streaming error: %s', e)
+            logger.error("Nexus streaming error: %s", e)
             yield f"Error: {e!s}"
 
 
@@ -502,6 +502,6 @@ def register_default_agents():
 
     for wrapper in wrappers:
         wrapper.register()
-        logger.info('Registered A2A agent: %s', wrapper.agent_id)
+        logger.info("Registered A2A agent: %s", wrapper.agent_id)
 
     return wrappers

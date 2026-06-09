@@ -38,13 +38,13 @@ class CatalogConfig:
         if not cls.BACKEND_API_URL:
             logger.warning("BACKEND_API_URL not set, using default")
 
-        logger.info('Catalog config validated - API URL: %s', cls.BACKEND_API_URL)
+        logger.info("Catalog config validated - API URL: %s", cls.BACKEND_API_URL)
 
 
 try:
     CatalogConfig.validate()
 except Exception as e:
-    logger.warning('Catalog configuration issue: %s', e)
+    logger.warning("Catalog configuration issue: %s", e)
 
 # ==================== CUSTOM EXCEPTIONS ====================
 
@@ -100,7 +100,7 @@ class HTTPClient:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        logger.info('HTTP client initialized for catalog')
+        logger.info("HTTP client initialized for catalog")
 
     def get(self, endpoint: str, params: dict | None = None) -> requests.Response:
         """GET request with retry logic"""
@@ -149,13 +149,18 @@ class CatalogClient:
             timeout=self.config.TIMEOUT,
             max_retries=self.config.MAX_RETRIES,
         )
-        logger.info('CatalogClient initialized for %s', self.config.BACKEND_API_URL)
+        logger.info("CatalogClient initialized for %s", self.config.BACKEND_API_URL)
 
     def search_workflows(
         self, query: str, category: str | None = None, limit: int = 5
     ) -> list[dict]:
         """Search workflows by query with fallback"""
-        logger.info('Searching workflows - query: %s, category: %s, limit: %s', query, category, limit)
+        logger.info(
+            "Searching workflows - query: %s, category: %s, limit: %s",
+            query,
+            category,
+            limit,
+        )
 
         try:
             response = self.http_client.get(
@@ -163,48 +168,50 @@ class CatalogClient:
                 params={"search": query, "category": category, "limit": limit},
             )
             workflows = response.json().get("workflows", [])
-            logger.info('API search returned %s workflows', len(workflows))
+            logger.info("API search returned %s workflows", len(workflows))
             return workflows
 
         except CatalogConnectionError as e:
-            logger.warning('API search failed, using fallback: %s', e)
+            logger.warning("API search failed, using fallback: %s", e)
             return self._local_search(query, category, limit)
         except Exception as e:
-            logger.error('Unexpected error in search: %s', e)
+            logger.error("Unexpected error in search: %s", e)
             return self._local_search(query, category, limit)
 
     def recommend_workflows(self, intent: str, limit: int = 5) -> list[dict]:
         """Get workflow recommendations based on intent"""
-        logger.info('Recommending workflows - intent: %s, limit: %s', intent, limit)
+        logger.info("Recommending workflows - intent: %s, limit: %s", intent, limit)
 
         try:
             response = self.http_client.post(
                 "/catalog/recommend", json_data={"intent": intent, "limit": limit}
             )
             recommendations = response.json().get("recommendations", [])
-            logger.info('API recommendations returned %s workflows', len(recommendations))
+            logger.info(
+                "API recommendations returned %s workflows", len(recommendations)
+            )
             return recommendations
 
         except CatalogConnectionError as e:
-            logger.warning('API recommendations failed, using fallback: %s', e)
+            logger.warning("API recommendations failed, using fallback: %s", e)
             return self._intent_recommend(intent, limit)
         except Exception as e:
-            logger.error('Unexpected error in recommendations: %s', e)
+            logger.error("Unexpected error in recommendations: %s", e)
             return self._intent_recommend(intent, limit)
 
     def describe_workflow(self, workflow_id: str) -> dict:
         """Get detailed workflow description"""
-        logger.info('Describing workflow - id: %s', workflow_id)
+        logger.info("Describing workflow - id: %s", workflow_id)
 
         try:
             response = self.http_client.get(f"/catalog/{workflow_id}")
             return response.json()
 
         except CatalogConnectionError as e:
-            logger.warning('API describe failed, using fallback: %s', e)
+            logger.warning("API describe failed, using fallback: %s", e)
             return self._local_describe(workflow_id)
         except Exception as e:
-            logger.error('Unexpected error in describe: %s', e)
+            logger.error("Unexpected error in describe: %s", e)
             return self._local_describe(workflow_id)
 
     def list_categories(self) -> list[dict]:
@@ -214,14 +221,14 @@ class CatalogClient:
         try:
             response = self.http_client.get("/catalog/categories")
             categories = response.json().get("categories", [])
-            logger.info('API returned %s categories', len(categories))
+            logger.info("API returned %s categories", len(categories))
             return categories
 
         except CatalogConnectionError as e:
-            logger.warning('API categories failed, using fallback: %s', e)
+            logger.warning("API categories failed, using fallback: %s", e)
             return self._local_categories()
         except Exception as e:
-            logger.error('Unexpected error in categories: %s', e)
+            logger.error("Unexpected error in categories: %s", e)
             return self._local_categories()
 
     # ==================== LOCAL FALLBACKS ====================
@@ -255,7 +262,7 @@ class CatalogClient:
             else:
                 results.append(wf)
 
-        logger.info('Local search returned %s workflows', len(results[:limit]))
+        logger.info("Local search returned %s workflows", len(results[:limit]))
         return results[:limit]
 
     def _intent_recommend(self, intent: str, limit: int = 5) -> list[dict]:
@@ -294,7 +301,7 @@ class CatalogClient:
             wf for wf in workflows if wf.get("category") in recommended_categories
         ]
 
-        logger.info('Intent-based recommendations: %s workflows', len(results[:limit]))
+        logger.info("Intent-based recommendations: %s workflows", len(results[:limit]))
         return results[:limit]
 
     def _local_describe(self, workflow_id: str) -> dict:
@@ -302,9 +309,9 @@ class CatalogClient:
         workflows = self._get_local_workflows()
         for wf in workflows:
             if wf.get("id") == workflow_id:
-                logger.info('Found workflow in local catalog: %s', workflow_id)
+                logger.info("Found workflow in local catalog: %s", workflow_id)
                 return wf
-        logger.warning('Workflow not found in local catalog: %s', workflow_id)
+        logger.warning("Workflow not found in local catalog: %s", workflow_id)
         return {"error": "Workflow not found"}
 
     def _local_categories(self) -> list[dict]:
@@ -317,7 +324,7 @@ class CatalogClient:
             categories[cat] = categories.get(cat, 0) + 1
 
         result = [{"name": cat, "count": count} for cat, count in categories.items()]
-        logger.info('Local categories: %s', len(result))
+        logger.info("Local categories: %s", len(result))
         return result
 
     def _get_local_workflows(self) -> list[dict]:
@@ -482,7 +489,7 @@ def workflow_catalog(
             return json.dumps({"success": False, "error": f"Unknown action: {action}"})
 
     except Exception as e:
-        logger.error('workflow_catalog failed: %s', e)
+        logger.error("workflow_catalog failed: %s", e)
         return json.dumps({"success": False, "error": str(e)}, indent=2)
     finally:
         client.close()

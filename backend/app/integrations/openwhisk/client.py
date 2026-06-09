@@ -82,7 +82,12 @@ class OpenWhiskClient:
         self.base_url = f"{config.api_host}/api/v1/namespaces/{config.namespace}"
         self._session: aiohttp.ClientSession | None = None
 
-        logger.info('OpenWhiskClient initialized - Region: %s, Host: %s, Namespace: %s', config.region, config.api_host, config.namespace)
+        logger.info(
+            "OpenWhiskClient initialized - Region: %s, Host: %s, Namespace: %s",
+            config.region,
+            config.api_host,
+            config.namespace,
+        )
 
     @staticmethod
     def _load_config_from_env() -> OpenWhiskConfig:
@@ -99,7 +104,7 @@ class OpenWhiskClient:
 
         # Validate region
         if region not in ["eu-de", "eu-fr"]:
-            logger.warning('Unknown region %s, using eu-de', region)
+            logger.warning("Unknown region %s, using eu-de", region)
             region = "eu-de"
 
         return OpenWhiskConfig(
@@ -189,7 +194,12 @@ class OpenWhiskClient:
                 retry_count += 1
                 last_error = e
                 if retry_count < self.config.max_retries:
-                    logger.warning('Request failed (attempt %s/%s), retrying... Error: %s', retry_count, self.config.max_retries, e)
+                    logger.warning(
+                        "Request failed (attempt %s/%s), retrying... Error: %s",
+                        retry_count,
+                        self.config.max_retries,
+                        e,
+                    )
                     await asyncio.sleep(2**retry_count)  # Exponential backoff
 
         raise ValueError(
@@ -218,7 +228,7 @@ class OpenWhiskClient:
         Raises:
             ValueError: On invocation errors
         """
-        logger.info('Invoking action: %s', action_name)
+        logger.info("Invoking action: %s", action_name)
 
         start_time = datetime.now(UTC)
 
@@ -240,7 +250,7 @@ class OpenWhiskClient:
             # Check for errors in response
             if "response" in response and "error" in response["response"]:
                 error = response["response"]["error"]
-                logger.error('Action %s failed: %s', action_name, error)
+                logger.error("Action %s failed: %s", action_name, error)
                 return ActionInvocation(
                     success=False,
                     error=str(error),
@@ -252,7 +262,12 @@ class OpenWhiskClient:
             # Extract result
             result_data = response.get("response", {}).get("result")
 
-            logger.info('Action %s completed successfully (%sms, activation: %s)', action_name, duration_ms, activation_id)
+            logger.info(
+                "Action %s completed successfully (%sms, activation: %s)",
+                action_name,
+                duration_ms,
+                activation_id,
+            )
 
             return ActionInvocation(
                 success=True,
@@ -263,7 +278,7 @@ class OpenWhiskClient:
             )
 
         except Exception as e:
-            logger.error('Error invoking action %s: %s', action_name, e)
+            logger.error("Error invoking action %s: %s", action_name, e)
             return ActionInvocation(
                 success=False,
                 error=str(e),
@@ -300,7 +315,7 @@ class OpenWhiskClient:
         Raises:
             ValueError: On creation errors
         """
-        logger.info('Creating action: %s', action_name)
+        logger.info("Creating action: %s", action_name)
 
         payload = {
             "exec": {"kind": kind, "code": code, "main": main},
@@ -319,7 +334,7 @@ class OpenWhiskClient:
             data=payload,
         )
 
-        logger.info('Action %s created successfully', action_name)
+        logger.info("Action %s created successfully", action_name)
         return response
 
     async def update_action(
@@ -339,7 +354,7 @@ class OpenWhiskClient:
         Raises:
             ValueError: On update errors
         """
-        logger.info('Updating action: %s', action_name)
+        logger.info("Updating action: %s", action_name)
 
         payload = {}
 
@@ -352,7 +367,7 @@ class OpenWhiskClient:
             method="PUT", endpoint=f"/actions/{action_name}", data=payload
         )
 
-        logger.info('Action %s updated successfully', action_name)
+        logger.info("Action %s updated successfully", action_name)
         return response
 
     async def delete_action(self, action_name: str) -> bool:
@@ -368,14 +383,14 @@ class OpenWhiskClient:
         Raises:
             ValueError: On deletion errors
         """
-        logger.info('Deleting action: %s', action_name)
+        logger.info("Deleting action: %s", action_name)
 
         try:
             await self._request(method="DELETE", endpoint=f"/actions/{action_name}")
-            logger.info('Action %s deleted successfully', action_name)
+            logger.info("Action %s deleted successfully", action_name)
             return True
         except Exception as e:
-            logger.error('Error deleting action %s: %s', action_name, e)
+            logger.error("Error deleting action %s: %s", action_name, e)
             return False
 
     async def list_actions(self) -> list[ActionInfo]:
@@ -410,7 +425,7 @@ class OpenWhiskClient:
                 )
             )
 
-        logger.info('Found %s actions', len(action_infos))
+        logger.info("Found %s actions", len(action_infos))
         return action_infos
 
     async def get_action(self, action_name: str) -> ActionInfo:
@@ -426,7 +441,7 @@ class OpenWhiskClient:
         Raises:
             ValueError: On API errors
         """
-        logger.info('Getting action: %s', action_name)
+        logger.info("Getting action: %s", action_name)
 
         response = await self._request(method="GET", endpoint=f"/actions/{action_name}")
 
@@ -460,7 +475,7 @@ class OpenWhiskClient:
         Raises:
             ValueError: On creation errors
         """
-        logger.info('Creating trigger: %s', trigger_name)
+        logger.info("Creating trigger: %s", trigger_name)
 
         payload = {"name": trigger_name, "feed": feed}
 
@@ -471,7 +486,7 @@ class OpenWhiskClient:
             method="PUT", endpoint=f"/triggers/{trigger_name}", data=payload
         )
 
-        logger.info('Trigger %s created successfully', trigger_name)
+        logger.info("Trigger %s created successfully", trigger_name)
         return response
 
     async def health_check(self) -> dict[str, Any]:
@@ -493,7 +508,7 @@ class OpenWhiskClient:
                 "timestamp": datetime.now(UTC).isoformat(),
             }
         except Exception as e:
-            logger.error('Health check failed: %s', e)
+            logger.error("Health check failed: %s", e)
             return {
                 "status": "unhealthy",
                 "region": self.config.region,
@@ -515,7 +530,7 @@ class OpenWhiskClient:
         Returns:
             List of ActionInvocation results
         """
-        logger.info('Batch invoking %s actions', len(invocations))
+        logger.info("Batch invoking %s actions", len(invocations))
 
         semaphore = asyncio.Semaphore(max_concurrent)
         tasks = []
@@ -536,14 +551,18 @@ class OpenWhiskClient:
         processed_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error('Batch invocation %s failed: %s', i, result)
+                logger.error("Batch invocation %s failed: %s", i, result)
                 processed_results.append(
                     ActionInvocation(success=False, error=str(result))
                 )
             else:
                 processed_results.append(result)
 
-        logger.info('Batch invocation completed: %s success, %s failures', len([r for r in processed_results if r.success]), len([r for r in processed_results if not r.success]))
+        logger.info(
+            "Batch invocation completed: %s success, %s failures",
+            len([r for r in processed_results if r.success]),
+            len([r for r in processed_results if not r.success]),
+        )
 
         return processed_results
 
@@ -564,5 +583,5 @@ def get_openwhisk_client() -> OpenWhiskClient | None:
         client = OpenWhiskClient()
         return client
     except ValueError as e:
-        logger.warning('OpenWhisk not configured: %s', e)
+        logger.warning("OpenWhisk not configured: %s", e)
         return None

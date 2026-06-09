@@ -257,7 +257,7 @@ class XTwitterSchedulerTool(BaseTool):
                 posted.append({"index": i, "tweet_id": tweet["id"], "text": text})
                 in_reply_to = tweet["id"]
             except Exception as e:
-                logger.error('Failed to post tweet %s: %s', i, e)
+                logger.error("Failed to post tweet %s: %s", i, e)
                 return {
                     "status": "partial",
                     "error": f"Failed at tweet {i}: {e}",

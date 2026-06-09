@@ -51,7 +51,7 @@ class HMACSHA256Verifier(SignatureVerifier):
 
             return hmac.compare_digest(sig.lower(), expected_sig.lower())
         except Exception as e:
-            logger.error('HMAC SHA256 verification failed: %s', e)
+            logger.error("HMAC SHA256 verification failed: %s", e)
             return False
 
     def extract_signature(self, header_value: str) -> str | None:
@@ -82,7 +82,7 @@ class HMACSHA1Verifier(SignatureVerifier):
 
             return hmac.compare_digest(sig.lower(), expected_sig.lower())
         except Exception as e:
-            logger.error('HMAC SHA1 verification failed: %s', e)
+            logger.error("HMAC SHA1 verification failed: %s", e)
             return False
 
     def extract_signature(self, header_value: str) -> str | None:
@@ -122,7 +122,9 @@ class StripeVerifier(SignatureVerifier):
             # Check timestamp tolerance
             current_time = int(time.time())
             if abs(current_time - timestamp) > self.tolerance_seconds:
-                logger.warning('Stripe webhook timestamp outside tolerance: %s', timestamp)
+                logger.warning(
+                    "Stripe webhook timestamp outside tolerance: %s", timestamp
+                )
                 return False
 
             # Compute expected signature
@@ -133,7 +135,7 @@ class StripeVerifier(SignatureVerifier):
 
             return hmac.compare_digest(v1_signature.lower(), expected_sig.lower())
         except Exception as e:
-            logger.error('Stripe signature verification failed: %s', e)
+            logger.error("Stripe signature verification failed: %s", e)
             return False
 
     def extract_signature(self, header_value: str) -> str | None:
@@ -160,10 +162,10 @@ class SlackVerifier(SignatureVerifier):
                 ts = int(timestamp)
                 current_time = int(time.time())
                 if abs(current_time - ts) > self.tolerance_seconds:
-                    logger.warning('Slack webhook timestamp outside tolerance: %s', ts)
+                    logger.warning("Slack webhook timestamp outside tolerance: %s", ts)
                     return False
             except ValueError:
-                logger.error('Invalid Slack timestamp: %s', timestamp)
+                logger.error("Invalid Slack timestamp: %s", timestamp)
                 return False
 
             # Compute signature
@@ -178,7 +180,7 @@ class SlackVerifier(SignatureVerifier):
 
             return hmac.compare_digest(signature, expected_sig)
         except Exception as e:
-            logger.error('Slack signature verification failed: %s', e)
+            logger.error("Slack signature verification failed: %s", e)
             return False
 
     def extract_signature(self, header_value: str) -> str | None:
@@ -215,7 +217,7 @@ class TwilioVerifier(SignatureVerifier):
 
             return hmac.compare_digest(signature, expected_sig_b64)
         except Exception as e:
-            logger.error('Twilio signature verification failed: %s', e)
+            logger.error("Twilio signature verification failed: %s", e)
             return False
 
     def extract_signature(self, header_value: str) -> str | None:
@@ -234,7 +236,7 @@ class ShopifyVerifier(SignatureVerifier):
 
             return hmac.compare_digest(signature.lower(), expected_sig.lower())
         except Exception as e:
-            logger.error('Shopify signature verification failed: %s', e)
+            logger.error("Shopify signature verification failed: %s", e)
             return False
 
     def extract_signature(self, header_value: str) -> str | None:

@@ -160,13 +160,13 @@ class TaskExecutor:
                         "error": f"Unknown task type: {task.task_type}",
                     }
         except RetryableMissionError as e:
-            logger.warning('Retryable error in task %s: %s', task.id, e)
+            logger.warning("Retryable error in task %s: %s", task.id, e)
             raise
         except PermanentMissionError as e:
-            logger.error('Permanent error in task %s: %s', task.id, e)
+            logger.error("Permanent error in task %s: %s", task.id, e)
             result = {"success": False, "error": str(e), "permanent": True}
         except Exception as e:
-            logger.exception('Error in task %s', task.id)
+            logger.exception("Error in task %s", task.id)
             result = {"success": False, "error": str(e)}
 
         return result
@@ -194,7 +194,7 @@ class TaskExecutor:
         params = input_data.get("params", {})
 
         if not tool_id:
-            logger.info('No tool_id for task %s, using LLM fallback', task.title)
+            logger.info("No tool_id for task %s, using LLM fallback", task.title)
             return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
         tool_handlers = {
@@ -216,10 +216,10 @@ class TaskExecutor:
                 return await handler(params, input_data, mission, db=db)
             return await handler(params, input_data)
         except RetryableMissionError as e:
-            logger.warning('Retryable tool error in task %s: %s', task.id, e)
+            logger.warning("Retryable tool error in task %s: %s", task.id, e)
             raise
         except PermanentMissionError as e:
-            logger.error('Permanent tool error in task %s: %s', task.id, e)
+            logger.error("Permanent tool error in task %s: %s", task.id, e)
             return {"success": False, "error": str(e), "permanent": True}
         except Exception as e:
             return {"success": False, "error": f"Tool execution failed: {e!s}"}
@@ -453,7 +453,7 @@ class TaskExecutor:
         if url:
             return await self._execute_web_scrape(url)
         else:
-            logger.info('Task %s: No url/search API, falling back to LLM', task.id)
+            logger.info("Task %s: No url/search API, falling back to LLM", task.id)
             return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
     async def _execute_web_request(
@@ -495,7 +495,7 @@ class TaskExecutor:
         code = input_data.get("code")
 
         if not code:
-            logger.info('Task %s: No code in input_data, falling back to LLM', task.id)
+            logger.info("Task %s: No code in input_data, falling back to LLM", task.id)
             return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
         return await self._execute_code_from_string(code)
@@ -537,7 +537,7 @@ class TaskExecutor:
         path = input_data.get("path")
 
         if not path:
-            logger.info('Task %s: No path in input_data, falling back to LLM', task.id)
+            logger.info("Task %s: No path in input_data, falling back to LLM", task.id)
             return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
         full_path = os.path.join(self.workspace, path)
@@ -663,7 +663,9 @@ class TaskExecutor:
                 task_id=str(task.id) if task and hasattr(task, "id") else None,
             )
         except Exception as e:
-            logger.exception('HTTP integration execution failed for task %s: %s', task.id, e)
+            logger.exception(
+                "HTTP integration execution failed for task %s: %s", task.id, e
+            )
             return {"success": False, "error": f"HTTP integration error: {e!s}"}
 
     # ── Human input / fallback ─────────────────────────────────────────────

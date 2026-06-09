@@ -98,12 +98,14 @@ class WebhookHandlerService:
             session.commit()
             session.refresh(endpoint)
 
-            logger.info("Registered webhook endpoint '%s' for source '%s'", name, source)
+            logger.info(
+                "Registered webhook endpoint '%s' for source '%s'", name, source
+            )
 
             return {"success": True, "endpoint": endpoint.to_dict()}
         except Exception as e:
             session.rollback()
-            logger.error('Failed to register endpoint: %s', e)
+            logger.error("Failed to register endpoint: %s", e)
             return {"success": False, "error": str(e)}
         finally:
             session.close()
@@ -212,7 +214,7 @@ class WebhookHandlerService:
         # Get endpoint configuration
         endpoint = self.get_endpoint(path)
         if not endpoint:
-            logger.warning('No active endpoint found for path: %s', path)
+            logger.warning("No active endpoint found for path: %s", path)
             return {"success": False, "error": "Endpoint not found", "status_code": 404}
 
         session = self._get_session()
@@ -253,7 +255,7 @@ class WebhookHandlerService:
                 )
 
                 if not signature:
-                    logger.warning('Missing signature header: %s', signature_header)
+                    logger.warning("Missing signature header: %s", signature_header)
                     webhook_log.status = WebhookStatus.FAILED.value
                     webhook_log.last_error = "Missing signature header"
                     webhook_log.last_error_at = datetime.now(UTC)
@@ -280,7 +282,9 @@ class WebhookHandlerService:
                     endpoint["source"],
                     timestamp,
                 ):
-                    logger.warning('Invalid signature for endpoint: %s', endpoint['name'])
+                    logger.warning(
+                        "Invalid signature for endpoint: %s", endpoint["name"]
+                    )
                     webhook_log.status = WebhookStatus.FAILED.value
                     webhook_log.last_error = "Invalid signature"
                     webhook_log.last_error_at = datetime.now(UTC)
@@ -330,7 +334,7 @@ class WebhookHandlerService:
             }
 
         except Exception as e:
-            logger.error('Error processing webhook: %s', e)
+            logger.error("Error processing webhook: %s", e)
 
             if webhook_log:
                 webhook_log.status = WebhookStatus.FAILED.value

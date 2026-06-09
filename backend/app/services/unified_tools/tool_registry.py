@@ -94,7 +94,7 @@ class ToolRegistry:
             True if registered successfully
         """
         if tool.tool_id in self._tools:
-            logger.warning('Tool %s already registered, updating', tool.tool_id)
+            logger.warning("Tool %s already registered, updating", tool.tool_id)
             tool.updated_at = datetime.now(UTC)
 
         self._tools[tool.tool_id] = tool
@@ -112,7 +112,7 @@ class ToolRegistry:
             if tool.tool_id not in self._tags[tag]:
                 self._tags[tag].append(tool.tool_id)
 
-        logger.info('Registered tool: %s (%s)', tool.tool_id, tool.name)
+        logger.info("Registered tool: %s (%s)", tool.tool_id, tool.name)
         return True
 
     def unregister(self, tool_id: str) -> bool:
@@ -136,7 +136,7 @@ class ToolRegistry:
         # Remove aliases
         self._aliases = {k: v for k, v in self._aliases.items() if v != tool_id}
 
-        logger.info('Unregistered tool: %s', tool_id)
+        logger.info("Unregistered tool: %s", tool_id)
         return True
 
     def get(self, tool_id: str) -> Tool | None:
@@ -208,11 +208,11 @@ class ToolRegistry:
         """Create a composition of multiple tools"""
         for tid in tool_ids:
             if tid not in self._tools:
-                logger.warning('Cannot compose: tool %s not found', tid)
+                logger.warning("Cannot compose: tool %s not found", tid)
                 return False
 
         self._compositions[name] = tool_ids
-        logger.info('Created tool composition: %s = %s', name, tool_ids)
+        logger.info("Created tool composition: %s = %s", name, tool_ids)
         return True
 
     def get_composition(self, name: str) -> list[str] | None:

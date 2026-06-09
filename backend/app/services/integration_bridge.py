@@ -432,7 +432,7 @@ class IntegrationBridge:
         """
         capabilities = _INTEGRATION_CAPABILITIES.get(slug)
         if not capabilities:
-            logger.debug('No Nexus capabilities defined for integration: %s', slug)
+            logger.debug("No Nexus capabilities defined for integration: %s", slug)
             return []
 
         try:
@@ -541,7 +541,7 @@ class IntegrationBridge:
         reg = self._active_registrations.pop(key, None)
 
         if not reg or not reg.capability_ids:
-            logger.debug('No capabilities to unregister for user %s, %s', user_id, slug)
+            logger.debug("No capabilities to unregister for user %s, %s", user_id, slug)
             return 0
 
         try:
@@ -666,14 +666,16 @@ class IntegrationBridge:
         conn = result.scalar_one_or_none()
 
         if not conn or not conn.encrypted_access_token:
-            logger.warning('No active token for user %s, integration %s', user_id, slug)
+            logger.warning("No active token for user %s, integration %s", user_id, slug)
             return None
 
         # Decrypt the token
         try:
             access_token = decrypt_token(conn.encrypted_access_token)
         except Exception as e:
-            logger.error('Failed to decrypt token for user %s, %s: %s', user_id, slug, e)
+            logger.error(
+                "Failed to decrypt token for user %s, %s: %s", user_id, slug, e
+            )
             return None
 
         # ── Auto-refresh expired Google OAuth tokens ─────────────
@@ -721,13 +723,13 @@ class IntegrationBridge:
         manager = ConnectorManager()
         cls = manager.get_connector_class(slug)
         if not cls:
-            logger.warning('No connector class for: %s', slug)
+            logger.warning("No connector class for: %s", slug)
             return None
 
         connector = cls(config)
         connected = await connector.connect()
         if not connected:
-            logger.warning('Failed to connect %s connector for user %s', slug, user_id)
+            logger.warning("Failed to connect %s connector for user %s", slug, user_id)
             return None
 
         return connector

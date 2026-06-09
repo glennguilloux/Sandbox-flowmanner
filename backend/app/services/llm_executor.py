@@ -144,10 +144,10 @@ class LlmExecutor:
 
             return {"success": True, "output": {"text": content}, "tokens": tokens}
         except RetryableMissionError as e:
-            logger.warning('Retryable LLM error in task %s: %s', task.id, e)
+            logger.warning("Retryable LLM error in task %s: %s", task.id, e)
             raise
         except PermanentMissionError as e:
-            logger.error('Permanent LLM error in task %s: %s', task.id, e)
+            logger.error("Permanent LLM error in task %s: %s", task.id, e)
             return {"success": False, "error": str(e), "permanent": True}
         except Exception as e:
             latency_ms = int((time.monotonic() - start_time) * 1000)
@@ -185,7 +185,11 @@ class LlmExecutor:
 
         system_prompt = await self._resolve_agent_system_prompt(task)
         if system_prompt:
-            logger.info('Agent system prompt injected for task %s: %s chars', task.id, len(system_prompt))
+            logger.info(
+                "Agent system prompt injected for task %s: %s chars",
+                task.id,
+                len(system_prompt),
+            )
             messages.append({"role": "system", "content": system_prompt})
 
         messages.append({"role": "user", "content": prompt})
@@ -228,6 +232,8 @@ class LlmExecutor:
                 if template and template.system_prompt:
                     return template.system_prompt
         except Exception as e:
-            logger.warning('Failed to resolve agent system prompt for task %s: %s', task.id, e)
+            logger.warning(
+                "Failed to resolve agent system prompt for task %s: %s", task.id, e
+            )
 
         return None

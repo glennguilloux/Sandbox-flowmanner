@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.api.deps import get_current_user
+from app.database import get_db
 from app.integrations.sandboxd_client import get_sandboxd_client
 from app.models.playground_models import PlaygroundSandbox, PlaygroundSandboxStatus
 from app.models.sandbox_models import MissionSandbox
@@ -49,7 +49,9 @@ async def purge_sandboxes_by_user(
         try:
             await client.delete(pg.sandbox_id)
         except Exception as e:
-            logger.warning("Failed to delete sandboxd container %s: %s", pg.sandbox_id, e)
+            logger.warning(
+                "Failed to delete sandboxd container %s: %s", pg.sandbox_id, e
+            )
         pg.status = PlaygroundSandboxStatus.PURGED.value
         count += 1
 
@@ -64,7 +66,9 @@ async def purge_sandboxes_by_user(
             try:
                 await client.delete(ms.sandbox_id)
             except Exception as e:
-                logger.warning("Failed to delete sandboxd container %s: %s", ms.sandbox_id, e)
+                logger.warning(
+                    "Failed to delete sandboxd container %s: %s", ms.sandbox_id, e
+                )
             ms.status = "purged"
             count += 1
 

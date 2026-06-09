@@ -30,9 +30,11 @@ class RAGService:
         if self._client is None:
             try:
                 self._client = QdrantClient(url=self._qdrant_url)
-                logger.info('Connected to Qdrant at %s', self._qdrant_url)
+                logger.info("Connected to Qdrant at %s", self._qdrant_url)
             except Exception as e:
-                logger.warning('Failed to connect to Qdrant at %s: %s', self._qdrant_url, e)
+                logger.warning(
+                    "Failed to connect to Qdrant at %s: %s", self._qdrant_url, e
+                )
                 raise
         return self._client
 
@@ -41,7 +43,9 @@ class RAGService:
             collections = self.client.get_collections().collections
             return any(c.name == self._collection_name for c in collections)
         except Exception as e:
-            logger.warning("Could not verify collection '%s': %s", self._collection_name, e)
+            logger.warning(
+                "Could not verify collection '%s': %s", self._collection_name, e
+            )
             return False
 
     def query_documents(
@@ -61,7 +65,11 @@ class RAGService:
 
         try:
             if not self._check_collection():
-                logger.warning("Collection '%s' does not exist at %s", self._collection_name, self._qdrant_url)
+                logger.warning(
+                    "Collection '%s' does not exist at %s",
+                    self._collection_name,
+                    self._qdrant_url,
+                )
                 return []
 
             search_result = self.client.search(
@@ -88,11 +96,13 @@ class RAGService:
                     }
                 )
 
-            logger.debug("RAG query '%s...' returned %s results", query[:50], len(results))
+            logger.debug(
+                "RAG query '%s...' returned %s results", query[:50], len(results)
+            )
             return results
 
         except Exception as e:
-            logger.error('RAG query failed: %s', e)
+            logger.error("RAG query failed: %s", e)
             return []
 
     def get_context(self, query: str, n_results: int = 5) -> str:

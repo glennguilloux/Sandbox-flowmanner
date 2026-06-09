@@ -223,7 +223,7 @@ class KnobManager:
             return None
 
         except Exception as e:
-            logger.error('Error getting knob %s: %s', knob_type.value, e)
+            logger.error("Error getting knob %s: %s", knob_type.value, e)
             return None
 
     async def get_all_knobs(
@@ -267,7 +267,7 @@ class KnobManager:
             return knobs
 
         except Exception as e:
-            logger.error('Error getting all knobs: %s', e)
+            logger.error("Error getting all knobs: %s", e)
             return []
 
     async def set_knob(
@@ -292,7 +292,9 @@ class KnobManager:
 
             # Check for oscillation
             if await self._would_cause_oscillation(knob):
-                logger.warning('Oscillation detected for knob %s, skipping update', knob.knob_name)
+                logger.warning(
+                    "Oscillation detected for knob %s, skipping update", knob.knob_name
+                )
                 return False
 
             # Get existing knob to record history
@@ -332,11 +334,16 @@ class KnobManager:
             cache_key = f"{knob.knob_type.value}:{knob.agent_id or 'system'}"
             self._knob_cache[cache_key] = knob
 
-            logger.info('Set knob %s to %s (reason: %s)', knob.knob_name, knob.current_value, reason)
+            logger.info(
+                "Set knob %s to %s (reason: %s)",
+                knob.knob_name,
+                knob.current_value,
+                reason,
+            )
             return True
 
         except Exception as e:
-            logger.error('Error setting knob %s: %s', knob.knob_name, e)
+            logger.error("Error setting knob %s: %s", knob.knob_name, e)
             await self.db_session.rollback()
             return False
 
@@ -414,7 +421,7 @@ class KnobManager:
         knob = await self.get_knob(knob_type, agent_id)
 
         if not knob:
-            logger.warning('Knob %s not found for rollback', knob_type.value)
+            logger.warning("Knob %s not found for rollback", knob_type.value)
             return False
 
         old_value = knob.current_value
@@ -423,7 +430,12 @@ class KnobManager:
         success = await self.set_knob(knob, reason=f"Rollback: {reason}")
 
         if success:
-            logger.info('Rolled back knob %s from %s to %s', knob.knob_name, old_value, knob.default_value)
+            logger.info(
+                "Rolled back knob %s from %s to %s",
+                knob.knob_name,
+                old_value,
+                knob.default_value,
+            )
             return True
 
         return False
@@ -457,7 +469,12 @@ class KnobManager:
 
         # Too many recent modifications
         if len(recent_mods) >= self.max_modifications_per_knob:
-            logger.warning('Oscillation risk: %s modifications to %s in last %s hours', len(recent_mods), knob.knob_name, self.oscillation_window_hours)
+            logger.warning(
+                "Oscillation risk: %s modifications to %s in last %s hours",
+                len(recent_mods),
+                knob.knob_name,
+                self.oscillation_window_hours,
+            )
             return True
 
         # Check if we're oscillating between values
@@ -465,7 +482,9 @@ class KnobManager:
             values = [m["new_value"] for m in recent_mods[-3:]]
             # If we're going back to a value we just left
             if knob.current_value in values[:-1]:
-                logger.warning('Oscillation detected: %s returning to recent value', knob.knob_name)
+                logger.warning(
+                    "Oscillation detected: %s returning to recent value", knob.knob_name
+                )
                 return True
 
         return False

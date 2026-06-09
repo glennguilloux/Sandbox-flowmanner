@@ -332,7 +332,12 @@ class FailureAnalyzer:
             confidence=recovery_result.get("confidence", 0.8),
         )
 
-        logger.info('Failure analysis: %s - %s (recoverable: %s)', error_class.value, root_cause, result.is_recoverable)
+        logger.info(
+            "Failure analysis: %s - %s (recoverable: %s)",
+            error_class.value,
+            root_cause,
+            result.is_recoverable,
+        )
 
         return result
 

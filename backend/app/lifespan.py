@@ -393,7 +393,7 @@ def _init_tool_discovery():
 def _validate_production_secrets():
     warnings = settings.validate_secrets()
     for w in warnings:
-        logger.error('SECURITY: %s', w)
+        logger.error("SECURITY: %s", w)
     if warnings:
         raise RuntimeError(
             f"Refusing to start with placeholder secrets: {'; '.join(warnings)}"
@@ -416,11 +416,13 @@ def _init_langfuse():
         )
 
         if service.enabled:
-            logger.info('Langfuse observability enabled (host=%s)', settings.LANGFUSE_HOST)
+            logger.info(
+                "Langfuse observability enabled (host=%s)", settings.LANGFUSE_HOST
+            )
         else:
             logger.info("Langfuse observability disabled")
     except Exception as e:
-        logger.warning('Failed to initialize Langfuse (non-fatal): %s', e)
+        logger.warning("Failed to initialize Langfuse (non-fatal): %s", e)
 
 
 def _init_litellm_callbacks():
@@ -448,7 +450,7 @@ def _init_litellm_callbacks():
     except ImportError:
         logger.debug("LiteLLM not available for callback configuration")
     except Exception as e:
-        logger.warning('Failed to configure LiteLLM callbacks (non-fatal): %s', e)
+        logger.warning("Failed to configure LiteLLM callbacks (non-fatal): %s", e)
 
 
 def _shutdown_langfuse():
@@ -459,7 +461,7 @@ def _shutdown_langfuse():
         service = get_langfuse_service()
         service.shutdown()
     except Exception as e:
-        logger.debug('Langfuse shutdown error: %s', e)
+        logger.debug("Langfuse shutdown error: %s", e)
 
 
 async def _seed_agent_templates():
@@ -555,7 +557,7 @@ def _register_core_tools():
         registry = get_tool_registry()
         for tool in tools_to_register:
             registry.register(tool)
-            logger.info('%s tool registered', tool.name)
+            logger.info("%s tool registered", tool.name)
 
         for name in [
             "browser_ping",

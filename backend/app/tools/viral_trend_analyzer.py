@@ -138,7 +138,7 @@ class ViralTrendAnalyzerTool(BaseTool):
                     platform, validated.topic, validated.region
                 )
             except Exception as e:
-                logger.warning('Failed to fetch %s trends: %s', platform, e)
+                logger.warning("Failed to fetch %s trends: %s", platform, e)
                 platform_data[platform] = {"error": str(e), "trends": []}
 
         # Analyze via LLM

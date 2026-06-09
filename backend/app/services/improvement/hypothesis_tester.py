@@ -422,7 +422,11 @@ class HypothesisTester:
         )
 
         self._active_tests[test.test_id] = test
-        logger.info('Created hypothesis test %s for strategy %s', test.test_id, strategy.strategy_id)
+        logger.info(
+            "Created hypothesis test %s for strategy %s",
+            test.test_id,
+            strategy.strategy_id,
+        )
 
         return test
 
@@ -527,14 +531,16 @@ class HypothesisTester:
             True if test started successfully
         """
         if test.state != HypothesisState.PENDING:
-            logger.warning('Test %s is not in PENDING state', test.test_id)
+            logger.warning("Test %s is not in PENDING state", test.test_id)
             return False
 
         # Run pre-deployment check
         if test.strategy:
             can_deploy, issues = await self.run_pre_deployment_check(test.strategy)
             if not can_deploy:
-                logger.error('Pre-deployment check failed for test %s: %s', test.test_id, issues)
+                logger.error(
+                    "Pre-deployment check failed for test %s: %s", test.test_id, issues
+                )
                 test.state = HypothesisState.CANCELLED
                 test.notes = "; ".join(issues)
                 return False
@@ -545,7 +551,7 @@ class HypothesisTester:
                 test.strategy, test.agent_id
             )
             if not adjustment:
-                logger.error('Failed to apply strategy for test %s', test.test_id)
+                logger.error("Failed to apply strategy for test %s", test.test_id)
                 test.state = HypothesisState.FAILED
                 return False
 
@@ -553,7 +559,7 @@ class HypothesisTester:
         test.state = HypothesisState.RUNNING
         test.started_at = datetime.now(UTC)
 
-        logger.info('Started hypothesis test %s', test.test_id)
+        logger.info("Started hypothesis test %s", test.test_id)
         return True
 
     async def evaluate_test(
@@ -683,7 +689,9 @@ class HypothesisTester:
                 test.rollback_triggered = True
                 test.rollback_trigger = trigger
                 test.rollback_at = datetime.now(UTC)
-                logger.info('Rolled back test %s due to %s', test.test_id, trigger.value)
+                logger.info(
+                    "Rolled back test %s due to %s", test.test_id, trigger.value
+                )
                 return True
 
         return False
@@ -724,7 +732,12 @@ class HypothesisTester:
             test.state = HypothesisState.FAILED
             recommendation = "reject"
 
-        logger.info('Completed test %s: %s, improvement=%.2%', test.test_id, test.state.value, test.improvement_delta)
+        logger.info(
+            "Completed test %s: %s, improvement=%.2%",
+            test.test_id,
+            test.state.value,
+            test.improvement_delta,
+        )
 
         return TestResult(
             test_id=test.test_id,

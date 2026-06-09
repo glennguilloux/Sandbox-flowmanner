@@ -186,7 +186,7 @@ class ImprovementAlertHandler:
         # Check rate limiting
         alert_key = f"{alert_type.value}:{agent_id or 'global'}"
         if self._is_rate_limited(alert_key):
-            logger.debug('Rate limited alert: %s', alert_key)
+            logger.debug("Rate limited alert: %s", alert_key)
             # Still create the alert but don't send notifications
             alert = ImprovementAlert(
                 alert_id=alert_id,
@@ -238,7 +238,7 @@ class ImprovementAlertHandler:
             try:
                 callback(alert)
             except Exception as e:
-                logger.warning('Alert callback failed: %s', e)
+                logger.warning("Alert callback failed: %s", e)
 
         # Send to notification service if available
         if self.notification_service:
@@ -579,10 +579,13 @@ class ImprovementAlertHandler:
                     level=alert.severity.value,
                 )
             else:
-                logger.debug('No compatible notification method found for alert: %s', alert.alert_id)
+                logger.debug(
+                    "No compatible notification method found for alert: %s",
+                    alert.alert_id,
+                )
 
         except Exception as e:
-            logger.warning('Failed to send notification: %s', e)
+            logger.warning("Failed to send notification: %s", e)
 
 
 # ============================================================================
@@ -625,7 +628,7 @@ class AlertingSystem:
             try:
                 handler(alert)
             except Exception as e:
-                logger.error('Alert handler error: %s', e)
+                logger.error("Alert handler error: %s", e)
 
     def register_handler(self, handler: callable) -> None:
         """Register an alert handler"""

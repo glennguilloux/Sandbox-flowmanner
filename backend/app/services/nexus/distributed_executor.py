@@ -70,9 +70,14 @@ if CELERY_AVAILABLE:
                 finally:
                     loop.close()
 
-            logger.info('[Celery Worker] Capability registry initialized with %s capabilities', len(registry.list_capabilities()))
+            logger.info(
+                "[Celery Worker] Capability registry initialized with %s capabilities",
+                len(registry.list_capabilities()),
+            )
         except Exception as e:
-            logger.error('[Celery Worker] Failed to initialize capability registry: %s', e)
+            logger.error(
+                "[Celery Worker] Failed to initialize capability registry: %s", e
+            )
 
 
 class TaskStatus(str, Enum):
@@ -210,9 +215,14 @@ class NexusCeleryTasks:
                 finally:
                     loop.close()
 
-            logger.info('[Celery Worker] Capability registry pre-initialized with %s capabilities', len(registry.list_capabilities()))
+            logger.info(
+                "[Celery Worker] Capability registry pre-initialized with %s capabilities",
+                len(registry.list_capabilities()),
+            )
         except Exception as e:
-            logger.error('[Celery Worker] Failed to pre-initialize capability registry: %s', e)
+            logger.error(
+                "[Celery Worker] Failed to pre-initialize capability registry: %s", e
+            )
 
         @celery_app.task(bind=True, name="nexus.execute_capability")
         def execute_capability_task(
@@ -227,7 +237,7 @@ class NexusCeleryTasks:
 
             from app.services.nexus.capability_registry import get_capability_registry
 
-            logger.info('Executing capability: %s', capability_id)
+            logger.info("Executing capability: %s", capability_id)
 
             try:
                 self.update_state(state="PROGRESS", meta={"progress": 0})
@@ -264,7 +274,7 @@ class NexusCeleryTasks:
                 }
 
             except Exception as e:
-                logger.error('Capability execution failed: %s', e)
+                logger.error("Capability execution failed: %s", e)
                 return {
                     "success": False,
                     "capability_id": capability_id,
@@ -285,7 +295,7 @@ class NexusCeleryTasks:
 
             from app.services.nexus.capability_registry import get_capability_registry
 
-            logger.info('Executing DAG node: %s in DAG %s', node_id, dag_id)
+            logger.info("Executing DAG node: %s in DAG %s", node_id, dag_id)
 
             try:
                 self.update_state(
@@ -329,7 +339,7 @@ class NexusCeleryTasks:
                 }
 
             except Exception as e:
-                logger.error('DAG node execution failed: %s', e)
+                logger.error("DAG node execution failed: %s", e)
                 return {
                     "success": False,
                     "dag_id": dag_id,
@@ -344,7 +354,7 @@ class NexusCeleryTasks:
 
             from app.services.nexus.capability_composer import get_capability_composer
 
-            logger.info('Executing composed capability: %s', composed_id)
+            logger.info("Executing composed capability: %s", composed_id)
 
             try:
                 self.update_state(
@@ -376,7 +386,7 @@ class NexusCeleryTasks:
                 }
 
             except Exception as e:
-                logger.error('Composed capability execution failed: %s', e)
+                logger.error("Composed capability execution failed: %s", e)
                 return {"success": False, "composed_id": composed_id, "error": str(e)}
 
         logger.info("Nexus Celery tasks registered")
@@ -451,12 +461,12 @@ class DistributedExecutor:
             )
 
             task.status = TaskStatus.STARTED
-            logger.info('Submitted task %s with priority %s', task_id, priority)
+            logger.info("Submitted task %s with priority %s", task_id, priority)
 
             return task_id
 
         except Exception as e:
-            logger.error('Failed to submit task: %s', e)
+            logger.error("Failed to submit task: %s", e)
             task.status = TaskStatus.FAILURE
             task.error = str(e)
             raise
@@ -529,7 +539,9 @@ class DistributedExecutor:
                     # Check for cycles or missing dependencies
                     remaining = [n for n in dag.nodes if n not in completed_nodes]
                     if remaining:
-                        logger.error('DAG execution stuck, remaining nodes: %s', remaining)
+                        logger.error(
+                            "DAG execution stuck, remaining nodes: %s", remaining
+                        )
                         break
                     break
 
@@ -579,10 +591,12 @@ class DistributedExecutor:
                             dag.nodes[node_id]["status"] = "completed"
                         else:
                             dag.nodes[node_id]["status"] = "failed"
-                            logger.error('Node %s failed: %s', node_id, result.get('error'))
+                            logger.error(
+                                "Node %s failed: %s", node_id, result.get("error")
+                            )
                     except Exception as e:
                         dag.nodes[node_id]["status"] = "failed"
-                        logger.error('Node %s execution error: %s', node_id, e)
+                        logger.error("Node %s execution error: %s", node_id, e)
 
             task.status = TaskStatus.SUCCESS
             task.result = node_results
@@ -591,7 +605,7 @@ class DistributedExecutor:
             return dag_id
 
         except Exception as e:
-            logger.error('DAG execution failed: %s', e)
+            logger.error("DAG execution failed: %s", e)
             task.status = TaskStatus.FAILURE
             task.error = str(e)
             raise
@@ -635,7 +649,7 @@ class DistributedExecutor:
                         node_results[node_id] = result
                         dag.nodes[node_id]["status"] = "completed"
                     except Exception as e:
-                        logger.error('Node %s failed: %s', node_id, e)
+                        logger.error("Node %s failed: %s", node_id, e)
                         dag.nodes[node_id]["status"] = "failed"
 
                 completed_nodes.append(node_id)
@@ -679,7 +693,7 @@ class DistributedExecutor:
                     task.status = TaskStatus.STARTED
                     task.started_at = datetime.now(UTC)
             except Exception as e:
-                logger.warning('Could not get Celery status: %s', e)
+                logger.warning("Could not get Celery status: %s", e)
 
         return task
 
@@ -704,10 +718,10 @@ class DistributedExecutor:
                 async_result = AsyncResult(task_id)
                 async_result.revoke(terminate=True)
                 task.status = TaskStatus.REVOKED
-                logger.info('Revoked task %s', task_id)
+                logger.info("Revoked task %s", task_id)
                 return True
             except Exception as e:
-                logger.error('Failed to revoke task: %s', e)
+                logger.error("Failed to revoke task: %s", e)
                 return False
         else:
             task.status = TaskStatus.REVOKED
@@ -763,7 +777,7 @@ class DistributedExecutor:
             return stats
 
         except Exception as e:
-            logger.error('Failed to get worker stats: %s', e)
+            logger.error("Failed to get worker stats: %s", e)
             return {"available": False, "error": str(e)}
 
     def list_tasks(self, status: TaskStatus = None) -> list[DistributedTask]:
@@ -784,7 +798,7 @@ class DistributedExecutor:
         for task_id in to_remove:
             del self._tasks[task_id]
 
-        logger.info('Cleared %s completed tasks', len(to_remove))
+        logger.info("Cleared %s completed tasks", len(to_remove))
         return len(to_remove)
 
 

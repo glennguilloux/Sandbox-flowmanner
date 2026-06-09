@@ -119,10 +119,10 @@ class MissionExecutor:
                 self.model_router = ModelRouter()
                 logger.info("ModelRouter loaded successfully")
             except PermanentMissionError as e:
-                logger.error('Permanent error loading ModelRouter: %s', e)
+                logger.error("Permanent error loading ModelRouter: %s", e)
                 self.model_router = None
             except Exception as e:
-                logger.warning('Could not load ModelRouter: %s', e)
+                logger.warning("Could not load ModelRouter: %s", e)
                 self.model_router = None
         return self.model_router
 
@@ -133,10 +133,10 @@ class MissionExecutor:
                 self.rag_service = RAGService()
                 logger.info("RAGService loaded successfully")
             except PermanentMissionError as e:
-                logger.error('Permanent error loading RAGService: %s', e)
+                logger.error("Permanent error loading RAGService: %s", e)
                 self.rag_service = None
             except Exception as e:
-                logger.warning('Could not load RAGService: %s', e)
+                logger.warning("Could not load RAGService: %s", e)
                 self.rag_service = None
         return self.rag_service
 
@@ -211,7 +211,7 @@ class MissionExecutor:
                     },
                 )
         except Exception as db_error:
-            logger.error('Failed to update step status: %s', db_error)
+            logger.error("Failed to update step status: %s", db_error)
             await db.rollback()
 
     async def _transition_status(
@@ -273,7 +273,7 @@ class MissionExecutor:
                     )
                     mission = result.scalars().first()
                     if not mission:
-                        logger.error('Mission %s not found', mission_id)
+                        logger.error("Mission %s not found", mission_id)
                         span.set_attribute("mission.error", "not_found")
                         return {"success": False, "error": "Mission not found"}
 
@@ -282,7 +282,11 @@ class MissionExecutor:
                         MissionStatus.QUEUED,
                         MissionStatus.PLANNED,
                     ):
-                        logger.warning("Mission %s cannot execute from '%s' state", mission_id, mission.status)
+                        logger.warning(
+                            "Mission %s cannot execute from '%s' state",
+                            mission_id,
+                            mission.status,
+                        )
                         return {
                             "success": False,
                             "error": f"Cannot execute mission in '{mission.status}' state",
@@ -556,7 +560,7 @@ class MissionExecutor:
                                         )
 
                             except Exception as e:
-                                logger.exception('Error executing task %s', task.id)
+                                logger.exception("Error executing task %s", task.id)
                                 failed.add(str(task.id))
                                 task.status = MissionTaskStatus.FAILED
                                 task.completed_at = datetime.now(UTC)
@@ -623,9 +627,11 @@ class MissionExecutor:
 
                         analytics_service = get_analytics_service(db)
                         await analytics_service.calculate_mission_metrics(mission.id)
-                        logger.info('Analytics calculated for mission %s', mission.id)
+                        logger.info("Analytics calculated for mission %s", mission.id)
                     except Exception as analytics_error:
-                        logger.warning('Non-critical failure in analytics: %s', analytics_error)
+                        logger.warning(
+                            "Non-critical failure in analytics: %s", analytics_error
+                        )
 
                     await db.commit()
 
@@ -644,7 +650,9 @@ class MissionExecutor:
                             },
                         )
                     except Exception as audit_error:
-                        logger.warning('Non-critical failure in audit log: %s', audit_error)
+                        logger.warning(
+                            "Non-critical failure in audit log: %s", audit_error
+                        )
 
                     # Sync to Linear if linked
                     try:
@@ -657,7 +665,9 @@ class MissionExecutor:
                             error_message=mission.error_message,
                         )
                     except Exception as linear_err:
-                        logger.warning('Non-critical failure in Linear sync: %s', linear_err)
+                        logger.warning(
+                            "Non-critical failure in Linear sync: %s", linear_err
+                        )
 
                     # Record execution for learning
                     try:
@@ -693,7 +703,9 @@ class MissionExecutor:
                     }
 
                 except PermanentMissionError as e:
-                    logger.error('Permanent error executing mission %s: %s', mission_id, e)
+                    logger.error(
+                        "Permanent error executing mission %s: %s", mission_id, e
+                    )
                     await self._transition_status(
                         db,
                         mission,
@@ -704,10 +716,12 @@ class MissionExecutor:
                     )
                     return {"success": False, "error": str(e), "permanent": True}
                 except RetryableMissionError as e:
-                    logger.warning('Retryable error executing mission %s: %s', mission_id, e)
+                    logger.warning(
+                        "Retryable error executing mission %s: %s", mission_id, e
+                    )
                     raise
                 except Exception as e:
-                    logger.exception('Error executing mission %s', mission_id)
+                    logger.exception("Error executing mission %s", mission_id)
                     await self._transition_status(
                         db,
                         mission,
@@ -742,9 +756,11 @@ class MissionExecutor:
                 },
             )
 
-            logger.info('Improvement analysis completed for mission %s', mission.id)
+            logger.info("Improvement analysis completed for mission %s", mission.id)
         except Exception as improvement_error:
-            logger.warning('Non-critical failure in improvement analysis: %s', improvement_error)
+            logger.warning(
+                "Non-critical failure in improvement analysis: %s", improvement_error
+            )
 
     # ── Logging ───────────────────────────────────────────────────────────────
 
@@ -772,7 +788,7 @@ class MissionExecutor:
                 f"[Mission {mission_id}] {message}",
             )
         except Exception as e:
-            logger.error('Failed to create log entry: %s', e)
+            logger.error("Failed to create log entry: %s", e)
 
     # ── Planning (delegated) ──────────────────────────────────────────────────
 

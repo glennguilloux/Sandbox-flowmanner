@@ -120,14 +120,14 @@ class OpenRouterService:
 
         # Validate model
         if model not in self.supported_models:
-            logger.warning('Model %s not in supported list, proceeding anyway', model)
+            logger.warning("Model %s not in supported list, proceeding anyway", model)
 
         # Check cache
         if self.cache_enabled and not stream:
             cache_key = self._get_cache_key(model, messages, max_tokens or 4096)
             cached = await self._get_cache(cache_key)
             if cached:
-                logger.info('Cache hit for %s', model)
+                logger.info("Cache hit for %s", model)
                 return cached
 
         # Prepare request payload
@@ -176,7 +176,9 @@ class OpenRouterService:
 
             except httpx.HTTPStatusError as e:
                 last_error = e
-                logger.warning('OpenRouter request failed (attempt %s): %s', attempt + 1, e)
+                logger.warning(
+                    "OpenRouter request failed (attempt %s): %s", attempt + 1, e
+                )
 
                 if e.response.status_code == 429:
                     # Rate limited - wait longer
@@ -190,7 +192,7 @@ class OpenRouterService:
 
             except Exception as e:
                 last_error = e
-                logger.error('OpenRouter request error: %s', e)
+                logger.error("OpenRouter request error: %s", e)
                 await asyncio.sleep(self.retry_delay * (attempt + 1))
 
         # All retries failed
@@ -280,10 +282,12 @@ class OpenRouterService:
                                 "request_id": request_id,
                             }
                         except json.JSONDecodeError:
-                            logger.warning('Failed to parse streaming response: %s', data)
+                            logger.warning(
+                                "Failed to parse streaming response: %s", data
+                            )
 
         except Exception as e:
-            logger.error('Streaming error: %s', e)
+            logger.error("Streaming error: %s", e)
             yield {
                 "success": False,
                 "error": str(e),
@@ -348,7 +352,7 @@ class OpenRouterService:
             if cached:
                 return json.loads(cached)
         except Exception as e:
-            logger.warning('Cache read error: %s', e)
+            logger.warning("Cache read error: %s", e)
         return None
 
     async def _set_cache(self, key: str, value: dict[str, Any], ttl: int):
@@ -361,7 +365,7 @@ class OpenRouterService:
             )
             redis_client.setex(key, ttl, json.dumps(value))
         except Exception as e:
-            logger.warning('Cache write error: %s', e)
+            logger.warning("Cache write error: %s", e)
 
     async def list_models(self) -> list[dict[str, Any]]:
         """List available models from OpenRouter."""
@@ -374,7 +378,7 @@ class OpenRouterService:
             data = response.json()
             return data.get("data", [])
         except Exception as e:
-            logger.error('Failed to list models: %s', e)
+            logger.error("Failed to list models: %s", e)
             return []
 
     async def get_model_info(self, model: str) -> dict[str, Any] | None:

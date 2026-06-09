@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
+
 class SandboxdFileListInput(ToolInput):
     path: str = Field(
         default="",
@@ -71,7 +72,8 @@ class SandboxdFileListTool(BaseTool):
 
             if ".." in validated.path:
                 return ToolResult.error_result(
-                    tool_id=self.tool_id, error="Path must not contain '..'",
+                    tool_id=self.tool_id,
+                    error="Path must not contain '..'",
                 )
 
             client = self._get_client()
@@ -86,7 +88,11 @@ class SandboxdFileListTool(BaseTool):
                     tool_id=self.tool_id,
                     error=f"List failed: {result.get('stderr', '')}",
                 )
-            lines = [l for l in result.get("stdout", "").strip().splitlines() if l and l not in (".", "..")]
+            lines = [
+                l
+                for l in result.get("stdout", "").strip().splitlines()
+                if l and l not in (".", "..")
+            ]
             files = [{"path": line, "type": "file"} for line in lines]
 
             return ToolResult.success_result(

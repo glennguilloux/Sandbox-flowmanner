@@ -47,7 +47,7 @@ class ProviderFactory:
         }
 
         if provider not in providers:
-            logger.warning('Unknown provider: %s', provider)
+            logger.warning("Unknown provider: %s", provider)
             return None
 
         # Create instance with optional API key
@@ -57,7 +57,11 @@ class ProviderFactory:
         if api_key is None:
             ProviderFactory._instances[provider] = instance
 
-        logger.info('Created %s provider service instance (using %s key)', provider, 'user' if api_key else 'platform')
+        logger.info(
+            "Created %s provider service instance (using %s key)",
+            provider,
+            "user" if api_key else "platform",
+        )
 
         return instance
 

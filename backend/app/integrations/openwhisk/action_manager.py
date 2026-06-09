@@ -90,7 +90,7 @@ class OpenWhiskActionManager:
             ... )
             >>> packaged = await manager.package_action(pkg)
         """
-        logger.info('Packaging action: %s', action_package.name)
+        logger.info("Packaging action: %s", action_package.name)
 
         # If no dependencies, return code directly
         if not action_package.dependencies and not action_package.requirements:
@@ -135,7 +135,7 @@ class OpenWhiskActionManager:
             }
 
         except Exception as e:
-            logger.error('Error packaging action %s: %s', action_package.name, e)
+            logger.error("Error packaging action %s: %s", action_package.name, e)
             raise
 
     async def deploy_package(
@@ -155,7 +155,9 @@ class OpenWhiskActionManager:
             >>> result = await manager.deploy_package(action_package)
             >>> print(result['activation_url'])
         """
-        logger.info('Deploying package: %s v%s', action_package.name, action_package.version)
+        logger.info(
+            "Deploying package: %s v%s", action_package.name, action_package.version
+        )
 
         try:
             # Package the action
@@ -192,7 +194,7 @@ class OpenWhiskActionManager:
 
             self.action_manifests[action_package.name] = metadata
 
-            logger.info('Package deployed successfully: %s', action_package.name)
+            logger.info("Package deployed successfully: %s", action_package.name)
             return {
                 "success": True,
                 "action_name": action_package.name,
@@ -205,7 +207,7 @@ class OpenWhiskActionManager:
             }
 
         except Exception as e:
-            logger.error('Failed to deploy package %s: %s', action_package.name, e)
+            logger.error("Failed to deploy package %s: %s", action_package.name, e)
             return {
                 "success": False,
                 "action_name": action_package.name,
@@ -229,7 +231,7 @@ class OpenWhiskActionManager:
             >>> result = await manager.deploy_from_directory('/path/to/actions')
             >>> print(f"Deployed {result['deployed_count']} actions")
         """
-        logger.info('Deploying actions from %s', actions_dir)
+        logger.info("Deploying actions from %s", actions_dir)
 
         if not os.path.exists(actions_dir):
             return {
@@ -270,7 +272,7 @@ class OpenWhiskActionManager:
 
             except Exception as e:
                 failed.append(action_name)
-                logger.error('Failed to read/deploy %s: %s', filename, e)
+                logger.error("Failed to read/deploy %s: %s", filename, e)
 
         summary = {
             "success": len(failed) == 0,
@@ -281,7 +283,11 @@ class OpenWhiskActionManager:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        logger.info('Directory deployment complete: %s succeeded, %s failed', len(deployed), len(failed))
+        logger.info(
+            "Directory deployment complete: %s succeeded, %s failed",
+            len(deployed),
+            len(failed),
+        )
 
         return summary
 
@@ -320,7 +326,7 @@ class OpenWhiskActionManager:
             ActionMetadata or None if not found
         """
         if not os.path.exists(manifest_path):
-            logger.warning('Manifest not found: %s', manifest_path)
+            logger.warning("Manifest not found: %s", manifest_path)
             return None
 
         try:
@@ -341,7 +347,7 @@ class OpenWhiskActionManager:
             return metadata
 
         except Exception as e:
-            logger.error('Error loading manifest %s: %s', manifest_path, e)
+            logger.error("Error loading manifest %s: %s", manifest_path, e)
             return None
 
     def get_all_manifests(self) -> dict[str, ActionMetadata]:
@@ -414,5 +420,5 @@ def create_action_manager(
         return manager
 
     except Exception as e:
-        logger.error('Error creating action manager: %s', e)
+        logger.error("Error creating action manager: %s", e)
         return None

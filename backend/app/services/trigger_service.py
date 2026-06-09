@@ -288,7 +288,12 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
                 log.duration_ms = duration_ms
                 log.mission_run_id = mission_id
             await db.commit()
-            logger.info('Trigger %s fired mission %s successfully in %sms', trigger_id, mission_id, duration_ms)
+            logger.info(
+                "Trigger %s fired mission %s successfully in %sms",
+                trigger_id,
+                mission_id,
+                duration_ms,
+            )
         except Exception as e:
             duration_ms = int((time.monotonic() - start_time) * 1000)
             log = await db.get(TriggerLog, log_id)
@@ -297,7 +302,9 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
                 log.error_message = str(e)[:1000]
                 log.duration_ms = duration_ms
             await db.commit()
-            logger.error('Trigger %s failed to fire mission %s: %s', trigger_id, mission_id, e)
+            logger.error(
+                "Trigger %s failed to fire mission %s: %s", trigger_id, mission_id, e
+            )
 
 
 # ── WEBHOOK SIGNATURE VERIFICATION ───────────────────────────────────────────
@@ -342,11 +349,11 @@ async def process_cron_triggers(db: AsyncSession) -> int:
             )
             fired += 1
         except Exception as e:
-            logger.error('Failed to fire cron trigger %s: %s', trigger.id, e)
+            logger.error("Failed to fire cron trigger %s: %s", trigger.id, e)
 
     if fired:
         await db.commit()
-        logger.info('Cron tick: fired %s trigger(s)', fired)
+        logger.info("Cron tick: fired %s trigger(s)", fired)
 
     return fired
 

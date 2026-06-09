@@ -51,7 +51,11 @@ class WorkerHandler:
             "data_transform": "workers.data_transform",
         }
 
-        logger.info('WorkerHandler initialized - Timeout: %ss, Max Retries: %s', self.config.timeout, self.config.max_retries)
+        logger.info(
+            "WorkerHandler initialized - Timeout: %ss, Max Retries: %s",
+            self.config.timeout,
+            self.config.max_retries,
+        )
 
     @staticmethod
     def _load_config_from_env() -> WorkerConfig:
@@ -88,7 +92,7 @@ class WorkerHandler:
         task_timeout = timeout or self.config.timeout
 
         # Execute task
-        logger.info('Executing task: %s', task_name)
+        logger.info("Executing task: %s", task_name)
         result = celery_app.send_task(
             task_name, args=[task_request], expires=task_timeout
         )
@@ -98,7 +102,7 @@ class WorkerHandler:
                 task_result = result.get(timeout=task_timeout)
                 return task_result
             except Exception as e:
-                logger.error('Task execution failed: %s', e, exc_info=True)
+                logger.error("Task execution failed: %s", e, exc_info=True)
                 return {
                     "success": False,
                     "error": str(e),
@@ -143,7 +147,7 @@ class WorkerHandler:
 
         task_chain = chain(*tasks)
 
-        logger.info('Executing chain of %s tasks', len(tasks))
+        logger.info("Executing chain of %s tasks", len(tasks))
         result = task_chain.apply_async()
 
         if blocking:
@@ -161,7 +165,7 @@ class WorkerHandler:
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
             except Exception as e:
-                logger.error('Chain execution failed: %s', e, exc_info=True)
+                logger.error("Chain execution failed: %s", e, exc_info=True)
                 return {
                     "success": False,
                     "error": str(e),
@@ -202,10 +206,10 @@ class WorkerHandler:
         try:
             result = AsyncResult(task_id, app=celery_app)
             result.revoke(terminate=True)
-            logger.info('Task %s cancelled', task_id)
+            logger.info("Task %s cancelled", task_id)
             return True
         except Exception as e:
-            logger.error('Failed to cancel task %s: %s', task_id, e)
+            logger.error("Failed to cancel task %s: %s", task_id, e)
             return False
 
     def get_available_actions(self) -> list:

@@ -51,9 +51,9 @@ class SimpleWorkflowAgent:
             )
             from app.services.langchain.unified_agent import IntentClassifier
 
-            logger.info('Agent invoked with message: %s...', message[:50])
+            logger.info("Agent invoked with message: %s...", message[:50])
             intent = IntentClassifier.classify(message)
-            logger.debug('Intent classified: %s', intent)
+            logger.debug("Intent classified: %s", intent)
 
             if intent["intent"] == "comfyui":
                 if intent["details"]["type"] == "hero-background":
@@ -110,14 +110,16 @@ class SimpleWorkflowAgent:
                     )
 
             else:
-                logger.info('No specific intent found, using LLM for: %s...', message[:50])
+                logger.info(
+                    "No specific intent found, using LLM for: %s...", message[:50]
+                )
                 response = self.llm.invoke(message)
                 return AgentResponse(
                     response=str(response), tools_used=[], metadata={"type": "llm_chat"}
                 )
 
         except Exception as e:
-            logger.error('Agent invocation error: %s', e, exc_info=True)
+            logger.error("Agent invocation error: %s", e, exc_info=True)
             return AgentResponse(
                 response=f"I encountered an error processing your request. Please try again.",
                 tools_used=[],

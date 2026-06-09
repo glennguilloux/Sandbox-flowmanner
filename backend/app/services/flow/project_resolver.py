@@ -149,7 +149,7 @@ class ProjectResolver:
 
         slug = f"{slug_base}-{suffix}"
 
-        logger.debug('Generated slug: %s from goal: %s...', slug, goal[:50])
+        logger.debug("Generated slug: %s from goal: %s...", slug, goal[:50])
 
         return slug
 
@@ -182,7 +182,7 @@ class ProjectResolver:
         if not first_sentence:
             first_sentence = "New Project"
 
-        logger.debug('Inferred name: %s...', first_sentence[:50])
+        logger.debug("Inferred name: %s...", first_sentence[:50])
 
         return first_sentence
 

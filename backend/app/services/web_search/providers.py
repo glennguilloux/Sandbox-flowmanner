@@ -108,7 +108,7 @@ class SearXNGProvider(BaseSearchProvider):
                 )
 
         except Exception as e:
-            logger.error('SearXNG search error: %s', e)
+            logger.error("SearXNG search error: %s", e)
             error = str(e)
             self._error_count += 1
 
@@ -206,7 +206,7 @@ class TavilyProvider(BaseSearchProvider):
                 )
 
         except Exception as e:
-            logger.error('Tavily search error: %s', e)
+            logger.error("Tavily search error: %s", e)
             error = str(e)
             self._error_count += 1
 
@@ -299,7 +299,7 @@ class ExaProvider(BaseSearchProvider):
                 )
 
         except Exception as e:
-            logger.error('Exa search error: %s', e)
+            logger.error("Exa search error: %s", e)
             error = str(e)
             self._error_count += 1
 
@@ -363,7 +363,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
             results = self._parse_html_results(html, max_results)
 
         except Exception as e:
-            logger.error('DuckDuckGo search error: %s', e)
+            logger.error("DuckDuckGo search error: %s", e)
             error = str(e)
             self._error_count += 1
 

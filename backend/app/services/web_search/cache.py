@@ -56,7 +56,7 @@ class SearchCache:
                 self._redis.ping()
                 self._redis_available = True
             except Exception as e:
-                logger.warning('Redis not available: %s', e)
+                logger.warning("Redis not available: %s", e)
                 self._redis_available = False
         return self._redis if self._redis_available else None
 
@@ -73,7 +73,7 @@ class SearchCache:
         if cache_key in self._memory_cache:
             self._access_times[cache_key] = time.time()
             self._hits += 1
-            logger.debug('Memory cache hit for: %s', query[:50])
+            logger.debug("Memory cache hit for: %s", query[:50])
             return self._memory_cache[cache_key]
 
         # Try Redis
@@ -88,10 +88,10 @@ class SearchCache:
                     self._memory_cache[cache_key] = response
                     self._access_times[cache_key] = time.time()
                     self._hits += 1
-                    logger.debug('Redis cache hit for: %s', query[:50])
+                    logger.debug("Redis cache hit for: %s", query[:50])
                     return response
             except Exception as e:
-                logger.warning('Redis get error: %s', e)
+                logger.warning("Redis get error: %s", e)
 
         self._misses += 1
         return None
@@ -117,9 +117,9 @@ class SearchCache:
                 await asyncio.get_event_loop().run_in_executor(
                     None, lambda: redis_client.setex(cache_key, ttl, serialized)
                 )
-                logger.debug('Cached response for: %s', response.query[:50])
+                logger.debug("Cached response for: %s", response.query[:50])
             except Exception as e:
-                logger.warning('Redis set error: %s', e)
+                logger.warning("Redis set error: %s", e)
 
         return True
 
@@ -207,7 +207,7 @@ class SearchCache:
                 del self._memory_cache[key]
                 del self._access_times[key]
 
-            logger.debug('Evicted %s items from memory cache', items_to_remove)
+            logger.debug("Evicted %s items from memory cache", items_to_remove)
 
     async def clear(self):
         """Clear all cached search results (memory + Redis)."""
@@ -228,7 +228,7 @@ class SearchCache:
                     )
                 logger.info("Cleared %d Redis cache keys", len(keys) if keys else 0)
             except Exception as e:
-                logger.warning('Redis clear error: %s', e)
+                logger.warning("Redis clear error: %s", e)
 
     async def invalidate(self, query: str, search_type: SearchType):
         """Invalidate cached response"""
@@ -246,7 +246,7 @@ class SearchCache:
                     None, lambda: redis_client.delete(cache_key)
                 )
             except Exception as e:
-                logger.warning('Redis delete error: %s', e)
+                logger.warning("Redis delete error: %s", e)
 
     @property
     def stats(self) -> dict[str, Any]:

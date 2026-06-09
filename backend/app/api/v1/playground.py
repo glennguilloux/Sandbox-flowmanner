@@ -11,8 +11,8 @@ from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from app.api.deps import get_current_user, get_current_user_optional
-from app.database import get_db
 from app.config import settings
+from app.database import get_db
 from app.services.playground_service import PlaygroundService
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,9 @@ async def create_playground_sandbox(
     # Check cooldown: max 1 sandbox per IP per 60 seconds
     if client_ip:
         recent = await _playground_service.count_recent_by_ip(
-            client_ip, minutes=1, db=db,
+            client_ip,
+            minutes=1,
+            db=db,
         )
         if recent >= 1:
             raise HTTPException(
@@ -107,7 +109,9 @@ async def create_playground_sandbox(
     # Check hourly cap: max 10 anonymous sandboxes per IP per hour
     if client_ip:
         hourly = await _playground_service.count_recent_by_ip(
-            client_ip, minutes=60, db=db,
+            client_ip,
+            minutes=60,
+            db=db,
         )
         if hourly >= 10:
             raise HTTPException(
@@ -117,7 +121,9 @@ async def create_playground_sandbox(
 
     try:
         pg = await _playground_service.create_anonymous_sandbox(
-            db=db, template=template, client_ip=client_ip,
+            db=db,
+            template=template,
+            client_ip=client_ip,
         )
     except Exception as e:
         logger.error("Failed to create playground sandbox: %s", e)
@@ -179,7 +185,9 @@ async def claim_playground_sandbox(
     """Claim an anonymous playground sandbox. Requires authentication."""
     try:
         pg = await _playground_service.claim_sandbox(
-            body.session_token, user.id, db=db,
+            body.session_token,
+            user.id,
+            db=db,
         )
         return ClaimResponse(sandbox_id=pg.sandbox_id)
     except ValueError as e:

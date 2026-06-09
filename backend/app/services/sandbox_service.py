@@ -77,9 +77,7 @@ class SandboxService:
         db.add(row)
         await db.commit()
 
-        logger.info(
-            "Sandbox %s created for mission %s", sandbox_id, mission_id
-        )
+        logger.info("Sandbox %s created for mission %s", sandbox_id, mission_id)
         return sandbox_id
 
     async def reap_sandbox(self, mission_id: str, *, db) -> None:
@@ -97,9 +95,7 @@ class SandboxService:
             new_status = result.get("status", "stopped")
 
             # Update row
-            stmt = select(MissionSandbox).where(
-                MissionSandbox.sandbox_id == sandbox_id
-            )
+            stmt = select(MissionSandbox).where(MissionSandbox.sandbox_id == sandbox_id)
             row_result = await db.execute(stmt)
             row = row_result.scalars().first()
             if row:
@@ -129,9 +125,7 @@ class SandboxService:
             await self._client.delete(sandbox_id)
 
             # Update row
-            stmt = select(MissionSandbox).where(
-                MissionSandbox.sandbox_id == sandbox_id
-            )
+            stmt = select(MissionSandbox).where(MissionSandbox.sandbox_id == sandbox_id)
             row_result = await db.execute(stmt)
             row = row_result.scalars().first()
             if row:
@@ -139,9 +133,7 @@ class SandboxService:
                 row.purged_at = datetime.now(UTC)
                 await db.commit()
 
-            logger.info(
-                "Sandbox %s purged for mission %s", sandbox_id, mission_id
-            )
+            logger.info("Sandbox %s purged for mission %s", sandbox_id, mission_id)
         except Exception:
             logger.exception(
                 "Failed to purge sandbox %s for mission %s",
@@ -151,9 +143,7 @@ class SandboxService:
 
     # ── Lookup ─────────────────────────────────────────────────────────
 
-    async def get_sandbox_for_mission(
-        self, mission_id: str, *, db
-    ) -> str | None:
+    async def get_sandbox_for_mission(self, mission_id: str, *, db) -> str | None:
         """Look up sandbox_id from mission_sandboxes table."""
         stmt = select(MissionSandbox).where(
             MissionSandbox.mission_id == mission_id,
@@ -174,9 +164,7 @@ class SandboxService:
             raise ValueError(f"No sandbox for mission {mission_id}")
         return await self._client.create_snapshot(sandbox_id, name)
 
-    async def restore_snapshot(
-        self, mission_id: str, snapshot_id: str, *, db
-    ) -> None:
+    async def restore_snapshot(self, mission_id: str, snapshot_id: str, *, db) -> None:
         """Restore sandbox to a previous snapshot."""
         sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db)
         if not sandbox_id:
@@ -223,7 +211,10 @@ class SandboxService:
         return sandbox_id
 
     async def get_workspace_sandboxes(
-        self, workspace_id: str, *, db,
+        self,
+        workspace_id: str,
+        *,
+        db,
     ) -> list[dict]:
         """List all sandboxes in a workspace."""
         result = await db.execute(
@@ -239,13 +230,18 @@ class SandboxService:
                 "status": s.status,
                 "template": s.template,
                 "created_at": s.created_at.isoformat(),
-                "last_active_at": s.last_active_at.isoformat() if s.last_active_at else None,
+                "last_active_at": (
+                    s.last_active_at.isoformat() if s.last_active_at else None
+                ),
             }
             for s in sandboxes
         ]
 
     async def wake_workspace_sandbox(
-        self, sandbox_id: str, *, db,
+        self,
+        sandbox_id: str,
+        *,
+        db,
     ) -> None:
         """Wake up an idle workspace sandbox."""
         result = await db.execute(

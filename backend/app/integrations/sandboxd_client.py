@@ -164,9 +164,7 @@ class SandboxdClient:
     async def get_task(self, sandbox_id: str, task_id: str) -> dict[str, Any]:
         """GET /v1/sandboxes/{id}/tasks/{taskId} — task result (durable)."""
         client = await self._get_client()
-        resp = await client.get(
-            f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}"
-        )
+        resp = await client.get(f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}")
         resp.raise_for_status()
         return resp.json()
 
@@ -202,14 +200,10 @@ class SandboxdClient:
                     yield current_event
                     current_event = {}
 
-    async def cancel_task(
-        self, sandbox_id: str, task_id: str
-    ) -> dict[str, Any]:
+    async def cancel_task(self, sandbox_id: str, task_id: str) -> dict[str, Any]:
         """POST /v1/sandboxes/{id}/tasks/{taskId}/cancel."""
         client = await self._get_client()
-        resp = await client.post(
-            f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}/cancel"
-        )
+        resp = await client.post(f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}/cancel")
         resp.raise_for_status()
         return resp.json()
 
@@ -228,9 +222,7 @@ class SandboxdClient:
             params["path"] = path
         if recursive:
             params["recursive"] = "true"
-        resp = await client.get(
-            f"/v1/sandboxes/{sandbox_id}/files", params=params
-        )
+        resp = await client.get(f"/v1/sandboxes/{sandbox_id}/files", params=params)
         resp.raise_for_status()
         return resp.json()
 
@@ -290,9 +282,7 @@ class SandboxdClient:
 
     # ── Snapshots ──────────────────────────────────────────────────────
 
-    async def create_snapshot(
-        self, sandbox_id: str, name: str = ""
-    ) -> dict[str, Any]:
+    async def create_snapshot(self, sandbox_id: str, name: str = "") -> dict[str, Any]:
         """POST /v1/snapshots — create snapshot of sandbox state."""
         client = await self._get_client()
         body: dict[str, Any] = {"sandbox_id": sandbox_id}

@@ -106,12 +106,14 @@ def initialize_rabbitmq_infrastructure(
             if len(protocol_and_creds) == 2:
                 safe_url = f"{protocol_and_creds[0]}://***:***@{parts[1]}"
 
-    logger.info('Initializing RabbitMQ infrastructure at %s', safe_url)
+    logger.info("Initializing RabbitMQ infrastructure at %s", safe_url)
 
     for attempt in range(1, max_retries + 1):
         try:
             with Connection(broker_url, connect_timeout=10) as conn:
-                logger.info('Connected to RabbitMQ (attempt %s/%s)', attempt, max_retries)
+                logger.info(
+                    "Connected to RabbitMQ (attempt %s/%s)", attempt, max_retries
+                )
 
                 channel = conn.default_channel
 
@@ -125,7 +127,7 @@ def initialize_rabbitmq_infrastructure(
                         )
                         exchange.declare(channel=channel)
                         result["exchanges_created"].append(exchange_name)
-                        logger.info('Declared exchange: %s', exchange_name)
+                        logger.info("Declared exchange: %s", exchange_name)
                     except Exception as e:
                         error_msg = f"Failed to declare exchange '{exchange_name}': {e}"
                         result["errors"].append(error_msg)
@@ -148,7 +150,7 @@ def initialize_rabbitmq_infrastructure(
                         )
                         queue.declare(channel=channel)
                         result["queues_created"].append(queue_name)
-                        logger.info('Declared queue: %s', queue_name)
+                        logger.info("Declared queue: %s", queue_name)
                     except Exception as e:
                         error_msg = f"Failed to declare queue '{queue_name}': {e}"
                         result["errors"].append(error_msg)
@@ -160,7 +162,10 @@ def initialize_rabbitmq_infrastructure(
                         "RabbitMQ infrastructure initialization completed successfully"
                     )
                 else:
-                    logger.warning('RabbitMQ initialization completed with %s errors', len(result['errors']))
+                    logger.warning(
+                        "RabbitMQ initialization completed with %s errors",
+                        len(result["errors"]),
+                    )
 
                 return result
 
@@ -170,10 +175,12 @@ def initialize_rabbitmq_infrastructure(
             logger.warning(error_msg)
 
             if attempt < max_retries:
-                logger.info('Retrying in %s seconds...', retry_delay)
+                logger.info("Retrying in %s seconds...", retry_delay)
                 time.sleep(retry_delay)
             else:
-                logger.error('Failed to connect to RabbitMQ after %s attempts', max_retries)
+                logger.error(
+                    "Failed to connect to RabbitMQ after %s attempts", max_retries
+                )
 
     return result
 
@@ -216,10 +223,10 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
                     exchange = Exchange(exchange_name, type="direct", durable=True)
                     exchange.declare(channel=channel, passive=True)
                     result["exchanges_found"].append(exchange_name)
-                    logger.debug('Exchange exists: %s', exchange_name)
+                    logger.debug("Exchange exists: %s", exchange_name)
                 except Exception:
                     result["exchanges_missing"].append(exchange_name)
-                    logger.warning('Exchange missing: %s', exchange_name)
+                    logger.warning("Exchange missing: %s", exchange_name)
 
             # Check queues
             for queue_name in QUEUES:
@@ -237,10 +244,10 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
                     )
                     queue.declare(channel=channel, passive=True)
                     result["queues_found"].append(queue_name)
-                    logger.debug('Queue exists: %s', queue_name)
+                    logger.debug("Queue exists: %s", queue_name)
                 except Exception:
                     result["queues_missing"].append(queue_name)
-                    logger.warning('Queue missing: %s', queue_name)
+                    logger.warning("Queue missing: %s", queue_name)
 
             result["healthy"] = (
                 len(result["exchanges_missing"]) == 0
@@ -250,7 +257,11 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
             if result["healthy"]:
                 logger.info("RabbitMQ infrastructure verification: HEALTHY")
             else:
-                logger.warning('RabbitMQ infrastructure verification: UNHEALTHY - Missing %s exchanges, %s queues', len(result['exchanges_missing']), len(result['queues_missing']))
+                logger.warning(
+                    "RabbitMQ infrastructure verification: UNHEALTHY - Missing %s exchanges, %s queues",
+                    len(result["exchanges_missing"]),
+                    len(result["queues_missing"]),
+                )
 
     except Exception as e:
         error_msg = f"Failed to verify RabbitMQ infrastructure: {e}"

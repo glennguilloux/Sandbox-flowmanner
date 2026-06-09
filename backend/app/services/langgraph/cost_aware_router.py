@@ -473,7 +473,9 @@ class CostAwareRouter:
         """Set a manual model override"""
         self._manual_override = model_id
         self._override_expiry = datetime.now(UTC) + timedelta(minutes=duration_minutes)
-        logger.info('Manual override set to %s for %s minutes', model_id, duration_minutes)
+        logger.info(
+            "Manual override set to %s for %s minutes", model_id, duration_minutes
+        )
 
     def clear_manual_override(self):
         """Clear manual override"""

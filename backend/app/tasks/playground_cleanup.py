@@ -35,7 +35,9 @@ def start_playground_cleanup() -> None:
     global _cleanup_task
     loop = asyncio.get_event_loop()
     _cleanup_task = loop.create_task(purge_expired_playgrounds())
-    logger.info("Playground cleanup task started (interval=%ds)", PURGE_INTERVAL_SECONDS)
+    logger.info(
+        "Playground cleanup task started (interval=%ds)", PURGE_INTERVAL_SECONDS
+    )
 
 
 def stop_playground_cleanup() -> None:

@@ -40,7 +40,7 @@ class MemoryIntegration:
 
                 self._memory_service = MemoryService(self.db)
             except Exception as e:
-                logger.error('Failed to initialize memory service: %s', e)
+                logger.error("Failed to initialize memory service: %s", e)
                 return None
         return self._memory_service
 
@@ -72,7 +72,7 @@ class MemoryIntegration:
             )
 
             if not memories:
-                logger.info('No relevant memories found for user %s', user_id)
+                logger.info("No relevant memories found for user %s", user_id)
                 return None
 
             # Format memories for context injection
@@ -80,11 +80,13 @@ class MemoryIntegration:
                 [f"- {m.get('content', '')}" for m in memories[:limit]]
             )
 
-            logger.info('Injected %s memories for user %s', len(memories[:limit]), user_id)
+            logger.info(
+                "Injected %s memories for user %s", len(memories[:limit]), user_id
+            )
             return f"[Relevant memories from past conversations:]\n{memory_context}"
 
         except Exception as e:
-            logger.error('Error injecting memories: %s', e)
+            logger.error("Error injecting memories: %s", e)
             return None
 
     async def extract_and_store(
@@ -112,7 +114,7 @@ class MemoryIntegration:
             extracted = await self._extract_key_information(conversation)
 
             if not extracted:
-                logger.info('No key information extracted from thread %s', thread_id)
+                logger.info("No key information extracted from thread %s", thread_id)
                 return True  # Not an error, just nothing to store
 
             # Store each extracted item as a memory
@@ -133,13 +135,13 @@ class MemoryIntegration:
                     )
                     stored_count += 1
                 except Exception as e:
-                    logger.error('Error storing memory: %s', e)
+                    logger.error("Error storing memory: %s", e)
 
-            logger.info('Stored %s memories from thread %s', stored_count, thread_id)
+            logger.info("Stored %s memories from thread %s", stored_count, thread_id)
             return True
 
         except Exception as e:
-            logger.error('Error in extract_and_store: %s', e)
+            logger.error("Error in extract_and_store: %s", e)
             return False
 
     async def _extract_key_information(

@@ -54,9 +54,12 @@ class UnifiedToolBridge:
 
         try:
             self._tool_registry = get_tool_registry()
-            logger.info('Tool registry initialized with %s tools', len(self._tool_registry.list_all()))
+            logger.info(
+                "Tool registry initialized with %s tools",
+                len(self._tool_registry.list_all()),
+            )
         except Exception as e:
-            logger.warning('Could not initialize tool registry: %s', e)
+            logger.warning("Could not initialize tool registry: %s", e)
             self._tool_registry = None
 
         self._initialized = True
@@ -135,7 +138,7 @@ class UnifiedToolBridge:
             result = await tool.execute(parameters)
             return {"success": True, "tool_name": tool_name, "result": result}
         except Exception as e:
-            logger.error('Error executing tool %s: %s', tool_name, e)
+            logger.error("Error executing tool %s: %s", tool_name, e)
             return {"success": False, "error": str(e), "tool_name": tool_name}
 
     async def verify_capability(
@@ -186,7 +189,7 @@ class UnifiedToolBridge:
             # Placeholder for discovery service integration
             return self.get_available_tools()
         except Exception as e:
-            logger.error('Error discovering tools: %s', e)
+            logger.error("Error discovering tools: %s", e)
             return self.get_available_tools()
 
     def get_tool_handler(self, tool_name: str) -> Callable | None:

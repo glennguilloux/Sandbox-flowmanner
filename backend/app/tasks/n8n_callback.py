@@ -53,13 +53,15 @@ def wait_for_n8n_callback(
     start_time = datetime.now(UTC)
     poll_interval = 2  # seconds
 
-    logger.info('Waiting for n8n callback: execution_id=%s, timeout=%ss', execution_id, timeout)
+    logger.info(
+        "Waiting for n8n callback: execution_id=%s, timeout=%ss", execution_id, timeout
+    )
 
     while True:
         elapsed = (datetime.now(UTC) - start_time).total_seconds()
 
         if elapsed >= timeout:
-            logger.warning('N8N callback timeout: execution_id=%s', execution_id)
+            logger.warning("N8N callback timeout: execution_id=%s", execution_id)
             return {
                 "status": "timeout",
                 "execution_id": execution_id,
@@ -73,7 +75,11 @@ def wait_for_n8n_callback(
         if callback_data:
             try:
                 result = json.loads(callback_data)
-                logger.info('N8N callback received: execution_id=%s, status=%s', execution_id, result.get('status'))
+                logger.info(
+                    "N8N callback received: execution_id=%s, status=%s",
+                    execution_id,
+                    result.get("status"),
+                )
 
                 # Clean up the callback key
                 redis_client.delete(callback_key)
@@ -89,7 +95,7 @@ def wait_for_n8n_callback(
                     "elapsed_seconds": elapsed,
                 }
             except json.JSONDecodeError as e:
-                logger.error('Invalid callback data for %s: %s', execution_id, e)
+                logger.error("Invalid callback data for %s: %s", execution_id, e)
                 return {
                     "status": "error",
                     "execution_id": execution_id,
@@ -135,7 +141,7 @@ def store_n8n_callback(execution_id: str, callback_data: dict[str, Any]) -> bool
     )
 
     redis_client.setex(callback_key, ttl, callback_json)
-    logger.info('Stored n8n callback: execution_id=%s', execution_id)
+    logger.info("Stored n8n callback: execution_id=%s", execution_id)
 
     return True
 
@@ -196,7 +202,7 @@ def cancel_n8n_execution(execution_id: str) -> dict[str, Any]:
 
     redis_client.setex(callback_key, 60, cancel_data)
 
-    logger.info('Cancelled n8n execution: %s', execution_id)
+    logger.info("Cancelled n8n execution: %s", execution_id)
 
     return {"status": "cancelled", "execution_id": execution_id}
 
@@ -222,6 +228,6 @@ def cleanup_stale_callbacks() -> int:
             cleaned += 1
 
     if cleaned > 0:
-        logger.info('Cleaned up %s stale callback entries', cleaned)
+        logger.info("Cleaned up %s stale callback entries", cleaned)
 
     return cleaned

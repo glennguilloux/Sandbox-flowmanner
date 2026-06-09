@@ -125,7 +125,7 @@ async def oidc_login(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error('Failed to initiate OIDC login for %s: %s', provider, e)
+        logger.error("Failed to initiate OIDC login for %s: %s", provider, e)
         raise HTTPException(status_code=500, detail="Failed to initiate OIDC login")
 
 
@@ -154,7 +154,7 @@ async def oidc_callback(
     """
     # Handle error from provider
     if error:
-        logger.warning('OIDC callback error: %s - %s', error, error_description)
+        logger.warning("OIDC callback error: %s - %s", error, error_description)
         frontend_url = _get_frontend_error_url(error, error_description)
         return RedirectResponse(url=frontend_url, status_code=302)
 
@@ -183,11 +183,11 @@ async def oidc_callback(
         return RedirectResponse(url=redirect_url, status_code=302)
 
     except ValueError as e:
-        logger.error('OIDC authentication failed: %s', e)
+        logger.error("OIDC authentication failed: %s", e)
         frontend_url = _get_frontend_error_url("authentication_failed", str(e))
         return RedirectResponse(url=frontend_url, status_code=302)
     except Exception as e:
-        logger.error('OIDC callback error: %s', e, exc_info=True)
+        logger.error("OIDC callback error: %s", e, exc_info=True)
         frontend_url = _get_frontend_error_url(
             "server_error", "An unexpected error occurred"
         )
@@ -225,7 +225,7 @@ async def oidc_token_exchange(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error('OIDC token exchange failed: %s', e, exc_info=True)
+        logger.error("OIDC token exchange failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Token exchange failed")
 
 
@@ -268,7 +268,7 @@ async def oidc_logout(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error('OIDC logout failed: %s', e, exc_info=True)
+        logger.error("OIDC logout failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Logout failed")
 
 
@@ -308,7 +308,7 @@ async def oidc_refresh(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error('OIDC token refresh failed: %s', e, exc_info=True)
+        logger.error("OIDC token refresh failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Token refresh failed")
 
 

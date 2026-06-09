@@ -73,7 +73,9 @@ class BaseDomainAgent(ABC):
         Returns:
             Dict containing the response and metadata
         """
-        logger.info('[%s] Processing query: %s...', self.domain_name.upper(), query[:100])
+        logger.info(
+            "[%s] Processing query: %s...", self.domain_name.upper(), query[:100]
+        )
 
         try:
             from app.models.capability_models import Budget

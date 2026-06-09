@@ -85,7 +85,7 @@ class RetryManager:
     def should_retry(self, error: str, retry_count: int) -> bool:
         """Determine if a webhook should be retried"""
         if retry_count >= self.config.max_retries:
-            logger.info('Max retries (%s) exceeded', self.config.max_retries)
+            logger.info("Max retries (%s) exceeded", self.config.max_retries)
             return False
 
         error_lower = error.lower()
@@ -101,14 +101,19 @@ class RetryManager:
 
         self._pending_retries[webhook_log_id] = next_retry_at
 
-        logger.info('Scheduled retry #%s for webhook %s at %s', retry_count + 1, webhook_log_id, next_retry_at)
+        logger.info(
+            "Scheduled retry #%s for webhook %s at %s",
+            retry_count + 1,
+            webhook_log_id,
+            next_retry_at,
+        )
         return next_retry_at
 
     def cancel_retry(self, webhook_log_id: int) -> bool:
         """Cancel a scheduled retry"""
         if webhook_log_id in self._pending_retries:
             del self._pending_retries[webhook_log_id]
-            logger.info('Cancelled retry for webhook %s', webhook_log_id)
+            logger.info("Cancelled retry for webhook %s", webhook_log_id)
             return True
         return False
 
@@ -161,7 +166,7 @@ class RetryManager:
 
             return result
         except Exception as e:
-            logger.error('Retry handler failed for webhook %s: %s', webhook_log_id, e)
+            logger.error("Retry handler failed for webhook %s: %s", webhook_log_id, e)
             return {"success": False, "error": str(e)}
 
     def get_retry_status(self, webhook_log_id: int) -> dict[str, Any] | None:

@@ -93,9 +93,7 @@ class SandboxdPreviewTool(BaseTool):
                     )
                 # Store in context so subsequent tool calls reuse it
                 self._set_sandbox_id(sandbox_id)
-                logger.info(
-                    "sandboxd_preview: auto-created sandbox %s", sandbox_id
-                )
+                logger.info("sandboxd_preview: auto-created sandbox %s", sandbox_id)
 
             info = await client.get(sandbox_id)
 

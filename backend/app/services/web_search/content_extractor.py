@@ -92,7 +92,7 @@ class ContentExtractor:
                     html = await response.text()
                     return self._parse_html(url, html)
         except Exception as e:
-            logger.error('HTTP extraction failed for %s: %s', url, e)
+            logger.error("HTTP extraction failed for %s: %s", url, e)
             return ExtractedContent(url=url, title="", text="", quality_score=0.0)
 
     async def _extract_with_playwright(self, url: str) -> ExtractedContent:
@@ -108,7 +108,7 @@ class ContentExtractor:
             await page.close()
             return self._parse_html(url, html)
         except Exception as e:
-            logger.error('Playwright extraction failed for %s: %s', url, e)
+            logger.error("Playwright extraction failed for %s: %s", url, e)
             return await self._extract_with_http(url)
 
     def _parse_html(self, url: str, html: str) -> ExtractedContent:
@@ -241,5 +241,5 @@ def extract_text_from_html(html: str) -> str:
         lines = [line.strip() for line in text.split("\n") if line.strip()]
         return "\n".join(lines)
     except Exception as e:
-        logger.error('HTML text extraction failed: %s', e)
+        logger.error("HTML text extraction failed: %s", e)
         return ""

@@ -40,7 +40,7 @@ class LangGraphAgent:
     async def initialize(self):
         """Initialize the agent."""
         self._initialized = True
-        logger.info('LangGraphAgent initialized with model: %s', self.llm_config.model)
+        logger.info("LangGraphAgent initialized with model: %s", self.llm_config.model)
 
     async def run(self, messages: list[dict[str, Any]], **kwargs):
         """Run the agent with messages."""

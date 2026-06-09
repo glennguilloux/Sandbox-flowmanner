@@ -316,7 +316,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error('Instagram container error: %s %s', resp.status_code, resp.text[:300])
+            logger.error(
+                "Instagram container error: %s %s", resp.status_code, resp.text[:300]
+            )
             return None
 
     async def _create_carousel_container(
@@ -339,7 +341,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error('Instagram carousel error: %s %s', resp.status_code, resp.text[:300])
+            logger.error(
+                "Instagram carousel error: %s %s", resp.status_code, resp.text[:300]
+            )
             return None
 
     async def _publish_container(self, container_id: str) -> str | None:
@@ -354,7 +358,9 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error('Instagram publish error: %s %s', resp.status_code, resp.text[:300])
+            logger.error(
+                "Instagram publish error: %s %s", resp.status_code, resp.text[:300]
+            )
             return None
 
     async def _wait_for_ready(self, creation_id: str) -> str | None:
@@ -376,9 +382,13 @@ class InstagramMediaPublisherTool(BaseTool):
                 if status == "FINISHED":
                     return data.get("permalink")
                 if status == "ERROR":
-                    logger.error('Instagram processing error: %s', data)
+                    logger.error("Instagram processing error: %s", data)
                     return None
-        logger.warning('Instagram media %s still processing after %s polls', creation_id, INSTAGRAM_MAX_POLLS)
+        logger.warning(
+            "Instagram media %s still processing after %s polls",
+            creation_id,
+            INSTAGRAM_MAX_POLLS,
+        )
         return None
 
     def _build_caption(self, caption: str, hashtags: list[str] | None) -> str:

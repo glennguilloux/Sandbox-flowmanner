@@ -42,5 +42,5 @@ async def subscribe_newsletter(payload: SubscribeRequest):
     if added == 0:
         return SubscribeResponse(message="You are already subscribed.")
 
-    logger.info('Newsletter subscription: %s', email)
+    logger.info("Newsletter subscription: %s", email)
     return SubscribeResponse(message="Subscribed successfully.")

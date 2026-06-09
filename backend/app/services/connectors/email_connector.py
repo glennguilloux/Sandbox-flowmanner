@@ -129,7 +129,7 @@ class EmailConnector(BaseConnector):
         except Exception as e:
             self._last_error = str(e)
             self._status = ConnectorStatus.ERROR
-            logger.error('Failed to connect email: %s', e)
+            logger.error("Failed to connect email: %s", e)
             return False
 
     async def disconnect(self) -> None:
@@ -304,7 +304,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to send email: %s', e)
+            logger.error("Failed to send email: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _send_email_with_attachment(
@@ -377,7 +377,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to send email with attachment: %s', e)
+            logger.error("Failed to send email with attachment: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _list_emails(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -433,7 +433,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to list emails: %s', e)
+            logger.error("Failed to list emails: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _get_email(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -475,7 +475,7 @@ class EmailConnector(BaseConnector):
                 )
 
         except Exception as e:
-            logger.error('Failed to get email: %s', e)
+            logger.error("Failed to get email: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _search_emails(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -556,7 +556,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to search emails: %s', e)
+            logger.error("Failed to search emails: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _delete_email(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -588,7 +588,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to delete email: %s', e)
+            logger.error("Failed to delete email: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _move_email(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -626,7 +626,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to move email: %s', e)
+            logger.error("Failed to move email: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _mark_read(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -657,7 +657,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to mark email as read: %s', e)
+            logger.error("Failed to mark email as read: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _mark_unread(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -690,7 +690,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to mark email as unread: %s', e)
+            logger.error("Failed to mark email as unread: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _list_folders(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -728,7 +728,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to list folders: %s', e)
+            logger.error("Failed to list folders: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _create_folder(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -759,7 +759,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to create folder: %s', e)
+            logger.error("Failed to create folder: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _delete_folder(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -790,7 +790,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to delete folder: %s', e)
+            logger.error("Failed to delete folder: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     async def _get_unread_count(self, params: dict[str, Any]) -> ConnectorResponse:
@@ -821,7 +821,7 @@ class EmailConnector(BaseConnector):
             )
 
         except Exception as e:
-            logger.error('Failed to get unread count: %s', e)
+            logger.error("Failed to get unread count: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
     def get_stats(self) -> dict[str, Any]:

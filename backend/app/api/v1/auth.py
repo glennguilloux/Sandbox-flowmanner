@@ -91,10 +91,10 @@ async def register(
             detail="; ".join(password_errors),
         )
 
-    logger.info('[REGISTER] email=%s', payload.email)
+    logger.info("[REGISTER] email=%s", payload.email)
     existing = await get_user_by_email(db, payload.email)
     if existing:
-        logger.warning('[REGISTER] Email already registered: %s', payload.email)
+        logger.warning("[REGISTER] Email already registered: %s", payload.email)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
         )
@@ -103,7 +103,7 @@ async def register(
     if payload.username:
         existing_username = await get_user_by_username(db, payload.username)
         if existing_username:
-            logger.warning('[REGISTER] Username already taken: %s', payload.username)
+            logger.warning("[REGISTER] Username already taken: %s", payload.username)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="Username already taken"
             )
@@ -128,7 +128,9 @@ async def register(
         db.add(WorkspaceMember(workspace_id=ws_id, user_id=user.id, role="owner"))
         await db.flush()
     except Exception:
-        logger.exception('[REGISTER] Failed to auto-create workspace for user %s', user.id)
+        logger.exception(
+            "[REGISTER] Failed to auto-create workspace for user %s", user.id
+        )
 
     access = create_access_token(user.id, role=user.role)
     refresh = create_refresh_token_value()
@@ -292,7 +294,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error('[LOGIN] Unhandled error: %s', e, exc_info=True)
+        logger.error("[LOGIN] Unhandled error: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred. Please try again later.",
@@ -431,13 +433,20 @@ async def refresh(
             and token_record.last_used_at > grace_cutoff
         )
         if recently_revoked:
-            logger.warning('Refresh token reuse within %ss grace period for user %s — treating as race condition, not theft', REUSE_GRACE_SECONDS, token_record.user_id)
+            logger.warning(
+                "Refresh token reuse within %ss grace period for user %s — treating as race condition, not theft",
+                REUSE_GRACE_SECONDS,
+                token_record.user_id,
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Token already used"
             )
         # Outside grace period — potential theft: revoke ALL tokens
         await revoke_all_user_tokens(db, token_record.user_id)
-        logger.warning('Refresh token reuse detected for user %s — all tokens revoked', token_record.user_id)
+        logger.warning(
+            "Refresh token reuse detected for user %s — all tokens revoked",
+            token_record.user_id,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token reuse detected. All sessions revoked for security.",
@@ -791,7 +800,7 @@ async def social_token_exchange(
         db.add(WorkspaceMember(workspace_id=ws_id, user_id=user.id, role="owner"))
         await db.flush()
     except Exception:
-        logger.exception('Failed to auto-create workspace for OAuth user %s', user.id)
+        logger.exception("Failed to auto-create workspace for OAuth user %s", user.id)
 
     _complete_login(user)
     return TokenResponse(
@@ -814,7 +823,7 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             if user_resp.status_code != 200:
-                logger.warning('GitHub /user returned %s', user_resp.status_code)
+                logger.warning("GitHub /user returned %s", user_resp.status_code)
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid GitHub access token",
@@ -845,7 +854,9 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
                         break
         if not primary_email:
             primary_email = f"{gh_login}@github.local"
-            logger.warning('No public email for GitHub user %s, using synthetic', gh_login)
+            logger.warning(
+                "No public email for GitHub user %s, using synthetic", gh_login
+            )
 
         return {
             "id": gh_id,
@@ -864,7 +875,7 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             if user_resp.status_code != 200:
-                logger.warning('Google userinfo returned %s', user_resp.status_code)
+                logger.warning("Google userinfo returned %s", user_resp.status_code)
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid Google access token",
@@ -879,7 +890,7 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
 
         if not google_email:
             google_email = f"{google_login}@google.local"
-            logger.warning('No email for Google user %s, using synthetic', google_id)
+            logger.warning("No email for Google user %s, using synthetic", google_id)
 
         return {
             "id": google_id,

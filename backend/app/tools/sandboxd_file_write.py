@@ -16,6 +16,7 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 logger = logging.getLogger(__name__)
 
+
 class SandboxdFileWriteInput(ToolInput):
     path: str = Field(
         ...,
@@ -74,7 +75,8 @@ class SandboxdFileWriteTool(BaseTool):
 
             if ".." in validated.path or validated.path.startswith("/"):
                 return ToolResult.error_result(
-                    tool_id=self.tool_id, error="Path must be relative and must not contain '..'",
+                    tool_id=self.tool_id,
+                    error="Path must be relative and must not contain '..'",
                 )
 
             client = self._get_client()

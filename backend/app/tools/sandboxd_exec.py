@@ -117,7 +117,8 @@ class SandboxdExecTool(BaseTool):
                 # Go requires a file — use base64 to avoid shell-escaping issues
                 b64 = base64.b64encode(validated.code.encode()).decode()
                 cmd = [
-                    "bash", "-c",
+                    "bash",
+                    "-c",
                     f"echo {b64} | base64 -d > /tmp/main.go && go run /tmp/main.go",
                 ]
             else:

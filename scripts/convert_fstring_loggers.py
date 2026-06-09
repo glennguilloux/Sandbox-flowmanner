@@ -237,7 +237,9 @@ def convert_file(path: Path) -> tuple[int, int, list[str]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("roots", nargs="+", type=Path, help="Root dirs to scan (recursive).")
+    parser.add_argument(
+        "roots", nargs="+", type=Path, help="Root dirs to scan (recursive)."
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -255,7 +257,11 @@ def main() -> int:
             print(f"skip: {root} does not exist", file=sys.stderr)
             continue
         for path in sorted(root.rglob("*.py")):
-            if "/.venv/" in str(path) or "/__pycache__/" in str(path) or "/.git/" in str(path):
+            if (
+                "/.venv/" in str(path)
+                or "/__pycache__/" in str(path)
+                or "/.git/" in str(path)
+            ):
                 continue
             converted, skipped, warnings = convert_file(path)
             if converted or skipped:
@@ -278,7 +284,11 @@ def main() -> int:
             if not root.exists():
                 continue
             for path in sorted(root.rglob("*.py")):
-                if "/.venv/" in str(path) or "/__pycache__/" in str(path) or "/.git/" in str(path):
+                if (
+                    "/.venv/" in str(path)
+                    or "/__pycache__/" in str(path)
+                    or "/.git/" in str(path)
+                ):
                     continue
                 src = path.read_text(encoding="utf-8")
                 try:
@@ -288,7 +298,9 @@ def main() -> int:
                 targets = [
                     n
                     for n in ast.walk(tree)
-                    if isinstance(n, ast.Call) and _is_logger_call(n) and _first_arg_is_fstring(n)
+                    if isinstance(n, ast.Call)
+                    and _is_logger_call(n)
+                    and _first_arg_is_fstring(n)
                 ]
                 if not targets:
                     continue

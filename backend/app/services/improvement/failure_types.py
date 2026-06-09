@@ -634,7 +634,13 @@ async def capture_failure_context(
     asyncio.create_task(_store_failure_context(context))
 
     # Log for debugging
-    logger.info('Captured failure: %s for tool %s (severity: %s, latency: %.1fms)', failure_type.value, tool_name, severity.value, latency_ms)
+    logger.info(
+        "Captured failure: %s for tool %s (severity: %s, latency: %.1fms)",
+        failure_type.value,
+        tool_name,
+        severity.value,
+        latency_ms,
+    )
 
 
 async def capture_success_metrics(
@@ -695,9 +701,9 @@ async def _store_failure_context(context: FailureContext) -> None:
                     event_id = sentry.capture_failure_context(context)
                     if event_id:
                         context.sentry_event_id = event_id
-                        logger.debug('Captured failure in Sentry: %s', event_id)
+                        logger.debug("Captured failure in Sentry: %s", event_id)
             except Exception as e:
-                logger.warning('Failed to capture failure in Sentry: %s', e)
+                logger.warning("Failed to capture failure in Sentry: %s", e)
 
         # Try to use observability service if available
         if _observability_service:
@@ -720,11 +726,14 @@ async def _store_failure_context(context: FailureContext) -> None:
             return
 
         # Fallback: log to file
-        logger.warning('No storage backend available for failure context. Logging to file: %s', context.to_json())
+        logger.warning(
+            "No storage backend available for failure context. Logging to file: %s",
+            context.to_json(),
+        )
 
     except Exception as e:
         # Don't let storage failures affect the main execution
-        logger.error('Failed to store failure context: %s', e)
+        logger.error("Failed to store failure context: %s", e)
 
 
 async def _store_success_metrics(data: dict[str, Any]) -> None:
@@ -754,11 +763,11 @@ async def _store_success_metrics(data: dict[str, Any]) -> None:
             return
 
         # Fallback: just log
-        logger.debug('Success metrics: %s', data)
+        logger.debug("Success metrics: %s", data)
 
     except Exception as e:
         # Don't let storage failures affect the main execution
-        logger.error('Failed to store success metrics: %s', e)
+        logger.error("Failed to store success metrics: %s", e)
 
 
 # ============================================
@@ -868,7 +877,7 @@ def capture_failure_telemetry(
     }
 
     _failure_telemetry_store.append(telemetry_entry)
-    logger.info('Captured failure telemetry: %s - %s', telemetry_id, failure_type)
+    logger.info("Captured failure telemetry: %s - %s", telemetry_id, failure_type)
     return telemetry_id
 
 

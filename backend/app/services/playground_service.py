@@ -69,7 +69,10 @@ class PlaygroundService:
     # ── Get ─────────────────────────────────────────────────────────
 
     async def get_by_session_token(
-        self, session_token: str, *, db,
+        self,
+        session_token: str,
+        *,
+        db,
     ) -> PlaygroundSandbox | None:
         """Look up a playground sandbox by its anonymous session token."""
         result = await db.execute(
@@ -80,7 +83,10 @@ class PlaygroundService:
         return result.scalar_one_or_none()
 
     async def get_by_sandbox_id(
-        self, sandbox_id: str, *, db,
+        self,
+        sandbox_id: str,
+        *,
+        db,
     ) -> PlaygroundSandbox | None:
         """Look up a playground sandbox by the sandboxd container ID."""
         result = await db.execute(
@@ -146,11 +152,13 @@ class PlaygroundService:
         result = await db.execute(
             select(PlaygroundSandbox).where(
                 PlaygroundSandbox.expires_at < now,
-                PlaygroundSandbox.status.in_([
-                    PlaygroundSandboxStatus.RUNNING.value,
-                    PlaygroundSandboxStatus.CREATING.value,
-                    PlaygroundSandboxStatus.CLAIMED.value,
-                ]),
+                PlaygroundSandbox.status.in_(
+                    [
+                        PlaygroundSandboxStatus.RUNNING.value,
+                        PlaygroundSandboxStatus.CREATING.value,
+                        PlaygroundSandboxStatus.CLAIMED.value,
+                    ]
+                ),
             )
         )
         expired = result.scalars().all()
@@ -163,7 +171,11 @@ class PlaygroundService:
     # ── Rate-limit check ────────────────────────────────────────────
 
     async def count_recent_by_ip(
-        self, ip: str, minutes: int = 60, *, db,
+        self,
+        ip: str,
+        minutes: int = 60,
+        *,
+        db,
     ) -> int:
         """Count anonymous sandboxes created by an IP in the last N minutes."""
         since = datetime.now(UTC) - timedelta(minutes=minutes)
@@ -178,7 +190,11 @@ class PlaygroundService:
     # ── File browser ────────────────────────────────────────────────
 
     async def list_files(
-        self, sandbox_id: str, path: str = "", *, db,
+        self,
+        sandbox_id: str,
+        path: str = "",
+        *,
+        db,
     ) -> list[dict]:
         """List files in a sandbox workspace directory."""
         pg = await self.get_by_sandbox_id(sandbox_id, db=db)
@@ -187,7 +203,11 @@ class PlaygroundService:
         return await self._client.list_files(pg.sandbox_id, path=path)
 
     async def read_file(
-        self, sandbox_id: str, path: str, *, db,
+        self,
+        sandbox_id: str,
+        path: str,
+        *,
+        db,
     ) -> str:
         """Read a file from a sandbox workspace."""
         pg = await self.get_by_sandbox_id(sandbox_id, db=db)
@@ -196,7 +216,12 @@ class PlaygroundService:
         return await self._client.read_file(pg.sandbox_id, path=path)
 
     async def write_file(
-        self, sandbox_id: str, path: str, content: bytes, *, db,
+        self,
+        sandbox_id: str,
+        path: str,
+        content: bytes,
+        *,
+        db,
     ) -> dict:
         """Write a file to a sandbox workspace."""
         pg = await self.get_by_sandbox_id(sandbox_id, db=db)

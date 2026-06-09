@@ -80,7 +80,9 @@ class WebhookRouter:
             name=name, handler=handler, source=source, priority=HandlerPriority.LOWEST
         )
         self._default_handlers[source] = handler_info
-        logger.info("Registered default webhook handler '%s' for source '%s'", name, source)
+        logger.info(
+            "Registered default webhook handler '%s' for source '%s'", name, source
+        )
 
     def register_global(
         self, name: str, handler: Callable, priority: int = HandlerPriority.LOWEST
@@ -157,7 +159,9 @@ class WebhookRouter:
         handlers = self.get_handlers(source, event_type)
 
         if not handlers:
-            logger.warning("No handlers found for source '%s', event '%s'", source, event_type)
+            logger.warning(
+                "No handlers found for source '%s', event '%s'", source, event_type
+            )
             return {
                 "success": False,
                 "error": "No handlers registered",
@@ -170,7 +174,12 @@ class WebhookRouter:
 
         for handler_info in handlers:
             try:
-                logger.debug("Executing handler '%s' for %s/%s", handler_info.name, source, event_type)
+                logger.debug(
+                    "Executing handler '%s' for %s/%s",
+                    handler_info.name,
+                    source,
+                    event_type,
+                )
 
                 result = await self._execute_handler(
                     handler_info.handler, source, event_type, payload, headers
@@ -222,7 +231,12 @@ class WebhookRouter:
             logger.error("Failed to import handler module '%s': %s", module_path, e)
             return None
         except AttributeError as e:
-            logger.error("Handler function '%s' not found in '%s': %s", function_name, module_path, e)
+            logger.error(
+                "Handler function '%s' not found in '%s': %s",
+                function_name,
+                module_path,
+                e,
+            )
             return None
 
     def list_handlers(self) -> dict[str, list[dict[str, Any]]]:

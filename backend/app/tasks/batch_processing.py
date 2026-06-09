@@ -106,14 +106,14 @@ def process_batch_task(self, batch_id: str):
     """
     batch_job = get_batch_job(batch_id)
     if not batch_job:
-        logger.error('Batch job not found: %s', batch_id)
+        logger.error("Batch job not found: %s", batch_id)
         return {"error": "Batch job not found"}
 
     # Update status
     batch_job.status = BatchStatus.PROCESSING
     batch_job.started_at = datetime.now(UTC).isoformat()
 
-    logger.info('Starting batch processing: %s (%s)', batch_id, batch_job.task_type)
+    logger.info("Starting batch processing: %s (%s)", batch_id, batch_job.task_type)
 
     # Process each item
     for item in batch_job.items:
@@ -140,7 +140,7 @@ def process_batch_task(self, batch_id: str):
             batch_job.processed_items += 1
 
         except Exception as e:
-            logger.error('Error processing item %s: %s', item.id, e)
+            logger.error("Error processing item %s: %s", item.id, e)
             item.status = BatchStatus.FAILED
             item.error = str(e)
             batch_job.failed_items += 1
@@ -153,7 +153,12 @@ def process_batch_task(self, batch_id: str):
         )
     batch_job.completed_at = datetime.now(UTC).isoformat()
 
-    logger.info('Batch processing complete: %s - %s/%s', batch_id, batch_job.processed_items, batch_job.total_items)
+    logger.info(
+        "Batch processing complete: %s - %s/%s",
+        batch_id,
+        batch_job.processed_items,
+        batch_job.total_items,
+    )
 
     return {
         "batch_id": batch_id,
@@ -343,7 +348,7 @@ def create_batch_job(
     # Store job
     _batch_jobs[batch_id] = batch_job
 
-    logger.info('Created batch job: %s with %s items', batch_id, len(items))
+    logger.info("Created batch job: %s with %s items", batch_id, len(items))
 
     return batch_job
 

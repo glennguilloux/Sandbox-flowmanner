@@ -44,7 +44,7 @@ class MTLSValidator:
             }
 
         except Exception as e:
-            logger.error('Certificate validation error: %s', e)
+            logger.error("Certificate validation error: %s", e)
             return {"valid": False, "error": str(e)}
 
 
@@ -53,7 +53,7 @@ def require_mtls(f):
     def decorated(*args, **kwargs):
         # Check if request came over TLS
         if not request.is_secure:
-            logger.warning('Non-TLS request to protected endpoint: %s', request.path)
+            logger.warning("Non-TLS request to protected endpoint: %s", request.path)
             return (
                 jsonify(
                     {
@@ -68,7 +68,7 @@ def require_mtls(f):
         client_cert = request.environ.get("SSL_CLIENT_CERT")
 
         if not client_cert:
-            logger.warning('No client certificate for request to: %s', request.path)
+            logger.warning("No client certificate for request to: %s", request.path)
             return (
                 jsonify(
                     {
@@ -91,7 +91,7 @@ def require_mtls(f):
             if cn_line:
                 cn = cn_line[0].split("CN=")[1].split(",")[0]
                 request.client_cn = cn
-                logger.info('mTLS request from CN=%s to %s', cn, request.path)
+                logger.info("mTLS request from CN=%s to %s", cn, request.path)
         except Exception:
             logger.debug("Failed to parse client certificate CN from mTLS request")
 

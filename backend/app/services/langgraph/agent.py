@@ -91,7 +91,7 @@ class LangGraphAgent:
         n8n_base_url = config.get("n8n_base_url")
         if n8n_base_url:
             self.tool_registry.register_handler("execute_n8n_workflow", N8nToolHandler)
-            logger.info('Registered n8n handler with URL: %s', n8n_base_url)
+            logger.info("Registered n8n handler with URL: %s", n8n_base_url)
 
         # Register ComfyUI handler
         comfyui_base_url = config.get("comfyui_base_url")
@@ -99,7 +99,7 @@ class LangGraphAgent:
             self.tool_registry.register_handler(
                 "execute_comfyui_workflow", ComfyUIHandler
             )
-            logger.info('Registered ComfyUI handler with URL: %s', comfyui_base_url)
+            logger.info("Registered ComfyUI handler with URL: %s", comfyui_base_url)
 
         # Register integration handlers (always available — no config needed)
         self.tool_registry.register_handler(
@@ -143,7 +143,7 @@ class LangGraphAgent:
             handler: Handler function
         """
         self.tool_handlers[tool_id] = handler
-        logger.debug('Registered handler for tool: %s', tool_id)
+        logger.debug("Registered handler for tool: %s", tool_id)
 
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph state machine"""
@@ -232,7 +232,7 @@ class LangGraphAgent:
             )
             state = result
         except Exception as e:
-            logger.error('Error running graph: %s', e)
+            logger.error("Error running graph: %s", e)
             state = add_message_to_state(
                 state,
                 "assistant",
@@ -344,7 +344,7 @@ class LangGraphAgent:
 
     async def _process_input_node(self, state: AgentState) -> AgentState:
         """Process user input"""
-        logger.debug('Processing input for session %s', state['session_id'])
+        logger.debug("Processing input for session %s", state["session_id"])
         return state
 
     async def _convert_to_tools_node(self, state: AgentState) -> AgentState:
@@ -421,9 +421,13 @@ class LangGraphAgent:
                 # The approval workflow has created the request
                 # Update state with the approval request
                 state["current_approval_request"] = result["approval_request"]
-                logger.info('Approval workflow created request for tool %s', tool['tool_name'])
+                logger.info(
+                    "Approval workflow created request for tool %s", tool["tool_name"]
+                )
             else:
-                logger.warning('Failed to create approval request: %s', result.get('error'))
+                logger.warning(
+                    "Failed to create approval request: %s", result.get("error")
+                )
 
         return state
 
@@ -633,7 +637,7 @@ class LangGraphAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error('Error executing n8n workflow: %s', e)
+            logger.error("Error executing n8n workflow: %s", e)
             return {"success": False, "error": str(e)}
 
     def _handle_comfyui_workflow(
@@ -658,7 +662,7 @@ class LangGraphAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error('Error executing ComfyUI workflow: %s', e)
+            logger.error("Error executing ComfyUI workflow: %s", e)
             return {"success": False, "error": str(e)}
 
     def _handle_3dglenn_workflow(
@@ -683,7 +687,7 @@ class LangGraphAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error('Error executing 3Dglenn workflow: %s', e)
+            logger.error("Error executing 3Dglenn workflow: %s", e)
             return {"success": False, "error": str(e)}
 
     def _handle_search_workflows(
@@ -702,7 +706,7 @@ class LangGraphAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error('Error searching workflows: %s', e)
+            logger.error("Error searching workflows: %s", e)
             return {"success": False, "error": str(e)}
 
     def _handle_get_workflow_details(
@@ -723,7 +727,7 @@ class LangGraphAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error('Error getting workflow details: %s', e)
+            logger.error("Error getting workflow details: %s", e)
             return {"success": False, "error": str(e)}
 
     def _handle_list_saved_configs(
@@ -844,7 +848,7 @@ def get_agent(
                     )
                 logger.info("Auto-initialized LLM for LangGraph agent")
             except Exception as e:
-                logger.error('Failed to auto-initialize LLM: %s', e)
+                logger.error("Failed to auto-initialize LLM: %s", e)
                 raise ValueError(f"Failed to initialize LLM: {e}")
 
         _agent = LangGraphAgent(

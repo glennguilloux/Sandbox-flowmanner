@@ -227,7 +227,7 @@ class MetricsCollector:
             try:
                 return await self._query_observability(agent_id, start_time, end_time)
             except Exception as e:
-                logger.warning('Failed to query observability: %s', e)
+                logger.warning("Failed to query observability: %s", e)
 
         # Fall back to in-memory metrics
         return self._get_from_memory(agent_id, start_time, end_time)
@@ -262,7 +262,7 @@ class MetricsCollector:
                     metrics, start_time, end_time
                 )
             except Exception as e:
-                logger.warning('Failed to populate from observability: %s', e)
+                logger.warning("Failed to populate from observability: %s", e)
                 self._populate_agent_metrics_from_memory(metrics, start_time, end_time)
         else:
             self._populate_agent_metrics_from_memory(metrics, start_time, end_time)
@@ -326,7 +326,7 @@ class MetricsCollector:
             try:
                 await self._push_to_observability(metric_name, point)
             except Exception as e:
-                logger.warning('Failed to push to observability: %s', e)
+                logger.warning("Failed to push to observability: %s", e)
 
         # Periodic cache cleanup
         if (datetime.now(UTC) - self._last_cache_clear) > self._cache_ttl:

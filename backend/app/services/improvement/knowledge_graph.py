@@ -207,7 +207,7 @@ class KnowledgeGraph:
         if self.db_session:
             await self._persist_node(node)
 
-        logger.debug('Added node %s (%s/%s)', node_id, node_type.value, node_key)
+        logger.debug("Added node %s (%s/%s)", node_id, node_type.value, node_key)
         return node
 
     def get_node(self, node_id: str) -> KnowledgeNode | None:
@@ -310,7 +310,9 @@ class KnowledgeGraph:
         """
         # Verify nodes exist
         if source_id not in self._nodes or target_id not in self._nodes:
-            logger.warning('Cannot add edge: nodes %s or %s not found', source_id, target_id)
+            logger.warning(
+                "Cannot add edge: nodes %s or %s not found", source_id, target_id
+            )
             return None
 
         # Check for duplicate edge
@@ -346,7 +348,13 @@ class KnowledgeGraph:
         if self.db_session:
             await self._persist_edge(edge)
 
-        logger.debug('Added edge %s (%s -%s-> %s)', edge_id, source_id, edge_type.value, target_id)
+        logger.debug(
+            "Added edge %s (%s -%s-> %s)",
+            edge_id,
+            source_id,
+            edge_type.value,
+            target_id,
+        )
         return edge
 
     def get_edge(self, edge_id: str) -> KnowledgeEdge | None:

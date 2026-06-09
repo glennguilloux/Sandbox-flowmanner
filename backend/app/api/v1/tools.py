@@ -183,7 +183,7 @@ async def execute_tool(
             cost_usd=result.cost_usd,
         )
     except Exception as e:
-        logger.error('Tool %s execution error: %s', tool_id, e, exc_info=True)
+        logger.error("Tool %s execution error: %s", tool_id, e, exc_info=True)
         return ToolExecutionResult(
             tool_id=tool_id,
             success=False,

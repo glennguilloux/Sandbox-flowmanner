@@ -124,7 +124,7 @@ class A2ASessionManager:
                 self._agent_sessions[agent_url] = set()
             self._agent_sessions[agent_url].add(session.id)
 
-            logger.info('Created A2A session %s for agent %s', session.id, agent_url)
+            logger.info("Created A2A session %s for agent %s", session.id, agent_url)
             return session
 
     async def get_session(self, session_id: str) -> A2ASession | None:
@@ -148,7 +148,7 @@ class A2ASessionManager:
                 if session.agent_url in self._agent_sessions:
                     self._agent_sessions[session.agent_url].discard(session_id)
 
-                logger.info('Closed A2A session %s', session_id)
+                logger.info("Closed A2A session %s", session_id)
                 return True
             return False
 
@@ -175,12 +175,12 @@ class A2AAgentRegistry:
             "url": agent_info.get("url", ""),
             "registered_at": datetime.now(UTC).isoformat(),
         }
-        logger.info('Registered agent: %s', agent_id)
+        logger.info("Registered agent: %s", agent_id)
 
     def unregister_agent(self, agent_id: str):
         """Unregister an agent"""
         self._agents.pop(agent_id, None)
-        logger.info('Unregistered agent: %s', agent_id)
+        logger.info("Unregistered agent: %s", agent_id)
 
     def get_agent(self, agent_id: str) -> dict[str, Any] | None:
         """Get agent info"""
@@ -236,21 +236,21 @@ class A2AServer:
             ),
         )
 
-        logger.info('WebSocket connected: session=%s, agent=%s', session.id, agent_url)
+        logger.info("WebSocket connected: session=%s, agent=%s", session.id, agent_url)
         return session.id
 
     async def disconnect(self, session_id: str):
         """Handle WebSocket disconnection"""
         await self.session_manager.close_session(session_id)
         self._connections.pop(session_id, None)
-        logger.info('WebSocket disconnected: session=%s', session_id)
+        logger.info("WebSocket disconnected: session=%s", session_id)
 
     async def _send_message(self, websocket: WebSocket, message: A2AMessage):
         """Send message through WebSocket"""
         try:
             await websocket.send_json(message.to_dict())
         except Exception as e:
-            logger.error('Error sending message: %s', e)
+            logger.error("Error sending message: %s", e)
 
     async def receive_message(
         self, session_id: str, data: dict[str, Any]
@@ -266,7 +266,7 @@ class A2AServer:
 
             return message
         except Exception as e:
-            logger.error('Error processing message: %s', e)
+            logger.error("Error processing message: %s", e)
             return A2AMessage(
                 type=MessageType.ERROR,
                 content=str(e),
@@ -275,7 +275,7 @@ class A2AServer:
 
     async def _handle_task(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle task message"""
-        logger.info('Task received: %s from %s', message.id, message.sender)
+        logger.info("Task received: %s from %s", message.id, message.sender)
         # Task handling logic - route to appropriate agent
         return message
 
@@ -283,17 +283,17 @@ class A2AServer:
         self, message: A2AMessage, session_id: str
     ) -> A2AMessage:
         """Handle response message"""
-        logger.info('Response received: %s', message.id)
+        logger.info("Response received: %s", message.id)
         return message
 
     async def _handle_status(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle status message"""
-        logger.info('Status update: %s', message.content)
+        logger.info("Status update: %s", message.content)
         return message
 
     async def _handle_error(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle error message"""
-        logger.error('Error from %s: %s', message.sender, message.content)
+        logger.error("Error from %s: %s", message.sender, message.content)
         return message
 
     async def _handle_heartbeat(
@@ -306,14 +306,14 @@ class A2AServer:
 
     async def _handle_file(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle file attachment message"""
-        logger.info('File received: %s', message.attachments)
+        logger.info("File received: %s", message.attachments)
         return message
 
     async def send_to_agent(self, agent_id: str, message: A2AMessage) -> bool:
         """Route message to specific agent"""
         agent = self.agent_registry.get_agent(agent_id)
         if not agent:
-            logger.warning('Agent not found: %s', agent_id)
+            logger.warning("Agent not found: %s", agent_id)
             return False
 
         # Find active session for agent

@@ -195,9 +195,12 @@ class CapabilityComposer:
                 )
                 self._composed[model.id] = composed
             if models:
-                logger.info('Loaded %s persisted composed capabilities from database', len(models))
+                logger.info(
+                    "Loaded %s persisted composed capabilities from database",
+                    len(models),
+                )
         except Exception as e:
-            logger.warning('Could not load persisted capabilities: %s', e)
+            logger.warning("Could not load persisted capabilities: %s", e)
         finally:
             if db:
                 db.close()
@@ -244,9 +247,9 @@ class CapabilityComposer:
                 db.add(model)
 
             db.commit()
-            logger.info('Saved composed capability to database: %s', composed.id)
+            logger.info("Saved composed capability to database: %s", composed.id)
         except Exception as e:
-            logger.error('Failed to save composed capability %s: %s', composed.id, e)
+            logger.error("Failed to save composed capability %s: %s", composed.id, e)
             if db:
                 db.rollback()
         finally:
@@ -268,10 +271,10 @@ class CapabilityComposer:
             ).delete()
             db.commit()
 
-            logger.info('Deleted composed capability: %s', composed_id)
+            logger.info("Deleted composed capability: %s", composed_id)
             return True
         except Exception as e:
-            logger.error('Failed to delete composed capability %s: %s', composed_id, e)
+            logger.error("Failed to delete composed capability %s: %s", composed_id, e)
             if db:
                 db.rollback()
             return False
@@ -321,7 +324,7 @@ class CapabilityComposer:
         registry = self._get_registry()
         for cap_id in capability_ids:
             if not registry.get(cap_id):
-                logger.warning('Capability %s not found in registry', cap_id)
+                logger.warning("Capability %s not found in registry", cap_id)
 
         # Generate ID and create composed capability
         composed_id = f"composed:{uuid.uuid4().hex[:8]}"
@@ -383,7 +386,9 @@ class CapabilityComposer:
         )
 
         self._composed[composed_id] = composed
-        logger.info('Created composed capability: %s (%s)', composed_id, comp_type.value)
+        logger.info(
+            "Created composed capability: %s (%s)", composed_id, comp_type.value
+        )
 
         # Persist to database
         await self._save_composed_capability(composed)
@@ -422,7 +427,7 @@ class CapabilityComposer:
         )
 
         registry.register(capability)
-        logger.info('Registered composed capability in registry: %s', composed.id)
+        logger.info("Registered composed capability in registry: %s", composed.id)
 
     def validate_composition(self, capability_ids: list[str]) -> tuple:
         """
@@ -516,7 +521,7 @@ class CapabilityComposer:
             )
 
         except Exception as e:
-            logger.error('Error executing composed capability %s: %s', composed_id, e)
+            logger.error("Error executing composed capability %s: %s", composed_id, e)
             execution_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
             return CompositionResult(
                 success=False,
@@ -542,7 +547,7 @@ class CapabilityComposer:
         for cap_id in composed.capability_ids:
             cap = registry.get(cap_id)
             if not cap:
-                logger.warning('Capability %s not found, skipping', cap_id)
+                logger.warning("Capability %s not found, skipping", cap_id)
                 continue
 
             # Merge current output with params for next capability
@@ -556,7 +561,7 @@ class CapabilityComposer:
             capabilities_executed.append(cap_id)
             current_output = result
 
-            logger.debug('Sequential execution: %s completed', cap_id)
+            logger.debug("Sequential execution: %s completed", cap_id)
 
         return current_output
 
@@ -578,7 +583,7 @@ class CapabilityComposer:
                 tasks.append(cap.execute(params))
                 valid_caps.append(cap_id)
             else:
-                logger.warning('Capability %s not found, skipping', cap_id)
+                logger.warning("Capability %s not found, skipping", cap_id)
 
         if not tasks:
             return {"error": "No valid capabilities to execute"}
@@ -686,12 +691,12 @@ class CapabilityComposer:
             # Check loop condition
             if composed.loop_condition and isinstance(current_output, dict):
                 if current_output.get(composed.loop_condition) == True:
-                    logger.info('Loop condition met after %s iterations', iterations)
+                    logger.info("Loop condition met after %s iterations", iterations)
                     break
 
             # Check for "done" flag in output
             if isinstance(current_output, dict) and current_output.get("done"):
-                logger.info('Loop completed after %s iterations', iterations)
+                logger.info("Loop completed after %s iterations", iterations)
                 break
 
         return current_output
@@ -707,7 +712,7 @@ class CapabilityComposer:
             True if saved successfully
         """
         self._templates[template.id] = template
-        logger.info('Saved composition template: %s', template.id)
+        logger.info("Saved composition template: %s", template.id)
         return True
 
     def create_template(
@@ -811,7 +816,7 @@ class CapabilityComposer:
         """Delete a composed capability"""
         if composed_id in self._composed:
             del self._composed[composed_id]
-            logger.info('Deleted composed capability: %s', composed_id)
+            logger.info("Deleted composed capability: %s", composed_id)
             return True
         return False
 

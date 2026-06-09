@@ -102,7 +102,7 @@ class LinearConnector(BaseConnector):
                 return True
             return False
         except Exception as e:
-            logger.warning('Linear credential validation failed: %s', e)
+            logger.warning("Linear credential validation failed: %s", e)
             return False
 
     async def execute_action(
@@ -133,7 +133,7 @@ class LinearConnector(BaseConnector):
         try:
             return await handler(params)
         except Exception as e:
-            logger.error('Linear action %s failed: %s', action, e)
+            logger.error("Linear action %s failed: %s", action, e)
             return ConnectorResponse(
                 success=False,
                 error=str(e),

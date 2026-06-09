@@ -67,7 +67,11 @@ class AgentPersistence:
         self.session_ttl = 3600  # 1 hour default TTL
         self.config_ttl = 86400 * 7  # 7 days for saved configs
         self._in_memory_states = {}  # Fallback for when Redis is not available
-        logger.info('[DEBUG] AgentPersistence initialized with id=%s, redis_client=%s', id(self), redis_client is not None)
+        logger.info(
+            "[DEBUG] AgentPersistence initialized with id=%s, redis_client=%s",
+            id(self),
+            redis_client is not None,
+        )
 
     def save_state(self, state: AgentState, ttl: int | None = None) -> bool:
         """
@@ -84,24 +88,40 @@ class AgentPersistence:
             data = state_to_dict(state)
             session_id = state["session_id"]
 
-            logger.info('[DEBUG] save_state called for session %s, has_redis=%s, persistence_id=%s, dict_id=%s', session_id, self.redis_client is not None, id(self), id(self._in_memory_states))
+            logger.info(
+                "[DEBUG] save_state called for session %s, has_redis=%s, persistence_id=%s, dict_id=%s",
+                session_id,
+                self.redis_client is not None,
+                id(self),
+                id(self._in_memory_states),
+            )
 
             if self.redis_client:
                 # Use Redis if available
                 key = f"langgraph:state:{session_id}"
                 ttl = ttl or self.session_ttl
                 self.redis_client.setex(key, ttl, json.dumps(data))
-                logger.debug('Saved state for session %s', session_id)
+                logger.debug("Saved state for session %s", session_id)
             else:
                 # Use in-memory fallback
-                logger.info('[DEBUG] Saving to in-memory states dict, dict_id=%s, current keys: %s', id(self._in_memory_states), list(self._in_memory_states.keys()))
+                logger.info(
+                    "[DEBUG] Saving to in-memory states dict, dict_id=%s, current keys: %s",
+                    id(self._in_memory_states),
+                    list(self._in_memory_states.keys()),
+                )
                 self._in_memory_states[session_id] = data
-                logger.info('[DEBUG] After save - in-memory states dict_id=%s, has %s entries: %s, session_id in dict: %s', id(self._in_memory_states), len(self._in_memory_states), list(self._in_memory_states.keys()), session_id in self._in_memory_states)
-                logger.debug('Saved state in-memory for session %s', session_id)
+                logger.info(
+                    "[DEBUG] After save - in-memory states dict_id=%s, has %s entries: %s, session_id in dict: %s",
+                    id(self._in_memory_states),
+                    len(self._in_memory_states),
+                    list(self._in_memory_states.keys()),
+                    session_id in self._in_memory_states,
+                )
+                logger.debug("Saved state in-memory for session %s", session_id)
 
             return True
         except Exception as e:
-            logger.error('Failed to save state: %s', e)
+            logger.error("Failed to save state: %s", e)
             import traceback
 
             traceback.print_exc()
@@ -118,37 +138,56 @@ class AgentPersistence:
             Agent state if found, None otherwise
         """
         try:
-            logger.info('[DEBUG] load_state called for session %s, has_redis=%s, persistence_id=%s, dict_id=%s, available keys: %s', session_id, self.redis_client is not None, id(self), id(self._in_memory_states), list(self._in_memory_states.keys()))
+            logger.info(
+                "[DEBUG] load_state called for session %s, has_redis=%s, persistence_id=%s, dict_id=%s, available keys: %s",
+                session_id,
+                self.redis_client is not None,
+                id(self),
+                id(self._in_memory_states),
+                list(self._in_memory_states.keys()),
+            )
 
             if self.redis_client:
                 # Try Redis first
                 key = f"langgraph:state:{session_id}"
-                logger.info('[DEBUG] Redis key: %s', key)
+                logger.info("[DEBUG] Redis key: %s", key)
                 data = self.redis_client.get(key)
-                logger.info('[DEBUG] Redis get() returned: %s, type: %s', data is not None, type(data))
+                logger.info(
+                    "[DEBUG] Redis get() returned: %s, type: %s",
+                    data is not None,
+                    type(data),
+                )
 
                 if data:
                     state = dict_to_state(json.loads(data))
-                    logger.info('[DEBUG] Successfully loaded state from Redis for session %s', session_id)
+                    logger.info(
+                        "[DEBUG] Successfully loaded state from Redis for session %s",
+                        session_id,
+                    )
                     return state
                 else:
-                    logger.warning('[DEBUG] No data found in Redis for key: %s', key)
+                    logger.warning("[DEBUG] No data found in Redis for key: %s", key)
             else:
                 # Try in-memory fallback
-                logger.info('[DEBUG] Redis not available, checking in-memory states, session_id in dict: %s', session_id in self._in_memory_states)
+                logger.info(
+                    "[DEBUG] Redis not available, checking in-memory states, session_id in dict: %s",
+                    session_id in self._in_memory_states,
+                )
                 if session_id in self._in_memory_states:
                     state = dict_to_state(self._in_memory_states[session_id])
-                    logger.debug('Loaded state for session %s from memory', session_id)
+                    logger.debug("Loaded state for session %s from memory", session_id)
                     return state
                 else:
-                    logger.info('[DEBUG] Session %s not found in in-memory states', session_id)
+                    logger.info(
+                        "[DEBUG] Session %s not found in in-memory states", session_id
+                    )
         except Exception as e:
-            logger.error('Failed to load state: %s', e)
+            logger.error("Failed to load state: %s", e)
             import traceback
 
             traceback.print_exc()
 
-        logger.warning('[DEBUG] load_state returning None for session %s', session_id)
+        logger.warning("[DEBUG] load_state returning None for session %s", session_id)
         return None
 
     def delete_state(self, session_id: str) -> bool:
@@ -167,10 +206,10 @@ class AgentPersistence:
         try:
             key = f"langgraph:state:{session_id}"
             self.redis_client.delete(key)
-            logger.debug('Deleted state for session %s', session_id)
+            logger.debug("Deleted state for session %s", session_id)
             return True
         except Exception as e:
-            logger.error('Failed to delete state: %s', e)
+            logger.error("Failed to delete state: %s", e)
             return False
 
     def save_tool_execution(
@@ -204,10 +243,10 @@ class AgentPersistence:
             # Set TTL
             self.redis_client.expire(key, self.session_ttl * 24)  # 24 hours
 
-            logger.debug('Saved tool execution for session %s', session_id)
+            logger.debug("Saved tool execution for session %s", session_id)
             return True
         except Exception as e:
-            logger.error('Failed to save tool execution: %s', e)
+            logger.error("Failed to save tool execution: %s", e)
             return False
 
     def get_tool_history(
@@ -241,7 +280,7 @@ class AgentPersistence:
 
             return history
         except Exception as e:
-            logger.error('Failed to get tool history: %s', e)
+            logger.error("Failed to get tool history: %s", e)
             return []
 
     def save_tool_configuration(
@@ -296,10 +335,10 @@ class AgentPersistence:
             self.redis_client.sadd(user_key, config_id)
             self.redis_client.expire(user_key, self.config_ttl)
 
-            logger.info('Saved tool configuration %s for user %s', config_id, user_id)
+            logger.info("Saved tool configuration %s for user %s", config_id, user_id)
             return config_id
         except Exception as e:
-            logger.error('Failed to save tool configuration: %s', e)
+            logger.error("Failed to save tool configuration: %s", e)
             return None
 
     def get_tool_configuration(
@@ -333,7 +372,7 @@ class AgentPersistence:
 
                 return config
         except Exception as e:
-            logger.error('Failed to get tool configuration: %s', e)
+            logger.error("Failed to get tool configuration: %s", e)
 
         return None
 
@@ -367,7 +406,7 @@ class AgentPersistence:
 
             return configs
         except Exception as e:
-            logger.error('Failed to list user configurations: %s', e)
+            logger.error("Failed to list user configurations: %s", e)
             return []
 
     def delete_tool_configuration(
@@ -399,10 +438,10 @@ class AgentPersistence:
                 user_key = f"langgraph:user_configs:{user_id}"
                 self.redis_client.srem(user_key, config_id)
 
-                logger.info('Deleted tool configuration %s', config_id)
+                logger.info("Deleted tool configuration %s", config_id)
                 return True
         except Exception as e:
-            logger.error('Failed to delete tool configuration: %s', e)
+            logger.error("Failed to delete tool configuration: %s", e)
 
         return False
 
@@ -444,10 +483,10 @@ class AgentPersistence:
             key = f"langgraph:config:{config_id}"
             self.redis_client.setex(key, self.config_ttl, json.dumps(config))
 
-            logger.info('Updated tool configuration %s', config_id)
+            logger.info("Updated tool configuration %s", config_id)
             return True
         except Exception as e:
-            logger.error('Failed to update tool configuration: %s', e)
+            logger.error("Failed to update tool configuration: %s", e)
 
         return False
 
@@ -483,7 +522,7 @@ class AgentPersistence:
 
             return recent_tools
         except Exception as e:
-            logger.error('Failed to get recent tools: %s', e)
+            logger.error("Failed to get recent tools: %s", e)
             return []
 
     def record_tool_usage(
@@ -529,7 +568,7 @@ class AgentPersistence:
 
             return True
         except Exception as e:
-            logger.error('Failed to record tool usage: %s', e)
+            logger.error("Failed to record tool usage: %s", e)
             return False
 
 
@@ -553,10 +592,22 @@ def get_persistence(redis_client=None) -> AgentPersistence:
         # Store the Redis client for future reference
         _redis_client_instance = redis_client
         _persistence = AgentPersistence(redis_client)
-        logger.info('[DEBUG] Created new persistence instance: id=%s, redis_client=%s', id(_persistence), redis_client is not None)
+        logger.info(
+            "[DEBUG] Created new persistence instance: id=%s, redis_client=%s",
+            id(_persistence),
+            redis_client is not None,
+        )
     else:
         # If called again with a different redis_client, log it but keep using the original
         if redis_client != _redis_client_instance:
-            logger.warning('[DEBUG] get_persistence called again with different redis_client. Original: %s, New: %s. Using original instance.', _redis_client_instance is not None, redis_client is not None)
-        logger.info('[DEBUG] Reusing existing persistence instance: id=%s, redis_client=%s', id(_persistence), _persistence.redis_client is not None)
+            logger.warning(
+                "[DEBUG] get_persistence called again with different redis_client. Original: %s, New: %s. Using original instance.",
+                _redis_client_instance is not None,
+                redis_client is not None,
+            )
+        logger.info(
+            "[DEBUG] Reusing existing persistence instance: id=%s, redis_client=%s",
+            id(_persistence),
+            _persistence.redis_client is not None,
+        )
     return _persistence

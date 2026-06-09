@@ -100,7 +100,7 @@ async def verify_setup_2fa(
 
     await db.flush()
 
-    logger.info('2FA enabled for user %s', user.id)
+    logger.info("2FA enabled for user %s", user.id)
 
     return TOTPVerifySetupResponse(backup_codes=plain_codes)
 
@@ -149,7 +149,7 @@ async def disable_2fa(
 
     await db.flush()
 
-    logger.info('2FA disabled for user %s', user.id)
+    logger.info("2FA disabled for user %s", user.id)
 
     return {"message": "2FA disabled successfully."}
 
