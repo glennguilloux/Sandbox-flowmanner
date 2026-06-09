@@ -145,8 +145,7 @@ class XTwitterSchedulerTool(BaseTool):
         for i, tweet in enumerate(tweets):
             if len(tweet) > MAX_TWEET_LENGTH:
                 return {
-                    "error": f"Tweet {i+1} exceeds {MAX_TWEET_LENGTH} characters "
-                    f"({len(tweet)} chars)"
+                    "error": f"Tweet {i + 1} exceeds {MAX_TWEET_LENGTH} characters ({len(tweet)} chars)"
                 }
 
         preview = {
@@ -258,7 +257,7 @@ class XTwitterSchedulerTool(BaseTool):
                 posted.append({"index": i, "tweet_id": tweet["id"], "text": text})
                 in_reply_to = tweet["id"]
             except Exception as e:
-                logger.error(f"Failed to post tweet {i}: {e}")
+                logger.error('Failed to post tweet %s: %s', i, e)
                 return {
                     "status": "partial",
                     "error": f"Failed at tweet {i}: {e}",

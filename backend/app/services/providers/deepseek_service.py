@@ -112,7 +112,7 @@ class DeepSeekService:
 
         # Validate model
         if model not in self.supported_models:
-            logger.warning(f"Model {model} not in supported list, proceeding anyway")
+            logger.warning('Model %s not in supported list, proceeding anyway', model)
 
         # Prepare request payload
         payload = {
@@ -164,7 +164,7 @@ class DeepSeekService:
 
             except httpx.HTTPStatusError as e:
                 last_error = e
-                logger.warning(f"DeepSeek request failed (attempt {attempt + 1}): {e}")
+                logger.warning('DeepSeek request failed (attempt %s): %s', attempt + 1, e)
 
                 if e.response.status_code == 429:
                     # Rate limited - wait longer
@@ -178,7 +178,7 @@ class DeepSeekService:
 
             except Exception as e:
                 last_error = e
-                logger.error(f"DeepSeek request error: {e}")
+                logger.error('DeepSeek request error: %s', e)
                 await asyncio.sleep(self.retry_delay * (attempt + 1))
 
         # All retries failed
@@ -289,12 +289,10 @@ class DeepSeekService:
                                 "is_reasoning": is_reasoning,
                             }
                         except json.JSONDecodeError:
-                            logger.warning(
-                                f"Failed to parse streaming response: {data}"
-                            )
+                            logger.warning('Failed to parse streaming response: %s', data)
 
         except Exception as e:
-            logger.error(f"Streaming error: {e}")
+            logger.error('Streaming error: %s', e)
             yield {
                 "success": False,
                 "error": str(e),

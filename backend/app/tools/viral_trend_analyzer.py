@@ -138,7 +138,7 @@ class ViralTrendAnalyzerTool(BaseTool):
                     platform, validated.topic, validated.region
                 )
             except Exception as e:
-                logger.warning(f"Failed to fetch {platform} trends: {e}")
+                logger.warning('Failed to fetch %s trends: %s', platform, e)
                 platform_data[platform] = {"error": str(e), "trends": []}
 
         # Analyze via LLM
@@ -148,8 +148,7 @@ class ViralTrendAnalyzerTool(BaseTool):
                 "platform_data": platform_data,
                 "analysis": {
                     "summary": (
-                        "LLM analysis unavailable: OPENAI_API_KEY not configured. "
-                        "Raw platform data provided below."
+                        "LLM analysis unavailable: OPENAI_API_KEY not configured. Raw platform data provided below."
                     ),
                     "top_trends": [],
                     "sentiment_summary": "N/A",

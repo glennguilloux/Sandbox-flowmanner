@@ -96,10 +96,7 @@ class ProviderFallbackMiddleware:
                     elapsed = time.time() - start_time
 
                     # Log successful call
-                    logger.info(
-                        f"LLM call successful: model={current_model}, "
-                        f"attempt={attempt+1}, elapsed={elapsed:.2f}s"
-                    )
+                    logger.info('LLM call successful: model=%s, attempt=%s, elapsed=%.2fs', current_model, attempt + 1, elapsed)
 
                     # Track cost if agent_id provided
                     if agent_id:
@@ -127,15 +124,12 @@ class ProviderFallbackMiddleware:
 
                     if is_rate_limit and attempt < self.max_retries - 1:
                         delay = self._calculate_delay(attempt)
-                        logger.warning(
-                            f"Rate limit hit for {current_model}, "
-                            f"retrying in {delay}s (attempt {attempt+1}/{self.max_retries})"
-                        )
+                        logger.warning('Rate limit hit for %s, retrying in %ss (attempt %s/%s)', current_model, delay, attempt + 1, self.max_retries)
                         await asyncio.sleep(delay)
                         continue
 
                     # Non-rate-limit error or max retries reached
-                    logger.error(f"LLM call failed for {current_model}: {e}")
+                    logger.error('LLM call failed for %s: %s', current_model, e)
                     break
 
         # All models failed
@@ -182,7 +176,7 @@ class ProviderFallbackMiddleware:
                 db.close()
 
         except Exception as e:
-            logger.warning(f"Failed to track cost: {e}")
+            logger.warning('Failed to track cost: %s', e)
 
     def _calculate_cost(
         self, model: str, prompt_tokens: int, completion_tokens: int

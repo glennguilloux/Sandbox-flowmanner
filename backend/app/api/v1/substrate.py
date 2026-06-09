@@ -7,14 +7,13 @@ Provides:
 """
 
 from __future__ import annotations
-import uuid
 
+import logging
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select as sa_select
-
-import logging
 
 from app.api.deps import get_current_user
 from app.database import get_db
@@ -25,7 +24,6 @@ from app.services.substrate.event_log import get_event_log
 from app.services.substrate.replay_engine import get_replay_engine
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

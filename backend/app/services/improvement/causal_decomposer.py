@@ -776,10 +776,7 @@ class CausalDecomposer:
                 if len(selected_strategies) >= self.max_strategies_per_failure:
                     break
 
-        logger.info(
-            f"Selected {len(selected_strategies)} strategies from {len(failures)} failures "
-            f"across {len(failure_counts)} failure types"
-        )
+        logger.info('Selected %s strategies from %s failures across %s failure types', len(selected_strategies), len(failures), len(failure_counts))
 
         return selected_strategies
 

@@ -186,20 +186,17 @@ class CapabilityEngine:
         """
         if token is None:
             raise PermissionError(
-                f"No capability token provided. "
-                f"Action '{required.value}' requires a valid token."
+                f"No capability token provided. Action '{required.value}' requires a valid token."
             )
 
         if not token.can(required):
             if token.revoked:
                 raise PermissionError(
-                    f"Token {token.id} has been revoked. "
-                    f"Action '{required.value}' denied."
+                    f"Token {token.id} has been revoked. Action '{required.value}' denied."
                 )
             if token.expires_at and datetime.now(UTC) > token.expires_at:
                 raise PermissionError(
-                    f"Token {token.id} expired at {token.expires_at}. "
-                    f"Action '{required.value}' denied."
+                    f"Token {token.id} expired at {token.expires_at}. Action '{required.value}' denied."
                 )
             raise PermissionError(
                 f"Token {token.id} does not authorize '{required.value}'. "

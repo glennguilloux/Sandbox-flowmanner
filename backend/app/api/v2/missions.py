@@ -4,8 +4,8 @@ Cross-cutting concerns: idempotency, per-user rate limiting, auditing.
 """
 
 from __future__ import annotations
-import uuid
 
+import uuid
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -33,7 +33,6 @@ from app.schemas.mission import (
 )
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.api._mission_cqrs.commands import MissionCommandHandlers

@@ -46,7 +46,6 @@ class PaginatedRuns:
 
 
 class BlueprintQueryHandlers(QueryHandlerBase):
-
     async def list_blueprints(
         self,
         user_id: int,
@@ -86,7 +85,6 @@ class BlueprintQueryHandlers(QueryHandlerBase):
 
 
 class RunQueryHandlers(QueryHandlerBase):
-
     async def list_runs(
         self,
         user_id: int,

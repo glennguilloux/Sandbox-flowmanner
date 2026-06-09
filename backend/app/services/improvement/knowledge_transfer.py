@@ -274,7 +274,7 @@ class KnowledgeTransferAgent:
 
         self._agent_profiles[agent_id] = profile
 
-        logger.debug(f"Registered agent profile for {agent_id}")
+        logger.debug('Registered agent profile for %s', agent_id)
         return profile
 
     def get_agent_profile(self, agent_id: str) -> AgentProfile | None:
@@ -648,9 +648,7 @@ class KnowledgeTransferAgent:
         )
 
         if similarity == AgentSimilarity.INCOMPATIBLE:
-            logger.warning(
-                f"Agents {source_agent_id} and {target_agent_id} are incompatible"
-            )
+            logger.warning('Agents %s and %s are incompatible', source_agent_id, target_agent_id)
             return results
 
         # Identify transferable knowledge
@@ -666,10 +664,7 @@ class KnowledgeTransferAgent:
             actual_idx = similarity_levels.index(similarity)
 
             if actual_idx > min_idx:
-                logger.debug(
-                    f"Skipping {knowledge.knowledge_id}: similarity {similarity.value} "
-                    f"below minimum {knowledge.min_similarity.value}"
-                )
+                logger.debug('Skipping %s: similarity %s below minimum %s', knowledge.knowledge_id, similarity.value, knowledge.min_similarity.value)
                 continue
 
             # Create transfer result
@@ -818,7 +813,7 @@ class KnowledgeTransferAgent:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to apply knowledge: {e}")
+            logger.error('Failed to apply knowledge: %s', e)
             result.error_message = str(e)
             return False
 

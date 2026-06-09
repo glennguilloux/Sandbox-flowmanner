@@ -118,8 +118,7 @@ def _validate_date_range(start_str: str, end_str: str) -> tuple[str, str, str | 
             start_str,
             end_str,
             (
-                f"Date range ({delta} days) exceeds maximum allowed "
-                f"({GA_MAX_DATE_RANGE_DAYS} days)"
+                f"Date range ({delta} days) exceeds maximum allowed ({GA_MAX_DATE_RANGE_DAYS} days)"
             ),
         )
 
@@ -273,8 +272,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
         if validated.action not in GA_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(GA_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(GA_ACTIONS)}",
             )
 
         # Resolve property_id
@@ -335,8 +333,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
             pass
         else:
             raise ValueError(
-                "No Google Analytics credentials configured. "
-                "Set GA_SERVICE_ACCOUNT_JSON or GA_API_KEY."
+                "No Google Analytics credentials configured. Set GA_SERVICE_ACCOUNT_JSON or GA_API_KEY."
             )
 
         return headers

@@ -198,7 +198,7 @@ async def update_changelog_entry(
         text(
             f"""
             UPDATE changelog_entries
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE id = :id
             RETURNING id, version, title, content, entry_type, published, published_at, created_at
         """

@@ -20,7 +20,7 @@ try:
         get_failure_telemetry,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import failure_types: {e}")
+    logger.warning('Failed to import failure_types: %s', e)
     FailureType = None
     FailureSeverity = None
     FailureContext = None
@@ -40,7 +40,7 @@ try:
         get_causal_decomposer,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import causal_decomposer: {e}")
+    logger.warning('Failed to import causal_decomposer: %s', e)
     KnobType = None
     StrategyType = None
     RiskLevel = None
@@ -57,7 +57,7 @@ try:
         get_knob_manager,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import knob_manager: {e}")
+    logger.warning('Failed to import knob_manager: %s', e)
     ImprovementKnob = None
     KnobAdjustment = None
     KnobManager = None
@@ -71,7 +71,7 @@ try:
         ImprovementSession,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import improvement_models: {e}")
+    logger.warning('Failed to import improvement_models: %s', e)
     AppliedImprovement = None
     FailureContextModel = None
     ImprovementSession = None
@@ -90,7 +90,7 @@ try:
         get_hypothesis_tester,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import hypothesis_tester: {e}")
+    logger.warning('Failed to import hypothesis_tester: %s', e)
     HypothesisState = None
     TestType = None
     RollbackTrigger = None
@@ -111,7 +111,7 @@ try:
         initialize_improvement_loop,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import improvement_loop_v2: {e}")
+    logger.warning('Failed to import improvement_loop_v2: %s', e)
     SessionState = None
     ImprovementSessionData = None
     ImprovementKnowledge = None
@@ -128,7 +128,7 @@ try:
         get_metrics_collector,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import metrics_collector: {e}")
+    logger.warning('Failed to import metrics_collector: %s', e)
     MetricType = None
     MetricPoint = None
     MetricsCollector = None
@@ -140,7 +140,7 @@ try:
         get_failure_repository,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import failure_repository: {e}")
+    logger.warning('Failed to import failure_repository: %s', e)
     FailureRepository = None
     get_failure_repository = None
 
@@ -152,7 +152,7 @@ try:
         get_alerting_system,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import alerting: {e}")
+    logger.warning('Failed to import alerting: %s', e)
     AlertSeverity = None
     Alert = None
     AlertingSystem = None
@@ -166,7 +166,7 @@ try:
         get_success_learner,
     )
 except ImportError as e:
-    logger.warning(f"Failed to import success_learner: {e}")
+    logger.warning('Failed to import success_learner: %s', e)
     SuccessPattern = None
     SuccessLearner = None
     get_success_learner = None

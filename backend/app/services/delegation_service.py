@@ -50,9 +50,7 @@ async def create_delegation(
     await db.flush()
     await db.refresh(delegation)
 
-    logger.info(
-        f"Delegation created: {delegator_id} -> {delegatee_id}, role={role.name}, workspace={workspace_id}"
-    )
+    logger.info('Delegation created: %s -> %s, role=%s, workspace=%s', delegator_id, delegatee_id, role.name, workspace_id)
     return delegation
 
 
@@ -119,7 +117,7 @@ async def revoke_delegation(
         delegation.audit_notes = audit_notes
 
     await db.flush()
-    logger.info(f"Delegation {delegation_id} revoked by user {revoked_by}")
+    logger.info('Delegation %s revoked by user %s', delegation_id, revoked_by)
     return True
 
 
@@ -169,6 +167,6 @@ async def expire_stale_delegations(db: AsyncSession) -> int:
 
     if count:
         await db.flush()
-        logger.info(f"Expired {count} stale delegations")
+        logger.info('Expired %s stale delegations', count)
 
     return count

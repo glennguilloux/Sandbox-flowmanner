@@ -328,8 +328,7 @@ class GlobalNewsAggregatorTool(BaseTool):
 
         if validated.sort_by not in ("relevancy", "popularity", "publishedAt"):
             return {
-                "error": f"Invalid sort_by: '{validated.sort_by}'. "
-                "Use: 'relevancy', 'popularity', or 'publishedAt'",
+                "error": f"Invalid sort_by: '{validated.sort_by}'. Use: 'relevancy', 'popularity', or 'publishedAt'",
             }
 
         dates = self._get_date_range(validated)

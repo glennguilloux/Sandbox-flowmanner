@@ -78,7 +78,7 @@ class EnhancedWebSearchService:
                 self.providers["duckduckgo"] = create_provider(ddg_config)
                 logger.info("Initialized provider: duckduckgo")
             except Exception as e:
-                logger.warning(f"Failed to init duckduckgo: {e}")
+                logger.warning('Failed to init duckduckgo: %s', e)
 
         # SearXNG (self-hosted)
         if self.config.searxng_enabled and self.config.searxng_url:
@@ -92,7 +92,7 @@ class EnhancedWebSearchService:
                 self.providers["searxng"] = create_provider(searxng_config)
                 logger.info("Initialized provider: searxng")
             except Exception as e:
-                logger.warning(f"Failed to init searxng: {e}")
+                logger.warning('Failed to init searxng: %s', e)
 
     async def search(
         self,
@@ -113,12 +113,9 @@ class EnhancedWebSearchService:
                 query_understanding = await self.query_understanding.understand_query(
                     query
                 )
-                logger.info(
-                    f"Query intent: {query_understanding.intent.value}, "
-                    f"complexity: {query_understanding.complexity_score:.2f}"
-                )
+                logger.info('Query intent: %s, complexity: %.2f', query_understanding.intent.value, query_understanding.complexity_score)
             except Exception as e:
-                logger.warning(f"Query understanding failed: {e}")
+                logger.warning('Query understanding failed: %s', e)
 
         # Step 2: Check Cache
         from .models import SearchType
@@ -134,7 +131,7 @@ class EnhancedWebSearchService:
         if use_cache:
             cached = await self.cache.get(query, search_type)
             if cached:
-                logger.info(f"Cache hit for query: {query}")
+                logger.info('Cache hit for query: %s', query)
                 return self._format_response(
                     query=query,
                     results=cached,
@@ -163,9 +160,9 @@ class EnhancedWebSearchService:
                     results = []
                 all_results.extend(results)
                 providers_used.append(provider_name)
-                logger.info(f"Provider {provider_name} returned {len(results)} results")
+                logger.info('Provider %s returned %s results', provider_name, len(results))
             except Exception as e:
-                logger.error(f"Provider {provider_name} error: {e}")
+                logger.error('Provider %s error: %s', provider_name, e)
 
         # Step 4: Deduplicate and Merge
         deduped_results = self._deduplicate_results(all_results)
@@ -207,7 +204,7 @@ class EnhancedWebSearchService:
                     for i, r in enumerate(reranked[:max_results])
                 ]
             except Exception as e:
-                logger.warning(f"Reranking failed: {e}")
+                logger.warning('Reranking failed: %s', e)
 
         # Step 6: Cache Results
         if use_cache and deduped_results:

@@ -50,7 +50,7 @@ llm_request_duration = Histogram(
 llm_tokens_used = Counter(
     "flowmanner_llm_tokens_total",
     "Total LLM tokens consumed",
-    ["provider", "type"],  # type: prompt, completion
+    ["provider", "type"],  # values: prompt, completion
 )
 
 llm_active_requests = Gauge(

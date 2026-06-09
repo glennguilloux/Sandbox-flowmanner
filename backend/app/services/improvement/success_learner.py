@@ -221,7 +221,7 @@ class SuccessLearner:
             existing_pattern.calculate_confidence()
             existing_pattern.update_strength()
 
-            logger.debug(f"Updated existing pattern {existing_pattern.pattern_id}")
+            logger.debug('Updated existing pattern %s', existing_pattern.pattern_id)
             return existing_pattern
 
         # Create new pattern
@@ -247,10 +247,7 @@ class SuccessLearner:
         if self.knowledge_graph:
             await self._store_pattern_in_graph(pattern)
 
-        logger.info(
-            f"Extracted new success pattern {pattern.pattern_id} "
-            f"(type={pattern.pattern_type.value}, confidence={pattern.confidence:.2f})"
-        )
+        logger.info('Extracted new success pattern %s (type=%s, confidence=%.2f)', pattern.pattern_id, pattern.pattern_type.value, pattern.confidence)
 
         return pattern
 
@@ -690,7 +687,7 @@ class SuccessLearner:
                 properties=pattern.to_dict(),
             )
         except Exception as e:
-            logger.warning(f"Failed to store pattern in knowledge graph: {e}")
+            logger.warning('Failed to store pattern in knowledge graph: %s', e)
 
 
 # ============================================================================

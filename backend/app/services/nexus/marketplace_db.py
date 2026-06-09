@@ -345,7 +345,7 @@ class MarketplaceService:
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error initializing categories: {e}")
+            logger.error('Error initializing categories: %s', e)
         finally:
             if not self._db:
                 db.close()
@@ -400,12 +400,12 @@ class MarketplaceService:
             # Update category count
             self._update_category_count(listing.category, 1, db)
 
-            logger.info(f"Listed tool in marketplace: {listing_id} ({tool_id})")
+            logger.info('Listed tool in marketplace: %s (%s)', listing_id, tool_id)
             return _model_to_listing(listing)
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error listing tool: {e}")
+            logger.error('Error listing tool: %s', e)
             raise
         finally:
             if not self._db:
@@ -459,14 +459,12 @@ class MarketplaceService:
 
             self._update_category_count(listing.category, 1, db)
 
-            logger.info(
-                f"Listed capability in marketplace: {listing_id} ({capability_id})"
-            )
+            logger.info('Listed capability in marketplace: %s (%s)', listing_id, capability_id)
             return _model_to_listing(listing)
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error listing capability: {e}")
+            logger.error('Error listing capability: %s', e)
             raise
         finally:
             if not self._db:
@@ -526,7 +524,7 @@ class MarketplaceService:
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error searching marketplace: {e}")
+            logger.error('Error searching marketplace: %s', e)
             return []
         finally:
             if not self._db:
@@ -693,7 +691,7 @@ class MarketplaceService:
                         )
                         registry.register(cap)
 
-                logger.info(f"Installed {listing_id} for user {user_id}")
+                logger.info('Installed %s for user %s', listing_id, user_id)
 
                 return {
                     "success": True,
@@ -704,12 +702,12 @@ class MarketplaceService:
                 }
 
             except Exception as e:
-                logger.error(f"Installation registration failed: {e}")
+                logger.error('Installation registration failed: %s', e)
                 return {"success": False, "error": str(e)}
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Installation failed: {e}")
+            logger.error('Installation failed: %s', e)
             return {"success": False, "error": str(e)}
         finally:
             if not self._db:
@@ -799,12 +797,12 @@ class MarketplaceService:
 
             self._update_listing_rating(listing_id, db)
 
-            logger.info(f"Added review {review_id} for listing {listing_id}")
+            logger.info('Added review %s for listing %s', review_id, listing_id)
             return _model_to_review(new_review)
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error adding review: {e}")
+            logger.error('Error adding review: %s', e)
             raise
         finally:
             if not self._db:
@@ -1002,12 +1000,12 @@ class MarketplaceService:
             db.commit()
             db.refresh(listing)
 
-            logger.info(f"Updated listing {listing_id}")
+            logger.info('Updated listing %s', listing_id)
             return _model_to_listing(listing)
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error updating listing: {e}")
+            logger.error('Error updating listing: %s', e)
             return None
         finally:
             if not self._db:
@@ -1032,13 +1030,13 @@ class MarketplaceService:
 
                 self._update_category_count(category, -1, db)
 
-                logger.info(f"Deleted listing {listing_id}")
+                logger.info('Deleted listing %s', listing_id)
                 return True
             return False
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error deleting listing: {e}")
+            logger.error('Error deleting listing: %s', e)
             return False
         finally:
             if not self._db:

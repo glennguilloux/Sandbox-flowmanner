@@ -97,8 +97,8 @@ class UsageRecord(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False, index=True
     )
-    workspace_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("workspaces.id"), nullable=True, index=True
+    workspace_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workspaces.id"), nullable=True, index=True
     )
     thread_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("chat_threads.id"), nullable=True, index=True

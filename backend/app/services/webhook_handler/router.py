@@ -72,7 +72,7 @@ class WebhookRouter:
         self._handlers[source].append(handler_info)
         self._handlers[source].sort(key=lambda h: h.priority)
 
-        logger.info(f"Registered webhook handler '{name}' for source '{source}'")
+        logger.info("Registered webhook handler '%s' for source '%s'", name, source)
 
     def register_default(self, name: str, handler: Callable, source: str) -> None:
         """Register a default handler for a source"""
@@ -80,9 +80,7 @@ class WebhookRouter:
             name=name, handler=handler, source=source, priority=HandlerPriority.LOWEST
         )
         self._default_handlers[source] = handler_info
-        logger.info(
-            f"Registered default webhook handler '{name}' for source '{source}'"
-        )
+        logger.info("Registered default webhook handler '%s' for source '%s'", name, source)
 
     def register_global(
         self, name: str, handler: Callable, priority: int = HandlerPriority.LOWEST
@@ -93,7 +91,7 @@ class WebhookRouter:
         )
         self._global_handlers.append(handler_info)
         self._global_handlers.sort(key=lambda h: h.priority)
-        logger.info(f"Registered global webhook handler '{name}'")
+        logger.info("Registered global webhook handler '%s'", name)
 
     def unregister(self, name: str) -> bool:
         """Unregister a handler by name"""
@@ -101,18 +99,18 @@ class WebhookRouter:
             for i, handler in enumerate(handlers):
                 if handler.name == name:
                     handlers.pop(i)
-                    logger.info(f"Unregistered webhook handler '{name}'")
+                    logger.info("Unregistered webhook handler '%s'", name)
                     return True
 
         if name in self._default_handlers:
             del self._default_handlers[name]
-            logger.info(f"Unregistered default webhook handler '{name}'")
+            logger.info("Unregistered default webhook handler '%s'", name)
             return True
 
         for i, handler in enumerate(self._global_handlers):
             if handler.name == name:
                 self._global_handlers.pop(i)
-                logger.info(f"Unregistered global webhook handler '{name}'")
+                logger.info("Unregistered global webhook handler '%s'", name)
                 return True
 
         return False
@@ -159,9 +157,7 @@ class WebhookRouter:
         handlers = self.get_handlers(source, event_type)
 
         if not handlers:
-            logger.warning(
-                f"No handlers found for source '{source}', event '{event_type}'"
-            )
+            logger.warning("No handlers found for source '%s', event '%s'", source, event_type)
             return {
                 "success": False,
                 "error": "No handlers registered",
@@ -174,9 +170,7 @@ class WebhookRouter:
 
         for handler_info in handlers:
             try:
-                logger.debug(
-                    f"Executing handler '{handler_info.name}' for {source}/{event_type}"
-                )
+                logger.debug("Executing handler '%s' for %s/%s", handler_info.name, source, event_type)
 
                 result = await self._execute_handler(
                     handler_info.handler, source, event_type, payload, headers
@@ -186,7 +180,7 @@ class WebhookRouter:
                     {"handler": handler_info.name, "success": True, "result": result}
                 )
             except Exception as e:
-                logger.error(f"Handler '{handler_info.name}' failed: {e}")
+                logger.error("Handler '%s' failed: %s", handler_info.name, e)
                 errors.append({"handler": handler_info.name, "error": str(e)})
 
         return {
@@ -222,15 +216,13 @@ class WebhookRouter:
             handler = getattr(module, function_name)
             if callable(handler):
                 return handler
-            logger.error(f"'{function_name}' in '{module_path}' is not callable")
+            logger.error("'%s' in '%s' is not callable", function_name, module_path)
             return None
         except ImportError as e:
-            logger.error(f"Failed to import handler module '{module_path}': {e}")
+            logger.error("Failed to import handler module '%s': %s", module_path, e)
             return None
         except AttributeError as e:
-            logger.error(
-                f"Handler function '{function_name}' not found in '{module_path}': {e}"
-            )
+            logger.error("Handler function '%s' not found in '%s': %s", function_name, module_path, e)
             return None
 
     def list_handlers(self) -> dict[str, list[dict[str, Any]]]:

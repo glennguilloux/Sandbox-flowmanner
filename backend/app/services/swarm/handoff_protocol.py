@@ -98,9 +98,7 @@ class HandoffProtocol:
         self.db.add(message)
 
         await self.db.flush()
-        logger.info(
-            f"Handoff created: {from_agent_name} → {to_agent_name}: {task_description[:80]}"
-        )
+        logger.info('Handoff created: %s → %s: %s', from_agent_name, to_agent_name, task_description[:80])
         return handoff
 
     async def accept(self, handoff_id: str) -> HandoffRecord | None:
@@ -164,7 +162,7 @@ class HandoffProtocol:
         )
         self.db.add(msg)
         await self.db.flush()
-        logger.info(f"Handoff {handoff_id} completed by {handoff.to_agent_name}")
+        logger.info('Handoff %s completed by %s', handoff_id, handoff.to_agent_name)
         return handoff
 
     async def reject(

@@ -87,9 +87,7 @@ class MetaLoopOrchestrator:
 
         H2.2: Resets error-class budgets when a new mission starts.
         """
-        logger.info(
-            f"MetaLoop: Starting plan_execute_observe for goal: {goal[:100]}..."
-        )
+        logger.info('MetaLoop: Starting plan_execute_observe for goal: %s...', goal[:100])
 
         # H2.2: Reset budgets for new mission
         if mission_id:
@@ -122,9 +120,7 @@ class MetaLoopOrchestrator:
         effective_max = self._get_effective_max_depth(max_depth)
 
         if current_depth >= effective_max:
-            logger.warning(
-                f"MetaLoop: Max depth ({effective_max}) reached for goal: {goal[:80]}..."
-            )
+            logger.warning('MetaLoop: Max depth (%s) reached for goal: %s...', effective_max, goal[:80])
             return MetaLoopResult(
                 success=False,
                 error=f"Max recursion depth ({max_depth}) reached",
@@ -161,7 +157,7 @@ class MetaLoopOrchestrator:
                 )
 
             execution_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
-            logger.info(f"MetaLoop: Success at depth {current_depth}")
+            logger.info('MetaLoop: Success at depth %s', current_depth)
 
             return MetaLoopResult(
                 success=True,
@@ -207,7 +203,7 @@ class MetaLoopOrchestrator:
 
         H2.2: Passes wall-clock and cost estimates to the analyzer for budget tracking.
         """
-        logger.warning(f"MetaLoop: Failure at depth {current_depth}: {error}")
+        logger.warning('MetaLoop: Failure at depth %s: %s', current_depth, error)
 
         analysis_context = {
             "goal": goal,
@@ -230,17 +226,12 @@ class MetaLoopOrchestrator:
             cost_usd=cost_usd,
         )
 
-        logger.info(
-            f"MetaLoop: Analysis - class={analysis.error_class.value}, "
-            f"recoverable={analysis.is_recoverable}, retry={analysis.retry_recommended}"
-        )
+        logger.info('MetaLoop: Analysis - class=%s, recoverable=%s, retry=%s', analysis.error_class.value, analysis.is_recoverable, analysis.retry_recommended)
 
         merged_context = {**context_updates, **analysis.context_updates}
 
         if analysis.is_recoverable and analysis.retry_recommended:
-            logger.info(
-                f"MetaLoop: Retrying with context updates at depth {current_depth + 1}"
-            )
+            logger.info('MetaLoop: Retrying with context updates at depth %s', current_depth + 1)
             return await self._run_recursive_cycle(
                 goal=goal,
                 ctx=ctx,
@@ -251,9 +242,7 @@ class MetaLoopOrchestrator:
             )
 
         if analysis.is_recoverable and analysis.alternative_tools:
-            logger.info(
-                f"MetaLoop: Trying alternative tools: {analysis.alternative_tools}"
-            )
+            logger.info('MetaLoop: Trying alternative tools: %s', analysis.alternative_tools)
             alt_goal = f"{goal} (using alternative approach: {', '.join(analysis.alternative_tools)})"
             return await self._run_recursive_cycle(
                 goal=alt_goal,
@@ -264,7 +253,7 @@ class MetaLoopOrchestrator:
                 context_updates=merged_context,
             )
 
-        logger.warning(f"MetaLoop: Failure not recoverable: {analysis.root_cause}")
+        logger.warning('MetaLoop: Failure not recoverable: %s', analysis.root_cause)
         execution_time = (
             (datetime.now(UTC) - execution_log[0].timestamp).total_seconds() * 1000
             if execution_log

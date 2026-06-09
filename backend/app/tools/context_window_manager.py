@@ -153,8 +153,7 @@ class ContextWindowManagerTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        f"Unknown action: {action}. "
-                        "Use 'store', 'retrieve', 'summarize', 'prune', or 'delete'."
+                        f"Unknown action: {action}. Use 'store', 'retrieve', 'summarize', 'prune', or 'delete'."
                     ),
                 )
         except Exception as e:
@@ -292,8 +291,7 @@ class ContextWindowManagerTool(BaseTool):
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
                         error=(
-                            f"No context found for key='{key}' "
-                            f"in namespace='{namespace}'"
+                            f"No context found for key='{key}' in namespace='{namespace}'"
                         ),
                     )
 

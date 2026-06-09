@@ -67,7 +67,7 @@ class LLMJudge:
             raw = await self._call_llm(user_content)
             return self._parse_response(raw, rubric)
         except Exception as e:
-            logger.error(f"LLM judge scoring failed: {e}")
+            logger.error('LLM judge scoring failed: %s', e)
             return {
                 "scores": {},
                 "overall_score": 0.0,
@@ -127,7 +127,7 @@ class LLMJudge:
         try:
             parsed = json.loads(cleaned)
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse judge response as JSON: {raw[:200]}")
+            logger.warning('Failed to parse judge response as JSON: %s', raw[:200])
             return {
                 "scores": {},
                 "overall_score": 0.0,

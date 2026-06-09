@@ -178,8 +178,7 @@ class MetaTagGeneratorInput(ToolInput):
     )
     url: str = Field(
         ...,
-        description="URL of the page to analyze and generate meta tags for. "
-        "The page will be fetched automatically.",
+        description="URL of the page to analyze and generate meta tags for. The page will be fetched automatically.",
     )
     target_keywords: list[str] = Field(
         ...,
@@ -269,8 +268,7 @@ class MetaTagGeneratorTool(BaseTool):
         if validated.action not in META_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(META_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(META_ACTIONS)}",
             )
 
         # Resolve content source: page_content > url fetch
@@ -311,8 +309,7 @@ class MetaTagGeneratorTool(BaseTool):
 
         headers = {
             "User-Agent": (
-                "Mozilla/5.0 (compatible; FlowmannerBot/1.0; "
-                "+https://flowmanner.com/bot)"
+                "Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"
             ),
             "Accept": "text/html,application/xhtml+xml",
         }
@@ -454,13 +451,11 @@ class MetaTagGeneratorTool(BaseTool):
             title_len = len(meta["title"])
             if title_len < 30:
                 issues.append(
-                    f"Title is too short ({title_len} chars). "
-                    f"Aim for 50-{validated.max_title_length} chars."
+                    f"Title is too short ({title_len} chars). Aim for 50-{validated.max_title_length} chars."
                 )
             elif title_len > validated.max_title_length:
                 issues.append(
-                    f"Title is too long ({title_len} chars). "
-                    f"Keep under {validated.max_title_length} chars."
+                    f"Title is too long ({title_len} chars). Keep under {validated.max_title_length} chars."
                 )
         else:
             issues.append("No <title> tag found. Add one immediately.")
@@ -474,8 +469,7 @@ class MetaTagGeneratorTool(BaseTool):
                 )
             elif desc_len > validated.max_description_length:
                 issues.append(
-                    f"Description is too long ({desc_len} chars). "
-                    f"Keep under {validated.max_description_length} chars."
+                    f"Description is too long ({desc_len} chars). Keep under {validated.max_description_length} chars."
                 )
         else:
             issues.append(

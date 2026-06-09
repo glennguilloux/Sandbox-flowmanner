@@ -213,8 +213,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
                     return {
                         "success": False,
                         "error": (
-                            f"File is {file_bytes} bytes — exceeds the "
-                            f"{_MAX_FILE_BYTES}-byte download limit"
+                            f"File is {file_bytes} bytes — exceeds the {_MAX_FILE_BYTES}-byte download limit"
                         ),
                     }
 

@@ -81,12 +81,14 @@ class TestCheckAllProvidersHealth:
         import os
 
         os.environ["DEEPSEEK_API_KEY"] = "sk-test"
-        with patch(
-            "app.services.llm_router.PROVIDER_MAP",
-            {"deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY")},
-        ), patch("app.services.llm_router._resolve_provider") as mock_resolve, patch(
-            "app.services.llm_router.AsyncOpenAI"
-        ) as mock_client_class:
+        with (
+            patch(
+                "app.services.llm_router.PROVIDER_MAP",
+                {"deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY")},
+            ),
+            patch("app.services.llm_router._resolve_provider") as mock_resolve,
+            patch("app.services.llm_router.AsyncOpenAI") as mock_client_class,
+        ):
             mock_resolve.return_value = (
                 "https://api.deepseek.com",
                 "sk-test",

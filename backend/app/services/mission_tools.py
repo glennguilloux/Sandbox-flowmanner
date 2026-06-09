@@ -65,7 +65,7 @@ async def tool_web_search(params: dict, input_data: dict) -> dict[str, Any]:
             },
         }
     except Exception as e:
-        logger.warning(f"Web search failed for query '{query}': {e}")
+        logger.warning("Web search failed for query '%s': %s", query, e)
         return {
             "success": True,
             "output": {

@@ -187,7 +187,7 @@ class WebhookConnector(BaseConnector):
                 headers=request_headers,
             )
         except Exception as e:
-            logger.error(f"Webhook failed: {e}")
+            logger.error('Webhook failed: %s', e)
             return ConnectorResponse(success=False, error=str(e), status_code=0)
 
     async def _send_json_webhook(self, params: dict[str, Any]) -> ConnectorResponse:

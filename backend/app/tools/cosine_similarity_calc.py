@@ -64,8 +64,7 @@ class CosineSimilarityCalcInput(ToolInput):
         for i, vec in enumerate(self.corpus_embeddings):
             if len(vec) != query_dim:
                 raise ValueError(
-                    f"Dimension mismatch: query has {query_dim}, "
-                    f"corpus vector at index {i} has {len(vec)}"
+                    f"Dimension mismatch: query has {query_dim}, corpus vector at index {i} has {len(vec)}"
                 )
         if self.corpus_labels and len(self.corpus_labels) != len(
             self.corpus_embeddings

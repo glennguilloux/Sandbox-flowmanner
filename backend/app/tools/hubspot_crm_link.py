@@ -124,8 +124,7 @@ class HubspotCrmLinkTool(BaseTool):
         if validated.action not in HUBSPOT_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(HUBSPOT_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(HUBSPOT_ACTIONS)}",
             )
 
         if not HUBSPOT_ACCESS_TOKEN:
@@ -277,8 +276,7 @@ class HubspotCrmLinkTool(BaseTool):
         resp = await client.get(
             f"/crm/v3/objects/{object_type}/{object_id}",
             params={
-                "properties": "email,firstname,lastname,phone,company,"
-                "dealname,amount,dealstage,hs_pipeline"
+                "properties": "email,firstname,lastname,phone,company,dealname,amount,dealstage,hs_pipeline"
             },
         )
         resp.raise_for_status()

@@ -822,11 +822,9 @@ async def _inject_web_search(messages: list[dict], query: str) -> list[dict]:
 
         search_context = "\n".join(lines)
         # Append search results to the last user message so the model can't ignore them
-        messages[-1]["content"] = (
-            f"{search_context}\n\n"
-            f"Based on the search results above, answer the following:\n"
-            f"{messages[-1]['content']}"
-        )
+        messages[-1][
+            "content"
+        ] = f"{search_context}\n\nBased on the search results above, answer the following:\n{messages[-1]['content']}"
 
     except Exception as e:
         logger.warning("Web search failed (non-fatal): %s", e)

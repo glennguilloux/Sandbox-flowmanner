@@ -60,7 +60,7 @@ async def export_user_data(
             for row in missions.fetchall()
         ]
     except Exception as e:
-        logger.warning(f"Export missions failed: {e}")
+        logger.warning('Export missions failed: %s', e)
         export_data["missions"] = []
 
     # 3. Chat history
@@ -101,7 +101,7 @@ async def export_user_data(
             for row in messages.fetchall()
         ]
     except Exception as e:
-        logger.warning(f"Export chats failed: {e}")
+        logger.warning('Export chats failed: %s', e)
         export_data["chat_threads"] = []
         export_data["chat_messages"] = []
 
@@ -124,7 +124,7 @@ async def export_user_data(
             for row in agents.fetchall()
         ]
     except Exception as e:
-        logger.warning(f"Export agents failed: {e}")
+        logger.warning('Export agents failed: %s', e)
         export_data["agents"] = []
 
     # 5. Settings
@@ -138,7 +138,7 @@ async def export_user_data(
         else:
             export_data["settings"] = {}
     except Exception as e:
-        logger.warning(f"Export settings failed: {e}")
+        logger.warning('Export settings failed: %s', e)
         export_data["settings"] = {}
 
     # 6. API keys (metadata only, not secrets)
@@ -160,7 +160,7 @@ async def export_user_data(
             for row in api_keys.fetchall()
         ]
     except Exception as e:
-        logger.warning(f"Export api_keys failed: {e}")
+        logger.warning('Export api_keys failed: %s', e)
         export_data["api_keys"] = []
 
     # Create ZIP in memory
@@ -235,7 +235,7 @@ async def delete_user_data(
             )
             deleted_counts[table] = result.rowcount
         except Exception as e:
-            logger.warning(f"Delete from {table} failed: {e}")
+            logger.warning('Delete from %s failed: %s', table, e)
             deleted_counts[table] = f"error: {e}"
 
     # Anonymize user record (don't delete — may have foreign key references)
@@ -254,13 +254,13 @@ async def delete_user_data(
             {"uid": user_id, "anon_email": f"deleted_{user_id}@flowmanner.deleted"},
         )
     except Exception as e:
-        logger.error(f"Anonymize user failed: {e}")
+        logger.error('Anonymize user failed: %s', e)
         raise HTTPException(status_code=500, detail="Failed to delete user data")
 
     await db.commit()
 
     # Log the deletion
-    logger.info(f"GDPR deletion completed for user {user_id}: {deleted_counts}")
+    logger.info('GDPR deletion completed for user %s: %s', user_id, deleted_counts)
 
     return {
         "status": "deleted",

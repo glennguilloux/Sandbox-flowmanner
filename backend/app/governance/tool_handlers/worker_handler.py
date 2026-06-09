@@ -51,11 +51,7 @@ class WorkerHandler:
             "data_transform": "workers.data_transform",
         }
 
-        logger.info(
-            f"WorkerHandler initialized - "
-            f"Timeout: {self.config.timeout}s, "
-            f"Max Retries: {self.config.max_retries}"
-        )
+        logger.info('WorkerHandler initialized - Timeout: %ss, Max Retries: %s', self.config.timeout, self.config.max_retries)
 
     @staticmethod
     def _load_config_from_env() -> WorkerConfig:
@@ -84,8 +80,7 @@ class WorkerHandler:
         task_name = self._task_registry.get(action)
         if not task_name:
             raise ValueError(
-                f"Unknown action: {action}. "
-                f"Available actions: {list(self._task_registry.keys())}"
+                f"Unknown action: {action}. Available actions: {list(self._task_registry.keys())}"
             )
 
         # Prepare task request
@@ -93,7 +88,7 @@ class WorkerHandler:
         task_timeout = timeout or self.config.timeout
 
         # Execute task
-        logger.info(f"Executing task: {task_name}")
+        logger.info('Executing task: %s', task_name)
         result = celery_app.send_task(
             task_name, args=[task_request], expires=task_timeout
         )
@@ -103,7 +98,7 @@ class WorkerHandler:
                 task_result = result.get(timeout=task_timeout)
                 return task_result
             except Exception as e:
-                logger.error(f"Task execution failed: {e}", exc_info=True)
+                logger.error('Task execution failed: %s', e, exc_info=True)
                 return {
                     "success": False,
                     "error": str(e),
@@ -148,7 +143,7 @@ class WorkerHandler:
 
         task_chain = chain(*tasks)
 
-        logger.info(f"Executing chain of {len(tasks)} tasks")
+        logger.info('Executing chain of %s tasks', len(tasks))
         result = task_chain.apply_async()
 
         if blocking:
@@ -166,7 +161,7 @@ class WorkerHandler:
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
             except Exception as e:
-                logger.error(f"Chain execution failed: {e}", exc_info=True)
+                logger.error('Chain execution failed: %s', e, exc_info=True)
                 return {
                     "success": False,
                     "error": str(e),
@@ -207,10 +202,10 @@ class WorkerHandler:
         try:
             result = AsyncResult(task_id, app=celery_app)
             result.revoke(terminate=True)
-            logger.info(f"Task {task_id} cancelled")
+            logger.info('Task %s cancelled', task_id)
             return True
         except Exception as e:
-            logger.error(f"Failed to cancel task {task_id}: {e}")
+            logger.error('Failed to cancel task %s: %s', task_id, e)
             return False
 
     def get_available_actions(self) -> list:

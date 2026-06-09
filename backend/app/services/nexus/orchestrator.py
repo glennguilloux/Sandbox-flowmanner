@@ -86,9 +86,7 @@ class NexusOrchestrator:
         """Initialize the orchestrator and register default capabilities"""
         logger.info("Initializing Nexus Orchestrator...")
         await self._register_builtin_capabilities()
-        logger.info(
-            f"Nexus Orchestrator initialized with {len(self.registry._capabilities)} capabilities"
-        )
+        logger.info('Nexus Orchestrator initialized with %s capabilities', len(self.registry._capabilities))
 
     async def _register_builtin_capabilities(self):
         """Register built-in system capabilities from the tools ecosystem"""
@@ -123,9 +121,9 @@ class NexusOrchestrator:
                     self.registry.register(capability)
                     registered_count += 1
             except Exception as e:
-                logger.warning(f"Failed to register tool {tool_name}: {e}")
+                logger.warning('Failed to register tool %s: %s', tool_name, e)
 
-        logger.info(f"Registered {registered_count} built-in tool capabilities")
+        logger.info('Registered %s built-in tool capabilities', registered_count)
 
     def _create_tool_handler(self, tool):
         """Create an async handler for a tool"""
@@ -138,7 +136,7 @@ class NexusOrchestrator:
                     return result.to_dict()
                 return result
             except Exception as e:
-                logger.error(f"Tool execution failed: {e}")
+                logger.error('Tool execution failed: %s', e)
                 return {"error": str(e), "success": False}
 
         return tool_handler
@@ -146,14 +144,14 @@ class NexusOrchestrator:
     def register_capability(self, capability: Capability):
         """Register a new capability with the orchestrator"""
         self.registry.register(capability)
-        logger.info(f"Registered capability: {capability.id}")
+        logger.info('Registered capability: %s', capability.id)
 
     def register_context_builder(
         self, source: str, builder: Callable[[ExecutionContext], Awaitable[dict]]
     ):
         """Register a context builder for a specific source"""
         self._context_builders[source] = builder
-        logger.info(f"Registered context builder for: {source}")
+        logger.info('Registered context builder for: %s', source)
 
     async def build_context(self, ctx: ExecutionContext) -> dict[str, Any]:
         """Assemble context from all registered sources"""
@@ -171,7 +169,7 @@ class NexusOrchestrator:
                 source_context = await builder(ctx)
                 context["sources"][source] = source_context
             except Exception as e:
-                logger.warning(f"Context builder {source} failed: {e}")
+                logger.warning('Context builder %s failed: %s', source, e)
                 context["sources"][source] = {"error": str(e)}
 
         return context
@@ -200,7 +198,7 @@ class NexusOrchestrator:
 
             # Bug #9 fix: Use DistributedExecutor when distributed_mode is enabled
             if self.distributed_mode and self.distributed_executor.is_available():
-                logger.info(f"Executing capability {capability_id} in distributed mode")
+                logger.info('Executing capability %s in distributed mode', capability_id)
                 task_id = await self.distributed_executor.submit_task(
                     coro=capability.execute(params),
                     task_name=f"capability:{capability_id}",
@@ -245,7 +243,7 @@ class NexusOrchestrator:
                 )
 
         except Exception as e:
-            logger.error(f"Error executing {capability_id}: {e}")
+            logger.error('Error executing %s: %s', capability_id, e)
             return OperationResult(success=False, error=str(e))
 
     async def execute_chain(
@@ -307,11 +305,9 @@ class NexusOrchestrator:
                         )
                     )
                     if learning_context and learning_context.get("has_historical_data"):
-                        logger.info(
-                            f"Injected learning context: {learning_context.get('context_summary', '')[:100]}"
-                        )
+                        logger.info('Injected learning context: %s', learning_context.get('context_summary', '')[:100])
                 except Exception as e:
-                    logger.warning(f"Failed to inject learning context: {e}")
+                    logger.warning('Failed to inject learning context: %s', e)
 
             # Use ToolDiscoveryService for semantic tool selection
             if self.discovery_service:
@@ -332,9 +328,7 @@ class NexusOrchestrator:
                             }
                         )
 
-                    logger.info(
-                        f"Semantic discovery created plan with {len(plan)} tools (confidence: {tool_plan.confidence:.2f})"
-                    )
+                    logger.info('Semantic discovery created plan with %s tools (confidence: %.2f)', len(plan), tool_plan.confidence)
                     return plan
 
             # Fallback to LLM-based planning with ALL capabilities (no 20-tool cap)
@@ -374,13 +368,13 @@ class NexusOrchestrator:
 
                 plan = json.loads(content)
                 if isinstance(plan, list):
-                    logger.info(f"AI planning created plan with {len(plan)} steps")
+                    logger.info('AI planning created plan with %s steps', len(plan))
                     return plan
 
             return None
 
         except Exception as e:
-            logger.warning(f"AI planning failed: {e}")
+            logger.warning('AI planning failed: %s', e)
             return None
 
     async def _create_plan(self, goal: str) -> list[dict[str, Any]]:
@@ -405,12 +399,10 @@ class NexusOrchestrator:
                     )
 
                 if plan:
-                    logger.info(
-                        f"Semantic search found {len(plan)} relevant capabilities"
-                    )
+                    logger.info('Semantic search found %s relevant capabilities', len(plan))
                     return plan
             except Exception as e:
-                logger.warning(f"Semantic search failed: {e}")
+                logger.warning('Semantic search failed: %s', e)
 
         # Fallback to keyword matching
         goal_lower = goal.lower()

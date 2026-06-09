@@ -44,7 +44,7 @@ async def sync_mission_to_linear(
             )
             mission = result.scalars().first()
             if not mission:
-                logger.warning(f"Mission {mission_id} not found for Linear sync")
+                logger.warning('Mission %s not found for Linear sync', mission_id)
                 return False
 
             # Extract Linear issue ID from plan
@@ -52,15 +52,13 @@ async def sync_mission_to_linear(
             linear_data = plan.get("linear", {})
             issue_id = linear_data.get("issue_id")
             if not issue_id:
-                logger.debug(
-                    f"Mission {mission_id} has no linked Linear issue — skipping sync"
-                )
+                logger.debug('Mission %s has no linked Linear issue — skipping sync', mission_id)
                 return False
 
             # Fetch current issue to get team context
             issue = await client.get_issue(issue_id)
             if not issue:
-                logger.warning(f"Linear issue {issue_id} not found")
+                logger.warning('Linear issue %s not found', issue_id)
                 return False
 
             # Build comment body
@@ -123,9 +121,7 @@ async def sync_mission_to_linear(
 
             comment_body = "\n".join(comment_lines)
             await client.add_comment(issue_id, comment_body)
-            logger.info(
-                f"Posted Linear comment on issue {issue_id} for mission {mission_id}"
-            )
+            logger.info('Posted Linear comment on issue %s for mission %s', issue_id, mission_id)
 
             # Optionally update issue state
             try:
@@ -148,14 +144,12 @@ async def sync_mission_to_linear(
                             await client.update_issue(
                                 issue_id, state_id=done_state["id"]
                             )
-                            logger.info(
-                                f"Updated Linear issue {issue_id} to {done_state['name']}"
-                            )
+                            logger.info('Updated Linear issue %s to %s', issue_id, done_state['name'])
             except Exception as state_err:
-                logger.debug(f"Could not update Linear issue state: {state_err}")
+                logger.debug('Could not update Linear issue state: %s', state_err)
 
             return True
 
     except Exception as e:
-        logger.error(f"Failed to sync mission {mission_id} to Linear: {e}")
+        logger.error('Failed to sync mission %s to Linear: %s', mission_id, e)
         return False

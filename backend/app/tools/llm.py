@@ -151,8 +151,7 @@ class LLMTranslateTool(BaseTool):
                 {
                     "role": "user",
                     "content": (
-                        f"Translate the following text to {validated.target_language}:\n\n"
-                        f"{validated.text}"
+                        f"Translate the following text to {validated.target_language}:\n\n{validated.text}"
                     ),
                 },
             ]
@@ -215,8 +214,7 @@ class LLMClassifyTool(BaseTool):
                 {
                     "role": "user",
                     "content": (
-                        f"Categories: [{cat_list}]\n\n"
-                        f"Classify the following text:\n\n{validated.text}"
+                        f"Categories: [{cat_list}]\n\nClassify the following text:\n\n{validated.text}"
                     ),
                 },
             ]

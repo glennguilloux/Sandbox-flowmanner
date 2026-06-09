@@ -201,10 +201,7 @@ def _run_with_retry(func, timeout_seconds: float, *args, **kwargs):
             break
         if attempt < MAX_RETRIES:
             backoff = RETRY_BACKOFF_BASE * (3**attempt)
-            logger.debug(
-                f"Langfuse transient error (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                f"retrying in {backoff:.1f}s: {error}"
-            )
+            logger.debug('Langfuse transient error (attempt %s/%s), retrying in %.1fs: %s', attempt + 1, MAX_RETRIES + 1, backoff, error)
             time.sleep(backoff)
     return None, last_error
 
@@ -269,17 +266,14 @@ class LangfuseService:
             self._sampling_rate = sampling_rate
             self._flush_interval = flush_interval
             self._host = host
-            logger.info(
-                f"Langfuse client initialized "
-                f"(worker={self._worker_id}, host={host}, sampling={sampling_rate})"
-            )
+            logger.info('Langfuse client initialized (worker=%s, host=%s, sampling=%s)', self._worker_id, host, sampling_rate)
             return True
         except ImportError:
             logger.warning("Langfuse SDK not installed")
             self._enabled = False
             return False
         except Exception as e:
-            logger.error(f"Failed to initialize Langfuse: {e}")
+            logger.error('Failed to initialize Langfuse: %s', e)
             self._enabled = False
             return False
 
@@ -306,10 +300,7 @@ class LangfuseService:
                     )
                 except Exception:
                     logger.debug("langfuse_reliability_monitor_failed", exc_info=True)
-                logger.warning(
-                    f"Langfuse circuit breaker: OPEN -> HALF_OPEN "
-                    f"(worker={self._worker_id}, probing after cooldown)"
-                )
+                logger.warning('Langfuse circuit breaker: OPEN -> HALF_OPEN (worker=%s, probing after cooldown)', self._worker_id)
                 try:
                     update_circuit_breaker_gauge(
                         self._worker_id, CircuitState.HALF_OPEN.value
@@ -331,10 +322,7 @@ class LangfuseService:
             self._failure_count = 0
             self._circuit_open_until = 0.0
             self._last_failure_reason = None
-            logger.warning(
-                f"Langfuse circuit breaker: {old_state.value} -> CLOSED "
-                f"(manual reset, worker={self._worker_id})"
-            )
+            logger.warning('Langfuse circuit breaker: %s -> CLOSED (manual reset, worker=%s)', old_state.value, self._worker_id)
         try:
             update_circuit_breaker_gauge(self._worker_id, CircuitState.CLOSED.value)
         except Exception:
@@ -351,11 +339,7 @@ class LangfuseService:
         except Exception:
             logger.debug("langfuse_transition_monitor_failed", exc_info=True)
         self._circuit_open_until = time.time() + CIRCUIT_RECOVERY_SECONDS
-        logger.warning(
-            f"Langfuse circuit breaker: {old_state.value} -> OPEN "
-            f"(worker={self._worker_id}, {self._failure_count} consecutive failures, "
-            f"disabled for {CIRCUIT_RECOVERY_SECONDS}s)"
-        )
+        logger.warning('Langfuse circuit breaker: %s -> OPEN (worker=%s, %s consecutive failures, disabled for %ss)', old_state.value, self._worker_id, self._failure_count, CIRCUIT_RECOVERY_SECONDS)
         try:
             update_circuit_breaker_gauge(self._worker_id, CircuitState.OPEN.value)
         except Exception:
@@ -374,10 +358,7 @@ class LangfuseService:
                     )
                 except Exception:
                     logger.debug("langfuse_close_transition_failed", exc_info=True)
-                logger.warning(
-                    f"Langfuse circuit breaker: HALF_OPEN -> CLOSED "
-                    f"(worker={self._worker_id}, probe succeeded)"
-                )
+                logger.warning('Langfuse circuit breaker: HALF_OPEN -> CLOSED (worker=%s, probe succeeded)', self._worker_id)
             self._traces_sent += 1
         # Prometheus metrics (outside lock)
         try:
@@ -402,10 +383,7 @@ class LangfuseService:
             ):
                 self._transition_to_open()
             else:
-                logger.debug(
-                    f"Langfuse failure count: {self._failure_count}/{CIRCUIT_FAILURE_THRESHOLD} "
-                    f"(worker={self._worker_id})"
-                )
+                logger.debug('Langfuse failure count: %s/%s (worker=%s)', self._failure_count, CIRCUIT_FAILURE_THRESHOLD, self._worker_id)
         # Prometheus metrics (outside lock)
         try:
             langfuse_traces_failed.inc()
@@ -463,7 +441,7 @@ class LangfuseService:
             self._record_success(operation="trace", duration=duration)
             return result
         else:
-            logger.debug(f"Langfuse trace creation failed: {error}")
+            logger.debug('Langfuse trace creation failed: %s', error)
             self._record_failure(str(error), operation="trace", duration=duration)
             return _LangfuseUnavailable._StubTrace()
 
@@ -511,7 +489,7 @@ class LangfuseService:
             self._record_success(operation="span", duration=duration)
             return result
         else:
-            logger.debug(f"Langfuse span creation failed: {error}")
+            logger.debug('Langfuse span creation failed: %s', error)
             self._record_failure(str(error), operation="span", duration=duration)
             return _LangfuseUnavailable._StubSpan()
 
@@ -554,7 +532,7 @@ class LangfuseService:
             self._record_success(operation="generation", duration=duration)
             return result
         else:
-            logger.debug(f"Langfuse generation creation failed: {error}")
+            logger.debug('Langfuse generation creation failed: %s', error)
             self._record_failure(str(error), operation="generation", duration=duration)
             return _LangfuseUnavailable._StubSpan()
 
@@ -589,11 +567,7 @@ class LangfuseService:
             duration = time.perf_counter() - start
             if error is not None:
                 if isinstance(error, TimeoutError):
-                    logger.warning(
-                        f"Langfuse callback creation timed out after "
-                        f"{CALLBACK_CREATION_TIMEOUT_SECONDS}s, "
-                        f"returning None to avoid blocking LLM response"
-                    )
+                    logger.warning('Langfuse callback creation timed out after %ss, returning None to avoid blocking LLM response', CALLBACK_CREATION_TIMEOUT_SECONDS)
                 else:
                     raise error
             self._record_success(operation="callback", duration=duration)
@@ -602,7 +576,7 @@ class LangfuseService:
             logger.debug("langchain-langfuse not installed")
             return None
         except Exception as e:
-            logger.debug(f"LangChain callback creation failed: {e}")
+            logger.debug('LangChain callback creation failed: %s', e)
             self._record_failure(str(e), operation="callback")
             return None
 
@@ -632,7 +606,7 @@ class LangfuseService:
             self._record_success(operation="litellm_config", duration=duration)
             return result
         else:
-            logger.debug(f"LiteLLM callback config failed: {error}")
+            logger.debug('LiteLLM callback config failed: %s', error)
             self._record_failure(
                 str(error), operation="litellm_config", duration=duration
             )
@@ -655,12 +629,9 @@ class LangfuseService:
             self._record_success(operation="flush", duration=duration)
         else:
             if isinstance(error, TimeoutError):
-                logger.warning(
-                    f"Langfuse flush timed out after {FLUSH_TIMEOUT_SECONDS}s, "
-                    f"continuing without waiting"
-                )
+                logger.warning('Langfuse flush timed out after %ss, continuing without waiting', FLUSH_TIMEOUT_SECONDS)
             else:
-                logger.debug(f"Langfuse flush failed: {error}")
+                logger.debug('Langfuse flush failed: %s', error)
             self._record_failure(str(error), operation="flush", duration=duration)
 
     def shutdown(self):
@@ -669,9 +640,9 @@ class LangfuseService:
             return
         try:
             self.flush()
-            logger.info(f"Langfuse client shut down (worker={self._worker_id})")
+            logger.info('Langfuse client shut down (worker=%s)', self._worker_id)
         except Exception as e:
-            logger.debug(f"Langfuse shutdown failed: {e}")
+            logger.debug('Langfuse shutdown failed: %s', e)
 
     def score_trace(
         self,
@@ -702,7 +673,7 @@ class LangfuseService:
         if error is None:
             self._record_success(operation="score", duration=duration)
         else:
-            logger.debug(f"Langfuse score failed: {error}")
+            logger.debug('Langfuse score failed: %s', error)
             self._record_failure(str(error), operation="score", duration=duration)
 
     def get_trace_stats(self) -> dict[str, Any]:

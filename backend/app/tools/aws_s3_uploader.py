@@ -126,8 +126,7 @@ class AwsS3UploaderTool(BaseTool):
         if not AWS_ACCESS_KEY or not AWS_SECRET_KEY:
             return ToolResult.error_result(
                 self.tool_id,
-                "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and "
-                "AWS_SECRET_ACCESS_KEY env vars.",
+                "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars.",
             )
 
         if is_placeholder(AWS_ACCESS_KEY) or is_placeholder(AWS_SECRET_KEY):

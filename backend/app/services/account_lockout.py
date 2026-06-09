@@ -173,9 +173,7 @@ def get_tracker() -> InMemoryAttemptTracker | RedisAttemptTracker:
             _tracker = RedisAttemptTracker(settings.REDIS_URL)
             logger.info("Account lockout tracker initialized with Redis backend")
         except Exception as e:
-            logger.warning(
-                f"Redis unavailable for lockout tracker, using in-memory: {e}"
-            )
+            logger.warning('Redis unavailable for lockout tracker, using in-memory: %s', e)
             _tracker = InMemoryAttemptTracker()
     return _tracker
 

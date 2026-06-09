@@ -106,6 +106,15 @@ class SubstrateEventType:
     CIRCUIT_BREAKER_BROKEN = "circuit_breaker.broken"
     CIRCUIT_BREAKER_RESET = "circuit_breaker.reset"
 
+    # Phase 3: Sandbox events
+    SANDBOX_CREATED = "sandbox.created"
+    SANDBOX_FILES_WRITTEN = "sandbox.files_written"
+    SANDBOX_TASK_SUBMITTED = "sandbox.task_submitted"
+    SANDBOX_TASK_PROGRESS = "sandbox.task_progress"
+    SANDBOX_TASK_COMPLETED = "sandbox.task_completed"
+    SANDBOX_TASK_FAILED = "sandbox.task_failed"
+    SANDBOX_SNAPSHOT_CREATED = "sandbox.snapshot_created"
+
     # Backward-compat aliases (deprecated — use RUN_* / NODE_* instead)
     MISSION_STARTED = RUN_STARTED
     MISSION_COMPLETED = RUN_COMPLETED
@@ -226,6 +235,10 @@ class SubstrateRunState:
                 self.error_message = (
                     f"Budget exhausted: {payload.get('budget_type', 'unknown')}"
                 )
+
+            # Phase 3: Sandbox events are informational — no state change needed
+            case _ if event.type.startswith("sandbox."):
+                pass
 
             case _:
                 pass  # Unknown event types are silently applied (no state change)

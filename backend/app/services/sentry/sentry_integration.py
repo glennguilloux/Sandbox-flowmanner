@@ -184,13 +184,11 @@ class SentryIntegration:
             sentry_sdk.set_tag("seer_enabled", self.config.enable_seer)
 
             self._initialized = True
-            logger.info(
-                f"✅ Sentry SDK initialized (environment: {self.config.environment})"
-            )
+            logger.info('✅ Sentry SDK initialized (environment: %s)', self.config.environment)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to initialize Sentry SDK: {e}")
+            logger.error('Failed to initialize Sentry SDK: %s', e)
             return False
 
     def _before_send(
@@ -297,11 +295,11 @@ class SentryIntegration:
                 # Capture the exception
                 event_id = sentry_sdk.capture_exception(error)
 
-                logger.debug(f"Captured error in Sentry: {event_id}")
+                logger.debug('Captured error in Sentry: %s', event_id)
                 return event_id
 
         except Exception as e:
-            logger.error(f"Failed to capture exception in Sentry: {e}")
+            logger.error('Failed to capture exception in Sentry: %s', e)
             return None
 
     def capture_message(
@@ -329,7 +327,7 @@ class SentryIntegration:
                 event_id = sentry_sdk.capture_message(message, level=level)
                 return event_id
         except Exception as e:
-            logger.error(f"Failed to capture message in Sentry: {e}")
+            logger.error('Failed to capture message in Sentry: %s', e)
             return None
 
     def set_user(
@@ -417,7 +415,7 @@ class SentryIntegration:
                     error_record.context["sentry_event_id"] = event_id
 
         except Exception as e:
-            logger.error(f"Error in Sentry error handler: {e}")
+            logger.error('Error in Sentry error handler: %s', e)
 
     def _create_traceback(self, stack_trace: str):
         """Create a traceback object from string representation."""

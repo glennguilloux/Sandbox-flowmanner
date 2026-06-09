@@ -288,7 +288,7 @@ class ObservabilityService:
                 self._otel_tracer = trace.get_tracer(service_name)
                 logger.info("OpenTelemetry tracer initialized")
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenTelemetry: {e}")
+                logger.warning('Failed to initialize OpenTelemetry: %s', e)
 
         # Alert handlers
         self._error_handlers: list[Callable[[ErrorRecord], Awaitable[None]]] = []
@@ -310,7 +310,7 @@ class ObservabilityService:
             try:
                 await handler(error)
             except Exception as e:
-                logger.error(f"Error handler failed: {e}")
+                logger.error('Error handler failed: %s', e)
 
     def _generate_id(self) -> str:
         """Generate unique ID"""
@@ -342,7 +342,7 @@ class ObservabilityService:
         self._traces[trace_id] = trace_obj
         self._context["current_trace_id"] = trace_id
 
-        logger.debug(f"Started trace {trace_id}: {operation_name}")
+        logger.debug('Started trace %s: %s', trace_id, operation_name)
         return trace_obj
 
     def start_span(
@@ -399,9 +399,9 @@ class ObservabilityService:
                 otel_span = self._otel_tracer.start_span(operation_name)
                 span.attributes["otel_span"] = otel_span
             except Exception as e:
-                logger.debug(f"OpenTelemetry span creation failed: {e}")
+                logger.debug('OpenTelemetry span creation failed: %s', e)
 
-        logger.debug(f"Started span {span_id}: {operation_name}")
+        logger.debug('Started span %s: %s', span_id, operation_name)
         return span
 
     def end_span(self, span: Span, error: Exception | None = None):
@@ -437,7 +437,7 @@ class ObservabilityService:
                     otel_span.set_status(Status(StatusCode.OK))
                 otel_span.end()
             except Exception as e:
-                logger.debug(f"OpenTelemetry span end failed: {e}")
+                logger.debug('OpenTelemetry span end failed: %s', e)
 
         # Remove from active spans
         if span.span_id in self._active_spans:
@@ -447,15 +447,13 @@ class ObservabilityService:
         if self._context.get("current_span_id") == span.span_id:
             self._context.pop("current_span_id", None)
 
-        logger.debug(
-            f"Ended span {span.span_id}: {span.operation_name} ({span.duration_ms:.2f}ms)"
-        )
+        logger.debug('Ended span %s: %s (%.2fms)', span.span_id, span.operation_name, span.duration_ms)
 
     def end_trace(self, trace: Trace):
         """End a trace"""
         trace.finish()
         self._context.pop("current_trace_id", None)
-        logger.debug(f"Ended trace {trace.trace_id} ({trace.total_duration_ms:.2f}ms)")
+        logger.debug('Ended trace %s (%.2fms)', trace.trace_id, trace.total_duration_ms)
 
     @asynccontextmanager
     async def trace_operation(
@@ -528,7 +526,7 @@ class ObservabilityService:
             if len(self._metrics_by_name[name]) > 10000:
                 self._metrics_by_name[name] = self._metrics_by_name[name][-10000:]
 
-        logger.debug(f"Recorded metric {name}={value}")
+        logger.debug('Recorded metric %s=%s', name, value)
 
     async def increment_counter(self, name: str, labels: dict[str, str] | None = None):
         """Increment a counter metric"""
@@ -577,9 +575,7 @@ class ObservabilityService:
             if len(self._errors) > 1000:
                 self._errors = self._errors[-1000:]
 
-        logger.error(
-            f"Recorded error {error_record.error_id}: {error_record.error_type}: {error_record.message}"
-        )
+        logger.error('Recorded error %s: %s: %s', error_record.error_id, error_record.error_type, error_record.message)
 
         # Send alert
         await self._send_error_alert(error_record)

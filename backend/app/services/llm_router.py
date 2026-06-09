@@ -233,6 +233,7 @@ class ModelRouter:
             fallback_order.append("llamacpp/Qwen3.6-27B")
         if os.getenv("DEEPSEEK_API_KEY"):
             fallback_order.append("deepseek/deepseek-v4-flash")
+        fallback_order.append("glennguilloux/demo-llm")
 
         for model_id in fallback_order:
             if model_id == failed_model:

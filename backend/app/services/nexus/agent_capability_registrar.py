@@ -182,7 +182,7 @@ class AgentCapabilityRegistrar:
         Returns:
             AgentRegistration record
         """
-        logger.info(f"Registering agent: {agent_name} ({agent_id})")
+        logger.info('Registering agent: %s (%s)', agent_name, agent_id)
 
         # Discover tools for this agent
         discovered_tools = await self._discover_tools_for_agent(
@@ -216,9 +216,7 @@ class AgentCapabilityRegistrar:
         # Persist to database if available
         await self._persist_registration(registration)
 
-        logger.info(
-            f"Agent {agent_name} registered with {len(registered_capabilities)} capabilities"
-        )
+        logger.info('Agent %s registered with %s capabilities', agent_name, len(registered_capabilities))
 
         return registration
 
@@ -264,10 +262,10 @@ class AgentCapabilityRegistrar:
                         if tool.tool_id not in [t.get("tool_id") for t in discovered]:
                             discovered.append(tool.to_dict())
 
-            logger.info(f"Discovered {len(discovered)} tools for {agent_type} agent")
+            logger.info('Discovered %s tools for %s agent', len(discovered), agent_type)
 
         except Exception as e:
-            logger.error(f"Tool discovery failed: {e}")
+            logger.error('Tool discovery failed: %s', e)
 
         return discovered
 
@@ -336,12 +334,12 @@ class AgentCapabilityRegistrar:
                 )
 
                 self.capability_registry.register(reg_cap)
-                logger.info(f"Registered capability: {cap_id}")
+                logger.info('Registered capability: %s', cap_id)
 
             return capability
 
         except Exception as e:
-            logger.error(f"Failed to register capability: {e}")
+            logger.error('Failed to register capability: %s', e)
             return None
 
     def _create_default_handler(self, capability: AgentCapability) -> Callable:
@@ -396,10 +394,10 @@ class AgentCapabilityRegistrar:
                 self._db_session.add(new_record)
 
             self._db_session.commit()
-            logger.info(f"Persisted registration for {registration.agent_name}")
+            logger.info('Persisted registration for %s', registration.agent_name)
 
         except Exception as e:
-            logger.error(f"Failed to persist registration: {e}")
+            logger.error('Failed to persist registration: %s', e)
             if self._db_session:
                 self._db_session.rollback()
 
@@ -414,7 +412,7 @@ class AgentCapabilityRegistrar:
             True if unregistered successfully
         """
         if agent_id not in self._registrations:
-            logger.warning(f"Agent {agent_id} not registered")
+            logger.warning('Agent %s not registered', agent_id)
             return False
 
         registration = self._registrations[agent_id]
@@ -423,7 +421,7 @@ class AgentCapabilityRegistrar:
         if self.capability_registry:
             for cap_id in registration.capabilities:
                 self.capability_registry.unregister(cap_id)
-                logger.info(f"Unregistered capability: {cap_id}")
+                logger.info('Unregistered capability: %s', cap_id)
 
         # Remove from local storage
         for cap_id in registration.capabilities:
@@ -431,7 +429,7 @@ class AgentCapabilityRegistrar:
 
         del self._registrations[agent_id]
 
-        logger.info(f"Unregistered agent: {agent_id}")
+        logger.info('Unregistered agent: %s', agent_id)
         return True
 
     async def heartbeat(self, agent_id: str) -> bool:
@@ -478,7 +476,7 @@ class AgentCapabilityRegistrar:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Health monitor error: {e}")
+                logger.error('Health monitor error: %s', e)
 
     async def _check_agent_health(self) -> None:
         """Check health of all registered agents"""
@@ -488,7 +486,7 @@ class AgentCapabilityRegistrar:
             time_since_heartbeat = now - registration.last_heartbeat
 
             if time_since_heartbeat > self._heartbeat_timeout:
-                logger.warning(f"Agent {agent_id} heartbeat timeout")
+                logger.warning('Agent %s heartbeat timeout', agent_id)
                 registration.status = "unhealthy"
 
                 # Disable capabilities
@@ -498,7 +496,7 @@ class AgentCapabilityRegistrar:
             else:
                 # Restore if was unhealthy
                 if registration.status == "unhealthy":
-                    logger.info(f"Agent {agent_id} recovered")
+                    logger.info('Agent %s recovered', agent_id)
                     registration.status = "active"
 
                     # Re-enable capabilities

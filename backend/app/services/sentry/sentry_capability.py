@@ -45,7 +45,7 @@ def register_sentry_capabilities(registry=None) -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Failed to register Sentry capabilities: {e}")
+        logger.error('Failed to register Sentry capabilities: %s', e)
         return False
 
 
@@ -322,11 +322,11 @@ def unregister_sentry_capabilities(registry=None) -> bool:
             try:
                 registry.unregister(cap_id)
             except Exception as e:
-                logger.debug(f"Could not unregister capability {cap_id}: {e}")
+                logger.debug('Could not unregister capability %s: %s', cap_id, e)
 
         logger.info("Unregistered Sentry capabilities")
         return True
 
     except Exception as e:
-        logger.error(f"Failed to unregister Sentry capabilities: {e}")
+        logger.error('Failed to unregister Sentry capabilities: %s', e)
         return False

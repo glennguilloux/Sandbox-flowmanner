@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True, ignore_result=False)
 def sync_workflow_status(self):
     """Synchronize workflow status and handle stuck workflows."""
-    logger.info(f"Starting workflow sync for task {self.request.id}")
+    logger.info('Starting workflow sync for task %s', self.request.id)
 
     db = SessionLocal()
     try:
@@ -31,19 +31,15 @@ def sync_workflow_status(self):
                 runtime = (datetime.now(UTC) - workflow.started_at).total_seconds()
                 if runtime > 7200 and workflow.status == "running":  # 2 hours
                     workflow.status = "timed_out"
-                    logger.warning(
-                        f"Workflow run {workflow.run_id} marked as timed out after {runtime}s"
-                    )
+                    logger.warning('Workflow run %s marked as timed out after %ss', workflow.run_id, runtime)
                     updated_count += 1
 
         db.commit()
-        logger.info(
-            f"Synced {len(running_workflows)} workflows, {updated_count} timed out"
-        )
+        logger.info('Synced %s workflows, %s timed out', len(running_workflows), updated_count)
         return {"synced": len(running_workflows), "timed_out": updated_count}
 
     except Exception as e:
-        logger.error(f"Error in sync_workflow_status: {e}")
+        logger.error('Error in sync_workflow_status: %s', e)
         raise
     finally:
         db.close()
@@ -52,7 +48,7 @@ def sync_workflow_status(self):
 @shared_task(bind=True, ignore_result=False)
 def update_system_metrics(self):
     """Update system-level performance and health metrics."""
-    logger.info(f"Updating system metrics for task {self.request.id}")
+    logger.info('Updating system metrics for task %s', self.request.id)
 
     try:
         monitoring = MonitoringService()
@@ -73,5 +69,5 @@ def update_system_metrics(self):
         return {"metrics": metrics, "timestamp": datetime.now(UTC).isoformat()}
 
     except Exception as e:
-        logger.error(f"Error in update_system_metrics: {e}")
+        logger.error('Error in update_system_metrics: %s', e)
         raise

@@ -387,7 +387,7 @@ class ToolConverter:
             tool: ToolDefinition to register
         """
         self.tools[tool.tool_id] = tool
-        logger.info(f"Registered tool: {tool.name} ({tool.tool_id})")
+        logger.info('Registered tool: %s (%s)', tool.name, tool.tool_id)
 
     def get_tool(self, tool_id: str) -> ToolDefinition | None:
         """
@@ -476,7 +476,7 @@ class ToolConverter:
             return self._parse_llm_result(result)
 
         except Exception as e:
-            logger.error(f"Error converting to tools: {e}")
+            logger.error('Error converting to tools: %s', e)
             return self._fallback_conversion(message)
 
     def _get_system_prompt(self, tools_description: str) -> str:
@@ -631,15 +631,11 @@ Response Format:
             match = re.search(pattern, message, re.IGNORECASE)
             if match:
                 workflow_name = match.group(1)
-                logger.info(
-                    f"[DEBUG] Pattern {pattern} matched, captured: '{workflow_name}'"
-                )
+                logger.info("[DEBUG] Pattern %s matched, captured: '%s'", pattern, workflow_name)
                 # Remove .json extension if present
                 if workflow_name.endswith(".json"):
                     workflow_name = workflow_name[:-5]
-                    logger.info(
-                        f"[DEBUG] Removed .json extension, workflow_name: '{workflow_name}'"
-                    )
+                    logger.info("[DEBUG] Removed .json extension, workflow_name: '%s'", workflow_name)
                 break
 
         if not workflow_name:
@@ -653,14 +649,14 @@ Response Format:
                     if os.path.exists(workflow_path):
                         with open(workflow_path, "r") as f:
                             workflow_data = json.load(f)
-                            logger.info(f"Loaded workflow file: {workflow_path}")
+                            logger.info('Loaded workflow file: %s', workflow_path)
                             return workflow_name, workflow_data
                 except Exception as e:
-                    logger.warning(f"Failed to load workflow {workflow_path}: {e}")
+                    logger.warning('Failed to load workflow %s: %s', workflow_path, e)
                     continue
 
         # If file not found, still return the workflow name for potential remote loading
-        logger.info(f"Workflow file not found locally, using name: {workflow_name}")
+        logger.info('Workflow file not found locally, using name: %s', workflow_name)
         return workflow_name, None
 
     def _fallback_conversion(self, message: str) -> dict[str, Any]:
@@ -684,13 +680,9 @@ Response Format:
                 )
             elif "comfyui" in message_lower or "image" in message_lower:
                 # Try to extract workflow file reference
-                logger.info(
-                    f"[DEBUG] ComfyUI detected in message, calling _extract_workflow_file_info"
-                )
+                logger.info('[DEBUG] ComfyUI detected in message, calling _extract_workflow_file_info')
                 workflow_name, workflow_data = self._extract_workflow_file_info(message)
-                logger.info(
-                    f"[DEBUG] Extraction result - workflow_name: {workflow_name}, workflow_data: {workflow_data is not None}"
-                )
+                logger.info('[DEBUG] Extraction result - workflow_name: %s, workflow_data: %s', workflow_name, workflow_data is not None)
 
                 parameters = {}
                 if workflow_name:
@@ -699,7 +691,7 @@ Response Format:
                 if workflow_data:
                     parameters["prompt"] = workflow_data
 
-                logger.info(f"[DEBUG] Final parameters: {parameters}")
+                logger.info('[DEBUG] Final parameters: %s', parameters)
 
                 tools.append(
                     {
@@ -889,10 +881,10 @@ Response Format:
         for config in saved_configs:
             config_descriptions.append(
                 f"""
-Configuration: {config['name']}
-Description: {config['description']}
-Tool: {config['tool_name']}
-Parameters: {json.dumps(config['parameters'], indent=2)}
+Configuration: {config["name"]}
+Description: {config["description"]}
+Tool: {config["tool_name"]}
+Parameters: {json.dumps(config["parameters"], indent=2)}
 """
             )
 
@@ -927,7 +919,7 @@ Respond with JSON:
 
             return None
         except Exception as e:
-            logger.error(f"Error detecting config reference: {e}")
+            logger.error('Error detecting config reference: %s', e)
             return self._fallback_config_matching(message, saved_configs)
 
     def _fallback_config_matching(
@@ -1029,7 +1021,7 @@ Respond with JSON:
         )
 
         if not is_valid:
-            logger.warning(f"Parameter validation failed: {errors}")
+            logger.warning('Parameter validation failed: %s', errors)
             # Return original conversion with warning
             return {
                 **conversion_result,

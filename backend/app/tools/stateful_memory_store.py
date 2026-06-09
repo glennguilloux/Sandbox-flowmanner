@@ -153,8 +153,7 @@ class StatefulMemoryStoreTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        f"Unknown action: {action}. "
-                        "Use 'save', 'retrieve', 'search', 'list', 'delete', or 'update'."
+                        f"Unknown action: {action}. Use 'save', 'retrieve', 'search', 'list', 'delete', or 'update'."
                     ),
                 )
         except Exception as e:

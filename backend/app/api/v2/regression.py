@@ -8,9 +8,9 @@ Provides:
 """
 
 from __future__ import annotations
-import uuid
 
 import logging
+import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -26,7 +26,6 @@ from app.services.substrate.assertion_engine import get_assertion_engine
 from app.services.substrate.baseline_extractor import get_baseline_extractor
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -226,8 +225,7 @@ async def freeze_baseline(
             "template_id": str(template.id),
             "run_id": actual_run_id,
             "extracted": behaviors,
-            "message": f"Baseline set with {len(behaviors)} assertions. "
-            f"Future runs will be checked against these.",
+            "message": f"Baseline set with {len(behaviors)} assertions. Future runs will be checked against these.",
         }
     )
 

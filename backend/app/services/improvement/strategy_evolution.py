@@ -256,13 +256,11 @@ class StrategyEvolver:
 
         # Check if we should evolve
         if best_variant.generation >= self.MAX_GENERATIONS:
-            logger.debug(f"Max generations reached for {base_strategy_type.value}")
+            logger.debug('Max generations reached for %s', base_strategy_type.value)
             return None
 
         if best_variant.applications < self.PROMOTE_MIN_APPLICATIONS:
-            logger.debug(
-                f"Not enough applications to evolve {base_strategy_type.value}"
-            )
+            logger.debug('Not enough applications to evolve %s', base_strategy_type.value)
             return None
 
         # Decide mutation type based on performance
@@ -299,10 +297,7 @@ class StrategyEvolver:
         self._variants[variant_id] = new_variant
         self._strategy_variants[base_strategy_type].add(variant_id)
 
-        logger.info(
-            f"Created new variant {variant_id} from {best_variant.variant_id} "
-            f"(generation {new_variant.generation}, mutation: {mutation_type})"
-        )
+        logger.info('Created new variant %s from %s (generation %s, mutation: %s)', variant_id, best_variant.variant_id, new_variant.generation, mutation_type)
 
         return new_variant
 
@@ -338,7 +333,7 @@ class StrategyEvolver:
 
         self._evolution_history.append(result)
 
-        logger.info(f"Deprecated variant {variant_id}: {reason}")
+        logger.info('Deprecated variant %s: %s', variant_id, reason)
 
         return result
 
@@ -381,9 +376,7 @@ class StrategyEvolver:
 
         self._evolution_history.append(result)
 
-        logger.info(
-            f"Promoted variant {variant_id} from {old_status.value} to {new_status.value}"
-        )
+        logger.info('Promoted variant %s from %s to %s', variant_id, old_status.value, new_status.value)
 
         return result
 
@@ -419,7 +412,7 @@ class StrategyEvolver:
 
         self._evolution_history.append(result)
 
-        logger.info(f"Retired variant {variant_id}: {reason}")
+        logger.info('Retired variant %s: %s', variant_id, reason)
 
         return result
 
@@ -665,7 +658,6 @@ class StrategyEvolver:
                     and variant.success_rate > 0.8
                     and variant.applications >= self.PROMOTE_MIN_APPLICATIONS * 2
                 ):
-
                     new_variant = await self.evolve_strategy(
                         strategy_type,
                         {"success_rate": variant.success_rate},

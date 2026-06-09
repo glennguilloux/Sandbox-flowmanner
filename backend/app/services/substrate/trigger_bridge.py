@@ -16,11 +16,11 @@ Usage:
 """
 
 from __future__ import annotations
-from datetime import datetime
 
 import asyncio
 import contextlib
 import logging
+from datetime import datetime
 
 from app.database import AsyncSessionLocal
 

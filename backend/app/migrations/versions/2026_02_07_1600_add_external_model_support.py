@@ -12,6 +12,7 @@ Revises: 2026_02_07_1500_add_rag_chat_integration
 Create Date: 2026-02-07 16:00:00.000000
 
 """
+
 import sqlalchemy as sa
 
 from alembic import op

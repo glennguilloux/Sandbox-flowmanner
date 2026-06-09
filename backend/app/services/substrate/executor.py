@@ -416,9 +416,7 @@ class UnifiedExecutor:
                     workspace_id=workspace_id,
                     max_cost_usd=float(budget.max_cost_usd),
                     max_llm_calls=budget.max_iterations,
-                    max_duration_seconds=getattr(
-                        budget, "max_wall_time_seconds", 300
-                    ),
+                    max_duration_seconds=getattr(budget, "max_wall_time_seconds", 300),
                 )
         except Exception as e:
             logger.debug("Circuit breaker init skipped: %s", e)

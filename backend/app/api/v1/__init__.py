@@ -109,6 +109,9 @@ swarm_router = _import_router("swarm")
 swarm_protocol_router = _import_router("swarm_protocol")
 rag_router = _import_router("rag")
 sandbox_router = _import_router("sandbox")
+sandbox_preview_router = _import_router("sandbox_preview")
+playground_router = _import_router("playground", tier=RouterTier.OPTIONAL)
+admin_sandboxes_router = _import_router("admin_sandboxes", tier=RouterTier.OPTIONAL)
 io_router = _import_router("io")
 sessions_router = _import_router("sessions")
 audit_log_router = _import_router("audit_log")
@@ -218,6 +221,9 @@ for _name, _router in [
     ("swarm_protocol", swarm_protocol_router),
     ("rag", rag_router),
     ("sandbox", sandbox_router),
+    ("sandbox-preview", sandbox_preview_router),
+    ("playground", playground_router),
+    ("admin-sandboxes", admin_sandboxes_router),
     ("substrate", substrate_router),
     ("io", io_router),
     ("workspace-shares", workspace_shares_router),

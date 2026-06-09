@@ -116,8 +116,7 @@ class RunService:
 
         if run.status not in (RunStatus.PENDING.value, RunStatus.QUEUED.value):
             raise RunValidationError(
-                f"Cannot execute run in '{run.status}' status. "
-                f"Only pending or queued runs can be executed."
+                f"Cannot execute run in '{run.status}' status. Only pending or queued runs can be executed."
             )
 
         # Mark as executing
@@ -353,21 +352,17 @@ class RunService:
         """
         run = await self.get(run_id, user_id)  # access check
 
-        from app.services.substrate.baseline_extractor import get_baseline_extractor
         from app.services.substrate.assertion_engine import get_assertion_engine
+        from app.services.substrate.baseline_extractor import get_baseline_extractor
 
         extractor = get_baseline_extractor()
         engine = get_assertion_engine()
 
         # Extract expected behaviors from this run
-        expected_behaviors = await extractor.extract_from_run(
-            self.db, str(run_id)
-        )
+        expected_behaviors = await extractor.extract_from_run(self.db, str(run_id))
 
         # Evaluate them
-        results = await engine.evaluate(
-            self.db, str(run_id), expected_behaviors
-        )
+        results = await engine.evaluate(self.db, str(run_id), expected_behaviors)
 
         return {
             "run_id": str(run_id),

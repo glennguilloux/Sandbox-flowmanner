@@ -42,6 +42,9 @@ async def lifespan(app):
     # Start trigger scheduler (H2.4: TriggerBridge with 2s polling)
     await _start_trigger_scheduler()
 
+    # Start playground cleanup background task (Phase 4)
+    _start_playground_cleanup()
+
     # ── Hydration Phase: Postgres-native with Python fallback ────────
     # Try to hydrate the in-memory ToolRegistry from the tools_catalog
     # table.  If the table is empty (import scripts haven't been run yet),
@@ -86,6 +89,9 @@ async def lifespan(app):
     logger.info("Application shutting down...")
 
     # Graceful Langfuse shutdown
+    # Stop playground cleanup task (Phase 4)
+    _stop_playground_cleanup()
+
     # Stop trigger scheduler (FLO-118)
     await _stop_trigger_scheduler()
 
@@ -387,7 +393,7 @@ def _init_tool_discovery():
 def _validate_production_secrets():
     warnings = settings.validate_secrets()
     for w in warnings:
-        logger.error(f"SECURITY: {w}")
+        logger.error('SECURITY: %s', w)
     if warnings:
         raise RuntimeError(
             f"Refusing to start with placeholder secrets: {'; '.join(warnings)}"
@@ -410,13 +416,11 @@ def _init_langfuse():
         )
 
         if service.enabled:
-            logger.info(
-                f"Langfuse observability enabled (host={settings.LANGFUSE_HOST})"
-            )
+            logger.info('Langfuse observability enabled (host=%s)', settings.LANGFUSE_HOST)
         else:
             logger.info("Langfuse observability disabled")
     except Exception as e:
-        logger.warning(f"Failed to initialize Langfuse (non-fatal): {e}")
+        logger.warning('Failed to initialize Langfuse (non-fatal): %s', e)
 
 
 def _init_litellm_callbacks():
@@ -444,7 +448,7 @@ def _init_litellm_callbacks():
     except ImportError:
         logger.debug("LiteLLM not available for callback configuration")
     except Exception as e:
-        logger.warning(f"Failed to configure LiteLLM callbacks (non-fatal): {e}")
+        logger.warning('Failed to configure LiteLLM callbacks (non-fatal): %s', e)
 
 
 def _shutdown_langfuse():
@@ -455,7 +459,7 @@ def _shutdown_langfuse():
         service = get_langfuse_service()
         service.shutdown()
     except Exception as e:
-        logger.debug(f"Langfuse shutdown error: {e}")
+        logger.debug('Langfuse shutdown error: %s', e)
 
 
 async def _seed_agent_templates():
@@ -551,7 +555,7 @@ def _register_core_tools():
         registry = get_tool_registry()
         for tool in tools_to_register:
             registry.register(tool)
-            logger.info(f"{tool.name} tool registered")
+            logger.info('%s tool registered', tool.name)
 
         for name in [
             "browser_ping",
@@ -653,6 +657,26 @@ async def _stop_trigger_scheduler():
         await stop_trigger_bridge()
     except Exception as e:
         logger.debug("TriggerBridge stop error (non-fatal): %s", e)
+
+
+def _start_playground_cleanup():
+    """Start the playground sandbox cleanup background task (Phase 4)."""
+    try:
+        from app.tasks.playground_cleanup import start_playground_cleanup
+
+        start_playground_cleanup()
+    except Exception as e:
+        logger.warning("Failed to start playground cleanup (non-fatal): %s", e)
+
+
+def _stop_playground_cleanup():
+    """Stop the playground sandbox cleanup background task."""
+    try:
+        from app.tasks.playground_cleanup import stop_playground_cleanup
+
+        stop_playground_cleanup()
+    except Exception as e:
+        logger.debug("Playground cleanup stop error (non-fatal): %s", e)
 
 
 async def _load_plugins():

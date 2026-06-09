@@ -449,10 +449,10 @@ async def send_slo_alert(
     payload = {
         "text": (
             f"{emoji} **[{severity}] SLO Alert: {slo_name}**\n"
-            f"Target: {description} (target: {target*100:.1f}%)\n"
-            f"Compliance: {compliance*100:.2f}%\n"
+            f"Target: {description} (target: {target * 100:.1f}%)\n"
+            f"Compliance: {compliance * 100:.2f}%\n"
             f"Burn rate: {burn_rate:.1f}x\n"
-            f"Error budget remaining: {error_budget_remaining*100:.1f}%\n"
+            f"Error budget remaining: {error_budget_remaining * 100:.1f}%\n"
             f"Service: workflow-backend (homelab)"
         ),
         "username": "Flowmanner SLO Alerts",

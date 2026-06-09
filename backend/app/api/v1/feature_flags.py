@@ -155,7 +155,7 @@ async def update_flag(
         text(
             f"""
             UPDATE feature_flags
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE key = :key
             RETURNING id, key, name, description, enabled_globally, created_at, updated_at
         """

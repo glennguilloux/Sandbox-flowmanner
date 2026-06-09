@@ -111,7 +111,7 @@ class ControlFlowAgent:
             handler: Handler function
         """
         self.tool_handlers[tool_id] = handler
-        logger.debug(f"Registered handler for tool: {tool_id}")
+        logger.debug('Registered handler for tool: %s', tool_id)
 
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph state machine"""
@@ -200,7 +200,7 @@ class ControlFlowAgent:
             )
             state = result
         except Exception as e:
-            logger.error(f"Error running graph: {e}")
+            logger.error('Error running graph: %s', e)
             state = add_message_to_state(
                 state,
                 "assistant",
@@ -229,7 +229,7 @@ class ControlFlowAgent:
             if data:
                 return dict_to_state(data)
         except Exception as e:
-            logger.error(f"Failed to load state: {e}")
+            logger.error('Failed to load state: %s', e)
         return None
 
     def _save_state(self, state: AgentState):
@@ -239,13 +239,13 @@ class ControlFlowAgent:
                 state["session_id"], state_to_dict(state)
             )
         except Exception as e:
-            logger.error(f"Failed to save state: {e}")
+            logger.error('Failed to save state: %s', e)
 
     # Graph nodes
 
     async def _process_input_node(self, state: AgentState) -> AgentState:
         """Process user input"""
-        logger.debug(f"Processing input for session {state['session_id']}")
+        logger.debug('Processing input for session %s', state['session_id'])
         return state
 
     async def _convert_to_tools_node(self, state: AgentState) -> AgentState:
@@ -367,9 +367,7 @@ class ControlFlowAgent:
                 "created_at": datetime.now(UTC).isoformat(),
             }
 
-            logger.info(
-                f"Created approval request {approval_id} for tool {tool['tool_name']}"
-            )
+            logger.info('Created approval request %s for tool %s', approval_id, tool['tool_name'])
 
         return state
 
@@ -459,7 +457,7 @@ class ControlFlowAgent:
             result = handler(state, parameters)
             return result
         except Exception as e:
-            logger.error(f"Tool execution failed: {e}")
+            logger.error('Tool execution failed: %s', e)
             return {"success": False, "error": str(e)}
 
     # Default tool handlers
@@ -480,7 +478,7 @@ class ControlFlowAgent:
             result = self.worker_handler.execute(action=action, params=params)
             return result
         except Exception as e:
-            logger.error(f"Worker task execution failed: {e}")
+            logger.error('Worker task execution failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_chain(
@@ -501,7 +499,7 @@ class ControlFlowAgent:
             )
             return result
         except Exception as e:
-            logger.error(f"Chain execution failed: {e}")
+            logger.error('Chain execution failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_get_task_status(
@@ -519,7 +517,7 @@ class ControlFlowAgent:
             result = self.worker_handler.get_task_status(task_id)
             return result
         except Exception as e:
-            logger.error(f"Get task status failed: {e}")
+            logger.error('Get task status failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_cancel_task(
@@ -537,7 +535,7 @@ class ControlFlowAgent:
             result = self.worker_handler.cancel_task(task_id)
             return {"success": result}
         except Exception as e:
-            logger.error(f"Cancel task failed: {e}")
+            logger.error('Cancel task failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_get_workflow_config(
@@ -561,7 +559,7 @@ class ControlFlowAgent:
                 }
             return result
         except Exception as e:
-            logger.error(f"Get workflow config failed: {e}")
+            logger.error('Get workflow config failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_save_workflow_config(
@@ -583,7 +581,7 @@ class ControlFlowAgent:
             )
             return result
         except Exception as e:
-            logger.error(f"Save workflow config failed: {e}")
+            logger.error('Save workflow config failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_list_workflow_configs(
@@ -598,7 +596,7 @@ class ControlFlowAgent:
             result = self.config_manager.list_configs(workflow_id=workflow_id)
             return result
         except Exception as e:
-            logger.error(f"List workflow configs failed: {e}")
+            logger.error('List workflow configs failed: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_n8n_workflow(
@@ -623,7 +621,7 @@ class ControlFlowAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error(f"Error executing n8n workflow: {e}")
+            logger.error('Error executing n8n workflow: %s', e)
             return {"success": False, "error": str(e)}
 
     def _handle_comfyui_workflow(
@@ -648,7 +646,7 @@ class ControlFlowAgent:
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
         except Exception as e:
-            logger.error(f"Error executing ComfyUI workflow: {e}")
+            logger.error('Error executing ComfyUI workflow: %s', e)
             return {"success": False, "error": str(e)}
 
     async def close(self):

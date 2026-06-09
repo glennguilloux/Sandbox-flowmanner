@@ -49,7 +49,7 @@ class FlowService:
             if not project:
                 raise ValueError(f"Project '{project_slug}' not found")
 
-            logger.info(f"Found existing project: {project.name}")
+            logger.info('Found existing project: %s', project.name)
             return {
                 "id": str(project.id),
                 "slug": project.name,
@@ -72,7 +72,7 @@ class FlowService:
             self.db.add(workflow)
             await self.db.commit()
 
-            logger.info(f"Created new project: {slug}")
+            logger.info('Created new project: %s', slug)
             return {"id": str(project_id), "slug": slug, "name": name, "config": {}}
 
     async def create_run(
@@ -100,7 +100,7 @@ class FlowService:
         self.db.add(execution)
         await self.db.commit()
 
-        logger.info(f"Created run: {run_id} for project: {project_id}")
+        logger.info('Created run: %s for project: %s', run_id, project_id)
         return {"id": str(run_id), "status": "pending", "created_at": now}
 
     async def execute(
@@ -132,7 +132,7 @@ class FlowService:
 
             duration_ms = int((datetime.now(UTC) - now).total_seconds() * 1000)
 
-            logger.info(f"Run {run_id} completed in {duration_ms}ms")
+            logger.info('Run %s completed in %sms', run_id, duration_ms)
             return {
                 "content": output,
                 "type": result.get("type", "markdown"),
@@ -142,7 +142,7 @@ class FlowService:
         except Exception as e:
             error_msg = str(e)
             await self._update_run_error(run_id, "error", error_msg)
-            logger.error(f"Run {run_id} failed: {error_msg}")
+            logger.error('Run %s failed: %s', run_id, error_msg)
             raise
 
     async def execute_async(self, run_id: str, project: dict, request: dict):
@@ -157,7 +157,7 @@ class FlowService:
                 await self._send_callback(callback_url, run_id, result)
 
         except Exception as e:
-            logger.error(f"Async execution failed for run {run_id}: {e}")
+            logger.error('Async execution failed for run %s: %s', run_id, e)
 
     async def get_run(self, run_id: str) -> dict | None:
         """Get run by ID."""
@@ -238,13 +238,13 @@ class FlowService:
                     json={"run_id": run_id, "status": "completed", "result": result},
                 )
         except Exception as e:
-            logger.error(f"Callback failed for run {run_id}: {e}")
+            logger.error('Callback failed for run %s: %s', run_id, e)
 
     async def _queue_email_reply(self, run_id: str):
         """Queue email reply for email-triggered runs."""
         # This will integrate with the email gateway
         # For now, just log
-        logger.info(f"Email reply queued for run {run_id}")
+        logger.info('Email reply queued for run %s', run_id)
 
 
 # Legacy import kept for backward compat (H4.2)

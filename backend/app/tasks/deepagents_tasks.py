@@ -37,7 +37,7 @@ def deepagents_execute_task(
     Returns:
         Agent response dictionary
     """
-    logger.info(f"Starting DeepAgents task for message: {message[:100]}...")
+    logger.info('Starting DeepAgents task for message: %s...', message[:100])
 
     # Check if DeepAgents is available
     if not is_available():
@@ -91,11 +91,11 @@ def deepagents_execute_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info(f"DeepAgents task completed successfully: {self.request.id}")
+        logger.info('DeepAgents task completed successfully: %s', self.request.id)
         return result
 
     except Exception as e:
-        logger.error(f"DeepAgents task failed: {e}", exc_info=True)
+        logger.error('DeepAgents task failed: %s', e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"
@@ -129,7 +129,7 @@ def deepagents_stream_task(
     Returns:
         Accumulated stream response dictionary
     """
-    logger.info(f"Starting DeepAgents stream task for message: {message[:100]}...")
+    logger.info('Starting DeepAgents stream task for message: %s...', message[:100])
 
     # Check if DeepAgents is available
     if not is_available():
@@ -196,11 +196,11 @@ def deepagents_stream_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info(f"DeepAgents stream task completed successfully: {self.request.id}")
+        logger.info('DeepAgents stream task completed successfully: %s', self.request.id)
         return result
 
     except Exception as e:
-        logger.error(f"DeepAgents stream task failed: {e}", exc_info=True)
+        logger.error('DeepAgents stream task failed: %s', e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"
@@ -231,7 +231,7 @@ def deepagents_batch_execute_task(
     Returns:
         Batch processing results
     """
-    logger.info(f"Starting DeepAgents batch processing for {len(messages)} messages")
+    logger.info('Starting DeepAgents batch processing for %s messages', len(messages))
 
     # Check if DeepAgents is available
     if not is_available():
@@ -277,13 +277,13 @@ def deepagents_batch_execute_task(
 
         # Process each message
         for i, message in enumerate(messages):
-            logger.info(f"Processing batch message {i+1}/{len(messages)}")
+            logger.info('Processing batch message %s/%s', i + 1, len(messages))
 
             try:
                 result = service.invoke(message=message, session_id=session_id)
                 results.append({"message": message, "result": result, "success": True})
             except Exception as e:
-                logger.error(f"Failed to process batch message {i+1}: {e}")
+                logger.error('Failed to process batch message %s: %s', i + 1, e)
                 results.append({"message": message, "error": str(e), "success": False})
 
         loop.close()
@@ -299,11 +299,11 @@ def deepagents_batch_execute_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info(f"DeepAgents batch processing completed: {len(results)} messages")
+        logger.info('DeepAgents batch processing completed: %s messages', len(results))
         return batch_result
 
     except Exception as e:
-        logger.error(f"DeepAgents batch processing failed: {e}", exc_info=True)
+        logger.error('DeepAgents batch processing failed: %s', e, exc_info=True)
 
         # Update task with error
         task_record.status = "failed"

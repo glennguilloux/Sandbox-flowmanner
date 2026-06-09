@@ -182,7 +182,6 @@ class TestBuildRestrictedWrapper:
 
 
 class TestExecutePythonInSandbox:
-
     def test_basic_print(self):
         result = execute_python_in_sandbox("print('hello world')")
         assert result["success"] is True
@@ -194,11 +193,7 @@ class TestExecutePythonInSandbox:
         assert "14" in result["output"]
 
     def test_json_output(self):
-        code = (
-            "import json\n"
-            "data = {'key': 'value', 'numbers': [1, 2, 3]}\n"
-            "print(json.dumps(data))"
-        )
+        code = "import json\ndata = {'key': 'value', 'numbers': [1, 2, 3]}\nprint(json.dumps(data))"
         result = execute_python_in_sandbox(code)
         assert result["success"] is True
         assert '"key"' in result["output"]

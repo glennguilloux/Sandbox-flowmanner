@@ -86,8 +86,7 @@ class BaseIntegrationAdapter(ABC):
             return {
                 "success": False,
                 "error": (
-                    f"Provider mismatch: adapter is for {self.provider}, "
-                    f"connection is for {connection.provider}"
+                    f"Provider mismatch: adapter is for {self.provider}, connection is for {connection.provider}"
                 ),
             }
 

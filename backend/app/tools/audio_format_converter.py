@@ -16,8 +16,6 @@ import tempfile
 from typing import Any
 
 from pydantic import Field
-from pydub import AudioSegment
-from pydub.utils import mediainfo
 
 from app.tools._file_utils import resolve_input
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
@@ -163,6 +161,9 @@ class AudioFormatConverterTool(BaseTool):
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 tmp.write(audio_bytes)
                 tmp_path = tmp.name
+
+            from pydub import AudioSegment  # lazy – pydub is optional
+            from pydub.utils import mediainfo
 
             audio = AudioSegment.from_file(tmp_path)
 

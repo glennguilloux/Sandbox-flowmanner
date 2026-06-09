@@ -548,8 +548,7 @@ class MemorySummarizationTool(BaseTool):
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
                         error=(
-                            f"No summary found for key='{key}' "
-                            f"in namespace='{namespace}'"
+                            f"No summary found for key='{key}' in namespace='{namespace}'"
                         ),
                     )
 

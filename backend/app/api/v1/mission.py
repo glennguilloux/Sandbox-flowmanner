@@ -1,8 +1,8 @@
 """V1 Missions endpoints — thin wrappers using CQRS handler DI."""
 
 from __future__ import annotations
-import uuid
 
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -26,7 +26,6 @@ from app.schemas.mission import (
 )
 
 if TYPE_CHECKING:
-
     from app.api._mission_cqrs.commands import MissionCommandHandlers
     from app.api._mission_cqrs.queries import MissionQueryHandlers
     from app.models.user import User

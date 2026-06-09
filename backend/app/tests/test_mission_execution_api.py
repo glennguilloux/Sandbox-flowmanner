@@ -70,18 +70,24 @@ def test_execute_mission_success(test_client):
             )
         )
 
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new_callable=AsyncMock,
-            return_value=mock_mission,
-        ), patch(
-            "app.services.subscription_service.check_mission_execute_allowed",
-            return_value=MagicMock(allowed=True),
-        ), patch(
-            "app.services.substrate.executor.get_unified_executor",
-            return_value=mock_unified,
-        ), patch(
-            "app.services.mission_service.get_mission_tasks", return_value=mock_tasks
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new_callable=AsyncMock,
+                return_value=mock_mission,
+            ),
+            patch(
+                "app.services.subscription_service.check_mission_execute_allowed",
+                return_value=MagicMock(allowed=True),
+            ),
+            patch(
+                "app.services.substrate.executor.get_unified_executor",
+                return_value=mock_unified,
+            ),
+            patch(
+                "app.services.mission_service.get_mission_tasks",
+                return_value=mock_tasks,
+            ),
         ):
             response = test_client.post(f"/api/missions/{MISSION_ID}/execute")
             assert response.status_code == 200
@@ -118,10 +124,14 @@ def test_get_mission_status_success(test_client):
     try:
         mock_mission = make_mission(status="completed")
         mock_tasks = [MagicMock(status="completed"), MagicMock(status="completed")]
-        with patch(
-            "app.services.mission_service.get_mission", return_value=mock_mission
-        ), patch(
-            "app.services.mission_service.get_mission_tasks", return_value=mock_tasks
+        with (
+            patch(
+                "app.services.mission_service.get_mission", return_value=mock_mission
+            ),
+            patch(
+                "app.services.mission_service.get_mission_tasks",
+                return_value=mock_tasks,
+            ),
         ):
             response = test_client.get(f"/api/missions/{MISSION_ID}/status")
             assert response.status_code == 200
@@ -139,15 +149,20 @@ def test_execute_async_mission(test_client):
     try:
         mock_mission = make_mission()
         mock_tasks = []
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new_callable=AsyncMock,
-            return_value=mock_mission,
-        ), patch(
-            "app.services.subscription_service.check_mission_execute_allowed",
-            return_value=MagicMock(allowed=True),
-        ), patch(
-            "app.services.mission_service.get_mission_tasks", return_value=mock_tasks
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new_callable=AsyncMock,
+                return_value=mock_mission,
+            ),
+            patch(
+                "app.services.subscription_service.check_mission_execute_allowed",
+                return_value=MagicMock(allowed=True),
+            ),
+            patch(
+                "app.services.mission_service.get_mission_tasks",
+                return_value=mock_tasks,
+            ),
         ):
             response = test_client.post(f"/api/missions/{MISSION_ID}/execute-async")
             assert response.status_code == 200

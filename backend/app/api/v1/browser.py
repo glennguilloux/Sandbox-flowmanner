@@ -534,9 +534,7 @@ async def browser_agent_chat(
                         "browser_agent_screenshot_fallback_failed", exc_info=True
                     )
 
-        logger.info(
-            f"Browser agent completed for user {user_id}: {result.get('response', '')[:100]}"
-        )
+        logger.info('Browser agent completed for user %s: %s', user_id, result.get('response', '')[:100])
 
         return BrowserChatResponse(
             response=result.get("response", "Task completed."),
@@ -547,7 +545,7 @@ async def browser_agent_chat(
         )
 
     except Exception as e:
-        logger.error(f"Browser agent error for user {user_id}: {e}", exc_info=True)
+        logger.error('Browser agent error for user %s: %s', user_id, e, exc_info=True)
         return BrowserChatResponse(
             response=f"Agent error: {e!s}",
             actions=[],

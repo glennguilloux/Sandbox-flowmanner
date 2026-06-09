@@ -9,6 +9,10 @@ Serves a dedicated /api/v2/openapi.json with:
 
 from __future__ import annotations
 
+import copy
+from dataclasses import dataclass
+from datetime import UTC, datetime, timezone
+from email.utils import format_datetime
 from typing import Any
 
 import structlog
@@ -18,6 +22,90 @@ from fastapi.responses import JSONResponse
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["v2-openapi"])
+
+
+# ── Deprecation Registry ──────────────────────────────────────────────────────
+# Single source of truth for RFC 8594 deprecation headers AND the
+# ``deprecated: true`` / ``x-sunset`` / ``x-successor`` fields in the OpenAPI
+# spec. Imported by:
+#   - app.main_fastapi.GraphQLDeprecationMiddleware (HTTP headers)
+#   - this module's _build_v2_openapi (spec metadata)
+#
+# Bisect step 6 (GraphQL deprecation, 2026-06-09): previous 5 steps hard-coded
+# the deprecation metadata in the middleware. This step moves it to a registry
+# so that:
+#   1. New deprecations only require adding a DeprecationEntry here — no
+#      middleware edits, no spec-builder edits.
+#   2. The HTTP headers and the OpenAPI spec stay in lockstep by construction.
+#   3. Sub-path matching (e.g. /api/v2/graphql/foo) just works.
+#   4. Tests can assert on the registry directly without spinning up the app.
+
+
+@dataclass(frozen=True)
+class DeprecationEntry:
+    """A single deprecation record for an HTTP path.
+
+    Attributes:
+        path: Path prefix (e.g. ``"/api/v2/graphql"``). Matches the path
+            itself and any sub-path (``/api/v2/graphql``, ``/api/v2/graphql/x``).
+        sunset_at: UTC datetime when the endpoint will be removed.
+        successor_path: Replacement endpoint URL, or None if N/A.
+        successor_rel: Link relation type (default: ``"successor-version"``).
+        notes: Human-readable explanation, surfaced in the OpenAPI spec.
+    """
+
+    path: str
+    sunset_at: datetime
+    successor_path: str | None = None
+    successor_rel: str = "successor-version"
+    notes: str = ""
+
+    @property
+    def sunset_header(self) -> str:
+        """RFC 7231 IMF-fixdate for the ``Sunset`` header (RFC 8594)."""
+        return format_datetime(self.sunset_at, usegmt=True)
+
+    @property
+    def link_header(self) -> str | None:
+        """``Link: <url>; rel="..."`` header value, or None if no successor."""
+        if not self.successor_path:
+            return None
+        return f'<{self.successor_path}>; rel="{self.successor_rel}"'
+
+    @property
+    def sunset_iso(self) -> str:
+        """ISO 8601 date for the OpenAPI ``x-sunset`` extension."""
+        return self.sunset_at.date().isoformat()
+
+
+# Registry of all deprecated v2 endpoints. To deprecate a new endpoint, add
+# an entry here — the middleware and the OpenAPI spec builder both read from
+# this dict, so no other code changes are required.
+DEPRECATION_REGISTRY: dict[str, DeprecationEntry] = {
+    "/api/v2/graphql": DeprecationEntry(
+        path="/api/v2/graphql",
+        sunset_at=datetime(2026, 7, 9, 0, 0, 0, tzinfo=UTC),
+        successor_path="/api/v2/missions",
+        notes="Use POST /api/v2/missions for unified workflow execution.",
+    ),
+}
+
+
+def _match_deprecation(path: str) -> DeprecationEntry | None:
+    """Return the most-specific registry entry that matches ``path``.
+
+    Longest-prefix-first, so e.g. ``/api/v2/graphql/foo`` wins over
+    ``/api/v2/graphql`` if both are registered. Returns None if no entry
+    matches.
+    """
+    for entry in sorted(
+        DEPRECATION_REGISTRY.values(),
+        key=lambda e: len(e.path),
+        reverse=True,
+    ):
+        if path == entry.path or path.startswith(entry.path + "/"):
+            return entry
+    return None
 
 
 # ── Security Schemes ──────────────────────────────────────────────────────────
@@ -93,9 +181,31 @@ def _build_v2_openapi(request: Request) -> dict[str, Any]:
     # Filter to only v2 paths
     v2_paths = {}
     for path, methods in full_schema.get("paths", {}).items():
-        if path.startswith("/api/v2"):
-            # Strip the /api/v2 prefix for cleaner v2-native docs
-            clean_path = path[7:] if path.startswith("/api/v2/") else "/"
+        if not path.startswith("/api/v2"):
+            continue
+        # Strip the /api/v2 prefix for cleaner v2-native docs
+        clean_path = path[7:] if path.startswith("/api/v2/") else "/"
+
+        # Inject deprecation metadata (step 6 of the GraphQL deprecation
+        # bisect). Deep-copy the operation dicts so we never mutate the
+        # cached full schema — app.openapi() caches its result.
+        deprecation = _match_deprecation(path)
+        if deprecation is not None:
+            new_methods: dict[str, Any] = {}
+            for method, operation in methods.items():
+                if not isinstance(operation, dict):
+                    new_methods[method] = operation
+                    continue
+                op_copy = copy.deepcopy(operation)
+                op_copy["deprecated"] = True
+                op_copy["x-sunset"] = deprecation.sunset_iso
+                if deprecation.notes:
+                    op_copy["x-deprecation-notes"] = deprecation.notes
+                if deprecation.successor_path:
+                    op_copy["x-successor"] = deprecation.successor_path
+                new_methods[method] = op_copy
+            v2_paths[clean_path] = new_methods
+        else:
             v2_paths[clean_path] = methods
 
     # Filter to only v2 schemas

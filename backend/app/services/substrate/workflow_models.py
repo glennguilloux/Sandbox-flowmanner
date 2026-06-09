@@ -54,6 +54,7 @@ class NodeType(str, Enum):
     PHASE_GATE = "phase_gate"  # Pipeline phase boundary
     FAN_OUT = "fan_out"  # Swarm decomposition
     FAN_IN = "fan_in"  # Swarm synthesis
+    SANDBOX = "sandbox"  # sandboxd Docker container execution
 
 
 # ── Workflow types (maps 1:1 to old executors) ──────────────────────

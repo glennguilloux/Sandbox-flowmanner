@@ -107,17 +107,18 @@ class TestModelRouterUserIdPropagation:
         with patch("app.services.mission_executor.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__.return_value = mock_db
             mock_session.return_value.__aexit__.return_value = None
-            with patch("app.services.mission_executor.tracer"), patch.object(
-                executor, "_log", AsyncMock()
-            ):
-                with patch.object(
+            with (
+                patch("app.services.mission_executor.tracer"),
+                patch.object(executor, "_log", AsyncMock()),
+                patch.object(
                     executor.task_exec,
                     "execute_task",
                     AsyncMock(return_value={"success": True}),
-                ):
-                    result = await executor.execute_mission(mock_mission.id)
-                    # May return early with "No tasks to execute" — that's fine
-                    # The router should still be wired
+                ),
+            ):
+                result = await executor.execute_mission(mock_mission.id)
+                # May return early with "No tasks to execute" — that's fine
+                # The router should still be wired
 
         # Verify the router was created with the mission's user_id
         assert executor.model_router is not None

@@ -639,9 +639,7 @@ class TemporalAnalyzer:
                         break
 
                 if match:
-                    logger.warning(
-                        f"Detected cascade pattern {cascade.cascade_id} in progress"
-                    )
+                    logger.warning('Detected cascade pattern %s in progress', cascade.cascade_id)
 
     # ========================================================================
     # ANOMALY DETECTION
@@ -782,10 +780,7 @@ class TemporalAnalyzer:
 
         # Check for spike
         if recent_count > expected_hourly * 3:
-            logger.warning(
-                f"Anomaly detected: {metric_key} count {recent_count} "
-                f"exceeds expected {expected_hourly:.1f}"
-            )
+            logger.warning('Anomaly detected: %s count %s exceeds expected %.1f', metric_key, recent_count, expected_hourly)
 
     # ========================================================================
     # PREDICTIONS

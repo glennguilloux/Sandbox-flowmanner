@@ -432,8 +432,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
         if validated.action not in KEYWORD_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(KEYWORD_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(KEYWORD_ACTIONS)}",
             )
 
         # Resolve text_content (support backward compat 'text' key)
@@ -619,13 +618,11 @@ class KeywordDensityAnalyzerTool(BaseTool):
                 stuffing_warnings.append(f"Keyword '{item['term']}' not found in text")
             elif density > STUFFING_THRESHOLD:
                 stuffing_warnings.append(
-                    f"Keyword '{item['term']}' density is {density}% "
-                    f"(exceeds {STUFFING_THRESHOLD}% stuffing threshold)"
+                    f"Keyword '{item['term']}' density is {density}% (exceeds {STUFFING_THRESHOLD}% stuffing threshold)"
                 )
             elif density < validated.optimal_density * 0.3:
                 stuffing_warnings.append(
-                    f"Keyword '{item['term']}' density is low "
-                    f"({density}% vs optimal {validated.optimal_density}%)"
+                    f"Keyword '{item['term']}' density is low ({density}% vs optimal {validated.optimal_density}%)"
                 )
 
         return {

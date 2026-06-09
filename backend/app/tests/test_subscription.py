@@ -90,8 +90,9 @@ async def test_initiate_upgrade():
         }
     )
 
-    with patch("app.api.v1.subscription.get_current_user", return_value=user), patch(
-        "app.api.v1.subscription.paypal_client", mock_paypal
+    with (
+        patch("app.api.v1.subscription.get_current_user", return_value=user),
+        patch("app.api.v1.subscription.paypal_client", mock_paypal),
     ):
         result = await initiate_upgrade(
             data=MagicMock(tier_name="pro", success_url=None, cancel_url=None),

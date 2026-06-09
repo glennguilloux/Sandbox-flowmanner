@@ -7,8 +7,8 @@ plus additional endpoints the frontend expects (/start, /register).
 """
 
 from __future__ import annotations
-import uuid
 
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -28,7 +28,6 @@ from app.services.agent_service import (
 )
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.agent import Agent

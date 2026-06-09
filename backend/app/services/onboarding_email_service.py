@@ -21,7 +21,7 @@ async def send_onboarding_email(db, user, email_type: str) -> None:
         }
         template_name = template_map.get(email_type)
         if not template_name:
-            logger.warning(f"Unknown onboarding email type: {email_type}")
+            logger.warning('Unknown onboarding email type: %s', email_type)
             return
 
         name = (
@@ -38,13 +38,8 @@ async def send_onboarding_email(db, user, email_type: str) -> None:
         )
 
         if result:
-            logger.info(f"Sent {email_type} email to {user.email}")
+            logger.info('Sent %s email to %s', email_type, user.email)
         else:
-            logger.warning(
-                f"Could not send {email_type} email to {user.email} — "
-                "no email provider configured (set RESEND_API_KEY or SMTP_* env vars)"
-            )
+            logger.warning('Could not send %s email to %s — no email provider configured (set RESEND_API_KEY or SMTP_* env vars)', email_type, user.email)
     except Exception as e:
-        logger.warning(
-            f"Failed to send onboarding email to {getattr(user, 'email', 'unknown')}: {e}"
-        )
+        logger.warning('Failed to send onboarding email to %s: %s', getattr(user, 'email', 'unknown'), e)

@@ -148,21 +148,30 @@ app.add_middleware(GlobalRateLimitMiddleware)
 
 
 class GraphQLDeprecationMiddleware:
-    """ASGI middleware that adds Deprecation / Sunset / Link headers to
-    responses served by the legacy ``/api/v2/graphql`` endpoint.
+    """ASGI middleware that adds RFC 8594 ``Deprecation`` / ``Sunset`` /
+    ``Link`` headers to responses for any path registered in
+    ``app.api.v2.openapi.DEPRECATION_REGISTRY``.
 
-    The endpoint is on the 5-step removal path (see
-    ``backend/app/api/v2/AGENTS.md`` — sunset 2026-07-09). This middleware
-    advertises the sunset date so any well-behaved client can detect the
-    deprecation via standard HTTP headers (RFC 8594 Deprecation / Sunset).
+    Bisect step 6 (2026-06-09): the deprecation metadata moved out of this
+    class and into the central registry in ``openapi.py``. The OpenAPI spec
+    builder reads from the same registry, so the headers and the spec stay
+    in lockstep. To deprecate a new endpoint, add a ``DeprecationEntry`` to
+    ``DEPRECATION_REGISTRY`` — no middleware edits required.
+
+    Earlier bisect steps (1–5) hard-coded the constants in this class. The
+    current design supports any number of deprecated paths, with longest-
+    prefix-first matching so sub-paths work transparently.
     """
-
-    SUNSET_DATE = "Wed, 09 Jul 2026 00:00:00 GMT"
-    LINK_URL = "/api/v2/missions"
-    LINK_REL = "successor-version"
 
     def __init__(self, app):
         self.app = app
+        # Lazy: registry import is cheap but the dict is small enough to
+        # snapshot at startup. _match_deprecation re-reads the registry on
+        # every request, so live changes to the registry (e.g. in tests) are
+        # picked up without restarting the process.
+        from app.api.v2.openapi import _match_deprecation
+
+        self._match = _match_deprecation
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -170,19 +179,21 @@ class GraphQLDeprecationMiddleware:
             return
 
         path = scope.get("path", "")
-        if not path.startswith("/api/v2/graphql"):
+        entry = self._match(path)
+        if entry is None:
             await self.app(scope, receive, send)
             return
 
-        sunset = self.SUNSET_DATE.encode()
-        link = f'<{self.LINK_URL}>; rel="{self.LINK_REL}"'.encode()
+        sunset = entry.sunset_header.encode()
+        link_value = entry.link_header
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
                 headers.append((b"deprecation", b"true"))
                 headers.append((b"sunset", sunset))
-                headers.append((b"link", link))
+                if link_value is not None:
+                    headers.append((b"link", link_value.encode()))
                 message["headers"] = headers
             await send(message)
 

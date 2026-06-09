@@ -74,7 +74,7 @@ async def log_auth_event(
             await db.commit()
     except Exception as e:
         # Audit logging should never break the application
-        logger.error(f"Failed to write audit log: {e}")
+        logger.error('Failed to write audit log: %s', e)
 
 
 async def log_event(

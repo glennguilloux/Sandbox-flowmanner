@@ -126,8 +126,7 @@ class GhostMediumPublisherTool(BaseTool):
         if validated.platform not in valid_platforms:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Invalid platform: '{validated.platform}'. "
-                f"Use: {', '.join(valid_platforms)}",
+                error=f"Invalid platform: '{validated.platform}'. Use: {', '.join(valid_platforms)}",
             )
 
         valid_statuses = ("draft", "published")

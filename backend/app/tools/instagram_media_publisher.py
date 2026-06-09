@@ -110,8 +110,7 @@ class InstagramMediaPublisherTool(BaseTool):
         if validated.media_type not in _VALID_MEDIA_TYPES:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Invalid media_type: '{validated.media_type}'. "
-                f"Use: {', '.join(_VALID_MEDIA_TYPES)}",
+                error=f"Invalid media_type: '{validated.media_type}'. Use: {', '.join(_VALID_MEDIA_TYPES)}",
             )
 
         if not validated.media_urls and not validated.media_data:
@@ -123,8 +122,7 @@ class InstagramMediaPublisherTool(BaseTool):
         if validated.caption and len(validated.caption) > INSTAGRAM_MAX_CAPTION:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Caption too long: {len(validated.caption)} chars "
-                f"(max {INSTAGRAM_MAX_CAPTION})",
+                error=f"Caption too long: {len(validated.caption)} chars (max {INSTAGRAM_MAX_CAPTION})",
             )
 
         if validated.media_type == "carousel":
@@ -318,9 +316,7 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error(
-                f"Instagram container error: {resp.status_code} {resp.text[:300]}"
-            )
+            logger.error('Instagram container error: %s %s', resp.status_code, resp.text[:300])
             return None
 
     async def _create_carousel_container(
@@ -343,9 +339,7 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error(
-                f"Instagram carousel error: {resp.status_code} {resp.text[:300]}"
-            )
+            logger.error('Instagram carousel error: %s %s', resp.status_code, resp.text[:300])
             return None
 
     async def _publish_container(self, container_id: str) -> str | None:
@@ -360,9 +354,7 @@ class InstagramMediaPublisherTool(BaseTool):
             )
             if resp.status_code in (200, 201):
                 return resp.json().get("id")
-            logger.error(
-                f"Instagram publish error: {resp.status_code} {resp.text[:300]}"
-            )
+            logger.error('Instagram publish error: %s %s', resp.status_code, resp.text[:300])
             return None
 
     async def _wait_for_ready(self, creation_id: str) -> str | None:
@@ -384,11 +376,9 @@ class InstagramMediaPublisherTool(BaseTool):
                 if status == "FINISHED":
                     return data.get("permalink")
                 if status == "ERROR":
-                    logger.error(f"Instagram processing error: {data}")
+                    logger.error('Instagram processing error: %s', data)
                     return None
-        logger.warning(
-            f"Instagram media {creation_id} still processing after {INSTAGRAM_MAX_POLLS} polls"
-        )
+        logger.warning('Instagram media %s still processing after %s polls', creation_id, INSTAGRAM_MAX_POLLS)
         return None
 
     def _build_caption(self, caption: str, hashtags: list[str] | None) -> str:

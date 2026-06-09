@@ -210,8 +210,7 @@ class CapabilityToken(BaseModel):
 
         if not new_actions.issubset(self.actions):
             raise ValueError(
-                f"Attenuation violation: child actions {new_actions} "
-                f"are not a subset of parent actions {self.actions}"
+                f"Attenuation violation: child actions {new_actions} are not a subset of parent actions {self.actions}"
             )
 
         # Build the attenuation proof
@@ -285,27 +284,24 @@ class Budget(BaseModel):
 
         if self.spent_usd >= self.max_cost_usd:
             return True, (
-                f"Cost budget exhausted "
-                f"(${self.spent_usd:.4f}/${self.max_cost_usd:.2f})"
+                f"Cost budget exhausted (${self.spent_usd:.4f}/${self.max_cost_usd:.2f})"
             )
 
         if self.max_wall_time_seconds > 0 and self.wall_time_started_at > 0:
             elapsed = _time.monotonic() - self.wall_time_started_at
             if elapsed >= self.max_wall_time_seconds:
                 return True, (
-                    f"Wall-clock budget exhausted "
-                    f"({elapsed:.1f}s/{self.max_wall_time_seconds}s)"
+                    f"Wall-clock budget exhausted ({elapsed:.1f}s/{self.max_wall_time_seconds}s)"
                 )
 
         if self.iterations_used >= self.max_iterations:
             return True, (
-                f"Iteration budget exhausted "
-                f"({self.iterations_used}/{self.max_iterations})"
+                f"Iteration budget exhausted ({self.iterations_used}/{self.max_iterations})"
             )
 
         if self.depth_used >= self.max_depth:
             return True, (
-                f"Depth budget exhausted " f"({self.depth_used}/{self.max_depth})"
+                f"Depth budget exhausted ({self.depth_used}/{self.max_depth})"
             )
 
         return False, ""
@@ -462,8 +458,7 @@ class PydanticAdapter:
             ):
                 return (
                     False,
-                    f"Field {field_name} expected {expected_type}, "
-                    f"got {type(value).__name__}",
+                    f"Field {field_name} expected {expected_type}, got {type(value).__name__}",
                 )
 
         return True, None

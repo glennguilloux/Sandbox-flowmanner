@@ -95,9 +95,7 @@ class BrowserSession:
 
         self._start_timeout_watchdog()
 
-        logger.info(
-            f"Browser session {self.session_id} started for user {self.user_id}"
-        )
+        logger.info('Browser session %s started for user %s', self.session_id, self.user_id)
 
     def _start_timeout_watchdog(self):
         async def watchdog():
@@ -107,9 +105,7 @@ class BrowserSession:
                     datetime.now(UTC) - self.last_user_interaction
                 ).total_seconds()
                 if idle_time >= self.timeout_seconds:
-                    logger.info(
-                        f"Session {self.session_id} timed out after {idle_time}s"
-                    )
+                    logger.info('Session %s timed out after %ss', self.session_id, idle_time)
                     if self.on_timeout_callback:
                         await self.on_timeout_callback(self.session_id)
                     break
@@ -134,7 +130,7 @@ class BrowserSession:
             await self.playwright.stop()
 
         self.status = SessionStatus.CLOSED
-        logger.info(f"Browser session {self.session_id} closed")
+        logger.info('Browser session %s closed', self.session_id)
 
     def touch_user_interaction(self):
         self.last_user_interaction = datetime.now(UTC)

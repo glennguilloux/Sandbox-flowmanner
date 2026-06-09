@@ -1,6 +1,6 @@
 from __future__ import annotations
-import uuid
 
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -29,7 +29,6 @@ from app.services.graph_service import (
 from app.services.mission_errors import GraphNotFoundError
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

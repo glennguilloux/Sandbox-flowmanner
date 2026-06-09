@@ -255,7 +255,7 @@ class SecurityService:
             try:
                 await handler(event)
             except Exception as e:
-                logger.error(f"Audit handler failed: {e}")
+                logger.error('Audit handler failed: %s', e)
 
     def _generate_id(self) -> str:
         return uuid.uuid4().hex[:16]
@@ -290,9 +290,7 @@ class SecurityService:
 
                 if strict:
                     errors.append(f"{field_name}: Blocked suspicious pattern")
-                    logger.warning(
-                        f"Input blocked for field {field_name}: matched pattern"
-                    )
+                    logger.warning('Input blocked for field %s: matched pattern', field_name)
                 else:
                     warnings.append(f"{field_name}: Contains suspicious pattern")
                     sanitized = pattern.sub("[BLOCKED]", sanitized)
@@ -385,7 +383,7 @@ class SecurityService:
     async def set_rate_limit(self, rule: RateLimitRule):
         async with self._lock:
             self._rate_limit_rules[rule.entity_id] = rule
-            logger.info(f"Set rate limit for {rule.entity_type} {rule.entity_id}")
+            logger.info('Set rate limit for %s %s', rule.entity_type, rule.entity_id)
 
     async def check_rate_limit(
         self, entity_id: str, entity_type: str = "user"
@@ -428,7 +426,7 @@ class SecurityService:
                 },
             )
 
-            logger.warning(f"Rate limit exceeded for {entity_type} {entity_id}")
+            logger.warning('Rate limit exceeded for %s %s', entity_type, entity_id)
             return False, rule.block_duration_seconds
 
         state.requests.append(now)
@@ -570,7 +568,7 @@ class SecurityService:
             success=True,
         )
 
-        logger.info(f"Stored secret: {name}")
+        logger.info('Stored secret: %s', name)
         return secret
 
     async def get_secret(
@@ -579,11 +577,11 @@ class SecurityService:
         secret = self._secrets.get(name)
 
         if secret is None:
-            logger.warning(f"Secret not found: {name}")
+            logger.warning('Secret not found: %s', name)
             return None
 
         if secret.is_expired():
-            logger.warning(f"Secret expired: {name}")
+            logger.warning('Secret expired: %s', name)
             return None
 
         async with self._lock:
@@ -616,7 +614,7 @@ class SecurityService:
             success=True,
         )
 
-        logger.info(f"Deleted secret: {name}")
+        logger.info('Deleted secret: %s', name)
         return True
 
     async def list_secrets(self, tags: list[str] | None = None) -> list[dict[str, Any]]:
@@ -655,9 +653,7 @@ class SecurityService:
             },
         )
 
-        logger.info(
-            f"Set permissions for {permission_set.entity_type} {permission_set.entity_id}"
-        )
+        logger.info('Set permissions for %s %s', permission_set.entity_type, permission_set.entity_id)
 
     async def check_permission(
         self, entity_id: str, permission: Permission, resource: str | None = None

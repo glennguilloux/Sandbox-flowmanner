@@ -1,10 +1,10 @@
 """Integrations v2 API — HTTP outbound integration CRUD and logs."""
 
 from __future__ import annotations
-import uuid
 
 import json
 import logging
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,7 +23,6 @@ from app.schemas.integration_v2 import (
 from app.utils.encryption import encrypt_api_key
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

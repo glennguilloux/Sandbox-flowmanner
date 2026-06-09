@@ -124,13 +124,16 @@ async def deliver_webhook_async(
         try:
             start_time = time.time()
 
-            async with aiohttp.ClientSession() as session, session.request(
-                method=subscription.method,
-                url=subscription.endpoint_url,
-                data=payload_str,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=subscription.timeout_seconds),
-            ) as response:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.request(
+                    method=subscription.method,
+                    url=subscription.endpoint_url,
+                    data=payload_str,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=subscription.timeout_seconds),
+                ) as response,
+            ):
                 response_time_ms = int((time.time() - start_time) * 1000)
                 response_text = await response.text()
 
@@ -149,9 +152,7 @@ async def deliver_webhook_async(
                     subscription.last_success_at = datetime.now(UTC)
                     subscription.consecutive_failures = 0
 
-                    logger.info(
-                        f"Webhook delivered successfully to {subscription.endpoint_url}"
-                    )
+                    logger.info('Webhook delivered successfully to %s', subscription.endpoint_url)
                     return True
                 else:
                     # HTTP error
@@ -160,24 +161,22 @@ async def deliver_webhook_async(
                         f"HTTP {response.status}: {response_text[:500]}"
                     )
 
-                    logger.warning(
-                        f"Webhook delivery failed with HTTP {response.status}"
-                    )
+                    logger.warning('Webhook delivery failed with HTTP %s', response.status)
 
         except TimeoutError:
             delivery.status = "failed"
             delivery.error_message = f"Timeout after {subscription.timeout_seconds}s"
-            logger.warning(f"Webhook delivery timed out")
+            logger.warning('Webhook delivery timed out')
 
         except aiohttp.ClientError as e:
             delivery.status = "failed"
             delivery.error_message = str(e)
-            logger.warning(f"Webhook delivery error: {e}")
+            logger.warning('Webhook delivery error: %s', e)
 
         except Exception as e:
             delivery.status = "failed"
             delivery.error_message = f"Unexpected error: {e!s}"
-            logger.error(f"Webhook delivery unexpected error: {e}")
+            logger.error('Webhook delivery unexpected error: %s', e)
 
         # Check if we should retry
         if attempt < max_attempts and delivery.status == "failed":
@@ -200,9 +199,7 @@ async def deliver_webhook_async(
     # Disable subscription if too many consecutive failures
     if subscription.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
         subscription.is_active = False
-        logger.warning(
-            f"Disabled webhook subscription {subscription.id} due to {MAX_CONSECUTIVE_FAILURES} consecutive failures"
-        )
+        logger.warning('Disabled webhook subscription %s due to %s consecutive failures', subscription.id, MAX_CONSECUTIVE_FAILURES)
 
     db.commit()
     return False
@@ -221,7 +218,7 @@ def dispatch_webhook_event(event_type: str, event_id: str, payload: dict) -> dic
     Returns:
         Dict with delivery results
     """
-    logger.info(f"Dispatching webhook event: {event_type} (id={event_id})")
+    logger.info('Dispatching webhook event: %s (id=%s)', event_type, event_id)
 
     db = SessionLocal()
     try:
@@ -229,14 +226,14 @@ def dispatch_webhook_event(event_type: str, event_id: str, payload: dict) -> dic
         try:
             WebhookEventType(event_type)
         except ValueError:
-            logger.warning(f"Unknown event type: {event_type}")
+            logger.warning('Unknown event type: %s', event_type)
             return {"success": False, "error": f"Unknown event type: {event_type}"}
 
         # Get subscriptions
         subscriptions = get_subscriptions_for_event(event_type, db)
 
         if not subscriptions:
-            logger.info(f"No active subscriptions for event: {event_type}")
+            logger.info('No active subscriptions for event: %s', event_type)
             return {"success": True, "deliveries": 0, "message": "No subscriptions"}
 
         # Deliver to all subscriptions
@@ -255,9 +252,7 @@ def dispatch_webhook_event(event_type: str, event_id: str, payload: dict) -> dic
         success_count = sum(1 for r in delivery_results if r is True)
         failure_count = len(delivery_results) - success_count
 
-        logger.info(
-            f"Webhook dispatch complete: {success_count} success, {failure_count} failed"
-        )
+        logger.info('Webhook dispatch complete: %s success, %s failed', success_count, failure_count)
 
         return {
             "success": True,
@@ -269,7 +264,7 @@ def dispatch_webhook_event(event_type: str, event_id: str, payload: dict) -> dic
         }
 
     except Exception as e:
-        logger.error(f"Error dispatching webhook event: {e}")
+        logger.error('Error dispatching webhook event: %s', e)
         return {"success": False, "error": str(e)}
     finally:
         db.close()
@@ -325,7 +320,7 @@ def retry_failed_webhooks() -> dict:
         return {"success": True, "retried": retried}
 
     except Exception as e:
-        logger.error(f"Error retrying webhooks: {e}")
+        logger.error('Error retrying webhooks: %s', e)
         return {"success": False, "error": str(e)}
     finally:
         db.close()

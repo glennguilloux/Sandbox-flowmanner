@@ -141,7 +141,7 @@ async def add_agent_by_slug(
     )
     template = tmpl_result.scalars().first()
     if not template:
-        logger.warning(f"Agent template not found for slug: {slug}")
+        logger.warning('Agent template not found for slug: %s', slug)
         return None
     return await add_agent_to_swarm(db, swarm_id, template.id, role, assigned_model)
 
@@ -166,9 +166,7 @@ async def populate_swarm_from_division(
         if agent:
             agents.append(agent)
 
-    logger.info(
-        f"Populated swarm {swarm_id} with {len(agents)} agents from division '{division}'"
-    )
+    logger.info("Populated swarm %s with %s agents from division '%s'", swarm_id, len(agents), division)
     return agents
 
 
@@ -180,9 +178,7 @@ async def populate_swarm_from_slugs(
         agent = await add_agent_by_slug(db, swarm_id, slug)
         if agent:
             agents.append(agent)
-    logger.info(
-        f"Populated swarm {swarm_id} with {len(agents)} agents from {len(slugs)} slugs"
-    )
+    logger.info('Populated swarm %s with %s agents from %s slugs', swarm_id, len(agents), len(slugs))
     return agents
 
 

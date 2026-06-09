@@ -83,7 +83,7 @@ async def search(request: SearchRequest):
         )
         return results
     except Exception as e:
-        logger.error(f"Search error: {e}")
+        logger.error('Search error: %s', e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -109,7 +109,7 @@ async def extract_content(
 
         return content
     except Exception as e:
-        logger.error(f"Content extraction error: {e}")
+        logger.error('Content extraction error: %s', e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -149,5 +149,5 @@ async def understand_query(query: str = Query(..., description="Query to analyze
             "suggested_providers": understanding.suggested_providers,
         }
     except Exception as e:
-        logger.error(f"Query understanding error: {e}")
+        logger.error('Query understanding error: %s', e)
         raise HTTPException(status_code=500, detail=str(e))

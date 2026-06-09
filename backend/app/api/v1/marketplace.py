@@ -593,8 +593,7 @@ async def install_listing(
             else:
                 raise HTTPException(
                     400,
-                    "Plugin package not available. "
-                    "The publisher must upload a .fmp before install is possible.",
+                    "Plugin package not available. The publisher must upload a .fmp before install is possible.",
                 )
 
     # Record installation

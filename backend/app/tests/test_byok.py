@@ -36,14 +36,12 @@ def client(app):
 @pytest.mark.asyncio
 async def test_create_api_key():
     """Test creating a new API key."""
-    with patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER), patch(
-        "app.api.v1.byok.get_db"
-    ) as mock_get_db, patch(
-        "app.utils.encryption.encrypt_api_key", return_value="encrypted_key"
-    ), patch(
-        "app.api.v1.byok.UserAPIKey"
-    ) as MockUserAPIKey:
-
+    with (
+        patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER),
+        patch("app.api.v1.byok.get_db") as mock_get_db,
+        patch("app.utils.encryption.encrypt_api_key", return_value="encrypted_key"),
+        patch("app.api.v1.byok.UserAPIKey") as MockUserAPIKey,
+    ):
         from app.api.v1.byok import APIKeyCreate, create_api_key
 
         # Mock DB session
@@ -80,10 +78,10 @@ async def test_create_api_key():
 @pytest.mark.asyncio
 async def test_list_api_keys():
     """Test listing API keys."""
-    with patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER), patch(
-        "app.api.v1.byok.get_db"
-    ) as mock_get_db:
-
+    with (
+        patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER),
+        patch("app.api.v1.byok.get_db") as mock_get_db,
+    ):
         from app.api.v1.byok import list_api_keys
 
         # Mock DB session
@@ -122,10 +120,10 @@ async def test_list_api_keys():
 @pytest.mark.asyncio
 async def test_delete_api_key():
     """Test deleting (soft-delete) an API key."""
-    with patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER), patch(
-        "app.api.v1.byok.get_db"
-    ) as mock_get_db:
-
+    with (
+        patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER),
+        patch("app.api.v1.byok.get_db") as mock_get_db,
+    ):
         from app.api.v1.byok import delete_api_key
 
         # Mock DB session

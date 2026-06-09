@@ -206,8 +206,7 @@ class LinearAdapter(BaseIntegrationAdapter):
         if not provided:
             return {
                 "success": False,
-                "error": "At least one updatable field is required "
-                "(title, description, status, priority)",
+                "error": "At least one updatable field is required (title, description, status, priority)",
             }
 
         variables: dict = {

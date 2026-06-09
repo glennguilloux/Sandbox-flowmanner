@@ -120,16 +120,14 @@ class SalesforceLeadCreatorTool(BaseTool):
         if validated.action not in SALESFORCE_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(SALESFORCE_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(SALESFORCE_ACTIONS)}",
             )
 
         if not SALESFORCE_INSTANCE_URL or not SALESFORCE_ACCESS_TOKEN:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
-                    "Salesforce not configured. Set SALESFORCE_INSTANCE_URL "
-                    "and SALESFORCE_ACCESS_TOKEN."
+                    "Salesforce not configured. Set SALESFORCE_INSTANCE_URL and SALESFORCE_ACCESS_TOKEN."
                 ),
             )
 
@@ -247,8 +245,7 @@ class SalesforceLeadCreatorTool(BaseTool):
         resp = await client.get(
             f"{base}/sobjects/Lead/{lead_id}",
             params={
-                "fields": "Id,FirstName,LastName,Company,Email,Phone,"
-                "Title,LeadSource,Status,Description,CreatedDate"
+                "fields": "Id,FirstName,LastName,Company,Email,Phone,Title,LeadSource,Status,Description,CreatedDate"
             },
         )
         resp.raise_for_status()

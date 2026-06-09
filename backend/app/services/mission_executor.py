@@ -32,8 +32,10 @@ from app.models.mission_models import (
     Mission,
     MissionLog,
     MissionStatus,
-    MissionTask as MT,
     MissionTaskStatus,
+)
+from app.models.mission_models import (
+    MissionTask as MT,
 )
 from app.orchestration.human_interrupt import HumanInterrupt, get_hitl_manager
 from app.services.browser_task_runner import BrowserTaskRunner
@@ -45,7 +47,9 @@ from app.services.mission_errors import (
     RetryableMissionError,
 )
 from app.services.mission_planner import MissionPlanner
+from app.services.sandbox_service import SandboxService
 from app.services.task_executor import TaskExecutor
+from app.tools._sandbox_context import set_current_sandbox_id
 
 logger = logging.getLogger(__name__)
 
@@ -115,10 +119,10 @@ class MissionExecutor:
                 self.model_router = ModelRouter()
                 logger.info("ModelRouter loaded successfully")
             except PermanentMissionError as e:
-                logger.error(f"Permanent error loading ModelRouter: {e}")
+                logger.error('Permanent error loading ModelRouter: %s', e)
                 self.model_router = None
             except Exception as e:
-                logger.warning(f"Could not load ModelRouter: {e}")
+                logger.warning('Could not load ModelRouter: %s', e)
                 self.model_router = None
         return self.model_router
 
@@ -129,10 +133,10 @@ class MissionExecutor:
                 self.rag_service = RAGService()
                 logger.info("RAGService loaded successfully")
             except PermanentMissionError as e:
-                logger.error(f"Permanent error loading RAGService: {e}")
+                logger.error('Permanent error loading RAGService: %s', e)
                 self.rag_service = None
             except Exception as e:
-                logger.warning(f"Could not load RAGService: {e}")
+                logger.warning('Could not load RAGService: %s', e)
                 self.rag_service = None
         return self.rag_service
 
@@ -207,7 +211,7 @@ class MissionExecutor:
                     },
                 )
         except Exception as db_error:
-            logger.error(f"Failed to update step status: {db_error}")
+            logger.error('Failed to update step status: %s', db_error)
             await db.rollback()
 
     async def _transition_status(
@@ -269,7 +273,7 @@ class MissionExecutor:
                     )
                     mission = result.scalars().first()
                     if not mission:
-                        logger.error(f"Mission {mission_id} not found")
+                        logger.error('Mission %s not found', mission_id)
                         span.set_attribute("mission.error", "not_found")
                         return {"success": False, "error": "Mission not found"}
 
@@ -278,9 +282,7 @@ class MissionExecutor:
                         MissionStatus.QUEUED,
                         MissionStatus.PLANNED,
                     ):
-                        logger.warning(
-                            f"Mission {mission_id} cannot execute from '{mission.status}' state"
-                        )
+                        logger.warning("Mission %s cannot execute from '%s' state", mission_id, mission.status)
                         return {
                             "success": False,
                             "error": f"Cannot execute mission in '{mission.status}' state",
@@ -314,6 +316,31 @@ class MissionExecutor:
                             "cause": "Mission execution started",
                         },
                     )
+
+                    # Create sandbox for this mission (sandboxd integration)
+                    sandbox_id: str | None = None
+                    sandbox_svc: SandboxService | None = None
+                    if settings.SANDBOXD_ENABLED:
+                        try:
+                            sandbox_svc = SandboxService()
+                            sandbox_id = await sandbox_svc.ensure_sandbox_for_mission(
+                                str(mission.id),
+                                str(mission.user_id),
+                                db=db,
+                            )
+                            set_current_sandbox_id(sandbox_id)
+                            await self._log(
+                                db,
+                                mission.id,
+                                None,
+                                "info",
+                                f"Sandbox {sandbox_id} ready for mission",
+                            )
+                        except Exception as sb_err:
+                            logger.warning(
+                                "sandboxd unavailable, falling back to subprocess sandboxes: %s",
+                                sb_err,
+                            )
 
                     task_result = await db.execute(
                         select(MT)
@@ -529,7 +556,7 @@ class MissionExecutor:
                                         )
 
                             except Exception as e:
-                                logger.exception(f"Error executing task {task.id}")
+                                logger.exception('Error executing task %s', task.id)
                                 failed.add(str(task.id))
                                 task.status = MissionTaskStatus.FAILED
                                 task.completed_at = datetime.now(UTC)
@@ -542,6 +569,14 @@ class MissionExecutor:
                                 )
 
                             await db.commit()
+
+                    # Reap sandbox on mission terminal transition
+                    if sandbox_id and sandbox_svc:
+                        try:
+                            await sandbox_svc.reap_sandbox(str(mission.id), db=db)
+                            set_current_sandbox_id(None)
+                        except Exception as reap_err:
+                            logger.warning("Failed to reap sandbox: %s", reap_err)
 
                     mission.completed_at = datetime.now(UTC)
                     prev_status = mission.status
@@ -588,11 +623,9 @@ class MissionExecutor:
 
                         analytics_service = get_analytics_service(db)
                         await analytics_service.calculate_mission_metrics(mission.id)
-                        logger.info(f"Analytics calculated for mission {mission.id}")
+                        logger.info('Analytics calculated for mission %s', mission.id)
                     except Exception as analytics_error:
-                        logger.warning(
-                            f"Non-critical failure in analytics: {analytics_error}"
-                        )
+                        logger.warning('Non-critical failure in analytics: %s', analytics_error)
 
                     await db.commit()
 
@@ -611,9 +644,7 @@ class MissionExecutor:
                             },
                         )
                     except Exception as audit_error:
-                        logger.warning(
-                            f"Non-critical failure in audit log: {audit_error}"
-                        )
+                        logger.warning('Non-critical failure in audit log: %s', audit_error)
 
                     # Sync to Linear if linked
                     try:
@@ -626,9 +657,7 @@ class MissionExecutor:
                             error_message=mission.error_message,
                         )
                     except Exception as linear_err:
-                        logger.warning(
-                            f"Non-critical failure in Linear sync: {linear_err}"
-                        )
+                        logger.warning('Non-critical failure in Linear sync: %s', linear_err)
 
                     # Record execution for learning
                     try:
@@ -664,7 +693,7 @@ class MissionExecutor:
                     }
 
                 except PermanentMissionError as e:
-                    logger.error(f"Permanent error executing mission {mission_id}: {e}")
+                    logger.error('Permanent error executing mission %s: %s', mission_id, e)
                     await self._transition_status(
                         db,
                         mission,
@@ -675,12 +704,10 @@ class MissionExecutor:
                     )
                     return {"success": False, "error": str(e), "permanent": True}
                 except RetryableMissionError as e:
-                    logger.warning(
-                        f"Retryable error executing mission {mission_id}: {e}"
-                    )
+                    logger.warning('Retryable error executing mission %s: %s', mission_id, e)
                     raise
                 except Exception as e:
-                    logger.exception(f"Error executing mission {mission_id}")
+                    logger.exception('Error executing mission %s', mission_id)
                     await self._transition_status(
                         db,
                         mission,
@@ -715,11 +742,9 @@ class MissionExecutor:
                 },
             )
 
-            logger.info(f"Improvement analysis completed for mission {mission.id}")
+            logger.info('Improvement analysis completed for mission %s', mission.id)
         except Exception as improvement_error:
-            logger.warning(
-                f"Non-critical failure in improvement analysis: {improvement_error}"
-            )
+            logger.warning('Non-critical failure in improvement analysis: %s', improvement_error)
 
     # ── Logging ───────────────────────────────────────────────────────────────
 
@@ -747,7 +772,7 @@ class MissionExecutor:
                 f"[Mission {mission_id}] {message}",
             )
         except Exception as e:
-            logger.error(f"Failed to create log entry: {e}")
+            logger.error('Failed to create log entry: %s', e)
 
     # ── Planning (delegated) ──────────────────────────────────────────────────
 

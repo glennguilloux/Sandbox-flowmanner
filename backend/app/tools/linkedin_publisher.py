@@ -318,7 +318,7 @@ class LinkedinPublisherTool(BaseTool):
         except (json.JSONDecodeError, KeyError):
             error_msg = resp.text[:500]
 
-        logger.error(f"LinkedIn API error {resp.status_code}: {error_msg}")
+        logger.error('LinkedIn API error %s: %s', resp.status_code, error_msg)
         return {
             "status": "error",
             "error": f"LinkedIn API returned {resp.status_code}: {error_msg}",

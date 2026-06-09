@@ -208,7 +208,7 @@ async def create_workspace(
     await db.commit()
     await db.refresh(ws)
 
-    logger.info(f"Workspace created: {ws_id} ({payload.name}) by user {user.id}")
+    logger.info('Workspace created: %s (%s) by user %s', ws_id, payload.name, user.id)
     return _ws_to_response(ws, member_count=1)
 
 
@@ -408,7 +408,7 @@ async def update_workspace_settings(
         **updated.get("approval_policies", {}),
     }
 
-    logger.info(f"Workspace {workspace_id} settings updated by user {user.id}")
+    logger.info('Workspace %s settings updated by user %s', workspace_id, user.id)
     return {
         "circuit_breaker_defaults": cb_defaults,
         "approval_policies": approval,
@@ -538,7 +538,7 @@ async def create_team(
     await db.commit()
     await db.refresh(team)
 
-    logger.info(f"Team created: {team.id} ({payload.name}) in workspace {workspace_id}")
+    logger.info('Team created: %s (%s) in workspace %s', team.id, payload.name, workspace_id)
     return _team_to_response(team, member_count=1)
 
 
@@ -939,9 +939,7 @@ async def accept_invitation(
 
     await db.commit()
 
-    logger.info(
-        f"Invitation accepted: {inv.id} — user {user.id} joined workspace {inv.workspace_id}"
-    )
+    logger.info('Invitation accepted: %s — user %s joined workspace %s', inv.id, user.id, inv.workspace_id)
     return {"message": "Invitation accepted", "workspace_id": inv.workspace_id}
 
 
@@ -1089,7 +1087,5 @@ async def create_invite_link(
     await db.commit()
     await db.refresh(inv)
 
-    logger.info(
-        f"Invitation created: {inv.id} for {payload.email} to workspace {workspace_id}"
-    )
+    logger.info('Invitation created: %s for %s to workspace %s', inv.id, payload.email, workspace_id)
     return {"id": inv.id, "token": token, "url": f"/invite/{token}"}

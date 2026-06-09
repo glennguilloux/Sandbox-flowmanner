@@ -629,10 +629,13 @@ class TestExecuteTool:
         executor = TaskExecutor()
         mock_task = MagicMock()
 
-        with patch(
-            "app.services.mission_tools.tool_web_search",
-            AsyncMock(side_effect=RetryableMissionError("overloaded")),
-        ), pytest.raises(RetryableMissionError):
+        with (
+            patch(
+                "app.services.mission_tools.tool_web_search",
+                AsyncMock(side_effect=RetryableMissionError("overloaded")),
+            ),
+            pytest.raises(RetryableMissionError),
+        ):
             await executor._execute_tool(
                 mock_task, {"tool_id": "web_search", "params": {"query": "test"}}
             )

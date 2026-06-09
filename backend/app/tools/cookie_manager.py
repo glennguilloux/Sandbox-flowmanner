@@ -129,8 +129,7 @@ class CookieManagerTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        f"Unknown action: '{action}'. "
-                        "Use 'get', 'set', 'delete', or 'clear'."
+                        f"Unknown action: '{action}'. Use 'get', 'set', 'delete', or 'clear'."
                     ),
                 )
         except Exception as e:

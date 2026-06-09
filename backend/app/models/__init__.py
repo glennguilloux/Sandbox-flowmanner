@@ -158,8 +158,14 @@ from app.models.partner_revenue_models import (
     PartnerRevenue,
 )
 
+# Playground sandbox models (Phase 4)
+from app.models.playground_models import PlaygroundSandbox
+
 # Plugin models (Phase 9.1)
 from app.models.plugin_models import InstalledPlugin
+
+# Sandbox models (sandboxd integration)
+from app.models.sandbox_models import MissionSandbox
 
 # Subscription models (depend on User)
 from app.models.subscription_models import (

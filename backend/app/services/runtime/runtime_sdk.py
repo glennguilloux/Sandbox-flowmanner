@@ -46,7 +46,7 @@ class RuntimeSDK:
         """Execute a tool"""
         execution_id = str(uuid.uuid4())
 
-        logger.info(f"Executing tool {tool_name} with execution_id {execution_id}")
+        logger.info('Executing tool %s with execution_id %s', tool_name, execution_id)
 
         # Simulate tool execution
         await asyncio.sleep(0.5)

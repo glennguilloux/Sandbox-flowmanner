@@ -64,7 +64,7 @@ class BrowserManager:
             self._sessions[session_id] = session
             self._user_sessions[user_id] = session_id
 
-            logger.info(f"Created browser session {session_id} for user {user_id}")
+            logger.info('Created browser session %s for user %s', session_id, user_id)
             return session
 
     def get_session(self, session_id: str) -> Any:
@@ -85,7 +85,7 @@ class BrowserManager:
                 if self._user_sessions.get(user_id) == session_id:
                     del self._user_sessions[user_id]
                 del self._sessions[session_id]
-                logger.info(f"Closed browser session {session_id}")
+                logger.info('Closed browser session %s', session_id)
 
     async def close_user_session(self, user_id: str):
         session_id = self._user_sessions.get(user_id)
@@ -109,7 +109,7 @@ class BrowserManager:
         }
 
     async def _handle_session_timeout(self, session_id: str):
-        logger.info(f"Session {session_id} timed out, cleaning up")
+        logger.info('Session %s timed out, cleaning up', session_id)
         await self._cleanup_timed_out_session(session_id)
 
     async def _cleanup_timed_out_session(self, session_id: str):
@@ -119,13 +119,13 @@ class BrowserManager:
                 try:
                     await session.close()
                 except Exception as e:
-                    logger.warning(f"Error closing timed out session {session_id}: {e}")
+                    logger.warning('Error closing timed out session %s: %s', session_id, e)
                 user_id = session.user_id
                 if self._user_sessions.get(user_id) == session_id:
                     del self._user_sessions[user_id]
                 if session_id in self._sessions:
                     del self._sessions[session_id]
-                logger.info(f"Cleaned up timed out session {session_id}")
+                logger.info('Cleaned up timed out session %s', session_id)
 
     async def cleanup_on_startup(self):
         logger.info("Cleaning up orphan Chromium processes on startup")
@@ -139,7 +139,7 @@ class BrowserManager:
             if result.returncode == 0:
                 logger.info("Killed orphan Chromium processes")
         except Exception as e:
-            logger.debug(f"No orphan Chromium to clean up: {e}")
+            logger.debug('No orphan Chromium to clean up: %s', e)
 
 
 _browser_manager_instance = None

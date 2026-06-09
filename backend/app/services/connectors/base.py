@@ -316,7 +316,7 @@ class BaseConnector(ABC):
         except Exception as e:
             self._last_error = str(e)
             self._status = ConnectorStatus.ERROR
-            logger.error(f"Failed to connect {self.config.name}: {e}")
+            logger.error('Failed to connect %s: %s', self.config.name, e)
             return False
 
     async def disconnect(self) -> None:
@@ -403,10 +403,7 @@ class BaseConnector(ABC):
                             * (retry_config.exponential_base**attempt),
                             retry_config.max_delay,
                         )
-                        logger.warning(
-                            f"Retry {attempt + 1}/{retry_config.max_retries} "
-                            f"for {self.config.name} after {delay}s"
-                        )
+                        logger.warning('Retry %s/%s for %s after %ss', attempt + 1, retry_config.max_retries, self.config.name, delay)
                         await asyncio.sleep(delay)
                         continue
 
@@ -425,10 +422,10 @@ class BaseConnector(ABC):
                         * (retry_config.exponential_base**attempt),
                         retry_config.max_delay,
                     )
-                    logger.warning(f"Retry {attempt + 1} for {self.config.name}: {e}")
+                    logger.warning('Retry %s for %s: %s', attempt + 1, self.config.name, e)
                     await asyncio.sleep(delay)
                 else:
-                    logger.error(f"All retries exhausted for {self.config.name}: {e}")
+                    logger.error('All retries exhausted for %s: %s', self.config.name, e)
 
         return ConnectorResponse(success=False, error=str(last_error), status_code=0)
 

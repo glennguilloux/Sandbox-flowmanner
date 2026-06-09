@@ -73,7 +73,7 @@ async def revoke_session(db: AsyncSession, user_id: int, session_id: int) -> boo
 
     token.is_revoked = True
     await db.flush()
-    logger.info(f"Session {session_id} revoked for user {user_id}")
+    logger.info('Session %s revoked for user %s', session_id, user_id)
     return True
 
 
@@ -95,7 +95,7 @@ async def revoke_all_other_sessions(
         count += 1
 
     await db.flush()
-    logger.info(f"Revoked {count} other sessions for user {user_id}")
+    logger.info('Revoked %s other sessions for user %s', count, user_id)
     return count
 
 

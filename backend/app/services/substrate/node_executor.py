@@ -17,12 +17,15 @@ All tool calls go through CapabilityEngine.verify().
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from app.integrations.sandboxd_client import SandboxdClient, get_sandboxd_client
 from app.models.capability_models import Action, Budget, BudgetExhausted, ResourceRef
 from app.models.substrate_models import SubstrateEventType
+from app.services.sandbox_service import SandboxService
 from app.services.substrate.event_log import get_event_log
 from app.services.substrate.workflow_models import (
     NodeType,
@@ -82,6 +85,20 @@ class NodeExecutor:
                               capability_engine, event_log, etc.
         """
         self.executor = unified_executor
+        self._sbx_client: SandboxdClient | None = None
+        self._sbx_svc: SandboxService | None = None
+
+    @property
+    def _sandbox_client(self) -> SandboxdClient:
+        if self._sbx_client is None:
+            self._sbx_client = get_sandboxd_client()
+        return self._sbx_client
+
+    @property
+    def _sandbox_service(self) -> SandboxService:
+        if self._sbx_svc is None:
+            self._sbx_svc = SandboxService(self._sandbox_client)
+        return self._sbx_svc
 
     async def execute(
         self,
@@ -298,6 +315,10 @@ class NodeExecutor:
             case NodeType.PHASE_GATE | NodeType.FAN_OUT | NodeType.FAN_IN:
                 # Delegated to strategy — the node executor just passes through
                 return {"success": True, "output": context, "tokens": 0}
+            case NodeType.SANDBOX:
+                return await self._handle_sandbox_node(
+                    db, node, context, budget, run_id, workflow
+                )
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -666,6 +687,251 @@ class NodeExecutor:
             return {"success": False, "error": result.error}
         except Exception as e:
             return {"success": False, "error": f"Browser tool failed: {e}"}
+
+    # ── Sandbox node (Phase 3) ───────────────────────────────────────
+
+    async def _handle_sandbox_node(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        budget: Budget,
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Execute a sandbox node: create container → push files → submit task → stream SSE.
+
+        Config keys:
+            template: sandboxd template name (default "react-standard")
+            task_prompt: coding task prompt for sandboxd's AI agent
+            shared_workspace: reuse existing sandbox for this mission
+            input_files: dict of path→content to write before task
+            snapshot_before: create snapshot before executing (rollback safety)
+        """
+        config = node.config or {}
+        task_prompt = config.get("task_prompt") or context.get("task_prompt")
+        if not task_prompt:
+            return {"success": False, "error": "No task_prompt provided"}
+
+        template = config.get("template", "react-standard")
+        shared_workspace = config.get("shared_workspace", False)
+        input_files = config.get("input_files", {})
+        snapshot_before = config.get("snapshot_before", False)
+
+        mission_id = workflow.id if workflow else None
+        user_id = workflow.user_id if workflow else "system"
+        event_log = get_event_log()
+
+        sandbox_id = None
+        try:
+            # 1 — Create or reuse sandbox
+            if shared_workspace and mission_id:
+                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(
+                    mission_id, db=db
+                )
+            if not sandbox_id:
+                if mission_id:
+                    sandbox_id = await self._sandbox_service.ensure_sandbox_for_mission(
+                        mission_id=mission_id,
+                        user_id=user_id,
+                        db=db,
+                        template=template,
+                    )
+                else:
+                    # No mission context — create ephemeral sandbox
+                    resp = await self._sandbox_client.create(
+                        project_id=f"node_{node.id}",
+                        user_id=user_id,
+                        template=template,
+                    )
+                    sandbox_id = resp["id"]
+
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": SubstrateEventType.SANDBOX_CREATED,
+                        "payload": {"sandbox_id": sandbox_id, "node_id": node.id},
+                        "actor": "node_executor",
+                        "mission_id": mission_id,
+                        "task_id": node.id,
+                    }
+                ],
+            )
+
+            # 2 — Optional snapshot checkpoint
+            if snapshot_before:
+                snap = await self._sandbox_client.create_snapshot(
+                    sandbox_id, f"pre_{node.id}"
+                )
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.SANDBOX_SNAPSHOT_CREATED,
+                            "payload": {
+                                "snapshot_id": snap.get("id"),
+                                "sandbox_id": sandbox_id,
+                            },
+                            "actor": "node_executor",
+                            "mission_id": mission_id,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+
+            # 3 — Write input files
+            if input_files:
+                for path, content in input_files.items():
+                    if isinstance(content, str):
+                        content = content.encode("utf-8")
+                    await self._sandbox_client.write_file(sandbox_id, path, content)
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.SANDBOX_FILES_WRITTEN,
+                            "payload": {"files": list(input_files.keys())},
+                            "actor": "node_executor",
+                            "mission_id": mission_id,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+
+            # 4 — Submit task to sandboxd
+            task = await self._sandbox_client.submit_task(
+                sandbox_id=sandbox_id,
+                prompt=task_prompt,
+                agent="opencode",
+            )
+            task_id = task["id"]
+
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": SubstrateEventType.SANDBOX_TASK_SUBMITTED,
+                        "payload": {"task_id": task_id, "sandbox_id": sandbox_id},
+                        "actor": "node_executor",
+                        "mission_id": mission_id,
+                        "task_id": node.id,
+                    }
+                ],
+            )
+
+            # 5 — Stream SSE events, recording progress
+            async for sse in self._sandbox_client.task_events(sandbox_id, task_id):
+                ev_type = sse.get("type", "")
+                ev_data_str = sse.get("data", "{}")
+
+                try:
+                    ev_data = (
+                        json.loads(ev_data_str)
+                        if isinstance(ev_data_str, str)
+                        else ev_data_str
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    ev_data = {"raw": ev_data_str}
+
+                if ev_type == "progress":
+                    await event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.SANDBOX_TASK_PROGRESS,
+                                "payload": {
+                                    "task_id": task_id,
+                                    "message": ev_data.get("message", ""),
+                                    "percent": ev_data.get("percent", 0),
+                                },
+                                "actor": "node_executor",
+                                "mission_id": mission_id,
+                                "task_id": node.id,
+                            }
+                        ],
+                    )
+                    if hasattr(self.executor, "ws_manager"):
+                        self.executor.ws_manager.broadcast_node_state(
+                            run_id,
+                            node.id,
+                            "running",
+                            output={
+                                "progress": ev_data.get("percent", 0),
+                                "message": ev_data.get("message", ""),
+                            },
+                        )
+
+                elif ev_type == "complete":
+                    await event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.SANDBOX_TASK_COMPLETED,
+                                "payload": {
+                                    "task_id": task_id,
+                                    "exit_code": ev_data.get("exit_code", 0),
+                                    "stdout": str(ev_data.get("stdout", ""))[:50000],
+                                },
+                                "actor": "node_executor",
+                                "mission_id": mission_id,
+                                "task_id": node.id,
+                            }
+                        ],
+                    )
+                    return {
+                        "success": ev_data.get("exit_code", 0) == 0,
+                        "output": {
+                            "sandbox_id": sandbox_id,
+                            "task_id": task_id,
+                            "stdout": ev_data.get("stdout", ""),
+                            "exit_code": ev_data.get("exit_code", 0),
+                        },
+                        "tokens": 0,
+                        "cost": 0.0,
+                    }
+
+                elif ev_type == "error":
+                    await event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.SANDBOX_TASK_FAILED,
+                                "payload": {
+                                    "task_id": task_id,
+                                    "error": ev_data.get(
+                                        "error", "Unknown sandbox task error"
+                                    ),
+                                },
+                                "actor": "node_executor",
+                                "mission_id": mission_id,
+                                "task_id": node.id,
+                            }
+                        ],
+                    )
+                    return {
+                        "success": False,
+                        "error": ev_data.get("error", "Sandbox task failed"),
+                        "tokens": 0,
+                    }
+
+            # SSE stream ended without complete/error event
+            return {
+                "success": False,
+                "error": "SSE stream ended unexpectedly (no complete/error event)",
+                "tokens": 0,
+            }
+
+        except Exception as e:
+            logger.exception("Sandbox node %s failed", node.id)
+            return {"success": False, "error": f"Sandbox node failed: {e}", "tokens": 0}
 
     # ── Sub-workflow (recursive) ────────────────────────────────────
 

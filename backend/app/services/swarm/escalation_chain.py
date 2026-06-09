@@ -181,9 +181,7 @@ class EscalationChain:
         self.db.add(msg)
         await self.db.flush()
 
-        logger.info(
-            f"Escalation started for task {task_id}: level={next_level}, action={action}"
-        )
+        logger.info('Escalation started for task %s: level=%s, action=%s', task_id, next_level, action)
         return record
 
     async def _continue_escalation(
@@ -222,7 +220,7 @@ class EscalationChain:
             )
             self.db.add(msg)
             await self.db.flush()
-            logger.warning(f"Task {existing.task_id} moved to dead letter queue")
+            logger.warning('Task %s moved to dead letter queue', existing.task_id)
             return existing
 
         # Check if we stay at current level or escalate
@@ -284,9 +282,7 @@ class EscalationChain:
             self.db.add(msg)
 
         await self.db.flush()
-        logger.info(
-            f"Escalation continued for task {existing.task_id}: level={existing.level}"
-        )
+        logger.info('Escalation continued for task %s: level=%s', existing.task_id, existing.level)
         return existing
 
     async def resolve(

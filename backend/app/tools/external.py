@@ -26,8 +26,7 @@ class WeatherCurrentInput(ToolInput):
     location: str = Field(
         ...,
         description=(
-            "City name or coordinates. Examples: 'Paris', 'New York', "
-            "'48.8566,2.3522' (lat,lon)"
+            "City name or coordinates. Examples: 'Paris', 'New York', '48.8566,2.3522' (lat,lon)"
         ),
     )
     units: str = Field(

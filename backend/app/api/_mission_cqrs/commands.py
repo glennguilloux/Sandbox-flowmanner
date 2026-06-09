@@ -1,9 +1,9 @@
 """Mission command handlers — mutation operations with explicit transactions."""
 
 from __future__ import annotations
-import uuid
 
 import logging
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -57,7 +57,6 @@ from .compat import (
 )
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -597,8 +596,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             abort_reason = AbortReason(reason_str)
         except ValueError:
             raise MissionValidationError(
-                f"Invalid abort reason: '{reason_str}'. "
-                f"Valid reasons: {[r.value for r in AbortReason]}"
+                f"Invalid abort reason: '{reason_str}'. Valid reasons: {[r.value for r in AbortReason]}"
             )
 
         # SELECT ... FOR UPDATE to prevent TOCTOU races
@@ -637,8 +635,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         }
         if mission.status not in abortable:
             raise MissionTransitionConflictError(
-                f"Cannot abort mission in '{mission.status}' state. "
-                f"Only active missions can be aborted."
+                f"Cannot abort mission in '{mission.status}' state. Only active missions can be aborted."
             )
 
         prev_status = (
@@ -942,8 +939,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             abort_reason = AbortReason(reason)
         except ValueError:
             raise MissionValidationError(
-                f"Invalid abort reason: '{reason}'. "
-                f"Valid reasons: {[r.value for r in AbortReason]}"
+                f"Invalid abort reason: '{reason}'. Valid reasons: {[r.value for r in AbortReason]}"
             )
 
         str_ids = [str(mid) for mid in mission_ids]

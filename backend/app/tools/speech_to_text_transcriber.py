@@ -16,7 +16,6 @@ from typing import Any
 
 import httpx
 from pydantic import Field
-from pydub import AudioSegment
 
 from app.tools._file_utils import resolve_input
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
@@ -129,8 +128,7 @@ class SpeechToTextTranscriberTool(BaseTool):
         if validated.response_format not in valid_formats:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Invalid response_format: '{validated.response_format}'. "
-                f"Use: {', '.join(valid_formats)}",
+                error=f"Invalid response_format: '{validated.response_format}'. Use: {', '.join(valid_formats)}",
             )
 
         try:
@@ -231,6 +229,7 @@ class SpeechToTextTranscriberTool(BaseTool):
         self, audio_bytes: bytes, validated: SpeechToTextTranscriberInput
     ) -> dict[str, Any]:
         """Transcribe using local whisper model."""
+        from pydub import AudioSegment  # lazy – pydub is optional
 
         # Convert to WAV via pydub so whisper gets a known-good format
         audio_seg = AudioSegment.from_file(io.BytesIO(audio_bytes))

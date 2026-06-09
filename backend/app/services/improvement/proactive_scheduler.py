@@ -296,10 +296,7 @@ class ProactiveScheduler:
         self._scheduled_actions[action_id] = action
         self._pending_queue.append(action_id)
 
-        logger.info(
-            f"Scheduled preventive action {action_id} for "
-            f"{prediction.failure_type.value} at {scheduled_time.isoformat()}"
-        )
+        logger.info('Scheduled preventive action %s for %s at %s', action_id, prediction.failure_type.value, scheduled_time.isoformat())
 
         return action
 
@@ -474,7 +471,7 @@ class ProactiveScheduler:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Scheduler loop error: {e}")
+                logger.error('Scheduler loop error: %s', e)
                 await asyncio.sleep(60)
 
     async def _process_ready_actions(self) -> None:
@@ -517,7 +514,7 @@ class ProactiveScheduler:
         self._running_actions.add(action.action_id)
         self._pending_queue.remove(action.action_id)
 
-        logger.info(f"Executing action {action.action_id} (attempt {action.attempts})")
+        logger.info('Executing action %s (attempt %s)', action.action_id, action.attempts)
 
         try:
             # Get handler
@@ -536,12 +533,12 @@ class ProactiveScheduler:
             action.status = ScheduleStatus.COMPLETED
             action.completed_at = datetime.now(UTC)
 
-            logger.info(f"Action {action.action_id} completed successfully")
+            logger.info('Action %s completed successfully', action.action_id)
 
         except TimeoutError:
             action.error_message = "Action timed out"
             action.status = ScheduleStatus.FAILED
-            logger.error(f"Action {action.action_id} timed out")
+            logger.error('Action %s timed out', action.action_id)
 
         except Exception as e:
             action.error_message = str(e)
@@ -550,12 +547,10 @@ class ProactiveScheduler:
                 # Retry
                 action.status = ScheduleStatus.PENDING
                 self._pending_queue.append(action.action_id)
-                logger.warning(f"Action {action.action_id} failed, will retry: {e}")
+                logger.warning('Action %s failed, will retry: %s', action.action_id, e)
             else:
                 action.status = ScheduleStatus.FAILED
-                logger.error(
-                    f"Action {action.action_id} failed after {action.attempts} attempts: {e}"
-                )
+                logger.error('Action %s failed after %s attempts: %s', action.action_id, action.attempts, e)
 
         finally:
             self._running_actions.discard(action.action_id)
@@ -578,7 +573,7 @@ class ProactiveScheduler:
                 self._execution_history.append(action)
 
             self._pending_queue.remove(action_id)
-            logger.debug(f"Skipped expired action {action_id}")
+            logger.debug('Skipped expired action %s', action_id)
 
     async def _generate_proactive_actions(self) -> None:
         """Generate new proactive actions from predictions."""
@@ -646,7 +641,7 @@ class ProactiveScheduler:
                     )
                     result["actions_taken"].append(measure_name)
                 except Exception as e:
-                    logger.warning(f"Failed to apply {measure_name}: {e}")
+                    logger.warning('Failed to apply %s: %s', measure_name, e)
 
         return result
 
@@ -668,7 +663,7 @@ class ProactiveScheduler:
                     )
                     result["optimizations"].append(knob_name)
                 except Exception as e:
-                    logger.warning(f"Failed to set {knob_name}: {e}")
+                    logger.warning('Failed to set %s: %s', knob_name, e)
 
         return result
 

@@ -18,6 +18,7 @@ select = [
     "PERF", # Perflint — performance anti-patterns
     "PT",   # flake8-pytest-style — pytest conventions
     "TCH",  # flake8-type-checking — move type-only imports into TYPE_CHECKING blocks
+    "G",    # flake8-logging-format — ban f-strings / .format() in logging calls
 ]
 ignore = [
     "UP015",  # redundant-open-modes — allow explicit 'r' mode for clarity
@@ -31,7 +32,14 @@ ignore = [
     "RUF013", # implicit-optional — too noisy with X | None already in use
 
     "F821",   # undefined-name — ~97 from TCH refactor (FastAPI/Strawberry runtime deps). Fix per-file.
-    "PT028",  # removed in newer ruff versions
+    "G001",   # logging-string-format-arg — soft-allow (printf %s is acceptable)
+    "G002",   # logging-percent-format — soft-allow (printf %s is acceptable)
+    # G003 / G004 (logging-f-string) are INTENTIONALLY NOT IGNORED — they
+    # fire on every f-string in a logger call. Convention (2026-06-09,
+    # bisect step 7): structlog kwargs are preferred (``logger.error(
+    # "event_name", key=val)``); printf %s is acceptable; f-strings are
+    # banned. See ``scripts/convert_fstring_loggers.py`` for the
+    # mechanical converter that produced the current clean state.
 ]
 
 [lint.per-file-ignores]

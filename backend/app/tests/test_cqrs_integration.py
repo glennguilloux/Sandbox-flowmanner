@@ -250,12 +250,15 @@ class TestCqrsCrudPipeline:
         mission = make_mission_orm(user_id=1)
         updated = make_mission_orm(title="Updated Title")
 
-        with patch(
-            "app.services.mission_service.get_mission",
-            return_value=mission,
-        ), patch(
-            "app.api._mission_cqrs.commands.update_mission",
-            new=AsyncMock(return_value=updated),
+        with (
+            patch(
+                "app.services.mission_service.get_mission",
+                return_value=mission,
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.update_mission",
+                new=AsyncMock(return_value=updated),
+            ),
         ):
             response = cqrs_client.patch(
                 f"/api/v2/missions/{MISSION_ID}",
@@ -289,12 +292,15 @@ class TestCqrsCrudPipeline:
         """Command handler → delete_mission → ownership check → commit → 204."""
         mission = make_mission_orm(user_id=1)
 
-        with patch(
-            "app.services.mission_service.get_mission",
-            return_value=mission,
-        ), patch(
-            "app.api._mission_cqrs.commands.delete_mission",
-            new=AsyncMock(return_value=True),
+        with (
+            patch(
+                "app.services.mission_service.get_mission",
+                return_value=mission,
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.delete_mission",
+                new=AsyncMock(return_value=True),
+            ),
         ):
             response = cqrs_client.delete(f"/api/v2/missions/{MISSION_ID}")
 
@@ -321,12 +327,15 @@ class TestCqrsStatusTaskPipeline:
         """Query handler → get_mission → get_mission_tasks → MissionExecutionStatus."""
         mission = make_mission_orm(user_id=1, status="running")
 
-        with patch(
-            "app.services.mission_service.get_mission",
-            new=AsyncMock(return_value=mission),
-        ), patch(
-            "app.api._mission_cqrs.queries.get_mission_tasks",
-            new=AsyncMock(return_value=[]),
+        with (
+            patch(
+                "app.services.mission_service.get_mission",
+                new=AsyncMock(return_value=mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.queries.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
         ):
             response = cqrs_client.get(f"/api/v2/missions/{MISSION_ID}/status")
 
@@ -343,12 +352,15 @@ class TestCqrsStatusTaskPipeline:
         mission = make_mission_orm(user_id=1)
         task = make_mission_task_orm()
 
-        with patch(
-            "app.services.mission_service.get_mission",
-            new=AsyncMock(return_value=mission),
-        ), patch(
-            "app.api._mission_cqrs.queries.get_mission_tasks",
-            new=AsyncMock(return_value=[task]),
+        with (
+            patch(
+                "app.services.mission_service.get_mission",
+                new=AsyncMock(return_value=mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.queries.get_mission_tasks",
+                new=AsyncMock(return_value=[task]),
+            ),
         ):
             response = cqrs_client.get(f"/api/v2/missions/{MISSION_ID}/tasks")
 
@@ -385,12 +397,15 @@ class TestCqrsDiComposition:
         and the handler's wrap_command calls commit on the mock session."""
         mission = make_mission_orm(user_id=1)
 
-        with patch(
-            "app.services.mission_service.get_mission",
-            return_value=mission,
-        ), patch(
-            "app.api._mission_cqrs.commands.delete_mission",
-            new=AsyncMock(return_value=True),
+        with (
+            patch(
+                "app.services.mission_service.get_mission",
+                return_value=mission,
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.delete_mission",
+                new=AsyncMock(return_value=True),
+            ),
         ):
             response = cqrs_client.delete(f"/api/v2/missions/{MISSION_ID}")
 

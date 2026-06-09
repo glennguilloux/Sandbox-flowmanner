@@ -209,14 +209,12 @@ class CostOptimizer:
                 else:
                     handler(entity_id, message, level)
             except Exception as e:
-                logger.error(f"Alert handler failed: {e}")
+                logger.error('Alert handler failed: %s', e)
 
     def set_model_pricing(self, pricing: ModelPricing):
         """Set or update pricing for a model"""
         self._model_pricing[pricing.model_id] = pricing
-        logger.info(
-            f"Updated pricing for model {pricing.model_id}: ${pricing.input_cost_per_1k}/1k input, ${pricing.output_cost_per_1k}/1k output"
-        )
+        logger.info('Updated pricing for model %s: $%s/1k input, $%s/1k output', pricing.model_id, pricing.input_cost_per_1k, pricing.output_cost_per_1k)
 
     def get_model_pricing(self, model_id: str) -> ModelPricing:
         """Get pricing for a model, with fallback to default"""
@@ -231,9 +229,7 @@ class CostOptimizer:
                 "weekly": 0.0,
                 "monthly": 0.0,
             }
-            logger.info(
-                f"Set budget for {budget.entity_type} {budget.entity_id}: ${budget.daily_limit}/day, ${budget.weekly_limit}/week, ${budget.monthly_limit}/month"
-            )
+            logger.info('Set budget for %s %s: $%s/day, $%s/week, $%s/month', budget.entity_type, budget.entity_id, budget.daily_limit, budget.weekly_limit, budget.monthly_limit)
 
     async def get_budget(self, entity_id: str) -> Budget | None:
         """Get budget for an entity"""
@@ -342,7 +338,7 @@ class CostOptimizer:
         allowed, reason = budget.check_within_limits(projected)
 
         if not allowed and budget.hard_limit:
-            logger.warning(f"Budget blocked for {entity_id}: {reason}")
+            logger.warning('Budget blocked for %s: %s', entity_id, reason)
             return False, reason
 
         # Check for alert threshold
@@ -415,9 +411,7 @@ class CostOptimizer:
                     self._tool_cost_history[tool_name] = []
                 self._tool_cost_history[tool_name].append(cost)
 
-        logger.debug(
-            f"Recorded usage: {agent_id} used {input_tokens + output_tokens} tokens (${cost:.4f})"
-        )
+        logger.debug('Recorded usage: %s used %s tokens ($%.4f)', agent_id, input_tokens + output_tokens, cost)
         return usage
 
     async def get_usage_stats(

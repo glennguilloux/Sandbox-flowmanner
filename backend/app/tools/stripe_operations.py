@@ -112,8 +112,7 @@ class StripeOperationsTool(BaseTool):
         if validated.action not in STRIPE_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(STRIPE_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(STRIPE_ACTIONS)}",
             )
 
         if not STRIPE_SECRET_KEY:

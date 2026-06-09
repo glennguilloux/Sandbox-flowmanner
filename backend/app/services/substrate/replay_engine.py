@@ -113,7 +113,7 @@ class ReplayEngine:
 
         if not same:
             logger.warning(
-                "Non-deterministic replay detected for run %s: " "state1=%s state2=%s",
+                "Non-deterministic replay detected for run %s: state1=%s state2=%s",
                 run_id,
                 state1.to_dict(),
                 state2.to_dict(),

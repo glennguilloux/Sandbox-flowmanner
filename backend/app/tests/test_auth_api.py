@@ -38,13 +38,16 @@ def sample_user():
 def test_register_success(test_client, mock_db_session):
     """POST /api/auth/register returns 201 with tokens."""
     mock_db_session.execute.return_value.scalar_one_or_none.return_value = None
-    with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)), patch(
-        "app.api.v1.auth.create_access_token", return_value="acc-test-123"
-    ), patch(
-        "app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"
-    ), patch(
-        "app.services.auth_service.create_user",
-        return_value=MagicMock(id=1, role="user"),
+    with (
+        patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)),
+        patch("app.api.v1.auth.create_access_token", return_value="acc-test-123"),
+        patch(
+            "app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"
+        ),
+        patch(
+            "app.services.auth_service.create_user",
+            return_value=MagicMock(id=1, role="user"),
+        ),
     ):
         response = test_client.post(
             "/api/auth/register",
@@ -78,20 +81,23 @@ def test_register_duplicate_email(test_client, mock_db_session):
 def test_login_success(test_client, mock_db_session, sample_user):
     """POST /api/auth/login with valid credentials returns 200."""
     mock_db_session.execute.return_value.scalar_one_or_none.return_value = sample_user
-    with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)), patch(
-        "app.api.v1.auth.record_failed_login",
-        return_value={
-            "locked": False,
-            "attempts_remaining": 5,
-            "lockout_seconds": 0,
-            "progressive_delay_ms": 0,
-        },
-    ), patch("app.api.v1.auth.reset_login_attempts", return_value=None), patch(
-        "app.api.v1.auth.verify_password", return_value=True
-    ), patch(
-        "app.api.v1.auth.create_access_token", return_value="acc-test-123"
-    ), patch(
-        "app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"
+    with (
+        patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)),
+        patch(
+            "app.api.v1.auth.record_failed_login",
+            return_value={
+                "locked": False,
+                "attempts_remaining": 5,
+                "lockout_seconds": 0,
+                "progressive_delay_ms": 0,
+            },
+        ),
+        patch("app.api.v1.auth.reset_login_attempts", return_value=None),
+        patch("app.api.v1.auth.verify_password", return_value=True),
+        patch("app.api.v1.auth.create_access_token", return_value="acc-test-123"),
+        patch(
+            "app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"
+        ),
     ):
         response = test_client.post(
             "/api/auth/login",
@@ -104,15 +110,19 @@ def test_login_success(test_client, mock_db_session, sample_user):
 def test_login_invalid_password(test_client, mock_db_session, sample_user):
     """POST /api/auth/login with wrong password returns 401."""
     mock_db_session.execute.return_value.scalar_one_or_none.return_value = sample_user
-    with patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)), patch(
-        "app.api.v1.auth.record_failed_login",
-        return_value={
-            "locked": False,
-            "attempts_remaining": 5,
-            "lockout_seconds": 0,
-            "progressive_delay_ms": 0,
-        },
-    ), patch("app.api.v1.auth.verify_password", return_value=False):
+    with (
+        patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)),
+        patch(
+            "app.api.v1.auth.record_failed_login",
+            return_value={
+                "locked": False,
+                "attempts_remaining": 5,
+                "lockout_seconds": 0,
+                "progressive_delay_ms": 0,
+            },
+        ),
+        patch("app.api.v1.auth.verify_password", return_value=False),
+    ):
         response = test_client.post(
             "/api/auth/login",
             json={"email": "test@example.com", "password": "WrongPass!"},

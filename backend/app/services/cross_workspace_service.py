@@ -88,8 +88,7 @@ async def grant_share(
         await db.flush()
         await db.refresh(existing)
         logger.info(
-            "cross_workspace_share_updated"
-            " source=%s target=%s entity_type=%s entity_id=%s permission=%s",
+            "cross_workspace_share_updated source=%s target=%s entity_type=%s entity_id=%s permission=%s",
             source_workspace_id,
             target_workspace_id,
             entity_type,
@@ -113,8 +112,7 @@ async def grant_share(
     await db.refresh(share)
 
     logger.info(
-        "cross_workspace_share_granted"
-        " source=%s target=%s entity_type=%s entity_id=%s permission=%s granted_by=%s",
+        "cross_workspace_share_granted source=%s target=%s entity_type=%s entity_id=%s permission=%s granted_by=%s",
         source_workspace_id,
         target_workspace_id,
         entity_type,

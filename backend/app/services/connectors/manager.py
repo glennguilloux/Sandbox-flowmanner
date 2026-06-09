@@ -89,12 +89,12 @@ class ConnectorManager:
         """
         async with self._lock:
             if connector_id in self._connectors:
-                logger.warning(f"Connector '{connector_id}' already registered")
+                logger.warning("Connector '%s' already registered", connector_id)
                 return False
 
             connector_class = self.get_connector_class(connector_type)
             if not connector_class:
-                logger.error(f"Unknown connector type: {connector_type}")
+                logger.error('Unknown connector type: %s', connector_type)
                 return False
 
             try:
@@ -119,19 +119,17 @@ class ConnectorManager:
                 if auto_connect:
                     connected = await connector.connect()
                     if not connected:
-                        logger.error(f"Failed to connect connector '{connector_id}'")
+                        logger.error("Failed to connect connector '%s'", connector_id)
                         return False
 
                 self._connectors[connector_id] = connector
                 self._configs[connector_id] = connector_config
 
-                logger.info(
-                    f"Registered connector '{connector_id}' of type '{connector_type}'"
-                )
+                logger.info("Registered connector '%s' of type '%s'", connector_id, connector_type)
                 return True
 
             except Exception as e:
-                logger.error(f"Failed to register connector '{connector_id}': {e}")
+                logger.error("Failed to register connector '%s': %s", connector_id, e)
                 return False
 
     async def unregister_connector(self, connector_id: str) -> bool:
@@ -146,7 +144,7 @@ class ConnectorManager:
         """
         async with self._lock:
             if connector_id not in self._connectors:
-                logger.warning(f"Connector '{connector_id}' not found")
+                logger.warning("Connector '%s' not found", connector_id)
                 return False
 
             try:
@@ -156,11 +154,11 @@ class ConnectorManager:
                 del self._connectors[connector_id]
                 del self._configs[connector_id]
 
-                logger.info(f"Unregistered connector '{connector_id}'")
+                logger.info("Unregistered connector '%s'", connector_id)
                 return True
 
             except Exception as e:
-                logger.error(f"Failed to unregister connector '{connector_id}': {e}")
+                logger.error("Failed to unregister connector '%s': %s", connector_id, e)
                 return False
 
     def get_connector(self, connector_id: str) -> BaseConnector | None:
@@ -310,14 +308,14 @@ class ConnectorManager:
         """
         connector = self._connectors.get(connector_id)
         if not connector:
-            logger.warning(f"Connector '{connector_id}' not found")
+            logger.warning("Connector '%s' not found", connector_id)
             return False
 
         try:
             await connector.disconnect()
             return await connector.connect()
         except Exception as e:
-            logger.error(f"Failed to reconnect connector '{connector_id}': {e}")
+            logger.error("Failed to reconnect connector '%s': %s", connector_id, e)
             return False
 
     async def reconnect_all(self) -> dict[str, bool]:
@@ -338,7 +336,7 @@ class ConnectorManager:
             try:
                 await connector.disconnect()
             except Exception as e:
-                logger.error(f"Error disconnecting connector: {e}")
+                logger.error('Error disconnecting connector: %s', e)
 
     def get_stats(self) -> dict[str, Any]:
         """Get overall statistics"""

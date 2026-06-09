@@ -52,7 +52,7 @@ class ContextBuilder:
         """Register a context source with its fetcher function"""
         self._sources[name] = ContextSource(name=name, priority=priority)
         self._fetchers[name] = fetcher
-        logger.info(f"Registered context source: {name} (priority {priority})")
+        logger.info('Registered context source: %s (priority %s)', name, priority)
 
     def add_relevance_scorer(
         self, scorer: Callable[[dict, dict], Awaitable[float]]
@@ -118,7 +118,7 @@ class ContextBuilder:
             result["metadata"]["total_sources"] += 1
 
             if isinstance(fetch_result, Exception):
-                logger.warning(f"Context source {name} failed: {fetch_result}")
+                logger.warning('Context source %s failed: %s', name, fetch_result)
                 result["sources"][name] = {"error": str(fetch_result)}
                 result["metadata"]["failed_sources"] += 1
                 self._sources[name].error_count += 1
@@ -149,7 +149,7 @@ class ContextBuilder:
         try:
             return await fetcher({"query": query, **context_params})
         except Exception as e:
-            logger.error(f"Error fetching from {source_name}: {e}")
+            logger.error('Error fetching from %s: %s', source_name, e)
             raise
 
     def _assemble_context(
@@ -199,7 +199,7 @@ class ContextBuilder:
                 score = await scorer(context, query)
                 scores.append(score)
             except Exception as e:
-                logger.warning(f"Scorer failed: {e}")
+                logger.warning('Scorer failed: %s', e)
 
         return sum(scores) / len(scores) if scores else 0.5
 

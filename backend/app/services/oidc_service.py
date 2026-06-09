@@ -133,7 +133,7 @@ async def discover_provider_endpoints(
     }
 
     _discovery_cache[issuer_url] = endpoints
-    logger.info(f"Discovered OIDC endpoints for {issuer_url}")
+    logger.info('Discovered OIDC endpoints for %s', issuer_url)
     return endpoints
 
 
@@ -322,7 +322,7 @@ async def exchange_code_for_tokens(
     if "error" in token_response:
         error = token_response["error"]
         error_desc = token_response.get("error_description", "")
-        logger.error(f"OIDC token exchange failed: {error} - {error_desc}")
+        logger.error('OIDC token exchange failed: %s - %s', error, error_desc)
         raise ValueError(f"Token exchange failed: {error} - {error_desc}")
 
     return token_response
@@ -415,7 +415,7 @@ async def find_or_create_user(
             account.name = userinfo.get("name")
             await db.flush()
             await db.refresh(user)
-            logger.info(f"Found existing OIDC user: {user.id} ({user.email})")
+            logger.info('Found existing OIDC user: %s (%s)', user.id, user.email)
             return user
 
     # Try to find by email (link existing account)
@@ -437,9 +437,7 @@ async def find_or_create_user(
             _update_user_from_claims(user, userinfo)
             await db.flush()
             await db.refresh(user)
-            logger.info(
-                f"Linked existing user {user.id} to OIDC provider {provider.name}"
-            )
+            logger.info('Linked existing user %s to OIDC provider %s', user.id, provider.name)
             return user
 
     # Create new user
@@ -471,9 +469,7 @@ async def find_or_create_user(
     db.add(account)
     await db.flush()
 
-    logger.info(
-        f"Created new OIDC user: {user.id} ({user.email}) from provider {provider.name}"
-    )
+    logger.info('Created new OIDC user: %s (%s) from provider %s', user.id, user.email, provider.name)
     return user
 
 
@@ -497,7 +493,7 @@ async def update_oidc_account_tokens(
         account.id_token = token_response.get("id_token")
         account.refresh_token = token_response.get("refresh_token")
         await db.flush()
-        logger.info(f"Updated OIDC tokens for user {user.id}")
+        logger.info('Updated OIDC tokens for user %s', user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -558,7 +554,7 @@ async def authenticate_with_oidc(
         except ValueError:
             raise
         except Exception as e:
-            logger.warning(f"Could not validate nonce in ID token: {e}")
+            logger.warning('Could not validate nonce in ID token: %s', e)
 
     # Get user info
     userinfo = None
@@ -569,14 +565,14 @@ async def authenticate_with_oidc(
         try:
             userinfo = await get_userinfo(db, provider_name, access_token)
         except Exception as e:
-            logger.warning(f"Failed to get userinfo from endpoint: {e}")
+            logger.warning('Failed to get userinfo from endpoint: %s', e)
 
     # Fall back to ID token claims
     if not userinfo and token_response.get("id_token"):
         try:
             userinfo = decode_id_token(token_response["id_token"])
         except Exception as e:
-            logger.warning(f"Failed to decode ID token: {e}")
+            logger.warning('Failed to decode ID token: %s', e)
 
     if not userinfo:
         raise ValueError("Could not retrieve user information from OIDC provider")
@@ -669,7 +665,7 @@ async def _clear_user_oidc_tokens(
         account.id_token = None
         account.refresh_token = None
         await db.flush()
-        logger.info(f"Cleared OIDC tokens for user {user_id}")
+        logger.info('Cleared OIDC tokens for user %s', user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -724,7 +720,7 @@ async def refresh_oidc_token(
             token_response = response.json()
 
         if "error" in token_response:
-            logger.error(f"OIDC token refresh failed: {token_response}")
+            logger.error('OIDC token refresh failed: %s', token_response)
             return None
 
         # Update stored tokens
@@ -737,7 +733,7 @@ async def refresh_oidc_token(
         return token_response
 
     except Exception as e:
-        logger.error(f"Failed to refresh OIDC token: {e}")
+        logger.error('Failed to refresh OIDC token: %s', e)
         return None
 
 

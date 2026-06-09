@@ -150,8 +150,7 @@ class PlaywrightControllerTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        f"Unknown action: '{action}'. "
-                        "Use 'evaluate', 'get_content', 'wait', or 'execute_sequence'."
+                        f"Unknown action: '{action}'. Use 'evaluate', 'get_content', 'wait', or 'execute_sequence'."
                     ),
                 )
         except Exception as e:

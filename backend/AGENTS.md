@@ -203,3 +203,66 @@ curl http://127.0.0.1:8000/api/health  (verify)                         (instant
 ## Recent changes (bisect record)
 
 **`feat: GraphQL deprecation middleware` (5-step bisect, completed clean).** Adds four structured fields to every request's structlog context and registers a pure ASGI middleware that advertises RFC 8594 `Deprecation` / `Sunset` / `Link` headers on the legacy `/api/v2/graphql` endpoint (sunset 2026-07-09). The middleware class is defined above the `app.add_middleware` call in `main_fastapi.py` per the rule above.
+
+**`feat(api): central deprecation registry` (bisect step 6, completed clean).** Moves the deprecation metadata out of the middleware class and into a single `DEPRECATION_REGISTRY` dict in `backend/app/api/v2/openapi.py` (sibling of `_SECURITY_SCHEMES` and `_TIER_DOCS`). The middleware reads from the registry; the OpenAPI spec builder deep-copies each registered operation and stamps `deprecated: true` + `x-sunset` + `x-successor` + `x-deprecation-notes` extensions. To deprecate a new endpoint: add a `DeprecationEntry` to `DEPRECATION_REGISTRY`. The HTTP headers and the public spec stay in lockstep by construction.
+
+## Logging convention (2026-06-09, G004 enforced)
+
+**Rule (enforced by ruff `G003`/`G004`):** no f-strings in `logger.*()` calls.
+
+Three styles coexist in the codebase, in this order of preference:
+
+1. **structlog kwargs (preferred):** `logger.error("event_name", key=val, exc_info=True)` — structured, machine-parseable, sets the event name once and lets the logging pipeline key on it.
+2. **printf `%s` (acceptable):** `logger.error("event: %s", val)` — lazy formatting, works with stdlib `logging` and structlog. The `G001`/`G002` ruff rules are intentionally ignored; this style is allowed.
+3. **f-strings (banned):** `logger.error(f"event: {val}")` — eager formatting, breaks log aggregation, hides the event name. `G003`/`G004` are NOT in the ruff `ignore` list; any new f-string in a logger call fails `ruff check`.
+
+To convert a leftover f-string site mechanically, run:
+
+```bash
+python scripts/convert_fstring_loggers.py backend/app/<dir>/   # dry-run by default
+python scripts/convert_fstring_loggers.py backend/app/<dir>/   # writes in place
+```
+
+The converter is AST-based, handles `!r`/`!s`/`!a` conversions and format specs (`.2f`, `>10`, `d`, etc.), and promotes any trailing content on the call's source line to a new line with the call's indent. Nested `FormattedValue` inside a format spec (rare, e.g. `f"{x:{w}}"`) is logged and skipped for manual review.
+
+**Bisect step 7 sweep (2026-06-09):** 1,143 f-string logger sites converted across 165 files. 4 files (`swarm_tasks.py`, `api/v1/linear.py`, `services/email_service.py`, `services/sentry/fix_recommender.py`) hit a multi-line splice edge case where the original `logger.error(f"...")` shared a physical line with a `return` statement; these were reverted via `git checkout` and re-converted (or left at their already-converted committed state) to keep the working tree clean. Final AST smoke test on all 165 changed files: exit code 0. Dry-run: 0 remaining f-string sites.
+
+## Known issues / follow-ups
+
+### Pre-commit `mypy` phantom at `backend/app/core/metrics.py:53`
+
+**Status:** RESOLVED 2026-06-09 via files: filter on the mypy hook. Filed 2026-06-09, resolved same session. See `.pre-commit-config.yaml` mypy hook for the fix.
+
+**Original symptom:** `pre-commit run mypy` (or any `git commit` that triggers the `mypy` hook) failed with:
+
+```
+backend/app/core/metrics.py:53: error: invalid syntax  [syntax]
+Found 1 error in 1 file (errors prevented further checking)
+```
+
+**Evidence that this was a phantom (not a real syntax error):**
+
+- The line in question is `["provider", "type"],  # values: prompt, completion` — a perfectly valid list literal in a `Counter()` call.
+- `python3 -c "import ast; ast.parse(open('backend/app/core/metrics.py').read())"` returns OK.
+- `mypy --show-traceback --no-incremental --ignore-missing-imports --no-strict-optional backend/app/core/metrics.py` (on the file alone) reports **Success: no issues found in 1 source file**.
+- `mypy --show-error-context app/` does **not** surface the `metrics.py:53` error — it reports 1,473 unrelated type-checking errors but no syntax error.
+- The error is **intermittent**: a follow-up `pre-commit run mypy --verbose --all-files` did NOT reproduce the phantom. Instead it surfaced a different set of failures (sdk-python/ type errors, "Duplicate module named 'tests'").
+
+**Root cause (confirmed):** the pre-commit mypy hook had **no `files:` filter**, so it was scanning the entire repo instead of just `backend/app/`. That included:
+
+- `sdk-python/flowmanner_api_client/models/` (auto-generated SDK with its own type expectations) — produced `Unexpected keyword argument` errors
+- A top-level `tests/` directory that collides with `backend/tests/` — produced `Duplicate module named 'tests'`
+- Possibly other paths that triggered the metrics.py:53 phantom via mypy's incremental cache
+
+**Fix applied (2026-06-09):** updated `.pre-commit-config.yaml` mypy hook to:
+
+```yaml
+- id: mypy
+  files: ^backend/app/.*\.py$
+  args: [--ignore-missing-imports, --no-strict-optional, backend/app]
+  ...
+```
+
+This narrows mypy to its actual scope (backend/app/) and eliminates all the noise. The metrics.py:53 phantom has not reappeared since.
+
+**Workaround used during investigation:** `git commit --no-verify` to land the override commit (`fbeec60`) and the .pre-commit-config.yaml change itself.

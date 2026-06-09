@@ -244,8 +244,7 @@ async def _run_script(module_name: str) -> str:
     )
     if proc.returncode != 0:
         raise RuntimeError(
-            f"scripts/{module_name}.py failed (exit {proc.returncode}): "
-            f"{proc.stderr.strip() or proc.stdout.strip()}"
+            f"scripts/{module_name}.py failed (exit {proc.returncode}): {proc.stderr.strip() or proc.stdout.strip()}"
         )
     return proc.stdout.strip().splitlines()[-1] if proc.stdout.strip() else "ok"
 

@@ -137,8 +137,7 @@ class GmailSenderTool(BaseTool):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
-                    "Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE "
-                    "and GMAIL_DELEGATED_ACCOUNT."
+                    "Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE and GMAIL_DELEGATED_ACCOUNT."
                 ),
             )
 
@@ -187,8 +186,7 @@ class GmailSenderTool(BaseTool):
         """Get an OAuth2 access token for Gmail API via service account."""
         if not GMAIL_SERVICE_ACCOUNT_FILE or not GMAIL_DELEGATED_ACCOUNT:
             raise ValueError(
-                "Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE "
-                "and GMAIL_DELEGATED_ACCOUNT."
+                "Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE and GMAIL_DELEGATED_ACCOUNT."
             )
 
         import json

@@ -155,7 +155,7 @@ class AudioSentimentAnalyzerTool(BaseTool):
                     text_analysis = await self._analyze_text_sentiment(audio_bytes)
                     result["text_sentiment"] = text_analysis
                 except Exception as e:
-                    logger.warning(f"Text sentiment analysis failed: {e}")
+                    logger.warning('Text sentiment analysis failed: %s', e)
                     result["text_sentiment"] = {"error": str(e)}
 
             return result

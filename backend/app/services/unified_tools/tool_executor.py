@@ -125,7 +125,7 @@ class ToolExecutor:
                         tool_id=tool_id, success=False, error="Unauthorized"
                     )
             except Exception as e:
-                logger.error(f"Auth check failed: {e}")
+                logger.error('Auth check failed: %s', e)
                 return ExecutionResult(
                     tool_id=tool_id, success=False, error=f"Auth check failed: {e}"
                 )
@@ -141,7 +141,7 @@ class ToolExecutor:
             try:
                 await hook(tool_id, params)
             except Exception as e:
-                logger.warning(f"Pre-hook failed: {e}")
+                logger.warning('Pre-hook failed: %s', e)
 
         # Execute with timeout
         timeout = timeout_override or tool.timeout_seconds
@@ -157,11 +157,11 @@ class ToolExecutor:
             error = f"Tool execution timed out after {timeout}s"
         except Exception as e:
             error = str(e)
-            logger.error(f"Tool {tool_id} execution error: {e}")
+            logger.error('Tool %s execution error: %s', tool_id, e)
 
             # Retry logic
             if retry_count > 0:
-                logger.info(f"Retrying {tool_id} ({retry_count} retries left)")
+                logger.info('Retrying %s (%s retries left)', tool_id, retry_count)
                 await asyncio.sleep(1)  # Brief delay before retry
                 return await self.execute(
                     tool_id=tool_id,
@@ -206,7 +206,7 @@ class ToolExecutor:
             try:
                 await hook(exec_result)
             except Exception as e:
-                logger.warning(f"Post-hook failed: {e}")
+                logger.warning('Post-hook failed: %s', e)
 
         return exec_result
 

@@ -68,12 +68,15 @@ class TestHandlePauseMission:
         mock_db.add = MagicMock()
         mock_mission = make_mission(status="running")
 
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new=AsyncMock(return_value=mock_mission),
-        ), patch(
-            "app.api._mission_cqrs.commands.get_mission_tasks",
-            new=AsyncMock(return_value=[]),
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new=AsyncMock(return_value=mock_mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
         ):
             mock_task_result = MagicMock()
             mock_task_result.scalars().all.return_value = []
@@ -112,12 +115,15 @@ class TestHandlePauseMission:
         mock_task_result = MagicMock()
         mock_task_result.scalars().all.return_value = [mock_task]
 
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new=AsyncMock(return_value=mock_mission),
-        ), patch(
-            "app.api._mission_cqrs.commands.get_mission_tasks",
-            new=AsyncMock(return_value=[]),
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new=AsyncMock(return_value=mock_mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
         ):
             mock_db.execute = AsyncMock(return_value=mock_task_result)
             handler = MissionCommandHandlers(mock_db)
@@ -141,12 +147,15 @@ class TestHandleResumeMission:
         mock_db.add = MagicMock()
         mock_mission = make_mission(status="paused")
 
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new=AsyncMock(return_value=mock_mission),
-        ), patch(
-            "app.api._mission_cqrs.commands.get_mission_tasks",
-            new=AsyncMock(return_value=[]),
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new=AsyncMock(return_value=mock_mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
         ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.resume_mission(make_user(), MISSION_ID)
@@ -186,14 +195,18 @@ class TestHandleRetryMission:
         mock_exec = MagicMock()
         mock_exec.plan_mission = AsyncMock(return_value={"success": True})
 
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new=AsyncMock(return_value=mock_mission),
-        ), patch(
-            "app.api._mission_cqrs.commands.get_mission_tasks",
-            new=AsyncMock(return_value=[]),
-        ), patch(
-            "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new=AsyncMock(return_value=mock_mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
+            ),
         ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.retry_mission(make_user(), MISSION_ID)

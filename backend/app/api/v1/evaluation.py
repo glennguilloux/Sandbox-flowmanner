@@ -401,9 +401,7 @@ async def detect_regressions(
     regressions = []
     for key, group_runs in grouped.items():
         # Sort oldest first
-        group_runs.sort(
-            key=lambda r: r.created_at or datetime.min.replace(tzinfo=timezone.utc)
-        )
+        group_runs.sort(key=lambda r: r.created_at or datetime.min.replace(tzinfo=UTC))
         for i in range(1, len(group_runs)):
             prev = group_runs[i - 1]
             curr = group_runs[i]

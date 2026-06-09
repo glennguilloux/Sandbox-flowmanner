@@ -120,10 +120,24 @@ class MissionTaskStatus(str, Enum):
 
 # ── Models ───────────────────────────────────────────────────────────────────
 
-ALL_MISSION_STATUSES = tuple(
-    dict.fromkeys(s.value for s in MissionStatus).keys()
-)  # deduplicated (CANCELLED shares ABORTED value)
-ALL_TASK_STATUSES = tuple(s.value for s in MissionTaskStatus)
+# Hardcoded tuples — do NOT derive from enum iteration because
+# MissionStatus(str, Enum) leaks the _TRANSITIONS class attribute
+# into iteration, corrupting the CHECK constraint SQL.
+ALL_MISSION_STATUSES: tuple[str, ...] = (
+    "draft",
+    "pending",
+    "planning",
+    "planned",
+    "queued",
+    "executing",
+    "running",
+    "completed",
+    "approved",
+    "failed",
+    "paused",
+    "aborted",
+)
+ALL_TASK_STATUSES: tuple[str, ...] = ("pending", "running", "completed", "failed")
 
 
 class Mission(Base, TimestampMixin):

@@ -51,6 +51,7 @@ async def list_models():
     provider_models = {
         "deepseek": ["deepseek-v4-flash"],
         "llamacpp": ["Qwen3.6-27B-Q5_K_M-mtp.gguf"],
+        "glennguilloux": ["demo-llm"],
     }
 
     models = []
@@ -103,11 +104,13 @@ async def list_models_frontend(
     provider_models = {
         "deepseek": ["deepseek-v4-flash"],
         "llamacpp": ["Qwen3.6-27B-Q5_K_M-mtp.gguf"],
+        "glennguilloux": ["demo-llm"],
     }
 
     model_context_lengths = {
         "deepseek-v4-flash": 1000000,
         "Qwen3.6-27B-Q5_K_M-mtp.gguf": 32768,
+        "demo-llm": 128000,
     }
 
     models = []

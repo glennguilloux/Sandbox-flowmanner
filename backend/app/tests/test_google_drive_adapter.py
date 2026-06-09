@@ -429,10 +429,12 @@ class TestTokenRefresh:
             mock_client = mock_client_cls.return_value.__aenter__.return_value
             mock_client.post = AsyncMock(return_value=token_resp)
 
-            with patch("sqlalchemy.select"), patch(
-                "app.database.AsyncSessionLocal"
-            ) as mock_session_cls, patch(
-                "app.integrations.oauth.encrypt_token", return_value="encrypted-new"
+            with (
+                patch("sqlalchemy.select"),
+                patch("app.database.AsyncSessionLocal") as mock_session_cls,
+                patch(
+                    "app.integrations.oauth.encrypt_token", return_value="encrypted-new"
+                ),
             ):
                 mock_db = AsyncMock()
                 mock_db.execute = AsyncMock()
@@ -467,9 +469,10 @@ class TestTokenRefresh:
             mock_client = mock_client_cls.return_value.__aenter__.return_value
             mock_client.post = AsyncMock(return_value=error_resp)
 
-            with patch("sqlalchemy.select"), patch(
-                "app.database.AsyncSessionLocal"
-            ) as mock_session_cls:
+            with (
+                patch("sqlalchemy.select"),
+                patch("app.database.AsyncSessionLocal") as mock_session_cls,
+            ):
                 mock_db = AsyncMock()
                 mock_result = MagicMock()
                 mock_result.scalars.return_value.first.return_value = app

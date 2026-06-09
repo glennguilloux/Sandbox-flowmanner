@@ -183,8 +183,7 @@ class CryptoMarketDataTool(BaseTool):
             if e.response.status_code == 429:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error="CoinGecko rate limit reached (10-30 req/min for free tier). "
-                    "Wait 60 seconds and try again.",
+                    error="CoinGecko rate limit reached (10-30 req/min for free tier). Wait 60 seconds and try again.",
                 )
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -423,8 +422,7 @@ class CryptoMarketDataTool(BaseTool):
         coin_id = ",".join(validated.coins or []).lower().strip()
         if "," in coin_id:
             raise ValueError(
-                "get_historical supports only a single coin ID. "
-                "Use e.g. 'bitcoin' not 'bitcoin,ethereum'."
+                "get_historical supports only a single coin ID. Use e.g. 'bitcoin' not 'bitcoin,ethereum'."
             )
         date = validated.date or ""
 

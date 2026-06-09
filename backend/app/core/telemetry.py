@@ -46,6 +46,6 @@ def setup_telemetry(app, engine=None):
 
             SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
         except Exception as e:
-            logger.warning(f"SQLAlchemy instrumentation failed: {e}")
+            logger.warning('SQLAlchemy instrumentation failed: %s', e)
 
-    logger.info(f"Telemetry enabled → {otlp_endpoint}")
+    logger.info('Telemetry enabled → %s', otlp_endpoint)

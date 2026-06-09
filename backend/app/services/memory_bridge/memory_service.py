@@ -94,7 +94,7 @@ class MemoryService:
             try:
                 memory.embedding = await self._embedding_service.embed(content)
             except Exception as e:
-                logger.warning(f"Failed to generate embedding: {e}")
+                logger.warning('Failed to generate embedding: %s', e)
 
         # Store in cache
         self._memories[memory.id] = memory
@@ -108,7 +108,7 @@ class MemoryService:
         if self._storage:
             await self._storage.save(memory.to_dict())
 
-        logger.info(f"Stored memory {memory.id} for agent {agent_id}")
+        logger.info('Stored memory %s for agent %s', memory.id, agent_id)
         return memory
 
     async def recall(
@@ -188,7 +188,7 @@ class MemoryService:
             scored_memories.sort(key=lambda x: x[1], reverse=True)
             return [m for m, s in scored_memories]
         except Exception as e:
-            logger.error(f"Semantic search failed: {e}")
+            logger.error('Semantic search failed: %s', e)
             return memories
 
     def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
@@ -222,7 +222,7 @@ class MemoryService:
         if self._storage:
             await self._storage.delete(memory_id)
 
-        logger.info(f"Forgot memory {memory_id}")
+        logger.info('Forgot memory %s', memory_id)
         return True
 
     async def update_importance(self, memory_id: str, importance: float) -> bool:
@@ -257,7 +257,7 @@ class MemoryService:
         for mid in to_remove:
             await self.forget(mid)
 
-        logger.info(f"Consolidated {len(to_remove)} memories for agent {agent_id}")
+        logger.info('Consolidated %s memories for agent %s', len(to_remove), agent_id)
         return len(to_remove)
 
     def get_stats(self, agent_id: str | None = None) -> dict[str, Any]:

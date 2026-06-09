@@ -108,14 +108,12 @@ class ExecutionRouter:
         explicit_route = project.get("config", {}).get("route")
 
         if explicit_route:
-            logger.info(
-                f"Using explicit route: {explicit_route} for project {project['slug']}"
-            )
+            logger.info('Using explicit route: %s for project %s', explicit_route, project['slug'])
             route = explicit_route
         else:
             # Analyze goal to determine route
             route = self.analyze_goal(goal)
-            logger.info(f"Analyzed route: {route} for goal: {goal[:50]}...")
+            logger.info('Analyzed route: %s for goal: %s...', route, goal[:50])
 
         # Execute via selected route
         return await self.execute_route(route, project, goal, mode, resources)
@@ -161,7 +159,6 @@ class ExecutionRouter:
         """
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-
             if route == "mission":
                 return await self._execute_mission(
                     client, project, goal, mode, resources
@@ -212,12 +209,10 @@ class ExecutionRouter:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                f"Mission route error: {e.response.status_code} - {e.response.text}"
-            )
+            logger.error('Mission route error: %s - %s', e.response.status_code, e.response.text)
             raise Exception(f"Mission execution failed: {e.response.text}")
         except Exception as e:
-            logger.error(f"Mission route exception: {e}")
+            logger.error('Mission route exception: %s', e)
             raise
 
     async def _execute_workflow(
@@ -257,12 +252,10 @@ class ExecutionRouter:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                f"Workflow route error: {e.response.status_code} - {e.response.text}"
-            )
+            logger.error('Workflow route error: %s - %s', e.response.status_code, e.response.text)
             raise Exception(f"Workflow execution failed: {e.response.text}")
         except Exception as e:
-            logger.error(f"Workflow route exception: {e}")
+            logger.error('Workflow route exception: %s', e)
             raise
 
     async def _execute_ai(
@@ -318,10 +311,8 @@ class ExecutionRouter:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                f"AI route error: {e.response.status_code} - {e.response.text}"
-            )
+            logger.error('AI route error: %s - %s', e.response.status_code, e.response.text)
             raise Exception(f"AI execution failed: {e.response.text}")
         except Exception as e:
-            logger.error(f"AI route exception: {e}")
+            logger.error('AI route exception: %s', e)
             raise

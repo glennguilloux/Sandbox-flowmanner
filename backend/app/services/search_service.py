@@ -117,7 +117,7 @@ class SearchService:
                 for row in rows
             ]
         except Exception as e:
-            logger.warning(f"Mission search failed: {e}")
+            logger.warning('Mission search failed: %s', e)
             return []
 
     async def _search_agents(
@@ -151,7 +151,7 @@ class SearchService:
                 for row in rows
             ]
         except Exception as e:
-            logger.warning(f"Agent search failed: {e}")
+            logger.warning('Agent search failed: %s', e)
             return []
 
     async def _search_knowledge(
@@ -185,7 +185,7 @@ class SearchService:
                 for row in rows
             ]
         except Exception as e:
-            logger.warning(f"Knowledge search failed: {e}")
+            logger.warning('Knowledge search failed: %s', e)
             return []
 
     def _to_tsquery(self, query: str) -> str:
@@ -219,7 +219,7 @@ class SearchService:
 
             return [row.title for row in missions.fetchall()]
         except Exception as e:
-            logger.warning(f"Suggestions failed: {e}")
+            logger.warning('Suggestions failed: %s', e)
             return []
 
 

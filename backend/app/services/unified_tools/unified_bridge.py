@@ -183,11 +183,11 @@ class UnifiedToolBridge:
                 if self._register_db_tool(db_tool):
                     loaded_count += 1
 
-            logger.info(f"Loaded {loaded_count} tools from database into registry")
+            logger.info('Loaded %s tools from database into registry', loaded_count)
             return loaded_count
 
         except Exception as e:
-            logger.error(f"Failed to load tools from database: {e}")
+            logger.error('Failed to load tools from database: %s', e)
             return 0
 
     async def load_user_tools(self, user_id: int) -> int:
@@ -240,7 +240,7 @@ class UnifiedToolBridge:
             return loaded_count
 
         except Exception as e:
-            logger.error(f"Failed to load user tools: {e}")
+            logger.error('Failed to load user tools: %s', e)
             return 0
 
     def _register_db_tool(self, db_tool) -> bool:
@@ -292,7 +292,7 @@ class UnifiedToolBridge:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to register tool {db_tool.name}: {e}")
+            logger.error('Failed to register tool %s: %s', db_tool.name, e)
             return False
 
     def _build_input_schema(self, endpoint: dict[str, Any]) -> dict[str, Any]:
@@ -414,7 +414,7 @@ class UnifiedToolBridge:
             self.db.commit()
 
         except Exception as e:
-            logger.error(f"Failed to record analytics: {e}")
+            logger.error('Failed to record analytics: %s', e)
             self.db.rollback()
 
     def register_new_tool(self, db_tool) -> bool:

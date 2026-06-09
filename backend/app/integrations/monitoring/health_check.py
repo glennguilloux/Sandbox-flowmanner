@@ -81,7 +81,7 @@ class HealthCheck:
             return health
 
         except Exception as e:
-            logger.error(f"OpenWhisk health check failed: {e}")
+            logger.error('OpenWhisk health check failed: %s', e)
             self.health_status["openwhisk_healthy"] = False
             self.health_status["last_check"] = datetime.now(UTC)
 
@@ -141,7 +141,7 @@ class HealthCheck:
             }
 
         except Exception as e:
-            logger.error(f"Gateway health check failed: {e}")
+            logger.error('Gateway health check failed: %s', e)
             self.health_status["gateway_healthy"] = False
 
             return {
@@ -176,7 +176,7 @@ class HealthCheck:
             return health
 
         except Exception as e:
-            logger.error(f"Actions health check failed: {e}")
+            logger.error('Actions health check failed: %s', e)
 
             return {
                 "status": "unhealthy",
@@ -210,15 +210,15 @@ class HealthCheck:
 
         # Handle any failures
         if isinstance(openwhisk_health, Exception):
-            logger.error(f"OpenWhisk check error: {openwhisk_health}")
+            logger.error('OpenWhisk check error: %s', openwhisk_health)
             openwhisk_health = {"status": "error", "error": str(openwhisk_health)}
 
         if isinstance(gateway_health, Exception):
-            logger.error(f"Gateway check error: {gateway_health}")
+            logger.error('Gateway check error: %s', gateway_health)
             gateway_health = {"status": "error", "error": str(gateway_health)}
 
         if isinstance(actions_health, Exception):
-            logger.error(f"Actions check error: {actions_health}")
+            logger.error('Actions check error: %s', actions_health)
             actions_health = {"status": "error", "error": str(actions_health)}
 
         # Determine overall status
@@ -257,7 +257,7 @@ class HealthCheck:
         age = (datetime.now(UTC) - self.health_status["last_check"]).total_seconds()
 
         if age > max_age_seconds:
-            logger.info(f"Health cache expired ({age}s old)")
+            logger.info('Health cache expired (%ss old)', age)
             return None
 
         return {
@@ -310,5 +310,5 @@ async def create_health_check(
         return health
 
     except Exception as e:
-        logger.error(f"Error creating health check service: {e}")
+        logger.error('Error creating health check service: %s', e)
         return None

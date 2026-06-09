@@ -31,7 +31,7 @@ async def delete_current_user(
     user.username = None
     await db.flush()
     logger = logging.getLogger(__name__)
-    logger.info(f"User {user.id} account deleted")
+    logger.info('User %s account deleted', user.id)
 
 
 @router.get("/me", response_model=UserResponse)

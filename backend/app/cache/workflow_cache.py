@@ -41,9 +41,7 @@ class WorkflowCache:
             self.client.ping()
             logger.info("✅ Redis connection established")
         except Exception as e:
-            logger.warning(
-                f"⚠️ Redis connection failed: {e}. Using in-memory cache only."
-            )
+            logger.warning('⚠️ Redis connection failed: %s. Using in-memory cache only.', e)
             self.client = None
 
     def store_workflow(self, workflow: dict[str, Any], ttl: int | None = None):
@@ -70,10 +68,10 @@ class WorkflowCache:
                 ttl = self.default_ttl
 
             self.client.setex(key, ttl, serialized)
-            logger.debug(f"Cached workflow {workflow_id}")
+            logger.debug('Cached workflow %s', workflow_id)
 
         except Exception as e:
-            logger.error(f"Error caching workflow: {e}")
+            logger.error('Error caching workflow: %s', e)
 
     def get_workflow(self, workflow_id: str) -> dict[str, Any] | None:
         """
@@ -98,7 +96,7 @@ class WorkflowCache:
             return None
 
         except Exception as e:
-            logger.error(f"Error retrieving workflow from cache: {e}")
+            logger.error('Error retrieving workflow from cache: %s', e)
             return None
 
     def store_workflow_list(
@@ -127,10 +125,10 @@ class WorkflowCache:
                 ttl = self.default_ttl
 
             self.client.setex(key, ttl, json.dumps(workflow_ids))
-            logger.info(f"Cached workflow list with {len(workflow_ids)} items")
+            logger.info('Cached workflow list with %s items', len(workflow_ids))
 
         except Exception as e:
-            logger.error(f"Error caching workflow list: {e}")
+            logger.error('Error caching workflow list: %s', e)
 
     def get_workflow_list(self) -> list[dict[str, Any]]:
         """
@@ -160,7 +158,7 @@ class WorkflowCache:
             return workflows
 
         except Exception as e:
-            logger.error(f"Error retrieving workflow list: {e}")
+            logger.error('Error retrieving workflow list: %s', e)
             return []
 
     def store_scan_results(self, results: dict[str, Any], ttl: int | None = None):
@@ -184,7 +182,7 @@ class WorkflowCache:
             logger.info("Cached scan results")
 
         except Exception as e:
-            logger.error(f"Error caching scan results: {e}")
+            logger.error('Error caching scan results: %s', e)
 
     def get_scan_results(self) -> dict[str, Any] | None:
         """
@@ -206,7 +204,7 @@ class WorkflowCache:
             return None
 
         except Exception as e:
-            logger.error(f"Error retrieving scan results: {e}")
+            logger.error('Error retrieving scan results: %s', e)
             return None
 
     def invalidate_workflow(self, workflow_id: str):
@@ -236,10 +234,10 @@ class WorkflowCache:
                             list_key, self.default_ttl, json.dumps(workflow_ids)
                         )
 
-            logger.info(f"Invalidated workflow {workflow_id}")
+            logger.info('Invalidated workflow %s', workflow_id)
 
         except Exception as e:
-            logger.error(f"Error invalidating workflow: {e}")
+            logger.error('Error invalidating workflow: %s', e)
 
     def store_imported_workflow(
         self, imported_workflow: dict[str, Any], ttl: int | None = None
@@ -267,10 +265,10 @@ class WorkflowCache:
                 ttl = self.default_ttl
 
             self.client.setex(key, ttl, serialized)
-            logger.debug(f"Cached imported workflow {import_id}")
+            logger.debug('Cached imported workflow %s', import_id)
 
         except Exception as e:
-            logger.error(f"Error caching imported workflow: {e}")
+            logger.error('Error caching imported workflow: %s', e)
 
     def get_imported_workflow(self, import_id: str) -> dict[str, Any] | None:
         """
@@ -295,7 +293,7 @@ class WorkflowCache:
             return None
 
         except Exception as e:
-            logger.error(f"Error retrieving imported workflow from cache: {e}")
+            logger.error('Error retrieving imported workflow from cache: %s', e)
             return None
 
     def store_imported_workflow_list(
@@ -326,10 +324,10 @@ class WorkflowCache:
                 ttl = self.default_ttl
 
             self.client.setex(key, ttl, json.dumps(import_ids))
-            logger.info(f"Cached imported workflow list with {len(import_ids)} items")
+            logger.info('Cached imported workflow list with %s items', len(import_ids))
 
         except Exception as e:
-            logger.error(f"Error caching imported workflow list: {e}")
+            logger.error('Error caching imported workflow list: %s', e)
 
     def get_imported_workflow_list(self) -> list[dict[str, Any]]:
         """
@@ -359,7 +357,7 @@ class WorkflowCache:
             return imported_workflows
 
         except Exception as e:
-            logger.error(f"Error retrieving imported workflow list: {e}")
+            logger.error('Error retrieving imported workflow list: %s', e)
             return []
 
     def invalidate_import_cache(self):
@@ -372,9 +370,9 @@ class WorkflowCache:
             import_keys = self.client.keys("workflow:import:*")
             if import_keys:
                 self.client.delete(*import_keys)
-                logger.info(f"Invalidated {len(import_keys)} import cache keys")
+                logger.info('Invalidated %s import cache keys', len(import_keys))
         except Exception as e:
-            logger.error(f"Error invalidating import cache: {e}")
+            logger.error('Error invalidating import cache: %s', e)
 
     def invalidate_all(self):
         """Clear all workflow-related cache"""
@@ -386,9 +384,9 @@ class WorkflowCache:
             workflow_keys = self.client.keys("workflow:*")
             if workflow_keys:
                 self.client.delete(*workflow_keys)
-                logger.info(f"Invalidated {len(workflow_keys)} workflow cache keys")
+                logger.info('Invalidated %s workflow cache keys', len(workflow_keys))
         except Exception as e:
-            logger.error(f"Error invalidating all cache: {e}")
+            logger.error('Error invalidating all cache: %s', e)
 
     def store_change_event(self, change: dict[str, Any]):
         """
@@ -414,10 +412,10 @@ class WorkflowCache:
             # Set TTL
             self.client.expire(key, self.default_ttl * 24)  # 24 hours
 
-            logger.debug(f"Stored change event for {workflow_id}")
+            logger.debug('Stored change event for %s', workflow_id)
 
         except Exception as e:
-            logger.error(f"Error storing change event: {e}")
+            logger.error('Error storing change event: %s', e)
 
     def get_change_history(
         self, workflow_id: str, limit: int = 10
@@ -450,7 +448,7 @@ class WorkflowCache:
             return changes
 
         except Exception as e:
-            logger.error(f"Error retrieving change history: {e}")
+            logger.error('Error retrieving change history: %s', e)
             return []
 
     def store_n8n_workflow(self, workflow: dict[str, Any], ttl: int | None = None):
@@ -477,10 +475,10 @@ class WorkflowCache:
                 ttl = self.default_ttl
 
             self.client.setex(key, ttl, serialized)
-            logger.debug(f"Cached n8n workflow {workflow_id}")
+            logger.debug('Cached n8n workflow %s', workflow_id)
 
         except Exception as e:
-            logger.error(f"Error caching n8n workflow: {e}")
+            logger.error('Error caching n8n workflow: %s', e)
 
     def get_n8n_workflow(self, workflow_id: str) -> dict[str, Any] | None:
         """
@@ -505,7 +503,7 @@ class WorkflowCache:
             return None
 
         except Exception as e:
-            logger.error(f"Error retrieving n8n workflow from cache: {e}")
+            logger.error('Error retrieving n8n workflow from cache: %s', e)
             return None
 
     def store_n8n_workflow_list(
@@ -536,10 +534,10 @@ class WorkflowCache:
                 ttl = self.default_ttl
 
             self.client.setex(key, ttl, json.dumps(workflow_ids))
-            logger.info(f"Cached n8n workflow list with {len(workflow_ids)} items")
+            logger.info('Cached n8n workflow list with %s items', len(workflow_ids))
 
         except Exception as e:
-            logger.error(f"Error caching n8n workflow list: {e}")
+            logger.error('Error caching n8n workflow list: %s', e)
 
     def get_n8n_workflow_list(self) -> list[dict[str, Any]]:
         """
@@ -569,7 +567,7 @@ class WorkflowCache:
             return workflows
 
         except Exception as e:
-            logger.error(f"Error retrieving n8n workflow list: {e}")
+            logger.error('Error retrieving n8n workflow list: %s', e)
             return []
 
     def invalidate_n8n_workflow(self, workflow_id: str):
@@ -599,10 +597,10 @@ class WorkflowCache:
                             list_key, self.default_ttl, json.dumps(workflow_ids)
                         )
 
-            logger.info(f"Invalidated n8n workflow {workflow_id}")
+            logger.info('Invalidated n8n workflow %s', workflow_id)
 
         except Exception as e:
-            logger.error(f"Error invalidating n8n workflow: {e}")
+            logger.error('Error invalidating n8n workflow: %s', e)
 
     def get_stats(self) -> dict[str, Any]:
         """
@@ -634,7 +632,7 @@ class WorkflowCache:
             }
 
         except Exception as e:
-            logger.error(f"Error getting cache stats: {e}")
+            logger.error('Error getting cache stats: %s', e)
             return {"connected": False, "error": str(e)}
 
 

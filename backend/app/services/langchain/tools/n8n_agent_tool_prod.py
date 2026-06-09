@@ -47,16 +47,16 @@ class N8NConfig:
             logger.warning("N8N_API_KEY not set - some operations may fail")
 
         if errors:
-            logger.error(f"N8N configuration errors: {errors}")
+            logger.error('N8N configuration errors: %s', errors)
             raise ValueError(f"Invalid configuration: {', '.join(errors)}")
 
-        logger.info(f"N8N config validated - URL: {cls.BASE_URL}")
+        logger.info('N8N config validated - URL: %s', cls.BASE_URL)
 
 
 try:
     N8NConfig.validate()
 except ValueError as e:
-    logger.warning(f"N8N configuration issue: {e}")
+    logger.warning('N8N configuration issue: %s', e)
 
 # ==================== CUSTOM EXCEPTIONS ====================
 
@@ -129,7 +129,7 @@ class HTTPClient:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        logger.info(f"HTTP client initialized for n8n")
+        logger.info('HTTP client initialized for n8n')
 
     def get(self, endpoint: str, params: dict | None = None) -> requests.Response:
         """GET request with retry logic"""
@@ -183,11 +183,11 @@ class N8NClient:
             timeout=self.config.TIMEOUT,
             max_retries=self.config.MAX_RETRIES,
         )
-        logger.info(f"N8NClient initialized for {self.config.BASE_URL}")
+        logger.info('N8NClient initialized for %s', self.config.BASE_URL)
 
     def list_workflows(self, search_query: str | None = None) -> list[dict]:
         """List all workflows with optional search"""
-        logger.info(f"Listing workflows - search: {search_query}")
+        logger.info('Listing workflows - search: %s', search_query)
 
         try:
             response = self.http_client.get("/api/v1/workflows")
@@ -203,27 +203,27 @@ class N8NClient:
                     or search_lower in w.get("description", "").lower()
                 ]
 
-            logger.info(f"Found {len(workflows)} workflows")
+            logger.info('Found %s workflows', len(workflows))
             return workflows
 
         except N8NConnectionError as e:
-            logger.error(f"Connection error listing workflows: {e}")
+            logger.error('Connection error listing workflows: %s', e)
             raise
         except Exception as e:
-            logger.error(f"Error listing workflows: {e}")
+            logger.error('Error listing workflows: %s', e)
             raise N8NError(f"Failed to list workflows: {e}")
 
     def execute_workflow(
         self, workflow_id: str, parameters: dict | None = None
     ) -> dict:
         """Execute a workflow with polling"""
-        logger.info(f"Executing workflow {workflow_id} with params: {parameters}")
+        logger.info('Executing workflow %s with params: %s', workflow_id, parameters)
 
         try:
             # Get workflow details
             details_response = self.http_client.get(f"/api/v1/workflows/{workflow_id}")
             details = details_response.json()
-            logger.debug(f"Workflow details: {details.get('name')}")
+            logger.debug('Workflow details: %s', details.get('name'))
 
             # Execute
             payload = {"workflowId": workflow_id, "parameters": parameters or {}}
@@ -240,10 +240,10 @@ class N8NClient:
             return self._wait_for_completion(workflow_id, execution_id)
 
         except N8NConnectionError as e:
-            logger.error(f"Connection error executing workflow {workflow_id}: {e}")
+            logger.error('Connection error executing workflow %s: %s', workflow_id, e)
             raise
         except Exception as e:
-            logger.error(f"Error executing workflow {workflow_id}: {e}")
+            logger.error('Error executing workflow %s: %s', workflow_id, e)
             raise N8NError(f"Failed to execute workflow {workflow_id}: {e}")
 
     def _wait_for_completion(
@@ -251,9 +251,7 @@ class N8NClient:
     ) -> dict:
         """Wait for workflow execution to complete"""
         start_time = time.time()
-        logger.info(
-            f"Polling for completion - workflow: {workflow_id}, execution: {execution_id}"
-        )
+        logger.info('Polling for completion - workflow: %s, execution: %s', workflow_id, execution_id)
 
         while time.time() - start_time < timeout:
             try:
@@ -264,9 +262,7 @@ class N8NClient:
                 status = execution.get("status")
 
                 if status == "success":
-                    logger.info(
-                        f"Workflow completed successfully - execution: {execution_id}"
-                    )
+                    logger.info('Workflow completed successfully - execution: %s', execution_id)
                     return {
                         "success": True,
                         "execution_id": execution_id,
@@ -274,7 +270,7 @@ class N8NClient:
                         "data": execution.get("data", {}),
                     }
                 elif status in ["error", "failed"]:
-                    logger.error(f"Workflow failed - execution: {execution_id}")
+                    logger.error('Workflow failed - execution: %s', execution_id)
                     return {
                         "success": False,
                         "execution_id": execution_id,
@@ -287,7 +283,7 @@ class N8NClient:
             except Exception:
                 time.sleep(2)
 
-        logger.warning(f"Workflow execution timed out - execution: {execution_id}")
+        logger.warning('Workflow execution timed out - execution: %s', execution_id)
         return {
             "success": False,
             "execution_id": execution_id,
@@ -297,7 +293,7 @@ class N8NClient:
 
     def create_workflow(self, workflow_type: str, config: dict | None = None) -> dict:
         """Create a new workflow from template"""
-        logger.info(f"Creating workflow - type: {workflow_type}")
+        logger.info('Creating workflow - type: %s', workflow_type)
 
         templates = {
             "ai-image-generator": {
@@ -333,7 +329,7 @@ class N8NClient:
             raise ValueError(f"Unknown workflow type: {workflow_type}")
 
         template = templates[workflow_type]
-        logger.info(f"Workflow template selected: {template['name']}")
+        logger.info('Workflow template selected: %s', template['name'])
 
         return {
             "success": True,
@@ -344,7 +340,7 @@ class N8NClient:
 
     def get_workflow_status(self, workflow_id: str) -> dict:
         """Get workflow status and recent executions"""
-        logger.info(f"Getting status for workflow {workflow_id}")
+        logger.info('Getting status for workflow %s', workflow_id)
 
         try:
             # Get workflow details
@@ -364,10 +360,10 @@ class N8NClient:
             }
 
         except N8NConnectionError as e:
-            logger.error(f"Connection error getting status for {workflow_id}: {e}")
+            logger.error('Connection error getting status for %s: %s', workflow_id, e)
             raise
         except Exception as e:
-            logger.error(f"Error getting status for {workflow_id}: {e}")
+            logger.error('Error getting status for %s: %s', workflow_id, e)
             raise N8NError(f"Failed to get workflow status: {e}")
 
     def close(self):
@@ -463,7 +459,7 @@ def n8n_workflow_manager(
             )
 
     except Exception as e:
-        logger.error(f"n8n_workflow_manager failed: {e}")
+        logger.error('n8n_workflow_manager failed: %s', e)
         return json.dumps({"success": False, "error": str(e)}, indent=2)
     finally:
         client.close()

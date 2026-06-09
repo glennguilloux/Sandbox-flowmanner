@@ -91,7 +91,7 @@ def get_rate_limiter() -> InMemoryRateLimiter | RedisRateLimiter:
             _rate_limiter = RedisRateLimiter(settings.REDIS_URL)
             logger.info("Rate limiter initialized with Redis backend")
         except Exception as e:
-            logger.warning(f"Redis unavailable for rate limiter, using in-memory: {e}")
+            logger.warning('Redis unavailable for rate limiter, using in-memory: %s', e)
             _rate_limiter = InMemoryRateLimiter()
     return _rate_limiter
 

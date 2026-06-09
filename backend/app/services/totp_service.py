@@ -125,7 +125,7 @@ def verify_code(secret: str, code: str, window: int = 1, period: int = 30) -> bo
                 return True
         return False
     except Exception as e:
-        logger.error(f"TOTP verification error: {e}")
+        logger.error('TOTP verification error: %s', e)
         return False
 
 

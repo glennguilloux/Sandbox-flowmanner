@@ -117,9 +117,7 @@ class PredictiveScaler:
         actual_added = new_count - self.current_workers
         self.current_workers = new_count
 
-        logger.info(
-            f"Scaled up by {actual_added} workers. Total: {self.current_workers}"
-        )
+        logger.info('Scaled up by %s workers. Total: %s', actual_added, self.current_workers)
 
         return {
             "action": "scale_up",
@@ -134,9 +132,7 @@ class PredictiveScaler:
         actual_removed = self.current_workers - new_count
         self.current_workers = new_count
 
-        logger.info(
-            f"Scaled down by {actual_removed} workers. Total: {self.current_workers}"
-        )
+        logger.info('Scaled down by %s workers. Total: %s', actual_removed, self.current_workers)
 
         return {
             "action": "scale_down",

@@ -111,16 +111,14 @@ class ShopifyInventorySyncTool(BaseTool):
         if validated.action not in SHOPIFY_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(SHOPIFY_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(SHOPIFY_ACTIONS)}",
             )
 
         if not SHOPIFY_STORE_URL or not SHOPIFY_ACCESS_TOKEN:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
-                    "Shopify not configured. Set SHOPIFY_STORE_URL and "
-                    "SHOPIFY_ACCESS_TOKEN environment variables."
+                    "Shopify not configured. Set SHOPIFY_STORE_URL and SHOPIFY_ACCESS_TOKEN environment variables."
                 ),
             )
 

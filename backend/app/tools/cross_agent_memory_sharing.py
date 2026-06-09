@@ -164,8 +164,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        f"Unknown action: {action}. "
-                        "Use 'share', 'access', 'list', 'update', or 'delete'."
+                        f"Unknown action: {action}. Use 'share', 'access', 'list', 'update', or 'delete'."
                     ),
                 )
         except Exception as e:
@@ -227,8 +226,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                 pg_stored = True
                 created_at = entry.created_at.isoformat() if entry.created_at else None
                 logger.info(
-                    "Cross-agent memory shared in PG: id=%s key=%s "
-                    "namespace=%s source_agent=%s",
+                    "Cross-agent memory shared in PG: id=%s key=%s namespace=%s source_agent=%s",
                     entry_id,
                     key,
                     namespace,
@@ -321,8 +319,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
                         error=(
-                            f"No shared memory found for key='{key}' "
-                            f"in namespace='{namespace}'"
+                            f"No shared memory found for key='{key}' in namespace='{namespace}'"
                         ),
                     )
 
@@ -453,8 +450,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
                         error=(
-                            f"No shared memory found for key='{key}' "
-                            f"in namespace='{namespace}'"
+                            f"No shared memory found for key='{key}' in namespace='{namespace}'"
                         ),
                     )
 
@@ -469,8 +465,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                 await session.commit()
                 updated_pg = True
                 logger.info(
-                    "Cross-agent memory updated in PG: key=%s namespace=%s "
-                    "source_agent=%s",
+                    "Cross-agent memory updated in PG: key=%s namespace=%s source_agent=%s",
                     key,
                     namespace,
                     agent_id,

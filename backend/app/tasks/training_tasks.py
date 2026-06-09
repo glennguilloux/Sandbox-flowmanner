@@ -28,7 +28,7 @@ def publish_progress(model_id: str, event: str, data: dict[str, Any]):
         {"event": event, "timestamp": datetime.now(UTC).isoformat(), "data": data}
     )
     redis_client.publish(channel, message)
-    logger.info(f"Published {event} to {channel}")
+    logger.info('Published %s to %s', event, channel)
 
 
 @shared_task(name="training.check_gpu_status", bind=True)
@@ -48,7 +48,7 @@ def check_gpu_status_task(self) -> dict[str, Any]:
         return status.to_dict()
 
     except Exception as e:
-        logger.error(f"Error checking GPU status: {e}")
+        logger.error('Error checking GPU status: %s', e)
         return {
             "error": str(e),
             "cuda_available": False,
@@ -84,7 +84,7 @@ def can_start_training_task(self, min_vram_gb: float = 10.0) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Error checking training availability: {e}")
+        logger.error('Error checking training availability: %s', e)
         return {
             "can_train": False,
             "error": str(e),
@@ -111,7 +111,7 @@ def generate_dataset_task(
     Returns:
         Dataset generation result
     """
-    logger.info(f"Starting dataset generation for collection: {collection_id}")
+    logger.info('Starting dataset generation for collection: %s', collection_id)
 
     # Publish start event
     publish_progress(
@@ -150,11 +150,11 @@ def generate_dataset_task(
             collection_id, "dataset_generation_completed", result.to_dict()
         )
 
-        logger.info(f"Dataset generation completed: {result.file_path}")
+        logger.info('Dataset generation completed: %s', result.file_path)
         return result.to_dict()
 
     except Exception as e:
-        logger.error(f"Dataset generation failed: {e}")
+        logger.error('Dataset generation failed: %s', e)
         publish_progress(
             collection_id,
             "dataset_generation_error",
@@ -191,7 +191,7 @@ def train_adapter_task(
     Returns:
         Training metrics
     """
-    logger.info(f"Starting training task for model: {model_id}")
+    logger.info('Starting training task for model: %s', model_id)
 
     # Publish start event
     publish_progress(
@@ -264,7 +264,7 @@ def train_adapter_task(
             str(lora_rank),
         ]
 
-        logger.info(f"Running: {' '.join(cmd)}")
+        logger.info('Running: %s', ' '.join(cmd))
 
         result = subprocess.run(
             cmd,
@@ -282,11 +282,11 @@ def train_adapter_task(
         # Publish completion
         publish_progress(model_id, "training_completed", metrics)
 
-        logger.info(f"Training completed for model: {model_id}")
+        logger.info('Training completed for model: %s', model_id)
         return metrics
 
     except Exception as e:
-        logger.error(f"Training failed for model {model_id}: {e}")
+        logger.error('Training failed for model %s: %s', model_id, e)
         publish_progress(
             model_id,
             "training_error",
@@ -316,7 +316,7 @@ def export_gguf_task(
     Returns:
         Export result
     """
-    logger.info(f"Starting GGUF export for adapter: {adapter_path}")
+    logger.info('Starting GGUF export for adapter: %s', adapter_path)
 
     try:
         import subprocess
@@ -347,11 +347,11 @@ def export_gguf_task(
 
         metrics = json.loads(result.stdout)
 
-        logger.info(f"GGUF export completed: {metrics.get('gguf_path')}")
+        logger.info('GGUF export completed: %s', metrics.get('gguf_path'))
         return metrics
 
     except Exception as e:
-        logger.error(f"GGUF export failed: {e}")
+        logger.error('GGUF export failed: %s', e)
         raise
 
 

@@ -74,7 +74,7 @@ class AnomalyDetector:
     async def resolve_anomaly(self, anomaly_id: str) -> bool:
         """Mark an anomaly as resolved"""
         self._resolved.append(anomaly_id)
-        logger.info(f"Anomaly {anomaly_id} resolved")
+        logger.info('Anomaly %s resolved', anomaly_id)
         return True
 
 

@@ -116,7 +116,7 @@ def verify_token(token: str) -> dict[str, Any]:
             headers={"WWW-Authenticate": "Bearer"},
         )
     except jwt.InvalidTokenError as e:
-        logger.error(f"Invalid token: {e}")
+        logger.error('Invalid token: %s', e)
         raise HTTPException(
             status_code=401,
             detail="Invalid authentication token",
@@ -149,14 +149,12 @@ async def get_current_user_context(
     try:
         payload = verify_token(credentials.credentials)
         user_context = UserContext.from_jwt(payload)
-        logger.info(
-            f"Authenticated user: {user_context.username} (ID: {user_context.user_id})"
-        )
+        logger.info('Authenticated user: %s (ID: %s)', user_context.username, user_context.user_id)
         return user_context
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Authentication error: {e}")
+        logger.error('Authentication error: %s', e)
         raise HTTPException(
             status_code=401,
             detail="Authentication failed",
@@ -272,7 +270,7 @@ def extract_user_context_from_request(request: Request) -> UserContext | None:
         return UserContext.from_jwt(payload)
 
     except Exception as e:
-        logger.debug(f"Failed to extract user context: {e}")
+        logger.debug('Failed to extract user context: %s', e)
         return None
 
 

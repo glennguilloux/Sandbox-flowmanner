@@ -324,8 +324,7 @@ async def get_workspace_id(
         # Explicit workspace but no membership — return None so caller can decide
         # (endpoint may raise 403, or fall back to user-scoped access)
         logger.warning(
-            "workspace_access_denied"
-            " user_id=%s workspace_id=%s reason=no_membership",
+            "workspace_access_denied user_id=%s workspace_id=%s reason=no_membership",
             user.id,
             workspace_id,
         )

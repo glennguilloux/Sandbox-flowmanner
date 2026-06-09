@@ -36,7 +36,7 @@ class BaseTask(Task):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
-        logger.error(f"Task {task_id} failed: {exc}")
+        logger.error('Task %s failed: %s', task_id, exc)
 
         try:
             # Update task status in database
@@ -50,7 +50,7 @@ class BaseTask(Task):
                 task_record.completed_at = datetime.now(UTC)
                 self.db.commit()
         except Exception as db_error:
-            logger.error(f"Failed to update task status in database: {db_error}")
+            logger.error('Failed to update task status in database: %s', db_error)
             self.db.rollback()
 
         # Call parent failure handler
@@ -58,7 +58,7 @@ class BaseTask(Task):
 
     def on_success(self, retval, task_id, args, kwargs):
         """Handle task success."""
-        logger.info(f"Task {task_id} completed successfully")
+        logger.info('Task %s completed successfully', task_id)
 
         try:
             # Update task status in database
@@ -72,14 +72,14 @@ class BaseTask(Task):
                 task_record.completed_at = datetime.now(UTC)
                 self.db.commit()
         except Exception as db_error:
-            logger.error(f"Failed to update task status in database: {db_error}")
+            logger.error('Failed to update task status in database: %s', db_error)
             self.db.rollback()
 
         super().on_success(retval, task_id, args, kwargs)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """Handle task retry."""
-        logger.warning(f"Task {task_id} retrying: {exc}")
+        logger.warning('Task %s retrying: %s', task_id, exc)
 
         try:
             # Update task status in database
@@ -95,7 +95,7 @@ class BaseTask(Task):
                 task_record.error = str(exc)
                 self.db.commit()
         except Exception as db_error:
-            logger.error(f"Failed to update task status in database: {db_error}")
+            logger.error('Failed to update task status in database: %s', db_error)
             self.db.rollback()
 
         super().on_retry(exc, task_id, args, kwargs, einfo)
@@ -140,10 +140,10 @@ def cleanup_old_tasks():
             )
 
             self.db.commit()
-            logger.info(f"Cleaned up {deleted_count} old tasks")
+            logger.info('Cleaned up %s old tasks', deleted_count)
             return {"cleaned": deleted_count}
         except Exception as e:
-            logger.error(f"Failed to cleanup old tasks: {e}")
+            logger.error('Failed to cleanup old tasks: %s', e)
             self.db.rollback()
             raise
 

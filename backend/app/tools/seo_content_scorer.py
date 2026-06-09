@@ -218,8 +218,7 @@ class SeoContentScorerTool(BaseTool):
         if validated.action not in SEO_ACTIONS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=f"Unknown action: '{validated.action}'. "
-                f"Use: {', '.join(SEO_ACTIONS)}",
+                error=f"Unknown action: '{validated.action}'. Use: {', '.join(SEO_ACTIONS)}",
             )
 
         # Resolve content: content > url fetch
@@ -252,8 +251,7 @@ class SeoContentScorerTool(BaseTool):
 
         headers = {
             "User-Agent": (
-                "Mozilla/5.0 (compatible; FlowmannerBot/1.0; "
-                "+https://flowmanner.com/bot)"
+                "Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"
             ),
             "Accept": "text/html,application/xhtml+xml",
         }

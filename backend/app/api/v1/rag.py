@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 from app.services.rag.prompt_synthesizer import (
     GeneratedPrompt,
-)  # noqa: E402 — needed at runtime for OpenAPI
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ async def search_context(
             n_results=payload.top_k,
         )
     except Exception as e:
-        logger.error(f"RAG context search failed for user {user.id}: {e}")
+        logger.error('RAG context search failed for user %s: %s', user.id, e)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Search service temporarily unavailable. Please try again later.",

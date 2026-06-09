@@ -9,7 +9,7 @@ Provides a unified framework for integrating with external services:
 
 Usage:
     from app.services.connectors import ConnectorManager, SlackConnector, DiscordConnector
-    
+
     manager = ConnectorManager()
     await manager.register_connector("slack_main", slack_config)
     response = await manager.execute("slack_main", "send_message", {...})

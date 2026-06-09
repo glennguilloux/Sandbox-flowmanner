@@ -183,7 +183,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             )
 
         except Exception as e:
-            logger.error(f"Idempotency middleware error: {e}")
+            logger.error('Idempotency middleware error: %s', e)
             db.rollback()
             return await call_next(request)
         finally:
@@ -358,7 +358,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             db.add(log_entry)
             db.commit()
         except Exception as e:
-            logger.warning(f"Failed to log idempotency request: {e}")
+            logger.warning('Failed to log idempotency request: %s', e)
 
 
 # Helper function to create idempotency key

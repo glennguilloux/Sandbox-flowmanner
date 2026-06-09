@@ -318,7 +318,7 @@ class BrowserAgent:
                     messages.append(
                         {
                             "role": "user",
-                            "content": f"Page: {ss.get('url')} — \"{ss.get('title')}\". Elements:\n{elements_text}",
+                            "content": f'Page: {ss.get("url")} — "{ss.get("title")}". Elements:\n{elements_text}',
                         }
                     )
                 else:
@@ -517,7 +517,7 @@ class BrowserAgent:
                         snippet=llm_response[:100],
                         error=str(e),
                     )
-        logger.warning(f"Could not parse LLM response: {llm_response[:200]}")
+        logger.warning('Could not parse LLM response: %s', llm_response[:200])
         return None
 
     def _record(self, tool: str, result: str) -> None:

@@ -170,8 +170,7 @@ class CircuitBreaker:
             if self._state == CircuitState.HALF_OPEN:
                 if self._half_open_calls >= self.config.half_open_max_calls:
                     raise CircuitOpenError(
-                        f"Circuit [{self.config.name}] is HALF_OPEN — "
-                        f"max probe calls reached"
+                        f"Circuit [{self.config.name}] is HALF_OPEN — max probe calls reached"
                     )
                 self._half_open_calls += 1
 

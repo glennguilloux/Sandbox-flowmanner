@@ -158,7 +158,7 @@ def record_metric(backend: str, success: bool, latency_ms: float):
     if backend == "governance":
         rollback_check = check_rollback_conditions()
         if rollback_check["should_rollback"]:
-            logger.warning(f"Canary rollback triggered: {rollback_check['reasons']}")
+            logger.warning('Canary rollback triggered: %s', rollback_check['reasons'])
 
 
 def route_to_governance_request():
@@ -184,7 +184,7 @@ def canary_routing_middleware(f):
         g.routing_backend = backend
         g.workflow_id = workflow_id
 
-        logger.debug(f"Canary routing: workflow_id={workflow_id}, backend={backend}")
+        logger.debug('Canary routing: workflow_id=%s, backend=%s', workflow_id, backend)
 
         return f(*args, **kwargs)
 

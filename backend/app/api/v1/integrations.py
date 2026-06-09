@@ -377,7 +377,7 @@ async def oauth_callback(
             slug=slug,
         )
     except Exception as e:
-        logger.warning(f"Failed to register Nexus capabilities for {slug}: {e}")
+        logger.warning('Failed to register Nexus capabilities for %s: %s', slug, e)
 
     # Redirect to frontend
     return RedirectResponse(
@@ -413,7 +413,7 @@ async def disconnect_integration(
             slug=slug,
         )
     except Exception as e:
-        logger.warning(f"Failed to unregister Nexus capabilities for {slug}: {e}")
+        logger.warning('Failed to unregister Nexus capabilities for %s: %s', slug, e)
 
     return {"status": "disconnected"}
 

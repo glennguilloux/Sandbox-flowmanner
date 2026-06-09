@@ -155,11 +155,9 @@ class FailureRepository:
             try:
                 await self._save_to_database(context)
             except Exception as e:
-                logger.warning(f"Failed to save failure to database: {e}")
+                logger.warning('Failed to save failure to database: %s', e)
 
-        logger.debug(
-            f"Saved failure {context.failure_id} of type {context.failure_type.value}"
-        )
+        logger.debug('Saved failure %s of type %s', context.failure_id, context.failure_type.value)
         return context.failure_id
 
     async def get(self, failure_id: str) -> FailureContext | None:
@@ -181,7 +179,7 @@ class FailureRepository:
             try:
                 return await self._get_from_database(failure_id)
             except Exception as e:
-                logger.warning(f"Failed to get failure from database: {e}")
+                logger.warning('Failed to get failure from database: %s', e)
 
         return None
 
@@ -230,7 +228,7 @@ class FailureRepository:
                     if context.failure_id not in existing_ids:
                         results.append(context)
             except Exception as e:
-                logger.warning(f"Failed to query failures from database: {e}")
+                logger.warning('Failed to query failures from database: %s', e)
 
         # Sort by timestamp descending and limit
         results.sort(key=lambda c: c.timestamp, reverse=True)
@@ -275,7 +273,7 @@ class FailureRepository:
                     if context.failure_id not in existing_ids:
                         results.append(context)
             except Exception as e:
-                logger.warning(f"Failed to query failures by type from database: {e}")
+                logger.warning('Failed to query failures by type from database: %s', e)
 
         results.sort(key=lambda c: c.timestamp, reverse=True)
         return results[:limit]
@@ -366,7 +364,7 @@ class FailureRepository:
             try:
                 await self._mark_resolved_in_database(failure_id, resolution_strategy)
             except Exception as e:
-                logger.warning(f"Failed to mark failure resolved in database: {e}")
+                logger.warning('Failed to mark failure resolved in database: %s', e)
 
         return True
 
@@ -426,7 +424,7 @@ class FailureRepository:
         # Rebuild indices
         self._rebuild_indices()
 
-        logger.info(f"Cleared {cleared} failures older than {older_than}")
+        logger.info('Cleared %s failures older than %s', cleared, older_than)
         return cleared
 
     # ========================================================================

@@ -281,9 +281,7 @@ class ToolVersioningService:
             if tool_id not in self._active_versions or status == VersionStatus.ACTIVE:
                 self._active_versions[tool_id] = sem_ver
 
-            logger.info(
-                f"Registered tool version: {tool_id}@{version} with status {status.value}"
-            )
+            logger.info('Registered tool version: %s@%s with status %s', tool_id, version, status.value)
             return tool_version
 
     async def get_version(
@@ -344,7 +342,7 @@ class ToolVersioningService:
         async with self._lock:
             tool_version = await self.get_version(tool_id, version)
             if not tool_version:
-                logger.warning(f"Cannot deprecate: {tool_id}@{version} not found")
+                logger.warning('Cannot deprecate: %s@%s not found', tool_id, version)
                 return None
 
             sunset_date = datetime.now(UTC) + timedelta(days=sunset_days)
@@ -364,9 +362,7 @@ class ToolVersioningService:
             key = f"{tool_id}:{version}"
             self._deprecations[key] = notice
 
-            logger.warning(
-                f"Deprecated {tool_id}@{version}: {reason}. Sunset in {sunset_days} days ({sunset_date.isoformat()})"
-            )
+            logger.warning('Deprecated %s@%s: %s. Sunset in %s days (%s)', tool_id, version, reason, sunset_days, sunset_date.isoformat())
             return notice
 
     async def register_migration(
@@ -405,7 +401,7 @@ class ToolVersioningService:
             self._migrations[tool_id] = []
 
         self._migrations[tool_id].append(migration)
-        logger.info(f"Registered migration: {tool_id} {from_version} -> {to_version}")
+        logger.info('Registered migration: %s %s -> %s', tool_id, from_version, to_version)
 
         return migration
 
@@ -443,13 +439,11 @@ class ToolVersioningService:
         migration = await self.get_migration(tool_id, from_version, to_version)
 
         if not migration:
-            logger.warning(
-                f"No migration found: {tool_id} {from_version} -> {to_version}"
-            )
+            logger.warning('No migration found: %s %s -> %s', tool_id, from_version, to_version)
             return params
 
         migrated = migration.migrate(params)
-        logger.debug(f"Migrated params for {tool_id}: {from_version} -> {to_version}")
+        logger.debug('Migrated params for %s: %s -> %s', tool_id, from_version, to_version)
         return migrated
 
     async def rollback(self, tool_id: str, target_version: str | None = None) -> bool:
@@ -465,7 +459,7 @@ class ToolVersioningService:
         """
         async with self._lock:
             if tool_id not in self._version_history:
-                logger.error(f"Cannot rollback: {tool_id} has no version history")
+                logger.error('Cannot rollback: %s has no version history', tool_id)
                 return False
 
             history = self._version_history[tool_id]
@@ -476,7 +470,7 @@ class ToolVersioningService:
             else:
                 # Find previous version
                 if not current or len(history) < 2:
-                    logger.error(f"Cannot rollback: no previous version for {tool_id}")
+                    logger.error('Cannot rollback: no previous version for %s', tool_id)
                     return False
                 idx = history.index(current)
                 if idx >= len(history) - 1:
@@ -493,7 +487,7 @@ class ToolVersioningService:
             # Set target as active
             self._active_versions[tool_id] = target
 
-            logger.warning(f"Rolled back {tool_id} to version {target}")
+            logger.warning('Rolled back %s to version %s', tool_id, target)
             return True
 
     async def get_deprecation_notices(
@@ -545,7 +539,7 @@ class ToolVersioningService:
                     ):
                         del self._versions[tool_id][ver_str]
                         removed += 1
-                        logger.info(f"Cleaned up retired version: {tool_id}@{ver_str}")
+                        logger.info('Cleaned up retired version: %s@%s', tool_id, ver_str)
 
             return removed
 

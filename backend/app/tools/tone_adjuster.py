@@ -97,10 +97,7 @@ class ToneAdjusterTool(BaseTool):
 
             model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-            system_prompt = (
-                f"Rewrite the following text in a {target_tone} tone. "
-                f"{tone_description}. "
-            )
+            system_prompt = f"Rewrite the following text in a {target_tone} tone. {tone_description}. "
             if validated.preserve_length:
                 system_prompt += (
                     "Keep the output approximately the same length as the input. "

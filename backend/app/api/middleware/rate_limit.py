@@ -22,6 +22,9 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
         "/api/v1/auth": 20,
         "/api/v1/llm": 30,
         "/api/v1/browser": 30,
+        # Phase 4: Playground
+        "/api/v1/playground/sandboxes": 5,
+        "/api/v1/playground/sandboxes/claim": 10,
     }
     DEFAULT_LIMIT = 100
     WINDOW_SECONDS = 60
@@ -82,11 +85,17 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
         if self._is_private_ip(client_ip):
             return await call_next(request)
 
-        # Phase 8.2: Key by workspace_id when available, fall back to IP
-        workspace_id = request.headers.get("X-Workspace-Id")
-        key = (
-            f"ratelimit:ws:{workspace_id}" if workspace_id else f"ratelimit:{client_ip}"
-        )
+        # Playground routes always use IP-based rate limiting (anonymous users)
+        if request.url.path.startswith("/api/v1/playground"):
+            key = f"ratelimit:playground:{client_ip}"
+        else:
+            # Phase 8.2: Key by workspace_id when available, fall back to IP
+            workspace_id = request.headers.get("X-Workspace-Id")
+            key = (
+                f"ratelimit:ws:{workspace_id}"
+                if workspace_id
+                else f"ratelimit:{client_ip}"
+            )
         self._cleanup(key)
         limit = self._get_limit(request.url.path)
 

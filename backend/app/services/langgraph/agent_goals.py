@@ -494,14 +494,14 @@ class AgentGoalsManager:
                     "goal_id": goal_id,
                     "step_id": step.step_id,
                     "step_index": i,
-                    "message": f"Step {i+1} requires approval: {step.description}",
+                    "message": f"Step {i + 1} requires approval: {step.description}",
                     "goal": goal.to_dict(),
                 }
 
             # Check for failure
             if step.status == StepStatus.FAILED:
                 goal.status = GoalStatus.FAILED
-                goal.result_summary = f"Failed at step {i+1}: {step.error}"
+                goal.result_summary = f"Failed at step {i + 1}: {step.error}"
                 return {
                     "success": False,
                     "error": step.error,
@@ -566,7 +566,7 @@ class AgentGoalsManager:
                         "goal_id": goal_id,
                         "step_id": next_step.step_id,
                         "step_index": i,
-                        "message": f"Step {i+1} requires approval",
+                        "message": f"Step {i + 1} requires approval",
                         "goal": goal.to_dict(),
                     }
 
@@ -623,7 +623,9 @@ class AgentGoalsManager:
             try:
                 key = f"agent_goals:{goal.goal_id}"
                 self.redis_client.setex(
-                    key, 86400, json.dumps(goal.to_dict(), default=str)  # 24 hours
+                    key,
+                    86400,
+                    json.dumps(goal.to_dict(), default=str),  # 24 hours
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to save goal to Redis: {e}")

@@ -23,38 +23,34 @@ async def get_run_history(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return run history entries — mission runs joined with mission titles."""
+    """Return run history entries from the runs table."""
     offset = (page - 1) * per_page
 
     # Count total runs for this user
     count_query = text(
         """
-        SELECT COUNT(*) FROM mission_runs mr
-        JOIN missions m ON m.id::text = mr.mission_id::text
-        WHERE m.user_id = :uid
+        SELECT COUNT(*) FROM runs
+        WHERE user_id = :uid
     """
     )
     total_result = await db.execute(count_query, {"uid": current_user.id})
     total = total_result.scalar() or 0
 
-    # Fetch paginated runs with mission title
+    # Fetch paginated runs
     data_query = text(
         """
         SELECT
-            mr.id::text,
-            mr.mission_id::text,
-            m.title AS mission_name,
-            mr.status,
-            mr.started_at,
-            mr.completed_at,
-            mr.duration_seconds,
-            mr.error_message,
-            mr.tokens_used,
-            mr.actual_cost
-        FROM mission_runs mr
-        JOIN missions m ON m.id::text = mr.mission_id::text
-        WHERE m.user_id = :uid
-        ORDER BY mr.created_at DESC
+            id::text,
+            blueprint_id::text,
+            status,
+            started_at,
+            completed_at,
+            error_message,
+            total_tokens,
+            total_cost_usd
+        FROM runs
+        WHERE user_id = :uid
+        ORDER BY created_at DESC
         LIMIT :limit OFFSET :offset
     """
     )
@@ -65,13 +61,10 @@ async def get_run_history(
 
     runs = []
     for row in rows_result.fetchall():
-        started = row[4]
-        ended = row[5]
-        dur = row[6]
+        started = row[3]
+        ended = row[4]
         duration_ms = None
-        if dur is not None:
-            duration_ms = int(dur * 1000)
-        elif started and ended:
+        if started and ended:
             duration_ms = int((ended - started).total_seconds() * 1000)
         elif started:
             duration_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)
@@ -80,14 +73,14 @@ async def get_run_history(
             {
                 "id": row[0],
                 "mission_id": row[1],
-                "mission_name": row[2],
-                "status": row[3],
-                "started_at": row[4].isoformat() if row[4] else None,
-                "ended_at": row[5].isoformat() if row[5] else None,
+                "mission_name": row[1],
+                "status": row[2],
+                "started_at": row[3].isoformat() if row[3] else None,
+                "ended_at": row[4].isoformat() if row[4] else None,
                 "duration_ms": duration_ms,
-                "error_message": row[7],
-                "tokens_used": row[8],
-                "actual_cost": row[9],
+                "error_message": row[5],
+                "tokens_used": row[6],
+                "actual_cost": row[7],
             }
         )
 

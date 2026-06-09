@@ -99,7 +99,7 @@ class MemoryBridge:
             try:
                 await bridge_func("store", memory)
             except Exception as e:
-                logger.warning(f"External bridge {bridge_name} sync failed: {e}")
+                logger.warning('External bridge %s sync failed: %s', bridge_name, e)
 
         return memory
 
@@ -125,10 +125,10 @@ class MemoryBridge:
                 documents=[doc], collection=self.config.rag_collection
             )
 
-            logger.info(f"Synced memory {memory.id} to RAG")
+            logger.info('Synced memory %s to RAG', memory.id)
             return True
         except Exception as e:
-            logger.error(f"Failed to sync memory to RAG: {e}")
+            logger.error('Failed to sync memory to RAG: %s', e)
             return False
 
     async def recall_with_context(
@@ -174,7 +174,7 @@ class MemoryBridge:
                 )
                 result["rag_results"] = rag_results.get("results", [])
             except Exception as e:
-                logger.warning(f"RAG search failed: {e}")
+                logger.warning('RAG search failed: %s', e)
 
         # Get shared memories if enabled
         if include_shared and self.config.share_between_agents:
@@ -202,7 +202,7 @@ class MemoryBridge:
             )
             return results.get("results", [])
         except Exception as e:
-            logger.warning(f"Shared memory search failed: {e}")
+            logger.warning('Shared memory search failed: %s', e)
             return []
 
     def _assemble_context(self, result: dict[str, Any]) -> str:
@@ -231,7 +231,7 @@ class MemoryBridge:
     ) -> None:
         """Register an external memory bridge"""
         self._external_bridges[name] = bridge_func
-        logger.info(f"Registered external bridge: {name}")
+        logger.info('Registered external bridge: %s', name)
 
     async def inject_context(
         self, agent_id: str, query: str, max_tokens: int = 1000
@@ -263,14 +263,14 @@ class MemoryBridge:
 
         # Check if shareable
         if memory.importance < self.config.max_shared_importance:
-            logger.warning(f"Memory {memory_id} not important enough to share")
+            logger.warning('Memory %s not important enough to share', memory_id)
             return False
 
         # Sync to RAG for sharing
         if self.rag_service:
             await self._sync_to_rag(memory)
 
-        logger.info(f"Shared memory {memory_id} with {len(target_agent_ids)} agents")
+        logger.info('Shared memory %s with %s agents', memory_id, len(target_agent_ids))
         return True
 
     async def get_bridge_stats(self) -> dict[str, Any]:

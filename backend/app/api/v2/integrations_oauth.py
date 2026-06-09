@@ -1,11 +1,11 @@
 """Integrations v2 API — OAuth app management and connection flow."""
 
 from __future__ import annotations
-import uuid
 
 import json
 import logging
 import secrets
+import uuid
 from datetime import UTC
 from typing import TYPE_CHECKING
 
@@ -27,7 +27,6 @@ from app.schemas.integration_v2 import (
 )
 
 if TYPE_CHECKING:
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -247,8 +246,7 @@ async def register_oauth_app(
     if payload.provider not in _ALLOWED_PROVIDERS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported provider: {payload.provider}. "
-            f"Allowed: {', '.join(sorted(_ALLOWED_PROVIDERS))}",
+            detail=f"Unsupported provider: {payload.provider}. Allowed: {', '.join(sorted(_ALLOWED_PROVIDERS))}",
         )
 
     app = UserOAuthApp(

@@ -94,9 +94,9 @@ class WebSearchService:
                         "errors": 0,
                         "total_latency": 0.0,
                     }
-                    logger.info(f"Initialized provider: {provider_type.value}")
+                    logger.info('Initialized provider: %s', provider_type.value)
                 except Exception as e:
-                    logger.warning(f"Failed to init provider {provider_type}: {e}")
+                    logger.warning('Failed to init provider %s: %s', provider_type, e)
 
     async def search(self, request: SearchRequest) -> SearchResponse:
         """
@@ -109,7 +109,7 @@ class WebSearchService:
         if self.cache and request.use_cache:
             cached = await self.cache.get(request.query, request.search_type)
             if cached:
-                logger.info(f"Cache hit for query: {request.query[:50]}")
+                logger.info('Cache hit for query: %s', request.query[:50])
                 return cached
 
         # Determine providers to use
@@ -282,7 +282,7 @@ class WebSearchService:
                         result.extracted_content = extracted.content
                         result.content = extracted.content
                 except Exception as e:
-                    logger.warning(f"Content extraction failed for {result.url}: {e}")
+                    logger.warning('Content extraction failed for %s: %s', result.url, e)
 
     def _update_provider_stats(
         self, provider: SearchProvider, latency: float, error: bool

@@ -188,8 +188,7 @@ class EntityTrackerTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        f"Unknown action: {action}. "
-                        "Use 'extract', 'track', 'list', 'lookup', or 'delete'."
+                        f"Unknown action: {action}. Use 'extract', 'track', 'list', 'lookup', or 'delete'."
                     ),
                 )
         except Exception as e:
@@ -327,8 +326,7 @@ class EntityTrackerTool(BaseTool):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
-                    f"Unknown entity_type: '{entity_type}'. "
-                    f"Use one of: {', '.join(ENTITY_TYPES)}"
+                    f"Unknown entity_type: '{entity_type}'. Use one of: {', '.join(ENTITY_TYPES)}"
                 ),
             )
 
@@ -460,8 +458,7 @@ class EntityTrackerTool(BaseTool):
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
                         error=(
-                            f"No entity '{entity_name}' found "
-                            f"in namespace='{namespace}'"
+                            f"No entity '{entity_name}' found in namespace='{namespace}'"
                         ),
                     )
 

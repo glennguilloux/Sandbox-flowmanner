@@ -128,8 +128,7 @@ async def create_version_snapshot(
     """
     if entity_type not in _ENTITY_REGISTRY:
         raise ValueError(
-            f"Unknown entity_type '{entity_type}'. "
-            f"Supported: {list(_ENTITY_REGISTRY.keys())}"
+            f"Unknown entity_type '{entity_type}'. Supported: {list(_ENTITY_REGISTRY.keys())}"
         )
 
     snapshot_fn, version_model_path, parent_fk_col = _ENTITY_REGISTRY[entity_type]

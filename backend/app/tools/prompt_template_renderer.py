@@ -175,7 +175,6 @@ class PromptTemplateRendererTool(BaseTool):
         autoescape: bool = False,
         custom_filters: dict[str, str] | None = None,
     ) -> str:
-
         # Extract plain text from chat message list
         if isinstance(template, list):
             template = "\n".join(

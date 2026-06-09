@@ -189,8 +189,7 @@ def execute_python_in_sandbox(
         return {
             "success": False,
             "error": (
-                f"Code contains blocked pattern: '{blocked}'. "
-                f"Code execution is restricted to data analysis operations."
+                f"Code contains blocked pattern: '{blocked}'. Code execution is restricted to data analysis operations."
             ),
         }
 

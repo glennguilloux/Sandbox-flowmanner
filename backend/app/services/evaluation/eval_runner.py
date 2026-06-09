@@ -98,7 +98,7 @@ class EvaluationRunner:
                     tags=["evaluation", model_name],
                 )
         except Exception as e:
-            logger.debug(f"Langfuse trace creation skipped: {e}")
+            logger.debug('Langfuse trace creation skipped: %s', e)
 
         try:
             # Run model against test cases with concurrency limit
@@ -194,10 +194,10 @@ class EvaluationRunner:
                         comment=f"Eval run {eval_run.id}: {len(all_scores)} cases scored",
                     )
             except Exception as e:
-                logger.debug(f"Langfuse score push skipped: {e}")
+                logger.debug('Langfuse score push skipped: %s', e)
 
         except Exception as e:
-            logger.error(f"Evaluation run failed: {e}", exc_info=True)
+            logger.error('Evaluation run failed: %s', e, exc_info=True)
             eval_run.status = "failed"
             eval_run.error_message = str(e)
             eval_run.completed_at = datetime.now(UTC)

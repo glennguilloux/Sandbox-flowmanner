@@ -74,15 +74,11 @@ def _deliver_sync(
             log.status = WebhookStatus.PENDING.value
             next_retry = retry_manager.schedule_retry(log.id, log.retry_count)
             log.next_retry_at = next_retry
-            logger.info(
-                f"Webhook {log.id} scheduled for retry #{log.retry_count} at {next_retry}"
-            )
+            logger.info('Webhook %s scheduled for retry #%s at %s', log.id, log.retry_count, next_retry)
         else:
             log.status = WebhookStatus.FAILED.value
             log.next_retry_at = None
-            logger.warning(
-                f"Webhook {log.id} moved to DLQ after {log.retry_count} retries"
-            )
+            logger.warning('Webhook %s moved to DLQ after %s retries', log.id, log.retry_count)
 
     log.processing_completed_at = datetime.now(UTC)
 
@@ -117,7 +113,7 @@ def deliver_webhook(log_id: int) -> dict:
         return {"log_id": log_id, "status": log.status, "retry_count": log.retry_count}
 
     except Exception as e:
-        logger.exception(f"deliver_webhook task failed for log {log_id}: {e}")
+        logger.exception('deliver_webhook task failed for log %s: %s', log_id, e)
         db.rollback()
         raise
     finally:
@@ -155,12 +151,12 @@ def process_due_retries() -> dict:
             dispatched += 1
 
         if dispatched:
-            logger.info(f"Dispatched {dispatched} due webhook retries")
+            logger.info('Dispatched %s due webhook retries', dispatched)
 
         return {"dispatched": dispatched, "checked_at": now.isoformat()}
 
     except Exception as e:
-        logger.exception(f"process_due_retries failed: {e}")
+        logger.exception('process_due_retries failed: %s', e)
         raise
     finally:
         db.close()

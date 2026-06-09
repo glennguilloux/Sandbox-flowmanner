@@ -111,7 +111,7 @@ class MissionPlanner:
                 )
                 mission = result.scalars().first()
                 if not mission:
-                    logger.error(f"Mission {mission_id} not found")
+                    logger.error('Mission %s not found', mission_id)
                     return {"success": False, "error": "Mission not found"}
 
                 # Update status to planning
@@ -247,9 +247,7 @@ class MissionPlanner:
                 }
 
             except PermanentMissionError as e:
-                logger.error(
-                    f"Planning permanently failed for mission {mission_id}: {e}"
-                )
+                logger.error('Planning permanently failed for mission %s: %s', mission_id, e)
                 await self._transition_status(
                     db,
                     mission,
@@ -260,12 +258,10 @@ class MissionPlanner:
                 )
                 return {"success": False, "error": str(e), "permanent": True}
             except RetryableMissionError as e:
-                logger.warning(
-                    f"Retryable planning failure for mission {mission_id}: {e}"
-                )
+                logger.warning('Retryable planning failure for mission %s: %s', mission_id, e)
                 raise
             except Exception as e:
-                logger.error(f"Planning failed for mission {mission_id}: {e}")
+                logger.error('Planning failed for mission %s: %s', mission_id, e)
                 await self._transition_status(
                     db,
                     mission,
@@ -370,7 +366,7 @@ class MissionPlanner:
 
                 if not response.get("success"):
                     error_msg = response.get("error", "Model routing failed")
-                    logger.error(f"Plan generation failed: {error_msg}")
+                    logger.error('Plan generation failed: %s', error_msg)
                     raise RuntimeError(f"Plan generation failed: {error_msg}")
 
                 content = (
@@ -423,19 +419,19 @@ class MissionPlanner:
                     return tasks
 
             error_msg = "Could not parse plan from LLM response"
-            logger.warning(f"{error_msg}: {content[:200]}")
+            logger.warning('%s: %s', error_msg, content[:200])
             return []
         except RetryableMissionError as e:
             error_msg = str(e)
-            logger.warning(f"Retryable LLM plan generation failure: {e}")
+            logger.warning('Retryable LLM plan generation failure: %s', e)
             raise
         except PermanentMissionError as e:
             error_msg = str(e)
-            logger.error(f"Permanent LLM plan generation failure: {e}")
+            logger.error('Permanent LLM plan generation failure: %s', e)
             return []
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"LLM plan generation failed: {e}")
+            logger.error('LLM plan generation failed: %s', e)
             return []
         finally:
             # Always record the LLM call for plan generation observability

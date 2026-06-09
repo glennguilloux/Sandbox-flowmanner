@@ -179,7 +179,7 @@ class SwarmOrchestrator:
             execution.completed_at = datetime.now(UTC)
 
         except Exception as e:
-            logger.error(f"Swarm execution failed: {e}", exc_info=True)
+            logger.error('Swarm execution failed: %s', e, exc_info=True)
             await self._transition_execution_status(
                 execution, "failed", cause=f"Error: {e}"
             )
@@ -220,7 +220,7 @@ class SwarmOrchestrator:
             parsed = json.loads(cleaned.strip())
             return parsed.get("subtasks", [])
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse decomposition: {raw[:200]}")
+            logger.warning('Failed to parse decomposition: %s', raw[:200])
             # Fallback: single task
             return [{"id": "task_1", "description": goal, "task_type": "general"}]
 
@@ -294,7 +294,7 @@ class SwarmOrchestrator:
             task.tokens_used = len(output.split()) * 2  # rough estimate
 
         except Exception as e:
-            logger.error(f"Task {task.id} failed: {e}")
+            logger.error('Task %s failed: %s', task.id, e)
             task.status = "failed"
             task.error_message = str(e)
 
@@ -309,17 +309,14 @@ class SwarmOrchestrator:
             task = item["record"]
             if task.status == "completed" and task.output:
                 completed_outputs.append(
-                    f"### Agent: {task.agent_name or 'Unknown'}\n"
-                    f"**Task:** {task.task_description}\n\n"
-                    f"{task.output}"
+                    f"### Agent: {task.agent_name or 'Unknown'}\n**Task:** {task.task_description}\n\n{task.output}"
                 )
 
         if not completed_outputs:
             return "No completed tasks to synthesize.", []
 
-        prompt = (
-            f"Original goal: {goal}\n\n"
-            f"Agent outputs:\n\n" + "\n\n---\n\n".join(completed_outputs)
+        prompt = f"Original goal: {goal}\n\nAgent outputs:\n\n" + "\n\n---\n\n".join(
+            completed_outputs
         )
 
         synthesis = await self._call_llm(SYNTHESIZE_SYSTEM_PROMPT, prompt)
@@ -411,7 +408,7 @@ class SwarmOrchestrator:
             )
             self.db.add(record)
         except Exception as e:
-            logger.warning(f"Failed to record swarm LLM call: {e}")
+            logger.warning('Failed to record swarm LLM call: %s', e)
 
         # Also record Prometheus metrics
         try:

@@ -34,6 +34,7 @@ from app.services.chat_service import (
     create_chat_thread,
     delete_chat_branch,
     delete_chat_thread,
+    generate_thread_title,
     get_chat_branch,
     get_chat_files,
     get_chat_messages,
@@ -489,6 +490,20 @@ async def export_thread(
             + ".md"
         },
     )
+
+
+# Auto-title endpoint
+@router.post("/threads/{thread_id}/title")
+async def generate_title(
+    thread_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await require_chat_thread_access(db, thread_id, user.id)
+    title = await generate_thread_title(db, thread_id)
+    if title is None:
+        return {"title": None, "message": "Not enough messages to generate a title"}
+    return {"title": title}
 
 
 # Metadata PATCH

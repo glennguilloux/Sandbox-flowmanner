@@ -201,7 +201,7 @@ async def document_parse(
         if len(raw_bytes) > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File exceeds maximum size of 50MB (got {len(raw_bytes) / (1024*1024):.1f}MB)",
+                detail=f"File exceeds maximum size of 50MB (got {len(raw_bytes) / (1024 * 1024):.1f}MB)",
             )
         text_content = ""
         structured_data = None
