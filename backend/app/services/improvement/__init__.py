@@ -21,12 +21,12 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import failure_types: %s", e)
-    FailureType = None
-    FailureSeverity = None
-    FailureContext = None
-    classify_failure = None
-    capture_failure_telemetry = None
-    get_failure_telemetry = None
+    FailureType = None  # type: ignore[misc]
+    FailureSeverity = None  # type: ignore[misc]
+    FailureContext = None  # type: ignore[misc]
+    classify_failure = None  # type: ignore[misc]
+    capture_failure_telemetry = None  # type: ignore[misc]
+    get_failure_telemetry = None  # type: ignore[misc]
 
 # Phase 2: Causal Understanding
 try:
@@ -41,13 +41,13 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import causal_decomposer: %s", e)
-    KnobType = None
-    StrategyType = None
-    RiskLevel = None
-    ImprovementStrategy = None
-    WeakArea = None
-    CausalDecomposer = None
-    get_causal_decomposer = None
+    KnobType = None  # type: ignore[misc]
+    StrategyType = None  # type: ignore[misc]
+    RiskLevel = None  # type: ignore[misc]
+    ImprovementStrategy = None  # type: ignore[misc]
+    WeakArea = None  # type: ignore[misc]
+    CausalDecomposer = None  # type: ignore[misc]
+    get_causal_decomposer = None  # type: ignore[misc]
 
 try:
     from .knob_manager import (
@@ -58,10 +58,10 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import knob_manager: %s", e)
-    ImprovementKnob = None
-    KnobAdjustment = None
-    KnobManager = None
-    get_knob_manager = None
+    ImprovementKnob = None  # type: ignore[misc]
+    KnobAdjustment = None  # type: ignore[misc]
+    KnobManager = None  # type: ignore[misc]
+    get_knob_manager = None  # type: ignore[misc]
 
 try:
     from .improvement_models import (
@@ -72,10 +72,10 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import improvement_models: %s", e)
-    AppliedImprovement = None
-    FailureContextModel = None
-    ImprovementSession = None
-    ImprovementMetrics = None
+    AppliedImprovement = None  # type: ignore[misc]
+    FailureContextModel = None  # type: ignore[misc]
+    ImprovementSession = None  # type: ignore[misc]
+    ImprovementMetrics = None  # type: ignore[misc]
 
 # Phase 3: Verification
 try:
@@ -91,14 +91,14 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import hypothesis_tester: %s", e)
-    HypothesisState = None
-    TestType = None
-    RollbackTrigger = None
-    HypothesisTest = None
-    TestResult = None
-    SafetyConstraint = None
-    HypothesisTester = None
-    get_hypothesis_tester = None
+    HypothesisState = None  # type: ignore[misc]
+    TestType = None  # type: ignore[misc]
+    RollbackTrigger = None  # type: ignore[misc]
+    HypothesisTest = None  # type: ignore[misc]
+    TestResult = None  # type: ignore[misc]
+    SafetyConstraint = None  # type: ignore[misc]
+    HypothesisTester = None  # type: ignore[misc]
+    get_hypothesis_tester = None  # type: ignore[misc]
 
 # Phase 4: Synthesis
 try:
@@ -112,12 +112,12 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import improvement_loop_v2: %s", e)
-    SessionState = None
-    ImprovementSessionData = None
-    ImprovementKnowledge = None
-    ImprovementLoopV2 = None
-    get_improvement_loop = None
-    initialize_improvement_loop = None
+    SessionState = None  # type: ignore[misc]
+    ImprovementSessionData = None  # type: ignore[misc]
+    ImprovementKnowledge = None  # type: ignore[misc]
+    ImprovementLoopV2 = None  # type: ignore[misc]
+    get_improvement_loop = None  # type: ignore[misc]
+    initialize_improvement_loop = None  # type: ignore[misc]
 
 # Phase 5: Production Integration
 try:
@@ -129,10 +129,10 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import metrics_collector: %s", e)
-    MetricType = None
-    MetricPoint = None
-    MetricsCollector = None
-    get_metrics_collector = None
+    MetricType = None  # type: ignore[misc]
+    MetricPoint = None  # type: ignore[misc]
+    MetricsCollector = None  # type: ignore[misc]
+    get_metrics_collector = None  # type: ignore[misc]
 
 try:
     from .failure_repository import (
@@ -141,8 +141,8 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import failure_repository: %s", e)
-    FailureRepository = None
-    get_failure_repository = None
+    FailureRepository = None  # type: ignore[misc]
+    get_failure_repository = None  # type: ignore[misc]
 
 try:
     from .alerting import (
@@ -153,10 +153,10 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import alerting: %s", e)
-    AlertSeverity = None
-    Alert = None
-    AlertingSystem = None
-    get_alerting_system = None
+    AlertSeverity = None  # type: ignore[misc]
+    Alert = None  # type: ignore[misc]
+    AlertingSystem = None  # type: ignore[misc]
+    get_alerting_system = None  # type: ignore[misc]
 
 # Phase 6: Advanced Learning
 try:
@@ -167,8 +167,8 @@ try:
     )
 except ImportError as e:
     logger.warning("Failed to import success_learner: %s", e)
-    SuccessPattern = None
-    SuccessLearner = None
-    get_success_learner = None
+    SuccessPattern = None  # type: ignore[misc]
+    SuccessLearner = None  # type: ignore[misc]
+    get_success_learner = None  # type: ignore[misc]
 
 logger.info("Improvement module loaded with graceful degradation")
