@@ -160,7 +160,7 @@ class SentryIntegration:
                 integrations.append(CeleryIntegration())
 
             # Initialize Sentry SDK
-            sentry_sdk.init(
+            sentry_sdk.init(  # type: ignore[attr-defined]
                 dsn=self.config.dsn,
                 environment=self.config.environment,
                 release=self.config.release,
@@ -179,9 +179,9 @@ class SentryIntegration:
             )
 
             # Set user context if available
-            sentry_sdk.set_tag("platform", "workflows-backend")
-            sentry_sdk.set_tag("mcp_enabled", self.config.mcp_enabled)
-            sentry_sdk.set_tag("seer_enabled", self.config.enable_seer)
+            sentry_sdk.set_tag("platform", "workflows-backend")  # type: ignore[attr-defined]
+            sentry_sdk.set_tag("mcp_enabled", self.config.mcp_enabled)  # type: ignore[attr-defined]
+            sentry_sdk.set_tag("seer_enabled", self.config.enable_seer)  # type: ignore[attr-defined]
 
             self._initialized = True
             logger.info('✅ Sentry SDK initialized (environment: %s)', self.config.environment)
@@ -278,7 +278,7 @@ class SentryIntegration:
 
         try:
             # Set context tags
-            with sentry_sdk.push_scope() as scope:
+            with sentry_sdk.push_scope() as scope:  # type: ignore[attr-defined]
                 if agent_id:
                     scope.set_tag("agent_id", agent_id)
                 if workflow_id:
@@ -293,7 +293,7 @@ class SentryIntegration:
                     scope.set_context("error_context", context)
 
                 # Capture the exception
-                event_id = sentry_sdk.capture_exception(error)
+                event_id = sentry_sdk.capture_exception(error)  # type: ignore[attr-defined]
 
                 logger.debug('Captured error in Sentry: %s', event_id)
                 return event_id
@@ -320,11 +320,11 @@ class SentryIntegration:
             return None
 
         try:
-            with sentry_sdk.push_scope() as scope:
+            with sentry_sdk.push_scope() as scope:  # type: ignore[attr-defined]
                 scope.set_level(level)
                 if context:
                     scope.set_context("message_context", context)
-                event_id = sentry_sdk.capture_message(message, level=level)
+                event_id = sentry_sdk.capture_message(message, level=level)  # type: ignore[attr-defined]
                 return event_id
         except Exception as e:
             logger.error('Failed to capture message in Sentry: %s', e)
@@ -337,7 +337,7 @@ class SentryIntegration:
         if not self._initialized or not SENTRY_AVAILABLE:
             return
 
-        sentry_sdk.set_user(
+        sentry_sdk.set_user(  # type: ignore[attr-defined]
             {
                 "id": user_id,
                 "email": email,
@@ -350,7 +350,7 @@ class SentryIntegration:
         if not self._initialized or not SENTRY_AVAILABLE:
             return
 
-        sentry_sdk.set_context(name, context)
+        sentry_sdk.set_context(name, context)  # type: ignore[attr-defined]
 
     def add_breadcrumb(
         self,
@@ -363,7 +363,7 @@ class SentryIntegration:
         if not self._initialized or not SENTRY_AVAILABLE:
             return
 
-        sentry_sdk.add_breadcrumb(
+        sentry_sdk.add_breadcrumb(  # type: ignore[attr-defined]
             message=message, category=category, level=level, data=data or {}
         )
 
@@ -372,7 +372,7 @@ class SentryIntegration:
         if not self._initialized or not SENTRY_AVAILABLE:
             return None
 
-        return sentry_sdk.start_transaction(name=name, op=op, **kwargs)
+        return sentry_sdk.start_transaction(name=name, op=op, **kwargs)  # type: ignore[attr-defined]
 
     async def create_error_handler_for_observability(self, error_record: Any) -> None:
         """
@@ -436,7 +436,7 @@ class SentryIntegration:
     def flush(self, timeout: float = 2.0):
         """Flush pending Sentry events."""
         if self._initialized and SENTRY_AVAILABLE:
-            sentry_sdk.flush(timeout=timeout)
+            sentry_sdk.flush(timeout=timeout)  # type: ignore[attr-defined]
 
 
 # Singleton instance
