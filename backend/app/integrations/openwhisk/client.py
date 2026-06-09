@@ -477,7 +477,7 @@ class OpenWhiskClient:
         """
         logger.info("Creating trigger: %s", trigger_name)
 
-        payload = {"name": trigger_name, "feed": feed}
+        payload: dict[str, Any] = {"name": trigger_name, "feed": feed}
 
         if parameters:
             payload["parameters"] = parameters

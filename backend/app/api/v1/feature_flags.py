@@ -144,7 +144,7 @@ async def update_flag(
         params["description"] = payload.description
     if payload.enabled_globally is not None:
         updates.append("enabled_globally = :enabled")
-        params["enabled"] = payload.enabled_globally
+        params["enabled"] = str(payload.enabled_globally)
 
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
