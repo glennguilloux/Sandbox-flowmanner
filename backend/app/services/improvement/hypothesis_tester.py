@@ -320,6 +320,10 @@ class TestResult:
     metrics_after: dict[str, Any] = field(default_factory=dict)
     improvement_percentage: float = 0.0
     p_value: float | None = None
+    state: HypothesisState | None = None
+    is_statistically_significant: bool = False
+    recommendation: str | None = None
+    details: dict[str, Any] = field(default_factory=dict)
     rollback_triggered: bool = False
     rollback_trigger: RollbackTrigger | None = None
     agent_id: str | None = None
@@ -336,6 +340,10 @@ class TestResult:
             "metrics_after": self.metrics_after,
             "improvement_percentage": self.improvement_percentage,
             "p_value": self.p_value,
+            "state": self.state.value if self.state else None,
+            "is_statistically_significant": self.is_statistically_significant,
+            "recommendation": self.recommendation,
+            "details": self.details,
             "rollback_triggered": self.rollback_triggered,
             "rollback_trigger": (
                 self.rollback_trigger.value if self.rollback_trigger else None
@@ -580,8 +588,10 @@ class HypothesisTester:
         if test.state != HypothesisState.RUNNING:
             return TestResult(
                 test_id=test.test_id,
+                hypothesis_id=test.test_id,
+                success=False,
                 state=test.state,
-                improvement_delta=0.0,
+                improvement_percentage=0.0,
                 p_value=None,
                 is_statistically_significant=False,
                 recommendation="investigate",
@@ -597,8 +607,10 @@ class HypothesisTester:
                 await self.rollback_test(test, trigger)
                 return TestResult(
                     test_id=test.test_id,
+                    hypothesis_id=test.test_id,
+                    success=False,
                     state=HypothesisState.ROLLED_BACK,
-                    improvement_delta=0.0,
+                    improvement_percentage=0.0,
                     p_value=None,
                     is_statistically_significant=False,
                     recommendation="rollback",
@@ -617,8 +629,10 @@ class HypothesisTester:
 
         return TestResult(
             test_id=test.test_id,
+            hypothesis_id=test.test_id,
+            success=False,
             state=HypothesisState.RUNNING,
-            improvement_delta=0.0,
+            improvement_percentage=0.0,
             p_value=None,
             is_statistically_significant=False,
             recommendation="continue",
@@ -741,8 +755,10 @@ class HypothesisTester:
 
         return TestResult(
             test_id=test.test_id,
+            hypothesis_id=test.test_id,
+            success=is_significant,
             state=test.state,
-            improvement_delta=test.improvement_delta,
+            improvement_percentage=test.improvement_delta,
             p_value=test.p_value,
             is_statistically_significant=is_significant,
             recommendation=recommendation,
