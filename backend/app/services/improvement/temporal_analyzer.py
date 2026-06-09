@@ -340,7 +340,7 @@ class TemporalAnalyzer:
         Returns:
             List of detected temporal cycles
         """
-        cycles = []
+        cycles: list[Any] = []
         cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
 
         # Filter events
@@ -386,7 +386,7 @@ class TemporalAnalyzer:
     ) -> TemporalCycle | None:
         """Detect hourly patterns for a failure type."""
         # Count failures by hour
-        hour_counts = defaultdict(int)
+        hour_counts: dict[int, int] = defaultdict(int)
         for event in events:
             hour_counts[event["timestamp"].hour] += 1
 
@@ -446,7 +446,7 @@ class TemporalAnalyzer:
     ) -> TemporalCycle | None:
         """Detect weekly patterns for a failure type."""
         # Count failures by day of week
-        day_counts = defaultdict(int)
+        day_counts: dict[int, int] = defaultdict(int)
         for event in events:
             day_counts[event["timestamp"].weekday()] += 1
 
@@ -526,7 +526,7 @@ class TemporalAnalyzer:
         Returns:
             List of detected cascades
         """
-        cascades = []
+        cascades: list[Any] = []
         cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
 
         # Filter and sort events
@@ -698,7 +698,7 @@ class TemporalAnalyzer:
         events: list[dict],
     ) -> list[Anomaly]:
         """Detect anomalies for a specific metric."""
-        anomalies = []
+        anomalies: list[Anomaly] = []
 
         if len(events) < 5:  # Need enough data
             return anomalies
@@ -707,7 +707,7 @@ class TemporalAnalyzer:
         timestamps = [e["timestamp"].timestamp() for e in events]
 
         # Group by hour
-        hourly_counts = defaultdict(int)
+        hourly_counts: dict[Any, int] = defaultdict(int)
         for event in events:
             hour_key = event["timestamp"].replace(minute=0, second=0, microsecond=0)
             hourly_counts[hour_key] += 1
