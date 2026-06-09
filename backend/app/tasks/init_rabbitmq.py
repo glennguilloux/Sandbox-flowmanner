@@ -32,7 +32,11 @@ EXCHANGES = {
 }
 
 # Queue definitions matching celery_app.py
-QUEUES = {
+# Explicit annotation: values have varying shapes (some have "arguments",
+# some don't), so mypy's literal-type inference widens the value type to
+# `object` without this hint, causing [index] / [attr-defined] errors at
+# every `queue_config["exchange"]` / `.get("arguments")` call site.
+QUEUES: dict[str, dict[str, Any]] = {
     "high_priority": {
         "exchange": "priority",
         "routing_key": "high_priority",
@@ -80,7 +84,11 @@ def initialize_rabbitmq_infrastructure(
         - queues_created: List of created queue names
         - errors: List of any errors encountered
     """
-    result = {
+    # Explicit annotation: the literal's empty-list values get inferred as
+    # list[Never] (or widened to object) without this, which cascades into
+    # 20+ [attr-defined] / [arg-type] errors at every .append() / len() call.
+    # Matches the function's return type.
+    result: dict[str, Any] = {
         "success": False,
         "exchanges_created": [],
         "queues_created": [],
@@ -190,7 +198,8 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
         - queues_missing: List of queue names that are missing
         - errors: List of any errors encountered during verification
     """
-    result = {
+    # Explicit annotation — see note in initialize_rabbitmq_infrastructure.
+    result: dict[str, Any] = {
         "healthy": False,
         "exchanges_found": [],
         "exchanges_missing": [],
