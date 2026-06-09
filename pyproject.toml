@@ -1,6 +1,7 @@
 [tool.mypy]
 ignore_missing_imports = true
 no_strict_optional = true
+disable_error_code = ["annotation-unchecked"]
 
 [[tool.mypy.overrides]]
 module = "app.migrations.versions.*"
