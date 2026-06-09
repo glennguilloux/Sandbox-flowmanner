@@ -2,6 +2,7 @@
 ignore_missing_imports = true
 no_strict_optional = true
 disable_error_code = ["annotation-unchecked"]
+namespace_packages = false
 
 [[tool.mypy.overrides]]
 module = "app.migrations.versions.*"

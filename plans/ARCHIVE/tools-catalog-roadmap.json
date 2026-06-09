@@ -1,0 +1,315 @@
+{
+  "meta": {
+    "generated": "2026-05-29",
+    "page": "/en/tools",
+    "current_card_count": 4,
+    "target_layout": "3-column grid with category grouping",
+    "strategy": "Group tools into categories, show category cards that expand to reveal individual tools",
+    "page_design": [
+      "Lead with differentiators in a hero/banner section — not buried in the grid",
+      "Category grouping with collapsible accordions or filter tabs",
+      "Progress bar: \"15 available · 52 coming soon · 46 planned\"",
+      "Visual distinction between available (filled), coming-soon (outlined), planned (ghosted) cards",
+      "Each differentiator card should be visually distinct (accent border, badge, larger)"
+    ]
+  },
+  "categories": [
+    {
+      "name": "Memory & Knowledge",
+      "description": "Persistent memory modules allowing agents to recall past context, index knowledge, and share context across teams.",
+      "tools": [
+        { "name": "Persistent Agent Memory", "description": "Save and recall context across independent agent sessions.", "status": "differentiator", "priority": "P0" },
+        { "name": "Semantic Memory Index", "description": "Auto-index unstructured conversations into retrievable knowledge graphs.", "status": "differentiator", "priority": "P0" },
+        { "name": "Knowledge Base Connector", "description": "Seamlessly connect and sync with existing FlowManner knowledge pages.", "status": "differentiator", "priority": "P0" },
+        { "name": "Context Window Manager", "description": "Intelligently summarize, prune, and compress LLM context in real time.", "status": "differentiator", "priority": "P1" },
+        { "name": "Cross-Agent Memory Sharing", "description": "Provide a shared memory pool for autonomous multi-agent teams.", "status": "differentiator", "priority": "P1" },
+        { "name": "Memory Summarization", "description": "Auto-compress long conversations into dense foundational memories.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Entity Tracker", "description": "Automatically extract and track people, projects, and concepts across sessions.", "status": "differentiator", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Data Processing & Transformation",
+      "description": "Essential tools for cleaning, parsing, and converting data formats.",
+      "tools": [
+        { "name": "JSON Transform", "description": "Transform and query JSON payloads using JMESPath or jsonpath.", "status": "table_stakes", "priority": "P0" },
+        { "name": "CSV Parser", "description": "Parse, filter, and convert CSV data to structured arrays.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Regex Extract", "description": "Extract specific patterns from large text blocks using regular expressions.", "status": "table_stakes", "priority": "P0" },
+        { "name": "XML to JSON Converter", "description": "Convert legacy XML API responses into structured JSON for agent use.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Tabular Data Cleaner", "description": "Automatically detect and clean missing or malformed data in tables.", "status": "differentiator", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "File Handling",
+      "description": "Utilities for processing documents, PDFs, and media files.",
+      "tools": [
+        { "name": "PDF Parser", "description": "Extract raw text, tables, and OCR-based images from PDF documents.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Image EXIF Extractor", "description": "Read metadata, location, and device details from image files.", "status": "table_stakes", "priority": "P1" },
+        { "name": "DOCX to Markdown", "description": "Convert Microsoft Word documents directly into Markdown for LLMs.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Audio Chunking", "description": "Split large audio files into optimal segments for transcription APIs.", "status": "differentiator", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Web Scraping & Crawling",
+      "description": "Extract structured data and text content from websites.",
+      "tools": [
+        { "name": "Smart Web Scraper", "description": "Extract main article content from URLs while stripping ads and nav.", "status": "table_stakes", "priority": "P0" },
+        { "name": "HTML to Markdown", "description": "Convert raw HTML pages into clean, LLM-friendly Markdown text.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Sitemap Crawler", "description": "Automatically discover and queue all URLs from a website's XML sitemap.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Dynamic JS Renderer", "description": "Render SPA/JavaScript heavy sites to extract dynamic content.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Deep Web Crawler", "description": "Autonomous multi-page crawler that follows links based on semantic relevance.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "API & SaaS Integrations",
+      "description": "Connect agents to internal and third-party business applications.",
+      "tools": [
+        { "name": "Slack Communicator", "description": "Read channels, send messages, and wait for human-in-the-loop approvals.", "status": "table_stakes", "priority": "P0" },
+        { "name": "GitHub Manager", "description": "Manage repositories, fetch issues, and create pull requests.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Notion Sync", "description": "Read, create, and update databases and pages in Notion workspaces.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Google Workspace Hub", "description": "Unified access to Gmail, Calendar, and Drive resources.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Linear Tasks", "description": "Create issues, update statuses, and query project boards in Linear.", "status": "table_stakes", "priority": "P0" }
+      ]
+    },
+    {
+      "name": "Code Execution & Development",
+      "description": "Secure environments for running and testing generated code.",
+      "tools": [
+        { "name": "Python Sandbox", "description": "Execute Python scripts in an isolated container for math and data tasks.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Node.js Sandbox", "description": "Run JavaScript/TypeScript code securely isolated from the host.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Code Linter Pro", "description": "Automatically detect and fix syntax errors in generated code snippets.", "status": "differentiator", "priority": "P1" },
+        { "name": "Shell Cmd Executor", "description": "Run system-level bash commands in an ephemeral secure VM.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Database Querying & Storage",
+      "description": "Interact with external relational and NoSQL databases.",
+      "tools": [
+        { "name": "PostgreSQL Client", "description": "Execute SQL queries and retrieve results from Postgres databases.", "status": "table_stakes", "priority": "P0" },
+        { "name": "MongoDB Connector", "description": "Perform CRUD operations on MongoDB collections.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Redis Cache Manager", "description": "Get, set, and expire key-value pairs in a Redis instance.", "status": "table_stakes", "priority": "P1" },
+        { "name": "GraphQL Fetcher", "description": "Construct and execute GraphQL queries and mutations.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Schema Inference Engine", "description": "Automatically infer database schemas to help LLMs write better SQL.", "status": "differentiator", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Visual Reasoning & Image Analysis",
+      "description": "Analyze, classify, and extract information from visual media.",
+      "tools": [
+        { "name": "Image Describer", "description": "Generate detailed text descriptions of image contents via Vision models.", "status": "table_stakes", "priority": "P0" },
+        { "name": "OCR Text Extractor", "description": "Extract raw text bounding boxes and words from spatial images.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Chart Data Extractor", "description": "Reverse-engineer data tables from bar charts and line graphs.", "status": "differentiator", "priority": "P1" },
+        { "name": "Visual Diff Checker", "description": "Compare two images for visual regressions or changes.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Audio/Speech Processing",
+      "description": "Transcribe, analyze, and convert audio and voice data.",
+      "tools": [
+        { "name": "Speech-to-Text Transcriber", "description": "Convert spoken audio files into accurate text transcripts.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Audio Format Converter", "description": "Convert between WAV, MP3, FLAC, and OGG seamlessly.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Audio Sentiment Analyzer", "description": "Detect emotion and tone directly from voice inflections.", "status": "differentiator", "priority": "P1" },
+        { "name": "Speaker Diarization", "description": "Identify and separate multiple speakers in a single audio track.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Social Media & Content Publishing",
+      "description": "Manage and post content across social and content networks.",
+      "tools": [
+        { "name": "X/Twitter Scheduler", "description": "Draft, schedule, and publish posts or threads to X.", "status": "table_stakes", "priority": "P1" },
+        { "name": "LinkedIn Publisher", "description": "Post updates and articles to LinkedIn personal or company pages.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Instagram Media Publisher", "description": "Publish photos and carousels directly to Instagram.", "status": "table_stakes", "priority": "P2" },
+        { "name": "Ghost/Medium Publisher", "description": "Push draft or published long-form articles to CMS platforms.", "status": "table_stakes", "priority": "P2" },
+        { "name": "Viral Trend Analyzer", "description": "Analyze current trending topics across social platforms.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "E-commerce & Business Tools",
+      "description": "Integrate with storefronts, CRMs, and payment gateways.",
+      "tools": [
+        { "name": "Shopify Inventory Sync", "description": "Check stock levels and update product descriptions in Shopify.", "status": "table_stakes", "priority": "P1" },
+        { "name": "HubSpot CRM Link", "description": "Create, update, and track leads in HubSpot CRM.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Stripe Operations", "description": "Check payment statuses, invoices, and customer subscriptions.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Salesforce Lead Creator", "description": "Automatically ingest parsed emails into Salesforce leads.", "status": "table_stakes", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Developer Tools",
+      "description": "Automate repos, CI/CD pipelines, and cloud deployments.",
+      "tools": [
+        { "name": "Git Repo Manager", "description": "Clone, branch, commit, and push changes to Git repositories.", "status": "table_stakes", "priority": "P1" },
+        { "name": "GitHub Actions Trigger", "description": "Remotely trigger workflow dispatches for CI/CD pipelines.", "status": "table_stakes", "priority": "P1" },
+        { "name": "AWS S3 Uploader", "description": "Upload generated assets and retrieve signed URLs from S3.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Vercel Deployer", "description": "Trigger vercel deployments or check build status via API.", "status": "table_stakes", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "SEO & Marketing",
+      "description": "Analyze metrics, optimize content, and track marketing efforts.",
+      "tools": [
+        { "name": "Meta Tag Generator", "description": "Generate optimized title and description tags for given URLs.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Keyword Density Analyzer", "description": "Extract top keywords and TF-IDF scores from text content.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Google Analytics Reporter", "description": "Fetch pageviews and conversion metrics for specific date ranges.", "status": "table_stakes", "priority": "P1" },
+        { "name": "SEO Content Scorer", "description": "Score drafts against required keywords and reading levels.", "status": "differentiator", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Research & Knowledge Retrieval",
+      "description": "Search the web and scholarly databases for accurate information.",
+      "tools": [
+        { "name": "Google Search API", "description": "Perform live web searches to ground agent knowledge.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Wikipedia Fetcher", "description": "Retrieve exact articles and summaries from Wikipedia.", "status": "table_stakes", "priority": "P0" },
+        { "name": "ArXiv Paper Finder", "description": "Search and extract abstracts for academic papers on ArXiv.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Global News Aggregator", "description": "Fetch recent top headlines based on specific query topics.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Fact Check Validator", "description": "Cross-reference claims against known truth databases.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Writing & Content Generation",
+      "description": "Translate, summarize, and adapt text content.",
+      "tools": [
+        { "name": "LLM Summarizer", "description": "Condense large documents into bullet points or executive summaries.", "status": "table_stakes", "priority": "P0" },
+        { "name": "LLM Translator", "description": "Translate text between 50+ languages while preserving tone.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Brand Voice Enforcer", "description": "Evaluate and edit text to match a custom, predefined brand style guide.", "status": "differentiator", "priority": "P0" },
+        { "name": "Tone Adjuster", "description": "Rewrite paragraphs to be more professional, casual, or urgent.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Blog Post Expander", "description": "Expand short outlines into complete, formatted blog sections.", "status": "table_stakes", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Communication",
+      "description": "Send emails, text messages, and chat notifications.",
+      "tools": [
+        { "name": "Gmail Sender", "description": "Draft and send formatted emails directly from connected accounts.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Twilio SMS Sender", "description": "Dispatch SMS text messages for urgent alerts or marketing.", "status": "table_stakes", "priority": "P1" },
+        { "name": "SendGrid Campaign", "description": "Trigger transactional email templates via SendGrid.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Telegram Bot", "description": "Send messages and documents to Telegram chats and channels.", "status": "table_stakes", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Finance & Data Analysis",
+      "description": "Process currencies, stocks, and financial documents.",
+      "tools": [
+        { "name": "Currency Converter", "description": "Convert amounts between international currencies using live rates.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Stock Price Tracker", "description": "Fetch end-of-day or live ticker prices for major exchanges.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Expense Receipt Parser", "description": "Extract vendor, date, and totals from scanned receipts.", "status": "differentiator", "priority": "P1" },
+        { "name": "Crypto Market Data", "description": "Get current pricing, volume, and trends for cryptocurrencies.", "status": "table_stakes", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "AI Agent-Specific",
+      "description": "Core orchestration tools for multi-agent workflows and memory.",
+      "tools": [
+        { "name": "Stateful Memory Store", "description": "Save and retrieve long-term context across multiple agent sessions.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Task Planner", "description": "Decompose complex user requests into a DAG of agent tasks.", "status": "differentiator", "priority": "P0" },
+        { "name": "Sub-Agent Router", "description": "Dynamically route tasks to specialized agent personas based on intent.", "status": "differentiator", "priority": "P0" },
+        { "name": "Collaborative Team Space", "description": "A shared whiteboard memory space for multiple agents to co-edit.", "status": "differentiator", "priority": "P0" },
+        { "name": "RAG Context Builder", "description": "Assemble retrieved vector chunks into an optimized LLM prompt window.", "status": "differentiator", "priority": "P0" }
+      ]
+    },
+    {
+      "name": "Browser Automation",
+      "description": "Interact with dynamic web pages acting like a real human.",
+      "tools": [
+        { "name": "Playwright Controller", "description": "Click, type, and navigate through websites headlessly.", "status": "differentiator", "priority": "P1" },
+        { "name": "Cookie Manager", "description": "Inject or extract authentication cookies for browser sessions.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Auto Form Filler", "description": "Automatically detect input fields and fill them based on context.", "status": "differentiator", "priority": "P1" },
+        { "name": "Autonomous Navigation Agent", "description": "Self-healing browser agent that finds elements even if DOM changes.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Monitoring, Alerts & Observability",
+      "description": "Track agent performance, costs, and errors over time.",
+      "tools": [
+        { "name": "Execution Logger", "description": "Log agent reasoning steps and outputs to a central dashboard.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Usage Quota Monitor", "description": "Check remaining token allocations or cost barriers mid-flow.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Error Traceback Analyzer", "description": "Automatically parse and explain Python/JS stack traces.", "status": "differentiator", "priority": "P1" },
+        { "name": "Datadog Metrics Pusher", "description": "Push custom workflow success/failure rates to Datadog.", "status": "table_stakes", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Security & Authentication",
+      "description": "Manage credentials, tokens, and securing sensitive data.",
+      "tools": [
+        { "name": "PII Redactor", "description": "Automatically mask names, emails, and SSNs before sending to LLMs.", "status": "differentiator", "priority": "P0" },
+        { "name": "OAuth Token Manager", "description": "Refresh and retrieve valid OAuth tokens for API calls.", "status": "table_stakes", "priority": "P0" },
+        { "name": "JWT Decoder", "description": "Decode and verify standard JSON Web Tokens.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Secure Password Generator", "description": "Generate cryptographically secure passwords for automated onboarding.", "status": "table_stakes", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Scheduling & Workflow Automation",
+      "description": "Trigger agents on schedules or handle long-running delays.",
+      "tools": [
+        { "name": "Cron Scheduler", "description": "Set up recurring intervals to trigger agent missions.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Webhook Listener", "description": "Wait for external HTTP callbacks to resume paused agent workflows.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Delay Sleep Timer", "description": "Halt agent execution for a set duration of seconds/minutes.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Retry Backoff Manager", "description": "Wrap flaky API calls with exponential backoff logic.", "status": "differentiator", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Vector & Embedding Operations",
+      "description": "Generate embeddings and query vector databases.",
+      "tools": [
+        { "name": "Text Embedder", "description": "Convert raw text into high-dimensional numerical vectors.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Cosine Similarity Calc", "description": "Calculate distance between two sets of embeddings locally.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Semantic Chunking", "description": "Intelligently split documents based on paragraph semantics, not character limits.", "status": "differentiator", "priority": "P0" },
+        { "name": "Pinecone Manager", "description": "Upsert, delete, and query namespaces in Pinecone vector DB.", "status": "table_stakes", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "LLM Operations",
+      "description": "Utility tools for prompting, classifying, and testing LLM outputs.",
+      "tools": [
+        { "name": "LLM Classify", "description": "Force an LLM to categorize text into a strict set of enums.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Token Counter", "description": "Accurately count tokens for input text using tiktoken.", "status": "table_stakes", "priority": "P0" },
+        { "name": "Prompt Template Renderer", "description": "Inject variables safely into complex prompt frameworks.", "status": "table_stakes", "priority": "P0" },
+        { "name": "LLM Output Evaluator", "description": "Use a secondary model to score primary model outputs for hallucination.", "status": "differentiator", "priority": "P1" }
+      ]
+    },
+    {
+      "name": "Browser-based Data Extraction",
+      "description": "Extract precise DOM elements without full headless browsing.",
+      "tools": [
+        { "name": "Table to CSV Extractor", "description": "Automatically detect HTML tables and export them directly to CSV.", "status": "table_stakes", "priority": "P0" },
+        { "name": "CSS Selector Query", "description": "Extract innerText or attributes from specific CSS nodes.", "status": "table_stakes", "priority": "P1" },
+        { "name": "XPath Node Extractor", "description": "Run complex XPath queries against raw HTML documents.", "status": "table_stakes", "priority": "P1" },
+        { "name": "Infiniscroll Extractor", "description": "Simulate scrolling to extract all elements on lazy-loaded pages.", "status": "experimental", "priority": "P2" }
+      ]
+    },
+    {
+      "name": "Multimedia Generation",
+      "description": "Command generative models to create images, video, and audio.",
+      "tools": [
+        { "name": "DALL-E Image Gen", "description": "Generate high-quality AI images based on prompt descriptions.", "status": "table_stakes", "priority": "P1" },
+        { "name": "ElevenLabs TTS", "description": "Generate ultra-realistic voice audio clips from text.", "status": "differentiator", "priority": "P1" },
+        { "name": "HeyGen Video Avatar", "description": "Create speaking avatar videos from written scripts.", "status": "experimental", "priority": "P2" },
+        { "name": "Stable Diffusion Pipeline", "description": "Generate advanced images with ControlNet and specific loRAs.", "status": "experimental", "priority": "P2" }
+      ]
+    }
+  ],
+  "summary": {
+    "total_categories": 26,
+    "total_tools": 115,
+    "by_priority": {
+      "P0": 46,
+      "P1": 53,
+      "P2": 16
+    },
+    "by_status": {
+      "table_stakes": 78,
+      "differentiator": 27,
+      "experimental": 10
+    },
+    "already_built": [
+      "JSON Transform", "CSV Parser", "Regex Extract", "LLM Summarizer", "LLM Translator",
+      "LLM Classify", "Currency Converter", "Weather (already exists)", "UUID Generator",
+      "Timestamp Converter", "Slack Communicator", "GitHub Manager", "Notion Sync",
+      "Google Workspace Hub", "Linear Tasks"
+    ],
+    "p0_differentiators": [
+      "Persistent Agent Memory", "Semantic Memory Index", "Knowledge Base Connector",
+      "Brand Voice Enforcer", "Collaborative Team Space", "PII Redactor",
+      "Semantic Chunking", "Tabular Data Cleaner", "Schema Inference Engine",
+      "Sub-Agent Router", "Task Planner", "RAG Context Builder"
+    ]
+  }
+}
