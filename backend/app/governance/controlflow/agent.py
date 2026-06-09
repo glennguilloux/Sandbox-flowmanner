@@ -392,7 +392,7 @@ class ControlFlowAgent:
         for tool in state["pending_tools"]:
             if tool["status"] in ["pending", "approved"]:
                 # Execute tool
-                result = await self._execute_tool(state, tool)
+                result = await self._execute_tool(state, tool)  # type: ignore[arg-type]
 
                 # Update tool execution
                 if result["success"]:

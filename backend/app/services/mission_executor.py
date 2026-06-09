@@ -189,7 +189,7 @@ class MissionExecutor:
                 await db.commit()
                 await self._log(
                     db,
-                    mission_id,
+                    mission_id,  # type: ignore[arg-type]
                     step.id,
                     "info",
                     f"Task {step.title} state transition: {prev_state} → {status}",

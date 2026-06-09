@@ -131,7 +131,7 @@ async def patch_template(
         raise _not_found()
     updated = await update_agent_template(
         db,
-        template_id,
+        template_id,  # type: ignore[arg-type]
         payload.name,
         payload.description,
         payload.config,
@@ -150,7 +150,7 @@ async def delete_template(
 ):
     if await get_agent_templates(db, template_id) is None:
         raise _not_found()
-    if not await delete_agent_template(db, template_id):
+    if not await delete_agent_template(db, template_id):  # type: ignore[arg-type]
         raise _not_found()
 
 

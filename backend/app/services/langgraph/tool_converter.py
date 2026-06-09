@@ -902,7 +902,7 @@ Parameters: {json.dumps(config["parameters"], indent=2)}
         llm = self._get_llm(model_id)
         if not llm:
             # Fallback to keyword matching
-            return self._fallback_config_matching(message, saved_configs)
+            return self._fallback_config_matching(message, saved_configs)  # type: ignore[arg-type]
 
         joined_descriptions = "\\n".join(config_descriptions)
         prompt = f"""Analyze the user's message and determine if they are referencing
@@ -931,7 +931,7 @@ Respond with JSON:
             return None
         except Exception as e:
             logger.error("Error detecting config reference: %s", e)
-            return self._fallback_config_matching(message, saved_configs)
+            return self._fallback_config_matching(message, saved_configs)  # type: ignore[arg-type]
 
     def _fallback_config_matching(
         self,

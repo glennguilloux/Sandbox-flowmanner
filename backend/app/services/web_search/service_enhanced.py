@@ -138,7 +138,7 @@ class EnhancedWebSearchService:
                 logger.info("Cache hit for query: %s", query)
                 return self._format_response(
                     query=query,
-                    results=cached,
+                    results=cached,  # type: ignore[arg-type]
                     latency_ms=(time.time() - start_time) * 1000,
                     cached=True,
                     query_understanding=query_understanding,
@@ -218,7 +218,7 @@ class EnhancedWebSearchService:
 
             cache_resp = SearchResponse(
                 query=query,
-                results=deduped_results,
+                results=deduped_results,  # type: ignore[arg-type]
                 provider=SearchProvider.SEARCH,
                 search_type=search_type,
                 total_results=len(deduped_results),

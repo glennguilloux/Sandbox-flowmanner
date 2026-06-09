@@ -544,7 +544,7 @@ class CostAwareRouter:
                 complexity=complexity,
                 estimated_cost=cost,
                 estimated_tokens=(input_tokens, output_tokens),
-                fallback_chain=self.routing_config.get(complexity, {}).get(
+                fallback_chain=self.routing_config.get(complexity, {}).get(  # type: ignore[arg-type]
                     "fallback_chain", []
                 ),
                 reason="Forced model selection",
@@ -563,7 +563,7 @@ class CostAwareRouter:
                 complexity=complexity,
                 estimated_cost=cost,
                 estimated_tokens=(input_tokens, output_tokens),
-                fallback_chain=self.routing_config.get(complexity, {}).get(
+                fallback_chain=self.routing_config.get(complexity, {}).get(  # type: ignore[arg-type]
                     "fallback_chain", []
                 ),
                 reason="Manual override active",

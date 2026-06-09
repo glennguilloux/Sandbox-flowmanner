@@ -688,7 +688,7 @@ class MemorySummarizationTool(BaseTool):
             # Position score: first sentences weighted higher
             pos_score = 1.0 - (i / len(sentences)) * 0.5
 
-            scored.append((i, s, length_score + kw_score + pos_score))
+            scored.append((i, s, length_score + kw_score + pos_score))  # type: ignore[arg-type]
 
         # Select top-scoring sentences, preserve original order
         scored.sort(key=lambda x: x[2], reverse=True)

@@ -121,7 +121,7 @@ class PromptTemplateRendererTool(BaseTool):
         variables = validated.variables or {}
 
         # Extract all variable names from template
-        extracted = self._extract_variables(validated.template)
+        extracted = self._extract_variables(validated.template)  # type: ignore[arg-type]
 
         if validated.validate_only:
             return ToolResult.success_result(

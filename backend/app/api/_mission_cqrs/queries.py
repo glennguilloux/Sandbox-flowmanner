@@ -306,7 +306,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                 logger.debug("cache_get_status_deserialization_failed", exc_info=True)
 
         tasks = await get_mission_tasks(self.session, mission_id)
-        status = _make_execution_status(mission, tasks)
+        status = _make_execution_status(mission, tasks)  # type: ignore[arg-type]
         # Populate cache (fire-and-forget, failure logged)
         try:
             _schedule_fire_and_forget(
@@ -573,7 +573,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                 )
 
         engine = SelfImprovementEngine(self.session, str(user_id))
-        improvements = await engine.get_improvements(mission_id)
+        improvements = await engine.get_improvements(mission_id)  # type: ignore[arg-type]
         result = [MissionImprovementResponse.model_validate(i) for i in improvements]
         # Populate cache (fire-and-forget, failure logged)
         try:

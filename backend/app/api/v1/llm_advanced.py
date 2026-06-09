@@ -144,7 +144,7 @@ async def get_tradeoff(
         }
     )
 
-    best_cost = min(models, key=lambda m: m["cost_per_1m"]) if models else None
+    best_cost = min(models, key=lambda m: m["cost_per_1m"]) if models else None  # type: ignore[arg-type]
     best_quality = (
         max(
             models,
