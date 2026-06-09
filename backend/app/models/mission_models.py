@@ -56,18 +56,18 @@ class MissionStatus(str, Enum):
 
     # Valid transitions from each state (use enum members, not strings)
     _TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
-        DRAFT: {PENDING, ABORTED},
-        PENDING: {PLANNING, QUEUED, ABORTED},
-        PLANNING: {PLANNED, ABORTED},
-        PLANNED: {EXECUTING, ABORTED},
-        EXECUTING: {RUNNING, ABORTED},
-        QUEUED: {RUNNING, ABORTED},
-        RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},
-        PAUSED: {RUNNING, ABORTED},
-        COMPLETED: {APPROVED},  # completed can be promoted to approved
-        APPROVED: set(),  # terminal
-        FAILED: set(),  # terminal
-        ABORTED: set(),  # terminal
+        DRAFT: {PENDING, ABORTED},  # type: ignore[arg-type]
+        PENDING: {PLANNING, QUEUED, ABORTED},  # type: ignore[arg-type]
+        PLANNING: {PLANNED, ABORTED},  # type: ignore[arg-type]
+        PLANNED: {EXECUTING, ABORTED},  # type: ignore[arg-type]
+        EXECUTING: {RUNNING, ABORTED},  # type: ignore[arg-type]
+        QUEUED: {RUNNING, ABORTED},  # type: ignore[arg-type]
+        RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},  # type: ignore[arg-type]
+        PAUSED: {RUNNING, ABORTED},  # type: ignore[arg-type]
+        COMPLETED: {APPROVED},  # type: ignore[arg-type]  # completed can be promoted to approved
+        APPROVED: set(),  # type: ignore[arg-type]  # terminal
+        FAILED: set(),  # type: ignore[arg-type]  # terminal
+        ABORTED: set(),  # type: ignore[arg-type]  # terminal
     }
 
     @property
@@ -96,10 +96,10 @@ class MissionTaskStatus(str, Enum):
 
     # Valid transitions from each state (use enum members, not strings)
     _TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
-        PENDING: {RUNNING},
-        RUNNING: {COMPLETED, FAILED},
-        FAILED: {PENDING},  # allow retry
-        COMPLETED: set(),  # terminal
+        PENDING: {RUNNING},  # type: ignore[arg-type]
+        RUNNING: {COMPLETED, FAILED},  # type: ignore[arg-type]
+        FAILED: {PENDING},  # type: ignore[arg-type]  # allow retry
+        COMPLETED: set(),  # type: ignore[arg-type]  # terminal
     }
 
     @property
