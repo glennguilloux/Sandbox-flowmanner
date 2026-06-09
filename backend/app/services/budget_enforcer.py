@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 # These prices are the source of truth.  They are loaded at boot and
 # refreshed daily via a cron job (see PRICING_REFRESH_INTERVAL).
 
-DEFAULT_PRICING: dict[str, dict[str, float]] = {
+DEFAULT_PRICING: dict[str, dict[str, float | str]] = {
     # DeepSeek
     "deepseek-chat": {"input": 0.14, "output": 0.28, "provider": "deepseek"},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
@@ -77,7 +77,7 @@ class PricingTable:
     but billing is handled by their provider, not Flowmanner.
     """
 
-    def __init__(self, pricing: dict[str, dict[str, float]] | None = None):
+    def __init__(self, pricing: dict[str, dict[str, float | str]] | None = None):
         self._pricing = pricing or dict(DEFAULT_PRICING)
         self._last_refresh = time.monotonic()
 
