@@ -135,13 +135,13 @@ class FailureContext:
     failure_type: FailureType
     severity: FailureSeverity
     error_message: str
+    timestamp: datetime
+    latency_ms: float
+
+    # Optional identification
     failure_id: str | None = None  # DB-side unique identifier
     task_id: str | None = None  # Associated task ID
     is_infrastructure: bool | None = None  # Cached classification flag
-
-    # Timing information
-    timestamp: datetime
-    latency_ms: float
 
     # Source information
     tool_name: str | None = None
