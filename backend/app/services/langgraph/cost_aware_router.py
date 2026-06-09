@@ -730,7 +730,10 @@ class CostAwareRouter:
         config = self.routing_config.get(complexity, {})
 
         recommendations = []
-        for model_id in config.get("preferred_models", []):
+        preferred = config.get("preferred_models", [])
+        if not isinstance(preferred, list):
+            preferred = []
+        for model_id in preferred:
             costs = self.model_costs.get(model_id)
             if costs:
                 input_tokens, output_tokens, cost = self.estimate_request_cost(

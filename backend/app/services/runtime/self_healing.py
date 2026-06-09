@@ -34,7 +34,7 @@ class SelfHealing:
         """Trigger recovery for an error"""
         attempt_id = str(uuid.uuid4())
 
-        attempt = {
+        attempt: dict[str, Any] = {
             "attempt_id": attempt_id,
             "error_id": error_id,
             "strategy_name": strategy or "auto_restart",

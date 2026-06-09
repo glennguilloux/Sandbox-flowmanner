@@ -7,6 +7,7 @@ and optimization recommendations for the MetaLoop agent system.
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -194,9 +195,9 @@ class CostOptimizer:
         self._recommendations: list[OptimizationRecommendation] = []
         self._tool_cost_history: dict[str, list[float]] = {}  # tool_name -> [costs]
         self._lock = asyncio.Lock()
-        self._alert_handlers: list[callable] = []
+        self._alert_handlers: list[Callable[..., Any]] = []
 
-    def register_alert_handler(self, handler: callable):
+    def register_alert_handler(self, handler: Callable[..., Any]):
         """Register a handler for budget alerts"""
         self._alert_handlers.append(handler)
 
@@ -307,8 +308,7 @@ class CostOptimizer:
                     )
 
         # Sort alternatives by savings
-        alternatives.sort(key=lambda x: x["savings"], reverse=True)  # type: ignore[arg-type]
-
+        alternatives.sort(key=lambda x: float(x["savings"]), reverse=True)  # type: ignore[arg-type]
         return CostEstimate(
             operation=operation,
             estimated_input_tokens=estimated_input_tokens,

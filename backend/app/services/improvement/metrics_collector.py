@@ -478,7 +478,7 @@ class MetricsCollector:
         end_time: datetime,
     ) -> dict[str, float]:
         """Get aggregated metrics from in-memory storage."""
-        result = {
+        result: dict[str, Any] = {
             "total_requests": 0,
             "successful_requests": 0,
             "failed_requests": 0,

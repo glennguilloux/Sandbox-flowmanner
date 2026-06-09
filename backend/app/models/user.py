@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.byok_models import UserAPIKey
+    from app.models.partner_revenue_models import Partner
 
 
 class User(Base, TimestampMixin):

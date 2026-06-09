@@ -474,7 +474,7 @@ class AgentPersistence:
             allowed_fields = {"name", "description", "parameters"}
             for field, value in updates.items():
                 if field in allowed_fields:
-                    config[field] = value
+                    config[field] = value  # type: ignore[literal-required]
 
             # Update timestamp
             config["updated_at"] = datetime.now(UTC).isoformat()

@@ -216,7 +216,7 @@ class UnifiedChainExecutor:
         output = {}
 
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 step_outputs.append(
                     {
                         "step": i,
@@ -236,7 +236,7 @@ class UnifiedChainExecutor:
                         "execution_time_ms": result.execution_time_ms,
                     }
                 )
-                total_time += result.execution_time_ms
+                total_time += int(result.execution_time_ms)
 
                 if result.success and result.result:
                     output_key = steps[i].get("output_key", f"step_{i}_output")

@@ -246,7 +246,7 @@ class WebhookRouter:
         for source, handlers in self._handlers.items():
             result[source] = [h.__dict__ for h in handlers]
 
-        result["_defaults"] = {k: v.__dict__ for k, v in self._default_handlers.items()}
+        result["_defaults"] = {k: v.__dict__ for k, v in self._default_handlers.items()}  # type: ignore[assignment]
         result["_global"] = [h.__dict__ for h in self._global_handlers]
 
         return result

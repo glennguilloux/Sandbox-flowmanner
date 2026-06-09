@@ -79,7 +79,7 @@ class ContextBuilder:
         Returns:
             Dict with assembled context from all sources
         """
-        result = {
+        result: dict[str, Any] = {
             "query": query,
             "params": context_params,
             "sources": {},
@@ -95,7 +95,9 @@ class ContextBuilder:
         start_time = datetime.now(UTC)
 
         # Determine which sources to use
-        source_names = sources if sources else list(self._sources.keys())
+        source_names: list[str] = (
+            list(sources) if sources else list(self._sources.keys())
+        )
         source_names = [
             s for s in source_names if s in self._sources and self._sources[s].enabled
         ]
@@ -129,7 +131,9 @@ class ContextBuilder:
 
         # Assemble the context string
         result["assembled"] = self._assemble_context(
-            result["sources"], query, max_tokens  # type: ignore[arg-type]
+            result["sources"],
+            query,
+            max_tokens,  # type: ignore[arg-type]
         )
 
         result["metadata"]["build_time_ms"] = (

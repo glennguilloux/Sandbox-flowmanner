@@ -152,7 +152,7 @@ class MemoryBridge:
         Returns:
             Dict with memories from all sources
         """
-        result = {
+        result: dict[str, Any] = {
             "query": query,
             "agent_memories": [],
             "rag_results": [],

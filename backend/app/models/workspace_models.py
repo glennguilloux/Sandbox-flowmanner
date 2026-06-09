@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -19,6 +20,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.subscription_models import SubscriptionTier
+    from app.models.user import User
 
 
 class Workspace(Base, TimestampMixin):

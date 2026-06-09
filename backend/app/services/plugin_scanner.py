@@ -175,7 +175,7 @@ class PluginScanner:
             ScanResult with risk score and findings.
         """
         declared_permissions = declared_permissions or []
-        result = ScanResult(declared_permissions=declared_permissions)
+        result = ScanResult(risk_score=0, declared_permissions=declared_permissions)
 
         # Collect all Python files
         py_files = sorted(plugin_dir.rglob("*.py"))

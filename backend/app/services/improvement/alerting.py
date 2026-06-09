@@ -619,7 +619,7 @@ class AlertingSystem:
 
     def __init__(self):
         self.alerts: list[ImprovementAlert] = []
-        self.handlers: list[callable] = []
+        self.handlers: list[Callable] = []
 
     def add_alert(self, alert: ImprovementAlert) -> None:
         """Add an alert to the system"""
@@ -630,7 +630,7 @@ class AlertingSystem:
             except Exception as e:
                 logger.error("Alert handler error: %s", e)
 
-    def register_handler(self, handler: callable) -> None:
+    def register_handler(self, handler: Callable) -> None:
         """Register an alert handler"""
         self.handlers.append(handler)
 

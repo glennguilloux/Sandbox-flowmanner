@@ -233,7 +233,7 @@ class ToolExecutor:
                 )
                 for e in executions
             ]
-            return await asyncio.gather(*tasks, return_exceptions=True)
+            return await asyncio.gather(*tasks, return_exceptions=True)  # type: ignore[return-value]
         else:
             results = []
             for e in executions:

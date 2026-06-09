@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 # Optional OpenTelemetry support
 try:
     from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace import TracerProvider  # type: ignore[attr-defined]
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore[attr-defined]
     from opentelemetry.trace import Status, StatusCode
 
     OTEL_AVAILABLE = True

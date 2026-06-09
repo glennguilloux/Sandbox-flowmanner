@@ -176,5 +176,5 @@ class MissionCircuitBreaker(Base, TimestampMixin):
         """Check if a specific action requires human approval."""
         if not self.destructive_actions_require_approval:
             return False
-        destructive = self.destructive_actions or []
+        destructive: list[str] = self.destructive_actions or []  # type: ignore[assignment]
         return action_name in destructive
