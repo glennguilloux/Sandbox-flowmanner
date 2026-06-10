@@ -17,7 +17,8 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 from uuid import uuid4
 
 # Ensure the app package is importable
@@ -32,13 +33,12 @@ from app.models import (
     ChatMessage,
     ChatThread,
     Mission,
-    MissionTask,
     MissionLog,
+    MissionTask,
     User,
     Workspace,
     WorkspaceMember,
 )
-
 
 # ---------------------------------------------------------------------------
 # Demo data definitions
@@ -54,7 +54,7 @@ DEMO_USERS = [
         "is_active": True,
         "is_admin": False,
         "onboarding_completed": True,
-        "onboarding_completed_at": datetime.now(timezone.utc),
+        "onboarding_completed_at": datetime.now(UTC),
         "login_count": 42,
     },
     {
@@ -66,7 +66,7 @@ DEMO_USERS = [
         "is_active": True,
         "is_admin": False,
         "onboarding_completed": True,
-        "onboarding_completed_at": datetime.now(timezone.utc),
+        "onboarding_completed_at": datetime.now(UTC),
         "login_count": 15,
     },
     {
@@ -78,12 +78,12 @@ DEMO_USERS = [
         "is_active": True,
         "is_admin": True,
         "onboarding_completed": True,
-        "onboarding_completed_at": datetime.now(timezone.utc),
+        "onboarding_completed_at": datetime.now(UTC),
         "login_count": 120,
     },
 ]
 
-MISSION_TEMPLATES = [
+MISSION_TEMPLATES: list[dict[str, Any]] = [
     {
         "title": "Generate REST API for User Management",
         "description": "Create a complete REST API with CRUD endpoints for user management, including authentication middleware and input validation.",
@@ -368,7 +368,7 @@ DEMO_AGENTS = [
     },
 ]
 
-CHAT_CONVERSATIONS = [
+CHAT_CONVERSATIONS: list[dict[str, Any]] = [
     {
         "title": "How to set up the dev environment?",
         "messages": [
@@ -455,7 +455,7 @@ CHAT_CONVERSATIONS = [
 
 
 def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ago(minutes: int) -> datetime:

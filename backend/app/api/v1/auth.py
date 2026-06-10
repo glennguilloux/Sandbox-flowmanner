@@ -12,7 +12,19 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.api.v3.auth_cookies import set_refresh_cookie
 from app.database import get_db
+
+
+def _auth_response(access_token: str, refresh_token: str) -> "JSONResponse":
+    """Return a TokenResponse with httpOnly refresh cookie for preview auth."""
+    from fastapi.responses import JSONResponse
+
+    response = JSONResponse(
+        content={"access_token": access_token, "refresh_token": refresh_token}
+    )
+    set_refresh_cookie(response, refresh_token)
+    return response
 from app.models.user import User
 from app.schemas.auth import (
     RefreshTokenRequest,
@@ -153,7 +165,7 @@ async def register(
     except Exception:
         logger.debug("analytics_register_track_failed", exc_info=True)
 
-    return TokenResponse(access_token=access, refresh_token=refresh)
+    return _auth_response(access, refresh)
 
 
 @router.post("/login")
@@ -289,8 +301,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
 
         await track_login(db, user)
 
-        return TokenResponse(access_token=access, refresh_token=refresh)
-
+        return _auth_response(access, refresh)
     except HTTPException:
         raise
     except Exception as e:
@@ -400,7 +411,7 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
     reset_login_attempts(f"login:{user.email}")
     await track_login(db, user)
 
-    return TokenResponse(access_token=access, refresh_token=refresh)
+    return _auth_response(access, refresh)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -484,7 +495,7 @@ async def refresh(
         family_id=family_id,
     )
 
-    return TokenResponse(access_token=access, refresh_token=new_refresh)
+    return _auth_response(access, new_refresh)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -728,9 +739,9 @@ async def social_token_exchange(
                 user.avatar_url = social["avatar"]
                 await db.flush()
             _complete_login(user)
-            return TokenResponse(
-                access_token=create_access_token(user.id, role=user.role),
-                refresh_token=await _issue_refresh_token(db, user.id, request),
+            return _auth_response(
+                create_access_token(user.id, role=user.role),
+                await _issue_refresh_token(db, user.id, request),
             )
 
     # Find by email (link existing account)
@@ -749,9 +760,9 @@ async def social_token_exchange(
             user.avatar_url = social["avatar"]
         await db.flush()
         _complete_login(user)
-        return TokenResponse(
-            access_token=create_access_token(user.id, role=user.role),
-            refresh_token=await _issue_refresh_token(db, user.id, request),
+        return _auth_response(
+            create_access_token(user.id, role=user.role),
+            await _issue_refresh_token(db, user.id, request),
         )
 
     # Create new user
@@ -803,9 +814,9 @@ async def social_token_exchange(
         logger.exception("Failed to auto-create workspace for OAuth user %s", user.id)
 
     _complete_login(user)
-    return TokenResponse(
-        access_token=create_access_token(user.id, role=user.role),
-        refresh_token=await _issue_refresh_token(db, user.id, request),
+    return _auth_response(
+        create_access_token(user.id, role=user.role),
+        await _issue_refresh_token(db, user.id, request),
     )
 
 

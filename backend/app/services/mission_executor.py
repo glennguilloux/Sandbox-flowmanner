@@ -748,9 +748,9 @@ class MissionExecutor:
                 mission_id=str(mission.id),
                 agent_id=mission.agent_id,
                 success=(mission.status == MissionStatus.COMPLETED),
-                metadata={
+                metrics={
                     "title": mission.title,
-                    "task_count": (
+                    "task_count": float(
                         len(mission.tasks) if hasattr(mission, "tasks") else 0
                     ),
                     "error_message": mission.error_message,

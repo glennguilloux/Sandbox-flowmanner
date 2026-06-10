@@ -31,7 +31,7 @@ def set_refresh_cookie(response: Response, token: str):
         httponly=True,
         secure=settings.AUTH_V3_COOKIE_SECURE,  # True in production
         samesite="strict",
-        path="/api/v3/auth",
+        path="/",
         max_age=max_age,
         domain=settings.AUTH_V3_COOKIE_DOMAIN,  # None in dev, ".flowmanner.com" in prod
     )
@@ -41,7 +41,7 @@ def clear_refresh_cookie(response: Response):
     """Clear the refresh token cookie (logout)."""
     response.delete_cookie(
         key="refresh_token",
-        path="/api/v3/auth",
+        path="/",
         domain=settings.AUTH_V3_COOKIE_DOMAIN,
         secure=settings.AUTH_V3_COOKIE_SECURE,
         httponly=True,
