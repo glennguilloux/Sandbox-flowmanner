@@ -346,9 +346,7 @@ class SandboxdClient:
         client = await self._get_client()
         # Use per-request timeout if provided; build a new Timeout object
         # so we keep the 5 s connect timeout but extend the read/write.
-        req_timeout = (
-            httpx.Timeout(timeout, connect=5.0) if timeout else None
-        )
+        req_timeout = httpx.Timeout(timeout, connect=5.0) if timeout else None
         resp = await client.post(
             f"/sandbox/{sandbox_id}/exec",
             json={"cmd": cmd, "stream": stream},

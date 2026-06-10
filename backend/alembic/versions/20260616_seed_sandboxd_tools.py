@@ -11,8 +11,9 @@ Create Date: 2026-06-16
 import json
 from uuid import uuid4
 
-from alembic import op
 from sqlalchemy import text as sa_text
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "seed_sandboxd_tools"
@@ -116,8 +117,6 @@ def downgrade() -> None:
     conn = op.get_bind()
     slugs = [t["slug"] for t in SANDBOXD_TOOLS]
     conn.execute(
-        sa_text(
-            "DELETE FROM tools_catalog WHERE slug = ANY(:slugs)"
-        ),
+        sa_text("DELETE FROM tools_catalog WHERE slug = ANY(:slugs)"),
         {"slugs": slugs},
     )

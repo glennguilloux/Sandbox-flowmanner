@@ -1,5 +1,10 @@
 # Flowmanner — Agent Instructions
 
+**End-of-session ritual:** see [SESSION-RITUAL.md](./SESSION-RITUAL.md). Every
+agent (me, DeepSeek, anything LLM) must run the exit audit, commit, and push
+to origin at the end of every session that changed code. No deploy without
+human review.
+
 This project spans two machines. Use the file that matches where your agent runs.
 
 - **VPS agents** (74.208.115.142) → [AGENTS.vps.md](./AGENTS.vps.md)
