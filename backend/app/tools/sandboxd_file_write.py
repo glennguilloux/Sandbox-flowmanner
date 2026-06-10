@@ -42,7 +42,7 @@ class SandboxdFileWriteTool(BaseTool):
             description=(
                 "Write a file to the sandbox workspace. Use this to create "
                 "index.html, style.css, app.js, or any project file. "
-                "Path is relative to /home/sandbox/workspace/app/ inside the container. "
+                "Path is relative to /home/sandbox/ inside the container (the sandbox workspace root). "
                 "Subdirectories are created automatically. Atomic write (tmp + rename). Max 25 MiB. "
                 "For HTML previews: write all files first, then call sandboxd_serve "
                 "to start a dev server and get the preview URL."
@@ -89,7 +89,7 @@ class SandboxdFileWriteTool(BaseTool):
             if parent:
                 mkdir_result = await client.exec_command(
                     sandbox_id,
-                    ["mkdir", "-p", f"/home/sandbox/workspace/app/{parent}"],
+                    ["mkdir", "-p", f"/home/sandbox/{parent}"],
                 )
                 if mkdir_result.get("exit_code", 1) != 0:
                     logger.warning(

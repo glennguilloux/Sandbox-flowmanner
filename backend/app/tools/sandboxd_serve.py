@@ -23,10 +23,10 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 logger = logging.getLogger(__name__)
 
-# The sandbox workspace inside the container.  This is where
-# sandboxd_file_write puts files and where the template's dev server
-# (Vite, npm run dev, etc.) should serve from.
-_WORKSPACE_DIR = "/home/sandbox/workspace/app"
+# The sandbox workspace root inside the container.  The PUT /files API
+# writes paths relative to this directory (e.g. path="index.html" puts
+# the file at /home/sandbox/index.html).
+_WORKSPACE_DIR = "/home/sandbox"
 
 
 class SandboxdServeInput(ToolInput):
@@ -44,7 +44,7 @@ class SandboxdServeInput(ToolInput):
         default=None,
         description=(
             "Directory to serve from inside the container. "
-            "Defaults to /home/sandbox/workspace/app (the sandbox workspace)."
+            "Defaults to /home/sandbox/ (the sandbox workspace root)."
         ),
     )
 
@@ -58,8 +58,8 @@ class SandboxdServeTool(BaseTool):
             name="Sandboxd Serve",
             description=(
                 "Start a static file server inside the sandbox on the given port "
-                "(default 3000). The server serves files from the sandbox workspace "
-                "(/home/sandbox/workspace/app) so HTML files written with "
+                "(default 3000). The server serves files from the sandbox workspace root "
+                "(/home/sandbox/) so HTML files written with "
                 "sandboxd_file_write are accessible. Polls until the server is "
                 "accepting connections, then returns the preview URL. "
                 "Typical workflow: (1) sandboxd_preview to create sandbox, "
