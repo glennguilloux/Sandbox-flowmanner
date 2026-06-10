@@ -158,9 +158,7 @@ def _providers_compatible(key_provider: str | None, model_provider: str | None) 
         return True
     if key_p == model_p:
         return True
-    return bool(
-        model_p in OPENAI_PROVIDER_FAMILIES and key_p in OPENAI_PROVIDER_FAMILIES
-    )
+    return bool(model_p in OPENAI_PROVIDER_FAMILIES and key_p in OPENAI_PROVIDER_FAMILIES)
 
 
 async def _lookup_stored_byok_key(
@@ -180,11 +178,7 @@ async def _lookup_stored_byok_key(
 
         from app.models.byok_models import UserAPIKey
 
-        stmt = (
-            select(UserAPIKey)
-            .where(UserAPIKey.user_id == user_id)
-            .where(UserAPIKey.is_active == True)
-        )
+        stmt = select(UserAPIKey).where(UserAPIKey.user_id == user_id).where(UserAPIKey.is_active == True)
         result = await db.execute(stmt)
         keys = list(result.scalars().all())
         if not keys:
@@ -232,9 +226,7 @@ async def _lookup_stored_byok_key(
         return None, None
 
 
-def _validate_byok_key_matches_model(
-    user_api_key: str | None, model_id: str
-) -> str | None:
+def _validate_byok_key_matches_model(user_api_key: str | None, model_id: str) -> str | None:
     """Validate that BYOK key matches the requested model provider.
 
     Returns None if valid.
@@ -289,11 +281,7 @@ _MAX_TOOL_ROUNDS = 10
 
 # LLM configuration from environment
 _LLM_API_KEY = os.getenv("LLM_API_KEY")
-_LLM_API_BASE = (
-    os.getenv("LLM_API_BASE")
-    or os.getenv("LLM_BASE_URL")
-    or "https://api.deepseek.com/v1"
-)
+_LLM_API_BASE = os.getenv("LLM_API_BASE") or os.getenv("LLM_BASE_URL") or "https://api.deepseek.com/v1"
 _LLM_MODEL = os.getenv("LLM_MODEL_NAME", "deepseek/deepseek-v4-flash")
 
 # Initialize AsyncOpenAI client for ZhipuAI (OpenAI-compatible)
@@ -461,20 +449,10 @@ async def list_chat_threads(
     limit: int = 20,
     workspace_id: str | None = None,
 ) -> tuple[list[ChatThread], int]:
-    base_filter = (
-        ChatThread.workspace_id == workspace_id
-        if workspace_id is not None
-        else ChatThread.user_id == user_id
-    )
+    base_filter = ChatThread.workspace_id == workspace_id if workspace_id is not None else ChatThread.user_id == user_id
     count_q = select(func.count()).select_from(ChatThread).where(base_filter)
     total = (await db.execute(count_q)).scalar() or 0
-    items_q = (
-        select(ChatThread)
-        .where(base_filter)
-        .order_by(ChatThread.updated_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    items_q = select(ChatThread).where(base_filter).order_by(ChatThread.updated_at.desc()).offset(offset).limit(limit)
     items = list((await db.execute(items_q)).scalars().all())
     return items, total
 
@@ -524,6 +502,32 @@ async def create_chat_message(
     return msg
 
 
+async def create_chat_message_fresh_session(
+    thread_id: int,
+    role: str,
+    content: str,
+    *,
+    user_id: int | None = None,
+) -> ChatMessage:
+    """Create a chat message using a fresh DB session.
+
+    Used as a fallback when the caller's session has a dead connection
+    (e.g. after long LLM streaming where idle-in-transaction kills the
+    underlying asyncpg connection).  The session is committed by the
+    context manager on successful exit.
+    """
+    from app.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as fresh_db:
+        msg = ChatMessage(thread_id=thread_id, role=role, content=content)
+        if user_id is not None:
+            msg.user_id = user_id
+        fresh_db.add(msg)
+        await fresh_db.flush()
+        await fresh_db.refresh(msg)
+        return msg
+
+
 async def update_chat_message(
     db: AsyncSession,
     message_id: int,
@@ -561,11 +565,7 @@ async def get_chat_messages(
     offset: int = 0,
     limit: int = 50,
 ) -> tuple[list[ChatMessage], int]:
-    count_q = (
-        select(func.count())
-        .select_from(ChatMessage)
-        .where(ChatMessage.thread_id == thread_id)
-    )
+    count_q = select(func.count()).select_from(ChatMessage).where(ChatMessage.thread_id == thread_id)
     total = (await db.execute(count_q)).scalar() or 0
     items_q = (
         select(ChatMessage)
@@ -625,11 +625,7 @@ async def _process_attachments(
 
         result = await db.execute(select(UserFile).where(UserFile.id == file_id))
         db_file = result.scalar_one_or_none()
-        if (
-            not db_file
-            or not db_file.storage_path
-            or not os.path.exists(db_file.storage_path)
-        ):
+        if not db_file or not db_file.storage_path or not os.path.exists(db_file.storage_path):
             continue
 
         if att_type == "image" and is_vision_model:
@@ -676,44 +672,28 @@ async def _process_attachments(
                             pages_text.append(t)
                         file_text = "\n\n".join(pages_text)
 
-                elif (
-                    "wordprocessingml" in content_type
-                    or ".docx" in filename_lower
-                    or "msword" in content_type
-                ):
+                elif "wordprocessingml" in content_type or ".docx" in filename_lower or "msword" in content_type:
                     from docx import Document
 
                     doc = Document(db_file.storage_path)
                     file_text = "\n".join(p.text for p in doc.paragraphs)
 
-                elif (
-                    "spreadsheetml" in content_type
-                    or ".xlsx" in filename_lower
-                    or "excel" in content_type
-                ):
+                elif "spreadsheetml" in content_type or ".xlsx" in filename_lower or "excel" in content_type:
                     import openpyxl
 
-                    wb = openpyxl.load_workbook(
-                        db_file.storage_path, read_only=True, data_only=True
-                    )
+                    wb = openpyxl.load_workbook(db_file.storage_path, read_only=True, data_only=True)
                     rows = []
                     for sheet in wb.sheetnames:
                         ws = wb[sheet]
                         sheet_rows = []
                         for row in ws.iter_rows(values_only=True):
-                            line = "\t".join(
-                                str(c) if c is not None else "" for c in row
-                            )
+                            line = "\t".join(str(c) if c is not None else "" for c in row)
                             sheet_rows.append(line)
                         rows.append(f"=== Sheet: {sheet} ===\n" + "\n".join(sheet_rows))
                     file_text = "\n\n".join(rows)
                     wb.close()
 
-                elif (
-                    "presentationml" in content_type
-                    or ".pptx" in filename_lower
-                    or "powerpoint" in content_type
-                ):
+                elif "presentationml" in content_type or ".pptx" in filename_lower or "powerpoint" in content_type:
                     from pptx import Presentation
 
                     prs = Presentation(db_file.storage_path)
@@ -725,28 +705,19 @@ async def _process_attachments(
                                 slide_texts.append(shape.text)
                             elif shape.has_table:
                                 table = shape.table
-                                for row in table.rows:
-                                    slide_texts.append(
-                                        "\t".join(cell.text for cell in row.cells)
-                                    )
-                        slides_text.append(
-                            f"=== Slide {i} ===\n" + "\n".join(slide_texts)
-                        )
+                                slide_texts.extend("\t".join(cell.text for cell in row.cells) for row in table.rows)
+                        slides_text.append(f"=== Slide {i} ===\n" + "\n".join(slide_texts))
                     file_text = "\n\n".join(slides_text)
 
                 else:
-                    file_text = Path(db_file.storage_path).read_text(
-                        encoding="utf-8", errors="replace"
-                    )
+                    file_text = Path(db_file.storage_path).read_text(encoding="utf-8", errors="replace")
             except Exception:
                 continue
             limit = 10000
             truncated = file_text[:limit]
             if len(file_text) > limit:
                 truncated += "\n... (truncated)"
-            context_msg = (
-                f"[Attached file: {filename}]\n{truncated}\n[End of attached file]"
-            )
+            context_msg = f"[Attached file: {filename}]\n{truncated}\n[End of attached file]"
             messages.insert(-1, {"role": "user", "content": context_msg})
 
     return messages
@@ -812,9 +783,7 @@ async def _inject_web_search(messages: list[dict], query: str) -> list[dict]:
             else:
                 title = getattr(r, "title", "Untitled") or "Untitled"
                 url = getattr(r, "url", "") or ""
-                snippet = (
-                    getattr(r, "snippet", "") or getattr(r, "content", "") or ""
-                )[:200]
+                snippet = (getattr(r, "snippet", "") or getattr(r, "content", "") or "")[:200]
             lines.append(f"{i}. {title} — {url}")
             if snippet:
                 lines.append(f"   {snippet}")
@@ -822,9 +791,9 @@ async def _inject_web_search(messages: list[dict], query: str) -> list[dict]:
 
         search_context = "\n".join(lines)
         # Append search results to the last user message so the model can't ignore them
-        messages[-1][
-            "content"
-        ] = f"{search_context}\n\nBased on the search results above, answer the following:\n{messages[-1]['content']}"
+        messages[-1]["content"] = (
+            f"{search_context}\n\nBased on the search results above, answer the following:\n{messages[-1]['content']}"
+        )
 
     except Exception as e:
         logger.warning("Web search failed (non-fatal): %s", e)
@@ -855,17 +824,14 @@ async def _build_chat_messages(
     messages = [{"role": "system", "content": system_prompt}]
 
     history_stmt = (
-        select(ChatMessage)
-        .where(ChatMessage.thread_id == thread_id)
-        .order_by(ChatMessage.id.desc())
-        .limit(max_history)
+        select(ChatMessage).where(ChatMessage.thread_id == thread_id).order_by(ChatMessage.id.desc()).limit(max_history)
     )
     history_result = await db.execute(history_stmt)
     recent_messages = list(reversed(history_result.scalars().all()))
 
-    for msg in recent_messages:
-        if msg.role in ("user", "assistant"):
-            messages.append({"role": msg.role, "content": msg.content})
+    messages.extend(
+        {"role": msg.role, "content": msg.content} for msg in recent_messages if msg.role in ("user", "assistant")
+    )
 
     return messages
 
@@ -891,6 +857,11 @@ async def send_message_to_llm(
     For llamacpp/* models, any BYOK key is ignored (llama.cpp doesn't use API keys).
     """
     await create_chat_message(db, thread_id, "user", content, user_id=user_id)
+    # Commit the user message immediately so the transaction is released.
+    # During the long LLM call (minutes with tool-calls), the connection
+    # would otherwise sit idle-in-transaction and get killed by PostgreSQL's
+    # idle_in_transaction_session_timeout.
+    await db.commit()
 
     raw_model = model_id or model_preference or _LLM_MODEL
     base_url, api_key, model = _resolve_provider(raw_model)
@@ -909,9 +880,7 @@ async def send_message_to_llm(
     effective_base_url = user_base_url
     if not effective_user_key and db is not None:
         model_provider = _get_provider_for_model(raw_model)
-        stored_key, stored_base = await _lookup_stored_byok_key(
-            db, user_id, provider_hint=model_provider
-        )
+        stored_key, stored_base = await _lookup_stored_byok_key(db, user_id, provider_hint=model_provider)
         if stored_key:
             effective_user_key = stored_key
             effective_base_url = stored_base
@@ -942,9 +911,7 @@ async def send_message_to_llm(
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
             if attachments:
-                messages_for_llm = await _process_attachments(
-                    db, messages_for_llm, attachments, raw_model
-                )
+                messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
 
             if web_search:
                 messages_for_llm = await _inject_web_search(messages_for_llm, content)
@@ -994,9 +961,7 @@ async def send_message_to_llm(
 
                     # Execute each tool and add results
                     for tc in assistant_message.tool_calls:
-                        tool_result = await _execute_tool_call(
-                            tc.function.name, tc.function.arguments
-                        )
+                        tool_result = await _execute_tool_call(tc.function.name, tc.function.arguments)
                         messages_for_llm.append(
                             {
                                 "role": "tool",
@@ -1024,9 +989,7 @@ async def send_message_to_llm(
                     "send_message_to_llm: empty response with tools for %s, retrying without tools",
                     raw_model,
                 )
-                no_tools_response = await client.chat.completions.create(
-                    model=model, messages=messages_for_llm
-                )
+                no_tools_response = await client.chat.completions.create(model=model, messages=messages_for_llm)
                 if no_tools_response.choices:
                     assistant_message = no_tools_response.choices[0].message
                     response = no_tools_response
@@ -1042,7 +1005,17 @@ async def send_message_to_llm(
             success=True,
         )
 
-        await create_chat_message(db, thread_id, "assistant", assistant_content)
+        try:
+            await create_chat_message(db, thread_id, "assistant", assistant_content)
+        except Exception as save_err:
+            # Catch broad Exception: asyncpg.InterfaceError, sqlalchemy.InterfaceError,
+            # OperationalError etc.  Validation/constraint errors will also fail on
+            # the fresh session, so the retry is safe (no silent data corruption).
+            logger.warning(
+                "Assistant message save failed on original session (%s), retrying with fresh session",
+                save_err,
+            )
+            await create_chat_message_fresh_session(thread_id, "assistant", assistant_content)
 
         try:
             from app.services.usage_service import get_usage_service
@@ -1066,9 +1039,7 @@ async def send_message_to_llm(
         }
     except CircuitOpenError as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(
-            provider=provider_name, duration_seconds=llm_duration, success=False
-        )
+        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
         logger.warning("Circuit breaker open for %s: %s", provider_name, e)
         return {
             "success": False,
@@ -1078,9 +1049,7 @@ async def send_message_to_llm(
         }
     except Exception as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(
-            provider=provider_name, duration_seconds=llm_duration, success=False
-        )
+        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
         logger.error("send_message_to_llm failed: %s", e)
         return {"success": False, "content": str(e), "tokens": 0, "model": model}
 
@@ -1094,11 +1063,7 @@ def _get_chat_openai_tools() -> list[dict] | None:
 
         registry = get_tool_registry()
         sandboxd_ids = {"sandboxd_preview", "sandboxd_exec", "sandboxd_file_write"}
-        tools = [
-            t.to_openai_schema()
-            for t in registry.list_all()
-            if t.tool_id in sandboxd_ids
-        ]
+        tools = [t.to_openai_schema() for t in registry.list_all() if t.tool_id in sandboxd_ids]
         return tools or None
     except Exception:
         logger.debug("Failed to get chat tools from registry", exc_info=True)
@@ -1148,6 +1113,11 @@ async def stream_message_to_llm(
     For llamacpp/* models, any BYOK key is ignored (llama.cpp doesn't use API keys).
     """
     await create_chat_message(db, thread_id, "user", content, user_id=user_id)
+    # Commit the user message immediately so the transaction is released.
+    # During long LLM streaming (minutes with tool-calls), the connection
+    # would otherwise sit idle-in-transaction and get killed by PostgreSQL's
+    # idle_in_transaction_session_timeout.
+    await db.commit()
 
     collected_chunks = []
     raw_model = model_id or model_preference or _LLM_MODEL
@@ -1163,9 +1133,7 @@ async def stream_message_to_llm(
     effective_base_url = user_base_url
     if not effective_user_key and db is not None:
         model_provider = _get_provider_for_model(raw_model)
-        stored_key, stored_base = await _lookup_stored_byok_key(
-            db, user_id, provider_hint=model_provider
-        )
+        stored_key, stored_base = await _lookup_stored_byok_key(db, user_id, provider_hint=model_provider)
         if stored_key:
             effective_user_key = stored_key
             effective_base_url = stored_base
@@ -1196,9 +1164,7 @@ async def stream_message_to_llm(
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
             if attachments:
-                messages_for_llm = await _process_attachments(
-                    db, messages_for_llm, attachments, raw_model
-                )
+                messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
 
             if web_search:
                 messages_for_llm = await _inject_web_search(messages_for_llm, content)
@@ -1254,19 +1220,13 @@ async def stream_message_to_llm(
                                 if tc_delta.function.name:
                                     tc["function"]["name"] = tc_delta.function.name
                                 if tc_delta.function.arguments:
-                                    tc["function"][
-                                        "arguments"
-                                    ] += tc_delta.function.arguments
+                                    tc["function"]["arguments"] += tc_delta.function.arguments
 
                     # Capture usage from streaming chunks (if provider includes it)
                     chunk_usage = getattr(chunk, "usage", None)
-                    if chunk_usage and isinstance(
-                        getattr(chunk_usage, "prompt_tokens", None), int
-                    ):
+                    if chunk_usage and isinstance(getattr(chunk_usage, "prompt_tokens", None), int):
                         accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
-                        accumulated_completion_tokens += (
-                            chunk_usage.completion_tokens or 0
-                        )
+                        accumulated_completion_tokens += chunk_usage.completion_tokens or 0
 
                     # Detect finish_reason
                     if choice.finish_reason == "tool_calls":
@@ -1336,9 +1296,7 @@ async def stream_message_to_llm(
                     continue
 
                 # No tool calls — we have a final text response
-                full_response = "".join(round_content_chunks) or "".join(
-                    collected_chunks
-                )
+                full_response = "".join(round_content_chunks) or "".join(collected_chunks)
                 break  # Exit the tool-calling loop
 
             else:
@@ -1362,13 +1320,9 @@ async def stream_message_to_llm(
                     }
                     if openai_tools:
                         non_stream_kwargs["tools"] = openai_tools
-                    non_stream_response = await client.chat.completions.create(
-                        **non_stream_kwargs
-                    )
+                    non_stream_response = await client.chat.completions.create(**non_stream_kwargs)
                     if non_stream_response.choices:
-                        full_response = (
-                            non_stream_response.choices[0].message.content or ""
-                        )
+                        full_response = non_stream_response.choices[0].message.content or ""
                     # Second fallback: retry without tools if still empty
                     # (some models don't support function calling)
                     if not full_response.strip() and openai_tools:
@@ -1377,13 +1331,9 @@ async def stream_message_to_llm(
                             raw_model,
                         )
                         non_stream_kwargs.pop("tools", None)
-                        no_tools_response = await client.chat.completions.create(
-                            **non_stream_kwargs
-                        )
+                        no_tools_response = await client.chat.completions.create(**non_stream_kwargs)
                         if no_tools_response.choices:
-                            full_response = (
-                                no_tools_response.choices[0].message.content or ""
-                            )
+                            full_response = no_tools_response.choices[0].message.content or ""
                     if full_response:
                         yield json.dumps({"type": "token", "content": full_response})
                 except Exception as retry_err:
@@ -1407,9 +1357,17 @@ async def stream_message_to_llm(
             success=True,
         )
 
-        assistant_msg = await create_chat_message(
-            db, thread_id, "assistant", full_response
-        )
+        try:
+            assistant_msg = await create_chat_message(db, thread_id, "assistant", full_response)
+        except Exception as save_err:
+            # Catch broad Exception: asyncpg.InterfaceError, sqlalchemy.InterfaceError,
+            # OperationalError etc.  Validation/constraint errors will also fail on
+            # the fresh session, so the retry is safe (no silent data corruption).
+            logger.warning(
+                "stream: assistant message save failed on original session (%s), retrying with fresh session",
+                save_err,
+            )
+            assistant_msg = await create_chat_message_fresh_session(thread_id, "assistant", full_response)
 
         try:
             from app.services.usage_service import get_usage_service
@@ -1436,9 +1394,7 @@ async def stream_message_to_llm(
 
     except CircuitOpenError as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(
-            provider=provider_name, duration_seconds=llm_duration, success=False
-        )
+        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
         logger.warning("Circuit breaker open for %s: %s", provider_name, e)
         yield json.dumps(
             {
@@ -1448,9 +1404,7 @@ async def stream_message_to_llm(
         )
     except Exception as e:
         llm_duration = time.time() - llm_start
-        record_llm_request(
-            provider=provider_name, duration_seconds=llm_duration, success=False
-        )
+        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
         logger.error("stream_message_to_llm failed: %s", e)
         yield json.dumps({"type": "error", "error": str(e)})
 
@@ -1473,10 +1427,7 @@ async def generate_thread_title(
 
     # Fetch the first two messages (first user prompt + first assistant response)
     result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.thread_id == thread_id)
-        .order_by(ChatMessage.id.asc())
-        .limit(2)
+        select(ChatMessage).where(ChatMessage.thread_id == thread_id).order_by(ChatMessage.id.asc()).limit(2)
     )
     first_messages = result.scalars().all()
 
@@ -1520,9 +1471,7 @@ async def generate_thread_title(
             # Strip common model prefixes like "Title:", "Subject:", or markdown bold
             import re
 
-            title = re.sub(
-                r"^(Title|Subject|Topic):?\s*", "", title, flags=re.IGNORECASE
-            )
+            title = re.sub(r"^(Title|Subject|Topic):?\s*", "", title, flags=re.IGNORECASE)
             title = title.strip("*").strip()
             # Truncate to reasonable length
             if len(title) > 100:
@@ -1562,9 +1511,7 @@ async def create_chat_branch(
     all_msgs, _ = await get_chat_messages(db, parent_thread_id)
     msgs_to_copy = [m for m in all_msgs if m.id <= parent_message_id]
     for msg in msgs_to_copy:
-        await create_chat_message(
-            db, branch_thread.id, msg.role, msg.content, user_id=msg.user_id
-        )
+        await create_chat_message(db, branch_thread.id, msg.role, msg.content, user_id=msg.user_id)
 
     # Create branch record
     branch = ChatBranch(
@@ -1585,9 +1532,7 @@ async def list_chat_branches(
     parent_thread_id: int,
 ) -> list[ChatBranch]:
     """List all branches from a given thread."""
-    result = await db.execute(
-        select(ChatBranch).where(ChatBranch.parent_thread_id == parent_thread_id)
-    )
+    result = await db.execute(select(ChatBranch).where(ChatBranch.parent_thread_id == parent_thread_id))
     return list(result.scalars().all())
 
 

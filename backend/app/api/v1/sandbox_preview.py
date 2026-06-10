@@ -12,14 +12,11 @@ from __future__ import annotations
 import logging
 import re
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from starlette.requests import Request  # noqa: TC002 — needed at runtime for FastAPI DI
 from starlette.responses import Response
-
-if TYPE_CHECKING:
-    from starlette.requests import Request
 
 from app.api.deps import get_current_user
 from app.config import settings
@@ -187,9 +184,7 @@ async def _authenticate_preview_request(req: Request) -> str | None:
             if record is None:
                 return None
             # get_refresh_token already filters is_revoked == False
-            if record.expires_at and record.expires_at < datetime.now(UTC).replace(
-                tzinfo=None
-            ):
+            if record.expires_at and record.expires_at < datetime.now(UTC).replace(tzinfo=None):
                 return None
             user = await get_user_by_id(db, record.user_id)
             if user and user.is_active:

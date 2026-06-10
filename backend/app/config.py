@@ -4,23 +4,19 @@ PLACEHOLDER_SECRETS = {"change-me-in-production", "changeme", "secret", "passwor
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_ENV: str = "development"
     APP_NAME: str = "workflows-backend"
     SECRET_KEY: str = "change-me-in-production"
 
-    DATABASE_URL: str = (
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/workflows"
-    )
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/workflows"
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     DATABASE_POOL_TIMEOUT: int = 10
     DATABASE_POOL_RECYCLE: int = 1800
     DATABASE_STATEMENT_TIMEOUT_MS: int = 15000
-    DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS: int = 30000
+    DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS: int = 300000
     DATABASE_CONNECT_TIMEOUT: int = 10
     DB_ECHO: bool = False
 
@@ -63,9 +59,7 @@ class Settings(BaseSettings):
     RAG_EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     RAG_SIMILARITY_THRESHOLD: float = 0.7
 
-    CORS_ORIGINS: str = (
-        "http://localhost:3000,http://localhost:5173,https://workflows.glennguilloux.com,https://www.workflows.glennguilloux.com,https://flowmanner.com,https://www.flowmanner.com"
-    )
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,https://workflows.glennguilloux.com,https://www.workflows.glennguilloux.com,https://flowmanner.com,https://www.flowmanner.com"
 
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_SECRET_KEY: str = ""
@@ -110,9 +104,7 @@ class Settings(BaseSettings):
 
     # Auth v3 — httpOnly cookie configuration
     AUTH_V3_COOKIE_DOMAIN: str = ""  # e.g. ".flowmanner.com" — empty = same-origin only
-    AUTH_V3_COOKIE_SECURE: bool = (
-        True  # True in production (HTTPS only), False for localhost dev
-    )
+    AUTH_V3_COOKIE_SECURE: bool = True  # True in production (HTTPS only), False for localhost dev
     AUTH_V3_REFRESH_EXPIRY_DAYS: int = 30
 
     # PayPal subscription billing
@@ -177,9 +169,7 @@ class Settings(BaseSettings):
             }
             for name, value in secret_fields.items():
                 if value in PLACEHOLDER_SECRETS:
-                    warnings.append(
-                        f"{name} is using a placeholder value — set a strong secret in .env"
-                    )
+                    warnings.append(f"{name} is using a placeholder value — set a strong secret in .env")
         return warnings
 
     def assert_production_ready(self) -> None:
@@ -188,28 +178,17 @@ class Settings(BaseSettings):
             return
         bad: list[str] = []
         if self.SECRET_KEY in PLACEHOLDER_SECRETS or len(self.SECRET_KEY) < 32:
-            bad.append(
-                "SECRET_KEY must be set to a random string of at least 32 characters"
-            )
+            bad.append("SECRET_KEY must be set to a random string of at least 32 characters")
         if self.JWT_SECRET_KEY in PLACEHOLDER_SECRETS or len(self.JWT_SECRET_KEY) < 32:
-            bad.append(
-                "JWT_SECRET_KEY must be set to a random string of at least 32 characters"
-            )
-        if (
-            self.AES_ENCRYPTION_KEY in PLACEHOLDER_SECRETS
-            or len(self.AES_ENCRYPTION_KEY) < 32
-        ):
+            bad.append("JWT_SECRET_KEY must be set to a random string of at least 32 characters")
+        if self.AES_ENCRYPTION_KEY in PLACEHOLDER_SECRETS or len(self.AES_ENCRYPTION_KEY) < 32:
             bad.append(
                 "AES_ENCRYPTION_KEY must be set to a random string of at least 32 characters (used for API key encryption)"
             )
         if not self.AUTH_V3_COOKIE_SECURE:
-            bad.append(
-                "AUTH_V3_COOKIE_SECURE must be true in production (HTTPS-only cookies)"
-            )
+            bad.append("AUTH_V3_COOKIE_SECURE must be true in production (HTTPS-only cookies)")
         if bad:
-            raise RuntimeError(
-                "FATAL: Production secrets not configured:\n" + "\n".join(bad)
-            )
+            raise RuntimeError("FATAL: Production secrets not configured:\n" + "\n".join(bad))
 
 
 settings = Settings()

@@ -154,6 +154,8 @@ services:
     restart: unless-stopped
     networks:
       workflows-web:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --max-tasks-per-child=100
     env_file:
       - .env
@@ -182,6 +184,8 @@ services:
     restart: unless-stopped
     networks:
       workflows-web:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: celery -A app.tasks.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
     env_file:
       - .env

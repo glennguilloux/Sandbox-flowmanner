@@ -25,8 +25,7 @@ class SandboxdPreviewInput(ToolInput):
     sandbox_id: str | None = Field(
         default=None,
         description=(
-            "Sandbox ID to preview. If omitted, creates a new sandbox "
-            "automatically and returns its preview URL."
+            "Sandbox ID to preview. If omitted, creates a new sandbox automatically and returns its preview URL."
         ),
     )
 
@@ -70,15 +69,18 @@ class SandboxdPreviewTool(BaseTool):
         try:
             validated = SandboxdPreviewInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             client = self._get_client()
 
             # Resolve sandbox_id: explicit arg > context > auto-create
-            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
+            raw_id = validated.sandbox_id
+            # Some LLMs (DeepSeek) pass the literal string "NEW" instead of
+            # omitting the field.  Treat it as empty so auto-create fires.
+            if raw_id and raw_id.strip().upper() == "NEW":
+                raw_id = None
+            sandbox_id = raw_id or self._resolve_sandbox_id()
 
             if not sandbox_id:
                 # Auto-create a sandbox for standalone chat sessions
@@ -86,10 +88,7 @@ class SandboxdPreviewTool(BaseTool):
                 if not sandbox_id:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            "Failed to auto-create a sandbox. "
-                            "sandboxd may be unavailable — check service health."
-                        ),
+                        error=("Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."),
                     )
                 # Store in context so subsequent tool calls reuse it
                 self._set_sandbox_id(sandbox_id)
