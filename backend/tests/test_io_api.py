@@ -59,12 +59,14 @@ def io_client(io_test_app, mock_user):
 
 
 def _mock_tool_result(status="success", error=None, data=None):
-    """Create a mock ToolResult with the given status/data."""
+    """Create a mock ToolResult with the given status/data.
+
+    Matches ``ToolResult`` fields: ``success: bool``, ``result: Any``, ``error: str | None``.
+    """
     result = MagicMock()
-    result.status = MagicMock()
-    result.status.value = status
+    result.success = status == "success"
     result.error = error
-    result.data = data or {}
+    result.result = data or {}
     return result
 
 

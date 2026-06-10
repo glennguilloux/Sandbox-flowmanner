@@ -59,13 +59,13 @@ async def voice_transcribe(
             }
         )
 
-        if result.status.value != "success":
+        if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=result.error or "Transcription failed",
             )
 
-        data = result.data or {}
+        data = result.result or {}
         segments = data.get("segments", [])
         duration = data.get("duration", 0.0)
 
@@ -123,13 +123,13 @@ async def voice_synthesize(
             }
         )
 
-        if result.status.value != "success":
+        if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=result.error or "TTS synthesis failed",
             )
 
-        data = result.data or {}
+        data = result.result or {}
         audio_path = data.get("audio_path", "")
         audio_base64 = ""
 
@@ -447,14 +447,14 @@ async def code_execute(
 
     elapsed_ms = (time.monotonic() - start) * 1000
 
-    if result.status.value != "success":
+    if not result.success:
         return CodeExecuteResponse(
             success=False,
             execution_time_ms=round(elapsed_ms, 1),
             error=result.error or "Code execution failed",
         )
 
-    data = result.data or {}
+    data = result.result or {}
     stdout_val = str(data.get("stdout", data.get("output", "")))[:500_000]
     stderr_val = str(data.get("stderr", ""))[:100_000]
     return_code = data.get("return_code", data.get("returncode", 0))
