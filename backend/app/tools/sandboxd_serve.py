@@ -99,8 +99,7 @@ class SandboxdServeTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        "No sandbox available. Call sandboxd_preview first to "
-                        "create one, or pass `sandbox_id`."
+                        "No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."
                     ),
                 )
 
@@ -111,6 +110,7 @@ class SandboxdServeTool(BaseTool):
             # Start the server in the background using nohup + python3 http.server.
             # We use python3 because it's guaranteed to exist in the sandbox image.
             # The command:
+            #   0. Kill any existing process on the port (e.g. template dev server)
             #   1. cd into the serve directory
             #   2. Start python3 -m http.server in the background with nohup
             #   3. Write the PID to /tmp/serve.pid so we can report it
@@ -119,6 +119,7 @@ class SandboxdServeTool(BaseTool):
                 "bash",
                 "-lc",
                 (
+                    f"fuser -k {port}/tcp 2>/dev/null; "
                     f"cd {serve_dir} && "
                     f"nohup python3 -m http.server {port} "
                     f"> /tmp/serve.log 2>&1 & "
@@ -127,9 +128,7 @@ class SandboxdServeTool(BaseTool):
                 ),
             ]
 
-            result = await client.exec_command(
-                sandbox_id, start_cmd, timeout=10.0
-            )
+            result = await client.exec_command(sandbox_id, start_cmd, timeout=10.0)
             exit_code = result.get("exit_code", 1)
             if exit_code != 0:
                 stderr = result.get("stderr", "")
