@@ -107,34 +107,32 @@ class SandboxdServeTool(BaseTool):
             port = validated.port
             serve_dir = validated.directory or _WORKSPACE_DIR
 
-            # Start the server in the background using a Python script with
-            # SO_REUSEADDR so it can bind even if the port is in TIME_WAIT.
-            # The command:
-            #   0. Kill any existing process on the port (e.g. template dev server)
-            #   1. Wait 1s for the port to be fully released
-            #   2. Start server with SO_REUSEADDR in the background with nohup
-            #   3. Write the PID to /tmp/serve.pid so we can report it
-            #   4. Redirect output to /tmp/serve.log for debugging
-            #
+            # Write a serve script to /tmp/serve.py then run it.
             # We use a Python script instead of `python3 -m http.server`
             # because the bare module doesn't set SO_REUSEADDR, causing
             # "Address already in use" errors after killing a previous server.
+            #
+            # Using SimpleHTTPRequestHandler(directory=...) avoids os.chdir
+            # and all quoting issues with inline scripts.
             serve_script = (
-                "import http.server, socketserver, os; "
-                f"os.chdir('{serve_dir}'); "
-                "socketserver.TCPServer.allow_reuse_address = True; "
-                f"s = socketserver.TCPServer(('0.0.0.0', {port}), "
-                "http.server.SimpleHTTPRequestHandler); "
-                f"print('Serving on :{port} from {serve_dir}'); "
-                "s.serve_forever()"
+                f"import http.server, socketserver\n"
+                f"class H(http.server.SimpleHTTPRequestHandler):\n"
+                f"    def __init__(self, *a, **kw):\n"
+                f"        super().__init__(*a, directory='{serve_dir}', **kw)\n"
+                f"socketserver.TCPServer.allow_reuse_address = True\n"
+                f"s = socketserver.TCPServer(('0.0.0.0', {port}), H)\n"
+                f"print('Serving on :{port} from {serve_dir}')\n"
+                f"s.serve_forever()\n"
             )
+            # Write the script to /tmp/serve.py, kill old server, start new one
+            escaped_script = serve_script.replace("'", "'\\''")
             start_cmd = [
                 "bash",
                 "-lc",
                 (
+                    f"echo '{escaped_script}' > /tmp/serve.py && "
                     f"fuser -k {port}/tcp 2>/dev/null; sleep 1; "
-                    f"nohup python3 -c '{serve_script}' "
-                    f"> /tmp/serve.log 2>&1 & "
+                    f"nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & "
                     f"echo $! > /tmp/serve.pid && "
                     f"cat /tmp/serve.pid"
                 ),
