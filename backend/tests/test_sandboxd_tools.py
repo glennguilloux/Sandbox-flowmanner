@@ -619,11 +619,11 @@ class TestSandboxdServeTool:
 
         assert result.success is True
         assert result.result["sandbox_id"] == "sb-abc"
-        assert result.result["port"] == 3000
+        assert result.result["port"] == 8080
         assert result.result["server_pid"] == 0  # Unknown — didn't start it
         assert result.result["status"] == "ready"
         assert "preview.flowmanner.com" in result.result["preview_url"]
-        assert "sb-abc-3000" in result.result["preview_url"]
+        assert "sb-abc-8080" in result.result["preview_url"]
         # Only one exec call — the check, no fallback start
         assert mock_client.exec_command.await_count == 1
 
@@ -658,7 +658,7 @@ class TestSandboxdServeTool:
         assert result.success is True
         assert result.result["server_pid"] == 12345
         assert result.result["status"] == "ready"
-        assert "sb-abc-3000" in result.result["preview_url"]
+        assert "sb-abc-8080" in result.result["preview_url"]
 
     @pytest.mark.asyncio
     async def test_serve_with_custom_port(self):

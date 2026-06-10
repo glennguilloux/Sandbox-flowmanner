@@ -36,10 +36,13 @@ class SandboxdServeInput(ToolInput):
         description="Sandbox ID. If omitted, uses the current context sandbox.",
     )
     port: int = Field(
-        default=3000,
+        default=8080,
         ge=1,
         le=65535,
-        description="Port to serve on (default 3000).",
+        description=(
+            "Port to serve on (default 8080). "
+            "Port 3000 is reserved by the sandboxd runtime."
+        ),
     )
     directory: str | None = Field(
         default=None,
@@ -58,16 +61,12 @@ class SandboxdServeTool(BaseTool):
             tool_id="sandboxd_serve",
             name="Sandboxd Serve",
             description=(
-                "Ensure a dev server is running on the given port (default 3000) "
-                "inside the sandbox. First checks if the port is already serving "
-                "(e.g. the template's Vite dev server). If yes, returns the preview "
-                "URL immediately. If not, starts a static file server as a fallback. "
-                "The sandbox workspace root is /home/sandbox/. "
-                "For template sandboxes, the template server usually serves from "
-                "/home/sandbox/app/ — write your files with path='app/index.html' "
-                "so the template's dev server picks them up. "
+                "Start a static file server inside the sandbox on port 8080 "
+                "(port 3000 is reserved by the sandboxd runtime). The server serves "
+                "files from /home/sandbox/ so files written with sandboxd_file_write "
+                "are accessible at the preview URL. Returns the preview URL directly. "
                 "Typical workflow: (1) sandboxd_preview to create sandbox, "
-                "(2) sandboxd_file_write to write files (use 'app/' prefix for templates), "
+                "(2) sandboxd_file_write to write files, "
                 "(3) sandboxd_serve to get the preview URL. That's it — 3 tool calls."
             ),
             category="code-execution-and-development",

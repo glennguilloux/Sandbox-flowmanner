@@ -274,11 +274,11 @@ create a live preview. Follow this workflow **exactly**:
    Example: `{"sandbox_id": "...", "path": "index.html", "content": "<!DOCTYPE html>..."}`
    Subdirectories are created automatically (e.g. `"css/style.css"` works fine).
    Write ALL files before calling sandboxd_serve.
-3. **sandboxd_serve** — start the dev server and get the preview URL:
+3. **sandboxd_serve** — start a dev server and get the preview URL:
    `{"sandbox_id": "..."}`
-   This starts a server on port 3000 that serves from the sandbox workspace
-   directory where your files were written. Returns the preview URL directly.
-   That's it — 3 tool calls total.
+   This starts a server on port 8080 (port 3000 is reserved by the runtime)
+   that serves from /home/sandbox/ where your files were written.
+   Returns the preview URL directly. That's it — 3 tool calls total.
 4. **sandboxd_file_read** — read a file back: `{"sandbox_id": "...", "path": "index.html"}`
 5. **sandboxd_file_list** — list workspace files: `{"sandbox_id": "...", "path": ""}`
 
