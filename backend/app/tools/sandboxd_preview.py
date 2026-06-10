@@ -100,12 +100,37 @@ class SandboxdPreviewTool(BaseTool):
                 self._set_sandbox_id(sandbox_id)
                 logger.info("sandboxd_preview: auto-created sandbox %s", sandbox_id)
 
-            # Poll for preview readiness (up to 15s)
+            # Fast-fail: check if container is dead before polling.
+            # The v1 API reports status: "running" even when the Docker
+            # container has exited.  The internal API exposes live_state
+            # which reflects the actual Docker container status.
             info = await client.get(sandbox_id)
             preview = info.get("preview", {})
             preview_status = preview.get("status", "")
 
             if preview_status not in ("ready", ""):
+                try:
+                    internal = await client.get_internal(sandbox_id)
+                    live_state = internal.get("live_state", {})
+                    container_status = (
+                        live_state.get("State", {}).get("Status", "")
+                    )
+                    if container_status == "exited":
+                        return ToolResult.error_result(
+                            tool_id=self.tool_id,
+                            error=(
+                                f"Sandbox container exited unexpectedly (sandbox={sandbox_id}). "
+                                "The sandbox template may be invalid or missing an entrypoint. "
+                                "Create a new sandbox or check sandboxd templates."
+                            ),
+                        )
+                except Exception:
+                    logger.debug(
+                        "sandboxd_preview: internal API check failed, falling through to polling",
+                        exc_info=True,
+                    )
+
+                # Poll for preview readiness (up to 15s)
                 for _attempt in range(30):  # 30 × 500ms = 15s max
                     await asyncio.sleep(0.5)
                     try:

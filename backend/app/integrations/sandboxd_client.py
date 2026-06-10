@@ -168,6 +168,23 @@ class SandboxdClient:
             data["status"] = data["state"]
         return data
 
+    async def get_internal(self, sandbox_id: str) -> dict[str, Any]:
+        """GET /sandbox/{id} — internal API with live Docker state.
+
+        Unlike ``get()`` (which prefers the v1 API and normalizes away
+        ``live_state``), this method calls the **internal** API directly
+        and returns the raw response including the Docker container's
+        ``live_state`` field.  Used for fast-fail detection of dead
+        containers before entering a readiness polling loop.
+        """
+        client = await self._get_client()
+        resp = await client.get(f"/sandbox/{sandbox_id}")
+        resp.raise_for_status()
+        data = resp.json()
+        if "row" in data and isinstance(data["row"], dict):
+            data = data["row"]
+        return data
+
     async def stop(self, sandbox_id: str) -> dict[str, Any]:
         """POST /v1/sandboxes/{id}/stop — stop container (workspace preserved)."""
         client = await self._get_client()
