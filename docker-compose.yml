@@ -230,6 +230,8 @@ services:
     networks:
       workflows-web:
         ipv4_address: 10.0.4.6
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
