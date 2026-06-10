@@ -44,12 +44,11 @@ class SandboxdPreviewTool(BaseTool):
                 "provided, creates a new sandbox automatically. "
                 "The preview URL is publicly accessible at "
                 "https://s-<sandbox_id>-<port>.preview.flowmanner.com. "
-                "Always call this after writing HTML files and starting a dev "
-                "server to share the live preview with the user. "
                 "Typical workflow: (1) call this without arguments to create a "
                 "sandbox, (2) use sandboxd_file_write to create your files, "
-                "(3) use sandboxd_exec to start a dev server on port 3000, "
-                "(4) call this again with the sandbox_id to get the preview URL."
+                "(3) use sandboxd_serve to start a dev server on port 8080 "
+                "and get the preview URL. No need to call this tool again — "
+                "sandboxd_serve returns the preview URL directly."
             ),
             category="code-execution-and-development",
             input_schema=SandboxdPreviewInput.schema_extra(),
@@ -112,9 +111,7 @@ class SandboxdPreviewTool(BaseTool):
                 try:
                     internal = await client.get_internal(sandbox_id)
                     live_state = internal.get("live_state", {})
-                    container_status = (
-                        live_state.get("State", {}).get("Status", "")
-                    )
+                    container_status = live_state.get("State", {}).get("Status", "")
                     if container_status == "exited":
                         return ToolResult.error_result(
                             tool_id=self.tool_id,

@@ -17,7 +17,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from starlette.requests import Request
 
-from app.api.v1.sandbox_preview import _authenticate_preview_request, _is_jwt
+from app.api.v1.sandbox_preview import (
+    _auth_cache,
+    _authenticate_preview_request,
+    _is_jwt,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_auth_cache():
+    """Clear the forward-auth cache between tests to prevent leakage."""
+    _auth_cache.clear()
+    yield
+    _auth_cache.clear()
+
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -287,3 +300,107 @@ async def test_malformed_cookie_returns_none():
         result = await _authenticate_preview_request(req)
 
     assert result is None
+
+
+# ── Cache behavior ────────────────────────────────────────────────────
+
+
+def test_token_hash_deterministic():
+    """Same token always produces the same hash."""
+    from app.api.v1.sandbox_preview import _token_hash
+
+    assert _token_hash("abc123") == _token_hash("abc123")
+    assert _token_hash("abc123") != _token_hash("def456")
+
+
+def test_token_hash_no_raw_token_stored():
+    """Hash does not contain the raw token string."""
+    from app.api.v1.sandbox_preview import _token_hash
+
+    h = _token_hash(FAKE_JWT)
+    assert FAKE_JWT not in h
+    assert len(h) == 16
+
+
+def test_cache_set_and_get():
+    """_cache_set stores a result, _cache_get retrieves it."""
+    from app.api.v1.sandbox_preview import _cache_get, _cache_set
+
+    _cache_set("my-token", "42")
+    assert _cache_get("my-token") == "42"
+
+
+def test_cache_miss_returns_none():
+    """_cache_get returns None for unknown tokens."""
+    from app.api.v1.sandbox_preview import _cache_get
+
+    assert _cache_get("nonexistent") is None
+
+
+def test_cache_expiry():
+    """Expired entries return None."""
+    import time as time_mod
+
+    from app.api.v1.sandbox_preview import (
+        _AUTH_CACHE_TTL,
+        _auth_cache,
+        _cache_get,
+        _cache_set,
+        _token_hash,
+    )
+
+    _cache_set("expiring-token", "99")
+    # Manually expire the entry by setting expires_at to the past
+    key = _token_hash("expiring-token")
+    user_id, _ = _auth_cache[key]
+    _auth_cache[key] = (user_id, time_mod.monotonic() - 1)
+
+    assert _cache_get("expiring-token") is None
+    # Entry should be evicted from dict
+    assert key not in _auth_cache
+
+
+def test_cache_eviction_on_full():
+    """Cache evicts entries when max size is reached."""
+    from app.api.v1.sandbox_preview import _AUTH_CACHE_MAX_SIZE, _auth_cache, _cache_set
+
+    # Fill cache to max
+    for i in range(_AUTH_CACHE_MAX_SIZE):
+        _cache_set(f"token-{i}", str(i))
+    assert len(_auth_cache) == _AUTH_CACHE_MAX_SIZE
+
+    # Adding one more should evict an entry (not crash)
+    _cache_set("overflow-token", "overflow")
+    assert len(_auth_cache) <= _AUTH_CACHE_MAX_SIZE
+
+
+@pytest.mark.anyio
+async def test_cached_result_skips_db():
+    """Second call with same token uses cache, not DB."""
+    req = _make_request(bearer=FAKE_JWT)
+    mock_db = AsyncMock()
+    mock_user = MagicMock(is_active=True, id=42)
+
+    # First call — populates cache
+    with (
+        patch(_PATCH_DECODE, return_value="42"),
+        patch(_PATCH_GET_DB, return_value=_fake_db_session(mock_db)),
+        patch(
+            _PATCH_GET_USER, new_callable=AsyncMock, return_value=mock_user
+        ) as mock_get_user,
+    ):
+        result1 = await _authenticate_preview_request(req)
+        assert result1 == "42"
+        assert mock_get_user.call_count == 1
+
+    # Second call — should hit cache, NOT call get_user_by_id again
+    with (
+        patch(_PATCH_DECODE, return_value="42"),
+        patch(_PATCH_GET_DB, return_value=_fake_db_session(mock_db)),
+        patch(
+            _PATCH_GET_USER, new_callable=AsyncMock, return_value=mock_user
+        ) as mock_get_user,
+    ):
+        result2 = await _authenticate_preview_request(req)
+        assert result2 == "42"
+        assert mock_get_user.call_count == 0  # cache hit, no DB call

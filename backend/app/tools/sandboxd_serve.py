@@ -38,15 +38,13 @@ class SandboxdServeInput(ToolInput):
         ge=1,
         le=65535,
         description=(
-            "Port to serve on (default 8080). "
-            "Port 3000 is reserved by the sandboxd runtime."
+            "Port to serve on (default 8080). Port 3000 is reserved by the sandboxd runtime."
         ),
     )
     directory: str | None = Field(
         default=None,
         description=(
-            "Directory to serve from inside the container. "
-            "Defaults to /home/sandbox/ (the sandbox workspace root)."
+            "Directory to serve from inside the container. Defaults to /home/sandbox/ (the sandbox workspace root)."
         ),
     )
 
@@ -99,8 +97,7 @@ class SandboxdServeTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        "No sandbox available. Call sandboxd_preview first to "
-                        "create one, or pass `sandbox_id`."
+                        "No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."
                     ),
                 )
 
@@ -115,9 +112,17 @@ class SandboxdServeTool(BaseTool):
             if not ready:
                 # ── Step 2: Start a fallback server ───────────────────
                 serve_dir = validated.directory or _WORKSPACE_DIR
-                server_pid = await self._start_fallback_server(
+                server_pid, start_error = await self._start_fallback_server(
                     client, sandbox_id, port, serve_dir
                 )
+
+                if start_error:
+                    return ToolResult.error_result(
+                        tool_id=self.tool_id,
+                        error=(
+                            f"Failed to start server in sandbox {sandbox_id}: {start_error}"
+                        ),
+                    )
 
                 # Poll until the server is accepting connections (up to 10s)
                 for _attempt in range(20):
@@ -136,8 +141,7 @@ class SandboxdServeTool(BaseTool):
 
             if not ready:
                 logger.warning(
-                    "sandboxd_serve: server not accepting connections after "
-                    "10s polling (sandbox=%s, port=%s).",
+                    "sandboxd_serve: server not accepting connections after 10s polling (sandbox=%s, port=%s).",
                     sandbox_id,
                     port,
                 )
@@ -164,8 +168,7 @@ class SandboxdServeTool(BaseTool):
         check_cmd = [
             "bash",
             "-lc",
-            "curl -sf -o /dev/null -w '%%{http_code}' http://localhost:%d/ "
-            "2>/dev/null || echo '000'" % port,
+            f"curl -sf -o /dev/null -w '%%{{http_code}}' http://localhost:{port}/ 2>/dev/null || echo '000'",
         ]
         result = await client.exec_command(sandbox_id, check_cmd, timeout=5.0)
         output = result.get("stdout", "").strip().strip("'")
@@ -174,8 +177,12 @@ class SandboxdServeTool(BaseTool):
     @staticmethod
     async def _start_fallback_server(
         client, sandbox_id: str, port: int, serve_dir: str
-    ) -> int:
-        """Start a python3 http.server as a fallback. Returns the PID."""
+    ) -> tuple[int, str | None]:
+        """Start a python3 http.server as a fallback.
+
+        Returns ``(pid, error)`` where ``error`` is ``None`` on success
+        and a human-readable message if the start command failed.
+        """
         # Write a serve script to /tmp/serve.py to avoid quoting issues.
         # Uses SO_REUSEADDR so it can bind even if the port is in TIME_WAIT.
         # Uses SimpleHTTPRequestHandler(directory=...) instead of os.chdir
@@ -184,10 +191,10 @@ class SandboxdServeTool(BaseTool):
             "import http.server, socketserver",
             "class H(http.server.SimpleHTTPRequestHandler):",
             "    def __init__(self, *a, **kw):",
-            "        super().__init__(*a, directory='%s', **kw)" % serve_dir,
+            f"        super().__init__(*a, directory='{serve_dir}', **kw)",
             "socketserver.TCPServer.allow_reuse_address = True",
-            "s = socketserver.TCPServer(('0.0.0.0', %d), H)" % port,
-            "print('Serving on :%d from %s')" % (port, serve_dir),
+            f"s = socketserver.TCPServer(('0.0.0.0', {port}), H)",
+            f"print('Serving on :{port} from {serve_dir}')",
             "s.serve_forever()",
         ]
         script_content = "\n".join(lines) + "\n"
@@ -198,22 +205,26 @@ class SandboxdServeTool(BaseTool):
         start_cmd = [
             "bash",
             "-lc",
-            (
-                "echo '%s' > /tmp/serve.py && "
-                "nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & "
-                "echo $! > /tmp/serve.pid && "
-                "cat /tmp/serve.pid"
-            )
-            % escaped,
+            f"echo '{escaped}' > /tmp/serve.py && nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & echo $! > /tmp/serve.pid && cat /tmp/serve.pid",
         ]
 
         result = await client.exec_command(sandbox_id, start_cmd, timeout=10.0)
 
+        # Check exit code — the echo+nohup pipeline should exit 0.
+        exit_code = result.get("exit_code", 1)
+        if exit_code != 0:
+            stderr = result.get("stderr", "").strip()
+            error_msg = f"Start command exited with code {exit_code}"
+            if stderr:
+                error_msg += f": {stderr[:200]}"
+            return 0, error_msg
+
         pid_str = result.get("stdout", "").strip().split("\n")[-1]
         try:
-            return int(pid_str)
+            pid = int(pid_str)
         except (ValueError, TypeError):
-            return 0
+            return 0, f"Could not parse PID from output: {pid_str!r}"
+        return pid, None
 
     @staticmethod
     def _resolve_sandbox_id() -> str | None:

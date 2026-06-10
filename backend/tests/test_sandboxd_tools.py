@@ -732,10 +732,9 @@ class TestSandboxdServeTool:
             # start_fallback_server — PID
             {"stdout": "999", "stderr": "", "exit_code": 0},
         ]
-        for _ in range(20):
-            exec_results.append(
-                {"stdout": "000", "stderr": "", "exit_code": 0}
-            )
+        exec_results.extend(
+            {"stdout": "000", "stderr": "", "exit_code": 0} for _ in range(20)
+        )
         mock_client.exec_command = AsyncMock(side_effect=exec_results)
 
         with (
@@ -763,9 +762,7 @@ class TestSandboxdServeTool:
 
         with (
             patch.object(tool, "_get_client", return_value=mock_client),
-            patch.object(
-                tool, "_resolve_sandbox_id", return_value="sb-from-ctx"
-            ),
+            patch.object(tool, "_resolve_sandbox_id", return_value="sb-from-ctx"),
         ):
             result = await tool.execute({})
 
@@ -803,3 +800,57 @@ class TestSandboxdServeTool:
         start_call = mock_client.exec_command.call_args_list[1]
         cmd_str = start_call[0][1][2]  # the bash -lc arg
         assert "/home/sandbox/app" in cmd_str
+
+    @pytest.mark.asyncio
+    async def test_serve_returns_error_on_start_failure(self):
+        """Fallback server start command fails — returns error to caller."""
+        from app.tools.sandboxd_serve import SandboxdServeTool
+
+        tool = SandboxdServeTool()
+
+        mock_client = MagicMock()
+        mock_client.exec_command = AsyncMock(
+            side_effect=[
+                # check_port — not serving (need fallback)
+                {"stdout": "000", "stderr": "", "exit_code": 0},
+                # start_fallback_server — non-zero exit code
+                {"stdout": "", "stderr": "Permission denied", "exit_code": 126},
+            ]
+        )
+
+        with (
+            patch.object(tool, "_get_client", return_value=mock_client),
+            patch.object(tool, "_resolve_sandbox_id", return_value="sb-abc"),
+        ):
+            result = await tool.execute({})
+
+        assert result.success is False
+        assert "Failed to start server" in result.error
+        assert "Permission denied" in result.error
+        assert "126" in result.error
+
+    @pytest.mark.asyncio
+    async def test_serve_returns_error_on_invalid_pid_output(self):
+        """Start command succeeds but PID is unparseable — returns error."""
+        from app.tools.sandboxd_serve import SandboxdServeTool
+
+        tool = SandboxdServeTool()
+
+        mock_client = MagicMock()
+        mock_client.exec_command = AsyncMock(
+            side_effect=[
+                # check_port — not serving
+                {"stdout": "000", "stderr": "", "exit_code": 0},
+                # start_fallback_server — exit 0 but garbage PID output
+                {"stdout": "not-a-pid", "stderr": "", "exit_code": 0},
+            ]
+        )
+
+        with (
+            patch.object(tool, "_get_client", return_value=mock_client),
+            patch.object(tool, "_resolve_sandbox_id", return_value="sb-abc"),
+        ):
+            result = await tool.execute({})
+
+        assert result.success is False
+        assert "Could not parse PID" in result.error

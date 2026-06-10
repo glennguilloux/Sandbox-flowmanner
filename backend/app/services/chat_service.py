@@ -286,7 +286,7 @@ If you need to run custom commands (npm install, python scripts, etc.), use
 **sandboxd_exec** with the `command` field (argv array).
 
 The preview URL format is:
-https://s-<sandbox_id>-3000.preview.flowmanner.com
+https://s-<sandbox_id>-8080.preview.flowmanner.com
 
 The URL is publicly accessible. The sandbox stays alive for 35 minutes.
 
