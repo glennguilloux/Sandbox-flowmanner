@@ -47,3 +47,19 @@ Internet → VPS (Nginx :443) ──┬── /* ──→ frontend:3000 (Next.j
 
 Homelab services: PostgreSQL, Redis, Qdrant, RabbitMQ, Celery, Jaeger, llama.cpp
 ```
+
+## ⚠️ Active Warnings (read first — applies to ALL machines)
+
+The following items are in-flight or broken. Read the linked files before recommending any deploy or auth-related work:
+
+- ~~**Sandbox preview auth chain**~~ ✅ **RESOLVED.** Fixed and deployed 2026-06-10 across 3 commits:
+  - `4d8e04d` — UUID-vs-JWT bug fixed in `sandbox_preview.py` (added `_is_jwt()` heuristic + DB lookup for UUID cookies via `get_refresh_token()`)
+  - `800b670` — ToolResult field name fix in `io.py` (code execute 422 → working)
+  - `cd70bb6` — Auth chain completed (`auth.py` `_auth_response()` helper, `auth_cookies.py` cookie path widened to `/`)
+  - Frontend: `auth.ts` session callback exposes `refreshToken` for `/api/auth/preview-cookie` route
+  - 14 new tests in `test_sandbox_preview_auth.py`, all passing
+  - Audit: [`.hermes/plans/SANDBOX-PREVIEW-401-DEEPSEEK-AUDIT.md`](.hermes/plans/SANDBOX-PREVIEW-401-DEEPSEEK-AUDIT.md)
+  - Fix plan: [`.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md`](.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md)
+  - Roadmap: `docs/REBUILD-ROADMAP.md` → ✅ DONE
+- **REBUILD-ROADMAP.md is the canonical truth** for current rebuild state. Last verified 2026-06-10. If your work touches the rebuild phases, read it first.
+- **Memory stores are PER-MACHINE.** The agentmemory MCP store at `~/.agentmemory/data/state_store.db` is local to the machine where the agent runs. Do not assume a memory you saved on homelab is visible on ops (172.16.1.2) or VPS (74.208.115.142). For cross-instance context, rely on docs/AGENTS.md, not memory.
