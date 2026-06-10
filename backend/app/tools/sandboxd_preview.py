@@ -1,9 +1,14 @@
-"""sandboxd_preview — get or create a sandbox and return its live preview URL.
+"""sandboxd_preview — create or get a sandbox environment.
 
-Returns the preview URL from ``GET /v1/sandboxes/{id}`` (the
-``sandbox.preview.url`` field).  If no sandbox exists in the current
-context, automatically creates one so that standalone chat sessions
-(not just missions) can build and preview HTML pages.
+Returns sandbox metadata (id, status, preview_status).  If no sandbox
+exists in the current context, automatically creates one so that
+standalone chat sessions (not just missions) can build and preview
+HTML pages.
+
+IMPORTANT: This tool does NOT return the app preview URL.  The
+sandbox runtime URL on port 3000 is NOT your app — it only serves an
+empty directory listing.  Call ``sandboxd_serve`` after writing files
+to get the actual app preview URL on port 8080.
 """
 
 from __future__ import annotations
@@ -15,7 +20,6 @@ from uuid import uuid4
 
 from pydantic import Field
 
-from app.integrations.sandboxd_client import rewrite_sandboxd_url
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
@@ -40,15 +44,16 @@ class SandboxdPreviewTool(BaseTool):
             tool_id="sandboxd_preview",
             name="Sandboxd Preview",
             description=(
-                "Get the live preview URL for a sandbox. If no sandbox_id is "
-                "provided, creates a new sandbox automatically. "
-                "The preview URL is publicly accessible at "
-                "https://s-<sandbox_id>-<port>.preview.flowmanner.com. "
+                "Create a new sandbox or get status for an existing one. "
+                "If no sandbox_id is provided, creates a new sandbox automatically. "
+                "Returns sandbox metadata (id, status, preview_status) — "
+                "does NOT return the app preview URL. "
+                "WARNING: The sandbox runtime URL (port 3000) is NOT your app. "
+                "NEVER show the sandboxd_preview URL to the user. "
                 "Typical workflow: (1) call this without arguments to create a "
                 "sandbox, (2) use sandboxd_file_write to create your files, "
-                "(3) use sandboxd_serve to start a dev server on port 8080 "
-                "and get the preview URL. No need to call this tool again — "
-                "sandboxd_serve returns the preview URL directly."
+                "(3) use sandboxd_serve to start a dev server on port 8081 "
+                "and get the preview URL — sandboxd_serve is the ONLY source of the app preview URL."
             ),
             category="code-execution-and-development",
             input_schema=SandboxdPreviewInput.schema_extra(),
@@ -57,7 +62,7 @@ class SandboxdPreviewTool(BaseTool):
                 "properties": {
                     "sandbox_id": {"type": "string"},
                     "status": {"type": "string"},
-                    "preview_url": {"type": "string"},
+                    "preview_status": {"type": "string"},
                 },
             },
             tags=["sandbox", "preview", "url"],
@@ -142,16 +147,17 @@ class SandboxdPreviewTool(BaseTool):
                             exc_info=True,
                         )
 
-            preview_url = rewrite_sandboxd_url(preview.get("url", ""))
+            # NOTE: Deliberately do NOT return the sandbox runtime preview_url.
+            # The runtime URL (port 3000) shows an empty directory listing —
+            # it is NOT the user's app.  sandboxd_serve is the ONLY tool that
+            # returns the correct app preview URL (port 8081).
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={
                     "sandbox_id": sandbox_id,
                     "status": info.get("status"),
-                    "preview_url": preview_url,
                     "preview_status": preview_status,
-                    "preview": preview,
                 },
             )
         except Exception as e:

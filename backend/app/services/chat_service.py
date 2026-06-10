@@ -270,15 +270,19 @@ create a live preview. Follow this workflow **exactly**:
 
 1. **sandboxd_preview** — call with `{}` (no arguments) to create a new sandbox.
    Save the returned `sandbox_id` for ALL subsequent calls.
+   ⚠️  CRITICAL: sandboxd_preview returns sandbox metadata ONLY (id, status).
+   It does NOT return a usable app preview URL.  The sandbox runtime URL (port 3000)
+   is empty — do NOT show it to the user.  The preview URL comes from sandboxd_serve.
 2. **sandboxd_file_write** — write your files. Pass `sandbox_id` and `path` and `content`.
    Example: `{"sandbox_id": "...", "path": "index.html", "content": "<!DOCTYPE html>..."}`
    Subdirectories are created automatically (e.g. `"css/style.css"` works fine).
    Write ALL files before calling sandboxd_serve.
 3. **sandboxd_serve** — start a dev server and get the preview URL:
    `{"sandbox_id": "..."}`
-   This starts a server on port 8080 (port 3000 is reserved by the runtime)
+   This starts a server on port 8081 (port 8080 is used by the sandbox template)
    that serves from /home/sandbox/ where your files were written.
-   Returns the preview URL directly. That's it — 3 tool calls total.
+   This is the ONLY tool that returns the app preview URL.  ALWAYS call it
+   after writing files, and ALWAYS present its returned URL to the user.
 4. **sandboxd_file_read** — read a file back: `{"sandbox_id": "...", "path": "index.html"}`
 5. **sandboxd_file_list** — list workspace files: `{"sandbox_id": "...", "path": ""}`
 
@@ -286,7 +290,7 @@ If you need to run custom commands (npm install, python scripts, etc.), use
 **sandboxd_exec** with the `command` field (argv array).
 
 The preview URL format is:
-https://s-<sandbox_id>-8080.preview.flowmanner.com
+https://s-<sandbox_id>-8081.preview.flowmanner.com
 
 The URL is publicly accessible. The sandbox stays alive for 35 minutes.
 

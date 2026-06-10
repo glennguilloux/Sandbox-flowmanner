@@ -2,10 +2,14 @@
 
 Maps to ``PUT /v1/sandboxes/{id}/files?path=<rel>`` with raw body.
 Max 25 MiB. Atomic (tmp + rename). Rejects symlinks and ``..``.
+
+After a successful write, best-effort auto-starts a python3 http.server
+on port 8081 from /home/sandbox/ so files are immediately accessible.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -105,6 +109,19 @@ class SandboxdFileWriteTool(BaseTool):
                 validated.content,
             )
 
+            # ── Best-effort auto-serve on port 8081 ───────────────────
+            # The LLM may forget to call sandboxd_serve.  Auto-start a
+            # server on port 8081 (port 8080 is the template's) so files
+            # are immediately accessible after the first write.
+            # Fire-and-forget — must not block the file write response.
+            try:
+                asyncio.create_task(self._ensure_server_8081(client, sandbox_id))
+            except Exception:
+                logger.debug(
+                    "sandboxd_file_write: auto-serve skipped (non-fatal)",
+                    exc_info=True,
+                )
+
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={"written": True, "path": validated.path},
@@ -127,6 +144,50 @@ class SandboxdFileWriteTool(BaseTool):
         from app.integrations.sandboxd_client import get_sandboxd_client
 
         return get_sandboxd_client()
+
+    @staticmethod
+    async def _ensure_server_8081(client, sandbox_id: str) -> None:
+        """Best-effort: start python3 server on port 8081 if not already serving."""
+        # Quick check: is port 8081 already serving?
+        check = await client.exec_command(
+            sandbox_id,
+            [
+                "bash",
+                "-c",
+                "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8081/ 2>/dev/null || echo '000'",
+            ],
+            timeout=5.0,
+        )
+        if check.get("stdout", "").strip().strip("'") in ("200", "301", "302", "304"):
+            return  # Already serving
+
+        # Start python3 http.server on port 8081 from /home/sandbox/
+        lines = [
+            "import http.server, socketserver",
+            "class H(http.server.SimpleHTTPRequestHandler):",
+            "    def __init__(self, *a, **kw):",
+            "        super().__init__(*a, directory='/home/sandbox', **kw)",
+            "socketserver.TCPServer.allow_reuse_address = True",
+            "s = socketserver.TCPServer(('0.0.0.0', 8081), H)",
+            "print('Serving on :8081 from /home/sandbox')",
+            "s.serve_forever()",
+        ]
+        script = "\n".join(lines) + "\n"
+        escaped = script.replace("'", "'\\''")
+
+        await client.exec_command(
+            sandbox_id,
+            [
+                "bash",
+                "-c",
+                f"echo '{escaped}' > /tmp/serve8081.py && nohup python3 /tmp/serve8081.py > /tmp/serve8081.log 2>&1 &",
+            ],
+            timeout=5.0,
+        )
+        logger.info(
+            "sandboxd_file_write: auto-serve started on port 8081 (sandbox=%s)",
+            sandbox_id,
+        )
 
 
 register_tool(SandboxdFileWriteTool())

@@ -1,8 +1,8 @@
 """sandboxd_serve — start a dev server inside the sandbox.
 
-Starts a ``python3 -m http.server`` on port 8080 (port 3000 is reserved
-by the sandboxd runtime) that serves files from the sandbox workspace
-root (``/home/sandbox/``).  Polls until the server is accepting
+Starts a ``python3 -m http.server`` on port 8081 (port 8080 is
+used by the sandbox template's built-in dev server).  Serves files
+from the sandbox workspace root (``/home/sandbox/``).  Polls until the server is accepting
 connections, then returns the preview URL.
 
 This tool eliminates the need for the LLM to manually craft
@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 # the file at /home/sandbox/index.html).
 _WORKSPACE_DIR = "/home/sandbox"
 
+# Number of poll attempts × interval after starting the fallback server.
+_SERVE_POLL_ATTEMPTS = 20  # 20 × 0.5 s = 10 s max
+_SERVE_POLL_INTERVAL = 0.5  # seconds
+
 
 class SandboxdServeInput(ToolInput):
     sandbox_id: str | None = Field(
@@ -34,10 +38,12 @@ class SandboxdServeInput(ToolInput):
         description="Sandbox ID. If omitted, uses the current context sandbox.",
     )
     port: int = Field(
-        default=8080,
+        default=8081,
         ge=1,
         le=65535,
-        description=("Port to serve on (default 8080). Port 3000 is reserved by the sandboxd runtime."),
+        description=(
+            "Port to serve on (default 8081). Port 8080 is used by the sandbox template's built-in dev server."
+        ),
     )
     directory: str | None = Field(
         default=None,
@@ -55,8 +61,8 @@ class SandboxdServeTool(BaseTool):
             tool_id="sandboxd_serve",
             name="Sandboxd Serve",
             description=(
-                "Start a static file server inside the sandbox on port 8080 "
-                "(port 3000 is reserved by the sandboxd runtime). The server serves "
+                "Start a static file server inside the sandbox on port 8081 "
+                "(port 8080 is used by the sandbox template). The server serves "
                 "files from /home/sandbox/ so files written with sandboxd_file_write "
                 "are accessible at the preview URL. Returns the preview URL directly. "
                 "Typical workflow: (1) sandboxd_preview to create sandbox, "
@@ -85,38 +91,44 @@ class SandboxdServeTool(BaseTool):
         try:
             validated = SandboxdServeInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=("No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."),
+                    error=(
+                        "No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."
+                    ),
                 )
 
             client = self._get_client()
             port = validated.port
 
             # ── Step 1: Check if port is already serving ──────────────
-            # The template's dev server (Vite, etc.) may already be running.
-            # If so, we don't need to start anything — just return the URL.
             ready = await self._check_port(client, sandbox_id, port)
 
             if not ready:
                 # ── Step 2: Start a fallback server ───────────────────
                 serve_dir = validated.directory or _WORKSPACE_DIR
-                server_pid, start_error = await self._start_fallback_server(client, sandbox_id, port, serve_dir)
+                server_pid, start_error = await self._start_fallback_server(
+                    client, sandbox_id, port, serve_dir
+                )
 
                 if start_error:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(f"Failed to start server in sandbox {sandbox_id}: {start_error}"),
+                        error=(
+                            f"Failed to start server in sandbox {sandbox_id}: {start_error}"
+                        ),
                     )
 
                 # Poll until the server is accepting connections (up to 10s)
-                for _attempt in range(20):
-                    await asyncio.sleep(0.5)
+                for _attempt in range(_SERVE_POLL_ATTEMPTS):
+                    await asyncio.sleep(_SERVE_POLL_INTERVAL)
                     ready = await self._check_port(client, sandbox_id, port)
                     if ready:
                         break
@@ -173,7 +185,9 @@ class SandboxdServeTool(BaseTool):
         return output in ("200", "301", "302", "304")
 
     @staticmethod
-    async def _start_fallback_server(client, sandbox_id: str, port: int, serve_dir: str) -> tuple[int, str | None]:
+    async def _start_fallback_server(
+        client, sandbox_id: str, port: int, serve_dir: str
+    ) -> tuple[int, str | None]:
         """Start a python3 http.server as a fallback.
 
         Returns ``(pid, error)`` where ``error`` is ``None`` on success
@@ -198,7 +212,6 @@ class SandboxdServeTool(BaseTool):
         # Escape for single-quoted shell string
         escaped = script_content.replace("'", "'\\''")
 
-        # NOTE: ``bash -c`` (not ``bash -lc``) for consistency with _check_port.
         start_cmd = [
             "bash",
             "-c",

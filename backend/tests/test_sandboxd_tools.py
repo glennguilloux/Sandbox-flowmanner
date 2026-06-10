@@ -40,7 +40,9 @@ class TestSandboxdExecTool:
             patch.object(tool, "_get_client", return_value=mock_client),
             patch.object(tool, "_resolve_sandbox_id", return_value="sb-abc"),
         ):
-            result = await tool.execute({"code": "print('hello world')", "language": "python"})
+            result = await tool.execute(
+                {"code": "print('hello world')", "language": "python"}
+            )
 
         assert result.success is True
         assert "hello world" in result.result["stdout"]
@@ -174,7 +176,9 @@ class TestSandboxdFileWriteTool:
             patch.object(tool, "_get_client", return_value=mock_client),
             patch.object(tool, "_resolve_sandbox_id", return_value="sb-abc"),
         ):
-            result = await tool.execute({"path": "src/app.py", "content": "print('hi')"})
+            result = await tool.execute(
+                {"path": "src/app.py", "content": "print('hi')"}
+            )
 
         assert result.success is True
         mock_client.write_file.assert_awaited_once()
@@ -186,13 +190,15 @@ class TestSandboxdFileWriteTool:
         tool = SandboxdFileWriteTool()
 
         with patch.object(tool, "_resolve_sandbox_id", return_value=None):
-            result = await tool.execute({"path": "src/app.py", "content": "print('hi')"})
+            result = await tool.execute(
+                {"path": "src/app.py", "content": "print('hi')"}
+            )
 
         assert result.success is False
 
 
 class TestSandboxdPreviewTool:
-    """sandboxd_preview — get or create sandbox, return live preview URL."""
+    """sandboxd_preview — create or get sandbox, return metadata."""
 
     def test_tool_metadata(self):
         from app.tools.sandboxd_preview import SandboxdPreviewTool
@@ -203,7 +209,7 @@ class TestSandboxdPreviewTool:
         assert tool.metadata.timeout_seconds == 30
 
     @pytest.mark.asyncio
-    async def test_returns_preview_url_with_explicit_sandbox_id(self):
+    async def test_returns_metadata_with_explicit_sandbox_id(self):
         from app.tools.sandboxd_preview import SandboxdPreviewTool
 
         tool = SandboxdPreviewTool()
@@ -223,12 +229,13 @@ class TestSandboxdPreviewTool:
 
         assert result.success is True
         assert result.result["sandbox_id"] == "sb-abc"
-        assert "preview" in result.result
-        assert result.result["preview"]["status"] == "ready"
+        assert result.result["preview_status"] == "ready"
+        assert "preview" not in result.result  # raw preview dict not exposed
+        assert "preview_url" not in result.result  # do NOT expose runtime URL
         mock_client.get.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_returns_preview_url_from_context(self):
+    async def test_returns_metadata_from_context(self):
         from app.tools.sandboxd_preview import SandboxdPreviewTool
 
         tool = SandboxdPreviewTool()
@@ -259,7 +266,9 @@ class TestSandboxdPreviewTool:
         tool = SandboxdPreviewTool()
 
         mock_client = MagicMock()
-        mock_client.create = AsyncMock(return_value={"id": "sb-auto-123", "status": "creating"})
+        mock_client.create = AsyncMock(
+            return_value={"id": "sb-auto-123", "status": "creating"}
+        )
         mock_client.get = AsyncMock(
             return_value={
                 "status": "running",
@@ -370,7 +379,9 @@ class TestSandboxdPreviewTool:
         }
 
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(side_effect=[starting_info, starting_info, ready_info])
+        mock_client.get = AsyncMock(
+            side_effect=[starting_info, starting_info, ready_info]
+        )
 
         with (
             patch.object(tool, "_get_client", return_value=mock_client),
@@ -380,7 +391,7 @@ class TestSandboxdPreviewTool:
 
         assert result.success is True
         assert result.result["preview_status"] == "ready"
-        assert "preview.flowmanner.com" in result.result["preview_url"]
+        assert "preview_url" not in result.result  # do NOT expose runtime URL
         # Polled 2 extra times (3 total get calls, 2 sleeps between them)
         assert mock_client.get.await_count == 3
         assert mock_sleep.await_count == 2
@@ -439,7 +450,9 @@ class TestSandboxdPreviewTool:
         mock_client = MagicMock()
         # First call succeeds (starts polling), second raises (transient),
         # third succeeds (polling completes).
-        mock_client.get = AsyncMock(side_effect=[starting_info, ConnectionError("transient"), ready_info])
+        mock_client.get = AsyncMock(
+            side_effect=[starting_info, ConnectionError("transient"), ready_info]
+        )
 
         with (
             patch.object(tool, "_get_client", return_value=mock_client),
@@ -519,7 +532,10 @@ class TestSandboxdPreviewTool:
         props = schema.get("properties", {})
         assert "sandbox_id" in props
         # sandbox_id is optional (str | None) — Pydantic uses anyOf for unions
-        assert props["sandbox_id"].get("anyOf") is not None or props["sandbox_id"].get("type") is not None
+        assert (
+            props["sandbox_id"].get("anyOf") is not None
+            or props["sandbox_id"].get("type") is not None
+        )
 
 
 class TestSandboxdFileListTool:
@@ -554,7 +570,9 @@ class TestSandboxdFileListTool:
 
         assert result.success is True
         assert len(result.result["files"]) == 2
-        mock_client.list_files.assert_awaited_once_with("sb-abc", path="src", recursive=True)
+        mock_client.list_files.assert_awaited_once_with(
+            "sb-abc", path="src", recursive=True
+        )
 
     @pytest.mark.asyncio
     async def test_list_files_no_sandbox(self):
@@ -583,14 +601,16 @@ class TestSandboxdServeTool:
 
     @pytest.mark.asyncio
     async def test_returns_url_when_port_already_serving(self):
-        """Port 3000 already serving (template server) — returns URL immediately."""
+        """Port already serving — returns URL immediately without starting fallback."""
         from app.tools.sandboxd_serve import SandboxdServeTool
 
         tool = SandboxdServeTool()
 
         mock_client = MagicMock()
         # _check_port returns 200 — port is already serving
-        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
+        mock_client.exec_command = AsyncMock(
+            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
+        )
 
         with (
             patch.object(tool, "_get_client", return_value=mock_client),
@@ -600,11 +620,11 @@ class TestSandboxdServeTool:
 
         assert result.success is True
         assert result.result["sandbox_id"] == "sb-abc"
-        assert result.result["port"] == 8080
+        assert result.result["port"] == 8081
         assert result.result["server_pid"] == 0  # Unknown — didn't start it
         assert result.result["status"] == "ready"
         assert "preview.flowmanner.com" in result.result["preview_url"]
-        assert "sb-abc-8080" in result.result["preview_url"]
+        assert "sb-abc-8081" in result.result["preview_url"]
         # Only one exec call — the check, no fallback start
         assert mock_client.exec_command.await_count == 1
 
@@ -639,7 +659,7 @@ class TestSandboxdServeTool:
         assert result.success is True
         assert result.result["server_pid"] == 12345
         assert result.result["status"] == "ready"
-        assert "sb-abc-8080" in result.result["preview_url"]
+        assert "sb-abc-8081" in result.result["preview_url"]
 
     @pytest.mark.asyncio
     async def test_serve_with_custom_port(self):
@@ -649,10 +669,7 @@ class TestSandboxdServeTool:
 
         mock_client = MagicMock()
         mock_client.exec_command = AsyncMock(
-            side_effect=[
-                # check_port on custom port — already serving
-                {"stdout": "200", "stderr": "", "exit_code": 0},
-            ]
+            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
         )
 
         with (
@@ -672,7 +689,9 @@ class TestSandboxdServeTool:
         tool = SandboxdServeTool()
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
+        mock_client.exec_command = AsyncMock(
+            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
+        )
 
         with (
             patch.object(tool, "_get_client", return_value=mock_client),
@@ -711,7 +730,9 @@ class TestSandboxdServeTool:
             # start_fallback_server — PID
             {"stdout": "999", "stderr": "", "exit_code": 0},
         ]
-        exec_results.extend({"stdout": "000", "stderr": "", "exit_code": 0} for _ in range(20))
+        exec_results.extend(
+            {"stdout": "000", "stderr": "", "exit_code": 0} for _ in range(20)
+        )
         mock_client.exec_command = AsyncMock(side_effect=exec_results)
 
         with (
@@ -732,7 +753,9 @@ class TestSandboxdServeTool:
         tool = SandboxdServeTool()
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
+        mock_client.exec_command = AsyncMock(
+            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
+        )
 
         with (
             patch.object(tool, "_get_client", return_value=mock_client),
