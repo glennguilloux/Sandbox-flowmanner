@@ -1,13 +1,11 @@
-"""sandboxd_serve — start a dev server inside the sandbox.
+"""sandboxd_serve — ensure a dev server is running inside the sandbox.
 
-Starts an HTTP server in the background on the given port (default 3000)
-that serves files from the sandbox workspace directory.  Polls until the
-server is accepting connections, then returns the preview URL.
+Checks if the target port is already serving (e.g. the template's Vite
+dev server).  If yes, returns the preview URL immediately.  If not,
+starts a ``python3 -m http.server`` as a fallback.
 
 This tool eliminates the need for the LLM to manually craft
-``sandboxd_exec`` calls with ``nohup`` + ``cd`` + ``--directory`` flags —
-the exact commands that caused the "empty preview" bug when the LLM
-served from the wrong directory.
+``sandboxd_exec`` calls with ``nohup`` + ``cd`` + ``--directory`` flags.
 """
 
 from __future__ import annotations
@@ -26,6 +24,9 @@ logger = logging.getLogger(__name__)
 # The sandbox workspace root inside the container.  The PUT /files API
 # writes paths relative to this directory (e.g. path="index.html" puts
 # the file at /home/sandbox/index.html).
+# NOTE: Most templates serve from /home/sandbox/app/ (the Vite/React
+# project directory).  When writing files for a template sandbox, prefer
+# paths like "app/index.html" so the template's dev server picks them up.
 _WORKSPACE_DIR = "/home/sandbox"
 
 
@@ -50,22 +51,24 @@ class SandboxdServeInput(ToolInput):
 
 
 class SandboxdServeTool(BaseTool):
-    """Start a dev server inside the sandbox and return the preview URL."""
+    """Ensure a dev server is running inside the sandbox and return the preview URL."""
 
     def __init__(self) -> None:
         metadata = ToolMetadata(
             tool_id="sandboxd_serve",
             name="Sandboxd Serve",
             description=(
-                "Start a static file server inside the sandbox on the given port "
-                "(default 3000). The server serves files from the sandbox workspace root "
-                "(/home/sandbox/) so HTML files written with "
-                "sandboxd_file_write are accessible. Polls until the server is "
-                "accepting connections, then returns the preview URL. "
+                "Ensure a dev server is running on the given port (default 3000) "
+                "inside the sandbox. First checks if the port is already serving "
+                "(e.g. the template's Vite dev server). If yes, returns the preview "
+                "URL immediately. If not, starts a static file server as a fallback. "
+                "The sandbox workspace root is /home/sandbox/. "
+                "For template sandboxes, the template server usually serves from "
+                "/home/sandbox/app/ — write your files with path='app/index.html' "
+                "so the template's dev server picks them up. "
                 "Typical workflow: (1) sandboxd_preview to create sandbox, "
-                "(2) sandboxd_file_write to create files, "
-                "(3) sandboxd_serve to start the server and get the preview URL. "
-                "That's it — 3 tool calls total."
+                "(2) sandboxd_file_write to write files (use 'app/' prefix for templates), "
+                "(3) sandboxd_serve to get the preview URL. That's it — 3 tool calls."
             ),
             category="code-execution-and-development",
             input_schema=SandboxdServeInput.schema_extra(),
@@ -99,80 +102,36 @@ class SandboxdServeTool(BaseTool):
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        "No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."
+                        "No sandbox available. Call sandboxd_preview first to "
+                        "create one, or pass `sandbox_id`."
                     ),
                 )
 
             client = self._get_client()
             port = validated.port
-            serve_dir = validated.directory or _WORKSPACE_DIR
 
-            # Write a serve script to /tmp/serve.py then run it.
-            # We use a Python script instead of `python3 -m http.server`
-            # because the bare module doesn't set SO_REUSEADDR, causing
-            # "Address already in use" errors after killing a previous server.
-            #
-            # Using SimpleHTTPRequestHandler(directory=...) avoids os.chdir
-            # and all quoting issues with inline scripts.
-            serve_script = (
-                f"import http.server, socketserver\n"
-                f"class H(http.server.SimpleHTTPRequestHandler):\n"
-                f"    def __init__(self, *a, **kw):\n"
-                f"        super().__init__(*a, directory='{serve_dir}', **kw)\n"
-                f"socketserver.TCPServer.allow_reuse_address = True\n"
-                f"s = socketserver.TCPServer(('0.0.0.0', {port}), H)\n"
-                f"print('Serving on :{port} from {serve_dir}')\n"
-                f"s.serve_forever()\n"
-            )
-            # Write the script to /tmp/serve.py, kill old server, start new one
-            escaped_script = serve_script.replace("'", "'\\''")
-            start_cmd = [
-                "bash",
-                "-lc",
-                (
-                    f"echo '{escaped_script}' > /tmp/serve.py && "
-                    f"fuser -k {port}/tcp 2>/dev/null; sleep 1; "
-                    f"nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & "
-                    f"echo $! > /tmp/serve.pid && "
-                    f"cat /tmp/serve.pid"
-                ),
-            ]
+            # ── Step 1: Check if port is already serving ──────────────
+            # The template's dev server (Vite, etc.) may already be running.
+            # If so, we don't need to start anything — just return the URL.
+            ready = await self._check_port(client, sandbox_id, port)
 
-            result = await client.exec_command(sandbox_id, start_cmd, timeout=10.0)
-            exit_code = result.get("exit_code", 1)
-            if exit_code != 0:
-                stderr = result.get("stderr", "")
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error=f"Failed to start server (exit_code={exit_code}): {stderr}",
+            if not ready:
+                # ── Step 2: Start a fallback server ───────────────────
+                serve_dir = validated.directory or _WORKSPACE_DIR
+                server_pid = await self._start_fallback_server(
+                    client, sandbox_id, port, serve_dir
                 )
 
-            # Extract PID from stdout
-            pid_str = result.get("stdout", "").strip().split("\n")[-1]
-            try:
-                server_pid = int(pid_str)
-            except (ValueError, TypeError):
-                server_pid = 0
-
-            # Poll until the server is accepting connections (up to 10s)
-            ready = False
-            for _attempt in range(20):  # 20 × 500ms = 10s max
-                await asyncio.sleep(0.5)
-                check_cmd = [
-                    "bash",
-                    "-lc",
-                    f"curl -sf -o /dev/null -w '%{{http_code}}' http://localhost:{port}/ 2>/dev/null || echo '000'",
-                ]
-                check_result = await client.exec_command(
-                    sandbox_id, check_cmd, timeout=5.0
-                )
-                check_output = check_result.get("stdout", "").strip().strip("'")
-                if check_output in ("200", "301", "302", "304"):
-                    ready = True
-                    break
+                # Poll until the server is accepting connections (up to 10s)
+                for _attempt in range(20):
+                    await asyncio.sleep(0.5)
+                    ready = await self._check_port(client, sandbox_id, port)
+                    if ready:
+                        break
+            else:
+                server_pid = 0  # Already running — we don't know the PID
 
             # Build the preview URL
-            # The URL format is: https://s-<sandbox_id>-<port>.preview.flowmanner.com
             raw_preview_url = f"http://s-{sandbox_id}-{port}.preview.localhost"
             preview_url = rewrite_sandboxd_url(raw_preview_url)
 
@@ -180,9 +139,10 @@ class SandboxdServeTool(BaseTool):
 
             if not ready:
                 logger.warning(
-                    "sandboxd_serve: server started (pid=%s) but not accepting "
-                    "connections after 10s polling. Check /tmp/serve.log inside sandbox.",
-                    server_pid,
+                    "sandboxd_serve: server not accepting connections after "
+                    "10s polling (sandbox=%s, port=%s).",
+                    sandbox_id,
+                    port,
                 )
 
             return ToolResult.success_result(
@@ -200,6 +160,63 @@ class SandboxdServeTool(BaseTool):
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
     # ── Helpers ────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _check_port(client, sandbox_id: str, port: int) -> bool:
+        """Return True if the port is accepting HTTP connections."""
+        check_cmd = [
+            "bash",
+            "-lc",
+            "curl -sf -o /dev/null -w '%%{http_code}' http://localhost:%d/ "
+            "2>/dev/null || echo '000'" % port,
+        ]
+        result = await client.exec_command(sandbox_id, check_cmd, timeout=5.0)
+        output = result.get("stdout", "").strip().strip("'")
+        return output in ("200", "301", "302", "304")
+
+    @staticmethod
+    async def _start_fallback_server(
+        client, sandbox_id: str, port: int, serve_dir: str
+    ) -> int:
+        """Start a python3 http.server as a fallback. Returns the PID."""
+        # Write a serve script to /tmp/serve.py to avoid quoting issues.
+        # Uses SO_REUSEADDR so it can bind even if the port is in TIME_WAIT.
+        # Uses SimpleHTTPRequestHandler(directory=...) instead of os.chdir
+        # to avoid path quoting issues.
+        lines = [
+            "import http.server, socketserver",
+            "class H(http.server.SimpleHTTPRequestHandler):",
+            "    def __init__(self, *a, **kw):",
+            "        super().__init__(*a, directory='%s', **kw)" % serve_dir,
+            "socketserver.TCPServer.allow_reuse_address = True",
+            "s = socketserver.TCPServer(('0.0.0.0', %d), H)" % port,
+            "print('Serving on :%d from %s')" % (port, serve_dir),
+            "s.serve_forever()",
+        ]
+        script_content = "\n".join(lines) + "\n"
+
+        # Escape for single-quoted shell string
+        escaped = script_content.replace("'", "'\\''")
+
+        start_cmd = [
+            "bash",
+            "-lc",
+            (
+                "echo '%s' > /tmp/serve.py && "
+                "nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & "
+                "echo $! > /tmp/serve.pid && "
+                "cat /tmp/serve.pid"
+            )
+            % escaped,
+        ]
+
+        result = await client.exec_command(sandbox_id, start_cmd, timeout=10.0)
+
+        pid_str = result.get("stdout", "").strip().split("\n")[-1]
+        try:
+            return int(pid_str)
+        except (ValueError, TypeError):
+            return 0
 
     @staticmethod
     def _resolve_sandbox_id() -> str | None:
