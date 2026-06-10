@@ -1,8 +1,9 @@
-"""sandboxd_serve — ensure a dev server is running inside the sandbox.
+"""sandboxd_serve — start a dev server inside the sandbox.
 
-Checks if the target port is already serving (e.g. the template's Vite
-dev server).  If yes, returns the preview URL immediately.  If not,
-starts a ``python3 -m http.server`` as a fallback.
+Starts a ``python3 -m http.server`` on port 8080 (port 3000 is reserved
+by the sandboxd runtime) that serves files from the sandbox workspace
+root (``/home/sandbox/``).  Polls until the server is accepting
+connections, then returns the preview URL.
 
 This tool eliminates the need for the LLM to manually craft
 ``sandboxd_exec`` calls with ``nohup`` + ``cd`` + ``--directory`` flags.
@@ -24,9 +25,6 @@ logger = logging.getLogger(__name__)
 # The sandbox workspace root inside the container.  The PUT /files API
 # writes paths relative to this directory (e.g. path="index.html" puts
 # the file at /home/sandbox/index.html).
-# NOTE: Most templates serve from /home/sandbox/app/ (the Vite/React
-# project directory).  When writing files for a template sandbox, prefer
-# paths like "app/index.html" so the template's dev server picks them up.
 _WORKSPACE_DIR = "/home/sandbox"
 
 
