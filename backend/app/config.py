@@ -154,6 +154,9 @@ class Settings(BaseSettings):
     SANDBOXD_ENABLED: bool = True
     SANDBOXD_DEFAULT_TEMPLATE: str = "react-standard"
 
+    # Chat tool-calling limits
+    CHAT_MAX_TOOL_ROUNDS: int = 15
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
