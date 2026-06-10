@@ -131,10 +131,21 @@
 
 **Problem:** `_MAX_TOOL_ROUNDS = 10` was too low for sandbox workflows (create → write files → start server → get preview = 4+ calls, multi-file projects exceed 10).
 
-**Fix:** Increased to 15.
+**Fix:** Increased to 15 (initially hardcoded, then made configurable in Fix 9).
 
 **Commit:** `6dc705a`
 **Files:** `backend/app/services/chat_service.py`
+
+---
+
+### ✅ Fix 9: Make Max Tool Rounds Configurable via .env
+
+**Problem:** `_MAX_TOOL_ROUNDS` was hardcoded — changing it required a code edit + rebuild.
+
+**Fix:** Added `CHAT_MAX_TOOL_ROUNDS: int = 15` to `config.py` Settings class. `chat_service.py` now reads `settings.CHAT_MAX_TOOL_ROUNDS`. Tunable via `.env` — just add `CHAT_MAX_TOOL_ROUNDS=20` and restart the backend (no rebuild needed).
+
+**Commit:** `e64597d`
+**Files:** `backend/app/config.py`, `backend/app/services/chat_service.py`
 
 ---
 
@@ -163,6 +174,7 @@
 | `6f56ac6` | fix: forward-auth 422, asyncpg connection-closed, sandboxd NEW guard, celery extra_hosts |
 | `0ea3993` | fix(sandboxd): extend LLM literal-string guard to include NONE and NULL |
 | `6dc705a` | chore(chat): increase max tool rounds from 10 to 15 |
+| `e64597d` | feat(chat): make max tool rounds configurable via CHAT_MAX_TOOL_ROUNDS env var |
 
 ### Frontend (master branch)
 
@@ -216,10 +228,6 @@ flowmanner-nginx    Up <1 min (VPS)
 ### 🟡 Traefik websecure EntryPoint Missing
 
 Sandbox containers have labels referencing `websecure` entrypoint, but Traefik only has `web` (HTTP). Causes warnings in Traefik logs. Not blocking — VPS nginx handles SSL termination. Labels should be cleaned up in sandboxd template config.
-
-### 🟡 Make _MAX_TOOL_ROUNDS Configurable
-
-Currently hardcoded in `chat_service.py`. Should be moved to `config.py` as `MAX_TOOL_ROUNDS: int = 15` for easier tuning without redeployment.
 
 ### ⬜ Phase 0.2 — Live Preview End-to-End
 
