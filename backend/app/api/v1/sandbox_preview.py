@@ -10,7 +10,6 @@ sandbox container.
 from __future__ import annotations
 
 import logging
-import re
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,7 +19,7 @@ from starlette.responses import Response
 
 from app.api.deps import get_current_user
 from app.config import settings
-from app.integrations.sandboxd_client import get_sandboxd_client
+from app.integrations.sandboxd_client import get_sandboxd_client, rewrite_sandboxd_url
 
 logger = logging.getLogger(__name__)
 
@@ -74,11 +73,10 @@ async def get_preview_url(
     preview: dict = info.get("preview") or {}
 
     # Rewrite the preview URL from sandboxd's internal domain to the
-    # configured public preview domain.  sandboxd may return URLs like
-    # ``http://s-abc-3000.preview.localhost`` — we rewrite to
-    # ``https://s-abc-3000.preview.flowmanner.com``.
+    # configured public preview domain.  Uses the shared rewriter from
+    # sandboxd_preview.py so the tool and API always agree.
     raw_url = preview.get("url")
-    public_url = _rewrite_preview_url(raw_url) if raw_url else None
+    public_url = rewrite_sandboxd_url(raw_url) if raw_url else None
 
     return SandboxPreviewResponse(
         sandbox_id=sandbox_id,
@@ -184,7 +182,9 @@ async def _authenticate_preview_request(req: Request) -> str | None:
             if record is None:
                 return None
             # get_refresh_token already filters is_revoked == False
-            if record.expires_at and record.expires_at < datetime.now(UTC).replace(tzinfo=None):
+            if record.expires_at and record.expires_at < datetime.now(UTC).replace(
+                tzinfo=None
+            ):
                 return None
             user = await get_user_by_id(db, record.user_id)
             if user and user.is_active:
@@ -193,27 +193,3 @@ async def _authenticate_preview_request(req: Request) -> str | None:
         logger.warning("forward-auth refresh-token lookup failed", exc_info=True)
 
     return None
-
-
-def _rewrite_preview_url(raw_url: str) -> str:
-    """Rewrite sandboxd preview URL to the public preview domain.
-
-    sandboxd returns URLs like ``http://s-abc-3000.preview.localhost``
-    (or ``https://...`` when TLS is enabled).  We rewrite the host to
-    ``<subdomain>.preview.flowmanner.com`` and force HTTPS.
-    """
-    # Extract the subdomain prefix (e.g. "s-abc-3000") from the URL
-    match = re.search(r"://([^/]+)", raw_url)
-    if not match:
-        return raw_url
-
-    host = match.group(1)
-    # Strip port if present
-    subdomain = host.split(":")[0]
-    # Remove any existing ".preview" suffix (with optional domain after it)
-    # to get just the sandbox prefix (e.g. "s-abc-3000")
-    subdomain = re.sub(r"\.preview.*$", "", subdomain)
-
-    # SANDBOXD_PREVIEW_DOMAIN is already "preview.flowmanner.com"
-    domain = settings.SANDBOXD_PREVIEW_DOMAIN or "preview.flowmanner.com"
-    return f"https://{subdomain}.{domain}"

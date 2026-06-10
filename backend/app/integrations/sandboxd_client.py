@@ -12,6 +12,7 @@ Phase 1 code execution via ``SandboxdClient.exec_command``.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -20,6 +21,40 @@ import httpx
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ── Shared URL rewriter (used by tools, API routes, and playground) ──
+
+
+def rewrite_sandboxd_url(url: str, domain: str | None = None) -> str:
+    """Rewrite sandboxd localhost URLs to the public preview domain.
+
+    Transforms ``http://s-xxx-3000.preview.localhost`` into
+    ``https://s-xxx-3000.preview.flowmanner.com`` — fixing both
+    the domain and the scheme (public domain has TLS).
+
+    Only rewrites URLs whose host contains ``.preview.`` — plain URLs
+    (e.g. ``https://example.com/page``) pass through unchanged.
+    """
+    if not url:
+        return ""
+
+    effective_domain = domain or settings.SANDBOXD_PREVIEW_DOMAIN
+
+    # Only rewrite sandboxd preview URLs (must contain '.preview.' in host)
+    match = re.search(r"://([^/]+)", url)
+    if match and ".preview." in match.group(1):
+        host = match.group(1).split(":")[0]
+        subdomain = re.sub(r"\.preview.*$", "", host)
+        if effective_domain:
+            return f"https://{subdomain}.{effective_domain}"
+
+    # Fallback: string replacement for .preview.localhost
+    if effective_domain and ".preview.localhost" in url:
+        url = url.replace(".preview.localhost", f".{effective_domain}")
+    if url.startswith("http://") and effective_domain and effective_domain in url:
+        url = "https://" + url[len("http://") :]
+    return url
 
 
 class SandboxdClient:
@@ -60,7 +95,7 @@ class SandboxdClient:
         self,
         project_id: str,
         user_id: str,
-        template: str = "react-standard",
+        template: str | None = None,
         visibility: str = "private",
     ) -> dict[str, Any]:
         """Create sandbox for a project.
@@ -74,15 +109,20 @@ class SandboxdClient:
         """
         client = await self._get_client()
 
-        # Try v1 public API first
-        resp = await client.post(
-            "/v1/sandboxes",
-            json={
-                "project": {"id": project_id, "user_id": user_id},
-                "template": template,
-                "visibility": visibility,
-            },
+        # Resolve template: explicit arg > settings default > empty (no template)
+        effective_template = (
+            template if template is not None else settings.SANDBOXD_DEFAULT_TEMPLATE
         )
+
+        # Try v1 public API first
+        payload: dict[str, Any] = {
+            "project": {"id": project_id, "user_id": user_id},
+            "visibility": visibility,
+        }
+        if effective_template:
+            payload["template"] = effective_template
+
+        resp = await client.post("/v1/sandboxes", json=payload)
 
         if resp.status_code == 400:
             # Fallback: internal API (same-host, no template validation)
@@ -237,17 +277,21 @@ class SandboxdClient:
         return resp.text
 
     async def write_file(
-        self, sandbox_id: str, path: str, content: bytes
+        self, sandbox_id: str, path: str, content: str | bytes
     ) -> dict[str, Any]:
         """PUT /v1/sandboxes/{id}/files?path= — write file (≤25 MiB).
 
         Atomic: tmp file + rename. No symlink following.
+        Accepts both ``str`` (auto-encoded to UTF-8) and ``bytes``.
         """
+        if isinstance(content, str):
+            content = content.encode("utf-8")
         client = await self._get_client()
         resp = await client.put(
             f"/v1/sandboxes/{sandbox_id}/files",
             params={"path": path},
             content=content,
+            headers={"Content-Type": "application/octet-stream"},
         )
         resp.raise_for_status()
         return resp.json()
@@ -271,14 +315,29 @@ class SandboxdClient:
 
         Uses the **internal** API (not v1) because raw exec is internal-only.
         Same-host access only (FlowManner and sandboxd share the homelab).
+
+        Returns the JSON body directly (including ``stdout``, ``stderr``,
+        ``exit_code``) even when the exec itself failed — callers check
+        ``exit_code`` rather than relying on HTTP status.
         """
         client = await self._get_client()
         resp = await client.post(
             f"/sandbox/{sandbox_id}/exec",
             json={"cmd": cmd, "stream": stream},
         )
-        resp.raise_for_status()
-        return resp.json()
+        # Return the body regardless of HTTP status — the exec may have
+        # "succeeded" at the HTTP level (200) but the command inside the
+        # container failed (exit_code != 0).  Only raise for transport
+        # errors (e.g. sandbox not found at all → 404).
+        try:
+            body = resp.json()
+        except Exception:
+            resp.raise_for_status()
+            return {}
+        if resp.status_code >= 400 and "exit_code" not in body:
+            # True transport error (not an exec-in-container failure)
+            resp.raise_for_status()
+        return body
 
     # ── Snapshots ──────────────────────────────────────────────────────
 

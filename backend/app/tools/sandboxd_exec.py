@@ -34,10 +34,28 @@ _LANG_CMDS: dict[str, list[str]] = {
 
 
 class SandboxdExecInput(ToolInput):
-    code: str = Field(..., description="Source code to execute")
+    sandbox_id: str | None = Field(
+        default=None,
+        description="Sandbox ID to execute in. If omitted, uses the current context sandbox.",
+    )
+    code: str | None = Field(
+        default=None,
+        description=(
+            "Source code or shell command to execute. "
+            "For bash: this is the command string run via 'bash -c'. "
+            "For python/node: wrapped as '-c' / '-e' respectively."
+        ),
+    )
+    command: list[str] | None = Field(
+        default=None,
+        description=(
+            "Full command argv array, used as-is (e.g. ['bash', '-lc', 'npx serve -l 3000']). "
+            "Takes precedence over `code` + `language` when provided."
+        ),
+    )
     language: str = Field(
         default="python",
-        description="Runtime: python | node | bash | go",
+        description="Runtime: python | node | bash | go (only used when `code` is set, ignored when `command` is set)",
     )
     timeout_seconds: int = Field(
         default=60, ge=5, le=300, description="Execution timeout (5-300s)"
@@ -58,13 +76,16 @@ class SandboxdExecTool(BaseTool):
                 "Execute a shell command inside an isolated Docker sandbox. "
                 "Use this for multi-file projects, frontend apps, or anything "
                 "that needs a real filesystem and dev server. "
-                "Commands run with bash -lc for proper shell environment. "
                 "PREFER this over python_sandbox/nodejs_sandbox for: "
                 "building HTML pages, React apps, Python web servers, or any "
                 "multi-file project that should be previewed at a live URL. "
-                "Typical workflow: (1) sandboxd_file_write to create files, "
-                "(2) sandboxd_exec to start a dev server, "
-                "(3) sandboxd_preview to get the live preview URL."
+                "Pass `command` as an argv array for shell commands "
+                "(e.g. ['bash', '-lc', 'python3 -m http.server 3000 --directory /home/sandbox/workspace/app']), "
+                "or `code` + `language` for source code execution. "
+                "Typical workflow: (1) sandboxd_preview to create sandbox, "
+                "(2) sandboxd_file_write to create files, "
+                "(3) sandboxd_exec to start a dev server, "
+                "(4) sandboxd_preview to get the live preview URL."
             ),
             category="code-execution-and-development",
             input_schema=SandboxdExecInput.schema_extra(),
@@ -90,30 +111,37 @@ class SandboxdExecTool(BaseTool):
                 tool_id=self.tool_id, error=f"Invalid input: {e}"
             )
 
+        # Validate: at least one of `command` or `code` must be provided
+        if not validated.command and not validated.code:
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="Either `command` (argv array) or `code` (source string) must be provided.",
+            )
+
         lang = validated.language.lower()
-        if lang not in _LANG_CMDS:
+        if not validated.command and lang not in _LANG_CMDS:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=f"Unsupported language '{lang}'. Supported: {', '.join(_LANG_CMDS)}",
             )
 
         try:
-            sandbox_id = self._resolve_sandbox_id()
+            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
                     error=(
-                        "No sandbox available for this mission. "
-                        "sandboxd may be unavailable — use python_sandbox "
-                        "or nodejs_sandbox instead."
+                        "No sandbox available. Call sandboxd_preview first to create one, "
+                        "or pass `sandbox_id` explicitly."
                     ),
                 )
 
             client = self._get_client()
 
-            # Build command array
-            cmd_parts = _LANG_CMDS[lang]
-            if lang == "go":
+            # Build command array — `command` takes precedence over `code`
+            if validated.command:
+                cmd = validated.command
+            elif lang == "go":
                 # Go requires a file — use base64 to avoid shell-escaping issues
                 b64 = base64.b64encode(validated.code.encode()).decode()
                 cmd = [
@@ -122,16 +150,24 @@ class SandboxdExecTool(BaseTool):
                     f"echo {b64} | base64 -d > /tmp/main.go && go run /tmp/main.go",
                 ]
             else:
-                cmd = [*cmd_parts, validated.code]
+                cmd = [*(_LANG_CMDS[lang]), validated.code]
 
             result = await client.exec_command(sandbox_id, cmd)
 
+            exit_code = result.get("exit_code", 0)
+            stderr = result.get("stderr", "")
+            stdout = result.get("stdout", "")
+
+            # Always return success=True with structured result — the LLM
+            # needs to see stdout/stderr/exit_code to understand what happened.
+            # Only return error_result for tool-level failures (no sandbox,
+            # invalid input, transport errors).
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={
-                    "stdout": result.get("stdout", ""),
-                    "stderr": result.get("stderr", ""),
-                    "exit_code": result.get("exit_code", 0),
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "exit_code": exit_code,
                 },
             )
         except Exception as e:
@@ -142,13 +178,7 @@ class SandboxdExecTool(BaseTool):
 
     @staticmethod
     def _resolve_sandbox_id() -> str | None:
-        """Resolve sandbox_id from the current tool context.
-
-        In Phase 1, the mission executor passes sandbox_id into the
-        tool context.  Returns None if no sandbox is available.
-        """
-        # This will be populated by the mission executor wiring (Phase 1.8).
-        # For now, import lazily to avoid circular deps.
+        """Resolve sandbox_id from the current tool context (ContextVar)."""
         try:
             from app.tools._sandbox_context import get_current_sandbox_id
 

@@ -6,7 +6,6 @@ Max 25 MiB. Atomic (tmp + rename). Rejects symlinks and ``..``.
 
 from __future__ import annotations
 
-import base64
 import logging
 from typing import Any
 
@@ -18,14 +17,18 @@ logger = logging.getLogger(__name__)
 
 
 class SandboxdFileWriteInput(ToolInput):
+    sandbox_id: str | None = Field(
+        default=None,
+        description="Sandbox ID. If omitted, uses the current context sandbox.",
+    )
     path: str = Field(
         ...,
         min_length=1,
-        description="Relative file path inside the sandbox workspace",
+        description="Relative file path inside the sandbox workspace (e.g. 'index.html' or 'css/style.css')",
     )
     content: str = Field(
         ...,
-        description="File content to write (text)",
+        description="File content to write (text, UTF-8)",
     )
 
 
@@ -40,10 +43,9 @@ class SandboxdFileWriteTool(BaseTool):
                 "Write a file to the sandbox workspace. Use this to create "
                 "index.html, style.css, app.js, or any project file. "
                 "Path is relative to /home/sandbox/workspace/app/ inside the container. "
-                "Atomic write (tmp + rename). Max 25 MiB. "
+                "Subdirectories are created automatically. Atomic write (tmp + rename). Max 25 MiB. "
                 "For HTML previews: write index.html first, then use "
-                "sandboxd_exec to start a dev server (e.g. python3 -m http.server 3000 "
-                "or npx serve -l 3000), then call sandboxd_preview to get the live URL."
+                "sandboxd_exec to start a dev server, then call sandboxd_preview to get the live URL."
             ),
             category="code-execution-and-development",
             input_schema=SandboxdFileWriteInput.schema_extra(),
@@ -66,11 +68,11 @@ class SandboxdFileWriteTool(BaseTool):
             )
 
         try:
-            sandbox_id = self._resolve_sandbox_id()
+            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error="No sandbox available for this mission.",
+                    error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
                 )
 
             if ".." in validated.path or validated.path.startswith("/"):
@@ -80,17 +82,28 @@ class SandboxdFileWriteTool(BaseTool):
                 )
 
             client = self._get_client()
-            abs_path = f"/home/sandbox/workspace/app/{validated.path}"
-            b64 = base64.b64encode(validated.content.encode("utf-8")).decode()
-            result = await client.exec_command(
-                sandbox_id,
-                ["bash", "-c", f"echo '{b64}' | base64 -d > {abs_path}"],
-            )
-            if result.get("exit_code", 1) != 0:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error=f"Write failed: {result.get('stderr', '')}",
+
+            # Ensure parent directory exists (sandboxd native API writes to
+            # the exact path; we need dirs to exist first).
+            parent = "/".join(validated.path.split("/")[:-1])
+            if parent:
+                mkdir_result = await client.exec_command(
+                    sandbox_id,
+                    ["mkdir", "-p", f"/home/sandbox/workspace/app/{parent}"],
                 )
+                if mkdir_result.get("exit_code", 1) != 0:
+                    logger.warning(
+                        "sandboxd_file_write: mkdir -p failed for %s: %s",
+                        parent,
+                        mkdir_result.get("stderr", ""),
+                    )
+
+            # Use native PUT /files API (atomic, up to 25 MiB)
+            result = await client.write_file(
+                sandbox_id,
+                validated.path,
+                validated.content,
+            )
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,

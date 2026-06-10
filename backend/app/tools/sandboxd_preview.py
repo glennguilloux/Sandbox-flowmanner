@@ -8,12 +8,14 @@ context, automatically creates one so that standalone chat sessions
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 from uuid import uuid4
 
 from pydantic import Field
 
+from app.integrations.sandboxd_client import rewrite_sandboxd_url
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
@@ -69,7 +71,9 @@ class SandboxdPreviewTool(BaseTool):
         try:
             validated = SandboxdPreviewInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
+            return ToolResult.error_result(
+                tool_id=self.tool_id, error=f"Invalid input: {e}"
+            )
 
         try:
             client = self._get_client()
@@ -88,16 +92,35 @@ class SandboxdPreviewTool(BaseTool):
                 if not sandbox_id:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=("Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."),
+                        error=(
+                            "Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."
+                        ),
                     )
                 # Store in context so subsequent tool calls reuse it
                 self._set_sandbox_id(sandbox_id)
                 logger.info("sandboxd_preview: auto-created sandbox %s", sandbox_id)
 
+            # Poll for preview readiness (up to 15s)
             info = await client.get(sandbox_id)
-
             preview = info.get("preview", {})
-            preview_url = self._rewrite_url(preview.get("url", ""))
+            preview_status = preview.get("status", "")
+
+            if preview_status not in ("ready", ""):
+                for _attempt in range(30):  # 30 × 500ms = 15s max
+                    await asyncio.sleep(0.5)
+                    try:
+                        info = await client.get(sandbox_id)
+                        preview = info.get("preview", {})
+                        preview_status = preview.get("status", "")
+                        if preview_status in ("ready", "error", ""):
+                            break
+                    except Exception:
+                        logger.debug(
+                            "sandboxd_preview: poll attempt failed (sandbox may be starting)",
+                            exc_info=True,
+                        )
+
+            preview_url = rewrite_sandboxd_url(preview.get("url", ""))
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
@@ -105,6 +128,7 @@ class SandboxdPreviewTool(BaseTool):
                     "sandbox_id": sandbox_id,
                     "status": info.get("status"),
                     "preview_url": preview_url,
+                    "preview_status": preview_status,
                     "preview": preview,
                 },
             )
@@ -159,27 +183,6 @@ class SandboxdPreviewTool(BaseTool):
         except Exception:
             logger.exception("sandboxd_preview: auto-create failed")
             return None
-
-    @staticmethod
-    def _rewrite_url(url: str) -> str:
-        """Rewrite sandboxd localhost URLs to the public preview domain.
-
-        Transforms ``http://s-xxx-3000.preview.localhost`` into
-        ``https://s-xxx-3000.preview.flowmanner.com`` — fixing both
-        the domain and the scheme (public domain has TLS).
-        """
-        from app.config import settings
-
-        if not url:
-            return ""
-        # Rewrite .preview.localhost → .<preview domain>
-        domain = settings.SANDBOXD_PREVIEW_DOMAIN
-        if domain and ".preview.localhost" in url:
-            url = url.replace(".preview.localhost", f".{domain}")
-        # Upgrade http → https (public preview domain serves over TLS)
-        if url.startswith("http://") and domain and domain in url:
-            url = "https://" + url[len("http://") :]
-        return url
 
 
 register_tool(SandboxdPreviewTool())

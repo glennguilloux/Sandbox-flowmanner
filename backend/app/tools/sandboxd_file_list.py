@@ -16,6 +16,10 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 
 class SandboxdFileListInput(ToolInput):
+    sandbox_id: str | None = Field(
+        default=None,
+        description="Sandbox ID. If omitted, uses the current context sandbox.",
+    )
     path: str = Field(
         default="",
         description="Relative directory path (empty = workspace root)",
@@ -63,11 +67,11 @@ class SandboxdFileListTool(BaseTool):
             )
 
         try:
-            sandbox_id = self._resolve_sandbox_id()
+            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error="No sandbox available for this mission.",
+                    error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
                 )
 
             if ".." in validated.path:
@@ -77,23 +81,12 @@ class SandboxdFileListTool(BaseTool):
                 )
 
             client = self._get_client()
-            abs_base = f"/home/sandbox/workspace/app/{validated.path}".rstrip("/")
-            if validated.recursive:
-                cmd = ["find", abs_base, "-type", "f"]
-            else:
-                cmd = ["ls", "-1a", abs_base]
-            result = await client.exec_command(sandbox_id, cmd)
-            if result.get("exit_code", 1) != 0:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error=f"List failed: {result.get('stderr', '')}",
-                )
-            lines = [
-                l
-                for l in result.get("stdout", "").strip().splitlines()
-                if l and l not in (".", "..")
-            ]
-            files = [{"path": line, "type": "file"} for line in lines]
+            # Use native GET /files API
+            files = await client.list_files(
+                sandbox_id,
+                path=validated.path,
+                recursive=validated.recursive,
+            )
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,

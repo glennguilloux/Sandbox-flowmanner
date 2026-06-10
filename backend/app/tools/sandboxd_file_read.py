@@ -17,6 +17,10 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 
 class SandboxdFileReadInput(ToolInput):
+    sandbox_id: str | None = Field(
+        default=None,
+        description="Sandbox ID. If omitted, uses the current context sandbox.",
+    )
     path: str = Field(
         ...,
         min_length=1,
@@ -57,11 +61,11 @@ class SandboxdFileReadTool(BaseTool):
             )
 
         try:
-            sandbox_id = self._resolve_sandbox_id()
+            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error="No sandbox available for this mission.",
+                    error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
                 )
 
             if ".." in validated.path or validated.path.startswith("/"):
@@ -71,20 +75,12 @@ class SandboxdFileReadTool(BaseTool):
                 )
 
             client = self._get_client()
-            abs_path = f"/home/sandbox/workspace/app/{validated.path}"
-            result = await client.exec_command(
-                sandbox_id,
-                ["cat", abs_path],
-            )
-            if result.get("exit_code", 1) != 0:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error=f"File not found: {validated.path} ({result.get('stderr', '')})",
-                )
+            # Use native GET /files/content API (up to 2 MiB)
+            content = await client.read_file(sandbox_id, validated.path)
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
-                result={"content": result.get("stdout", ""), "path": validated.path},
+                result={"content": content, "path": validated.path},
             )
         except Exception as e:
             logger.exception("sandboxd_file_read failed")
