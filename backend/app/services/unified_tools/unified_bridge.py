@@ -36,9 +36,7 @@ class ToolHandlerBuilder:
         self.auth_config = auth_config or {}
         self.auth_type = self.auth_config.get("auth_type", "none")
 
-    def build_handler(
-        self, endpoint: dict[str, Any]
-    ) -> Callable[[dict[str, Any]], Awaitable[Any]]:
+    def build_handler(self, endpoint: dict[str, Any]) -> Callable[[dict[str, Any]], Awaitable[Any]]:
         """
         Build an async handler for a specific endpoint.
 
@@ -70,9 +68,7 @@ class ToolHandlerBuilder:
 
                 if param_value is not None:
                     if param_in == "path":
-                        url_path = url_path.replace(
-                            f"{{{param_name}}}", str(param_value)
-                        )
+                        url_path = url_path.replace(f"{{{param_name}}}", str(param_value))
                     elif param_in == "query":
                         query_params[param_name] = param_value
                     elif param_in == "header":
@@ -171,7 +167,7 @@ class UnifiedToolBridge:
 
         try:
             # Import here to avoid circular imports
-            from app.models import CustomTool
+            from app.models.tool_models import CustomTool
 
             tools = (
                 self.db.query(CustomTool)
@@ -205,12 +201,10 @@ class UnifiedToolBridge:
             return 0
 
         try:
-            from app.models import CustomTool, ToolPermission
+            from app.models.tool_models import CustomTool, ToolPermission
 
             # Get tools user created or has permissions for
-            owned_tools = (
-                self.db.query(CustomTool).filter(CustomTool.created_by == user_id).all()
-            )
+            owned_tools = self.db.query(CustomTool).filter(CustomTool.created_by == user_id).all()
 
             # Get tools user has execute permission for
             permitted_tool_ids = (
@@ -225,9 +219,7 @@ class UnifiedToolBridge:
             permitted_tools = []
             if permitted_tool_ids:
                 permitted_tools = (
-                    self.db.query(CustomTool)
-                    .filter(CustomTool.id.in_([t[0] for t in permitted_tool_ids]))
-                    .all()
+                    self.db.query(CustomTool).filter(CustomTool.id.in_([t[0] for t in permitted_tool_ids])).all()
                 )
 
             # Combine and dedupe
@@ -304,9 +296,7 @@ class UnifiedToolBridge:
         for param in endpoint.get("parameters", []):
             param_name = param.get("name")
             properties[param_name] = {
-                "type": self._map_openapi_type(
-                    param.get("schema", {}).get("type", "string")
-                ),
+                "type": self._map_openapi_type(param.get("schema", {}).get("type", "string")),
                 "description": param.get("description", ""),
             }
             if param.get("required", False):
@@ -367,9 +357,7 @@ class UnifiedToolBridge:
         Returns:
             ExecutionResult from the executor
         """
-        result = await self.executor.execute(
-            tool_id=tool_id, params=params, user_id=user_id, session_id=session_id
-        )
+        result = await self.executor.execute(tool_id=tool_id, params=params, user_id=user_id, session_id=session_id)
 
         # Record analytics to database if available
         if self.db and tool_id in self._loaded_tools:
@@ -377,12 +365,10 @@ class UnifiedToolBridge:
 
         return result
 
-    async def _record_analytics(
-        self, tool_id: str, result: ExecutionResult, user_id: str | None
-    ):
+    async def _record_analytics(self, tool_id: str, result: ExecutionResult, user_id: str | None):
         """Record execution analytics to database."""
         try:
-            from app.models import CustomTool, ToolAnalytics
+            from app.models.tool_models import CustomTool, ToolAnalytics
 
             db_tool_id = self._loaded_tools.get(tool_id)
             if not db_tool_id:
@@ -403,9 +389,7 @@ class UnifiedToolBridge:
             self.db.add(analytics)
 
             # Update tool usage count
-            self.db.query(CustomTool).filter(
-                CustomTool.id == uuid.UUID(db_tool_id)
-            ).update(
+            self.db.query(CustomTool).filter(CustomTool.id == uuid.UUID(db_tool_id)).update(
                 {
                     "usage_count": CustomTool.usage_count + 1,
                     "last_used_at": datetime.now(UTC),

@@ -14,7 +14,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import ToolChain, ToolChainExecution
+from app.models.tool_models import ToolChain, ToolChainExecution
 from app.services.unified_tools import (
     UnifiedToolBridge,
     get_unified_bridge,
@@ -96,13 +96,9 @@ class UnifiedChainExecutor:
         try:
             # Execute steps
             if execution_mode == "parallel":
-                result = await self._execute_parallel(
-                    steps, input_data, user_id, session_id, execution
-                )
+                result = await self._execute_parallel(steps, input_data, user_id, session_id, execution)
             else:
-                result = await self._execute_sequential(
-                    steps, input_data, user_id, session_id, execution
-                )
+                result = await self._execute_sequential(steps, input_data, user_id, session_id, execution)
 
             # Mark completed
             execution.status = "completed"
@@ -171,9 +167,7 @@ class UnifiedChainExecutor:
             total_time += result.execution_time_ms  # type: ignore[assignment]
 
             if not result.success:
-                raise ChainExecutionError(
-                    f"Step {i + 1} failed: {result.error}", step=i, tool_id=tool_id
-                )
+                raise ChainExecutionError(f"Step {i + 1} failed: {result.error}", step=i, tool_id=tool_id)
 
             # Update context with step output for next steps
             if result.result:
@@ -196,7 +190,7 @@ class UnifiedChainExecutor:
         """Execute steps in parallel."""
         tasks = []
 
-        for i, step in enumerate(steps):
+        for _i, step in enumerate(steps):
             tool_id = step.get("tool_id") or step.get("tool")
             params = self._resolve_params(step.get("params", {}), input_data)
 
@@ -248,15 +242,11 @@ class UnifiedChainExecutor:
         # Check for failures
         failures = [o for o in step_outputs if not o.get("success")]
         if failures:
-            raise ChainExecutionError(
-                f"{len(failures)} steps failed in parallel execution"
-            )
+            raise ChainExecutionError(f"{len(failures)} steps failed in parallel execution")
 
         return output
 
-    def _resolve_params(
-        self, params: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _resolve_params(self, params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Resolve parameter references from context."""
         resolved = {}
 
