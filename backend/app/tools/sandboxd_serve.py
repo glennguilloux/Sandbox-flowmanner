@@ -107,21 +107,33 @@ class SandboxdServeTool(BaseTool):
             port = validated.port
             serve_dir = validated.directory or _WORKSPACE_DIR
 
-            # Start the server in the background using nohup + python3 http.server.
-            # We use python3 because it's guaranteed to exist in the sandbox image.
+            # Start the server in the background using a Python script with
+            # SO_REUSEADDR so it can bind even if the port is in TIME_WAIT.
             # The command:
             #   0. Kill any existing process on the port (e.g. template dev server)
-            #   1. cd into the serve directory
-            #   2. Start python3 -m http.server in the background with nohup
+            #   1. Wait 1s for the port to be fully released
+            #   2. Start server with SO_REUSEADDR in the background with nohup
             #   3. Write the PID to /tmp/serve.pid so we can report it
             #   4. Redirect output to /tmp/serve.log for debugging
+            #
+            # We use a Python script instead of `python3 -m http.server`
+            # because the bare module doesn't set SO_REUSEADDR, causing
+            # "Address already in use" errors after killing a previous server.
+            serve_script = (
+                "import http.server, socketserver, os; "
+                f"os.chdir('{serve_dir}'); "
+                "socketserver.TCPServer.allow_reuse_address = True; "
+                f"s = socketserver.TCPServer(('0.0.0.0', {port}), "
+                "http.server.SimpleHTTPRequestHandler); "
+                f"print('Serving on :{port} from {serve_dir}'); "
+                "s.serve_forever()"
+            )
             start_cmd = [
                 "bash",
                 "-lc",
                 (
-                    f"fuser -k {port}/tcp 2>/dev/null; "
-                    f"cd {serve_dir} && "
-                    f"nohup python3 -m http.server {port} "
+                    f"fuser -k {port}/tcp 2>/dev/null; sleep 1; "
+                    f"nohup python3 -c '{serve_script}' "
                     f"> /tmp/serve.log 2>&1 & "
                     f"echo $! > /tmp/serve.pid && "
                     f"cat /tmp/serve.pid"
