@@ -11,11 +11,15 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from starlette.requests import Request
 from starlette.responses import Response
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 from app.api.deps import get_current_user
 from app.config import settings
@@ -119,41 +123,79 @@ async def sandbox_forward_auth(
     return Response(status_code=401)
 
 
+def _is_jwt(token: str) -> bool:
+    """Heuristic: JWTs contain dots and are 50+ chars; UUIDs are 36-char hex with no dots."""
+    return "." in token and len(token) > 50
+
+
 async def _authenticate_preview_request(req: Request) -> str | None:
     """Authenticate a preview request via Bearer token or cookie.
 
-    Returns the user_id if authenticated, None otherwise.
+    Token source determines the validation path:
+    - ``Authorization: Bearer`` header → always a JWT (``decode_access_token``)
+    - ``?token=`` query param → JWT if it looks like one, else DB lookup
+    - ``refresh_token`` / ``fm_refresh_token`` cookie → UUID refresh token →
+      DB lookup via ``get_refresh_token``
+
+    Returns the ``user_id`` as a string if authenticated, ``None`` otherwise.
     """
     from app.api.deps import decode_access_token
     from app.database import get_db_session
-    from app.services.auth_service import get_user_by_id
+    from app.services.auth_service import get_refresh_token, get_user_by_id
 
     token: str | None = None
 
-    # 1. Try Authorization header first
+    # 1. Try Authorization header first (always a JWT)
     auth_header = req.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:].strip()
 
-    # 2. Fall back to fm_refresh_token cookie
+    # 2. Try ?token= query parameter
     if not token:
-        token = req.cookies.get("fm_refresh_token")
+        token = req.query_params.get("token")
+
+    # 3. Fall back to httpOnly cookies (v3 refresh_token + legacy fm_refresh_token)
+    if not token:
+        token = req.cookies.get("refresh_token") or req.cookies.get("fm_refresh_token")
 
     if not token:
         return None
 
-    # Decode and validate
-    user_id = decode_access_token(token)
-    if user_id is None:
+    # ── Branch on token source ────────────────────────────────────────
+    # Bearer header (index 1) always arrives here as a JWT.
+    # Query param (index 2) may be a JWT (new path) or UUID (legacy).
+    # Cookie (index 3) is always a UUID refresh token.
+
+    # If the token looks like a JWT, decode it directly — no DB roundtrip.
+    if _is_jwt(token):
+        user_id = decode_access_token(token)
+        if user_id is None:
+            return None
+        try:
+            async for db in get_db_session():
+                user = await get_user_by_id(db, int(user_id))
+                if user and user.is_active:
+                    return str(user.id)
+        except (ValueError, TypeError, KeyError):
+            logger.warning("forward-auth user lookup failed for %s", user_id)
         return None
 
+    # Otherwise it's a UUID refresh token — resolve via DB lookup.
     try:
         async for db in get_db_session():
-            user = await get_user_by_id(db, int(user_id))
+            record = await get_refresh_token(db, token)
+            if record is None:
+                return None
+            # get_refresh_token already filters is_revoked == False
+            if record.expires_at and record.expires_at < datetime.now(UTC).replace(
+                tzinfo=None
+            ):
+                return None
+            user = await get_user_by_id(db, record.user_id)
             if user and user.is_active:
                 return str(user.id)
-    except (ValueError, TypeError, KeyError):
-        logger.warning("forward-auth user lookup failed for %s", user_id)
+    except Exception:
+        logger.warning("forward-auth refresh-token lookup failed", exc_info=True)
 
     return None
 
