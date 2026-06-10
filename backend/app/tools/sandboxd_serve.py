@@ -37,9 +37,7 @@ class SandboxdServeInput(ToolInput):
         default=8080,
         ge=1,
         le=65535,
-        description=(
-            "Port to serve on (default 8080). Port 3000 is reserved by the sandboxd runtime."
-        ),
+        description=("Port to serve on (default 8080). Port 3000 is reserved by the sandboxd runtime."),
     )
     directory: str | None = Field(
         default=None,
@@ -87,18 +85,14 @@ class SandboxdServeTool(BaseTool):
         try:
             validated = SandboxdServeInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=(
-                        "No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."
-                    ),
+                    error=("No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."),
                 )
 
             client = self._get_client()
@@ -112,16 +106,12 @@ class SandboxdServeTool(BaseTool):
             if not ready:
                 # ── Step 2: Start a fallback server ───────────────────
                 serve_dir = validated.directory or _WORKSPACE_DIR
-                server_pid, start_error = await self._start_fallback_server(
-                    client, sandbox_id, port, serve_dir
-                )
+                server_pid, start_error = await self._start_fallback_server(client, sandbox_id, port, serve_dir)
 
                 if start_error:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"Failed to start server in sandbox {sandbox_id}: {start_error}"
-                        ),
+                        error=(f"Failed to start server in sandbox {sandbox_id}: {start_error}"),
                     )
 
                 # Poll until the server is accepting connections (up to 10s)
@@ -133,18 +123,23 @@ class SandboxdServeTool(BaseTool):
             else:
                 server_pid = 0  # Already running — we don't know the PID
 
-            # Build the preview URL
-            raw_preview_url = f"http://s-{sandbox_id}-{port}.preview.localhost"
-            preview_url = rewrite_sandboxd_url(raw_preview_url)
-
-            status = "ready" if ready else "started"
-
             if not ready:
                 logger.warning(
                     "sandboxd_serve: server not accepting connections after 10s polling (sandbox=%s, port=%s).",
                     sandbox_id,
                     port,
                 )
+                return ToolResult.error_result(
+                    tool_id=self.tool_id,
+                    error=(
+                        f"Server on port {port} is not accepting connections in sandbox "
+                        f"{sandbox_id}. The server may have crashed or failed to start. "
+                        f"Check that the files are valid and try again."
+                    ),
+                )
+
+            raw_preview_url = f"http://s-{sandbox_id}-{port}.preview.localhost"
+            preview_url = rewrite_sandboxd_url(raw_preview_url)
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
@@ -153,7 +148,7 @@ class SandboxdServeTool(BaseTool):
                     "port": port,
                     "preview_url": preview_url,
                     "server_pid": server_pid,
-                    "status": status,
+                    "status": "ready",
                 },
             )
         except Exception as e:
@@ -165,19 +160,20 @@ class SandboxdServeTool(BaseTool):
     @staticmethod
     async def _check_port(client, sandbox_id: str, port: int) -> bool:
         """Return True if the port is accepting HTTP connections."""
+        # NOTE: ``bash -c`` (not ``bash -lc``) — login shells treat ``%``
+        # as a job-control specifier, which silently mangles the
+        # ``%{http_code}`` curl format string.
         check_cmd = [
             "bash",
-            "-lc",
-            f"curl -sf -o /dev/null -w '%%{{http_code}}' http://localhost:{port}/ 2>/dev/null || echo '000'",
+            "-c",
+            f"curl -sf -o /dev/null -w '%{{http_code}}' http://localhost:{port}/ 2>/dev/null || echo '000'",
         ]
         result = await client.exec_command(sandbox_id, check_cmd, timeout=5.0)
         output = result.get("stdout", "").strip().strip("'")
         return output in ("200", "301", "302", "304")
 
     @staticmethod
-    async def _start_fallback_server(
-        client, sandbox_id: str, port: int, serve_dir: str
-    ) -> tuple[int, str | None]:
+    async def _start_fallback_server(client, sandbox_id: str, port: int, serve_dir: str) -> tuple[int, str | None]:
         """Start a python3 http.server as a fallback.
 
         Returns ``(pid, error)`` where ``error`` is ``None`` on success
@@ -202,9 +198,10 @@ class SandboxdServeTool(BaseTool):
         # Escape for single-quoted shell string
         escaped = script_content.replace("'", "'\\''")
 
+        # NOTE: ``bash -c`` (not ``bash -lc``) for consistency with _check_port.
         start_cmd = [
             "bash",
-            "-lc",
+            "-c",
             f"echo '{escaped}' > /tmp/serve.py && nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & echo $! > /tmp/serve.pid && cat /tmp/serve.pid",
         ]
 
