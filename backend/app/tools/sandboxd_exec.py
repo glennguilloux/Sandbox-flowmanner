@@ -84,8 +84,8 @@ class SandboxdExecTool(BaseTool):
                 "or `code` + `language` for source code execution. "
                 "Typical workflow: (1) sandboxd_preview to create sandbox, "
                 "(2) sandboxd_file_write to create files, "
-                "(3) sandboxd_exec to start a dev server, "
-                "(4) sandboxd_preview to get the live preview URL."
+                "(3) sandboxd_serve to start a dev server and get the preview URL. "
+                "Use sandboxd_exec for custom commands (npm install, python scripts, etc.)"
             ),
             category="code-execution-and-development",
             input_schema=SandboxdExecInput.schema_extra(),
@@ -152,7 +152,9 @@ class SandboxdExecTool(BaseTool):
             else:
                 cmd = [*(_LANG_CMDS[lang]), validated.code]
 
-            result = await client.exec_command(sandbox_id, cmd)
+            result = await client.exec_command(
+                sandbox_id, cmd, timeout=float(validated.timeout_seconds)
+            )
 
             exit_code = result.get("exit_code", 0)
             stderr = result.get("stderr", "")

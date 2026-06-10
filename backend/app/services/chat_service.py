@@ -273,14 +273,17 @@ create a live preview. Follow this workflow **exactly**:
 2. **sandboxd_file_write** — write your files. Pass `sandbox_id` and `path` and `content`.
    Example: `{"sandbox_id": "...", "path": "index.html", "content": "<!DOCTYPE html>..."}`
    Subdirectories are created automatically (e.g. `"css/style.css"` works fine).
-3. **sandboxd_exec** — start the dev server. Use `command` (argv array):
-   `{"sandbox_id": "...", "command": ["bash", "-lc", "python3 -m http.server 3000 --directory /home/sandbox/workspace/app"]}`
-   The `command` field is an argv array (not a shell string). The `code` field
-   is for inline source code only.
-4. **sandboxd_preview** — call again with `{"sandbox_id": "..."}` to get the
-   live preview URL. Share this URL with the user.
-5. **sandboxd_file_read** — read a file back: `{"sandbox_id": "...", "path": "index.html"}`
-6. **sandboxd_file_list** — list workspace files: `{"sandbox_id": "...", "path": ""}`
+   Write ALL files before calling sandboxd_serve.
+3. **sandboxd_serve** — start the dev server and get the preview URL:
+   `{"sandbox_id": "..."}`
+   This starts a server on port 3000 that serves from the sandbox workspace
+   directory where your files were written. Returns the preview URL directly.
+   That's it — 3 tool calls total.
+4. **sandboxd_file_read** — read a file back: `{"sandbox_id": "...", "path": "index.html"}`
+5. **sandboxd_file_list** — list workspace files: `{"sandbox_id": "...", "path": ""}`
+
+If you need to run custom commands (npm install, python scripts, etc.), use
+**sandboxd_exec** with the `command` field (argv array).
 
 The preview URL format is:
 https://s-<sandbox_id>-3000.preview.flowmanner.com
@@ -1151,6 +1154,7 @@ def _get_chat_openai_tools() -> list[dict] | None:
             "sandboxd_file_write",
             "sandboxd_file_read",
             "sandboxd_file_list",
+            "sandboxd_serve",
         }
         tools = [
             t.to_openai_schema()

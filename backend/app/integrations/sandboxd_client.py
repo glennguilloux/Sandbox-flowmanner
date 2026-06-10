@@ -327,6 +327,7 @@ class SandboxdClient:
         sandbox_id: str,
         cmd: list[str],
         stream: bool = False,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """POST /sandbox/{id}/exec — execute command inside sandbox.
 
@@ -336,11 +337,22 @@ class SandboxdClient:
         Returns the JSON body directly (including ``stdout``, ``stderr``,
         ``exit_code``) even when the exec itself failed — callers check
         ``exit_code`` rather than relying on HTTP status.
+
+        Args:
+            timeout: Per-request timeout in seconds.  Overrides the
+                client default (30 s) so long-running commands like
+                ``npm install`` don't time out prematurely.
         """
         client = await self._get_client()
+        # Use per-request timeout if provided; build a new Timeout object
+        # so we keep the 5 s connect timeout but extend the read/write.
+        req_timeout = (
+            httpx.Timeout(timeout, connect=5.0) if timeout else None
+        )
         resp = await client.post(
             f"/sandbox/{sandbox_id}/exec",
             json={"cmd": cmd, "stream": stream},
+            timeout=req_timeout,
         )
         # Return the body regardless of HTTP status — the exec may have
         # "succeeded" at the HTTP level (200) but the command inside the

@@ -44,8 +44,8 @@ class SandboxdFileWriteTool(BaseTool):
                 "index.html, style.css, app.js, or any project file. "
                 "Path is relative to /home/sandbox/workspace/app/ inside the container. "
                 "Subdirectories are created automatically. Atomic write (tmp + rename). Max 25 MiB. "
-                "For HTML previews: write index.html first, then use "
-                "sandboxd_exec to start a dev server, then call sandboxd_preview to get the live URL."
+                "For HTML previews: write all files first, then call sandboxd_serve "
+                "to start a dev server and get the preview URL."
             ),
             category="code-execution-and-development",
             input_schema=SandboxdFileWriteInput.schema_extra(),
