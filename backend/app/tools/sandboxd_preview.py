@@ -78,7 +78,7 @@ class SandboxdPreviewTool(BaseTool):
             raw_id = validated.sandbox_id
             # Some LLMs (DeepSeek) pass the literal string "NEW" instead of
             # omitting the field.  Treat it as empty so auto-create fires.
-            if raw_id and raw_id.strip().upper() == "NEW":
+            if raw_id and raw_id.strip().upper() in ("NEW", "NONE", "NULL"):
                 raw_id = None
             sandbox_id = raw_id or self._resolve_sandbox_id()
 
