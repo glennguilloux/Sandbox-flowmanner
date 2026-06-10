@@ -276,7 +276,7 @@ https://s-<sandbox_id>-3000.preview.flowmanner.com
 The URL is publicly accessible. The sandbox stays alive for 35 minutes."""
 
 # Maximum number of tool-call rounds before forcing a text response
-_MAX_TOOL_ROUNDS = 10
+_MAX_TOOL_ROUNDS = 15
 
 
 # LLM configuration from environment
