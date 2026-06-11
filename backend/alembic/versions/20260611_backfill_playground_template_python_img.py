@@ -14,6 +14,16 @@ overridden.
 Revision ID: backfill_playground_template_001
 Revises: cleanup_stale_handler_refs_001
 Create Date: 2026-06-11
+
+NOTE (2026-06-11): This file was rewritten in place by commit 92a5d65
+(the python.img -> python-img v1-API rename). The SQL in this file now
+reads `SET template = 'python-img'`, but the migration's actual executed
+SQL on homelab was `SET template = 'python.img'` (recorded in
+`alembic_version` + the original SQLAlchemy autogen). Anyone reading this
+file to understand "what did this migration do on the DB" should look at
+the *next* migration (`align_playground_template_with_v1_api_001`) for
+the current state, and at the alembic version table for the original
+record. Do NOT re-run this migration manually.
 """
 
 from sqlalchemy import text as sa_text
