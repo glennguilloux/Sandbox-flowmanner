@@ -41,3 +41,12 @@
 - Added boundary-test expectations and a package layout migration roadmap that requires incremental, test-backed moves rather than a one-shot restructure.
 - Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-4-domain-boundaries-valid.txt`; output reported `03-domain-boundaries.md: valid`.
 - Saved targeted boundary evidence in `.sisyphus/evidence/task-4-boundary-tests.txt` and dash-style evidence in `.sisyphus/evidence/task-4-dash-style.txt`.
+
+
+## 2026-06-11 Task 5 runtime durable execution doc
+- Updated `docs/future-architecture/04-execution-agent-runtime.md` to make durable execution explicit: state machine, worker leases, stale-lease reclaim, checkpoint boundaries, crash-before-checkpoint handling, retry/failure taxonomy, HITL pause/resume, idempotency keys, replay, agent lifecycle, context builder rules, and tool capability checks.
+- Added TDD checklist coverage for worker crash before checkpoint, lease expiry and stale-lease reclaim, idempotent task execution, replay determinism, and HITL pause/resume.
+- Added substrate and chaos references: `backend/tests/test_substrate_event_log.py`, `backend/tests/test_substrate_replay.py`, `backend/tests/chaos/test_kill_worker_mid_mission.py`, and `backend/tests/chaos/test_kill_worker_mid_mission_process.py`.
+- Removed em dash and en dash characters from `04-execution-agent-runtime.md` and avoided actor-framework lock-in language.
+- Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-5-runtime-valid.txt`; output reported `04-execution-agent-runtime.md: valid`.
+- Saved targeted substrate evidence to `.sisyphus/evidence/task-5-substrate-critical.txt`.
