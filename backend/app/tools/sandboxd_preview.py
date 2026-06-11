@@ -8,7 +8,7 @@ HTML pages.
 IMPORTANT: This tool does NOT return the app preview URL.  The
 sandbox runtime URL on port 3000 is NOT your app — it only serves an
 empty directory listing.  Call ``sandboxd_serve`` after writing files
-to get the actual app preview URL on port 8080.
+to get the actual app preview URL (served on port 8081).
 """
 
 from __future__ import annotations

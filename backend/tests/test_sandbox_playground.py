@@ -111,7 +111,7 @@ async def test_create_anonymous_sandbox(mock_db_session, mock_sandboxd_client):
     assert created_pg.user_id is None
     assert created_pg.status == PlaygroundSandboxStatus.RUNNING.value
     assert created_pg.anonymous_ip == "203.0.113.1"
-    assert created_pg.template == "react-standard"
+    assert created_pg.template == "python.img"
 
     # TTL should be ~30 minutes from now
     expected_expiry = datetime.now(UTC) + timedelta(minutes=30)

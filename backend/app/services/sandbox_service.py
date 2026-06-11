@@ -175,7 +175,7 @@ class SandboxService:
         user_id: str,
         *,
         db,
-        template: str = "react-standard",
+        template: str = "python.img",
     ) -> str:
         """Create a persistent sandbox for a team workspace."""
         import secrets

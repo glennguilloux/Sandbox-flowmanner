@@ -491,14 +491,14 @@ class TestSandboxdPreviewTool:
         mock_client.create = AsyncMock(return_value={"id": "sb-new-456"})
 
         with patch("app.config.settings") as mock_settings:
-            mock_settings.SANDBOXD_DEFAULT_TEMPLATE = "react-standard"
+            mock_settings.SANDBOXD_DEFAULT_TEMPLATE = "python.img"
             result = await SandboxdPreviewTool._auto_create_sandbox(mock_client)
 
         assert result == "sb-new-456"
         mock_client.create.assert_awaited_once()
         call_kwargs = mock_client.create.call_args
         assert call_kwargs.kwargs["user_id"] == "chat-standalone"
-        assert call_kwargs.kwargs["template"] == "react-standard"
+        assert call_kwargs.kwargs["template"] == "python.img"
         assert call_kwargs.kwargs["project_id"].startswith("chat-")
 
     @pytest.mark.asyncio

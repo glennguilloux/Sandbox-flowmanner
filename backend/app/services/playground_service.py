@@ -33,7 +33,7 @@ class PlaygroundService:
         self,
         *,
         db,
-        template: str = "react-standard",
+        template: str = "python.img",
         client_ip: str | None = None,
     ) -> PlaygroundSandbox:
         """Create an anonymous sandbox with a 30-minute TTL."""

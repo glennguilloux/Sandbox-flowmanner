@@ -81,8 +81,8 @@ class PlaygroundSandbox(Base, TimestampMixin):
     template: Mapped[str] = mapped_column(
         String(64),
         nullable=False,
-        default="react-standard",
-        server_default="react-standard",
+        default="python.img",
+        server_default="python.img",
     )
     project_id: Mapped[str | None] = mapped_column(
         String(128),

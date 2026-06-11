@@ -271,7 +271,7 @@ create a live preview. Follow this workflow **exactly**:
    Write ALL files before calling sandboxd_serve.
 3. **sandboxd_serve** — start a dev server and get the preview URL:
    `{"sandbox_id": "..."}`
-   This starts a server on port 8081 (port 8080 is used by the sandbox template)
+   This starts a server on port 8081 (the default python.img template does not use 8080; some legacy templates like react-standard may)
    that serves from /home/sandbox/ where your files were written.
    This is the ONLY tool that returns the app preview URL.  ALWAYS call it
    after writing files, and ALWAYS present its returned URL to the user.

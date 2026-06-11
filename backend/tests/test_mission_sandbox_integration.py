@@ -135,4 +135,4 @@ class TestSandboxdConfigSettings:
             f"SANDBOXD_API_URL should be an HTTP URL, got: {settings.SANDBOXD_API_URL}"
         )
         assert settings.SANDBOXD_ENABLED is True
-        assert settings.SANDBOXD_DEFAULT_TEMPLATE == "react-standard"
+        assert settings.SANDBOXD_DEFAULT_TEMPLATE == "python.img"
