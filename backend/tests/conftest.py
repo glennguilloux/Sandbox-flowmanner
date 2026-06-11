@@ -27,6 +27,17 @@ os.environ["LANGFUSE_ENABLED"] = "false"
 os.environ["USE_NEW_READS"] = "0"
 
 # ---------------------------------------------------------------------------
+# 1b. Remove shell env overrides of config defaults
+# ---------------------------------------------------------------------------
+# Single source of truth: ``tests._env_guard.pop_config_overrides``.
+# See that module for the full rationale and the canonical list of
+# popped env vars. Both this conftest and ``backend/app/tests/conftest.py``
+# call ``pop_config_overrides()`` to keep the guard logic in one place.
+from app.testing._env_guard import pop_config_overrides
+
+pop_config_overrides()
+
+# ---------------------------------------------------------------------------
 # 2. Mock redis globally BEFORE any imports that use it
 # ---------------------------------------------------------------------------
 mock_redis = MagicMock()
