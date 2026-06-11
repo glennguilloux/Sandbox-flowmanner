@@ -1,0 +1,21 @@
+command=scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-5-runtime-valid.txt
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T14:21:41.650740+00:00
+
+docs_validated=9
+01-paradigm-evaluation.md: valid
+02-architecture-diagrams.md: valid
+03-domain-boundaries.md: valid
+04-execution-agent-runtime.md: valid
+05-knowledge-events-data.md: valid
+06-observability-deployment.md: valid
+07-roadmap-risks-not-build.md: valid
+08-final-recommendation.md: valid
+09-current-state-gaps.md: valid
+cross_links_checked=9
+roadmap_items_checked=6
+tdd_contracts=6
+stop_gates=6
+evidence_capture=enabled
+validation=pass

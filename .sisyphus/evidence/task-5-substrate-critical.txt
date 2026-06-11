@@ -1,0 +1,20 @@
+command=python targeted checks for TDD checklist, substrate references, actor-framework lock-in absence, and dash scan
+working_directory=/opt/flowmanner
+timestamp=2026-06-11T14:22:38.760997+00:00
+
+PASS: TDD item: Worker crash before checkpoint
+PASS: TDD item: Lease expiry and stale-lease reclaim
+PASS: TDD item: Idempotent task execution
+PASS: TDD item: Replay determinism
+PASS: TDD item: HITL pause/resume
+PASS: substrate reference: backend/tests/test_substrate_event_log.py
+PASS: substrate reference: backend/tests/test_substrate_replay.py
+PASS: substrate reference: backend/tests/chaos/test_kill_worker_mid_mission.py
+PASS: substrate reference: backend/tests/chaos/test_kill_worker_mid_mission_process.py
+PASS: actor-framework lock-in absence: actor-framework lock-in
+PASS: custom actor framework absence: custom actor framework
+
+dash_scan_command=python -c "check docs/future-architecture/04-execution-agent-runtime.md for U+2014 and U+2013"
+dash_scan_exit_code=0
+dash_scan_stdout=dash_chars=none
+targeted_checks=pass
