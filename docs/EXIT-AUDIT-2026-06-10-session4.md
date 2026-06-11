@@ -62,7 +62,7 @@ A second diagnostic pass (after the user said "Both pages are still UP!") found:
 - `docker exec s-01KTTPX1TD7PYKQVP3HJX4JE0P sh -c 'ss -ltn; ps -ef; ls /home/sandbox/'` → no listening ports, no running processes, but `/home/sandbox/` does contain `app/`, `index.html`, `workspace/`
 - Worker container logs are **empty** (the workers do not log to stdout)
 
-**This is critical:** the per-sandbox worker containers start, the entrypoint either exits cleanly or never starts, and the `python3 http.server` on port 8081 inside the container is never spawned. The session-3 fix that auto-serves on 8081 in `sandboxd_file_write` only fires if a file write happens — if no file write has happened recently, no server runs.
+**This is critical:** the per-sandbox worker containers start, the entrypoint either exits cleanly or never starts, and the `python3 http.server` on port 8081 inside the container is never spawned. The session-3 band-aid (`ensure_serving_on_port` in `backend/app/tools/_sandbox_serve_helpers.py`, called by `sandboxd_file_write` via `asyncio.create_task`) only fires if a file write happens — if no file write has happened recently, no server runs. The band-aid is fire-and-forget and best-effort; it cannot start a server on a freshly-spawned worker that has never had a file write.
 
 **User perception of "UP" is misleading:** the chromium tab they saw the page in was likely a cached successful load. Subsequent reloads (or fresh `curl`) fail.
 
@@ -131,7 +131,7 @@ ssh vps 'curl http://10.99.0.3:8081/'                              →  Connecti
 ### Where we are
 The 401 is NOT an auth-chain issue. The 14 auth tests in `test_sandbox_preview_auth.py` are still passing and accurate. The 401 is the **VPS-side Traefik returning "no upstream"** because the per-sandbox worker on the homelab exists as a running container but has no process listening on port 8081 inside it.
 
-The session-3 auto-serve fix (`sandboxd_file_write._ensure_server_8081`) only fires on a file-write event. If no file write has occurred, no server starts. Spawning a worker via `sandboxd_serve` is also not enough — the worker container comes up empty.
+The session-3 band-aid (`ensure_serving_on_port` in `backend/app/tools/_sandbox_serve_helpers.py`, called from `sandboxd_file_write` via `asyncio.create_task`) only fires on a file-write event. If no file write has occurred, no server starts. Spawning a worker via `sandboxd_serve` is also not enough — the worker container comes up empty.
 
 ### What's done this session
 - Definitive diagnosis: 401 is "no upstream", not auth
@@ -165,7 +165,10 @@ docker exec s-01KTTPX1TD7PYKQVP3HJX4JE0P sh -c 'ps -ef; ss -ltn'  # confirm the 
 - (B) Have the FastAPI control plane (or `sandboxd_serve` tool) start the server inside the worker after spawn via `docker exec`. Duplicates logic; not preferred.
 - (C) Supervisor pattern inside the worker. Over-engineered.
 
-**Once (A) is in place:** the band-aid `_ensure_server_8081` in `backend/app/tools/sandboxd_file_write.py` (added in session 3) can be **removed**. The real fix is the entrypoint; the band-aid is a workaround for the missing entrypoint behavior. Don't be tempted to extend the band-aid.
+**Once (A) is in place:** the band-aid `ensure_serving_on_port` in `backend/app/tools/_sandbox_serve_helpers.py` (called from `backend/app/tools/sandboxd_file_write.py` after a successful write) can be **removed** — the entrypoint will self-serve, so the file-write event-driven auto-serve becomes redundant. Don't be tempted to extend the band-aid. When removing:
+1. Delete the `ensure_serving_on_port` import and the `asyncio.create_task(...)` block in `sandboxd_file_write.py`
+2. Check `backend/tests/test_sandboxd_tools.py` for mocks of `ensure_serving_on_port` or assertions about auto-serve behavior — update or remove them
+3. Consider whether to delete `_sandbox_serve_helpers.py` entirely (it's only used by `sandboxd_file_write` for the band-aid and by `sandboxd_serve` for explicit serving — `sandboxd_serve`'s use is still valid; only the file-write auto-serve side should go)
 
 **Rollback plan:** if the entrypoint change breaks worker startup (every new sandbox 401s, or workers fail to spawn), revert `sandboxd/Dockerfile.sandboxd-base` to the previous version and run `sandboxd/rebuild-sandboxd-base.sh` again. Existing workers on the old image keep working during the transition.
 
