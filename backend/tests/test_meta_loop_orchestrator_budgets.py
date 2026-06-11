@@ -1,49 +1,10 @@
-"""Unit tests for MetaLoopOrchestrator budget enforcement (H2.2).
-
-NOTE: Due to an upstream bug in orchestrator.py where _nexus_orchestrator
-is defined inside a class method instead of at module level, the
-MetaLoopOrchestrator import must be patched to mock the orchestrator
-get_nexus_orchestrator before module load.
-
-Covers:
-- plan_execute_observe() resets budgets for new mission_id
-- _get_effective_max_depth() clamps with capability lattice
-- _handle_failure() calls analyzer with wall_clock_ms and cost_usd
-- recoverable retry path recurses
-- non-recoverable path returns failure with failure_analysis payload
-"""
-
 from __future__ import annotations
 
 import asyncio
-import sys
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
-
-# ── Pre-mock to work around upstream _nexus_orchestrator bug ───────
-# The orchestrator.py file defines _nexus_orchestrator inside a class
-# method body, not at module level. This causes NameError when
-# get_nexus_orchestrator() is called. Pre-mock before import.
-
-_mock_nexus_orch_instance = MagicMock()
-_mock_nexus_orch_instance.plan_and_execute = AsyncMock(
-    return_value=MagicMock(success=True, data={"ok": True}, error=None, capabilities_used=["test:cap"])
-)
-_mock_nexus_orch_instance.initialize = AsyncMock()
-
-_mock_orchestrator_module = MagicMock()
-_mock_orchestrator_module.NexusOrchestrator = MagicMock(return_value=_mock_nexus_orch_instance)
-_mock_orchestrator_module.ExecutionContext = MagicMock()
-_mock_orchestrator_module.OperationResult = MagicMock()
-_mock_orchestrator_module.get_nexus_orchestrator = MagicMock(return_value=_mock_nexus_orch_instance)
-
-sys.modules["app.services.nexus.orchestrator"] = _mock_orchestrator_module
-# Also mock capability_registry and distributed_executor that orchestrator imports
-sys.modules["app.services.nexus.capability_registry"] = MagicMock()
-sys.modules["app.services.nexus.distributed_executor"] = MagicMock()
-sys.modules["app.services.learning_service"] = MagicMock()
 
 from app.services.nexus.failure_analyzer import (
     ErrorBudget,
@@ -56,6 +17,12 @@ from app.services.nexus.meta_loop_orchestrator import (
     MetaLoopResult,
     get_meta_loop_orchestrator,
 )
+
+_mock_nexus_orch_instance = MagicMock()
+_mock_nexus_orch_instance.plan_and_execute = AsyncMock(
+    return_value=MagicMock(success=True, data={"ok": True}, error=None, capabilities_used=["test:cap"])
+)
+_mock_nexus_orch_instance.initialize = AsyncMock()
 
 # ── Helpers ────────────────────────────────────────────────────────
 
