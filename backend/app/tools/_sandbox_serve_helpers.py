@@ -1,14 +1,18 @@
 """Shared helpers for sandboxd HTTP serving.
 
-Two tools (``sandboxd_serve`` and ``sandboxd_file_write``) need to:
+The ``sandboxd_serve`` tool needs to:
 
 1. Check whether a port inside a sandbox is already serving HTTP.
 2. Start a ``python3 -m http.server`` fallback if not.
 
-Both also need to handle the same shell-quoting gotcha (``bash -c`` not
-``bash -lc`` — login shells mangle ``%{http_code}`` in curl format
-strings).  Centralising the logic here keeps the two consumers in sync
-and makes the "fire-and-forget" vs. "wait-for-PID" contract explicit.
+Centralising the logic here makes the "fire-and-forget" vs. "wait-for-PID"
+contract explicit and handles the shell-quoting gotcha (``bash -c`` not
+``bash -lc`` — login shells mangle ``%{http_code}`` in curl format strings).
+
+The previous ``ensure_serving_on_port`` band-aid that ``sandboxd_file_write``
+called on every successful file write has been removed: the sandboxd base
+image's entrypoint now starts the http server on container start, so the
+preview URL is always live. See ``sandboxd/entrypoint-wrapper.sh``.
 
 GOTCHA: ``fuser`` and ``ss`` are NOT available in the sandbox container,
 and legacy templates (e.g., react-standard) use port 8080 for their built-in
@@ -201,36 +205,22 @@ async def ensure_serving_on_port(
     script_name: str = "serve",
     log_name: str = "serve.log",
 ) -> None:
-    """Start a server on ``port`` only if it isn't already serving.
+    """DEPRECATED: this function has been removed.
 
-    Fire-and-forget variant used by ``sandboxd_file_write`` — the LLM
-    may forget to call ``sandboxd_serve``, so every successful file
-    write silently ensures a server is running on 8081.
+    The sandboxd base image's entrypoint (see ``sandboxd/entrypoint-wrapper.sh``)
+    now starts a python http server on port 8081 as part of container start,
+    so this on-write auto-serve is no longer needed. The function is kept as
+    a stub that returns ``None`` immediately so any external callers (e.g.,
+    ad-hoc scripts) that still import it don't break at import time — but
+    the actual server-starting behavior is gone.
 
-    Returns ``None`` on success.  Logs and swallows errors so the
-    surrounding file-write response is never blocked by auto-serve
-    failures (which are non-fatal: the LLM can still call
-    ``sandboxd_serve`` explicitly if needed).
+    New code should rely on the entrypoint-managed server, not this helper.
     """
-    try:
-        if await is_port_serving(client, sandbox_id, port):
-            return  # Already serving — nothing to do
-        await start_static_http_server(
-            client,
-            sandbox_id,
-            port,
-            serve_dir,
-            script_name=script_name,
-            log_name=log_name,
-            return_pid=False,
-        )
-        logger.info(
-            "_sandbox_serve_helpers: auto-serve started on port %s (sandbox=%s)",
-            port,
-            sandbox_id,
-        )
-    except Exception:
-        logger.debug(
-            "_sandbox_serve_helpers: auto-serve failed (non-fatal)",
-            exc_info=True,
-        )
+    logger.debug(
+        "_sandbox_serve_helpers.ensure_serving_on_port is deprecated and is "
+        "a no-op; the entrypoint-managed server on port %s is always live "
+        "in new containers. (sandbox=%s)",
+        port,
+        sandbox_id,
+    )
+    return None
