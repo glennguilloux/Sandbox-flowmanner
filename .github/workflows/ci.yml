@@ -94,22 +94,35 @@ jobs:
         # Remove "|| true" once F821 errors are resolved
 
       - name: Mypy type check (baseline-enforced)
-        # 277 pre-existing errors (after filtering deterministic 'note:' lines)
-        # are tracked in backend/mypy-baseline.txt. CI fails on NEW mypy errors
-        # but allows the existing set. The team fixes errors incrementally;
-        # each fix shrinks the baseline.
-        # Refreshing the baseline: regenerate via
+        # 314 pre-existing errors tracked in backend/mypy-baseline.txt.
+        # CI fails on NEW mypy errors but allows the existing set.
+        # The team fixes errors incrementally; each fix shrinks the baseline.
+        #
+        # Pipeline (must match the baseline-generation command below):
+        #   --hide-error-context : strips non-deterministic context lines
+        #     (preserves per-error notes like 'Revealed type' / 'Use
+        #     ignore-with-code' that are useful for fixing errors)
+        #   sed ... :line:... : drop line numbers (and optional column) so the
+        #     baseline tracks (file, error_code, message) tuples, not (file,
+        #     line, ...). Without this, any file edit shifts line numbers and
+        #     makes the baseline go stale.
+        #   sort -u : dedupe exact matches
+        #
+        # To refresh the baseline (after intentionally fixing errors):
         #   cd backend && mypy app/ --ignore-missing-imports --no-error-summary \
-        #     2>&1 | grep -v 'note:' | sort -u > mypy-baseline.txt
+        #     --hide-error-context 2>&1 \
+        #     | sed -E 's/:[0-9]+(:[0-9]+)?:/:line:/g' \
+        #     | sort -u > mypy-baseline.txt
         run: |
-          mypy app/ --ignore-missing-imports --no-error-summary 2>&1 \
-            | grep -v 'note:' \
+          mypy app/ --ignore-missing-imports --no-error-summary --hide-error-context 2>&1 \
+            | sed -E 's/:[0-9]+(:[0-9]+)?:/:line:/g' \
             | sort -u \
             | diff mypy-baseline.txt -
         # Replaces the previous `|| true` (no enforcement) and the brief
         # full-enforcement attempt (would have frozen the repo on 301 errors).
-        # Added 2026-06-10 — see docs/EXIT-AUDIT-2026-06-10-session3.md
-        # (handoff item).
+        # Refined 2026-06-10 to use --hide-error-context (replaces grep -v
+        # 'note:') and line-number normalization (replaces bare line numbers).
+        # See docs/EXIT-AUDIT-2026-06-10-session3.md (handoff item).
 
       - name: Run tests
         env:
