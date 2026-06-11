@@ -15,3 +15,11 @@
 - Missing NATS gate errors now include the label plus both accepted exact phrases, so single-line removal cannot pass silently.
 - Focused pytest now covers current-pack success, slash-variant acceptance, full Stop Gates removal, and single NATS gate removal.
 - Verified with real-pack validation, `python scripts/validate_future_arch_docs.py --self-test`, focused pytest, and temp-copy negative checks for single NATS removal plus full Stop Gates removal.
+
+## 2026-06-11 Task 2 ADR decision record rewrite
+- Rewrote `docs/future-architecture/01-paradigm-evaluation.md` as an explicit ADR with Context, Decision, Rationale, Alternatives Rejected, Consequences, Non-Goals, Stop Gates, and Roadmap Relationship.
+- Preserved the hybrid decision text `Modular Monolith + Event-Driven Durable Substrate + Distributed Worker Plane` and all six exact stop-gate phrases.
+- Added `docs/REBUILD-ROADMAP.md` as the active near-term source of truth and kept provider routing unresolved until source-backed research lands.
+- Saved validation evidence in `.sisyphus/evidence/task-2-decision-record-valid.txt` and stop-gate evidence in `.sisyphus/evidence/task-2-stop-gates.txt`.
+- Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-2-decision-record-valid.txt`; output reported `01-paradigm-evaluation.md: valid`.
+- Markdown LSP diagnostics were unavailable because no `.md` language server is configured in this environment.

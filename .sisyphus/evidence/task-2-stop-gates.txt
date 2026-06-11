@@ -1,0 +1,13 @@
+target=docs/future-architecture/01-paradigm-evaluation.md
+checked_at=2026-06-11T13:27:06.398782+00:00
+required_sections=8
+stop_gates=6
+roadmap_reference=docs/REBUILD-ROADMAP.md
+stop_gate_present=No microservices default.
+stop_gate_present=No service mesh for homelab deployments.
+stop_gate_present=No full event sourcing everywhere.
+stop_gate_present=No actor-framework lock-in.
+stop_gate_present=No NATS before outbox and event-schema stability.
+stop_gate_present=No Kubernetes-only self-hosting.
+roadmap_reference_present=True
+result=pass
