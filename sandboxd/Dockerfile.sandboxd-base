@@ -1,9 +1,14 @@
 # Dockerfile.sandboxd-base — Rebuild sandboxd-base:1.0.0 with fixes
 #
 # This Dockerfile patches the upstream sandboxd-base:1.0.0 image with:
-#   1. Entrypoint wrapper that creates /home/sandbox/.runtimed (permission fix)
-#   2. Node.js + npm (for Vite dev server support)
-#   3. RUNTIMED_DEV_CMD env var (fallback to python3 http.server)
+#   1. Entrypoint wrapper (sibling file `entrypoint-wrapper.sh`) that:
+#      a. Creates /home/sandbox/.runtimed (permission fix for runtimed)
+#      b. Starts `python3 -m http.server 8081 --directory /home/sandbox/`
+#         in the BACKGROUND so the preview URL works as soon as the
+#         container starts (fixes the session-4 401 / "no upstream" bug)
+#      c. Execs runtimed as PID 1 (sandboxd runtime for file/exec APIs)
+#   2. Node.js + npm (for Vite dev server support, legacy templates)
+#   3. RUNTIMED_DEV_CMD env var (fallback dev command for runtimed)
 #
 # Build: docker build -t sandboxd-base:1.0.0 -f Dockerfile.sandboxd-base .
 # Run:   (managed by sandboxd — do not run manually)
@@ -27,11 +32,10 @@ RUN apk add --no-cache nodejs npm
 # Vite (via npm run dev) takes precedence when package.json exists with deps.
 ENV RUNTIMED_DEV_CMD="python3 -m http.server 3000 --directory /home/sandbox/workspace/app"
 
-# Entrypoint wrapper: create .runtimed dir AFTER bind mount, then exec runtimed
-# This fixes "mkdir /home/sandbox/.runtimed: permission denied" which caused
-# runtimed to crash immediately, killing the container.
-RUN printf '#!/bin/sh\nmkdir -p /home/sandbox/.runtimed\nexec /usr/local/bin/runtimed\n' \
-    > /usr/local/bin/entrypoint-wrapper.sh \
-    && chmod +x /usr/local/bin/entrypoint-wrapper.sh
+# Entrypoint wrapper: see entrypoint-wrapper.sh in this directory.
+# Replaces the previous inline-printf heredoc (extracted to a sibling
+# file because the new logic is ~15 lines, not a one-liner).
+COPY entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
+RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
 
 CMD ["/usr/local/bin/entrypoint-wrapper.sh"]
