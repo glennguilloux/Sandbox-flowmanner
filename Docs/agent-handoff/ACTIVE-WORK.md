@@ -6,7 +6,7 @@ This is the lightweight status board for serious backend work. Keep it under 200
 
 | Area | Dossier | Status | Why it matters | Next grounding step |
 |---|---|---|---|---|
-| Future backend architecture | `docs/future-architecture/README.md` | Ready | 5–10 year architecture target for agent-native workflows, durable execution, memory, providers, and deployment. | Use as design reference before major backend refactor; no deploy required. |
+| Future backend architecture | `docs/future-architecture/README.md` | Decision-ready; implementation phased | 5–10 year architecture target for agent-native workflows, durable execution, memory, providers, and deployment. | Use as design reference before major backend refactor; finish active rebuild gates before Phase 4 event backbone work. |
 | Agent runtime | `topics/01-agent-runtime.md` | Draft | Agents, domain agents, tools, capabilities, and registry behavior drive the product. | Verify current `agent_service.py`, `agent_registry_service.py`, `domain_agents/*`, `tools/*`, and tests. |
 | Execution substrate | `topics/02-execution-substrate.md` | Draft | Mission, graph, workflow, Blueprint+Run, and substrate paths overlap and must not be changed blindly. | Trace v1 mission CQRS, v2 Blueprint+Run CQRS, `services/substrate/*`, and tests. |
 | Auth and workspaces | `topics/03-auth-workspaces.md` | Draft | Workspace scope, API keys, v3 cookies, and role checks are security-sensitive. | Verify v3 auth routes, middleware, `UserAPIKey`, workspace dependencies, and tests. |

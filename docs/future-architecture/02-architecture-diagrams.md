@@ -36,9 +36,9 @@
 ┌─────────────▼─────────────┐        ┌──────────────▼──────────────┐        ┌─────────────▼─────────────┐
 │ Transactional Store       │        │ Event Backbone              │        │ Execution Plane           │
 │ Postgres                  │        │ Outbox + NATS JetStream     │        │ Stateless workers         │
-│ - domain tables           │        │ RabbitMQ compatibility      │        │ - lease tasks             │
-│ - append-only events      │        │ Redpanda/Kafka later        │        │ - execute tools/LLMs      │
-│ - projections             │        │                             │        │ - checkpoint progress     │
+│ - domain tables           │        │ Phase 4 future dependency   │        │ - lease tasks             │
+│ - append-only events      │        │ RabbitMQ current compat.    │        │ - execute tools/LLMs      │
+│ - projections             │        │ Redpanda/Kafka later        │        │ - checkpoint progress     │
 └───────────────────────────┘        └─────────────────────────────┘        └─────────────┬─────────────┘
               │                                     │                                     │
 ┌─────────────▼─────────────┐        ┌──────────────▼──────────────┐        ┌─────────────▼─────────────┐
@@ -154,8 +154,8 @@ Transactional write:
 Event outbox publisher
   ↓
 Event backbone:
-  - NATS JetStream for domain events
-  - RabbitMQ for task dispatch compatibility
+  - RabbitMQ for current task dispatch compatibility
+  - NATS JetStream later for domain events
   ↓
 Execution workers claim leases
   ↓

@@ -214,7 +214,7 @@ backend/app/
   api/
 ```
 
-This is a migration target, not a one-day rewrite.
+This is a migration target, not today's repository structure. Reach it incrementally through boundary tests, module extraction, and adapter seams; do not perform a one-shot restructure.
 
 ## Boundary Contracts
 

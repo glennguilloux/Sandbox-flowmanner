@@ -88,12 +88,12 @@ Required events:
 
 ### Event Backbone
 
-Use a layered event architecture:
+Use a layered event architecture. NATS JetStream is a future Phase 4 dependency; it is not part of the current Docker Compose topology.
 
 ```text
 Postgres outbox
-  → NATS JetStream for domain events
-  → RabbitMQ for legacy Celery/task compatibility
+  → RabbitMQ for current Celery/task compatibility
+  → NATS JetStream for domain events after Phase 4
   → Redpanda/Kafka later for high-volume audit and analytics
 ```
 
@@ -102,8 +102,8 @@ Postgres outbox
 | Component | Role |
 |---|---|
 | Postgres outbox | Reliable transaction boundary. |
-| NATS JetStream | Simple, durable, high-performance event backbone. |
-| RabbitMQ | Preserve existing Celery compatibility. |
+| RabbitMQ | Current Celery/task compatibility. |
+| NATS JetStream | Future Phase 4 domain event backbone. |
 | Redpanda/Kafka | Future high-volume immutable log for SaaS scale. |
 
 ### Event Categories
