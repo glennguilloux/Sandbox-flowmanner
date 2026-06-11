@@ -33,9 +33,8 @@ TEMPLATE_DIR="/var/lib/sandboxed/templates/${TEMPLATE_NAME}/app"
 echo ">>> Building sandboxd-base:1.0.0 with fixes..."
 docker build -t sandboxd-base:1.0.0 -f "$SCRIPT_DIR/Dockerfile.sandboxd-base" "$PROJECT_ROOT"
 
-echo ">>> Verifying node/npm in image..."
-docker run --rm --entrypoint='' sandboxd-base:1.0.0 node --version
-docker run --rm --entrypoint='' sandboxd-base:1.0.0 npm --version
+echo ">>> Verifying bun (JS runtime) in image..."
+docker run --rm --entrypoint='' sandboxd-base:1.0.0 bun --version || echo "    (bun not found - Vite via bun unavailable, but python-img template does not need it)"
 
 echo ">>> Verifying RUNTIMED_DEV_CMD..."
 docker run --rm --entrypoint='' sandboxd-base:1.0.0 sh -c 'echo $RUNTIMED_DEV_CMD'

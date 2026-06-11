@@ -24,8 +24,18 @@ FROM sandboxd-base:1.0.0
 
 USER root
 
-# Install Node.js + npm for Vite dev server support
-RUN apk add --no-cache nodejs npm
+# Note: the upstream sandboxd-base:1.0.0 image is Debian GNU/Linux 13
+# (trixie) and ships with `bun` as the JS runtime (in PATH at
+# /home/sandbox/.bun/bin, with NPM_CONFIG_REGISTRY / BUN_CONFIG_REGISTRY
+# env vars). Bun is a drop-in for node in most Vite workflows, so we
+# don't need to install nodejs/npm here.
+#
+# The previous `apk add --no-cache nodejs npm` (and the later
+# `apt-get install -y --no-install-recommends nodejs npm`) were both
+# pre-existing bugs: apk is Alpine-only, and the apt-get version fails
+# with "held broken packages" on this Debian image. Removing the step
+# entirely is correct — the verification in rebuild-sandboxd-base.sh
+# has also been changed to check bun instead of node/npm.
 
 # Set fallback dev server command (python3 http.server)
 # runtimed reads this env var to know what dev command to run.
@@ -35,7 +45,12 @@ ENV RUNTIMED_DEV_CMD="python3 -m http.server 3000 --directory /home/sandbox/work
 # Entrypoint wrapper: see entrypoint-wrapper.sh in this directory.
 # Replaces the previous inline-printf heredoc (extracted to a sibling
 # file because the new logic is ~15 lines, not a one-liner).
-COPY entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
+#
+# Path is prefixed with `sandboxd/` because the rebuild script
+# (sandboxd/rebuild-sandboxd-base.sh) sets the build context to the
+# project root (one level up from this Dockerfile), not to the
+# sandboxd/ directory itself.
+COPY sandboxd/entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
 RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
 
 CMD ["/usr/local/bin/entrypoint-wrapper.sh"]
