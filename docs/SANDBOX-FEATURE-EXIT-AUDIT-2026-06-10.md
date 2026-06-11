@@ -156,6 +156,8 @@ curl -s http://localhost:8000/healthz
 - The system prompt tells the LLM the correct workflow
 - The LLM gets clear error messages instead of silent failures
 
+> **Resolution (2026-06-11):** `SANDBOXD_DEFAULT_TEMPLATE` was flipped to `python.img` in commit `4f88743` ("feat(sandboxd): default to python.img template + update tests/prompts"). New sandboxes no longer depend on a `react-standard` template existing. Existing `playground_sandboxes` rows with `template="react-standard"` were backfilled by migration `20260611_backfill_playground_template_python_img` to `python.img`. The legacy template name is still accepted as an explicit argument for backwards compatibility.
+
 ---
 
 ## 7. Files touched (for commit)
