@@ -4,6 +4,8 @@
 **Agent:** Buffy
 **Test status:** No new tests (diagnostic session, no code changes)
 
+> ⚠️ **The user reported "Both pages are still UP!" but a follow-up `curl` confirmed they 401.** Trust `curl`, not chromium — chromium was showing a cached page. The user perception and the system state diverged. See Phase 5 below.
+
 ---
 
 ## WHAT CHANGED
@@ -76,7 +78,7 @@ On branch main
 Your branch is up to date with 'origin/main'.
 
 Changes not staged for commit: (none)
-Untracked files (pre-existing, do NOT commit without Glenn):
+Untracked files (pre-existing, do NOT commit without Glenn — cumulative across all 2026-06-10 sessions):
   backend/validate_constraints.py
   backend/app/testing/
   backend/tests/test_env_guard.py
@@ -90,7 +92,7 @@ Untracked files (pre-existing, do NOT commit without Glenn):
   scripts/apply_sentry_none_guards.py
   scripts/debug_converter_splice.py
 ```
-*(Note: basher summarized output — the untracked-file list reflects the cumulative state across all 2026-06-10 sessions. Anything from the agent's "16 files modified" claim is from a stale working tree I do not have a record of modifying in THIS session.)*
+*(I made zero source code changes in this session. If `git status` ever shows modified files in the working tree, they are from prior sessions and should be reviewed by Glenn before any commit — do not assume they belong to this session.)*
 
 ### git fetch origin && git log --oneline origin/main..main
 ```
@@ -144,15 +146,28 @@ The session-3 auto-serve fix (`sandboxd_file_write._ensure_server_8081`) only fi
 - `sandboxd/Dockerfile.sandboxd-base` — base image definition
 - The `ENTRYPOINT` / `CMD` of the per-sandbox image (whatever the worker image inherits from the base)
 - Any `entrypoint.sh` or `start.sh` the base copies in
+- `sandboxd/rebuild-sandboxd-base.sh` — the rebuild script for the base image (run after editing the Dockerfile)
 - The `sandboxd_serve` tool (`backend/app/tools/sandboxd_serve.py`) for how workers are spawned and what image they use
 
+**Orientation commands (run first, before designing the fix):**
+```bash
+ls -la sandboxd/
+cat sandboxd/Dockerfile.sandboxd-base
+cat sandboxd/rebuild-sandboxd-base.sh
+docker exec s-01KTTPX1TD7PYKQVP3HJX4JE0P sh -c 'ps -ef; ss -ltn'  # confirm the empty-process state
+```
+
 **Recommended fix (A):** Modify the sandbox template's entrypoint to auto-start `python3 -m http.server 8081 --directory /home/sandbox/` in the background as part of container start. The entrypoint should (a) start the server, (b) keep PID 1 alive (e.g., `exec` the server, or `wait` on a long-running supervisor). This makes the worker self-sufficient.
+
+**Breaking change warning:** changing the base image **invalidates all running per-sandbox workers** — they were built from the old image and won't pick up the new entrypoint. After rebuilding the base, spawn fresh workers for any sandboxes you want to test (the old workers will continue to 401). The chat agent's `sandboxd_serve` tool will create a worker from the current base image.
 
 **Alternatives to consider (only if (A) is blocked):**
 - (B) Have the FastAPI control plane (or `sandboxd_serve` tool) start the server inside the worker after spawn via `docker exec`. Duplicates logic; not preferred.
 - (C) Supervisor pattern inside the worker. Over-engineered.
 
 **Once (A) is in place:** the band-aid `_ensure_server_8081` in `backend/app/tools/sandboxd_file_write.py` (added in session 3) can be **removed**. The real fix is the entrypoint; the band-aid is a workaround for the missing entrypoint behavior. Don't be tempted to extend the band-aid.
+
+**Rollback plan:** if the entrypoint change breaks worker startup (every new sandbox 401s, or workers fail to spawn), revert `sandboxd/Dockerfile.sandboxd-base` to the previous version and run `sandboxd/rebuild-sandboxd-base.sh` again. Existing workers on the old image keep working during the transition.
 
 **Verify the fix works:**
 1. Spawn a fresh worker: have the user ask the chat agent to call `sandboxd_serve` for a new sandbox_id
@@ -170,10 +185,14 @@ The session-3 auto-serve fix (`sandboxd_file_write._ensure_server_8081`) only fi
 - **The auth chain (commits `4d8e04d` / `800b670` / `cd70bb6`) is solid.** Do not regress-test it. The tests in `test_sandbox_preview_auth.py` (21 tests) and `test_sandboxd_tools.py` (44 tests) are the regression net. **Note:** these commits are NOT in the recent 5 commits on `main` (those are all CI/refactor: `a7de70f` / `5d45daa` / `b04152d` / `8333d1e` / `7812a1c`). Search `git log` further back with `git log --oneline | grep -E '4d8e04d|800b670|cd70bb6'`.
 - **Two sandbox_ids to remember:** `01kttpx1td7pykqvp3hjx4je0p` (new, has the gradient card test page) and `01KTTP00HQKA3712NZVEEP605Y` (old, has earlier test content). URL format: `s-<id>-8081.preview.flowmanner.com`.
 
-### Test status to re-verify at start of next session
+### Confirm current state at start of next session
+- `curl -I https://s-01kttpx1td7pykqvp3hjx4je0p-8081.preview.flowmanner.com/` → if `HTTP 200`, the chat agent re-served the worker in the interim; if `HTTP 401`, the worker is still empty and the entrypoint fix has not been deployed
+- `docker exec <worker> ss -ltn | grep 8081` → if empty, no server inside the worker; the audit's diagnosis still holds
+- `docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep -E 's-01kttpx1td7pykqvp3hjx4je0p|s-01KTTP00HQKA3712NZVEEP605Y'` → confirm both workers still exist (and their status)
+
+### Regression net to re-run before deploying any fix
 - `docker compose exec backend alembic current` → should still be `cleanup_stale_handler_refs_001 (head)`
 - `docker compose exec backend bash -c "pytest tests/test_sandbox_preview_auth.py tests/test_sandboxd_tools.py -q"` → should still pass (21 + 44 = 65 tests)
-- Both preview URLs via `curl` → if still 401, the worker non-persistence problem is unfixed; if 200, the chat agent must have re-served them in the interim
 
 ---
 
