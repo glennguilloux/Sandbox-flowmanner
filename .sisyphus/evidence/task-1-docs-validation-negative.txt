@@ -1,0 +1,9 @@
+command=scripts/validate_future_arch_docs.py --self-test --evidence .sisyphus/evidence/task-1-docs-validation-negative.txt
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T12:44:29.096358+00:00
+
+self_test=pass
+missing_required_doc=detected
+missing_non_goal=detected
+missing_roadmap_alignment=detected

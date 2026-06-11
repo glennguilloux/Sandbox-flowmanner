@@ -1,0 +1,19 @@
+command=grep -nE "Task 7 TDD Contract Checklist|Worker availability SLO|Event append latency SLO|Model fallback success SLO|Self-hosted health checks|Deep-health checks" docs/future-architecture/06-observability-deployment.md
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T16:12:01.216787+00:00
+
+stdout:
+99:| Self-hosted health checks | Deployment/ops | 100% of Docker Compose services expose healthchecks | 100% with automated remediation docs | Compose healthcheck status and `/health` |
+262:- [ ] Worker availability SLO measured.
+263:- [ ] Event append latency SLO measured.
+264:- [ ] Model fallback success SLO measured.
+266:- [ ] Deep-health checks implemented and tested.
+280:## 6. Task 7 TDD Contract Checklist
+285:- [ ] Worker availability SLO has metric names, measurement window, and failure semantics.
+286:- [ ] Event append latency SLO has p95 target, timestamp source, and outbox integration coverage.
+287:- [ ] Model fallback success SLO has provider adapter coverage without logging raw provider calls.
+288:- [ ] Self-hosted health checks pass for Docker Compose services.
+289:- [ ] Deep-health checks include DB, Redis, Qdrant, RabbitMQ, worker, event append, Jaeger, Sentry, metrics, logs, backup status, and optional provider health.
+
+stderr:

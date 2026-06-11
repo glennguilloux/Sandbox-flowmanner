@@ -1,0 +1,12 @@
+command=grep -nE "Kubernetes is optional|No Kubernetes-only self-hosting|without Kubernetes|Kubernetes-ready SaaS packaging" docs/future-architecture/06-observability-deployment.md
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T16:12:01.215099+00:00
+
+stdout:
+135:Kubernetes is optional for SaaS packaging and future scale. It is not mandatory for self-hosted users.
+180:Kubernetes-ready SaaS packaging
+233:- No Kubernetes-only self-hosting.
+275:- [ ] Self-hosted Docker Compose baseline works without Kubernetes.
+
+stderr:

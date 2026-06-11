@@ -1,0 +1,642 @@
+
+Running 60 tests using 1 worker
+
+
+[1A[2K[1/60] [chromium] › e2e/auth-regression.spec.ts:17:7 › Auth Regression: Expired Token + Valid Session › A.1: sign in successfully
+[1A[2K[2/60] [chromium] › e2e/auth-regression.spec.ts:27:7 › Auth Regression: Expired Token + Valid Session › A.2: intercept all API calls to return 401
+[1A[2K[3/60] [chromium] › e2e/auth-regression.spec.ts:46:7 › Auth Regression: Expired Token + Valid Session › A.3: NO redirect loop after 401-triggered signOut
+[1A[2K  1) [chromium] › e2e/auth-regression.spec.ts:46:7 › Auth Regression: Expired Token + Valid Session › A.3: NO redirect loop after 401-triggered signOut 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).not.[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: not [32m/dashboard/[39m
+    Received string: [31m"http://localhost:3000/signin?from=%2Fen%2F[7mdashboard[27m"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "not toHaveURL" with timeout 5000ms[22m
+    [2m    14 × unexpected value "http://localhost:3000/signin?from=%2Fen%2Fdashboard"[22m
+
+
+      52 |     await page.waitForTimeout(3000);
+      53 |     await expect(page).toHaveURL(/signin/);
+    > 54 |     await expect(page).not.toHaveURL(/dashboard/);
+         |                            ^
+      55 |     await expect(page.getByLabel(/email/i)).toBeVisible();
+      56 |     await expect(page.getByRole("button", { name: "Sign In", exact: true })).toBeVisible();
+      57 |     // Verify session was actually cleared -- protected pages still redirect
+        at /home/glenn/FlowmannerV2-frontend/e2e/auth-regression.spec.ts:54:28
+
+    Error Context: test-results/auth-regression-Auth-Regre-9d531-after-401-triggered-signOut-chromium/error-context.md
+
+
+[1A[2K[4/60] [chromium] › e2e/auth-regression.spec.ts:69:7 › Auth Regression: Expired Token + Valid Session › B.1: unauthorized access redirects to signin
+[1A[2K[5/60] [chromium] › e2e/auth-regression.spec.ts:76:7 › Auth Regression: Expired Token + Valid Session › B.2: repeated hits do NOT crash the app
+[1A[2K[6/60] [chromium] › e2e/auth-regression.spec.ts:85:7 › Auth Regression: Expired Token + Valid Session › C.1: signin without from= clears loop cookie
+
+[1A[2K[7/60] [chromium] › e2e/auth-session-no-loop.spec.ts:17:7 › Auth Session: No 401 Loop (H1 Exit Gate) › B.1: unauthenticated GET /api/auth/session returns 200 with null body
+[1A[2K[8/60] [chromium] › e2e/auth-session-no-loop.spec.ts:32:7 › Auth Session: No 401 Loop (H1 Exit Gate) › B.2: loading homepage as unauthenticated visitor produces NO 401 responses
+[1A[2K[9/60] [chromium] › e2e/auth-session-no-loop.spec.ts:53:7 › Auth Session: No 401 Loop (H1 Exit Gate) › B.3: /api/auth/session is queried at most twice on initial page load
+[1A[2K  2) [chromium] › e2e/auth-session-no-loop.spec.ts:53:7 › Auth Session: No 401 Loop (H1 Exit Gate) › B.3: /api/auth/session is queried at most twice on initial page load 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m2[39m
+    Received:    [31m14[39m
+
+      70 |     // Next.js may fire one for RSC prefetch + one for client-side hydration.
+      71 |     // A tight retry loop would produce dozens. We allow ≤2.
+    > 72 |     expect(sessionRequests.length).toBeLessThanOrEqual(2);
+         |                                    ^
+      73 |   });
+      74 | });
+      75 |
+        at /home/glenn/FlowmannerV2-frontend/e2e/auth-session-no-loop.spec.ts:72:36
+
+    Error Context: test-results/auth-session-no-loop-Auth--09a27--twice-on-initial-page-load-chromium/error-context.md
+
+
+
+[1A[2K[10/60] [chromium] › e2e/chat-attachments.spec.ts:4:7 › Chat attachment features smoke › chat page loads and shows attachment controls
+[1A[2K  3) [chromium] › e2e/chat-attachments.spec.ts:4:7 › Chat attachment features smoke › chat page loads and shows attachment controls 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByLabel('Upload image')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByLabel('Upload image')[22m
+    [2m    - waiting for" http://localhost:3000/signin?from=%2Fen%2Fchat" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/signin?from=%2Fen%2Fchat"[22m
+
+
+       5 |     await page.goto("/en/chat");
+       6 |
+    >  7 |     await expect(page.getByLabel("Upload image")).toBeVisible();
+         |                                                   ^
+       8 |     await expect(page.getByLabel("Upload file")).toBeVisible();
+       9 |     await expect(page.getByLabel(/web search/i)).toBeVisible();
+      10 |     await expect(page.getByLabel("Chat message input")).toBeVisible();
+        at /home/glenn/FlowmannerV2-frontend/e2e/chat-attachments.spec.ts:7:51
+
+    Error Context: test-results/chat-attachments-Chat-atta-5e182-d-shows-attachment-controls-chromium/error-context.md
+
+
+
+[1A[2K[11/60] [chromium] › e2e/chat-attachments.spec.ts:13:7 › Chat attachment features smoke › web search toggle changes visual state
+[1A[2K  4) [chromium] › e2e/chat-attachments.spec.ts:13:7 › Chat attachment features smoke › web search toggle changes visual state 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByLabel(/web search/i)
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByLabel(/web search/i)[22m
+    [2m    - waiting for" http://localhost:3000/signin?from=%2Fen%2Fchat" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/signin?from=%2Fen%2Fchat"[22m
+
+
+      15 |
+      16 |     const toggle = page.getByLabel(/web search/i);
+    > 17 |     await expect(toggle).toBeVisible();
+         |                          ^
+      18 |
+      19 |     const initialState = await toggle.getAttribute("class");
+      20 |     await toggle.click();
+        at /home/glenn/FlowmannerV2-frontend/e2e/chat-attachments.spec.ts:17:26
+
+    Error Context: test-results/chat-attachments-Chat-atta-69634-toggle-changes-visual-state-chromium/error-context.md
+
+
+
+[1A[2K[12/60] [chromium] › e2e/mission-advanced.spec.ts:10:7 › Mission Builder — New Node Types › palette shows all 12 node types in categorized sections
+[1A[2K  5) [chromium] › e2e/mission-advanced.spec.ts:10:7 › Mission Builder — New Node Types › palette shows all 12 node types in categorized sections 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-4ea45-pes-in-categorized-sections-chromium/error-context.md
+
+
+
+[1A[2K[13/60] [chromium] › e2e/mission-advanced.spec.ts:44:7 › Mission Builder — New Node Types › can drag Loop node from palette onto canvas
+[1A[2K  6) [chromium] › e2e/mission-advanced.spec.ts:44:7 › Mission Builder — New Node Types › can drag Loop node from palette onto canvas 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-03ff7-de-from-palette-onto-canvas-chromium/error-context.md
+
+
+
+[1A[2K[14/60] [chromium] › e2e/mission-advanced.spec.ts:62:7 › Mission Builder — New Node Types › can drag Delay node from palette onto canvas
+[1A[2K  7) [chromium] › e2e/mission-advanced.spec.ts:62:7 › Mission Builder — New Node Types › can drag Delay node from palette onto canvas 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-ba36c-de-from-palette-onto-canvas-chromium/error-context.md
+
+
+
+[1A[2K[15/60] [chromium] › e2e/mission-advanced.spec.ts:79:7 › Mission Builder — New Node Types › properties panel shows correct fields for Loop node
+[1A[2K  8) [chromium] › e2e/mission-advanced.spec.ts:79:7 › Mission Builder — New Node Types › properties panel shows correct fields for Loop node 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-c16ea-orrect-fields-for-Loop-node-chromium/error-context.md
+
+
+
+[1A[2K[16/60] [chromium] › e2e/mission-advanced.spec.ts:103:7 › Mission Builder — New Node Types › properties panel shows correct fields for Approval node
+[1A[2K  9) [chromium] › e2e/mission-advanced.spec.ts:103:7 › Mission Builder — New Node Types › properties panel shows correct fields for Approval node 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-c8780-ct-fields-for-Approval-node-chromium/error-context.md
+
+
+
+[1A[2K[17/60] [chromium] › e2e/mission-advanced.spec.ts:123:7 › Mission Builder — New Node Types › properties panel shows correct fields for Transform node
+[1A[2K  10) [chromium] › e2e/mission-advanced.spec.ts:123:7 › Mission Builder — New Node Types › properties panel shows correct fields for Transform node 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-cc799-t-fields-for-Transform-node-chromium/error-context.md
+
+
+
+[1A[2K[18/60] [chromium] › e2e/mission-advanced.spec.ts:142:7 › Mission Builder — New Node Types › properties panel shows correct fields for Delay node
+[1A[2K  11) [chromium] › e2e/mission-advanced.spec.ts:142:7 › Mission Builder — New Node Types › properties panel shows correct fields for Delay node 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-05539-rrect-fields-for-Delay-node-chromium/error-context.md
+
+
+
+[1A[2K[19/60] [chromium] › e2e/mission-advanced.spec.ts:161:7 › Mission Builder — New Node Types › new nodes render with correct colors on canvas
+[1A[2K  12) [chromium] › e2e/mission-advanced.spec.ts:161:7 › Mission Builder — New Node Types › new nodes render with correct colors on canvas 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.react-flow') to be visible[22m
+
+
+       5 |     await page.goto("/en/tools/mission-builder");
+       6 |     // Wait for the React Flow canvas to render
+    >  7 |     await page.waitForSelector(".react-flow", { timeout: 10000 });
+         |                ^
+       8 |   });
+       9 |
+      10 |   test("palette shows all 12 node types in categorized sections", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-advanced.spec.ts:7:16
+
+    Error Context: test-results/mission-advanced-Mission-B-752b8-th-correct-colors-on-canvas-chromium/error-context.md
+
+
+
+[1A[2K[20/60] [chromium] › e2e/mission-builder.spec.ts:4:7 › Mission Builder › loads the builder page
+[1A[2K  13) [chromium] › e2e/mission-builder.spec.ts:4:7 › Mission Builder › loads the builder page ──────
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Mission Builder')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('Mission Builder')[22m
+
+
+      4 |   test("loads the builder page", async ({ page }) => {
+      5 |     await page.goto("/en/missions/builder");
+    > 6 |     await expect(page.getByText("Mission Builder")).toBeVisible();
+        |                                                     ^
+      7 |   });
+      8 |
+      9 |   test("shows all 8 node types in palette", async ({ page }) => {
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-builder.spec.ts:6:53
+
+    Error Context: test-results/mission-builder-Mission-Builder-loads-the-builder-page-chromium/error-context.md
+
+
+
+[1A[2K[21/60] [chromium] › e2e/mission-builder.spec.ts:9:7 › Mission Builder › shows all 8 node types in palette
+[1A[2K  14) [chromium] › e2e/mission-builder.spec.ts:9:7 › Mission Builder › shows all 8 node types in palette 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Start').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('Start').first()[22m
+    [2m    - waiting for" http://localhost:3000/signin?from=%2Fen%2Fmissions%2Fbuilder" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/signin?from=%2Fen%2Fmissions%2Fbuilder"[22m
+
+
+      11 |
+      12 |     // Flow Control
+    > 13 |     await expect(page.getByText("Start").first()).toBeVisible();
+         |                                                   ^
+      14 |     await expect(page.getByText("End").first()).toBeVisible();
+      15 |
+      16 |     // Logic
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-builder.spec.ts:13:51
+
+    Error Context: test-results/mission-builder-Mission-Bu-28941-all-8-node-types-in-palette-chromium/error-context.md
+
+
+
+[1A[2K[22/60] [chromium] › e2e/mission-builder.spec.ts:29:7 › Mission Builder › allows typing mission name
+[1A[2K  15) [chromium] › e2e/mission-builder.spec.ts:29:7 › Mission Builder › allows typing mission name ─
+
+    TypeError: page.getByPlaceholderText is not a function
+
+      29 |   test("allows typing mission name", async ({ page }) => {
+      30 |     await page.goto("/en/missions/builder");
+    > 31 |     const nameInput = page.getByPlaceholderText("Enter mission name");
+         |                            ^
+      32 |     await nameInput.clear();
+      33 |     await nameInput.fill("Test Mission");
+      34 |     await expect(nameInput).toHaveValue("Test Mission");
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-builder.spec.ts:31:28
+
+    Error Context: test-results/mission-builder-Mission-Builder-allows-typing-mission-name-chromium/error-context.md
+
+
+
+[1A[2K[23/60] [chromium] › e2e/mission-builder.spec.ts:37:7 › Mission Builder › shows zoom presets
+[1A[2K  16) [chromium] › e2e/mission-builder.spec.ts:37:7 › Mission Builder › shows zoom presets ─────────
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Fit')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('Fit')[22m
+    [2m    - waiting for" http://localhost:3000/signin?from=%2Fen%2Fmissions%2Fbuilder" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/signin?from=%2Fen%2Fmissions%2Fbuilder"[22m
+
+
+      37 |   test("shows zoom presets", async ({ page }) => {
+      38 |     await page.goto("/en/missions/builder");
+    > 39 |     await expect(page.getByText("Fit")).toBeVisible();
+         |                                         ^
+      40 |     await expect(page.getByText("50%")).toBeVisible();
+      41 |     await expect(page.getByText("100%")).toBeVisible();
+      42 |     await expect(page.getByText("200%")).toBeVisible();
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-builder.spec.ts:39:41
+
+    Error Context: test-results/mission-builder-Mission-Builder-shows-zoom-presets-chromium/error-context.md
+
+
+
+[1A[2K[24/60] [chromium] › e2e/mission-builder.spec.ts:45:7 › Mission Builder › shows action bar buttons
+[1A[2K  17) [chromium] › e2e/mission-builder.spec.ts:45:7 › Mission Builder › shows action bar buttons ───
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Validate')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('Validate')[22m
+    [2m    - waiting for" http://localhost:3000/signin?from=%2Fen%2Fmissions%2Fbuilder" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/signin?from=%2Fen%2Fmissions%2Fbuilder"[22m
+
+
+      45 |   test("shows action bar buttons", async ({ page }) => {
+      46 |     await page.goto("/en/missions/builder");
+    > 47 |     await expect(page.getByText("Validate")).toBeVisible();
+         |                                              ^
+      48 |     await expect(page.getByText("Save")).toBeVisible();
+      49 |   });
+      50 | });
+        at /home/glenn/FlowmannerV2-frontend/e2e/mission-builder.spec.ts:47:46
+
+    Error Context: test-results/mission-builder-Mission-Builder-shows-action-bar-buttons-chromium/error-context.md
+
+
+
+[1A[2K[25/60] [chromium] › e2e/smoke-pages.spec.ts:34:9 › Static pages smoke › /en/docs returns 200 and renders heading
+[1A[2K[26/60] [chromium] › e2e/smoke-pages.spec.ts:34:9 › Static pages smoke › /en/terms returns 200 and renders heading
+[1A[2K[27/60] [chromium] › e2e/smoke-pages.spec.ts:34:9 › Static pages smoke › /en/privacy returns 200 and renders heading
+[1A[2K[28/60] [chromium] › e2e/smoke-pages.spec.ts:44:9 › Public app pages smoke › /en/templates returns 200 with no server errors
+[1A[2K[29/60] [chromium] › e2e/smoke-pages.spec.ts:44:9 › Public app pages smoke › /en/blog returns 200 with no server errors
+[1A[2K[30/60] [chromium] › e2e/smoke-pages.spec.ts:65:9 › Authenticated app pages smoke › /en/models returns 200 with no server errors
+[1A[2K[31/60] [chromium] › e2e/smoke-pages.spec.ts:65:9 › Authenticated app pages smoke › /en/analytics returns 200 with no server errors
+[1A[2K[32/60] [chromium] › e2e/smoke-pages.spec.ts:65:9 › Authenticated app pages smoke › /en/profile returns 200 with no server errors
+[1A[2K[33/60] [chromium] › e2e/smoke-pages.spec.ts:87:9 › Admin pages smoke › /en/admin returns 200 with no server errors
+[1A[2K[34/60] [chromium] › e2e/smoke-pages.spec.ts:87:9 › Admin pages smoke › /en/admin/audit returns 200 with no server errors
+[1A[2K[35/60] [chromium] › e2e/smoke-pages.spec.ts:87:9 › Admin pages smoke › /en/admin/features returns 200 with no server errors
+[1A[2K[36/60] [chromium] › e2e/smoke-pages.spec.ts:87:9 › Admin pages smoke › /en/admin/maintenance returns 200 with no server errors
+[1A[2K[37/60] [chromium] › e2e/smoke-pages.spec.ts:87:9 › Admin pages smoke › /en/admin/system returns 200 with no server errors
+[1A[2K[38/60] [chromium] › e2e/smoke-pages.spec.ts:87:9 › Admin pages smoke › /en/admin/users returns 200 with no server errors
+[1A[2K[39/60] [chromium] › e2e/team-management.spec.ts:86:7 › Team Page › loads and shows workspace info
+[1A[2K  18) [chromium] › e2e/team-management.spec.ts:86:7 › Team Page › loads and shows workspace info ───
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Team Management')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('Team Management')[22m
+    [2m    - waiting for" http://localhost:3000/team" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/team"[22m
+
+
+      86 |   test("loads and shows workspace info", async ({ page }) => {
+      87 |     await waitForTeamPage(page);
+    > 88 |     await expect(page.getByText("Team Management")).toBeVisible();
+         |                                                     ^
+      89 |   });
+      90 |
+      91 |   // ─── Tab Navigation ───────────────────────────────────────────────
+        at /home/glenn/FlowmannerV2-frontend/e2e/team-management.spec.ts:88:53
+
+    Error Context: test-results/team-management-Team-Page-loads-and-shows-workspace-info-chromium/error-context.md
+
+
+
+[1A[2K[40/60] [chromium] › e2e/team-management.spec.ts:93:7 › Team Page › switches between all four tabs
+[1A[2K  19) [chromium] › e2e/team-management.spec.ts:93:7 › Team Page › switches between all four tabs ───
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('button', { name: /create team/i })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('button', { name: /create team/i })[22m
+
+
+      102 |     await expect(
+      103 |       page.getByRole("button", { name: /create team/i })
+    > 104 |     ).toBeVisible();
+          |       ^
+      105 |
+      106 |     // Switch to Invitations
+      107 |     await page.getByRole("button", { name: "Invitations" }).click();
+        at /home/glenn/FlowmannerV2-frontend/e2e/team-management.spec.ts:104:7
+
+    Error Context: test-results/team-management-Team-Page-switches-between-all-four-tabs-chromium/error-context.md
+
+
+
+[1A[2K[41/60] [chromium] › e2e/team-management.spec.ts:123:7 › Team Page › create team, edit it, then delete it
+[1A[2K  20) [chromium] › e2e/team-management.spec.ts:123:7 › Team Page › create team, edit it, then delete it 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: /create team/i })[22m
+
+
+      130 |
+      131 |     // Create team
+    > 132 |     await page.getByRole("button", { name: /create team/i }).click();
+          |                                                              ^
+      133 |     await page.getByPlaceholder(/team name/i).fill(teamName);
+      134 |     await page
+      135 |       .getByPlaceholder(/description/i)
+        at /home/glenn/FlowmannerV2-frontend/e2e/team-management.spec.ts:132:62
+
+    Error Context: test-results/team-management-Team-Page-create-team-edit-it-then-delete-it-chromium/error-context.md
+
+
+
+[1A[2K[42/60] [chromium] › e2e/team-management.spec.ts:173:7 › Team Page › assign member to team via dropdown
+[1A[2K  21) [chromium] › e2e/team-management.spec.ts:173:7 › Team Page › assign member to team via dropdown 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: /create team/i })[22m
+
+
+      179 |     // Create a team first
+      180 |     await page.getByRole("button", { name: "Teams" }).click();
+    > 181 |     await page.getByRole("button", { name: /create team/i }).click();
+          |                                                              ^
+      182 |     await page.getByPlaceholder(/team name/i).fill(teamName);
+      183 |     await page.getByRole("button", { name: /^create$/i }).click();
+      184 |     await expect(page.getByText(teamName)).toBeVisible({ timeout: 10000 });
+        at /home/glenn/FlowmannerV2-frontend/e2e/team-management.spec.ts:181:62
+
+    Error Context: test-results/team-management-Team-Page-assign-member-to-team-via-dropdown-chromium/error-context.md
+
+
+
+[1A[2K[43/60] [chromium] › e2e/team-management.spec.ts:217:7 › Team Page › create invitation link from Settings tab
+[1A[2K[44/60] [chromium] › e2e/team-management.spec.ts:241:7 › Team Page › settings page has Team card linking to /team
+[1A[2K  22) [chromium] › e2e/team-management.spec.ts:241:7 › Team Page › settings page has Team card linking to /team 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Team')
+    Expected: visible
+    Error: strict mode violation: getByText('Team') resolved to 2 elements:
+        1) <h2 class="text-lg font-semibold text-charcoal group-hover:text-clay transition-colors">Team</h2> aka getByRole('link', { name: 'Team Manage members, teams,' })
+        2) <p class="text-sm text-charcoal/60">Manage members, teams, and invitations</p> aka getByRole('link', { name: 'Team Manage members, teams,' })
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('Team')[22m
+
+
+      243 |
+      244 |     // Team card
+    > 245 |     await expect(page.getByText("Team")).toBeVisible();
+          |                                          ^
+      246 |     await expect(
+      247 |       page.getByText(/manage members, teams, and invitations/i)
+      248 |     ).toBeVisible();
+        at /home/glenn/FlowmannerV2-frontend/e2e/team-management.spec.ts:245:42
+
+    Error Context: test-results/team-management-Team-Page--84869-s-Team-card-linking-to-team-chromium/error-context.md
+
+
+
+[1A[2K[45/60] [chromium] › e2e/team-management.spec.ts:257:7 › Team Page › delete workspace button shows confirmation and can cancel
+[1A[2K  23) [chromium] › e2e/team-management.spec.ts:257:7 › Team Page › delete workspace button shows confirmation and can cancel 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText(/delete this workspace/i)
+    Expected: visible
+    Error: strict mode violation: getByText(/delete this workspace/i) resolved to 2 elements:
+        1) <p class="text-sm text-red-300/70 mb-4">Permanently delete this workspace and all its dat…</p> aka getByText('Permanently delete this')
+        2) <h2 class="text-lg font-semibold text-cream mb-2">Delete this workspace?</h2> aka getByRole('heading', { name: 'Delete this workspace?' })
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText(/delete this workspace/i)[22m
+
+
+      269 |
+      270 |       // Confirmation dialog
+    > 271 |       await expect(page.getByText(/delete this workspace/i)).toBeVisible();
+          |                                                              ^
+      272 |       await expect(page.getByText(/permanently delete/i)).toBeVisible();
+      273 |
+      274 |       // Cancel — don't actually delete
+        at /home/glenn/FlowmannerV2-frontend/e2e/team-management.spec.ts:271:62
+
+    Error Context: test-results/team-management-Team-Page--7ebaa-confirmation-and-can-cancel-chromium/error-context.md
+
+
+
+[1A[2K[46/60] [chromium] › e2e/user-journey.spec.ts:29:7 › User Journey: Unauthenticated › homepage loads
+[1A[2K[47/60] [chromium] › e2e/user-journey.spec.ts:34:7 › User Journey: Unauthenticated › sign-in page renders correctly
+[1A[2K[48/60] [chromium] › e2e/user-journey.spec.ts:43:7 › User Journey: Unauthenticated › sign-up page renders correctly
+[1A[2K[49/60] [chromium] › e2e/user-journey.spec.ts:50:7 › User Journey: Unauthenticated › protected routes redirect to signin
+[1A[2K[50/60] [chromium] › e2e/user-journey.spec.ts:55:7 › User Journey: Unauthenticated › static pages are accessible
+[1A[2K[51/60] [chromium] › e2e/user-journey.spec.ts:66:7 › User Journey: Authenticated › dashboard loads
+[1A[2K[52/60] [chromium] › e2e/user-journey.spec.ts:72:7 › User Journey: Authenticated › navigate to missions page
+[1A[2K[53/60] [chromium] › e2e/user-journey.spec.ts:78:7 › User Journey: Authenticated › navigate to graphs page
+[1A[2K[54/60] [chromium] › e2e/user-journey.spec.ts:84:7 › User Journey: Authenticated › navigate to files page
+[1A[2K[55/60] [chromium] › e2e/user-journey.spec.ts:90:7 › User Journey: Authenticated › navigate to team page
+[1A[2K[56/60] [chromium] › e2e/user-journey.spec.ts:96:7 › User Journey: Authenticated › navigate to settings page
+[1A[2K[57/60] [chromium] › e2e/user-journey.spec.ts:102:7 › User Journey: Authenticated › mission dashboard loads
+[1A[2K[58/60] [chromium] › e2e/user-journey.spec.ts:108:7 › User Journey: Authenticated › chat page loads
+[1A[2K[59/60] [chromium] › e2e/user-journey.spec.ts:116:7 › User Journey: API Health › backend health endpoint responds
+[1A[2K[60/60] [chromium] › e2e/user-journey.spec.ts:124:7 › User Journey: API Health › backend auth endpoint accepts credentials
+[1A[2K  23 failed
+    [chromium] › e2e/auth-regression.spec.ts:46:7 › Auth Regression: Expired Token + Valid Session › A.3: NO redirect loop after 401-triggered signOut 
+    [chromium] › e2e/auth-session-no-loop.spec.ts:53:7 › Auth Session: No 401 Loop (H1 Exit Gate) › B.3: /api/auth/session is queried at most twice on initial page load 
+    [chromium] › e2e/chat-attachments.spec.ts:4:7 › Chat attachment features smoke › chat page loads and shows attachment controls 
+    [chromium] › e2e/chat-attachments.spec.ts:13:7 › Chat attachment features smoke › web search toggle changes visual state 
+    [chromium] › e2e/mission-advanced.spec.ts:10:7 › Mission Builder — New Node Types › palette shows all 12 node types in categorized sections 
+    [chromium] › e2e/mission-advanced.spec.ts:44:7 › Mission Builder — New Node Types › can drag Loop node from palette onto canvas 
+    [chromium] › e2e/mission-advanced.spec.ts:62:7 › Mission Builder — New Node Types › can drag Delay node from palette onto canvas 
+    [chromium] › e2e/mission-advanced.spec.ts:79:7 › Mission Builder — New Node Types › properties panel shows correct fields for Loop node 
+    [chromium] › e2e/mission-advanced.spec.ts:103:7 › Mission Builder — New Node Types › properties panel shows correct fields for Approval node 
+    [chromium] › e2e/mission-advanced.spec.ts:123:7 › Mission Builder — New Node Types › properties panel shows correct fields for Transform node 
+    [chromium] › e2e/mission-advanced.spec.ts:142:7 › Mission Builder — New Node Types › properties panel shows correct fields for Delay node 
+    [chromium] › e2e/mission-advanced.spec.ts:161:7 › Mission Builder — New Node Types › new nodes render with correct colors on canvas 
+    [chromium] › e2e/mission-builder.spec.ts:4:7 › Mission Builder › loads the builder page ────────
+    [chromium] › e2e/mission-builder.spec.ts:9:7 › Mission Builder › shows all 8 node types in palette 
+    [chromium] › e2e/mission-builder.spec.ts:29:7 › Mission Builder › allows typing mission name ───
+    [chromium] › e2e/mission-builder.spec.ts:37:7 › Mission Builder › shows zoom presets ───────────
+    [chromium] › e2e/mission-builder.spec.ts:45:7 › Mission Builder › shows action bar buttons ─────
+    [chromium] › e2e/team-management.spec.ts:86:7 › Team Page › loads and shows workspace info ─────
+    [chromium] › e2e/team-management.spec.ts:93:7 › Team Page › switches between all four tabs ─────
+    [chromium] › e2e/team-management.spec.ts:123:7 › Team Page › create team, edit it, then delete it 
+    [chromium] › e2e/team-management.spec.ts:173:7 › Team Page › assign member to team via dropdown 
+    [chromium] › e2e/team-management.spec.ts:241:7 › Team Page › settings page has Team card linking to /team 
+    [chromium] › e2e/team-management.spec.ts:257:7 › Team Page › delete workspace button shows confirmation and can cancel 
+  3 did not run
+  34 passed (4.2m)
+EXIT=1

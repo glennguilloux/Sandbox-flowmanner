@@ -1,7 +1,7 @@
-command=scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-5-runtime-valid.txt
+command=scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-1-docs-validation-pass.txt
 working_directory=/opt/flowmanner
 exit_code=0
-timestamp=2026-06-11T15:09:47.625066+00:00
+timestamp=2026-06-11T12:44:27.865449+00:00
 
 docs_validated=9
 01-paradigm-evaluation.md: valid
@@ -13,7 +13,7 @@ docs_validated=9
 07-roadmap-risks-not-build.md: valid
 08-final-recommendation.md: valid
 09-current-state-gaps.md: valid
-cross_links_checked=9
+cross_links_checked=0
 roadmap_items_checked=6
 tdd_contracts=6
 stop_gates=6

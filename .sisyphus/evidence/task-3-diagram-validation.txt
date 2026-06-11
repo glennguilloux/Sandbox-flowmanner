@@ -1,7 +1,7 @@
-command=scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-5-runtime-valid.txt
+command=scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-3-diagram-validation.txt
 working_directory=/opt/flowmanner
 exit_code=0
-timestamp=2026-06-11T15:09:47.625066+00:00
+timestamp=2026-06-11T13:45:26.089338+00:00
 
 docs_validated=9
 01-paradigm-evaluation.md: valid

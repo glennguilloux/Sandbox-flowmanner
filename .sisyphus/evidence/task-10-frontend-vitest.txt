@@ -1,0 +1,10 @@
+
+ RUN  v4.1.6 /home/glenn/FlowmannerV2-frontend
+
+
+ Test Files  19 passed (19)
+      Tests  319 passed (319)
+   Start at  20:19:13
+   Duration  2.86s (transform 5.53s, setup 1.45s, import 9.61s, tests 5.14s, environment 15.69s)
+
+task_10_frontend_vitest_exit=0

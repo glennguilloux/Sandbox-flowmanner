@@ -1,0 +1,21 @@
+command=grep -nE "Deep-health|deep-health|/health/deep|deep health" docs/future-architecture/06-observability-deployment.md
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T16:12:01.215731+00:00
+
+stdout:
+21:- Can an operator prove deep-health without calling external providers by default?
+60:| Operator deep-health replay | Platform operators | Health results, dependency checks, SLO status, queue state, worker leases, recent failures, trace links, dashboard links | Must avoid external provider calls unless the operator explicitly selects provider health. Redact secrets, prompts, and user data. |
+68:Deep-health must be a separate production gate, not a renamed `/health/full`.
+70:Deep-health must check:
+88:A deployment may claim basic health without deep-health. It must not claim observability completeness until deep-health is implemented and tested.
+100:| Deep-health availability | Platform ops | baseline: 99.0% when deployed | 99.5% with synthetic probes | `/health/deep` or equivalent endpoint success |
+171:- Deep-health endpoint or script for operator verification.
+226:- Provider health checks are deep-health checks only when explicitly selected.
+234:- No observability completeness claim without deep-health.
+249:| Sentry/Jaeger/deep-health baseline | Phase 1 observability foundation. Jaeger traces, Sentry errors, and deep-health must be present before claiming production observability. |
+251:| `code_execute` health | Chat code execution health must be visible through request IDs, deep-health, logs, traces, and explicit error responses. |
+266:- [ ] Deep-health checks implemented and tested.
+289:- [ ] Deep-health checks include DB, Redis, Qdrant, RabbitMQ, worker, event append, Jaeger, Sentry, metrics, logs, backup status, and optional provider health.
+
+stderr:

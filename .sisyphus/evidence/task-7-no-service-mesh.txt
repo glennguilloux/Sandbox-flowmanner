@@ -1,0 +1,14 @@
+command=grep -nE "service mesh|No service mesh for homelab deployments" docs/future-architecture/06-observability-deployment.md
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T16:12:01.214271+00:00
+
+stdout:
+162:- No service mesh requirement.
+203:- Optional service mesh only for SaaS-scale needs, never for homelab baseline.
+232:- No service mesh for homelab deployments.
+277:- [ ] No service mesh is required for homelab deployments.
+292:- [ ] Deployment stop gates fail validation when service mesh is introduced as a homelab requirement.
+299:It also gives SaaS a safe scaling path without forcing homelab users into Kubernetes, service mesh, cloud-only hosting, or a premature event backbone.
+
+stderr:

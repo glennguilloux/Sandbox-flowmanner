@@ -1,0 +1,6 @@
+command=python -c from pathlib import Path; text = Path('docs/future-architecture/05-knowledge-events-data.md').read_text(); assert 'provider routing research' in text and 'unresolved' in text and 'local/cloud' in text; print('provider routing unresolved flag: present')
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T15:32:47.373283+00:00
+
+provider routing unresolved flag: present
