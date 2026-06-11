@@ -1,0 +1,12 @@
+Checking active rebuild item names in docs/future-architecture/07-roadmap-risks-not-build.md
+
+PASS code_execute production issue: found /api/chat/code/execute | code.execute | code execution
+PASS CI pipeline hardening: found CI pipeline
+PASS Sentry/Jaeger/deep-health baseline: found Sentry | Jaeger | deep.health|deep health|deep-health
+PASS Blueprint+Run unification: found Blueprint\+Run | Blueprint and Run
+PASS substrate executor/chaos tests: found substrate executor | chaos tests | chaos
+PASS chat UX fixes: found Chat UX | chat UX
+
+result=PASS
+items_checked=6
+missing=[]
