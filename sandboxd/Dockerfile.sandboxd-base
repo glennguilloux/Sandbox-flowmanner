@@ -1,0 +1,37 @@
+# Dockerfile.sandboxd-base — Rebuild sandboxd-base:1.0.0 with fixes
+#
+# This Dockerfile patches the upstream sandboxd-base:1.0.0 image with:
+#   1. Entrypoint wrapper that creates /home/sandbox/.runtimed (permission fix)
+#   2. Node.js + npm (for Vite dev server support)
+#   3. RUNTIMED_DEV_CMD env var (fallback to python3 http.server)
+#
+# Build: docker build -t sandboxd-base:1.0.0 -f Dockerfile.sandboxd-base .
+# Run:   (managed by sandboxd — do not run manually)
+#
+# Context: sandboxd bind-mounts /home/sandbox from the host workspace,
+# overlaying any image-level changes. The wrapper script runs AFTER the
+# mount is applied, so mkdir works on the actual workspace.
+#
+# The RUNTIMED_DEV_CMD provides a zero-dependency fallback (python3 http.server)
+# when Vite/Node is not available. runtimed uses this to serve the preview.
+
+FROM sandboxd-base:1.0.0
+
+USER root
+
+# Install Node.js + npm for Vite dev server support
+RUN apk add --no-cache nodejs npm
+
+# Set fallback dev server command (python3 http.server)
+# runtimed reads this env var to know what dev command to run.
+# Vite (via npm run dev) takes precedence when package.json exists with deps.
+ENV RUNTIMED_DEV_CMD="python3 -m http.server 3000 --directory /home/sandbox/workspace/app"
+
+# Entrypoint wrapper: create .runtimed dir AFTER bind mount, then exec runtimed
+# This fixes "mkdir /home/sandbox/.runtimed: permission denied" which caused
+# runtimed to crash immediately, killing the container.
+RUN printf '#!/bin/sh\nmkdir -p /home/sandbox/.runtimed\nexec /usr/local/bin/runtimed\n' \
+    > /usr/local/bin/entrypoint-wrapper.sh \
+    && chmod +x /usr/local/bin/entrypoint-wrapper.sh
+
+CMD ["/usr/local/bin/entrypoint-wrapper.sh"]

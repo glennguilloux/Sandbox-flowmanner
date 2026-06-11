@@ -1,13 +1,18 @@
 # .pre-commit-config.yaml for Flowmanner
+# NOTE: This is a per-directory config that was historically activated when
+# running `pre-commit install` from inside backend/app/.  The active hook
+# at .git/hooks/pre-commit uses the ROOT .pre-commit-config.yaml (verified
+# 2026-06-10), so this file is normally NOT in effect.
+#
+# The `black` hook was removed in lockstep with the root config to break
+# the ruff-format <-> black reformat loop.  Flake8 is kept for now as a
+# redundant backup lint, but ruff's lint rules (see backend/ruff.toml)
+# already cover everything flake8 + flake8-bugbear report.  Consider
+# deleting this entire file in a follow-up.
+#
 # LibCST tools: run manually with `python apps/backend/scripts/flowmanner_analyzer.py apps/backend/app/`
 
 repos:
-  - repo: https://github.com/psf/black
-    rev: stable
-    hooks:
-      - id: black
-        language_version: python3
-
   - repo: https://github.com/PyCQA/flake8
     rev: 6.1.0
     hooks:

@@ -3,6 +3,12 @@
 
 repos:
   # --- Ruff (linter + formatter) ---
+  # Ruff-format is a near-drop-in for black and is used in place of black
+  # everywhere in this repo.  See backend/ruff.toml for the lint config.
+  # (Removed: black — having both ruff-format AND black on the same files
+  # causes an infinite reformat loop because the two formatters disagree
+  # on a small set of edge cases.  Re-introducing black would require
+  # aligning its config with ruff-format exactly.  2026-06-10.)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Bumped from v0.8.6: PT028 (pytest-parameter-with-default-argument) was
     # added in ruff 0.9.0; the old pin failed with "Unknown rule selector: PT028"
@@ -12,15 +18,8 @@ repos:
       # Linter (replaces flake8, isort, parts of pylint)
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-      # Formatter (alternative to black)
+      # Formatter (the only Python formatter in this repo)
       - id: ruff-format
-
-  # --- Black (kept for compatibility / team preference) ---
-  - repo: https://github.com/psf/black
-    rev: 24.10.0
-    hooks:
-      - id: black
-        language_version: python3
 
   # --- Custom: reject deprecated Pydantic class Config pattern ---
   - repo: local
