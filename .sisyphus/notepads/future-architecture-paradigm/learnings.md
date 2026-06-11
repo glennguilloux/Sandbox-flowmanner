@@ -50,3 +50,11 @@
 - Removed em dash and en dash characters from `04-execution-agent-runtime.md` and avoided actor-framework lock-in language.
 - Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-5-runtime-valid.txt`; output reported `04-execution-agent-runtime.md: valid`.
 - Saved targeted substrate evidence to `.sisyphus/evidence/task-5-substrate-critical.txt`.
+
+
+## 2026-06-11T15:00:51.971433+00:00 Task 5 substrate-critical verification fix
+- Re-ran the substrate-critical pytest gate from `/opt/flowmanner/backend`; it initially failed in `tests/test_nexus_orchestrator_singleton.py` because `tests/test_meta_loop_orchestrator_budgets.py` injected a MagicMock into `sys.modules["app.services.nexus.orchestrator"]` and did not restore it.
+- Removed the stale module-level `sys.modules` injection from `backend/tests/test_meta_loop_orchestrator_budgets.py` and kept only the local mock instance used by that test file.
+- Re-ran the exact substrate-critical gate and it passed: `139 passed in 2.89s`.
+- Refreshed evidence at `.sisyphus/evidence/task-5-substrate-critical.txt`.
+- Ran LSP diagnostics on `backend/tests/test_meta_loop_orchestrator_budgets.py`; no diagnostics were found.
