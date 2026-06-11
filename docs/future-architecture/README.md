@@ -21,15 +21,15 @@ This architecture is grounded in the current FlowManner repository and docs:
 
 | File | Purpose |
 |---|---|
-| `01-paradigm-evaluation.md` | Paradigm tradeoff matrix and adoption decision. |
-| `02-architecture-diagrams.md` | High-level architecture, domain map, data flow, event flow, execution flow. |
-| `03-domain-boundaries.md` | Domain boundaries, aggregates, APIs, ownership rules. |
-| `04-execution-agent-runtime.md` | Durable execution engine and agent runtime design. |
-| `05-knowledge-events-data.md` | Knowledge, event bus, data layer, AI provider abstraction. |
-| `06-observability-deployment.md` | Observability and deployment architecture for self-hosted and SaaS. |
-| `07-roadmap-risks-not-build.md` | Migration roadmap, 12/24-month plans, 5-year vision, risks, and what not to build. |
-| `08-final-recommendation.md` | Final recommended architecture and non-negotiable principles. |
-| `09-current-state-gaps.md` | Current-state gap table connecting this north star to active rebuild work. |
+|| [`01-paradigm-evaluation.md`](01-paradigm-evaluation.md) | Paradigm tradeoff matrix and adoption decision. |
+|| [`02-architecture-diagrams.md`](02-architecture-diagrams.md) | High-level architecture, domain map, data flow, event flow, execution flow. |
+|| [`03-domain-boundaries.md`](03-domain-boundaries.md) | Domain boundaries, aggregates, APIs, ownership rules. |
+|| [`04-execution-agent-runtime.md`](04-execution-agent-runtime.md) | Durable execution engine and agent runtime design. |
+|| [`05-knowledge-events-data.md`](05-knowledge-events-data.md) | Knowledge, event bus, data layer, AI provider abstraction. |
+|| [`06-observability-deployment.md`](06-observability-deployment.md) | Observability and deployment architecture for self-hosted and SaaS. |
+|| [`07-roadmap-risks-not-build.md`](07-roadmap-risks-not-build.md) | Migration roadmap, 12/24-month plans, 5-year vision, risks, and what not to build. |
+|| [`08-final-recommendation.md`](08-final-recommendation.md) | Final recommended architecture and non-negotiable principles. |
+|| [`09-current-state-gaps.md`](09-current-state-gaps.md) | Current-state gap table connecting this north star to active rebuild work. |
 
 ## Executive Summary
 
@@ -72,6 +72,45 @@ Implementation must remain phased:
 - Keep self-hosted deployment simple while making SaaS scaling possible later.
 
 See `09-current-state-gaps.md` for the current-state gap table.
+
+## Validation Contract
+
+The architecture pack is valid only when the docs, active rebuild roadmap, and test contracts point in the same direction.
+
+### TDD Contract Checklist
+
+Before implementation work starts in a risky area, add or update tests for these contracts:
+
+- [ ] modular monolith boundary enforcement: modules do not mutate other domains' tables directly.
+- [ ] event schema v1 before event backbone work: no NATS, Redpanda, or Kafka backbone work starts before schema v1 is defined and tested.
+- [ ] outbox-before-NATS stop gate: Postgres outbox reliability is proven before NATS JetStream is introduced.
+- [ ] worker lease/checkpoint/idempotency contracts: worker crashes, stale leases, duplicate retries, and checkpoint resume are covered.
+- [ ] provider abstraction and local/cloud routing contracts: provider SDKs stay behind adapters, and local/cloud routing remains replaceable.
+- [ ] self-hosted Docker Compose baseline: the default deployment path remains simple and does not require Kubernetes.
+
+### Exact Commands
+
+Run the docs validator from the repository root:
+
+```bash
+python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md
+```
+
+Run the substrate-critical gate before execution-plane changes:
+
+```bash
+cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_meta_loop_orchestrator_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/test_chaos_kill_worker.py tests/test_chaos_kill_runner.py -q
+```
+
+Run the frontend quality gate before UI or routing changes:
+
+```bash
+cd /home/glenn/FlowmannerV2-frontend && npx tsc --noEmit && npx vitest run && npx playwright test
+```
+
+### Evidence Capture Rules
+
+Save command output under `.sisyphus/evidence/` using `task-{N}-{scenario-slug}.txt`, for example `task-1-docs-validation-pass.txt`. Each evidence file must include the command, working directory, exit code, stdout/stderr, and timestamp. Do not include secrets, tokens, or session cookies.
 
 ## Current-State Gap Summary
 

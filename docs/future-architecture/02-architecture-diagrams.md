@@ -1,62 +1,95 @@
-# 02 — Architecture Diagrams
+# 02 - Architecture Diagrams
 
-## 1. Future-State Architecture Diagram
+## 1. Current/Future Legend
+
+- [current] Existing or compatibility topology today.
+- [future] Target component or boundary, not all implemented yet.
+- [future Phase 4] NATS JetStream event backbone dependency after the outbox and event schema are stable.
+- [future SaaS packaging] Kubernetes-ready packaging option for SaaS scale later.
+
+This diagram is not a microservice diagram. It shows one modular monolith backend with bounded domains, plus stateless worker capacity. The domain boxes are modules inside one backend codebase, not independently deployed services.
+
+## 2. Future-State Architecture Diagram
 
 ```text
-                                      ┌───────────────────────────┐
-                                      │        Clients            │
-                                      │ Web / Mobile / SDK / CLI  │
-                                      └─────────────┬─────────────┘
-                                                    │
-                         ┌──────────────────────────▼──────────────────────────┐
-                         │              API Gateway / Edge Layer              │
-                         │ Nginx, Traefik, Cloudflare, or enterprise ingress   │
-                         └──────────────────────────┬──────────────────────────┘
-                                                    │
-                         ┌──────────────────────────▼──────────────────────────┐
-                         │              FlowManner Control Plane               │
-                         │ Modular monolith backend with bounded domains       │
-                         │                                                     │
-                         │ ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │
-                         │ │ Auth/User   │ │ Workspace    │ │ Billing       │  │
-                         │ │ Domain      │ │ Domain       │ │ Domain        │  │
-                         │ └─────────────┘ └──────────────┘ └───────────────┘  │
-                         │ ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │
-                         │ │ Agent       │ │ Workflow     │ │ Tool          │  │
-                         │ │ Runtime     │ │ Domain       │ │ Domain        │  │
-                         │ └─────────────┘ └──────────────┘ └───────────────┘  │
-                         │ ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │
-                         │ │ Knowledge   │ │ Observability│ │ Provider      │  │
-                         │ │ Domain      │ │ Domain       │ │ Layer         │  │
-                         │ └─────────────┘ └──────────────┘ └───────────────┘  │
-                         └──────────────────────────┬──────────────────────────┘
-                                                    │
-              ┌─────────────────────────────────────┼─────────────────────────────────────┐
-              │                                     │                                     │
-┌─────────────▼─────────────┐        ┌──────────────▼──────────────┐        ┌─────────────▼─────────────┐
-│ Transactional Store       │        │ Event Backbone              │        │ Execution Plane           │
-│ Postgres                  │        │ Outbox + NATS JetStream     │        │ Stateless workers         │
-│ - domain tables           │        │ Phase 4 future dependency   │        │ - lease tasks             │
-│ - append-only events      │        │ RabbitMQ current compat.    │        │ - execute tools/LLMs      │
-│ - projections             │        │ Redpanda/Kafka later        │        │ - checkpoint progress     │
-└───────────────────────────┘        └─────────────────────────────┘        └─────────────┬─────────────┘
-              │                                     │                                     │
-┌─────────────▼─────────────┐        ┌──────────────▼──────────────┐        ┌─────────────▼─────────────┐
-│ Semantic Memory           │        │ Analytics Store             │        │ AI Provider Layer         │
-│ Qdrant                    │        │ ClickHouse / Parquet / S3   │        │ OpenAI / Anthropic /      │
-│ - workspace vectors       │        │ - usage                     │        │ Gemini / Ollama /         │
-│ - semantic memory         │        │ - cost                      │        │ llama.cpp / future        │
-│ - retrieval indexes       │        │ - audit rollups             │        │ providers                 │
-└───────────────────────────┘        └─────────────────────────────┘        └───────────────────────────┘
-              │
-┌─────────────▼─────────────┐
-│ Object Storage            │
-│ S3-compatible             │
-│ - artifacts               │
-│ - exports                 │
-│ - uploaded files          │
-└───────────────────────────┘
-```
+                                       ┌───────────────────────────┐
+                                       │        Clients            │
+                                       │ Web / Mobile / SDK / CLI  │
+                                       │ [current]                 │
+                                       └─────────────┬─────────────┘
+                                                     │
+                          ┌──────────────────────────▼──────────────────────────┐
+                          │              API Gateway / Edge Layer              │
+                          │ [current] Nginx on VPS                             │
+                          │ [future] Traefik, Cloudflare, or enterprise ingress │
+                          └──────────────────────────┬──────────────────────────┘
+                                                     │
+                          ┌──────────────────────────▼──────────────────────────┐
+                          │              FlowManner Control Plane               │
+                          │ [future default] Modular monolith backend          │
+                          │ with bounded domains, not microservices            │
+                          │                                                     │
+                          │ ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │
+                          │ │ Auth/User   │ │ Workspace    │ │ Billing       │  │
+                          │ │ Domain      │ │ Domain       │ │ Domain        │  │
+                          │ └─────────────┘ └──────────────┘ └───────────────┘  │
+                          │ ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │
+                          │ │ Agent       │ │ Workflow     │ │ Tool          │  │
+                          │ │ Runtime     │ │ Domain       │ │ Domain        │  │
+                          │ └─────────────┘ └──────────────┘ └───────────────┘  │
+                          │ ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │
+                          │ │ Knowledge   │ │ Observability│ │ Provider      │  │
+                          │ │ Domain      │ │ Domain       │ │ Layer         │  │
+                          │ │ [future]    │ │ [future]     │ │ [future]      │  │
+                          │ └─────────────┘ └──────────────┘ └───────────────┘  │
+                          └──────────────────────────┬──────────────────────────┘
+                                                     │
+               ┌─────────────────────────────────────┼─────────────────────────────────────┐
+               │                                     │                                     │
+ ┌─────────────▼─────────────┐        ┌──────────────▼──────────────┐        ┌─────────────▼─────────────┐
+ │ Transactional Store       │        │ Event Backbone              │        │ Execution Plane           │
+ │ Postgres                  │        │ [future substrate]        │        │ [future] Stateless workers │
+ │ [current + future]        │        │ Event outbox              │        │ - lease tasks              │
+ │ - domain tables           │        │ [future] Postgres outbox  │        │ - execute tools/LLMs       │
+ │ - append-only events      │        │ [current compatibility    │        │ - checkpoint progress      │
+ │ - projections             │        │ layer] RabbitMQ           │        │ - emit events              │
+ │                           │        │ [future Phase 4           │        │                           │
+ │                           │        │ dependency only] NATS     │        │                           │
+ │                           │        │ JetStream                 │        │                           │
+ │                           │        │ [future SaaS option]      │        │                           │
+ │                           │        │ Redpanda/Kafka later      │        │                           │
+ └───────────────────────────┘        └─────────────────────────────┘        └─────────────┬─────────────┘
+               │                                     │                                     │
+ ┌─────────────▼─────────────┐        ┌──────────────▼──────────────┐        ┌─────────────▼─────────────┐
+ │ Semantic Memory           │        │ Analytics Store             │        │ AI Provider Layer         │
+ │ Qdrant                    │        │ ClickHouse / Parquet / S3   │        │ [future] Provider         │
+ │ [current + future]        │        │ [future SaaS packaging]     │        │ abstraction               │
+ │ - workspace vectors       │        │ - usage                     │        │ OpenAI / Anthropic /      │
+ │ - semantic memory         │        │ - cost                      │        │ llama.cpp / future        │
+ │ - retrieval indexes       │        │ - audit rollups             │        │ providers                 │
+ └───────────────────────────┘        └─────────────────────────────┘        └───────────────────────────┘
+               │
+ ┌─────────────▼─────────────┐
+ │ Object Storage            │
+ │ S3-compatible             │
+ │ [current + future]        │
+ │ - artifacts               │
+ │ - exports                 │
+ │ - uploaded files          │
+ └───────────────────────────┘
+ ```
+
+### Deployment Labels
+
+- [current + future] Self-hosted Docker Compose baseline: backend, worker, Postgres, Redis, Qdrant, RabbitMQ, object storage or local volume, observability, and optional local inference.
+- [future SaaS packaging] Kubernetes-ready SaaS packaging later for control plane replicas, worker pools, managed stores, NATS JetStream, object storage, observability, and GPU/model serving nodes.
+- [not a homelab requirement] No service mesh is required for Docker Compose or homelab deployments.
+
+### Diagram Notes
+
+- Backend shape is a [future default] modular monolith backend with bounded domains; the domain boxes are not microservices.
+- The event path starts with a Postgres event outbox. RabbitMQ is the [current compatibility layer] for existing task dispatch. NATS JetStream is a [future Phase 4 dependency only], not current.
+- Execution scales through [future] stateless workers. AI provider calls go through [future] provider abstraction.
 
 ## 2. Domain Map
 

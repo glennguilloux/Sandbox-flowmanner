@@ -58,3 +58,33 @@
 - Re-ran the exact substrate-critical gate and it passed: `139 passed in 2.89s`.
 - Refreshed evidence at `.sisyphus/evidence/task-5-substrate-critical.txt`.
 - Ran LSP diagnostics on `backend/tests/test_meta_loop_orchestrator_budgets.py`; no diagnostics were found.
+
+## 2026-06-11T15:14:41.432531+00:00 Task 5 substrate-critical verification accepted
+- Atlas verified the Task 5 substrate gate directly after the resumed session claimed completion.
+- Read every changed file from the resumed session and reviewed the minimal scope: stale `sys.modules` cleanup in `backend/tests/test_meta_loop_orchestrator_budgets.py` plus test/source normalization needed for the substrate gate.
+- Re-ran docs validation with evidence at `.sisyphus/evidence/task-5-runtime-valid.txt`; output reports `docs_validated=9` and `validation=pass`.
+- Re-ran the exact substrate-critical pytest gate with evidence at `.sisyphus/evidence/task-5-substrate-critical.txt`; output reports `139 passed in 2.92s`.
+- Re-ran changed-file tests `tests/test_node_executor_handlers.py tests/test_h1_1_model_router_silent_failure.py`; output reports `63 passed in 21.92s`.
+- Ran LSP diagnostics on changed Python files; no diagnostics found.
+- Ran `git diff --check`; no whitespace errors.
+- Markdown LSP remains unavailable for `.md` files.
+- Task 7 plan checkbox marked complete after validation and evidence checks passed.
+- Boulder advanced to Task 8 pending: `current_task=8`, `last_completed_task=7`.
+
+- Marked plan Task 6 checked:
+  - `- [x] 6. Align \`05-knowledge-events-data.md\` with event schema, outbox, and provider abstraction`
+
+## 2026-06-11T16:12:30.000000+00:00 Task 7 observability/deployment doc alignment
+- Updated `docs/future-architecture/06-observability-deployment.md` as documentation only.
+- Added required identifiers, trace/log/metric/event/alert layer contracts, replay levels, SLOs, health and deep-health expectations, self-hosted Docker Compose baseline, optional SaaS Kubernetes packaging, deployment stop gates, roadmap relationship, and Task 7 TDD contract checklist.
+- Preserved architecture decisions: modular monolith backend, Docker Compose self-hosted baseline, Kubernetes-ready only for SaaS or advanced packaging, RabbitMQ current compatibility, and NATS future Phase 4 only.
+- Saved validation and grep evidence:
+  - `.sisyphus/evidence/task-7-observability-deployment-valid.txt`
+  - `.sisyphus/evidence/task-7-no-service-mesh.txt`
+  - `.sisyphus/evidence/task-7-kubernetes-optional.txt`
+  - `.sisyphus/evidence/task-7-deep-health.txt`
+  - `.sisyphus/evidence/task-7-tdd-contract.txt`
+- Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-7-observability-deployment-valid.txt`; output reports `06-observability-deployment.md: valid` and `validation=pass`.
+- Ran grep-style evidence checks for service mesh, Kubernetes optional language, deep-health, and TDD contract language.
+- Ran `git diff --check`; no whitespace errors.
+- Markdown LSP remains unavailable for `.md` files.
