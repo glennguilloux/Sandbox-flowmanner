@@ -26,9 +26,7 @@ class CreateSubscriptionApiWebhooksSubscriptionsPostPayload:
         d = dict(src_dict)
         create_subscription_api_webhooks_subscriptions_post_payload = cls()
 
-        create_subscription_api_webhooks_subscriptions_post_payload.additional_properties = (
-            d
-        )
+        create_subscription_api_webhooks_subscriptions_post_payload.additional_properties = d
         return create_subscription_api_webhooks_subscriptions_post_payload
 
     @property

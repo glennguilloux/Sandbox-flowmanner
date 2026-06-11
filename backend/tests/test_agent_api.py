@@ -2,10 +2,11 @@ import os
 import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_db, get_current_user, get_workspace_id
+from app.api.deps import get_current_user, get_db, get_workspace_id
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 
@@ -26,9 +27,7 @@ class MockUser:
 class MockAgent:
     """Mock that matches AgentResponse schema exactly."""
 
-    def __init__(
-        self, id, name, description, owner_id, model_preference, is_active, is_public
-    ):
+    def __init__(self, id, name, description, owner_id, model_preference, is_active, is_public):
         self.id = id  # str (UUID)
         self.name = name
         self.description = description  # str | None
@@ -109,9 +108,7 @@ def test_get_agents_success(test_client):
         with patch("app.api.v1.agent.list_agents", new_callable=AsyncMock) as mock:
             mock.return_value = ([make_agent()], 1)
             response = test_client.get("/api/agents")
-            assert (
-                response.status_code == 200
-            ), f"Expected 200, got {response.status_code}: {response.text}"
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
             data = response.json()
             assert "items" in data and len(data["items"]) == 1
     finally:
@@ -134,10 +131,7 @@ def test_create_agent_success(test_client):
                     "model_preference": "gpt-3.5-turbo",
                 },
             )
-            assert (
-                response.status_code in (200, 201)
-                and response.json()["name"] == "New Agent"
-            )
+            assert response.status_code in (200, 201) and response.json()["name"] == "New Agent"
     finally:
         _clear_deps(test_client)
 
@@ -146,14 +140,10 @@ def test_get_agent_success(test_client):
     mock_user = make_user()
     _override_deps(test_client, mock_user)
     try:
-        with patch(
-            "app.api.v1.agent.require_agent_access", new_callable=AsyncMock
-        ) as mock:
+        with patch("app.api.v1.agent.require_agent_access", new_callable=AsyncMock) as mock:
             mock.return_value = make_agent()
             response = test_client.get(f"/api/agents/{AGENT_ID}")
-            assert (
-                response.status_code == 200
-            ), f"Expected 200, got {response.status_code}: {response.text}"
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
             data = response.json()
             assert data["id"] == AGENT_ID and data["owner_id"] == "1"
     finally:
@@ -164,9 +154,7 @@ def test_get_agent_not_found(test_client):
     mock_user = make_user()
     _override_deps(test_client, mock_user)
     try:
-        with patch(
-            "app.api.v1.agent.require_agent_access", new_callable=AsyncMock
-        ) as mock:
+        with patch("app.api.v1.agent.require_agent_access", new_callable=AsyncMock) as mock:
             from fastapi import HTTPException
 
             mock.side_effect = HTTPException(status_code=404, detail="Not found")
@@ -180,13 +168,9 @@ def test_delete_agent_success(test_client):
     mock_user = make_user()
     _override_deps(test_client, mock_user)
     try:
-        with patch(
-            "app.api.v1.agent.require_agent_access", new_callable=AsyncMock
-        ) as get_mock:
+        with patch("app.api.v1.agent.require_agent_access", new_callable=AsyncMock) as get_mock:
             get_mock.return_value = make_agent()
-            with patch(
-                "app.api.v1.agent.delete_agent", new_callable=AsyncMock
-            ) as del_mock:
+            with patch("app.api.v1.agent.delete_agent", new_callable=AsyncMock) as del_mock:
                 del_mock.return_value = True
                 response = test_client.delete(f"/api/agents/{AGENT_ID}")
                 assert response.status_code == 204
@@ -198,14 +182,10 @@ def test_get_agent_templates_success(test_client):
     mock_user = make_user()
     _override_deps(test_client, mock_user)
     try:
-        with patch(
-            "app.api.v1.agent.list_agent_templates", new_callable=AsyncMock
-        ) as mock:
+        with patch("app.api.v1.agent.list_agent_templates", new_callable=AsyncMock) as mock:
             mock.return_value = ([make_template()], 1)
             response = test_client.get("/api/agents/templates")
-            assert (
-                response.status_code == 200
-            ), f"Expected 200, got {response.status_code}: {response.text}"
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
             data = response.json()
             assert isinstance(data, list) and len(data) >= 1
     finally:

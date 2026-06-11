@@ -13,9 +13,7 @@ class FakeCompletion:
 
     def __init__(self, content: str = "hello", tokens: int = 10):
         self.choices = [MagicMock(message=MagicMock(content=content, tool_calls=None))]
-        self.usage = MagicMock(
-            total_tokens=tokens, prompt_tokens=4, completion_tokens=tokens - 4
-        )
+        self.usage = MagicMock(total_tokens=tokens, prompt_tokens=4, completion_tokens=tokens - 4)
 
 
 class FakeChunk:
@@ -33,9 +31,7 @@ def mock_db():
     db.refresh = AsyncMock()
     db.add = MagicMock()
     # execute returns a scalar result for count queries
-    db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=msg))
-    )
+    db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=msg)))
     return db
 
 
@@ -46,9 +42,7 @@ async def test_default_key_path(mock_db):
 
     with (
         patch("app.services.chat_service._client") as mock_client,
-        patch(
-            "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-        ) as mock_msg,
+        patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
         patch("app.services.chat_service._get_chat_openai_tools", return_value=None),
     ):
         mock_msg.return_value = MagicMock(id=1)
@@ -77,9 +71,7 @@ async def test_byok_key_injection(mock_db):
 
     with (
         patch("app.services.chat_service.AsyncOpenAI") as MockAsyncOpenAI,
-        patch(
-            "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-        ) as mock_msg,
+        patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
     ):
         mock_msg.return_value = MagicMock(id=2)
         per_req_client = MagicMock()
@@ -114,9 +106,7 @@ async def test_byok_key_not_stored(mock_db):
 
     with (
         patch("app.services.chat_service.AsyncOpenAI") as MockAsyncOpenAI,
-        patch(
-            "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-        ) as mock_msg,
+        patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
     ):
         mock_msg.return_value = MagicMock(id=3)
         per_req_client = MagicMock()
@@ -147,9 +137,7 @@ async def test_model_id_overrides_default(mock_db):
 
     with (
         patch("app.services.chat_service._client") as mock_client,
-        patch(
-            "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-        ) as mock_msg,
+        patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
     ):
         mock_msg.return_value = MagicMock(id=4)
         mock_client.chat.completions.create = AsyncMock(return_value=fake_response)
@@ -183,15 +171,11 @@ async def test_stream_message_byok_creates_per_request_client(mock_db):
 
     with (
         patch("app.services.chat_service.AsyncOpenAI") as MockAsyncOpenAI,
-        patch(
-            "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-        ) as mock_msg,
+        patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
     ):
         mock_msg.return_value = MagicMock(id=10)
         per_req_client = MagicMock()
-        per_req_client.chat.completions.create = AsyncMock(
-            return_value=fake_stream_response
-        )
+        per_req_client.chat.completions.create = AsyncMock(return_value=fake_stream_response)
         MockAsyncOpenAI.return_value = per_req_client
 
         import app.services.chat_service as cs
@@ -213,9 +197,7 @@ async def test_stream_message_byok_creates_per_request_client(mock_db):
 
     import json
 
-    token_events = [
-        json.loads(e) for e in events if json.loads(e).get("type") == "token"
-    ]
+    token_events = [json.loads(e) for e in events if json.loads(e).get("type") == "token"]
     assert len(token_events) == 2
 
 
@@ -232,14 +214,10 @@ async def test_stream_message_default_path(mock_db):
 
     with (
         patch("app.services.chat_service._client") as mock_client,
-        patch(
-            "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-        ) as mock_msg,
+        patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
     ):
         mock_msg.return_value = MagicMock(id=11)
-        mock_client.chat.completions.create = AsyncMock(
-            return_value=fake_stream_response
-        )
+        mock_client.chat.completions.create = AsyncMock(return_value=fake_stream_response)
 
         import app.services.chat_service as cs
 
@@ -342,27 +320,21 @@ class TestProviderMismatchValidation:
         """OpenAI key should work with openai_compatible/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "sk-proj-Vche123", "openai_compatible/gpt-4o"
-        )
+        result = _validate_byok_key_matches_model("sk-proj-Vche123", "openai_compatible/gpt-4o")
         assert result is None
 
     def test_custom_vendor_key_with_openai_compatible_model_valid(self):
         """Unknown vendor keys should be allowed for openai_compatible/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "vendor-custom-key-123", "openai_compatible/gpt-4o"
-        )
+        result = _validate_byok_key_matches_model("vendor-custom-key-123", "openai_compatible/gpt-4o")
         assert result is None
 
     def test_google_key_with_openai_compatible_model_rejected(self):
         """Google key (AIza) should be rejected for openai_compatible/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "AIzaSyABC123", "openai_compatible/gpt-4o"
-        )
+        result = _validate_byok_key_matches_model("AIzaSyABC123", "openai_compatible/gpt-4o")
         assert result is not None
         assert "mismatch" in result.lower()
 
@@ -370,9 +342,7 @@ class TestProviderMismatchValidation:
         """Anthropic key (sk-ant-) should be rejected for openai_compatible/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "sk-ant-api03", "openai_compatible/gpt-4o"
-        )
+        result = _validate_byok_key_matches_model("sk-ant-api03", "openai_compatible/gpt-4o")
         assert result is not None
         assert "mismatch" in result.lower()
 
@@ -387,36 +357,28 @@ class TestProviderMismatchValidation:
         """Anthropic key should work with anthropic/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "sk-ant-api03", "anthropic/claude-3-5-sonnet"
-        )
+        result = _validate_byok_key_matches_model("sk-ant-api03", "anthropic/claude-3-5-sonnet")
         assert result is None
 
     def test_ollama_model_always_valid(self):
         """Any key should work with ollama/* models (keys ignored for ollama)."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "sk-proj-test-key", "ollama/qwen2.5:latest"
-        )
+        result = _validate_byok_key_matches_model("sk-proj-test-key", "ollama/qwen2.5:latest")
         assert result is None
 
     def test_openrouter_key_with_openrouter_model_valid(self):
         """OpenRouter key should work with openrouter/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "sk-or-v1-abc", "openrouter/anthropic/claude-3.5-sonnet"
-        )
+        result = _validate_byok_key_matches_model("sk-or-v1-abc", "openrouter/anthropic/claude-3.5-sonnet")
         assert result is None
 
     def test_deepseek_key_with_deepseek_model_valid(self):
         """DeepSeek key should work with deepseek/* models."""
         from app.services.chat_service import _validate_byok_key_matches_model
 
-        result = _validate_byok_key_matches_model(
-            "sk-ds-abc123", "deepseek/deepseek-chat"
-        )
+        result = _validate_byok_key_matches_model("sk-ds-abc123", "deepseek/deepseek-chat")
         assert result is None
 
 
@@ -528,9 +490,7 @@ class TestProviderResolution:
         """openai_compatible/gpt-4o-mini-2024-07-18 should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider(
-            "openai_compatible/gpt-4o-mini-2024-07-18"
-        )
+        base_url, api_key, model = _resolve_provider("openai_compatible/gpt-4o-mini-2024-07-18")
         assert base_url == "https://api.openai.com/v1"
         assert model == "gpt-4o-mini-2024-07-18"
 
@@ -538,9 +498,7 @@ class TestProviderResolution:
         """openrouter/anthropic/claude-3.5-sonnet should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider(
-            "openrouter/anthropic/claude-3.5-sonnet"
-        )
+        base_url, api_key, model = _resolve_provider("openrouter/anthropic/claude-3.5-sonnet")
         assert base_url == "https://openrouter.ai/api/v1"
         assert model == "anthropic/claude-3.5-sonnet"
 
@@ -571,12 +529,8 @@ class TestAPIReceivesCorrectModelName:
         from app.services.chat_service import send_message_to_llm
 
         fake_response = MagicMock()
-        fake_response.choices = [
-            MagicMock(message=MagicMock(content="test response", tool_calls=None))
-        ]
-        fake_response.usage = MagicMock(
-            total_tokens=10, prompt_tokens=4, completion_tokens=6
-        )
+        fake_response.choices = [MagicMock(message=MagicMock(content="test response", tool_calls=None))]
+        fake_response.usage = MagicMock(total_tokens=10, prompt_tokens=4, completion_tokens=6)
 
         captured_model = None
 
@@ -587,9 +541,7 @@ class TestAPIReceivesCorrectModelName:
 
         with (
             patch("app.services.chat_service.AsyncOpenAI") as MockAsyncOpenAI,
-            patch(
-                "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-            ) as mock_msg,
+            patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
         ):
             mock_msg.return_value = MagicMock(id=1)
             per_req_client = MagicMock()
@@ -605,7 +557,5 @@ class TestAPIReceivesCorrectModelName:
                 model_id="openai_compatible/gpt-4o-mini-2024-07-18",
             )
 
-        assert (
-            captured_model == "gpt-4o-mini-2024-07-18"
-        ), f"Expected 'gpt-4o-mini-2024-07-18', got '{captured_model}'"
+        assert captured_model == "gpt-4o-mini-2024-07-18", f"Expected 'gpt-4o-mini-2024-07-18', got '{captured_model}'"
         assert result["success"] is True

@@ -67,18 +67,14 @@ def upgrade() -> None:
 
     # NULL out stale handler_refs in tools_catalog
     result = conn.execute(
-        text(
-            "UPDATE tools_catalog SET handler_ref = NULL WHERE slug = ANY(:slugs) AND handler_ref IS NOT NULL"
-        ),
+        text("UPDATE tools_catalog SET handler_ref = NULL WHERE slug = ANY(:slugs) AND handler_ref IS NOT NULL"),
         {"slugs": list(_STALE_TOOL_SLUGS)},
     )
     print(f"  tools_catalog: cleared {result.rowcount} stale handler_refs")
 
     # NULL out stale handler_refs in capabilities_catalog
     result = conn.execute(
-        text(
-            "UPDATE capabilities_catalog SET handler_ref = NULL WHERE slug = ANY(:slugs) AND handler_ref IS NOT NULL"
-        ),
+        text("UPDATE capabilities_catalog SET handler_ref = NULL WHERE slug = ANY(:slugs) AND handler_ref IS NOT NULL"),
         {"slugs": list(_STALE_CAP_SLUGS)},
     )
     print(f"  capabilities_catalog: cleared {result.rowcount} stale handler_refs")

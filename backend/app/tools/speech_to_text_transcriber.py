@@ -40,9 +40,7 @@ def _get_local_whisper():
     if _local_whisper_model is None:
         import whisper
 
-        _local_whisper_model = whisper.load_model(
-            os.getenv("WHISPER_LOCAL_MODEL", "base")
-        )
+        _local_whisper_model = whisper.load_model(os.getenv("WHISPER_LOCAL_MODEL", "base"))
     return _local_whisper_model
 
 
@@ -114,9 +112,7 @@ class SpeechToTextTranscriberTool(BaseTool):
         try:
             validated = SpeechToTextTranscriberInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -140,13 +136,9 @@ class SpeechToTextTranscriberTool(BaseTool):
 
     # ── _transcribe ──────────────────────────────────────────────
 
-    async def _transcribe(
-        self, validated: SpeechToTextTranscriberInput
-    ) -> dict[str, Any]:
+    async def _transcribe(self, validated: SpeechToTextTranscriberInput) -> dict[str, Any]:
         """Transcribe audio via API or local model."""
-        audio_bytes = await resolve_input(
-            validated.data, validated.url, label="audio", fetch_timeout=60
-        )
+        audio_bytes = await resolve_input(validated.data, validated.url, label="audio", fetch_timeout=60)
 
         if USE_LOCAL_WHISPER:
             return await self._transcribe_local(audio_bytes, validated)
@@ -170,9 +162,7 @@ class SpeechToTextTranscriberTool(BaseTool):
 
     # ── _transcribe_api ──────────────────────────────────────────
 
-    async def _transcribe_api(
-        self, audio_bytes: bytes, validated: SpeechToTextTranscriberInput
-    ) -> dict[str, Any]:
+    async def _transcribe_api(self, audio_bytes: bytes, validated: SpeechToTextTranscriberInput) -> dict[str, Any]:
         """Send audio to OpenAI Whisper API."""
         # Prepare multipart form data
         files = {
@@ -225,9 +215,7 @@ class SpeechToTextTranscriberTool(BaseTool):
 
     # ── _transcribe_local ────────────────────────────────────────
 
-    async def _transcribe_local(
-        self, audio_bytes: bytes, validated: SpeechToTextTranscriberInput
-    ) -> dict[str, Any]:
+    async def _transcribe_local(self, audio_bytes: bytes, validated: SpeechToTextTranscriberInput) -> dict[str, Any]:
         """Transcribe using local whisper model."""
         from pydub import AudioSegment  # lazy – pydub is optional
 

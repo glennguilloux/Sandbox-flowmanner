@@ -81,9 +81,7 @@ class CodeLinterProTool(BaseTool):
         try:
             validated = CodeLinterProInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         lang = validated.language.lower()
         code = validated.code
@@ -91,17 +89,11 @@ class CodeLinterProTool(BaseTool):
 
         try:
             if lang in ("python", "py"):
-                issues, score, fixed_code, summary = await self._lint_python(
-                    code, do_fix
-                )
+                issues, score, fixed_code, summary = await self._lint_python(code, do_fix)
             elif lang in ("javascript", "js"):
-                issues, score, fixed_code, summary = await self._lint_javascript(
-                    code, do_fix
-                )
+                issues, score, fixed_code, summary = await self._lint_javascript(code, do_fix)
             elif lang in ("typescript", "ts"):
-                issues, score, fixed_code, summary = await self._lint_typescript(
-                    code, do_fix
-                )
+                issues, score, fixed_code, summary = await self._lint_typescript(code, do_fix)
             elif lang in ("bash", "sh", "shell"):
                 issues, score, fixed_code, summary = await self._lint_bash(code, do_fix)
             elif lang in ("sql"):
@@ -112,9 +104,7 @@ class CodeLinterProTool(BaseTool):
                 issues, score, fixed_code, summary = await self._lint_css(code, do_fix)
             else:
                 # Generic: try all basic checks
-                issues, score, fixed_code, summary = await self._lint_generic(
-                    code, lang, do_fix
-                )
+                issues, score, fixed_code, summary = await self._lint_generic(code, lang, do_fix)
 
             result = {
                 "language": lang,
@@ -174,9 +164,7 @@ class CodeLinterProTool(BaseTool):
                 fixed_code = fixed_code.replace("\t", "    ")
 
         # Check line length (PEP 8)
-        long_lines = [
-            (i + 1, line) for i, line in enumerate(code.splitlines()) if len(line) > 100
-        ]
+        long_lines = [(i + 1, line) for i, line in enumerate(code.splitlines()) if len(line) > 100]
         if long_lines:
             for lineno, line in long_lines[:5]:
                 issues.append(
@@ -204,9 +192,7 @@ class CodeLinterProTool(BaseTool):
                 )
 
         # Check trailing whitespace
-        trailing_lines = [
-            i + 1 for i, line in enumerate(code.splitlines()) if line.rstrip() != line
-        ]
+        trailing_lines = [i + 1 for i, line in enumerate(code.splitlines()) if line.rstrip() != line]
         if trailing_lines:
             issues.append(
                 {
@@ -220,9 +206,7 @@ class CodeLinterProTool(BaseTool):
                 }
             )
             if fix:
-                fixed_code = "\n".join(
-                    line.rstrip() for line in fixed_code.splitlines()
-                )
+                fixed_code = "\n".join(line.rstrip() for line in fixed_code.splitlines())
 
         # Check missing newline at end of file
         if code and not code.endswith("\n"):
@@ -257,9 +241,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── JavaScript linter ────────────────────────────────────────
 
-    async def _lint_javascript(
-        self, code: str, fix: bool
-    ) -> tuple[list, int, str, str]:
+    async def _lint_javascript(self, code: str, fix: bool) -> tuple[list, int, str, str]:
         """Lint JavaScript code using syntax check via Node.js."""
         issues = []
 
@@ -304,9 +286,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── TypeScript linter ────────────────────────────────────────
 
-    async def _lint_typescript(
-        self, code: str, fix: bool
-    ) -> tuple[list, int, str, str]:
+    async def _lint_typescript(self, code: str, fix: bool) -> tuple[list, int, str, str]:
         """Lint TypeScript code."""
         issues = []
         fixed_code = code
@@ -330,9 +310,7 @@ class CodeLinterProTool(BaseTool):
 
         # ShellCheck if available
         try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".sh", delete=False
-            ) as tmp:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as tmp:
                 tmp_path = tmp.name
                 tmp.write(code)
             result = subprocess.run(
@@ -357,9 +335,7 @@ class CodeLinterProTool(BaseTool):
                             "message": si.get("message", ""),
                             "code_snippet": "",
                             "suggestion": (
-                                si.get("fix", {})
-                                .get("replacements", [{}])[0]
-                                .get("replacement", "")
+                                si.get("fix", {}).get("replacements", [{}])[0].get("replacement", "")
                                 if si.get("fix")
                                 else ""
                             ),
@@ -546,9 +522,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── Generic linter ───────────────────────────────────────────
 
-    async def _lint_generic(
-        self, code: str, lang: str, fix: bool
-    ) -> tuple[list, int, str, str]:
+    async def _lint_generic(self, code: str, lang: str, fix: bool) -> tuple[list, int, str, str]:
         """Generic linting for unrecognized languages."""
         issues = self._generic_checks(code, lang)
         fixed_code = self._fix_generic(code, lang) if fix else code
@@ -618,9 +592,7 @@ class CodeLinterProTool(BaseTool):
             "info": 1,
         }
 
-        penalty = sum(
-            severity_weights.get(issue.get("severity", "info"), 1) for issue in issues
-        )
+        penalty = sum(severity_weights.get(issue.get("severity", "info"), 1) for issue in issues)
         return max(0.0, round(100.0 - penalty, 1))
 
     def _build_summary(self, issues: list[dict], score: float, lang: str) -> str:

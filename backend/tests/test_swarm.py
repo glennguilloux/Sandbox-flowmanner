@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ── Mock factories ──────────────────────────────────────────────────────────
 
 
@@ -333,9 +332,7 @@ class TestExecute:
         """Generic orchestrator exception returns 500."""
         with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
-            mock_orch.execute = AsyncMock(
-                side_effect=RuntimeError("LLM API rate limit exceeded")
-            )
+            mock_orch.execute = AsyncMock(side_effect=RuntimeError("LLM API rate limit exceeded"))
 
             resp = test_client.post(
                 "/api/swarm/execute",
@@ -352,9 +349,7 @@ class TestExecute:
         with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.execute = AsyncMock(return_value=mock_exec)
-            mock_orch.get_tasks = AsyncMock(
-                side_effect=RuntimeError("Database read timeout")
-            )
+            mock_orch.get_tasks = AsyncMock(side_effect=RuntimeError("Database read timeout"))
 
             resp = test_client.post(
                 "/api/swarm/execute",
@@ -513,17 +508,13 @@ class TestList:
     def test_list_executions_limit_out_of_range(self, test_client, limit):
         """Limit outside 1-100 range returns 422."""
         resp = test_client.get("/api/swarm", params={"limit": limit})
-        assert (
-            resp.status_code == 422
-        ), f"limit={limit} should return 422, got {resp.status_code}"
+        assert resp.status_code == 422, f"limit={limit} should return 422, got {resp.status_code}"
 
     def test_list_executions_service_failure(self, test_client):
         """Service exception returns 500."""
         with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
-            mock_orch.list_executions = AsyncMock(
-                side_effect=RuntimeError("Database unavailable")
-            )
+            mock_orch.list_executions = AsyncMock(side_effect=RuntimeError("Database unavailable"))
 
             resp = test_client.get("/api/swarm")
 
@@ -609,9 +600,7 @@ class TestGetById:
         """Service exception during get returns 500."""
         with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
-            mock_orch.get_execution = AsyncMock(
-                side_effect=RuntimeError("Connection pool exhausted")
-            )
+            mock_orch.get_execution = AsyncMock(side_effect=RuntimeError("Connection pool exhausted"))
 
             resp = test_client.get("/api/swarm/exec-001")
 
@@ -625,9 +614,7 @@ class TestGetById:
         with patch("app.api.v1.swarm.SwarmOrchestrator") as mock_orch_cls:
             mock_orch = mock_orch_cls.return_value
             mock_orch.get_execution = AsyncMock(return_value=mock_exec)
-            mock_orch.get_tasks = AsyncMock(
-                side_effect=RuntimeError("Task table locked")
-            )
+            mock_orch.get_tasks = AsyncMock(side_effect=RuntimeError("Task table locked"))
 
             resp = test_client.get("/api/swarm/exec-001")
 
@@ -667,8 +654,7 @@ class TestRouteRegistration:
                 resp = test_client.post(path, json={})
 
             assert resp.status_code == expected_status, (
-                f"Expected {expected_status} for {method} {path}, "
-                f"got {resp.status_code}"
+                f"Expected {expected_status} for {method} {path}, got {resp.status_code}"
             )
 
     def test_swarm_and_protocol_routes_do_not_conflict(self, test_client):

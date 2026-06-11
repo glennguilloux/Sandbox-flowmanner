@@ -71,9 +71,7 @@ if _sio_available:
             skip_sid=skip_sid,
         )
 
-    async def _handle_presence_connect(
-        workspace_id: str, user_id: int, sid: str
-    ) -> None:
+    async def _handle_presence_connect(workspace_id: str, user_id: int, sid: str) -> None:
         """Track presence when a user connects to a workspace."""
         try:
             from app.websocket.presence import user_online
@@ -137,14 +135,10 @@ if _sio_available:
                     from app.config import settings
 
                     try:
-                        payload = jwt.decode(
-                            token, settings.JWT_SECRET_KEY, algorithms=["HS256"]
-                        )
+                        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
                         user_id = int(payload.get("sub", 0))
                     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
-                        logger.debug(
-                            "WebSocket JWT auth handshake decode failed: %s", e
-                        )
+                        logger.debug("WebSocket JWT auth handshake decode failed: %s", e)
 
             # Fallback: try Authorization header via environ
             if not user_id:
@@ -242,9 +236,7 @@ if _sio_available:
         # Join the workspace room
         room = f"workspace_{workspace_id}"
         await sio.enter_room(sid, room)
-        logger.info(
-            "User %d subscribed to workspace %s (sid=%s)", user_id, workspace_id, sid
-        )
+        logger.info("User %d subscribed to workspace %s (sid=%s)", user_id, workspace_id, sid)
 
         # Track presence and broadcast
         await _handle_presence_connect(workspace_id, user_id, sid)
@@ -300,9 +292,7 @@ if _sio_available:
                 await db.commit()
                 await db.refresh(msg)
                 message_id = msg.id
-                message_created_at = (
-                    msg.created_at.isoformat() if msg.created_at else None
-                )
+                message_created_at = msg.created_at.isoformat() if msg.created_at else None
         except Exception:
             logger.debug("workspace_dm_persist_failed", exc_info=True)
 
@@ -357,9 +347,7 @@ else:
 
     async def noop_endpoint(request):
         return JSONResponse(
-            {
-                "detail": "WebSocket not available. Use SSE endpoint /api/v1/missions/{id}/stream"
-            },
+            {"detail": "WebSocket not available. Use SSE endpoint /api/v1/missions/{id}/stream"},
             status_code=200,
         )
 

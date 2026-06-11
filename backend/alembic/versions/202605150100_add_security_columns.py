@@ -1,8 +1,8 @@
 """Database migration: Add TOTP columns to users table and device tracking to refresh_tokens."""
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers
 revision = "202605150100_add_security_columns"
@@ -25,25 +25,17 @@ def upgrade():
     )
 
     # Add device tracking columns to refresh_tokens table
-    op.add_column(
-        "refresh_tokens", sa.Column("device_name", sa.String(255), nullable=True)
-    )
-    op.add_column(
-        "refresh_tokens", sa.Column("ip_address", sa.String(45), nullable=True)
-    )
+    op.add_column("refresh_tokens", sa.Column("device_name", sa.String(255), nullable=True))
+    op.add_column("refresh_tokens", sa.Column("ip_address", sa.String(45), nullable=True))
     op.add_column("refresh_tokens", sa.Column("user_agent", sa.Text(), nullable=True))
     op.add_column(
         "refresh_tokens",
         sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.add_column(
-        "refresh_tokens", sa.Column("location", sa.String(255), nullable=True)
-    )
+    op.add_column("refresh_tokens", sa.Column("location", sa.String(255), nullable=True))
 
     # Add family_id for refresh token reuse detection
-    op.add_column(
-        "refresh_tokens", sa.Column("family_id", sa.String(36), nullable=True)
-    )
+    op.add_column("refresh_tokens", sa.Column("family_id", sa.String(36), nullable=True))
     op.add_column(
         "refresh_tokens",
         sa.Column("family_generation", sa.Integer(), nullable=True, server_default="0"),

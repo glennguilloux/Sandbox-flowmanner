@@ -223,9 +223,7 @@ class FailureRepository:
         # Also query database if available
         if DATABASE_AVAILABLE and self.db:
             try:
-                db_results = await self._query_database(
-                    start_time, end_time, agent_id, failure_type, limit
-                )
+                db_results = await self._query_database(start_time, end_time, agent_id, failure_type, limit)
                 # Merge results, avoiding duplicates
                 existing_ids = {c.failure_id for c in results}
                 for context in db_results:
@@ -269,9 +267,7 @@ class FailureRepository:
         # Also query database if available
         if DATABASE_AVAILABLE and self.db:
             try:
-                db_results = await self._get_by_type_from_database(
-                    failure_type, agent_id, limit
-                )
+                db_results = await self._get_by_type_from_database(failure_type, agent_id, limit)
                 existing_ids = {c.failure_id for c in results}
                 for context in db_results:
                     if context.failure_id not in existing_ids:
@@ -301,9 +297,7 @@ class FailureRepository:
         """
         end_time = datetime.now(UTC)
         start_time = end_time - time_window
-        return await self.get_failures_in_window(
-            start_time, end_time, agent_id=agent_id, limit=limit
-        )
+        return await self.get_failures_in_window(start_time, end_time, agent_id=agent_id, limit=limit)
 
     async def get_failure_count_by_type(
         self,
@@ -323,9 +317,7 @@ class FailureRepository:
         end_time = datetime.now(UTC)
         start_time = end_time - time_window
 
-        failures = await self.get_failures_in_window(
-            start_time, end_time, agent_id=agent_id, limit=1000
-        )
+        failures = await self.get_failures_in_window(start_time, end_time, agent_id=agent_id, limit=1000)
 
         counts: dict[str, int] = {}
         for failure in failures:
@@ -399,9 +391,7 @@ class FailureRepository:
         results.sort(key=lambda c: c.timestamp, reverse=True)
         return results[:limit]
 
-    async def clear_old_failures(
-        self, older_than: timedelta = timedelta(days=30)
-    ) -> int:
+    async def clear_old_failures(self, older_than: timedelta = timedelta(days=30)) -> int:
         """
         Clear failures older than the specified age.
 
@@ -415,11 +405,7 @@ class FailureRepository:
         cleared = 0
 
         # Clear from memory
-        to_remove = [
-            fid
-            for fid, context in self._memory_store.items()
-            if context.timestamp < cutoff
-        ]
+        to_remove = [fid for fid, context in self._memory_store.items() if context.timestamp < cutoff]
 
         for fid in to_remove:
             del self._memory_store[fid]
@@ -507,11 +493,7 @@ class FailureRepository:
         if not DATABASE_AVAILABLE or not self.db:
             return None
 
-        model = (
-            self.db.query(FailureContextModel)
-            .filter(FailureContextModel.failure_id == failure_id)
-            .first()
-        )
+        model = self.db.query(FailureContextModel).filter(FailureContextModel.failure_id == failure_id).first()
 
         return model.to_failure_context() if model else None
 
@@ -552,9 +534,7 @@ class FailureRepository:
         if not DATABASE_AVAILABLE or not self.db:
             return []
 
-        query = self.db.query(FailureContextModel).filter(
-            FailureContextModel.failure_type == failure_type.value
-        )
+        query = self.db.query(FailureContextModel).filter(FailureContextModel.failure_type == failure_type.value)
 
         if agent_id:
             query = query.filter(FailureContextModel.agent_id == agent_id)
@@ -572,11 +552,7 @@ class FailureRepository:
         if not DATABASE_AVAILABLE or not self.db:
             return
 
-        model = (
-            self.db.query(FailureContextModel)
-            .filter(FailureContextModel.failure_id == failure_id)
-            .first()
-        )
+        model = self.db.query(FailureContextModel).filter(FailureContextModel.failure_id == failure_id).first()
 
         if model:
             model.resolved = True

@@ -174,9 +174,7 @@ async def _recalculate_rating(db: AsyncSession, listing_id: str) -> None:
         ).where(MarketplaceReviewModel.listing_id == listing_id)
     )
     row = result.first()
-    listing = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    listing = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = listing.scalar_one_or_none()
     if listing:
         listing.rating = round(float(row.avg or 0), 2)
@@ -190,11 +188,7 @@ async def _bump_version(db: AsyncSession, listing: MarketplaceListingModel) -> s
     parts = current.split(".")
     try:
         patch = int(parts[2]) + 1 if len(parts) >= 3 else 1
-        parts = (
-            (parts[0], parts[1], str(patch))
-            if len(parts) >= 2
-            else ("1", "0", str(patch))
-        )
+        parts = (parts[0], parts[1], str(patch)) if len(parts) >= 2 else ("1", "0", str(patch))
     except (ValueError, IndexError):
         parts = ("1", "0", "1")
     new_version = ".".join(parts)
@@ -231,9 +225,7 @@ async def list_listings(
         count_base = count_base.where(MarketplaceListingModel.name.ilike(f"%{search}%"))
     if listing_type:
         base = base.where(MarketplaceListingModel.listing_type == listing_type)
-        count_base = count_base.where(
-            MarketplaceListingModel.listing_type == listing_type
-        )
+        count_base = count_base.where(MarketplaceListingModel.listing_type == listing_type)
     if category:
         base = base.where(MarketplaceListingModel.category_id == category)
         count_base = count_base.where(MarketplaceListingModel.category_id == category)
@@ -285,18 +277,14 @@ async def get_listing(
     user: User = Depends(get_current_user),
 ):
     """Get a single listing by ID."""
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     return _to_listing_response(listing)
 
 
-@router.post(
-    "/listings", response_model=ListingResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/listings", response_model=ListingResponse, status_code=status.HTTP_201_CREATED)
 async def create_listing(
     payload: ListingCreateRequest,
     db: AsyncSession = Depends(get_db),
@@ -337,9 +325,7 @@ async def update_listing(
     user: User = Depends(get_current_user),
 ):
     """Update a listing. Only the owner or admin can update."""
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -379,9 +365,7 @@ async def delete_listing(
     user: User = Depends(get_current_user),
 ):
     """Delete a listing. Only the owner or admin can delete."""
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -403,9 +387,7 @@ async def publish_listing(
     user: User = Depends(get_current_user),
 ):
     """Publish a listing (draft → published). Owner-only."""
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -415,9 +397,7 @@ async def publish_listing(
         return PublishResponse(
             success=True,
             status="published",
-            published_at=(
-                listing.published_at.isoformat() if listing.published_at else None
-            ),
+            published_at=(listing.published_at.isoformat() if listing.published_at else None),
             version=listing.version,
         )
 
@@ -447,9 +427,7 @@ async def unpublish_listing(
     user: User = Depends(get_current_user),
 ):
     """Unpublish a listing (published → draft). Owner-only."""
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -471,9 +449,7 @@ async def deprecate_listing(
     user: User = Depends(get_current_user),
 ):
     """Deprecate a listing (published → deprecated). Owner-only."""
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -502,9 +478,7 @@ async def install_listing(
     For workflow artifacts: clones the workflow into the workspace.
     For other artifacts: records the installation.
     """
-    result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -586,9 +560,7 @@ async def install_listing(
                         plugin_id,
                     )
                 except Exception as e:
-                    logger.error(
-                        "Plugin install failed for listing %s: %s", listing_id, e
-                    )
+                    logger.error("Plugin install failed for listing %s: %s", listing_id, e)
                     raise HTTPException(400, f"Plugin install failed: {e}")
             else:
                 raise HTTPException(
@@ -642,9 +614,7 @@ async def uninstall_listing(
     await db.delete(installation)
 
     # Decrement download count
-    listing_result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    listing_result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = listing_result.scalar_one_or_none()
     if listing:
         listing.download_count = max(0, listing.download_count - 1)
@@ -661,19 +631,11 @@ async def get_my_listings(
     user: User = Depends(get_current_user),
 ):
     """List current user's marketplace listings (any status)."""
-    base = select(MarketplaceListingModel).where(
-        MarketplaceListingModel.owner_id == str(user.id)
-    )
-    count_base = select(func.count(MarketplaceListingModel.id)).where(
-        MarketplaceListingModel.owner_id == str(user.id)
-    )
+    base = select(MarketplaceListingModel).where(MarketplaceListingModel.owner_id == str(user.id))
+    count_base = select(func.count(MarketplaceListingModel.id)).where(MarketplaceListingModel.owner_id == str(user.id))
     total = (await db.execute(count_base)).scalar() or 0
     offset = (page - 1) * per_page
-    result = await db.execute(
-        base.order_by(MarketplaceListingModel.created_at.desc())
-        .offset(offset)
-        .limit(per_page)
-    )
+    result = await db.execute(base.order_by(MarketplaceListingModel.created_at.desc()).offset(offset).limit(per_page))
     items = [_to_listing_response(m) for m in result.scalars().all()]
     return ListResponse(
         items=items,
@@ -692,9 +654,7 @@ async def get_my_installations(
     user: User = Depends(get_current_user),
 ):
     """List current user's installations."""
-    count_base = select(func.count(UserInstallationModel.id)).where(
-        UserInstallationModel.user_id == str(user.id)
-    )
+    count_base = select(func.count(UserInstallationModel.id)).where(UserInstallationModel.user_id == str(user.id))
     total = (await db.execute(count_base)).scalar() or 0
 
     base = (
@@ -707,20 +667,14 @@ async def get_my_installations(
     result = await db.execute(base)
     installations = []
     for inst in result.scalars().all():
-        lr = await db.execute(
-            select(MarketplaceListingModel).where(
-                MarketplaceListingModel.id == inst.listing_id
-            )
-        )
+        lr = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == inst.listing_id))
         listing = lr.scalar_one_or_none()
         installations.append(
             {
                 "id": inst.id,
                 "listing_id": inst.listing_id,
                 "listing_name": listing.name if listing else "Unknown",
-                "installed_at": (
-                    inst.installed_at.isoformat() if inst.installed_at else ""
-                ),
+                "installed_at": (inst.installed_at.isoformat() if inst.installed_at else ""),
                 "version": listing.version if listing else None,
             }
         )
@@ -746,15 +700,11 @@ async def get_reviews(
     user: User = Depends(get_current_user),
 ):
     """Get reviews for a listing with rating breakdown."""
-    listing_result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    listing_result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     if not listing_result.scalar_one_or_none():
         raise HTTPException(404, detail="Listing not found")
 
-    count_q = select(func.count(MarketplaceReviewModel.id)).where(
-        MarketplaceReviewModel.listing_id == listing_id
-    )
+    count_q = select(func.count(MarketplaceReviewModel.id)).where(MarketplaceReviewModel.listing_id == listing_id)
     total = (await db.execute(count_q)).scalar() or 0
 
     # Rating breakdown
@@ -839,9 +789,7 @@ async def submit_review(
     user: User = Depends(get_current_user),
 ):
     """Submit or update a review for a listing. Auto-aggregates rating."""
-    listing_result = await db.execute(
-        select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id)
-    )
+    listing_result = await db.execute(select(MarketplaceListingModel).where(MarketplaceListingModel.id == listing_id))
     listing = listing_result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, detail="Listing not found")
@@ -909,7 +857,4 @@ async def get_categories(
             MarketplaceCategoryModel.listing_count,
         )
     )
-    return [
-        {"id": row[0], "name": row[1], "slug": row[2], "count": row[3]}
-        for row in result.all()
-    ]
+    return [{"id": row[0], "name": row[1], "slug": row[2], "count": row[3]} for row in result.all()]

@@ -28,9 +28,7 @@ class BaseToolHandler(ABC):
         self.logger = logging.getLogger(f"{__name__}.{tool_id}")
 
     @abstractmethod
-    async def validate_parameters(
-        self, parameters: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    async def validate_parameters(self, parameters: dict[str, Any]) -> tuple[bool, str | None]:
         """
         Validate tool parameters
 
@@ -43,9 +41,7 @@ class BaseToolHandler(ABC):
         pass
 
     @abstractmethod
-    async def execute(
-        self, parameters: dict[str, Any], context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def execute(self, parameters: dict[str, Any], context: dict[str, Any] = None) -> dict[str, Any]:
         """
         Execute the tool with given parameters
 
@@ -68,9 +64,7 @@ class BaseToolHandler(ABC):
         """
         pass
 
-    async def safe_execute(
-        self, parameters: dict[str, Any], context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def safe_execute(self, parameters: dict[str, Any], context: dict[str, Any] = None) -> dict[str, Any]:
         """
         Execute tool with error handling and logging
 
@@ -94,9 +88,7 @@ class BaseToolHandler(ABC):
                 }
 
             # Execute tool
-            self.logger.info(
-                f"Executing {self.tool_name} with parameters: {parameters}"
-            )
+            self.logger.info(f"Executing {self.tool_name} with parameters: {parameters}")
             result = await self.execute(parameters, context)
 
             # Standardize result

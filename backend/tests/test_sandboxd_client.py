@@ -31,9 +31,7 @@ class TestSandboxdClientCreate:
         }
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.create("proj-1", "user-1")
 
         assert result["id"] == "sb-abc123"
@@ -50,9 +48,7 @@ class TestSandboxdClientCreate:
         mock_resp.json.return_value = {"id": "sb-existing", "status": "running"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.create("proj-1", "user-1")
 
         assert result["id"] == "sb-existing"
@@ -92,9 +88,7 @@ class TestSandboxdClientGet:
         }
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.get("sb-abc123")
 
         assert result["status"] == "running"
@@ -127,9 +121,7 @@ class TestSandboxdClientStop:
         mock_resp.json.return_value = {"id": "sb-abc123", "status": "stopped"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.stop("sb-abc123")
 
         assert result["status"] == "stopped"
@@ -147,9 +139,7 @@ class TestSandboxdClientDelete:
         mock_resp.status_code = 204
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.delete", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.delete", new_callable=AsyncMock, return_value=mock_resp):
             await client.delete("sb-abc123")  # Should not raise
 
 
@@ -166,9 +156,7 @@ class TestSandboxdClientFiles:
         mock_resp.text = "console.log('hello');"
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.read_file("sb-abc123", "src/index.js")
 
         assert result == "console.log('hello');"
@@ -183,9 +171,7 @@ class TestSandboxdClientFiles:
         mock_resp.json.return_value = {"written": True}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.put", new_callable=AsyncMock, return_value=mock_resp
-        ) as mock_put:
+        with patch("httpx.AsyncClient.put", new_callable=AsyncMock, return_value=mock_resp) as mock_put:
             result = await client.write_file("sb-abc123", "src/app.py", b"print('hi')")
 
         assert result["written"] is True
@@ -205,9 +191,7 @@ class TestSandboxdClientFiles:
         ]
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.list_files("sb-abc123", "src", recursive=True)
 
         assert len(result) == 2
@@ -230,9 +214,7 @@ class TestSandboxdClientTasks:
         }
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.submit_task("sb-abc123", "Build a todo app")
 
         assert result["id"] == "task-xyz"
@@ -248,9 +230,7 @@ class TestSandboxdClientTasks:
         mock_resp.json.return_value = {"id": "task-xyz", "status": "cancelled"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.cancel_task("sb-abc123", "task-xyz")
 
         assert result["status"] == "cancelled"
@@ -269,9 +249,7 @@ class TestSandboxdClientSnapshots:
         mock_resp.json.return_value = {"id": "snap-1", "sandbox_id": "sb-abc123"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.create_snapshot("sb-abc123", "before-deploy")
 
         assert result["id"] == "snap-1"
@@ -286,9 +264,7 @@ class TestSandboxdClientSnapshots:
         mock_resp.json.return_value = [{"id": "snap-1"}, {"id": "snap-2"}]
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.list_snapshots()
 
         assert len(result) == 2
@@ -302,9 +278,7 @@ class TestSandboxdClientSnapshots:
         mock_resp.status_code = 204
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.delete", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.delete", new_callable=AsyncMock, return_value=mock_resp):
             await client.delete_snapshot("snap-1")  # Should not raise
 
 
@@ -320,9 +294,7 @@ class TestSandboxdClientHealth:
         mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
             result = await client.health_check()
 
         assert result["status"] == "ok"

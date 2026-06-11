@@ -136,9 +136,7 @@ class PricingTable:
                     data.get("updated_at", "unknown"),
                 )
             else:
-                logger.info(
-                    "Pricing config exists but contains no models — using defaults"
-                )
+                logger.info("Pricing config exists but contains no models — using defaults")
         except FileNotFoundError:
             logger.debug("Pricing config not found at %s — using defaults", config_path)
         except (json.JSONDecodeError, OSError) as e:
@@ -280,9 +278,7 @@ class BudgetEnforcer:
                 completion_tokens = cost_info.get("output_tokens", 0)
 
             except Exception as router_error:
-                logger.warning(
-                    "ModelRouter failed, trying direct httpx: %s", router_error
-                )
+                logger.warning("ModelRouter failed, trying direct httpx: %s", router_error)
 
                 # Fallback to direct httpx call
                 import httpx
@@ -310,9 +306,7 @@ class BudgetEnforcer:
                     )
                     data = resp.json()
 
-                content = (
-                    data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                )
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 usage = data.get("usage", {})
                 prompt_tokens = usage.get("prompt_tokens", 0)
                 completion_tokens = usage.get("completion_tokens", 0)
@@ -329,9 +323,7 @@ class BudgetEnforcer:
                 }
 
             # Calculate actual cost
-            actual_cost = self.pricing.estimate(
-                actual_model, prompt_tokens, completion_tokens
-            )
+            actual_cost = self.pricing.estimate(actual_model, prompt_tokens, completion_tokens)
             provider = response.get("provider", self.pricing.get_provider(actual_model))
 
             # Update budget
@@ -345,9 +337,7 @@ class BudgetEnforcer:
             if is_exhausted:
                 logger.warning("Budget exhausted after LLM call: %s", reason)
                 # Record the budget exhaustion in the substrate event log
-                await self._record_budget_event(
-                    run_id, mission_id, task_id, reason, budget
-                )
+                await self._record_budget_event(run_id, mission_id, task_id, reason, budget)
                 # Don't raise here — let the caller handle the response,
                 # but mark it so they know no further calls are allowed.
 
@@ -370,16 +360,12 @@ class BudgetEnforcer:
 
             # Phase 6.4: Record in circuit breaker
             if mission_id:
-                await self._record_circuit_breaker(
-                    mission_id, float(actual_cost), db_session
-                )
+                await self._record_circuit_breaker(mission_id, float(actual_cost), db_session)
 
             # Enrich response with budget info
             response["budget"] = {
                 "spent_usd": float(budget.spent_usd),
-                "remaining_usd": float(
-                    max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)
-                ),
+                "remaining_usd": float(max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)),
                 "iterations_used": budget.iterations_used,
                 "budget_exhausted": is_exhausted,
             }
@@ -399,9 +385,7 @@ class BudgetEnforcer:
                 "cost": {"input_tokens": 0, "output_tokens": 0},
                 "budget": {
                     "spent_usd": float(budget.spent_usd),
-                    "remaining_usd": float(
-                        max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)
-                    ),
+                    "remaining_usd": float(max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)),
                     "iterations_used": budget.iterations_used,
                     "budget_exhausted": False,
                 },
@@ -421,9 +405,7 @@ class BudgetEnforcer:
                 service = CircuitBreakerService(db_session)
                 breaker = await service.get_breaker(mission_id)
                 if breaker:
-                    await service.record_call(
-                        breaker, call_type="llm", cost_usd=cost_usd
-                    )
+                    await service.record_call(breaker, call_type="llm", cost_usd=cost_usd)
         except Exception as e:
             logger.debug("Circuit breaker record skipped: %s", e)
 

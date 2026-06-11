@@ -109,28 +109,20 @@ class PlaywrightControllerTool(BaseTool):
         try:
             validated = PlaywrightControllerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context")
         if not context:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No context provided"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 
         user_id = context.get("user_id")
         if not user_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No user_id in context"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No user_id in context")
 
         manager = get_browser_manager()
         session = manager.get_user_session(str(user_id))
         if not session or not session.is_active():
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No active browser session"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No active browser session")
 
         service = get_browser_service()
         action = validated.action
@@ -143,9 +135,7 @@ class PlaywrightControllerTool(BaseTool):
             elif action == "wait":
                 return await self._wait(session, validated)
             elif action == "execute_sequence":
-                return await self._execute_sequence(
-                    session, validated, str(user_id), service
-                )
+                return await self._execute_sequence(session, validated, str(user_id), service)
             else:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
@@ -159,9 +149,7 @@ class PlaywrightControllerTool(BaseTool):
 
     # ── evaluate ────────────────────────────────────────────────
 
-    async def _evaluate(
-        self, session, validated: PlaywrightControllerInput
-    ) -> ToolResult:
+    async def _evaluate(self, session, validated: PlaywrightControllerInput) -> ToolResult:
         if not validated.script:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -193,9 +181,7 @@ class PlaywrightControllerTool(BaseTool):
 
     # ── get_content ─────────────────────────────────────────────
 
-    async def _get_content(
-        self, session, validated: PlaywrightControllerInput
-    ) -> ToolResult:
+    async def _get_content(self, session, validated: PlaywrightControllerInput) -> ToolResult:
         try:
             page = session.page
             mode = validated.extract_mode
@@ -203,9 +189,7 @@ class PlaywrightControllerTool(BaseTool):
             if mode == "html":
                 content = await page.content()
             elif mode == "text":
-                content = await page.evaluate(
-                    "() => document.body ? document.body.innerText : ''"
-                )
+                content = await page.evaluate("() => document.body ? document.body.innerText : ''")
             elif mode == "inner_text":
                 if validated.selector:
                     content = await page.inner_text(validated.selector)

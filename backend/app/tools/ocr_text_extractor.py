@@ -97,9 +97,7 @@ class OcrTextExtractorTool(BaseTool):
         try:
             validated = OcrTextExtractorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -118,9 +116,7 @@ class OcrTextExtractorTool(BaseTool):
 
     async def _extract_text(self, validated: OcrTextExtractorInput) -> dict[str, Any]:
         """Run Tesseract OCR on the image and return structured results."""
-        image_bytes = await resolve_input(
-            validated.data, validated.url, label="image", fetch_timeout=30
-        )
+        image_bytes = await resolve_input(validated.data, validated.url, label="image", fetch_timeout=30)
 
         image = Image.open(io.BytesIO(image_bytes))
 
@@ -171,9 +167,7 @@ class OcrTextExtractorTool(BaseTool):
         img_height = image.height
         image.close()
 
-        avg_confidence = (
-            round(total_confidence / word_count, 1) if word_count > 0 else 0.0
-        )
+        avg_confidence = round(total_confidence / word_count, 1) if word_count > 0 else 0.0
 
         return {
             "full_text": full_text,

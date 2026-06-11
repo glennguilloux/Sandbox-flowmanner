@@ -109,9 +109,7 @@ class MemoryConsolidationWorker:
         mission_id: str,
     ) -> list[dict[str, Any]]:
         """Retrieve all episode memories for a given mission."""
-        result = await db.execute(
-            select(Memory).where(Memory.source_mission_id == mission_id)
-        )
+        result = await db.execute(select(Memory).where(Memory.source_mission_id == mission_id))
         memories = result.scalars().all()
         return [
             {
@@ -161,9 +159,7 @@ class MemoryConsolidationWorker:
         days = retention_days if retention_days is not None else _RETENTION_DAYS
         cutoff = _utcnow() - timedelta(days=days)
 
-        result = await db.execute(
-            delete(MemorySession).where(MemorySession.created_at < cutoff)
-        )
+        result = await db.execute(delete(MemorySession).where(MemorySession.created_at < cutoff))
         await db.commit()
 
         deleted = result.rowcount

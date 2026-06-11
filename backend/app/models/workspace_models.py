@@ -36,44 +36,28 @@ class Workspace(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    slug: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True
-    )
-    owner_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
-    )
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    settings: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True, server_default="{}"
-    )
-    member_limit: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, server_default="5"
-    )
-    storage_used_bytes: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True, server_default="0"
-    )
+    settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True, server_default="{}")
+    member_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="5")
+    storage_used_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True, server_default="0")
     # H4.1: Subscription & billing (migrated from Tenant model)
     subscription_tier_id: Mapped[int | None] = mapped_column(
         ForeignKey("subscription_tiers.id", ondelete="SET NULL"), nullable=True
     )
     billing_customer_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    version: Mapped[int] = mapped_column(
-        Integer, default=1, nullable=False, server_default="1"
-    )
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False, server_default="1")
 
     # Relationships
     owner: Mapped[User] = relationship("User", foreign_keys=[owner_id])
-    subscription_tier: Mapped[SubscriptionTier | None] = relationship(
-        "SubscriptionTier", lazy="selectin"
-    )
+    subscription_tier: Mapped[SubscriptionTier | None] = relationship("SubscriptionTier", lazy="selectin")
     members: Mapped[list[WorkspaceMember]] = relationship(
         "WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan"
     )
-    teams: Mapped[list[Team]] = relationship(
-        "Team", back_populates="workspace", cascade="all, delete-orphan"
-    )
+    teams: Mapped[list[Team]] = relationship("Team", back_populates="workspace", cascade="all, delete-orphan")
     invitations: Mapped[list[WorkspaceInvitation]] = relationship(
         "WorkspaceInvitation", back_populates="workspace", cascade="all, delete-orphan"
     )
@@ -83,17 +67,13 @@ class WorkspaceMember(Base, TimestampMixin):
     """Member of a workspace with role-based access."""
 
     __tablename__ = "workspace_members"
-    __table_args__ = (
-        UniqueConstraint("workspace_id", "user_id", name="uq_workspace_member"),
-    )
+    __table_args__ = (UniqueConstraint("workspace_id", "user_id", name="uq_workspace_member"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     joined_at: Mapped[datetime] = mapped_column(
@@ -110,9 +90,7 @@ class Team(Base, TimestampMixin):
 
     __tablename__ = "teams"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -122,9 +100,7 @@ class Team(Base, TimestampMixin):
 
     # Relationships
     workspace: Mapped[Workspace] = relationship("Workspace", back_populates="teams")
-    members: Mapped[list[TeamMember]] = relationship(
-        "TeamMember", back_populates="team", cascade="all, delete-orphan"
-    )
+    members: Mapped[list[TeamMember]] = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
 
 
 class TeamMember(Base, TimestampMixin):
@@ -134,12 +110,8 @@ class TeamMember(Base, TimestampMixin):
     __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_team_member"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    team_id: Mapped[str] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -155,33 +127,21 @@ class WorkspaceInvitation(Base, TimestampMixin):
 
     __tablename__ = "workspace_invitations"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
-    token: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
-    )
-    invited_by: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    invited_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    accepted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     invitation_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    workspace: Mapped[Workspace] = relationship(
-        "Workspace", back_populates="invitations"
-    )
+    workspace: Mapped[Workspace] = relationship("Workspace", back_populates="invitations")
     inviter: Mapped[User] = relationship("User", foreign_keys=[invited_by])
 
 
@@ -194,9 +154,7 @@ class WorkspaceVersion(Base, TimestampMixin):
 
     __tablename__ = "workspace_versions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -225,9 +183,7 @@ class WorkspaceShare(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     source_workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -238,13 +194,9 @@ class WorkspaceShare(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    entity_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # mission, workflow, chat_thread
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # mission, workflow, chat_thread
     entity_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    permission: Mapped[str] = mapped_column(
-        String(20), default="read", nullable=False
-    )  # read, write
+    permission: Mapped[str] = mapped_column(String(20), default="read", nullable=False)  # read, write
     granted_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -252,12 +204,8 @@ class WorkspaceShare(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Relationships
-    source_workspace: Mapped[Workspace] = relationship(
-        "Workspace", foreign_keys=[source_workspace_id]
-    )
-    target_workspace: Mapped[Workspace] = relationship(
-        "Workspace", foreign_keys=[target_workspace_id]
-    )
+    source_workspace: Mapped[Workspace] = relationship("Workspace", foreign_keys=[source_workspace_id])
+    target_workspace: Mapped[Workspace] = relationship("Workspace", foreign_keys=[target_workspace_id])
     granter: Mapped[User | None] = relationship("User", foreign_keys=[granted_by])
 
 
@@ -270,12 +218,8 @@ class WorkspaceMessage(Base, TimestampMixin):
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    sender_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    recipient_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Relationships

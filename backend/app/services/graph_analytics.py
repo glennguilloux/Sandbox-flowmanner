@@ -46,11 +46,9 @@ async def get_execution_stats(db: AsyncSession, user_id: int) -> dict[str, Any]:
     # Average duration for completed executions
     dur_rows = await db.execute(
         select(
-            func.avg(
-                func.extract(
-                    "epoch", GraphExecution.completed_at - GraphExecution.started_at
-                )
-            ).label("avg_duration")
+            func.avg(func.extract("epoch", GraphExecution.completed_at - GraphExecution.started_at)).label(
+                "avg_duration"
+            )
         ).where(
             GraphExecution.user_id == user_id,
             GraphExecution.status == "completed",
@@ -104,9 +102,7 @@ async def get_workflow_stats(db: AsyncSession, user_id: int) -> list[dict]:
     return results
 
 
-async def get_recent_executions(
-    db: AsyncSession, user_id: int, limit: int = 20
-) -> list[dict]:
+async def get_recent_executions(db: AsyncSession, user_id: int, limit: int = 20) -> list[dict]:
     """Recent executions with status/timing."""
     rows = await db.execute(
         select(GraphExecution)
@@ -125,9 +121,7 @@ async def get_recent_executions(
                 "workflow_id": str(ex.workflow_id),
                 "status": ex.status,
                 "started_at": ex.started_at.isoformat() if ex.started_at else None,
-                "completed_at": (
-                    ex.completed_at.isoformat() if ex.completed_at else None
-                ),
+                "completed_at": (ex.completed_at.isoformat() if ex.completed_at else None),
                 "duration_seconds": round(duration, 2) if duration else None,
                 "error_message": ex.error_message,
             }
@@ -137,18 +131,14 @@ async def get_recent_executions(
 
 async def get_execution_detail(db: AsyncSession, execution_id: str) -> dict | None:
     """Full execution detail with node-level results."""
-    rows = await db.execute(
-        select(GraphExecution).where(GraphExecution.id == execution_id)
-    )
+    rows = await db.execute(select(GraphExecution).where(GraphExecution.id == execution_id))
     ex = rows.scalar_one_or_none()
     if ex is None:
         return None
 
     # Get node states
     state_rows = await db.execute(
-        select(GraphState)
-        .where(GraphState.execution_id == execution_id)
-        .order_by(GraphState.created_at)
+        select(GraphState).where(GraphState.execution_id == execution_id).order_by(GraphState.created_at)
     )
     node_states = [
         {
@@ -185,9 +175,7 @@ async def get_usage_stats(db: AsyncSession, user_id: int, period: str = "30d") -
     rows = await db.execute(
         select(
             func.count().label("total_executions"),
-            func.count()
-            .filter(GraphExecution.status == "completed")
-            .label("completed"),
+            func.count().filter(GraphExecution.status == "completed").label("completed"),
             func.count().filter(GraphExecution.status == "failed").label("failed"),
         ).where(
             GraphExecution.user_id == user_id,

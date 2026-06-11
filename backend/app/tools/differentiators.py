@@ -43,15 +43,9 @@ class PersistentAgentMemoryInput(ToolInput):
 
     action: str = Field(..., description="Action: 'save', 'recall', or 'list'")
     agent_id: str = Field("default", description="Agent session identifier")
-    user_id: int | None = Field(
-        None, description="User ID (auto-set from auth context if omitted)"
-    )
-    content: str | None = Field(
-        None, description="Content to save (required for 'save')"
-    )
-    content_type: str = Field(
-        "note", description="Type of content: 'note', 'summary', 'context'"
-    )
+    user_id: int | None = Field(None, description="User ID (auto-set from auth context if omitted)")
+    content: str | None = Field(None, description="Content to save (required for 'save')")
+    content_type: str = Field("note", description="Type of content: 'note', 'summary', 'context'")
     query: str | None = Field(None, description="Search query (required for 'recall')")
     limit: int = Field(10, ge=1, le=100, description="Max results for recall/list")
     metadata: dict | None = Field(None, description="Optional key-value metadata")
@@ -75,17 +69,11 @@ class PersistentAgentMemoryTool(BaseTool):
         try:
             validated = PersistentAgentMemoryInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Resolve user_id: explicit input > auth context > default
         context = input_data.get("context", {}) or {}
-        user_id = (
-            validated.user_id
-            if validated.user_id is not None
-            else context.get("user_id")
-        )
+        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -146,9 +134,7 @@ class PersistentAgentMemoryTool(BaseTool):
                 "id": entry.id,
                 "agent_id": agent_id,
                 "content_type": validated.content_type,
-                "created_at": (
-                    entry.created_at.isoformat() if entry.created_at else None
-                ),
+                "created_at": (entry.created_at.isoformat() if entry.created_at else None),
             },
         )
 
@@ -184,9 +170,7 @@ class PersistentAgentMemoryTool(BaseTool):
                         "id": r.id,
                         "content": r.content,
                         "content_type": r.content_type,
-                        "created_at": (
-                            r.created_at.isoformat() if r.created_at else None
-                        ),
+                        "created_at": (r.created_at.isoformat() if r.created_at else None),
                     }
                     for r in rows
                 ],
@@ -218,9 +202,7 @@ class PersistentAgentMemoryTool(BaseTool):
                         "id": r.id,
                         "content": r.content,
                         "content_type": r.content_type,
-                        "created_at": (
-                            r.created_at.isoformat() if r.created_at else None
-                        ),
+                        "created_at": (r.created_at.isoformat() if r.created_at else None),
                     }
                     for r in rows
                 ],
@@ -257,9 +239,7 @@ class SemanticMemoryIndexTool(BaseTool):
         try:
             validated = SemanticMemoryIndexInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context", {}) or {}
         user_id = context.get("user_id", 0)
@@ -347,9 +327,7 @@ class KnowledgeBaseConnectorTool(BaseTool):
         try:
             validated = KnowledgeBaseConnectorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context", {}) or {}
         user_id = validated.user_id or context.get("user_id")
@@ -362,9 +340,7 @@ class KnowledgeBaseConnectorTool(BaseTool):
 
             if action == "search":
                 if not validated.query:
-                    return ToolResult.error_result(
-                        tool_id=self.tool_id, error="query is required for 'search'"
-                    )
+                    return ToolResult.error_result(tool_id=self.tool_id, error="query is required for 'search'")
                 async with AsyncSessionLocal() as session:
                     pattern = f"%{validated.query}%"
                     result = await session.execute(
@@ -375,9 +351,7 @@ class KnowledgeBaseConnectorTool(BaseTool):
                     )
                     rows = result.fetchall()
                     await session.close()
-                results = [
-                    {"id": str(r[0]), "title": r[1], "description": r[2]} for r in rows
-                ]
+                results = [{"id": str(r[0]), "title": r[1], "description": r[2]} for r in rows]
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
@@ -400,9 +374,7 @@ class KnowledgeBaseConnectorTool(BaseTool):
                 chunker = ChunkingService()
                 uid = user_id or 0
 
-                chunks = await chunker.chunk_book(
-                    validated.page_id, book_title=f"kb:{validated.page_id}"
-                )
+                chunks = await chunker.chunk_book(validated.page_id, book_title=f"kb:{validated.page_id}")
                 if not chunks:
                     chunks = [
                         Chunk(
@@ -417,11 +389,7 @@ class KnowledgeBaseConnectorTool(BaseTool):
                         )
                     ]
                 for c in chunks:
-                    c.id = str(
-                        uuid.uuid5(
-                            uuid.NAMESPACE_URL, f"kb:{validated.page_id}:{c.text[:100]}"
-                        )
-                    )
+                    c.id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"kb:{validated.page_id}:{c.text[:100]}"))
                 vectors = await embedder.embed([c.text for c in chunks])
                 count = await store.upsert_chunks(uid, chunks, vectors)
                 return ToolResult.success_result(
@@ -445,9 +413,7 @@ class KnowledgeBaseConnectorTool(BaseTool):
                     await r.expire(key, 86400 * 30)
                     await r.aclose()
                 except Exception:
-                    logger.debug(
-                        "kb link: Redis unavailable, returning success without persistence"
-                    )
+                    logger.debug("kb link: Redis unavailable, returning success without persistence")
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
@@ -495,9 +461,7 @@ class BrandVoiceEnforcerTool(BaseTool):
         try:
             validated = BrandVoiceEnforcerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             from app.services.brand_voice import evaluate_text, rewrite_text
@@ -545,12 +509,8 @@ class CollaborativeTeamSpaceInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
     space_id: str = Field(..., description="Space identifier")
-    action: str = Field(
-        "read", description="Action: 'create', 'join', 'post', 'read', or 'leave'"
-    )
-    content: str | None = Field(
-        None, description="Content to post (required for 'post')"
-    )
+    action: str = Field("read", description="Action: 'create', 'join', 'post', 'read', or 'leave'")
+    content: str | None = Field(None, description="Content to post (required for 'post')")
     agent_id: str = Field("default", description="Agent identifier")
 
 
@@ -572,9 +532,7 @@ class CollaborativeTeamSpaceTool(BaseTool):
         try:
             validated = CollaborativeTeamSpaceInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             from app.services.team_space import (
@@ -611,9 +569,7 @@ class CollaborativeTeamSpaceTool(BaseTool):
                 )
             elif action == "post":
                 if not validated.content:
-                    return ToolResult.error_result(
-                        tool_id=self.tool_id, error="content is required for 'post'"
-                    )
+                    return ToolResult.error_result(tool_id=self.tool_id, error="content is required for 'post'")
                 info = await post_message(space_id, agent_id, validated.content)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
@@ -675,9 +631,7 @@ class CollaborativeTeamSpaceTool(BaseTool):
 
 class PIIRedactorInput(ToolInput):
     text: str = Field(..., description="Text containing potentially sensitive data")
-    level: str = Field(
-        "standard", description="Redaction level: 'standard', 'strict', or 'custom'"
-    )
+    level: str = Field("standard", description="Redaction level: 'standard', 'strict', or 'custom'")
     redact_types: list[str] | None = Field(
         None,
         description="Specific PII types to redact: name, email, phone, ssn, credit_card, address",
@@ -702,9 +656,7 @@ class PIIRedactorTool(BaseTool):
         try:
             validated = PIIRedactorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             from app.services.pii_redactor import redact_pii
@@ -742,9 +694,7 @@ class SemanticChunkingInput(ToolInput):
     text: str = Field(..., description="Document text to chunk")
     max_chunk_size: int = Field(512, description="Maximum tokens per chunk")
     overlap: int = Field(64, description="Token overlap between chunks")
-    strategy: str = Field(
-        "semantic", description="Strategy: 'semantic', 'paragraph', or 'sentence'"
-    )
+    strategy: str = Field("semantic", description="Strategy: 'semantic', 'paragraph', or 'sentence'")
 
 
 class SemanticChunkingTool(BaseTool):
@@ -765,9 +715,7 @@ class SemanticChunkingTool(BaseTool):
         try:
             validated = SemanticChunkingInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.text or not validated.text.strip():
             return ToolResult.success_result(
@@ -849,12 +797,8 @@ class SemanticChunkingTool(BaseTool):
 
 class SubAgentRouterInput(ToolInput):
     task: str = Field(..., description="Task description to route")
-    available_agents: list[str] | None = Field(
-        None, description="List of available agent IDs"
-    )
-    strategy: str = Field(
-        "auto", description="Routing strategy: 'auto', 'round_robin', or 'llm_select'"
-    )
+    available_agents: list[str] | None = Field(None, description="List of available agent IDs")
+    strategy: str = Field("auto", description="Routing strategy: 'auto', 'round_robin', or 'llm_select'")
 
 
 class SubAgentRouterTool(BaseTool):
@@ -875,9 +819,7 @@ class SubAgentRouterTool(BaseTool):
         try:
             validated = SubAgentRouterInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             from app.models.capability_models import Budget
@@ -928,10 +870,7 @@ class SubAgentRouterTool(BaseTool):
 
             # LLM-based selection (default: "auto" / "llm_select")
             enforcer = get_budget_enforcer()
-            agent_list = "\n".join(
-                f"- {c['name']}: {c.get('description', 'No description')}"
-                for c in candidates[:10]
-            )
+            agent_list = "\n".join(f"- {c['name']}: {c.get('description', 'No description')}" for c in candidates[:10])
             response = await enforcer.call(
                 budget=Budget(max_cost_usd=0.01),
                 model_id="deepseek-chat",
@@ -999,9 +938,7 @@ class TaskPlannerTool(BaseTool):
         try:
             validated = TaskPlannerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             import json as _json
@@ -1051,9 +988,7 @@ class TaskPlannerTool(BaseTool):
                     tasks = []
             if not isinstance(tasks, list):
                 # Fallback: return raw text as a single task
-                tasks = [
-                    {"title": validated.objective[:80], "description": content[:200]}
-                ]
+                tasks = [{"title": validated.objective[:80], "description": content[:200]}]
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
@@ -1099,9 +1034,7 @@ class RAGContextBuilderTool(BaseTool):
         try:
             validated = RAGContextBuilderInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context", {}) or {}
         user_id = validated.user_id or context.get("user_id", 0)
@@ -1115,14 +1048,10 @@ class RAGContextBuilderTool(BaseTool):
             vector_store = QdrantVectorStore()
             embedding_service = EmbeddingService()
             router = get_model_router()
-            retrieval = RetrievalService(
-                vector_store, embedding_service, llm_router=router
-            )
+            retrieval = RetrievalService(vector_store, embedding_service, llm_router=router)
 
             # Retrieve relevant chunks
-            chunks = await retrieval.retrieve(
-                user_id=user_id, query=validated.query, limit=validated.top_k
-            )
+            chunks = await retrieval.retrieve(user_id=user_id, query=validated.query, limit=validated.top_k)
 
             if not chunks:
                 return ToolResult.success_result(

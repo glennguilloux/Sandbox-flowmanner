@@ -13,16 +13,12 @@ from app.models import Base, TimestampMixin
 class OrchestratorExecution(Base, TimestampMixin):
     __tablename__ = "orchestrator_executions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     goal: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(
         String(20), default="pending", index=True
     )  # pending, decomposing, dispatching, running, synthesizing, completed, failed
-    strategy: Mapped[str] = mapped_column(
-        String(50), default="parallel"
-    )  # parallel, sequential, debate
+    strategy: Mapped[str] = mapped_column(String(50), default="parallel")  # parallel, sequential, debate
     synthesis: Mapped[str | None] = mapped_column(Text, nullable=True)
     conflict_markers: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     agent_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -31,24 +27,16 @@ class OrchestratorExecution(Base, TimestampMixin):
     total_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    tasks: Mapped[list["OrchestratorTask"]] = relationship(
-        back_populates="execution", cascade="all, delete-orphan"
-    )
+    tasks: Mapped[list["OrchestratorTask"]] = relationship(back_populates="execution", cascade="all, delete-orphan")
 
 
 class OrchestratorTask(Base, TimestampMixin):
     __tablename__ = "orchestrator_tasks"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     execution_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("orchestrator_executions.id", ondelete="CASCADE"),
@@ -58,9 +46,7 @@ class OrchestratorTask(Base, TimestampMixin):
     agent_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     agent_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     task_description: Mapped[str] = mapped_column(Text, nullable=False)
-    task_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="general"
-    )
+    task_type: Mapped[str] = mapped_column(String(50), nullable=False, default="general")
     status: Mapped[str] = mapped_column(
         String(20), default="pending", index=True
     )  # pending, assigned, running, completed, failed, escalated

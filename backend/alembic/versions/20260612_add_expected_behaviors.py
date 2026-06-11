@@ -5,9 +5,10 @@ Revises: add_extensions_table
 Create Date: 2026-06-12
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "add_expected_behaviors"
 down_revision = "add_extensions_table"

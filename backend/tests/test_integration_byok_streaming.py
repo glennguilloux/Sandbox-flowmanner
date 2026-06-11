@@ -76,7 +76,7 @@ class _FakeAsyncClient:
         return self._response
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_user():
     return SimpleNamespace(
         id=1,
@@ -94,7 +94,7 @@ def sample_user():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_client(sample_user):
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock()
@@ -164,9 +164,7 @@ class TestBYOKStreamingHeaderAccepted:
     def test_byok_header_accepted_returns_200(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch(
-                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
-            ),
+            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Hello", " world"),
@@ -184,9 +182,7 @@ class TestBYOKStreamingHeaderAccepted:
     def test_byok_header_stream_returns_token_events(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch(
-                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
-            ),
+            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Hello", " world"),
@@ -207,9 +203,7 @@ class TestBYOKStreamingHeaderAccepted:
     def test_no_byok_header_also_works(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch(
-                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
-            ),
+            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("ok"),
@@ -227,9 +221,7 @@ class TestStreamingCompleteEvent:
     def test_complete_event_present_with_usage(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch(
-                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
-            ),
+            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Test"),
@@ -250,9 +242,7 @@ class TestStreamingCompleteEvent:
     def test_sse_format_has_data_prefix_and_double_newline(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch(
-                "app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)
-            ),
+            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("x"),

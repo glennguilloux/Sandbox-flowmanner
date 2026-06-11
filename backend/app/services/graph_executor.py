@@ -88,10 +88,7 @@ class ExecutionContext:
             elif isinstance(v, dict):
                 result[k] = self.interpolate_dict(v)
             elif isinstance(v, list):
-                result[k] = [
-                    self.resolve_interpolation(i) if isinstance(i, str) else i
-                    for i in v
-                ]
+                result[k] = [self.resolve_interpolation(i) if isinstance(i, str) else i for i in v]
             else:
                 result[k] = v
         return result
@@ -155,17 +152,11 @@ class GraphInterpreter:
             return {"status": "completed", "outputs": {}}
 
         # Filter to subgraph if start_node_id specified
-        active_node_ids = (
-            self._get_subgraph_nodes(start_node_id)
-            if start_node_id
-            else {n["id"] for n in self.nodes}
-        )
+        active_node_ids = self._get_subgraph_nodes(start_node_id) if start_node_id else {n["id"] for n in self.nodes}
 
         # Filter edges to only those within active nodes
         active_edges = [
-            e
-            for e in self.edges
-            if e.get("source") in active_node_ids and e.get("target") in active_node_ids
+            e for e in self.edges if e.get("source") in active_node_ids and e.get("target") in active_node_ids
         ]
 
         # Kahn's on reduced graph
@@ -306,8 +297,7 @@ class GraphInterpreter:
                             "node_id": node_id,
                             "status": (
                                 "failed"
-                                if isinstance(output, dict)
-                                and not output.get("success", True)
+                                if isinstance(output, dict) and not output.get("success", True)
                                 else "completed"
                             ),
                             "output": output,
@@ -316,6 +306,6 @@ class GraphInterpreter:
                     )
                 )
             except RuntimeError as e:
-                logger.debug('graph_ws_emit_no_loop execution_id=%s error=%s', self.execution.id, str(e))
+                logger.debug("graph_ws_emit_no_loop execution_id=%s error=%s", self.execution.id, str(e))
         except Exception as e:
-            logger.debug('graph_ws_emit_failed execution_id=%s error=%s', self.execution.id, str(e))
+            logger.debug("graph_ws_emit_failed execution_id=%s error=%s", self.execution.id, str(e))

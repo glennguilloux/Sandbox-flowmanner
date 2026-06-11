@@ -11,8 +11,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
-from app.database import engine
 
+from app.database import engine
 
 TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS chat_threads (

@@ -61,9 +61,7 @@ class ListIntegrationsTool(BaseTool):
         try:
             validated = ListIntegrationsInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Extract user_id from agent context
         context = input_data.get("context", {})
@@ -220,9 +218,7 @@ class ExecuteIntegrationTool(BaseTool):
         try:
             validated = ExecuteIntegrationInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Extract user_id from agent context
         context = input_data.get("context", {})

@@ -5,9 +5,10 @@ Revises: 20260521_perf_indexes
 Create Date: 2026-05-21
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSON, UUID
+
+from alembic import op
 
 revision = "20260521_orchestration"
 down_revision = "20260521_perf_indexes"
@@ -25,15 +26,9 @@ def upgrade() -> None:
         sa.Column("status", sa.String(20), server_default="IDLE"),
         sa.Column("capabilities", JSON, nullable=True),
         sa.Column("config", JSON, nullable=True),
-        sa.Column(
-            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
-        ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -43,15 +38,9 @@ def upgrade() -> None:
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("members", JSON, nullable=True),
         sa.Column("status", sa.String(20), server_default="ACTIVE"),
-        sa.Column(
-            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
-        ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -69,12 +58,8 @@ def upgrade() -> None:
         sa.Column("input", JSON, nullable=True),
         sa.Column("output", JSON, nullable=True),
         sa.Column("error", sa.Text, nullable=True),
-        sa.Column(
-            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
-        ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )

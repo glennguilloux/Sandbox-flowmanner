@@ -19,22 +19,14 @@ class TestEnsureSandboxForMission:
         from app.services.sandbox_service import SandboxService
 
         mock_client = MagicMock()
-        mock_client.create = AsyncMock(
-            return_value={"id": "sb-new", "status": "starting"}
-        )
+        mock_client.create = AsyncMock(return_value={"id": "sb-new", "status": "starting"})
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(
-            return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=None))
-                )
-            )
+            return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=None))))
         )
 
         svc = SandboxService(client=mock_client)
-        sandbox_id = await svc.ensure_sandbox_for_mission(
-            str(uuid4()), "user-1", db=mock_db
-        )
+        sandbox_id = await svc.ensure_sandbox_for_mission(str(uuid4()), "user-1", db=mock_db)
 
         assert sandbox_id == "sb-new"
         mock_client.create.assert_called_once()
@@ -50,16 +42,12 @@ class TestEnsureSandboxForMission:
         existing_row.sandbox_id = "sb-existing"
         mock_db.execute = AsyncMock(
             return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=existing_row))
-                )
+                scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=existing_row)))
             )
         )
 
         svc = SandboxService(client=mock_client)
-        sandbox_id = await svc.ensure_sandbox_for_mission(
-            str(uuid4()), "user-1", db=mock_db
-        )
+        sandbox_id = await svc.ensure_sandbox_for_mission(str(uuid4()), "user-1", db=mock_db)
 
         assert sandbox_id == "sb-existing"
         mock_client.create.assert_not_called()
@@ -79,9 +67,7 @@ class TestReapSandbox:
         existing_row.sandbox_id = "sb-abc"
         mock_db.execute = AsyncMock(
             return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=existing_row))
-                )
+                scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=existing_row)))
             )
         )
 
@@ -98,11 +84,7 @@ class TestReapSandbox:
         mock_client.stop = AsyncMock()
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(
-            return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=None))
-                )
-            )
+            return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=None))))
         )
 
         svc = SandboxService(client=mock_client)
@@ -125,9 +107,7 @@ class TestPurgeSandbox:
         existing_row.sandbox_id = "sb-abc"
         mock_db.execute = AsyncMock(
             return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=existing_row))
-                )
+                scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=existing_row)))
             )
         )
 
@@ -151,9 +131,7 @@ class TestSandboxServiceSnapshots:
         existing_row.sandbox_id = "sb-abc"
         mock_db.execute = AsyncMock(
             return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=existing_row))
-                )
+                scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=existing_row)))
             )
         )
 
@@ -182,9 +160,7 @@ class TestSandboxServiceHealth:
         from app.services.sandbox_service import SandboxService
 
         mock_client = MagicMock()
-        mock_client.health_check = AsyncMock(
-            side_effect=Exception("connection refused")
-        )
+        mock_client.health_check = AsyncMock(side_effect=Exception("connection refused"))
 
         svc = SandboxService(client=mock_client)
         assert await svc.is_sandboxd_healthy() is False

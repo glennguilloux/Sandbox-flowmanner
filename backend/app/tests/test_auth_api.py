@@ -41,9 +41,7 @@ def test_register_success(test_client, mock_db_session):
     with (
         patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)),
         patch("app.api.v1.auth.create_access_token", return_value="acc-test-123"),
-        patch(
-            "app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"
-        ),
+        patch("app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"),
         patch(
             "app.services.auth_service.create_user",
             return_value=MagicMock(id=1, role="user"),
@@ -95,9 +93,7 @@ def test_login_success(test_client, mock_db_session, sample_user):
         patch("app.api.v1.auth.reset_login_attempts", return_value=None),
         patch("app.api.v1.auth.verify_password", return_value=True),
         patch("app.api.v1.auth.create_access_token", return_value="acc-test-123"),
-        patch(
-            "app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"
-        ),
+        patch("app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"),
     ):
         response = test_client.post(
             "/api/auth/login",
@@ -134,9 +130,7 @@ def test_get_me_authenticated(test_client, sample_user):
     """GET /api/auth/me with valid auth returns 200."""
     app.dependency_overrides[get_current_user] = lambda: sample_user
     try:
-        response = test_client.get(
-            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
-        )
+        response = test_client.get("/api/auth/me", headers={"Authorization": "Bearer test-token"})
         assert response.status_code == 200
         assert response.json()["email"] == sample_user.email
     finally:

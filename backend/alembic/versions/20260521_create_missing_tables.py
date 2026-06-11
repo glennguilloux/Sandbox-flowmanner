@@ -5,9 +5,10 @@ Revises: 20260521_memories
 Create Date: 2026-05-21
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSON, UUID
+
+from alembic import op
 
 revision = "20260521_missing_tables"
 down_revision = "20260521_memories"
@@ -26,12 +27,8 @@ def upgrade() -> None:
         sa.Column("owner_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("is_active", sa.Boolean, server_default="true"),
         sa.Column("settings", JSON, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Tenant members
@@ -45,13 +42,9 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column(
-            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
-        ),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
         sa.Column("role", sa.String(50), server_default="member"),
-        sa.Column(
-            "joined_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("joined_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Tenant invitations
@@ -69,9 +62,7 @@ def upgrade() -> None:
         sa.Column("role", sa.String(50), server_default="member"),
         sa.Column("invited_by", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("status", sa.String(20), server_default="pending"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -84,12 +75,8 @@ def upgrade() -> None:
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("owner_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("is_active", sa.Boolean, server_default="true"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Partner revenues
@@ -106,9 +93,7 @@ def upgrade() -> None:
         sa.Column("amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("currency", sa.String(3), server_default="USD"),
         sa.Column("source", sa.String(100), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Swarm pipelines
@@ -120,12 +105,8 @@ def upgrade() -> None:
         sa.Column("owner_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("config", JSON, nullable=True),
         sa.Column("is_active", sa.Boolean, server_default="true"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Swarm agents
@@ -142,9 +123,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("role", sa.String(100), nullable=True),
         sa.Column("config", JSON, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Swarm tasks
@@ -158,16 +137,12 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column(
-            "agent_id", sa.Integer, sa.ForeignKey("swarm_agents.id"), nullable=True
-        ),
+        sa.Column("agent_id", sa.Integer, sa.ForeignKey("swarm_agents.id"), nullable=True),
         sa.Column("task_type", sa.String(100), nullable=False),
         sa.Column("input_data", JSON, nullable=True),
         sa.Column("output_data", JSON, nullable=True),
         sa.Column("status", sa.String(20), server_default="pending"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -185,9 +160,7 @@ def upgrade() -> None:
         sa.Column("round_number", sa.Integer, nullable=False),
         sa.Column("consensus_data", JSON, nullable=True),
         sa.Column("status", sa.String(20), server_default="pending"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Swarm profiles
@@ -197,9 +170,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("config", JSON, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
 

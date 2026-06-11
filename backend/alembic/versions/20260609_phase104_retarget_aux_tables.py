@@ -13,9 +13,10 @@ Create Date: 2026-06-09
 
 import os
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "phase104_retarget_aux_tables"
 down_revision = "phase103_drop_old_tables"
@@ -28,8 +29,7 @@ def _table_exists(table_name: str) -> bool:
     bind = op.get_bind()
     return bind.execute(
         sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-            "WHERE table_schema='public' AND table_name=:tname)"
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:tname)"
         ),
         {"tname": table_name},
     ).scalar()
@@ -51,10 +51,7 @@ def _index_exists(index_name: str) -> bool:
     """Check if an index exists in the public schema."""
     bind = op.get_bind()
     return bind.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM pg_indexes "
-            "WHERE schemaname='public' AND indexname=:iname)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:iname)"),
         {"iname": index_name},
     ).scalar()
 
@@ -94,12 +91,8 @@ def upgrade() -> None:
                 ),
             )
         if not _index_exists("ix_mission_improvements_run_id"):
-            op.create_index(
-                "ix_mission_improvements_run_id", "mission_improvements", ["run_id"]
-            )
-        if not _constraint_exists(
-            "fk_mission_improvements_run_id", "mission_improvements"
-        ):
+            op.create_index("ix_mission_improvements_run_id", "mission_improvements", ["run_id"])
+        if not _constraint_exists("fk_mission_improvements_run_id", "mission_improvements"):
             op.create_foreign_key(
                 "fk_mission_improvements_run_id",
                 "mission_improvements",
@@ -120,12 +113,8 @@ def upgrade() -> None:
                 ),
             )
         if not _index_exists("ix_mission_triggers_blueprint_id"):
-            op.create_index(
-                "ix_mission_triggers_blueprint_id", "mission_triggers", ["blueprint_id"]
-            )
-        if not _constraint_exists(
-            "fk_mission_triggers_blueprint_id", "mission_triggers"
-        ):
+            op.create_index("ix_mission_triggers_blueprint_id", "mission_triggers", ["blueprint_id"])
+        if not _constraint_exists("fk_mission_triggers_blueprint_id", "mission_triggers"):
             op.create_foreign_key(
                 "fk_mission_triggers_blueprint_id",
                 "mission_triggers",
@@ -151,9 +140,7 @@ def upgrade() -> None:
                 "mission_circuit_breakers",
                 ["run_id"],
             )
-        if not _constraint_exists(
-            "fk_mission_circuit_breakers_run_id", "mission_circuit_breakers"
-        ):
+        if not _constraint_exists("fk_mission_circuit_breakers_run_id", "mission_circuit_breakers"):
             op.create_foreign_key(
                 "fk_mission_circuit_breakers_run_id",
                 "mission_circuit_breakers",
@@ -169,19 +156,13 @@ def downgrade() -> None:
         "mission_circuit_breakers",
         type_="foreignkey",
     )
-    op.drop_index(
-        "ix_mission_circuit_breakers_run_id", table_name="mission_circuit_breakers"
-    )
+    op.drop_index("ix_mission_circuit_breakers_run_id", table_name="mission_circuit_breakers")
     op.drop_column("mission_circuit_breakers", "run_id")
 
-    op.drop_constraint(
-        "fk_mission_triggers_blueprint_id", "mission_triggers", type_="foreignkey"
-    )
+    op.drop_constraint("fk_mission_triggers_blueprint_id", "mission_triggers", type_="foreignkey")
     op.drop_index("ix_mission_triggers_blueprint_id", table_name="mission_triggers")
     op.drop_column("mission_triggers", "blueprint_id")
 
-    op.drop_constraint(
-        "fk_mission_improvements_run_id", "mission_improvements", type_="foreignkey"
-    )
+    op.drop_constraint("fk_mission_improvements_run_id", "mission_improvements", type_="foreignkey")
     op.drop_index("ix_mission_improvements_run_id", table_name="mission_improvements")
     op.drop_column("mission_improvements", "run_id")

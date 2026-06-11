@@ -106,9 +106,7 @@ class ReplayAssertionEngine:
                     case AssertionType.TASK_COMPLETION:
                         results.append(self._check_completion(state, assertion))
                     case AssertionType.NO_CIRCUIT_BREAKER:
-                        results.append(
-                            self._check_no_circuit_breaker(events, assertion)
-                        )
+                        results.append(self._check_no_circuit_breaker(events, assertion))
                     case _:
                         results.append(
                             AssertionResult(
@@ -150,10 +148,7 @@ class ReplayAssertionEngine:
 
         # Extract tool call events
         tool_events = [e for e in events if e.type == SubstrateEventType.TOOL_CALL]
-        actual_tools = [
-            e.payload.get("tool_name") or e.payload.get("tool_id", "")
-            for e in tool_events
-        ]
+        actual_tools = [e.payload.get("tool_name") or e.payload.get("tool_id", "") for e in tool_events]
         actual_counts = Counter(actual_tools)
 
         # Check for missing tools
@@ -191,9 +186,7 @@ class ReplayAssertionEngine:
             parts.append("Tool call order mismatch")
         if call_violations:
             for name, info in call_violations.items():
-                parts.append(
-                    f"Tool '{name}' called {info['actual']}x (max {info['max']})"
-                )
+                parts.append(f"Tool '{name}' called {info['actual']}x (max {info['max']})")
         if not parts:
             parts.append(f"All {len(expected_tools)} expected tools called correctly")
 

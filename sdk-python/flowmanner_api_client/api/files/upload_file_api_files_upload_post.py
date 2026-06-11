@@ -1,19 +1,16 @@
 from http import HTTPStatus
-from typing import Any, cast
-from urllib.parse import quote
+from typing import Any
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.body_upload_file_api_files_upload_post import (
     BodyUploadFileApiFilesUploadPost,
 )
 from ...models.file_response import FileResponse
 from ...models.http_validation_error import HTTPValidationError
-from typing import cast
+from ...types import Response
 
 
 def _get_kwargs(

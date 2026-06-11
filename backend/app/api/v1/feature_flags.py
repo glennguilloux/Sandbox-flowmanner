@@ -75,9 +75,7 @@ async def list_active_flags(
     db: AsyncSession = Depends(get_db),
 ):
     """List only enabled feature flags (for frontend consumption)."""
-    result = await db.execute(
-        text("SELECT key, name FROM feature_flags WHERE enabled_globally = true")
-    )
+    result = await db.execute(text("SELECT key, name FROM feature_flags WHERE enabled_globally = true"))
     flags = result.fetchall()
     return {f.key: True for f in flags}
 
@@ -90,9 +88,7 @@ async def create_flag(
 ):
     """Create a new feature flag."""
     # Check if key exists
-    existing = await db.execute(
-        text("SELECT id FROM feature_flags WHERE key = :key"), {"key": payload.key}
-    )
+    existing = await db.execute(text("SELECT id FROM feature_flags WHERE key = :key"), {"key": payload.key})
     if existing.scalar():
         raise HTTPException(status_code=409, detail="Flag key already exists")
 
@@ -186,9 +182,7 @@ async def delete_flag(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a feature flag."""
-    result = await db.execute(
-        text("DELETE FROM feature_flags WHERE key = :key RETURNING id"), {"key": key}
-    )
+    result = await db.execute(text("DELETE FROM feature_flags WHERE key = :key RETURNING id"), {"key": key})
     if not result.scalar():
         raise HTTPException(status_code=404, detail="Flag not found")
     await db.commit()

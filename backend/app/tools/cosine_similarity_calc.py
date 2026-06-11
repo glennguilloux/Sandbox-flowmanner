@@ -66,9 +66,7 @@ class CosineSimilarityCalcInput(ToolInput):
                 raise ValueError(
                     f"Dimension mismatch: query has {query_dim}, corpus vector at index {i} has {len(vec)}"
                 )
-        if self.corpus_labels and len(self.corpus_labels) != len(
-            self.corpus_embeddings
-        ):
+        if self.corpus_labels and len(self.corpus_labels) != len(self.corpus_embeddings):
             raise ValueError(
                 f"corpus_labels length ({len(self.corpus_labels)}) must match "
                 f"corpus_embeddings length ({len(self.corpus_embeddings)})"
@@ -123,9 +121,7 @@ class CosineSimilarityCalcTool(BaseTool):
         try:
             validated = CosineSimilarityCalcInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         start = time.monotonic()
 

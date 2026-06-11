@@ -149,9 +149,7 @@ class CryptoMarketDataTool(BaseTool):
         try:
             validated = CryptoMarketDataInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in CRYPTO_ACTIONS:
             return ToolResult.error_result(
@@ -159,11 +157,7 @@ class CryptoMarketDataTool(BaseTool):
                 error=f"Unknown action: '{validated.action}'. Use: {', '.join(CRYPTO_ACTIONS)}",
             )
 
-        if (
-            validated.action != "get_trending"
-            and not validated.coins
-            and not validated.search_query
-        ):
+        if validated.action != "get_trending" and not validated.coins and not validated.search_query:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="coins required (except for 'get_trending' or 'search_coins'). Use 'search_coins' action to find IDs.",
@@ -195,9 +189,7 @@ class CryptoMarketDataTool(BaseTool):
 
     # ── _fetch_with_cache ────────────────────────────────────────
 
-    async def _fetch_with_cache(
-        self, validated: CryptoMarketDataInput
-    ) -> dict[str, Any]:
+    async def _fetch_with_cache(self, validated: CryptoMarketDataInput) -> dict[str, Any]:
         """Try Redis cache first, fall back to API call."""
         cache_key = self._cache_key(validated)
 
@@ -276,9 +268,7 @@ class CryptoMarketDataTool(BaseTool):
                     "price": data.get(validated.vs_currency, None),
                     "market_cap": data.get(f"{validated.vs_currency}_market_cap", None),
                     "24h_volume": data.get(f"{validated.vs_currency}_24h_vol", None),
-                    "24h_change_pct": data.get(
-                        f"{validated.vs_currency}_24h_change", None
-                    ),
+                    "24h_change_pct": data.get(f"{validated.vs_currency}_24h_change", None),
                 }
             )
 
@@ -288,9 +278,7 @@ class CryptoMarketDataTool(BaseTool):
             "coins": coins,
         }
 
-    async def _get_market_data(
-        self, validated: CryptoMarketDataInput
-    ) -> dict[str, Any]:
+    async def _get_market_data(self, validated: CryptoMarketDataInput) -> dict[str, Any]:
         """GET /coins/markets — full market data with optional 7d change."""
         coin_ids = ",".join(validated.coins or []).lower().replace(" ", "")
         params: dict[str, Any] = {
@@ -334,9 +322,7 @@ class CryptoMarketDataTool(BaseTool):
                 "last_updated": c.get("last_updated"),
             }
             if validated.include_7d_chart:
-                entry["price_change_pct_7d"] = c.get(
-                    "price_change_percentage_7d_in_currency"
-                )
+                entry["price_change_pct_7d"] = c.get("price_change_percentage_7d_in_currency")
             coins.append(entry)
 
         return {
@@ -432,9 +418,7 @@ class CryptoMarketDataTool(BaseTool):
         }
 
         async with httpx.AsyncClient(timeout=CRYPTO_TIMEOUT) as client:
-            resp = await client.get(
-                f"{COINGECKO_BASE}/coins/{coin_id}/history", params=params
-            )
+            resp = await client.get(f"{COINGECKO_BASE}/coins/{coin_id}/history", params=params)
             resp.raise_for_status()
             raw = resp.json()
 

@@ -26,7 +26,6 @@ import sys
 
 from sqlalchemy import text
 
-
 # ── Known FK column → (referenced_table, referenced_column) ──────────────
 # These represent the expected FK relationships in the schema.
 # The script will flag any column in this list that lacks a FK constraint.
@@ -261,8 +260,7 @@ def _print_results(results: dict, as_json: bool) -> int:
         print("-" * 60)
         for m in results["missing_fks"]:
             print(
-                f"  {m['table']}.{m['column']} "
-                f"(should reference {m['expected_ref_table']}.{m['expected_ref_column']})"
+                f"  {m['table']}.{m['column']} (should reference {m['expected_ref_table']}.{m['expected_ref_column']})"
             )
     else:
         print("✅ All expected FK constraints present")

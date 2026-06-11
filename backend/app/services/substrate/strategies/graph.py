@@ -61,15 +61,9 @@ class GraphStrategy(ExecutionStrategy):
         start_node_id = context.get("start_node_id")
 
         active_ids = (
-            self._get_subgraph_ids(workflow, start_node_id)
-            if start_node_id
-            else {n.id for n in workflow.nodes}
+            self._get_subgraph_ids(workflow, start_node_id) if start_node_id else {n.id for n in workflow.nodes}
         )
-        active_edges = [
-            e
-            for e in workflow.edges
-            if e.source in active_ids and e.target in active_ids
-        ]
+        active_edges = [e for e in workflow.edges if e.source in active_ids and e.target in active_ids]
         layers = self._topological_sort_for_ids(workflow, active_ids, active_edges)
 
         completed_nodes: list[str] = []
@@ -119,9 +113,7 @@ class GraphStrategy(ExecutionStrategy):
                     total_tokens += result.get("tokens", 0)
                     total_cost += result.get("cost", 0.0)
                     node_outputs[nid] = result.get("output", {})
-                    if isinstance(result.get("output"), dict) and result["output"].get(
-                        "pause"
-                    ):
+                    if isinstance(result.get("output"), dict) and result["output"].get("pause"):
                         return StrategyResult(
                             success=False,
                             status="paused",
@@ -200,9 +192,7 @@ class GraphStrategy(ExecutionStrategy):
             return obj
         return None
 
-    def _topological_sort_for_ids(
-        self, workflow: Workflow, node_ids: set[str], edges: list
-    ) -> list[list[str]]:
+    def _topological_sort_for_ids(self, workflow: Workflow, node_ids: set[str], edges: list) -> list[list[str]]:
         in_deg: dict[str, int] = dict.fromkeys(node_ids, 0)
         deps: dict[str, list[str]] = {nid: [] for nid in node_ids}
         for edge in edges:

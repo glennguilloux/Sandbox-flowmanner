@@ -204,9 +204,7 @@ class TestHandleRetryMission:
                 "app.api._mission_cqrs.commands.get_mission_tasks",
                 new=AsyncMock(return_value=[]),
             ),
-            patch(
-                "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
-            ),
+            patch("app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec),
         ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.retry_mission(make_user(), MISSION_ID)

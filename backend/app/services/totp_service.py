@@ -21,9 +21,7 @@ try:
     HAS_PYOTP = True
 except ImportError:
     HAS_PYOTP = False
-    logger.warning(
-        "pyotp not installed — TOTP features will use fallback implementation"
-    )
+    logger.warning("pyotp not installed — TOTP features will use fallback implementation")
 
 try:
     import qrcode
@@ -58,12 +56,7 @@ def _hotp(secret: bytes, counter: int, digits: int = 6) -> str:
     msg = struct.pack(">Q", counter)
     h = hmac.new(secret, msg, hashlib.sha1).digest()
     offset = h[-1] & 0x0F
-    binary = (
-        (h[offset] & 0x7F) << 24
-        | (h[offset + 1] << 16)
-        | (h[offset + 2] << 8)
-        | h[offset + 3]
-    )
+    binary = (h[offset] & 0x7F) << 24 | (h[offset + 1] << 16) | (h[offset + 2] << 8) | h[offset + 3]
     return str(binary % (10**digits)).zfill(digits)
 
 
@@ -143,9 +136,7 @@ def generate_backup_codes(count: int = 10) -> tuple[list[str], list[str]]:
         code = secrets.token_hex(4)  # 8 hex chars
         formatted = f"{code[:4]}-{code[4:]}"
         plain_codes.append(formatted)
-        hashed = _bcrypt.hashpw(formatted.encode("utf-8"), _bcrypt.gensalt()).decode(
-            "utf-8"
-        )
+        hashed = _bcrypt.hashpw(formatted.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
         hashed_codes.append(hashed)
     return plain_codes, hashed_codes
 

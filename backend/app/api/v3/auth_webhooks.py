@@ -22,15 +22,9 @@ router = APIRouter(prefix="/auth", tags=["v3-auth-webhooks"])
 async def _require_webhooks_enabled(db: AsyncSession) -> None:
     from sqlalchemy import text
 
-    result = await db.execute(
-        text(
-            "SELECT enabled_globally FROM feature_flags WHERE key = 'AUTH_V3_WEBHOOKS'"
-        )
-    )
+    result = await db.execute(text("SELECT enabled_globally FROM feature_flags WHERE key = 'AUTH_V3_WEBHOOKS'"))
     if not result.scalar():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
 
 
 @router.post("/webhooks", status_code=status.HTTP_201_CREATED)
@@ -53,9 +47,7 @@ async def create_webhook(
     db.add(webhook)
     await db.flush()
 
-    return ok(
-        {"id": webhook.id, "workspace_id": webhook.workspace_id, "url": webhook.url}
-    )
+    return ok({"id": webhook.id, "workspace_id": webhook.workspace_id, "url": webhook.url})
 
 
 @router.get("/webhooks", status_code=status.HTTP_200_OK)
@@ -67,18 +59,11 @@ async def list_webhooks(
     await _require_webhooks_enabled(db)
 
     result = await db.execute(
-        select(AuthWebhookSubscription).where(
-            AuthWebhookSubscription.workspace_id == workspace_id
-        )
+        select(AuthWebhookSubscription).where(AuthWebhookSubscription.workspace_id == workspace_id)
     )
     webhooks = result.scalars().all()
 
-    return ok(
-        [
-            {"id": w.id, "url": w.url, "events": w.events, "is_active": w.is_active}
-            for w in webhooks
-        ]
-    )
+    return ok([{"id": w.id, "url": w.url, "events": w.events, "is_active": w.is_active} for w in webhooks])
 
 
 @router.delete("/webhooks/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -89,14 +74,10 @@ async def delete_webhook(
 ):
     await _require_webhooks_enabled(db)
 
-    result = await db.execute(
-        select(AuthWebhookSubscription).where(AuthWebhookSubscription.id == webhook_id)
-    )
+    result = await db.execute(select(AuthWebhookSubscription).where(AuthWebhookSubscription.id == webhook_id))
     webhook = result.scalar_one_or_none()
     if not webhook:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
 
     await db.delete(webhook)
     await db.flush()

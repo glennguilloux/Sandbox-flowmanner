@@ -68,18 +68,12 @@ class ImprovementInsight:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-def create_improvement_cycle(
-    cycle_id: str, improvement_type: ImprovementType
-) -> ImprovementCycle:
+def create_improvement_cycle(cycle_id: str, improvement_type: ImprovementType) -> ImprovementCycle:
     """Create a new improvement cycle"""
-    return ImprovementCycle(
-        id=cycle_id, improvement_type=improvement_type, started_at=datetime.now(UTC)
-    )
+    return ImprovementCycle(id=cycle_id, improvement_type=improvement_type, started_at=datetime.now(UTC))
 
 
-def create_metric(
-    name: str, value: float, tags: dict[str, str] | None = None
-) -> ImprovementMetric:
+def create_metric(name: str, value: float, tags: dict[str, str] | None = None) -> ImprovementMetric:
     """Create a new improvement metric"""
     return ImprovementMetric(name=name, value=value, tags=tags or {})
 

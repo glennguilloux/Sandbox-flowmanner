@@ -105,9 +105,7 @@ class StripeOperationsTool(BaseTool):
         try:
             validated = StripeOperationsInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in STRIPE_ACTIONS:
             return ToolResult.error_result(
@@ -169,9 +167,7 @@ class StripeOperationsTool(BaseTool):
             if action.startswith("get_") or action.startswith("create_"):
                 if not validated.resource_id and action.startswith("get_"):
                     return {"error": f"resource_id is required for {action}"}
-                return await self._single_resource(
-                    client, action, validated.resource_id or "", params
-                )
+                return await self._single_resource(client, action, validated.resource_id or "", params)
             elif action.startswith("list_"):
                 return await self._list_resources(client, action, params)
             else:

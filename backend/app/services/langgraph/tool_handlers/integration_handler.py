@@ -18,15 +18,11 @@ class ListIntegrationsHandler(BaseToolHandler):
     def __init__(self):
         super().__init__("list_integrations", "List Integrations")
 
-    async def validate_parameters(
-        self, parameters: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    async def validate_parameters(self, parameters: dict[str, Any]) -> tuple[bool, str | None]:
         # No required parameters — user_id comes from context
         return True, None
 
-    async def execute(
-        self, parameters: dict[str, Any], context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def execute(self, parameters: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
         user_context = (context or {}).get("user_context", {})
         user_id = user_context.get("user_id")
         if not user_id:
@@ -77,18 +73,14 @@ class ExecuteIntegrationHandler(BaseToolHandler):
     def __init__(self):
         super().__init__("execute_integration", "Execute Integration Action")
 
-    async def validate_parameters(
-        self, parameters: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    async def validate_parameters(self, parameters: dict[str, Any]) -> tuple[bool, str | None]:
         if "slug" not in parameters:
             return False, "Missing required field: slug"
         if "action" not in parameters:
             return False, "Missing required field: action"
         return True, None
 
-    async def execute(
-        self, parameters: dict[str, Any], context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def execute(self, parameters: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
         user_context = (context or {}).get("user_context", {})
         user_id = user_context.get("user_id")
         if not user_id:

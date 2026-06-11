@@ -43,23 +43,13 @@ def upgrade():
     op.create_table(
         "external_models",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "provider", sa.String(50), nullable=False, index=True
-        ),  # "openrouter", "deepseek"
-        sa.Column(
-            "model_name", sa.String(100), nullable=False, index=True
-        ),  # e.g., "moonshotai/kimi-k2.5"
-        sa.Column(
-            "display_name", sa.String(255), nullable=False
-        ),  # Human-readable name
+        sa.Column("provider", sa.String(50), nullable=False, index=True),  # "openrouter", "deepseek"
+        sa.Column("model_name", sa.String(100), nullable=False, index=True),  # e.g., "moonshotai/kimi-k2.5"
+        sa.Column("display_name", sa.String(255), nullable=False),  # Human-readable name
         sa.Column("max_tokens", sa.Integer(), nullable=True),  # Maximum output tokens
         sa.Column("context_length", sa.Integer(), nullable=True),  # Context window size
-        sa.Column(
-            "cost_per_1k_input", sa.Float(), nullable=True
-        ),  # Cost per 1K input tokens (USD)
-        sa.Column(
-            "cost_per_1k_output", sa.Float(), nullable=True
-        ),  # Cost per 1K output tokens (USD)
+        sa.Column("cost_per_1k_input", sa.Float(), nullable=True),  # Cost per 1K input tokens (USD)
+        sa.Column("cost_per_1k_output", sa.Float(), nullable=True),  # Cost per 1K output tokens (USD)
         sa.Column("is_active", sa.Boolean(), default=True, nullable=False),
         sa.Column(
             "created_at",
@@ -77,52 +67,32 @@ def upgrade():
     )
 
     # Create indexes for external_models
-    op.create_index(
-        "idx_external_models_provider", "external_models", ["provider"], unique=False
-    )
+    op.create_index("idx_external_models_provider", "external_models", ["provider"], unique=False)
     op.create_index(
         "idx_external_models_model_name",
         "external_models",
         ["model_name"],
         unique=False,
     )
-    op.create_index(
-        "idx_external_models_active", "external_models", ["is_active"], unique=False
-    )
+    op.create_index("idx_external_models_active", "external_models", ["is_active"], unique=False)
 
     # Create model_usage table
     # Tracks usage statistics of external AI models
     op.create_table(
         "model_usage",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "provider", sa.String(50), nullable=False, index=True
-        ),  # "openrouter", "deepseek"
-        sa.Column(
-            "model_name", sa.String(100), nullable=False, index=True
-        ),  # e.g., "moonshotai/kimi-k2.5"
-        sa.Column(
-            "request_id", sa.String(255), nullable=True, index=True
-        ),  # External provider request ID
-        sa.Column(
-            "user_id", sa.String(36), nullable=True, index=True
-        ),  # User who made the request
+        sa.Column("provider", sa.String(50), nullable=False, index=True),  # "openrouter", "deepseek"
+        sa.Column("model_name", sa.String(100), nullable=False, index=True),  # e.g., "moonshotai/kimi-k2.5"
+        sa.Column("request_id", sa.String(255), nullable=True, index=True),  # External provider request ID
+        sa.Column("user_id", sa.String(36), nullable=True, index=True),  # User who made the request
         sa.Column("input_tokens", sa.Integer(), default=0, nullable=False),
         sa.Column("output_tokens", sa.Integer(), default=0, nullable=False),
-        sa.Column(
-            "reasoning_tokens", sa.Integer(), default=0, nullable=False
-        ),  # For deepseek-reasoner
+        sa.Column("reasoning_tokens", sa.Integer(), default=0, nullable=False),  # For deepseek-reasoner
         sa.Column("cost_usd", sa.Float(), default=0.0, nullable=False),
-        sa.Column(
-            "response_time_ms", sa.Integer(), nullable=True
-        ),  # Response time in milliseconds
+        sa.Column("response_time_ms", sa.Integer(), nullable=True),  # Response time in milliseconds
         sa.Column("success", sa.Boolean(), default=True, nullable=False),
-        sa.Column(
-            "error_message", sa.Text(), nullable=True
-        ),  # Error details if success=False
-        sa.Column(
-            "model_id", sa.String(36), nullable=True
-        ),  # Foreign key to external_models
+        sa.Column("error_message", sa.Text(), nullable=True),  # Error details if success=False
+        sa.Column("model_id", sa.String(36), nullable=True),  # Foreign key to external_models
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -132,19 +102,11 @@ def upgrade():
     )
 
     # Create indexes for model_usage
-    op.create_index(
-        "idx_model_usage_provider", "model_usage", ["provider"], unique=False
-    )
-    op.create_index(
-        "idx_model_usage_model_name", "model_usage", ["model_name"], unique=False
-    )
-    op.create_index(
-        "idx_model_usage_request_id", "model_usage", ["request_id"], unique=False
-    )
+    op.create_index("idx_model_usage_provider", "model_usage", ["provider"], unique=False)
+    op.create_index("idx_model_usage_model_name", "model_usage", ["model_name"], unique=False)
+    op.create_index("idx_model_usage_request_id", "model_usage", ["request_id"], unique=False)
     op.create_index("idx_model_usage_user_id", "model_usage", ["user_id"], unique=False)
-    op.create_index(
-        "idx_model_usage_created", "model_usage", ["created_at"], unique=False
-    )
+    op.create_index("idx_model_usage_created", "model_usage", ["created_at"], unique=False)
     op.create_index("idx_model_usage_success", "model_usage", ["success"], unique=False)
 
     # Seed initial model configurations

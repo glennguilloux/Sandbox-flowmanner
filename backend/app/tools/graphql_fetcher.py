@@ -22,12 +22,8 @@ class GraphqlFetcherInput(ToolInput):
     endpoint: str = Field(..., description="GraphQL endpoint URL")
     query: str = Field(..., description="GraphQL query or mutation string")
     variables: dict | None = Field(None, description="Query variables as a dict")
-    headers: dict | None = Field(
-        None, description="Additional HTTP headers (e.g., Authorization)"
-    )
-    operation_name: str | None = Field(
-        None, description="Operation name for multi-operation documents"
-    )
+    headers: dict | None = Field(None, description="Additional HTTP headers (e.g., Authorization)")
+    operation_name: str | None = Field(None, description="Operation name for multi-operation documents")
 
 
 class GraphqlFetcherTool(BaseTool):
@@ -47,9 +43,7 @@ class GraphqlFetcherTool(BaseTool):
         try:
             validated = GraphqlFetcherInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.query.strip():
             return ToolResult.error_result(tool_id=self.tool_id, error="Query is empty")
@@ -101,9 +95,7 @@ class GraphqlFetcherTool(BaseTool):
                 )
 
         except httpx.RequestError as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Request failed: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Request failed: {e}")
         except json.JSONDecodeError:
             return ToolResult.error_result(
                 tool_id=self.tool_id,

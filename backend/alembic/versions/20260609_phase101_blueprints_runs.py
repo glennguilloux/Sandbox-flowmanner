@@ -10,9 +10,10 @@ Revises: 20260603_phase96_plugin_security
 Create Date: 2026-06-09
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "phase101_blueprints_runs"
 down_revision = "20260603_phase96_plugin_security"
@@ -34,9 +35,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("description", sa.Text, nullable=False, server_default=""),
-        sa.Column(
-            "blueprint_type", sa.String(50), nullable=False, server_default="solo"
-        ),
+        sa.Column("blueprint_type", sa.String(50), nullable=False, server_default="solo"),
         sa.Column("definition", postgresql.JSONB, nullable=False, server_default="{}"),
         sa.Column("input_schema", postgresql.JSONB, nullable=True),
         sa.Column("output_schema", postgresql.JSONB, nullable=True),
@@ -150,9 +149,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index(
-        "ix_blueprint_versions_blueprint_id", "blueprint_versions", ["blueprint_id"]
-    )
+    op.create_index("ix_blueprint_versions_blueprint_id", "blueprint_versions", ["blueprint_id"])
 
     # ── substrate_events: add blueprint_id column ─────────────────────
     op.add_column(
@@ -179,9 +176,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "fk_substrate_events_blueprint_id", "substrate_events", type_="foreignkey"
-    )
+    op.drop_constraint("fk_substrate_events_blueprint_id", "substrate_events", type_="foreignkey")
     op.drop_index("ix_substrate_events_blueprint_id", table_name="substrate_events")
     op.drop_column("substrate_events", "blueprint_id")
 

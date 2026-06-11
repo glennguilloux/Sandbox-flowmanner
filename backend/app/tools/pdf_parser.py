@@ -65,18 +65,14 @@ class PdfParserTool(BaseTool):
         try:
             validated = PdfParserInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             pdf_bytes = await resolve_input(validated.data, validated.url, label="PDF")
         except ValueError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Failed to read PDF: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Failed to read PDF: {e}")
 
         tmp_path: str | None = None
         try:
@@ -117,10 +113,7 @@ class PdfParserTool(BaseTool):
                                 {
                                     "rows": tbl.row_count,
                                     "columns": tbl.col_count,
-                                    "cells": [
-                                        [cell.strip() if cell else "" for cell in row]
-                                        for row in cells
-                                    ],
+                                    "cells": [[cell.strip() if cell else "" for cell in row] for row in cells],
                                 }
                             )
                         page_data["tables"] = extracted_tables

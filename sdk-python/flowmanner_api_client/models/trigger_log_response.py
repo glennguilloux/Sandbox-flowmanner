@@ -148,9 +148,7 @@ class TriggerLogResponse:
                 return data
             return cast(bool | None | Unset, data)
 
-        webhook_signature_valid = _parse_webhook_signature_valid(
-            d.pop("webhook_signature_valid", UNSET)
-        )
+        webhook_signature_valid = _parse_webhook_signature_valid(d.pop("webhook_signature_valid", UNSET))
 
         def _parse_fired_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:

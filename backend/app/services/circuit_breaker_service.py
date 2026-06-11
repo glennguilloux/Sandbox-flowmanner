@@ -55,9 +55,7 @@ class CircuitBreakerService:
         destructive_actions_require_approval: bool = True,
     ) -> MissionCircuitBreaker:
         """Get existing breaker for a mission, or create one with defaults."""
-        stmt = select(MissionCircuitBreaker).where(
-            MissionCircuitBreaker.mission_id == mission_id
-        )
+        stmt = select(MissionCircuitBreaker).where(MissionCircuitBreaker.mission_id == mission_id)
         result = await self.db.execute(stmt)
         breaker = result.scalar_one_or_none()
         if breaker is not None:
@@ -187,8 +185,6 @@ class CircuitBreakerService:
 
     async def get_breaker(self, mission_id: str) -> MissionCircuitBreaker | None:
         """Get the breaker for a mission."""
-        stmt = select(MissionCircuitBreaker).where(
-            MissionCircuitBreaker.mission_id == mission_id
-        )
+        stmt = select(MissionCircuitBreaker).where(MissionCircuitBreaker.mission_id == mission_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

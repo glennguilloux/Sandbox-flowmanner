@@ -24,9 +24,7 @@ redis_client = redis.from_url(REDIS_URL)
 def publish_progress(model_id: str, event: str, data: dict[str, Any]):
     """Publish training progress to Redis channel"""
     channel = f"training:{model_id}"
-    message = json.dumps(
-        {"event": event, "timestamp": datetime.now(UTC).isoformat(), "data": data}
-    )
+    message = json.dumps({"event": event, "timestamp": datetime.now(UTC).isoformat(), "data": data})
     redis_client.publish(channel, message)
     logger.info("Published %s to %s", event, channel)
 
@@ -76,9 +74,7 @@ def can_start_training_task(self, min_vram_gb: float = 10.0) -> dict[str, Any]:
         return {
             "can_train": can_train,
             "training_gpu_id": gpu_manager.get_training_gpu_id(),
-            "free_vram_gb": (
-                status.training_gpu.free_vram_gb if status.training_gpu else 0
-            ),
+            "free_vram_gb": (status.training_gpu.free_vram_gb if status.training_gpu else 0),
             "min_required_vram_gb": min_vram_gb,
             "message": status.message,
         }
@@ -127,9 +123,7 @@ def generate_dataset_task(
         from app.services.dataset_generator import get_dataset_generator
 
         # Update task state
-        self.update_state(
-            state="PROGRESS", meta={"stage": "loading_documents", "progress": 0}
-        )
+        self.update_state(state="PROGRESS", meta={"stage": "loading_documents", "progress": 0})
 
         generator = get_dataset_generator()
 
@@ -146,9 +140,7 @@ def generate_dataset_task(
         )
 
         # Publish completion
-        publish_progress(
-            collection_id, "dataset_generation_completed", result.to_dict()
-        )
+        publish_progress(collection_id, "dataset_generation_completed", result.to_dict())
 
         logger.info("Dataset generation completed: %s", result.file_path)
         return result.to_dict()
@@ -214,9 +206,7 @@ def train_adapter_task(
             raise Exception("Insufficient GPU resources for training")
 
         # Update task state
-        self.update_state(
-            state="PROGRESS", meta={"stage": "initializing", "progress": 0}
-        )
+        self.update_state(state="PROGRESS", meta={"stage": "initializing", "progress": 0})
 
         publish_progress(
             model_id,
@@ -236,9 +226,7 @@ def train_adapter_task(
         if not os.path.exists(training_script):
             # Training script is in the training container
             # We need to trigger it via Celery or API call
-            logger.info(
-                "Training script not in backend, forwarding to training container"
-            )
+            logger.info("Training script not in backend, forwarding to training container")
 
             # For now, return a placeholder
             # In production, use Celery's send_task to route to training queue
@@ -393,9 +381,7 @@ def validate_dataset_task(self, dataset_path: str) -> dict[str, Any]:
             "valid_samples": valid_samples,
             "min_required": MIN_SAMPLES,
             "message": (
-                "Dataset valid"
-                if valid_samples >= MIN_SAMPLES
-                else f"Need at least {MIN_SAMPLES} valid samples"
+                "Dataset valid" if valid_samples >= MIN_SAMPLES else f"Need at least {MIN_SAMPLES} valid samples"
             ),
         }
 

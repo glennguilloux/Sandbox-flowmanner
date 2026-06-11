@@ -116,17 +116,11 @@ class ContextWindowManagerTool(BaseTool):
         try:
             validated = ContextWindowManagerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Resolve user_id from auth context if not explicitly provided
         context = input_data.get("context", {}) or {}
-        user_id = (
-            validated.user_id
-            if validated.user_id is not None
-            else context.get("user_id")
-        )
+        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -152,9 +146,7 @@ class ContextWindowManagerTool(BaseTool):
             else:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=(
-                        f"Unknown action: {action}. Use 'store', 'retrieve', 'summarize', 'prune', or 'delete'."
-                    ),
+                    error=(f"Unknown action: {action}. Use 'store', 'retrieve', 'summarize', 'prune', or 'delete'."),
                 )
         except Exception as e:
             logger.exception("context_window_manager failed")
@@ -290,9 +282,7 @@ class ContextWindowManagerTool(BaseTool):
                 if row is None:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"No context found for key='{key}' in namespace='{namespace}'"
-                        ),
+                        error=(f"No context found for key='{key}' in namespace='{namespace}'"),
                     )
 
                 return ToolResult.success_result(
@@ -304,9 +294,7 @@ class ContextWindowManagerTool(BaseTool):
                         "value": row.content,
                         "source": "postgresql",
                         "id": row.id,
-                        "created_at": (
-                            row.created_at.isoformat() if row.created_at else None
-                        ),
+                        "created_at": (row.created_at.isoformat() if row.created_at else None),
                     },
                 )
         except Exception as e:
@@ -479,11 +467,7 @@ class ContextWindowManagerTool(BaseTool):
             "deadline",
         ]
 
-        key_sentences = [
-            s
-            for s in sentences[2:-1]
-            if any(phrase in s.lower() for phrase in key_phrases)
-        ]
+        key_sentences = [s for s in sentences[2:-1] if any(phrase in s.lower() for phrase in key_phrases)]
 
         # Build: first 2 + key sentences (max 5) + last 1
         summary_parts = sentences[:2]

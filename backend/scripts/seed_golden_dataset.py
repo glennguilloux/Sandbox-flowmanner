@@ -1,14 +1,13 @@
 """Seed 50 golden test cases across code (20), RAG (15), agent (10), creative (5)."""
 
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import AsyncSessionLocal
 from app.services.evaluation.dataset_builder import DatasetBuilder
-
 
 CODE_CASES = [
     {
@@ -407,9 +406,7 @@ async def seed():
 
         await db.commit()
 
-        total = (
-            len(CODE_CASES) + len(RAG_CASES) + len(AGENT_CASES) + len(CREATIVE_CASES)
-        )
+        total = len(CODE_CASES) + len(RAG_CASES) + len(AGENT_CASES) + len(CREATIVE_CASES)
         print(f"Seeded {total} golden test cases across 4 datasets:")
         print(f"  - Code: {len(CODE_CASES)} cases ({code_ds.id})")
         print(f"  - RAG:  {len(RAG_CASES)} cases ({rag_ds.id})")

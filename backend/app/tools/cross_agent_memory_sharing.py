@@ -55,9 +55,7 @@ class CrossAgentMemorySharingInput(ToolInput):
     model_config = ConfigDict(extra="ignore")
 
     key: str = Field(..., description="Memory key/identifier in the shared pool")
-    value: str | None = Field(
-        None, description="Value to store (required for 'share'/'update')"
-    )
+    value: str | None = Field(None, description="Value to store (required for 'share'/'update')")
     action: str = Field(
         "access",
         description="Action: 'share', 'access', 'list', 'update', or 'delete'",
@@ -127,17 +125,11 @@ class CrossAgentMemorySharingTool(BaseTool):
         try:
             validated = CrossAgentMemorySharingInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Resolve user_id from auth context if not explicitly provided
         context = input_data.get("context", {}) or {}
-        user_id = (
-            validated.user_id
-            if validated.user_id is not None
-            else context.get("user_id")
-        )
+        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -163,9 +155,7 @@ class CrossAgentMemorySharingTool(BaseTool):
             else:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=(
-                        f"Unknown action: {action}. Use 'share', 'access', 'list', 'update', or 'delete'."
-                    ),
+                    error=(f"Unknown action: {action}. Use 'share', 'access', 'list', 'update', or 'delete'."),
                 )
         except Exception as e:
             logger.exception("cross_agent_memory_sharing failed")
@@ -318,17 +308,11 @@ class CrossAgentMemorySharingTool(BaseTool):
                 if row is None:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"No shared memory found for key='{key}' in namespace='{namespace}'"
-                        ),
+                        error=(f"No shared memory found for key='{key}' in namespace='{namespace}'"),
                     )
 
                 # Extract source agent from metadata
-                source_agent = (
-                    row.metadata_json.get("source_agent", "unknown")
-                    if row.metadata_json
-                    else "unknown"
-                )
+                source_agent = row.metadata_json.get("source_agent", "unknown") if row.metadata_json else "unknown"
 
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
@@ -340,9 +324,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                         "source": "postgresql",
                         "id": row.id,
                         "source_agent": source_agent,
-                        "created_at": (
-                            row.created_at.isoformat() if row.created_at else None
-                        ),
+                        "created_at": (row.created_at.isoformat() if row.created_at else None),
                     },
                 )
         except Exception as e:
@@ -379,20 +361,12 @@ class CrossAgentMemorySharingTool(BaseTool):
                         "id": r.id,
                         # agent_id is stored as "namespace:key"; extract the key.
                         # Falls back to full string for entries created outside this tool.
-                        "key": (
-                            r.agent_id.split(":", 1)[1]
-                            if ":" in r.agent_id
-                            else r.agent_id
-                        ),
+                        "key": (r.agent_id.split(":", 1)[1] if ":" in r.agent_id else r.agent_id),
                         "value": r.content,
                         "source_agent": (
-                            r.metadata_json.get("source_agent", "unknown")
-                            if r.metadata_json
-                            else "unknown"
+                            r.metadata_json.get("source_agent", "unknown") if r.metadata_json else "unknown"
                         ),
-                        "created_at": (
-                            r.created_at.isoformat() if r.created_at else None
-                        ),
+                        "created_at": (r.created_at.isoformat() if r.created_at else None),
                     }
                     for r in rows
                 ]
@@ -449,9 +423,7 @@ class CrossAgentMemorySharingTool(BaseTool):
                 if row is None:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"No shared memory found for key='{key}' in namespace='{namespace}'"
-                        ),
+                        error=(f"No shared memory found for key='{key}' in namespace='{namespace}'"),
                     )
 
                 row.content = validated.value

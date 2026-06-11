@@ -94,9 +94,7 @@ class MissionQueryHandlers(QueryHandlerBase):
         cached = await cache_list(user_id, page, per_page, workspace_id=workspace_id)
         if cached is not None:
             return PaginatedMissions(
-                items=[
-                    MissionResponse.model_validate(item) for item in cached["items"]
-                ],
+                items=[MissionResponse.model_validate(item) for item in cached["items"]],
                 total=cached["total"],
                 page=cached["page"],
                 per_page=cached["per_page"],
@@ -149,9 +147,7 @@ class MissionQueryHandlers(QueryHandlerBase):
 
     # ── CRUD reads ──────────────────────────────────────────────────────────
 
-    async def get_mission(
-        self, user_id: int, mission_id: uuid.UUID
-    ) -> Mission | MissionShim:
+    async def get_mission(self, user_id: int, mission_id: uuid.UUID) -> Mission | MissionShim:
         """ORM fetch path — always hits DB, used by internal callers that need
         real ORM objects (list_tasks, list_logs, get_status, etc.).
 
@@ -195,9 +191,7 @@ class MissionQueryHandlers(QueryHandlerBase):
             logger.debug("cache_set_serialization_failed", exc_info=True)
         return mission
 
-    async def get_mission_response(
-        self, user_id: int, mission_id: uuid.UUID
-    ) -> MissionResponse:
+    async def get_mission_response(self, user_id: int, mission_id: uuid.UUID) -> MissionResponse:
         """Read-model cache-aside path for the v2 GET endpoint.
 
         Returns a MissionResponse (DTO) without ever hitting DB on cache hit.
@@ -226,18 +220,14 @@ class MissionQueryHandlers(QueryHandlerBase):
             response = MissionResponse.model_validate(mission)
 
         try:
-            _schedule_fire_and_forget(
-                cache_set(user_id, str(mission_id), response.model_dump())
-            )
+            _schedule_fire_and_forget(cache_set(user_id, str(mission_id), response.model_dump()))
         except Exception:
             logger.debug("cache_set_response_failed", exc_info=True)
         return response
 
     # ── Tasks ────────────────────────────────────────────────────────────────
 
-    async def list_tasks(
-        self, user_id: int, mission_id: uuid.UUID
-    ) -> list[MissionTask]:
+    async def list_tasks(self, user_id: int, mission_id: uuid.UUID) -> list[MissionTask]:
         await self.get_mission(user_id, mission_id)  # ownership check
         tasks = await get_mission_tasks(self.session, mission_id)
         # Write-through cache populate (fire-and-forget, failure logged)
@@ -247,10 +237,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                     user_id,
                     str(mission_id),
                     {
-                        "tasks": [
-                            MissionTaskResponse.model_validate(t).model_dump()
-                            for t in tasks
-                        ],
+                        "tasks": [MissionTaskResponse.model_validate(t).model_dump() for t in tasks],
                     },
                 )
             )
@@ -260,9 +247,7 @@ class MissionQueryHandlers(QueryHandlerBase):
 
     # ── Logs ─────────────────────────────────────────────────────────────────
 
-    async def list_logs(
-        self, user_id: int, mission_id: uuid.UUID
-    ) -> list[MissionLogResponse]:
+    async def list_logs(self, user_id: int, mission_id: uuid.UUID) -> list[MissionLogResponse]:
         await self.get_mission(user_id, mission_id)
 
         # Try cache first
@@ -292,9 +277,7 @@ class MissionQueryHandlers(QueryHandlerBase):
 
     # ── Status ───────────────────────────────────────────────────────────────
 
-    async def get_status(
-        self, user_id: int, mission_id: uuid.UUID
-    ) -> MissionExecutionStatus:
+    async def get_status(self, user_id: int, mission_id: uuid.UUID) -> MissionExecutionStatus:
         mission = await self.get_mission(user_id, mission_id)
 
         # Try cache first (before hitting DB for tasks)
@@ -309,18 +292,14 @@ class MissionQueryHandlers(QueryHandlerBase):
         status = _make_execution_status(mission, tasks)  # type: ignore[arg-type]
         # Populate cache (fire-and-forget, failure logged)
         try:
-            _schedule_fire_and_forget(
-                cache_set_status(user_id, str(mission_id), status.model_dump())
-            )
+            _schedule_fire_and_forget(cache_set_status(user_id, str(mission_id), status.model_dump()))
         except Exception:
             logger.debug("cache_set_status_failed", exc_info=True)
         return status
 
     # ── Active ───────────────────────────────────────────────────────────────
 
-    async def list_active(
-        self, user_id: int, workspace_id: str | None = None
-    ) -> list[Mission | MissionShim]:
+    async def list_active(self, user_id: int, workspace_id: str | None = None) -> list[Mission | MissionShim]:
         # Try cache first (workspace-scoped)
         cached = await cache_active(user_id, workspace_id)
         if cached is not None and "active_ids" in cached:
@@ -372,11 +351,7 @@ class MissionQueryHandlers(QueryHandlerBase):
             )
             return shims
 
-        base_filter = (
-            Mission.workspace_id == workspace_id
-            if workspace_id is not None
-            else Mission.user_id == user_id
-        )
+        base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
 
         stmt = (
             select(Mission)
@@ -418,11 +393,7 @@ class MissionQueryHandlers(QueryHandlerBase):
             try:
                 # Filter out soft-deleted records that may have been cached
                 # before deletion
-                items = [
-                    MissionResponse.model_validate(m)
-                    for m in cached["missions"]
-                    if not m.get("deleted_at")
-                ]
+                items = [MissionResponse.model_validate(m) for m in cached["missions"] if not m.get("deleted_at")]
                 return MissionListResult(missions=items, total=len(items))
             except Exception:
                 logger.debug("cache_active_deserialization_failed", exc_info=True)
@@ -447,11 +418,7 @@ class MissionQueryHandlers(QueryHandlerBase):
             )
             return MissionListResult(missions=items, total=total)
 
-        base_filter = (
-            Mission.workspace_id == workspace_id
-            if workspace_id is not None
-            else Mission.user_id == user_id
-        )
+        base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
 
         result = await self.session.execute(
             select(Mission)
@@ -474,14 +441,8 @@ class MissionQueryHandlers(QueryHandlerBase):
             select(
                 MissionTask.mission_id,
                 func.count(MissionTask.id).label("total"),
-                func.sum(
-                    case(
-                        (MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0
-                    )
-                ).label("completed"),
-                func.sum(
-                    case((MissionTask.status == MissionTaskStatus.FAILED, 1), else_=0)
-                ).label("failed"),
+                func.sum(case((MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0)).label("completed"),
+                func.sum(case((MissionTask.status == MissionTaskStatus.FAILED, 1), else_=0)).label("failed"),
             )
             .where(MissionTask.mission_id.in_(mission_ids))
             .group_by(MissionTask.mission_id)
@@ -497,25 +458,16 @@ class MissionQueryHandlers(QueryHandlerBase):
 
         response = []
         for m in missions:
-            stats = stats_by_mission.get(
-                m.id, {"total": 0, "completed": 0, "failed": 0}
-            )
+            stats = stats_by_mission.get(m.id, {"total": 0, "completed": 0, "failed": 0})
             total = stats["total"]
             completed = stats["completed"]
             progress = int((completed / total) * 100) if total > 0 else 0
             eta = None
-            if (
-                m.status == MissionStatus.RUNNING
-                and m.started_at
-                and total > 0
-                and completed > 0
-            ):
+            if m.status == MissionStatus.RUNNING and m.started_at and total > 0 and completed > 0:
                 elapsed = (datetime.now(UTC) - m.started_at).total_seconds()
                 avg = elapsed / completed
                 remaining = total - completed
-                eta = datetime.now(UTC).replace(microsecond=0) + timedelta(
-                    seconds=int(avg * remaining)
-                )
+                eta = datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=int(avg * remaining))
             response.append(
                 MissionResponse(
                     id=m.id,
@@ -554,23 +506,16 @@ class MissionQueryHandlers(QueryHandlerBase):
 
     # ── Improvements ─────────────────────────────────────────────────────────
 
-    async def list_improvements(
-        self, user_id: int, mission_id: uuid.UUID
-    ) -> list[MissionImprovementResponse]:
+    async def list_improvements(self, user_id: int, mission_id: uuid.UUID) -> list[MissionImprovementResponse]:
         await self.get_mission(user_id, mission_id)
 
         # Try cache first
         cached = await cache_get_improvements(user_id, str(mission_id))
         if cached is not None:
             try:
-                return [
-                    MissionImprovementResponse.model_validate(i)
-                    for i in cached["improvements"]
-                ]
+                return [MissionImprovementResponse.model_validate(i) for i in cached["improvements"]]
             except Exception:
-                logger.debug(
-                    "cache_get_improvements_deserialization_failed", exc_info=True
-                )
+                logger.debug("cache_get_improvements_deserialization_failed", exc_info=True)
 
         engine = SelfImprovementEngine(self.session, str(user_id))
         improvements = await engine.get_improvements(mission_id)  # type: ignore[arg-type]
@@ -592,9 +537,7 @@ class MissionQueryHandlers(QueryHandlerBase):
 
     # ── Analytics ────────────────────────────────────────────────────────────
 
-    async def mission_analytics(
-        self, user_id: int, mission_id: uuid.UUID, days: int
-    ) -> dict:
+    async def mission_analytics(self, user_id: int, mission_id: uuid.UUID, days: int) -> dict:
         await self.get_mission(user_id, mission_id)
         analytics = await get_mission_analytics(self.session, user_id)
         over_time = await get_mission_analytics_over_time(self.session, user_id, days)
@@ -772,12 +715,8 @@ class MissionQueryHandlers(QueryHandlerBase):
                     {
                         "type": "task_count",
                         "total": len(tasks),
-                        "completed": sum(
-                            1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
-                        ),
-                        "failed": sum(
-                            1 for t in tasks if t.status == MissionTaskStatus.FAILED
-                        ),
+                        "completed": sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+                        "failed": sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
                     }
                 )
                 + "\n\n"
@@ -818,16 +757,8 @@ class MissionQueryHandlers(QueryHandlerBase):
                                 "type": "status",
                                 "mission_id": str(mission_id),
                                 "status": mission.status,
-                                "completed": sum(
-                                    1
-                                    for t in tasks
-                                    if t.status == MissionTaskStatus.COMPLETED
-                                ),
-                                "failed": sum(
-                                    1
-                                    for t in tasks
-                                    if t.status == MissionTaskStatus.FAILED
-                                ),
+                                "completed": sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+                                "failed": sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
                             }
                         )
                         + "\n\n"

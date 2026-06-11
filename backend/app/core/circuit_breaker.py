@@ -93,9 +93,7 @@ class CircuitBreaker:
         return self._failure_count() >= self.config.failure_threshold
 
     def _should_attempt_reset(self) -> bool:
-        return (
-            time.monotonic() - self._last_state_change
-        ) >= self.config.recovery_timeout
+        return (time.monotonic() - self._last_state_change) >= self.config.recovery_timeout
 
     async def _transition(self, new_state: CircuitState) -> None:
         old = self._state
@@ -136,18 +134,14 @@ class CircuitBreaker:
         if self._state == CircuitState.HALF_OPEN:
             self._half_open_successes += 1
             if self._half_open_successes >= self.config.half_open_max_calls:
-                asyncio.get_event_loop().create_task(
-                    self._transition(CircuitState.CLOSED)
-                )
+                asyncio.get_event_loop().create_task(self._transition(CircuitState.CLOSED))
                 self._failures.clear()
 
     def record_failure(self) -> None:
         self._failures.append(time.monotonic())
         _CB_FAILURE_GAUGE.labels(dependency=self.config.name).set(self._failure_count())
 
-        if self._state == CircuitState.HALF_OPEN or (
-            self._state == CircuitState.CLOSED and self._should_trip()
-        ):
+        if self._state == CircuitState.HALF_OPEN or (self._state == CircuitState.CLOSED and self._should_trip()):
             asyncio.get_event_loop().create_task(self._transition(CircuitState.OPEN))
 
     @asynccontextmanager
@@ -169,9 +163,7 @@ class CircuitBreaker:
 
             if self._state == CircuitState.HALF_OPEN:
                 if self._half_open_calls >= self.config.half_open_max_calls:
-                    raise CircuitOpenError(
-                        f"Circuit [{self.config.name}] is HALF_OPEN — max probe calls reached"
-                    )
+                    raise CircuitOpenError(f"Circuit [{self.config.name}] is HALF_OPEN — max probe calls reached")
                 self._half_open_calls += 1
 
         try:
@@ -190,9 +182,7 @@ class CircuitBreaker:
             "failure_count": self._failure_count(),
             "failure_threshold": self.config.failure_threshold,
             "recovery_timeout": self.config.recovery_timeout,
-            "seconds_since_state_change": round(
-                time.monotonic() - self._last_state_change, 1
-            ),
+            "seconds_since_state_change": round(time.monotonic() - self._last_state_change, 1),
         }
 
 

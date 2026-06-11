@@ -388,9 +388,7 @@ class GitRepoManagerTool(BaseTool):
             args.extend(["origin", v.branch])
         else:
             # Push current branch to origin
-            rc, stdout, _ = await self._run_git(
-                ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
-            )
+            rc, stdout, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
             if rc == 0 and stdout:
                 args.extend(["origin", stdout])
 
@@ -433,9 +431,7 @@ class GitRepoManagerTool(BaseTool):
             }
 
         # Determine head branch
-        rc, head_branch, _ = await self._run_git(
-            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
-        )
+        rc, head_branch, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
         if rc != 0 or not head_branch:
             return {
                 "action": "create_pr",
@@ -446,9 +442,7 @@ class GitRepoManagerTool(BaseTool):
         await self._run_git(["push", "origin", head_branch], cwd=cwd, timeout=120)
 
         # Get remote origin URL to parse owner/repo
-        rc, remote_url, _ = await self._run_git(
-            ["config", "--get", "remote.origin.url"], cwd=cwd
-        )
+        rc, remote_url, _ = await self._run_git(["config", "--get", "remote.origin.url"], cwd=cwd)
         if rc != 0 or not remote_url:
             return {
                 "action": "create_pr",
@@ -508,9 +502,7 @@ class GitRepoManagerTool(BaseTool):
 
         rc, stdout, stderr = await self._run_git(["status", "--porcelain"], cwd=cwd)
         lines = [l for l in stdout.split("\n") if l.strip()] if stdout else []
-        rc2, branch, _ = await self._run_git(
-            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
-        )
+        rc2, branch, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
 
         return {
             "action": "get_status",
@@ -528,16 +520,10 @@ class GitRepoManagerTool(BaseTool):
 
         # Local branches
         rc1, local, _ = await self._run_git(["branch"], cwd=cwd)
-        local_branches = (
-            [b.lstrip("* ").strip() for b in local.split("\n") if b.strip()]
-            if local
-            else []
-        )
+        local_branches = [b.lstrip("* ").strip() for b in local.split("\n") if b.strip()] if local else []
 
         # Current branch
-        rc2, current, _ = await self._run_git(
-            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd
-        )
+        rc2, current, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
 
         return {
             "action": "list_branches",
@@ -569,9 +555,7 @@ class GitRepoManagerTool(BaseTool):
             return {"action": "get_log", "error": "No work_dir available"}
 
         max_entries = v.max_log_entries or 20
-        rc, stdout, _ = await self._run_git(
-            ["log", f"-{max_entries}", "--oneline", "--decorate"], cwd=cwd
-        )
+        rc, stdout, _ = await self._run_git(["log", f"-{max_entries}", "--oneline", "--decorate"], cwd=cwd)
         entries = [e.strip() for e in stdout.split("\n") if e.strip()] if stdout else []
 
         return {

@@ -279,11 +279,7 @@ def _get_stopwords(language: str) -> set[str]:
     try:
         from nltk.corpus import stopwords
 
-        nltk_stops = set(
-            stopwords.words(
-                lang if lang == "english" else _nltk_lang_map.get(lang, "english")
-            )
-        )
+        nltk_stops = set(stopwords.words(lang if lang == "english" else _nltk_lang_map.get(lang, "english")))
         if nltk_stops:
             return nltk_stops
     except Exception:
@@ -425,9 +421,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
         try:
             validated = KeywordDensityAnalyzerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in KEYWORD_ACTIONS:
             return ToolResult.error_result(
@@ -449,9 +443,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: KeywordDensityAnalyzerInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: KeywordDensityAnalyzerInput) -> dict[str, Any]:
         if validated.action == "analyze_density":
             return await self._analyze_density(validated)
         elif validated.action == "extract_keywords":
@@ -471,18 +463,12 @@ class KeywordDensityAnalyzerTool(BaseTool):
         """Tokenize text into lowercase words, filtering stopwords and short tokens."""
         if stopwords is None:
             stopwords = _SEO_STOPWORDS
-        words = re.findall(
-            r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text.lower()
-        )
+        words = re.findall(r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text.lower())
         return [w for w in words if len(w) > 1 and w not in stopwords]
 
     def _count_words(self, text: str) -> int:
         """Count total words in text."""
-        return len(
-            re.findall(
-                r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text
-            )
-        )
+        return len(re.findall(r"[a-zA-Z0-9\u00C0-\u024F]+(?:'[a-zA-Z0-9\u00C0-\u024F]+)?", text))
 
     def _compute_tfidf(
         self,
@@ -508,11 +494,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
             feature_names = vectorizer.get_feature_names_out()
 
             # Sum scores across all documents
-            combined_scores = (
-                tfidf_matrix.sum(axis=0).A1
-                if tfidf_matrix.shape[0] > 1
-                else tfidf_matrix.toarray()[0]
-            )
+            combined_scores = tfidf_matrix.sum(axis=0).A1 if tfidf_matrix.shape[0] > 1 else tfidf_matrix.toarray()[0]
 
             keyword_scores = []
             for name, score in zip(feature_names, combined_scores, strict=False):
@@ -557,9 +539,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
 
     # ── Action handlers ──────────────────────────────────────────
 
-    async def _analyze_density(
-        self, validated: KeywordDensityAnalyzerInput
-    ) -> dict[str, Any]:
+    async def _analyze_density(self, validated: KeywordDensityAnalyzerInput) -> dict[str, Any]:
         """Analyze keyword density for given or auto-extracted keywords."""
         if not validated.text_content:
             return {
@@ -577,7 +557,9 @@ class KeywordDensityAnalyzerTool(BaseTool):
         if not keywords:
             ngram = tuple(validated.ngram_range) if validated.ngram_range else None
             tfidf_results = self._compute_tfidf(
-                [validated.text_content], validated.top_n, ngram_range=ngram  # type: ignore[arg-type]
+                [validated.text_content],
+                validated.top_n,
+                ngram_range=ngram,  # type: ignore[arg-type]
             )
             keywords = [k["keyword"] for k in tfidf_results[:10]]
             auto_extracted = True
@@ -593,7 +575,9 @@ class KeywordDensityAnalyzerTool(BaseTool):
             # Compute TF-IDF for scoring
             ngram = tuple(validated.ngram_range) if validated.ngram_range else None
             tfidf_scores = self._compute_tfidf(
-                [validated.text_content], validated.top_n, ngram_range=ngram  # type: ignore[arg-type]
+                [validated.text_content],
+                validated.top_n,
+                ngram_range=ngram,  # type: ignore[arg-type]
             )
             tfidf_map = {k["keyword"]: k["score"] for k in tfidf_scores}
 
@@ -637,9 +621,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
             "success": True,
         }
 
-    async def _extract_keywords(
-        self, validated: KeywordDensityAnalyzerInput
-    ) -> dict[str, Any]:
+    async def _extract_keywords(self, validated: KeywordDensityAnalyzerInput) -> dict[str, Any]:
         """Extract top keywords using TF-IDF without density analysis."""
         if not validated.text_content:
             return {
@@ -650,7 +632,9 @@ class KeywordDensityAnalyzerTool(BaseTool):
         total_words = self._count_words(validated.text_content)
         ngram = tuple(validated.ngram_range) if validated.ngram_range else None
         keywords = self._compute_tfidf(
-            [validated.text_content], validated.top_n, ngram_range=ngram  # type: ignore[arg-type]
+            [validated.text_content],
+            validated.top_n,
+            ngram_range=ngram,  # type: ignore[arg-type]
         )
 
         # Format output per Plan 16: {term, count, density_pct, tfidf_score}
@@ -682,9 +666,7 @@ class KeywordDensityAnalyzerTool(BaseTool):
             "success": True,
         }
 
-    async def _compare_pages(
-        self, validated: KeywordDensityAnalyzerInput
-    ) -> dict[str, Any]:
+    async def _compare_pages(self, validated: KeywordDensityAnalyzerInput) -> dict[str, Any]:
         """Compare keyword usage across two pages."""
         if not validated.text_content:
             return {
@@ -700,7 +682,10 @@ class KeywordDensityAnalyzerTool(BaseTool):
         ngram = tuple(validated.ngram_range) if validated.ngram_range else None
         docs = [validated.text_content, validated.second_text]
         combined_keywords = self._compute_tfidf(
-            docs, validated.top_n, max_features=300, ngram_range=ngram  # type: ignore[arg-type]
+            docs,
+            validated.top_n,
+            max_features=300,
+            ngram_range=ngram,  # type: ignore[arg-type]
         )
 
         keywords_list = [k["keyword"] for k in combined_keywords]

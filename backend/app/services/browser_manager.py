@@ -49,9 +49,7 @@ class BrowserManager:
                     del self._user_sessions[user_id]
 
             if self.is_full:
-                raise SessionCapacityError(
-                    f"Browser session capacity reached ({MAX_SESSIONS} max)"
-                )
+                raise SessionCapacityError(f"Browser session capacity reached ({MAX_SESSIONS} max)")
 
             from app.services.browser_session import BrowserSession
 
@@ -119,9 +117,7 @@ class BrowserManager:
                 try:
                     await session.close()
                 except Exception as e:
-                    logger.warning(
-                        "Error closing timed out session %s: %s", session_id, e
-                    )
+                    logger.warning("Error closing timed out session %s: %s", session_id, e)
                 user_id = session.user_id
                 if self._user_sessions.get(user_id) == session_id:
                     del self._user_sessions[user_id]

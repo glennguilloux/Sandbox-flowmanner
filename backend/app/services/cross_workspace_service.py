@@ -60,13 +60,9 @@ async def grant_share(
     Idempotent: if a share already exists for this entity+target, updates it.
     """
     if entity_type not in VALID_ENTITY_TYPES:
-        raise CrossWorkspaceError(
-            f"Invalid entity_type: {entity_type}. Must be one of {VALID_ENTITY_TYPES}"
-        )
+        raise CrossWorkspaceError(f"Invalid entity_type: {entity_type}. Must be one of {VALID_ENTITY_TYPES}")
     if permission not in VALID_PERMISSIONS:
-        raise CrossWorkspaceError(
-            f"Invalid permission: {permission}. Must be one of {VALID_PERMISSIONS}"
-        )
+        raise CrossWorkspaceError(f"Invalid permission: {permission}. Must be one of {VALID_PERMISSIONS}")
     if source_workspace_id == target_workspace_id:
         raise CrossWorkspaceError("Cannot share an entity with its own workspace")
 
@@ -130,9 +126,7 @@ async def revoke_share(
     revoked_by: int | None = None,
 ) -> bool:
     """Deactivate a cross-workspace share grant (soft-revoke)."""
-    result = await db.execute(
-        select(WorkspaceShare).where(WorkspaceShare.id == str(share_id))
-    )
+    result = await db.execute(select(WorkspaceShare).where(WorkspaceShare.id == str(share_id)))
     share = result.scalar_one_or_none()
     if share is None:
         raise ShareNotFoundError(f"Share {share_id} not found")
@@ -237,11 +231,7 @@ async def list_shares_for_workspace(
     direction='outgoing': shares granted BY this workspace (source).
     direction='incoming': shares granted TO this workspace (target).
     """
-    col = (
-        WorkspaceShare.source_workspace_id
-        if direction == "outgoing"
-        else WorkspaceShare.target_workspace_id
-    )
+    col = WorkspaceShare.source_workspace_id if direction == "outgoing" else WorkspaceShare.target_workspace_id
 
     result = await db.execute(
         select(WorkspaceShare).where(

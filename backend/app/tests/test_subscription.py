@@ -77,9 +77,7 @@ async def test_initiate_upgrade():
     user.id = 1
     user.role = "free"
     user.email = "test@example.com"
-    user.get = MagicMock(
-        side_effect=lambda key, default=None: getattr(user, key, default)
-    )
+    user.get = MagicMock(side_effect=lambda key, default=None: getattr(user, key, default))
 
     # Mock paypal_client to avoid real PayPal connection
     mock_paypal = AsyncMock()
@@ -140,9 +138,7 @@ async def test_get_my_subscription():
     user = MagicMock()
     user.id = 1
     user.role = "pro"
-    user.get = MagicMock(
-        side_effect=lambda key, default=None: getattr(user, key, default)
-    )
+    user.get = MagicMock(side_effect=lambda key, default=None: getattr(user, key, default))
 
     mock_db = AsyncMock()
     mock_db_result = MagicMock()

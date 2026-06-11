@@ -75,14 +75,10 @@ class BootstrapReport:
                 "running": "⏳",
                 "pending": "⏸️",
             }
-            lines.append(
-                f"  {icon.get(s.status.value, '?')} {s.name} — {s.status.value} ({s.duration_ms:.0f}ms)"
-            )
+            lines.append(f"  {icon.get(s.status.value, '?')} {s.name} — {s.status.value} ({s.duration_ms:.0f}ms)")
             if s.message:
                 lines.append(f"      {s.message}")
-        lines.append(
-            f"\n  Total: {self.total_duration_ms:.0f}ms — {'ALL OK' if self.all_ok else 'FAILURES DETECTED'}"
-        )
+        lines.append(f"\n  Total: {self.total_duration_ms:.0f}ms — {'ALL OK' if self.all_ok else 'FAILURES DETECTED'}")
         return "\n".join(lines)
 
 
@@ -332,15 +328,11 @@ async def _step_verify_health() -> str:
         async with AsyncSessionLocal() as session:
             result = await session.execute(text("SELECT count(*) FROM tools_catalog"))
             tools = result.scalar()
-            result = await session.execute(
-                text("SELECT count(*) FROM capabilities_catalog")
-            )
+            result = await session.execute(text("SELECT count(*) FROM capabilities_catalog"))
             caps = result.scalar()
             result = await session.execute(text("SELECT count(*) FROM agent_templates"))
             templates = result.scalar()
-        checks.append(
-            f"Catalogs: {tools} tools, {caps} capabilities, {templates} templates"
-        )
+        checks.append(f"Catalogs: {tools} tools, {caps} capabilities, {templates} templates")
     except Exception as e:
         checks.append(f"Catalogs: FAILED ({e})")
 
@@ -367,15 +359,9 @@ Examples:
   python -m app.cli.bootstrap --skip-qdrant  # Skip Qdrant reindex
         """,
     )
-    parser.add_argument(
-        "--skip-migrations", action="store_true", help="Skip Alembic migration step"
-    )
-    parser.add_argument(
-        "--skip-qdrant", action="store_true", help="Skip Qdrant reindex step"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Report steps without executing"
-    )
+    parser.add_argument("--skip-migrations", action="store_true", help="Skip Alembic migration step")
+    parser.add_argument("--skip-qdrant", action="store_true", help="Skip Qdrant reindex step")
+    parser.add_argument("--dry-run", action="store_true", help="Report steps without executing")
 
     args = parser.parse_args()
 

@@ -11,7 +11,7 @@ Covers:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -22,6 +22,7 @@ from app.models.substrate_models import (
     SubstrateEventType,
     SubstrateRunState,
 )
+from app.observability.intervention_distance import compute_intervention_distance
 from app.services.substrate.assertion_engine import (
     AssertionResult,
     AssertionType,
@@ -31,8 +32,6 @@ from app.services.substrate.assertion_engine import (
 )
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine
-from app.observability.intervention_distance import compute_intervention_distance
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -76,12 +75,8 @@ def _make_run_state(
     state.failed_tasks = failed_tasks or set()
     state.total_tokens = total_tokens
     state.total_cost_usd = total_cost_usd
-    state.started_at = started_at or datetime(
-        2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc
-    )
-    state.last_event_at = last_event_at or datetime(
-        2026, 6, 12, 10, 2, 0, tzinfo=timezone.utc
-    )
+    state.started_at = started_at or datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
+    state.last_event_at = last_event_at or datetime(2026, 6, 12, 10, 2, 0, tzinfo=UTC)
     return state
 
 
@@ -112,7 +107,6 @@ def _mock_engine(
 
 
 class TestAssertionResult:
-
     def test_to_dict_serialization(self):
         """AssertionResult.to_dict() produces a JSON-safe dict."""
         result = AssertionResult(
@@ -149,25 +143,20 @@ class TestAssertionResult:
 
 
 class TestToolSequenceAssertion:
-
     def test_passes_when_expected_tools_called(self):
         """Assertion passes when all expected tools were called."""
         run_id = str(uuid4())
         state = _make_run_state(run_id, completed_tasks={"t1", "t2", "t3"})
         events = [
             _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {}),
-            _make_event(
-                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
+            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
             _make_event(
                 run_id,
                 3,
                 SubstrateEventType.TOOL_CALL,
                 {"tool_name": "extract_content"},
             ),
-            _make_event(
-                run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}
-            ),
+            _make_event(run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
             _make_event(run_id, 5, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
         engine = _mock_engine(state, events)
@@ -206,12 +195,8 @@ class TestToolSequenceAssertion:
         run_id = str(uuid4())
         state = _make_run_state(run_id)
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
-            _make_event(
-                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
+            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
@@ -243,18 +228,10 @@ class TestToolSequenceAssertion:
         run_id = str(uuid4())
         state = _make_run_state(run_id)
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
-            _make_event(
-                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
-            _make_event(
-                run_id, 3, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
-            _make_event(
-                run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
+            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
+            _make_event(run_id, 3, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
+            _make_event(run_id, 4, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
@@ -282,12 +259,8 @@ class TestToolSequenceAssertion:
         run_id = str(uuid4())
         state = _make_run_state(run_id)
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}
-            ),
-            _make_event(
-                run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
+            _make_event(run_id, 2, SubstrateEventType.TOOL_CALL, {"tool_name": "search_docs"}),
         ]
         engine = _mock_engine(state, events)
         db = AsyncMock()
@@ -316,7 +289,6 @@ class TestToolSequenceAssertion:
 
 
 class TestCostCeilingAssertion:
-
     def test_passes_when_within_budget(self):
         """Cost assertion passes when actual cost is under ceiling."""
         run_id = str(uuid4())
@@ -379,14 +351,13 @@ class TestCostCeilingAssertion:
 
 
 class TestLatencyAssertion:
-
     def test_passes_when_within_limit(self):
         """Latency assertion passes when duration is under limit."""
         run_id = str(uuid4())
         state = _make_run_state(
             run_id,
-            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc),
-            last_event_at=datetime(2026, 6, 12, 10, 1, 30, tzinfo=timezone.utc),
+            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC),
+            last_event_at=datetime(2026, 6, 12, 10, 1, 30, tzinfo=UTC),
         )
         engine = _mock_engine(state, [])
         db = AsyncMock()
@@ -407,8 +378,8 @@ class TestLatencyAssertion:
         run_id = str(uuid4())
         state = _make_run_state(
             run_id,
-            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc),
-            last_event_at=datetime(2026, 6, 12, 10, 3, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC),
+            last_event_at=datetime(2026, 6, 12, 10, 3, 0, tzinfo=UTC),
         )
         engine = _mock_engine(state, [])
         db = AsyncMock()
@@ -431,13 +402,10 @@ class TestLatencyAssertion:
 
 
 class TestTaskCompletionAssertion:
-
     def test_passes_when_enough_tasks_completed(self):
         """Task completion assertion passes when minimum tasks completed."""
         run_id = str(uuid4())
-        state = _make_run_state(
-            run_id, completed_tasks={"t1", "t2", "t3"}, failed_tasks=set()
-        )
+        state = _make_run_state(run_id, completed_tasks={"t1", "t2", "t3"}, failed_tasks=set())
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
@@ -511,7 +479,6 @@ class TestTaskCompletionAssertion:
 
 
 class TestNoCircuitBreakerAssertion:
-
     def test_passes_when_no_cb_events(self):
         """No-circuit-breaker assertion passes when no CB events exist."""
         run_id = str(uuid4())
@@ -546,9 +513,7 @@ class TestNoCircuitBreakerAssertion:
         engine = _mock_engine(state, events)
         db = AsyncMock()
 
-        results = asyncio.run(
-            engine.evaluate(db, run_id, [{"type": "no_circuit_breaker"}])
-        )
+        results = asyncio.run(engine.evaluate(db, run_id, [{"type": "no_circuit_breaker"}]))
 
         assert results[0].passed is False
         assert results[0].severity == Severity.FAILURE
@@ -560,7 +525,6 @@ class TestNoCircuitBreakerAssertion:
 
 
 class TestAssertionEngineEdgeCases:
-
     def test_empty_assertions_returns_empty(self):
         """Empty expected_behaviors list returns empty results."""
         run_id = str(uuid4())
@@ -578,9 +542,7 @@ class TestAssertionEngineEdgeCases:
         engine = _mock_engine(state, [])
         db = AsyncMock()
 
-        results = asyncio.run(
-            engine.evaluate(db, run_id, [{"type": "unknown_type", "foo": "bar"}])
-        )
+        results = asyncio.run(engine.evaluate(db, run_id, [{"type": "unknown_type", "foo": "bar"}]))
 
         assert len(results) == 1
         assert results[0].passed is False
@@ -596,9 +558,7 @@ class TestAssertionEngineEdgeCases:
             total_cost_usd=0.10,
         )
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.TOOL_CALL, {"tool_name": "search"}),
             _make_event(run_id, 2, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
         engine = _mock_engine(state, events)
@@ -636,16 +596,13 @@ class TestAssertionEngineEdgeCases:
 
 
 class TestInterventionDistance:
-
     def test_fully_autonomous_run(self):
         """Run with zero interventions has 100% autonomy."""
         run_id = str(uuid4())
         events = [
             _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {}),
             _make_event(run_id, 2, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-            _make_event(
-                run_id, 3, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}
-            ),
+            _make_event(run_id, 3, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}),
             _make_event(run_id, 4, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
 
@@ -664,21 +621,15 @@ class TestInterventionDistance:
             _make_event(run_id, 2, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
             _make_event(run_id, 3, SubstrateEventType.HUMAN_INTERRUPT_RAISED, {}),
             _make_event(run_id, 4, SubstrateEventType.HUMAN_INTERRUPT_RESOLVED, {}),
-            _make_event(
-                run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}
-            ),
+            _make_event(run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}),
             _make_event(run_id, 6, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
 
         result = compute_intervention_distance(events)
 
         assert result["human_interventions"] == 1
-        assert (
-            result["total_actions"] == 4
-        )  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
-        assert result["intervention_distance"] == pytest.approx(
-            2.0
-        )  # segments [2, 2] → avg 2.0
+        assert result["total_actions"] == 4  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
+        assert result["intervention_distance"] == pytest.approx(2.0)  # segments [2, 2] → avg 2.0
 
     def test_with_multiple_interventions(self):
         """Multiple interventions create multiple segments."""
@@ -688,9 +639,7 @@ class TestInterventionDistance:
             _make_event(run_id, 2, SubstrateEventType.HUMAN_INTERRUPT_RAISED, {}),
             _make_event(run_id, 3, SubstrateEventType.HUMAN_INTERRUPT_RESOLVED, {}),
             _make_event(run_id, 4, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-            _make_event(
-                run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}
-            ),
+            _make_event(run_id, 5, SubstrateEventType.TASK_COMPLETED, {"task_id": "t1"}),
             _make_event(run_id, 6, SubstrateEventType.HUMAN_INTERRUPT_RAISED, {}),
             _make_event(run_id, 7, SubstrateEventType.HUMAN_INTERRUPT_RESOLVED, {}),
             _make_event(run_id, 8, SubstrateEventType.MISSION_COMPLETED, {}),
@@ -699,9 +648,7 @@ class TestInterventionDistance:
         result = compute_intervention_distance(events)
 
         assert result["human_interventions"] == 2
-        assert (
-            result["total_actions"] == 4
-        )  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
+        assert result["total_actions"] == 4  # STARTED, TASK_STARTED, TASK_COMPLETED, MISSION_COMPLETED
         # Segments: [1] (before HITL1), [2] (between HITLs), [1] (after HITL2)
         # avg = (1 + 2 + 1) / 3 ≈ 1.33 → rounded to 1.3
         assert result["intervention_distance"] == pytest.approx(1.3)

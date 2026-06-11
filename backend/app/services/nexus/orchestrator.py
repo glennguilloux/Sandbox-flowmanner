@@ -11,7 +11,7 @@ import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Any
+from typing import TYPE_CHECKING, Any
 
 from app.services.learning_service import get_learning_service
 
@@ -109,11 +109,7 @@ class NexusOrchestrator:
                     capability = Capability(
                         id=f"tool:{tool_name}",
                         name=tool.name if hasattr(tool, "name") else tool_name,
-                        description=(
-                            tool.description
-                            if hasattr(tool, "description")
-                            else f"Execute {tool_name} tool"
-                        ),
+                        description=(tool.description if hasattr(tool, "description") else f"Execute {tool_name} tool"),
                         category="tools",
                         handler=self._create_tool_handler(tool),
                         input_schema=getattr(tool, "input_schema", {}),
@@ -149,9 +145,7 @@ class NexusOrchestrator:
         self.registry.register(capability)
         logger.info("Registered capability: %s", capability.id)
 
-    def register_context_builder(
-        self, source: str, builder: Callable[[ExecutionContext], Awaitable[dict]]
-    ):
+    def register_context_builder(self, source: str, builder: Callable[[ExecutionContext], Awaitable[dict]]):
         """Register a context builder for a specific source"""
         self._context_builders[source] = builder
         logger.info("Registered context builder for: %s", source)
@@ -192,18 +186,14 @@ class NexusOrchestrator:
         try:
             capability = self.registry.get(capability_id)
             if not capability:
-                return OperationResult(
-                    success=False, error=f"Capability not found: {capability_id}"
-                )
+                return OperationResult(success=False, error=f"Capability not found: {capability_id}")
 
             if ctx:
                 params["_context"] = await self.build_context(ctx)
 
             # Bug #9 fix: Use DistributedExecutor when distributed_mode is enabled
             if self.distributed_mode and self.distributed_executor.is_available():
-                logger.info(
-                    "Executing capability %s in distributed mode", capability_id
-                )
+                logger.info("Executing capability %s in distributed mode", capability_id)
                 task_id = await self.distributed_executor.submit_task(
                     coro=capability.execute(params),  # type: ignore[arg-type]
                     task_name=f"capability:{capability_id}",
@@ -284,16 +274,12 @@ class NexusOrchestrator:
             capabilities_used=capabilities_used,
         )
 
-    async def plan_and_execute(
-        self, goal: str, ctx: ExecutionContext | None = None
-    ) -> OperationResult:
+    async def plan_and_execute(self, goal: str, ctx: ExecutionContext | None = None) -> OperationResult:
         """Given a goal, determine which capabilities to invoke and execute."""
         plan = await self._create_plan_ai(goal) or await self._create_plan(goal)
 
         if not plan:
-            return OperationResult(
-                success=False, error=f"Could not create plan for goal: {goal}"
-            )
+            return OperationResult(success=False, error=f"Could not create plan for goal: {goal}")
 
         return await self.execute_chain(plan, ctx)
 
@@ -304,10 +290,8 @@ class NexusOrchestrator:
             learning_context = None
             if self.learning_service:
                 try:
-                    learning_context = (
-                        await self.learning_service.inject_into_planner_context(
-                            task_description=goal, mission_type=None
-                        )
+                    learning_context = await self.learning_service.inject_into_planner_context(
+                        task_description=goal, mission_type=None
                     )
                     if learning_context and learning_context.get("has_historical_data"):
                         logger.info(
@@ -411,9 +395,7 @@ class NexusOrchestrator:
                     )
 
                 if plan:
-                    logger.info(
-                        "Semantic search found %s relevant capabilities", len(plan)
-                    )
+                    logger.info("Semantic search found %s relevant capabilities", len(plan))
                     return plan
             except Exception as e:
                 logger.warning("Semantic search failed: %s", e)
@@ -423,9 +405,7 @@ class NexusOrchestrator:
 
         if "search" in goal_lower or "find" in goal_lower:
             if "knowledge" in goal_lower or "document" in goal_lower:
-                plan.append(
-                    {"capability": "tool:search_knowledge", "params": {"query": goal}}
-                )
+                plan.append({"capability": "tool:search_knowledge", "params": {"query": goal}})
 
         if "agent" in goal_lower or "execute" in goal_lower:
             plan.append({"capability": "tool:spawn_agent", "params": {"task": goal}})

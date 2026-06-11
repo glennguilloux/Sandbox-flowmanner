@@ -113,33 +113,15 @@ class ErrorBudget:
 
 # Default budgets per error class (tuneable)
 DEFAULT_ERROR_BUDGETS: dict[ErrorClass, ErrorBudget] = {
-    ErrorClass.TIMEOUT: ErrorBudget(
-        max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50
-    ),
-    ErrorClass.VALIDATION: ErrorBudget(
-        max_retries=1, max_wall_clock_seconds=60.0, max_cost_usd=0.10
-    ),
-    ErrorClass.RESOURCE: ErrorBudget(
-        max_retries=3, max_wall_clock_seconds=120.0, max_cost_usd=0.25
-    ),
-    ErrorClass.LOGIC: ErrorBudget(
-        max_retries=1, max_wall_clock_seconds=30.0, max_cost_usd=0.10
-    ),
-    ErrorClass.NETWORK: ErrorBudget(
-        max_retries=5, max_wall_clock_seconds=300.0, max_cost_usd=0.50
-    ),
-    ErrorClass.PERMISSION: ErrorBudget(
-        max_retries=0, max_wall_clock_seconds=0.0, max_cost_usd=0.0
-    ),
-    ErrorClass.NOT_FOUND: ErrorBudget(
-        max_retries=2, max_wall_clock_seconds=60.0, max_cost_usd=0.10
-    ),
-    ErrorClass.RATE_LIMIT: ErrorBudget(
-        max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50
-    ),
-    ErrorClass.UNKNOWN: ErrorBudget(
-        max_retries=1, max_wall_clock_seconds=120.0, max_cost_usd=0.25
-    ),
+    ErrorClass.TIMEOUT: ErrorBudget(max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50),
+    ErrorClass.VALIDATION: ErrorBudget(max_retries=1, max_wall_clock_seconds=60.0, max_cost_usd=0.10),
+    ErrorClass.RESOURCE: ErrorBudget(max_retries=3, max_wall_clock_seconds=120.0, max_cost_usd=0.25),
+    ErrorClass.LOGIC: ErrorBudget(max_retries=1, max_wall_clock_seconds=30.0, max_cost_usd=0.10),
+    ErrorClass.NETWORK: ErrorBudget(max_retries=5, max_wall_clock_seconds=300.0, max_cost_usd=0.50),
+    ErrorClass.PERMISSION: ErrorBudget(max_retries=0, max_wall_clock_seconds=0.0, max_cost_usd=0.0),
+    ErrorClass.NOT_FOUND: ErrorBudget(max_retries=2, max_wall_clock_seconds=60.0, max_cost_usd=0.10),
+    ErrorClass.RATE_LIMIT: ErrorBudget(max_retries=5, max_wall_clock_seconds=600.0, max_cost_usd=0.50),
+    ErrorClass.UNKNOWN: ErrorBudget(max_retries=1, max_wall_clock_seconds=120.0, max_cost_usd=0.25),
 }
 
 
@@ -310,9 +292,7 @@ class FailureAnalyzer:
         root_cause = self._identify_root_cause(error, error_class, context, last_obs)
 
         # Get recovery strategy
-        recovery_func = self._recovery_strategies.get(
-            error_class, self._recover_unknown
-        )
+        recovery_func = self._recovery_strategies.get(error_class, self._recover_unknown)
         recovery_result = recovery_func(error, context, last_obs)
 
         # Get alternative tools
@@ -361,35 +341,23 @@ class FailureAnalyzer:
             return ErrorClass.TIMEOUT
 
         # Validation errors
-        if any(
-            kw in error_str
-            for kw in ["validation", "invalid", "schema", "required field"]
-        ):
+        if any(kw in error_str for kw in ["validation", "invalid", "schema", "required field"]):
             return ErrorClass.VALIDATION
         if any(kw in error_type for kw in ["validation", "value"]):
             return ErrorClass.VALIDATION
 
         # Resource errors
-        if any(
-            kw in error_str
-            for kw in ["memory", "disk", "resource", "quota", "limit exceeded"]
-        ):
+        if any(kw in error_str for kw in ["memory", "disk", "resource", "quota", "limit exceeded"]):
             return ErrorClass.RESOURCE
 
         # Network errors
-        if any(
-            kw in error_str
-            for kw in ["connection", "network", "dns", "socket", "refused"]
-        ):
+        if any(kw in error_str for kw in ["connection", "network", "dns", "socket", "refused"]):
             return ErrorClass.NETWORK
         if any(kw in error_type for kw in ["connection", "network", "socket"]):
             return ErrorClass.NETWORK
 
         # Permission errors
-        if any(
-            kw in error_str
-            for kw in ["permission", "unauthorized", "forbidden", "access denied"]
-        ):
+        if any(kw in error_str for kw in ["permission", "unauthorized", "forbidden", "access denied"]):
             return ErrorClass.PERMISSION
         if any(kw in error_type for kw in ["permission", "auth"]):
             return ErrorClass.PERMISSION
@@ -403,16 +371,12 @@ class FailureAnalyzer:
             return ErrorClass.RATE_LIMIT
 
         # Logic errors (default for many exception types)
-        if any(
-            kw in error_type for kw in ["value", "type", "key", "index", "attribute"]
-        ):
+        if any(kw in error_type for kw in ["value", "type", "key", "index", "attribute"]):
             return ErrorClass.LOGIC
 
         return ErrorClass.UNKNOWN
 
-    def suggest_recovery(
-        self, error_class: ErrorClass, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def suggest_recovery(self, error_class: ErrorClass, context: dict[str, Any]) -> dict[str, Any]:
         """
         Suggest recovery strategy based on error classification.
 
@@ -423,14 +387,10 @@ class FailureAnalyzer:
         Returns:
             Recovery strategy dictionary
         """
-        recovery_func = self._recovery_strategies.get(
-            error_class, self._recover_unknown
-        )
+        recovery_func = self._recovery_strategies.get(error_class, self._recover_unknown)
         return recovery_func(Exception("Generic error"), context, None)
 
-    def should_retry(
-        self, error_class: ErrorClass, attempt_count: int, max_retries: int = 3
-    ) -> bool:
+    def should_retry(self, error_class: ErrorClass, attempt_count: int, max_retries: int = 3) -> bool:
         """
         Decide if retry makes sense for this error type.
 
@@ -634,9 +594,7 @@ class FailureAnalyzer:
 
     def get_common_failures(self, limit: int = 5) -> list[dict[str, Any]]:
         """Get most common failure patterns"""
-        sorted_patterns = sorted(
-            self._pattern_cache.items(), key=lambda x: x[1], reverse=True
-        )
+        sorted_patterns = sorted(self._pattern_cache.items(), key=lambda x: x[1], reverse=True)
         return [{"pattern": p, "count": c} for p, c in sorted_patterns[:limit]]
 
 

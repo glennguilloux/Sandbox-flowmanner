@@ -30,9 +30,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is True
@@ -42,9 +40,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "301", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "301", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is True
@@ -54,9 +50,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "302", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "302", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is True
@@ -66,9 +60,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "304", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "304", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is True
@@ -78,9 +70,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "000", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "000", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is False
@@ -90,9 +80,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "404", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "404", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is False
@@ -102,9 +90,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "500", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "500", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is False
@@ -116,9 +102,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": " '200'\n", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": " '200'\n", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is True
@@ -128,9 +112,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "", "stderr": "", "exit_code": 0})
 
         result = await is_port_serving(mock_client, "sb-abc", 8081)
         assert result is False
@@ -141,9 +123,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
 
         await is_port_serving(mock_client, "sb-abc", 8081)
         call_args = mock_client.exec_command.call_args
@@ -158,9 +138,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
 
         await is_port_serving(mock_client, "sb-abc", 8081, timeout=12.5)
         call_kwargs = mock_client.exec_command.call_args.kwargs
@@ -171,9 +149,7 @@ class TestIsPortServing:
         from app.tools._sandbox_serve_helpers import is_port_serving
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
 
         await is_port_serving(mock_client, "sb-abc", 8081)
         call_kwargs = mock_client.exec_command.call_args.kwargs
@@ -188,13 +164,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "12345", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "12345", "stderr": "", "exit_code": 0})
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert error is None
         assert pid == 12345
@@ -205,9 +177,7 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "should-be-ignored", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "should-be-ignored", "stderr": "", "exit_code": 0})
 
         pid, error = await start_static_http_server(
             mock_client,
@@ -250,9 +220,7 @@ class TestStartStaticHttpServer:
             }
         )
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert error is None
         assert pid == 444
@@ -272,9 +240,7 @@ class TestStartStaticHttpServer:
             }
         )
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert pid == 0
         assert error is not None
@@ -288,13 +254,9 @@ class TestStartStaticHttpServer:
 
         long_stderr = "x" * 500
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "", "stderr": long_stderr, "exit_code": 1}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "", "stderr": long_stderr, "exit_code": 1})
 
-        _, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        _, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert error is not None
         # Only the first 200 'x's should appear
@@ -313,9 +275,7 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "555", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "555", "stderr": "", "exit_code": 0})
 
         await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
@@ -334,13 +294,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "666", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "666", "stderr": "", "exit_code": 0})
 
-        await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox", timeout=12.5
-        )
+        await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox", timeout=12.5)
 
         call_kwargs = mock_client.exec_command.call_args.kwargs
         assert call_kwargs.get("timeout") == 12.5
@@ -350,9 +306,7 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "777", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "777", "stderr": "", "exit_code": 0})
 
         await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
@@ -368,9 +322,7 @@ class TestStartStaticHttpServer:
             return_value={"stdout": "", "stderr": "Permission denied", "exit_code": 126}
         )
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert pid == 0
         assert error is not None
@@ -382,13 +334,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "not-a-pid", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "not-a-pid", "stderr": "", "exit_code": 0})
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert pid == 0
         assert error is not None
@@ -401,13 +349,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "", "stderr": "crash", "exit_code": 1}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "", "stderr": "crash", "exit_code": 1})
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox", return_pid=False
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox", return_pid=False)
 
         assert pid == 0
         assert error is not None
@@ -421,13 +365,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "some noise\n54321", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "some noise\n54321", "stderr": "", "exit_code": 0})
 
-        pid, error = await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        pid, error = await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert error is None
         assert pid == 54321
@@ -439,13 +379,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "111", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "111", "stderr": "", "exit_code": 0})
 
-        await start_static_http_server(
-            mock_client, "sb-abc", 9000, "/home/sandbox/subdir"
-        )
+        await start_static_http_server(mock_client, "sb-abc", 9000, "/home/sandbox/subdir")
 
         call_args = mock_client.exec_command.call_args
         cmd_str = call_args[0][1][2]
@@ -461,9 +397,7 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "222", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "222", "stderr": "", "exit_code": 0})
 
         await start_static_http_server(
             mock_client,
@@ -487,13 +421,9 @@ class TestStartStaticHttpServer:
         from app.tools._sandbox_serve_helpers import start_static_http_server
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "333", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "333", "stderr": "", "exit_code": 0})
 
-        await start_static_http_server(
-            mock_client, "sb-abc", 8081, "/home/sandbox/o'malley"
-        )
+        await start_static_http_server(mock_client, "sb-abc", 8081, "/home/sandbox/o'malley")
 
         call_args = mock_client.exec_command.call_args
         cmd_str = call_args[0][1][2]
@@ -519,9 +449,7 @@ class TestEnsureServingOnPort:
         )
 
         # Must not raise, must not return anything
-        result = await ensure_serving_on_port(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
         assert result is None
         # Both calls were made
         assert mock_client.exec_command.await_count == 2
@@ -533,13 +461,9 @@ class TestEnsureServingOnPort:
 
         mock_client = MagicMock()
         # Only one call: check_port returns 200 (already serving)
-        mock_client.exec_command = AsyncMock(
-            return_value={"stdout": "200", "stderr": "", "exit_code": 0}
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
 
-        result = await ensure_serving_on_port(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert result is None
         # Only the check happened, no start
@@ -552,14 +476,10 @@ class TestEnsureServingOnPort:
         from app.tools._sandbox_serve_helpers import ensure_serving_on_port
 
         mock_client = MagicMock()
-        mock_client.exec_command = AsyncMock(
-            side_effect=ConnectionError("sandboxd down")
-        )
+        mock_client.exec_command = AsyncMock(side_effect=ConnectionError("sandboxd down"))
 
         # Must not raise
-        result = await ensure_serving_on_port(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
         assert result is None
 
     @pytest.mark.asyncio
@@ -577,9 +497,7 @@ class TestEnsureServingOnPort:
         )
 
         # Must not raise
-        result = await ensure_serving_on_port(
-            mock_client, "sb-abc", 8081, "/home/sandbox"
-        )
+        result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
         assert result is None
 
     @pytest.mark.asyncio

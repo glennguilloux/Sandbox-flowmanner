@@ -78,9 +78,7 @@ class EscalationChain:
         existing = await self._get_active(task_id)
         if existing:
             # Continue the chain
-            return await self._continue_escalation(
-                existing, error_message, policy_config, metadata
-            )
+            return await self._continue_escalation(existing, error_message, policy_config, metadata)
 
         # New escalation
         return await self._start_escalation(
@@ -146,11 +144,7 @@ class EscalationChain:
             status=(
                 "retrying"
                 if action == "retry"
-                else (
-                    "escalated"
-                    if action == "escalate"
-                    else ("dead_letter" if action == "dead_letter" else "active")
-                )
+                else ("escalated" if action == "escalate" else ("dead_letter" if action == "dead_letter" else "active"))
             ),
             metadata_=metadata,
         )
@@ -204,7 +198,9 @@ class EscalationChain:
             existing.level = 3
             existing.status = "dead_letter"
             existing.resolved = True
-            existing.error_message = f"Max retries ({policy_config['total_max_retries']}) exceeded. Last error: {error_message}"
+            existing.error_message = (
+                f"Max retries ({policy_config['total_max_retries']}) exceeded. Last error: {error_message}"
+            )
             existing.escalated_to_agent_id = None
             existing.escalated_to_agent_name = None
 
@@ -229,9 +225,7 @@ class EscalationChain:
             return existing
 
         # Check if we stay at current level or escalate
-        retries_remaining = (
-            existing.max_retries_per_level - existing.retries_at_level - 1
-        )
+        retries_remaining = existing.max_retries_per_level - existing.retries_at_level - 1
         if retries_remaining > 0:
             # Retry at current level
             existing.retries_at_level += 1
@@ -246,9 +240,7 @@ class EscalationChain:
             if existing.level == 1:
                 # Escalate to specialist
                 matched = await self._find_specialist(existing.task_description)
-                existing.escalated_to_agent_id = (
-                    matched["agent_id"] if matched else None
-                )
+                existing.escalated_to_agent_id = matched["agent_id"] if matched else None
                 existing.escalated_to_agent_name = matched["name"] if matched else None
                 existing.max_retries_per_level = policy_config["max_retries_specialist"]
                 existing.status = "escalated"
@@ -361,9 +353,7 @@ class EscalationChain:
         return list(result.scalars().all())
 
     async def _get(self, escalation_id: str) -> EscalationRecord | None:
-        result = await self.db.execute(
-            select(EscalationRecord).where(EscalationRecord.id == escalation_id)
-        )
+        result = await self.db.execute(select(EscalationRecord).where(EscalationRecord.id == escalation_id))
         return result.scalar_one_or_none()
 
     async def _get_active(self, task_id: str) -> EscalationRecord | None:

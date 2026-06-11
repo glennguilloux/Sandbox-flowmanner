@@ -13,14 +13,15 @@ import asyncio
 import logging
 import random
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
-from app.models.mission_models import Mission
-from app.models.graph import Workflow as GraphWorkflow, WorkflowExecution
-from app.models.swarm_models import OrchestratorExecution
 from app.models.blueprint_models import Blueprint, Run
+from app.models.graph import Workflow as GraphWorkflow
+from app.models.graph import WorkflowExecution
+from app.models.mission_models import Mission
+from app.models.swarm_models import OrchestratorExecution
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,20 +33,12 @@ async def verify_counts(db: AsyncSession) -> list[str]:
 
     # Count missions (non-deleted)
     mission_count = (
-        await db.execute(
-            select(func.count())
-            .select_from(Mission)
-            .where(Mission.deleted_at.is_(None))
-        )
+        await db.execute(select(func.count()).select_from(Mission).where(Mission.deleted_at.is_(None)))
     ).scalar() or 0
 
     # Count blueprints
     bp_count = (
-        await db.execute(
-            select(func.count())
-            .select_from(Blueprint)
-            .where(Blueprint.deleted_at.is_(None))
-        )
+        await db.execute(select(func.count()).select_from(Blueprint).where(Blueprint.deleted_at.is_(None)))
     ).scalar() or 0
 
     logger.info("Missions: %d, Blueprints: %d", mission_count, bp_count)
@@ -55,14 +48,10 @@ async def verify_counts(db: AsyncSession) -> list[str]:
         )
 
     # Count workflow executions
-    wf_exec_count = (
-        await db.execute(select(func.count()).select_from(WorkflowExecution))
-    ).scalar() or 0
+    wf_exec_count = (await db.execute(select(func.count()).select_from(WorkflowExecution))).scalar() or 0
 
     # Count orchestrator executions
-    orch_count = (
-        await db.execute(select(func.count()).select_from(OrchestratorExecution))
-    ).scalar() or 0
+    orch_count = (await db.execute(select(func.count()).select_from(OrchestratorExecution))).scalar() or 0
 
     # Count runs
     run_count = (await db.execute(select(func.count()).select_from(Run))).scalar() or 0
@@ -82,9 +71,7 @@ async def verify_counts(db: AsyncSession) -> list[str]:
     return issues
 
 
-async def verify_sample_integrity(
-    db: AsyncSession, sample_size: int = 100
-) -> list[str]:
+async def verify_sample_integrity(db: AsyncSession, sample_size: int = 100) -> list[str]:
     """Sample random missions and verify corresponding blueprint data."""
     issues = []
 
@@ -92,10 +79,7 @@ async def verify_sample_integrity(
     mission_ids = (
         (
             await db.execute(
-                select(Mission.id)
-                .where(Mission.deleted_at.is_(None))
-                .order_by(func.random())
-                .limit(sample_size)
+                select(Mission.id).where(Mission.deleted_at.is_(None)).order_by(func.random()).limit(sample_size)
             )
         )
         .scalars()
@@ -103,9 +87,7 @@ async def verify_sample_integrity(
     )
 
     for mission_id in mission_ids:
-        mission = (
-            await db.execute(select(Mission).where(Mission.id == mission_id))
-        ).scalar_one_or_none()
+        mission = (await db.execute(select(Mission).where(Mission.id == mission_id))).scalar_one_or_none()
 
         if mission is None:
             continue
@@ -127,9 +109,7 @@ async def verify_sample_integrity(
 
         # Verify basic data match
         if bp.title != mission.title:
-            issues.append(
-                f"Mission {mission_id} title mismatch: '{mission.title}' vs '{bp.title}'"
-            )
+            issues.append(f"Mission {mission_id} title mismatch: '{mission.title}' vs '{bp.title}'")
         if bp.user_id != mission.user_id:
             issues.append(f"Mission {mission_id} user_id mismatch")
 

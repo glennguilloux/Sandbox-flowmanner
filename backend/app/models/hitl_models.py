@@ -57,9 +57,7 @@ class InboxItem(Base, TimestampMixin):
 
     __tablename__ = "inbox_items"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     workspace_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),

@@ -94,9 +94,7 @@ class TemporalCycle:
             "confidence": self.confidence,
             "occurrence_count": self.occurrence_count,
             "avg_failures_per_cycle": self.avg_failures_per_cycle,
-            "next_predicted": (
-                self.next_predicted.isoformat() if self.next_predicted else None
-            ),
+            "next_predicted": (self.next_predicted.isoformat() if self.next_predicted else None),
             "predicted_severity": self.predicted_severity.value,
             "first_detected": self.first_detected.isoformat(),
             "last_occurrence": self.last_occurrence.isoformat(),
@@ -311,9 +309,7 @@ class TemporalAnalyzer:
 
         # Trim rolling window
         if len(self._rolling_metrics[metric_key]) > self._rolling_window_size:
-            self._rolling_metrics[metric_key] = self._rolling_metrics[metric_key][
-                -self._rolling_window_size :
-            ]
+            self._rolling_metrics[metric_key] = self._rolling_metrics[metric_key][-self._rolling_window_size :]
 
         # Check for anomalies
         await self._check_for_anomaly(event)
@@ -347,8 +343,7 @@ class TemporalAnalyzer:
         events = [
             e
             for e in self._failure_events
-            if e["timestamp"] >= cutoff
-            and (agent_id is None or e["agent_id"] == agent_id)
+            if e["timestamp"] >= cutoff and (agent_id is None or e["agent_id"] == agent_id)
         ]
 
         if len(events) < self.MIN_OCCURRENCES_FOR_CYCLE:
@@ -361,17 +356,13 @@ class TemporalAnalyzer:
 
         # Detect hourly patterns
         for failure_type, type_events in by_failure_type.items():
-            hourly_cycle = await self._detect_hourly_pattern(
-                failure_type, type_events, agent_id
-            )
+            hourly_cycle = await self._detect_hourly_pattern(failure_type, type_events, agent_id)
             if hourly_cycle:
                 cycles.append(hourly_cycle)
                 self._cycles[hourly_cycle.cycle_id] = hourly_cycle
 
             # Detect weekly patterns
-            weekly_cycle = await self._detect_weekly_pattern(
-                failure_type, type_events, agent_id
-            )
+            weekly_cycle = await self._detect_weekly_pattern(failure_type, type_events, agent_id)
             if weekly_cycle:
                 cycles.append(weekly_cycle)
                 self._cycles[weekly_cycle.cycle_id] = weekly_cycle
@@ -534,8 +525,7 @@ class TemporalAnalyzer:
             [
                 e
                 for e in self._failure_events
-                if e["timestamp"] >= cutoff
-                and (agent_id is None or e["agent_id"] == agent_id)
+                if e["timestamp"] >= cutoff and (agent_id is None or e["agent_id"] == agent_id)
             ],
             key=lambda e: e["timestamp"],
         )
@@ -554,9 +544,7 @@ class TemporalAnalyzer:
                     occurrence_count=len(occurrences),
                     confidence=min(1.0, len(occurrences) / 5),
                     avg_time_between_steps=(
-                        statistics.mean([o["time_between"] for o in occurrences])
-                        if occurrences
-                        else 0
+                        statistics.mean([o["time_between"] for o in occurrences]) if occurrences else 0
                     ),
                     agent_id=agent_id,
                 )
@@ -581,9 +569,7 @@ class TemporalAnalyzer:
 
             j = i + 1
             while j < len(events):
-                time_gap = (
-                    events[j]["timestamp"] - events[j - 1]["timestamp"]
-                ).total_seconds()
+                time_gap = (events[j]["timestamp"] - events[j - 1]["timestamp"]).total_seconds()
 
                 if time_gap > self.CASCADE_MAX_GAP_SECONDS:
                     break
@@ -596,9 +582,9 @@ class TemporalAnalyzer:
                 sequence_tuple = tuple(current_sequence)
                 time_between = 0
                 if j > i + 1:
-                    time_between = (
-                        events[j - 1]["timestamp"] - events[i]["timestamp"]
-                    ).total_seconds() / (len(current_sequence) - 1)
+                    time_between = (events[j - 1]["timestamp"] - events[i]["timestamp"]).total_seconds() / (
+                        len(current_sequence) - 1
+                    )
 
                 sequences[sequence_tuple].append(
                     {
@@ -614,12 +600,8 @@ class TemporalAnalyzer:
     async def _check_for_cascade(self, new_event: dict) -> None:
         """Check if a new event continues a cascade pattern."""
         # Look at recent events
-        recent_cutoff = datetime.now(UTC) - timedelta(
-            seconds=self.CASCADE_MAX_GAP_SECONDS
-        )
-        recent_events = [
-            e for e in self._failure_events if e["timestamp"] >= recent_cutoff
-        ]
+        recent_cutoff = datetime.now(UTC) - timedelta(seconds=self.CASCADE_MAX_GAP_SECONDS)
+        recent_events = [e for e in self._failure_events if e["timestamp"] >= recent_cutoff]
 
         if len(recent_events) < self.CASCADE_MIN_LENGTH:
             return
@@ -631,17 +613,12 @@ class TemporalAnalyzer:
                 # Check if recent events match the sequence
                 match = True
                 for i, failure_type in enumerate(sequence):
-                    if (
-                        recent_events[-(len(sequence) - i)]["failure_type"]
-                        != failure_type
-                    ):
+                    if recent_events[-(len(sequence) - i)]["failure_type"] != failure_type:
                         match = False
                         break
 
                 if match:
-                    logger.warning(
-                        "Detected cascade pattern %s in progress", cascade.cascade_id
-                    )
+                    logger.warning("Detected cascade pattern %s in progress", cascade.cascade_id)
 
     # ========================================================================
     # ANOMALY DETECTION
@@ -676,9 +653,7 @@ class TemporalAnalyzer:
             if agent_id and event["agent_id"] != agent_id:
                 continue
 
-            metric_key = (
-                f"{event['agent_id'] or 'global'}:{event['failure_type'].value}"
-            )
+            metric_key = f"{event['agent_id'] or 'global'}:{event['failure_type'].value}"
             by_metric[metric_key].append(event)
 
         for metric, events in by_metric.items():
@@ -738,11 +713,7 @@ class TemporalAnalyzer:
                     actual_value=count,
                     deviation_pct=abs(z_score) * 100,
                     timestamp=hour,
-                    severity=(
-                        FailureSeverity.HIGH
-                        if abs(z_score) > 3
-                        else FailureSeverity.MEDIUM
-                    ),
+                    severity=(FailureSeverity.HIGH if abs(z_score) > 3 else FailureSeverity.MEDIUM),
                     requires_action=abs(z_score) > 2.5,
                 )
 
@@ -752,17 +723,14 @@ class TemporalAnalyzer:
 
     async def _check_for_anomaly(self, new_event: dict) -> None:
         """Check if a new event is anomalous."""
-        metric_key = (
-            f"{new_event.get('agent_id') or 'global'}:{new_event['failure_type'].value}"
-        )
+        metric_key = f"{new_event.get('agent_id') or 'global'}:{new_event['failure_type'].value}"
 
         # Get recent events for this metric
         recent_cutoff = datetime.now(UTC) - timedelta(hours=1)
         recent_count = sum(
             1
             for e in self._failure_events
-            if e["failure_type"] == new_event["failure_type"]
-            and e["timestamp"] >= recent_cutoff
+            if e["failure_type"] == new_event["failure_type"] and e["timestamp"] >= recent_cutoff
         )
 
         # Get baseline

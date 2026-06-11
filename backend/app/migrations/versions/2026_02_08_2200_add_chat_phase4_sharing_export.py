@@ -55,20 +55,14 @@ def upgrade():
         sa.Column("thread_id", sa.Integer(), nullable=False, index=True),
         sa.Column("branch_id", sa.String(64), nullable=True, index=True),
         sa.Column("token", sa.String(255), unique=True, nullable=False, index=True),
-        sa.Column(
-            "permission_level", sa.String(20), default="view", index=True
-        ),  # view, comment, full
+        sa.Column("permission_level", sa.String(20), default="view", index=True),  # view, comment, full
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True, index=True),
         sa.Column("created_by", sa.Integer(), nullable=True, index=True),
         sa.Column("view_count", sa.Integer(), default=0),
         sa.Column("last_accessed", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), default=True, index=True),
-        sa.Column(
-            "share_metadata", sa.JSON(), nullable=True
-        ),  # Additional share settings
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("share_metadata", sa.JSON(), nullable=True),  # Additional share settings
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -76,51 +70,31 @@ def upgrade():
             onupdate=sa.func.now(),
         ),
         sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Create indexes for shared_links
-    op.create_index(
-        "idx_shared_links_share_id", "shared_links", ["share_id"], unique=True
-    )
+    op.create_index("idx_shared_links_share_id", "shared_links", ["share_id"], unique=True)
     op.create_index("idx_shared_links_token", "shared_links", ["token"], unique=True)
-    op.create_index(
-        "idx_shared_links_thread", "shared_links", ["thread_id"], unique=False
-    )
-    op.create_index(
-        "idx_shared_links_expires", "shared_links", ["expires_at"], unique=False
-    )
-    op.create_index(
-        "idx_shared_links_active", "shared_links", ["is_active"], unique=False
-    )
+    op.create_index("idx_shared_links_thread", "shared_links", ["thread_id"], unique=False)
+    op.create_index("idx_shared_links_expires", "shared_links", ["expires_at"], unique=False)
+    op.create_index("idx_shared_links_active", "shared_links", ["is_active"], unique=False)
 
     # Create share_analytics table
     # Track view and engagement metrics for shared links
     op.create_table(
         "share_analytics",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "analytics_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("analytics_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("share_id", sa.String(64), nullable=False, index=True),
-        sa.Column(
-            "event_type", sa.String(30), nullable=False, index=True
-        ),  # view, access, download, share
+        sa.Column("event_type", sa.String(30), nullable=False, index=True),  # view, access, download, share
         sa.Column("viewer_info", sa.JSON(), nullable=True),  # IP, user agent, location
-        sa.Column(
-            "access_duration", sa.Integer(), nullable=True
-        ),  # Time spent in seconds
+        sa.Column("access_duration", sa.Integer(), nullable=True),  # Time spent in seconds
         sa.Column("messages_viewed", sa.Integer(), default=0),
         sa.Column("metadata", sa.JSON(), nullable=True),
-        sa.Column(
-            "recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["share_id"], ["shared_links.share_id"], ondelete="CASCADE"
-        ),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["share_id"], ["shared_links.share_id"], ondelete="CASCADE"),
     )
 
     # Create indexes for share_analytics
@@ -130,15 +104,9 @@ def upgrade():
         ["analytics_id"],
         unique=True,
     )
-    op.create_index(
-        "idx_share_analytics_share", "share_analytics", ["share_id"], unique=False
-    )
-    op.create_index(
-        "idx_share_analytics_event", "share_analytics", ["event_type"], unique=False
-    )
-    op.create_index(
-        "idx_share_analytics_recorded", "share_analytics", ["recorded_at"], unique=False
-    )
+    op.create_index("idx_share_analytics_share", "share_analytics", ["share_id"], unique=False)
+    op.create_index("idx_share_analytics_event", "share_analytics", ["event_type"], unique=False)
+    op.create_index("idx_share_analytics_recorded", "share_analytics", ["recorded_at"], unique=False)
 
     # Create export_tokens table
     # Export generation tracking for PDF, Markdown, JSON formats
@@ -149,17 +117,11 @@ def upgrade():
         sa.Column("thread_id", sa.Integer(), nullable=False, index=True),
         sa.Column("branch_id", sa.String(64), nullable=True, index=True),
         sa.Column("created_by", sa.Integer(), nullable=True, index=True),
-        sa.Column(
-            "export_format", sa.String(20), nullable=False, index=True
-        ),  # pdf, markdown, json
+        sa.Column("export_format", sa.String(20), nullable=False, index=True),  # pdf, markdown, json
         sa.Column("include_attachments", sa.Boolean(), default=False),
         sa.Column("include_metadata", sa.Boolean(), default=True),
-        sa.Column(
-            "page_layout", sa.String(20), default="default"
-        ),  # default, compact, detailed
-        sa.Column(
-            "status", sa.String(20), default="pending", index=True
-        ),  # pending, processing, completed, failed
+        sa.Column("page_layout", sa.String(20), default="default"),  # default, compact, detailed
+        sa.Column("status", sa.String(20), default="pending", index=True),  # pending, processing, completed, failed
         sa.Column("progress_percentage", sa.Integer(), default=0),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("file_url", sa.String(512), nullable=True),
@@ -167,9 +129,7 @@ def upgrade():
         sa.Column("checksum", sa.String(64), nullable=True),  # MD5/SHA256 hash
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True, index=True),
         sa.Column("download_count", sa.Integer(), default=0),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -178,57 +138,33 @@ def upgrade():
         ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Create indexes for export_tokens
-    op.create_index(
-        "idx_export_tokens_export_id", "export_tokens", ["export_id"], unique=True
-    )
-    op.create_index(
-        "idx_export_tokens_thread", "export_tokens", ["thread_id"], unique=False
-    )
-    op.create_index(
-        "idx_export_tokens_format", "export_tokens", ["export_format"], unique=False
-    )
-    op.create_index(
-        "idx_export_tokens_status", "export_tokens", ["status"], unique=False
-    )
-    op.create_index(
-        "idx_export_tokens_expires", "export_tokens", ["expires_at"], unique=False
-    )
-    op.create_index(
-        "idx_export_tokens_created", "export_tokens", ["created_at"], unique=False
-    )
+    op.create_index("idx_export_tokens_export_id", "export_tokens", ["export_id"], unique=True)
+    op.create_index("idx_export_tokens_thread", "export_tokens", ["thread_id"], unique=False)
+    op.create_index("idx_export_tokens_format", "export_tokens", ["export_format"], unique=False)
+    op.create_index("idx_export_tokens_status", "export_tokens", ["status"], unique=False)
+    op.create_index("idx_export_tokens_expires", "export_tokens", ["expires_at"], unique=False)
+    op.create_index("idx_export_tokens_created", "export_tokens", ["created_at"], unique=False)
 
     # Create export_analytics table
     # Export generation statistics and performance tracking
     op.create_table(
         "export_analytics",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "analytics_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("analytics_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("export_id", sa.String(64), nullable=False, index=True),
-        sa.Column(
-            "event_type", sa.String(30), nullable=False, index=True
-        ),  # start, progress, complete, fail, download
-        sa.Column(
-            "progress_detail", sa.JSON(), nullable=True
-        ),  # Detailed progress information
+        sa.Column("event_type", sa.String(30), nullable=False, index=True),  # start, progress, complete, fail, download
+        sa.Column("progress_detail", sa.JSON(), nullable=True),  # Detailed progress information
         sa.Column("duration_ms", sa.Integer(), nullable=True),  # Processing duration
         sa.Column("file_size_bytes", sa.Integer(), nullable=True),
         sa.Column("error_detail", sa.Text(), nullable=True),
         sa.Column("metadata", sa.JSON(), nullable=True),
-        sa.Column(
-            "recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["export_id"], ["export_tokens.export_id"], ondelete="CASCADE"
-        ),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["export_id"], ["export_tokens.export_id"], ondelete="CASCADE"),
     )
 
     # Create indexes for export_analytics
@@ -238,12 +174,8 @@ def upgrade():
         ["analytics_id"],
         unique=True,
     )
-    op.create_index(
-        "idx_export_analytics_export", "export_analytics", ["export_id"], unique=False
-    )
-    op.create_index(
-        "idx_export_analytics_event", "export_analytics", ["event_type"], unique=False
-    )
+    op.create_index("idx_export_analytics_export", "export_analytics", ["export_id"], unique=False)
+    op.create_index("idx_export_analytics_event", "export_analytics", ["event_type"], unique=False)
     op.create_index(
         "idx_export_analytics_recorded",
         "export_analytics",
@@ -252,9 +184,7 @@ def upgrade():
     )
 
     # Add share settings columns to chat_threads for default sharing
-    op.add_column(
-        "chat_threads", sa.Column("default_share_enabled", sa.Boolean(), default=False)
-    )
+    op.add_column("chat_threads", sa.Column("default_share_enabled", sa.Boolean(), default=False))
     op.add_column(
         "chat_threads",
         sa.Column("default_share_token", sa.String(64), nullable=True, unique=True),
@@ -265,9 +195,7 @@ def upgrade():
     )
     op.add_column(
         "chat_threads",
-        sa.Column(
-            "default_share_expires_at", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("default_share_expires_at", sa.DateTime(timezone=True), nullable=True),
     )
 
     # Create index for default_share_token

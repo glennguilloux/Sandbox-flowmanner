@@ -9,17 +9,18 @@ Revises: 20260605_marketplace
 Create Date: 2026-06-05 15:00:00.000000
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 revision: str = "20260605_entity_versioning"
-down_revision: Union[str, Sequence[str], None] = "20260605_marketplace"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "20260605_marketplace"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -58,12 +59,8 @@ def upgrade() -> None:
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("snapshot", postgresql.JSONB(), nullable=False),
         sa.Column("change_summary", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_agent_versions_agent_id", "agent_versions", ["agent_id"])
     op.create_index(
@@ -92,16 +89,10 @@ def upgrade() -> None:
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("snapshot", postgresql.JSONB(), nullable=False),
         sa.Column("change_summary", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index(
-        "ix_workspace_versions_workspace_id", "workspace_versions", ["workspace_id"]
-    )
+    op.create_index("ix_workspace_versions_workspace_id", "workspace_versions", ["workspace_id"])
     op.create_index(
         "ix_workspace_versions_ws_version",
         "workspace_versions",

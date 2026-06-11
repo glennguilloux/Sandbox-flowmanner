@@ -14,9 +14,7 @@ class AdaptationRuleDB(Base, TimestampMixin):
     __tablename__ = "adaptation_rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    rule_id: Mapped[str] = mapped_column(
-        String(36), unique=True, nullable=False, default=lambda: str(uuid4())
-    )
+    rule_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, default=lambda: str(uuid4()))
     agent_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     rule_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     condition: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -33,6 +31,4 @@ class LearningFeedbackDB(Base, TimestampMixin):
     content: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     agent_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     mission_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

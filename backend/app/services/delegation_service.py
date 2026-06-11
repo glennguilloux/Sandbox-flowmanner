@@ -62,9 +62,7 @@ async def create_delegation(
 
 async def get_delegation(db: AsyncSession, delegation_id: str) -> RoleDelegation | None:
     """Get a delegation by ID."""
-    result = await db.execute(
-        select(RoleDelegation).where(RoleDelegation.id == delegation_id)
-    )
+    result = await db.execute(select(RoleDelegation).where(RoleDelegation.id == delegation_id))
     return result.scalar_one_or_none()
 
 

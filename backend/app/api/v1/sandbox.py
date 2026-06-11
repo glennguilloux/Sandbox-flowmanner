@@ -40,9 +40,7 @@ if TYPE_CHECKING:
 class ExecuteCodeRequest(BaseModel):
     code: str = Field(..., min_length=1, description="Source code to execute")
     language: str = Field("python", description="python, javascript, or typescript")
-    timeout: int = Field(
-        DEFAULT_TIMEOUT, ge=1, le=MAX_TIMEOUT, description="Timeout in seconds"
-    )
+    timeout: int = Field(DEFAULT_TIMEOUT, ge=1, le=MAX_TIMEOUT, description="Timeout in seconds")
 
 
 class SandboxResult(BaseModel):
@@ -73,9 +71,7 @@ async def execute_code(
         elif req.language in ("javascript", "typescript"):
             result = await _run_javascript(req.code, req.timeout)
         else:
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported language: {req.language}"
-            )
+            raise HTTPException(status_code=400, detail=f"Unsupported language: {req.language}")
 
         return {"success": True, "result": result}
     except HTTPException:
@@ -89,9 +85,7 @@ async def execute_code(
 
 
 async def _run_python(code: str, timeout: int) -> dict[str, Any]:
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", prefix="sandbox_", delete=False
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="sandbox_", delete=False) as tmp:
         tmp_path = tmp.name
         tmp.write(code)
         tmp.flush()
@@ -149,9 +143,7 @@ async def _run_python(code: str, timeout: int) -> dict[str, Any]:
 
 
 async def _run_javascript(code: str, timeout: int) -> dict[str, Any]:
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".mjs", prefix="sandbox_", delete=False
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".mjs", prefix="sandbox_", delete=False) as tmp:
         tmp_path = tmp.name
         # For TypeScript, transpile via ts-node or just run as JS
         if ".ts" in tmp_path:

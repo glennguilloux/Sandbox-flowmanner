@@ -27,9 +27,7 @@ class UUIDGeneratorInput(ToolInput):
         "v4",
         description="UUID version: 'v4' (random) or 'v5' (deterministic — requires 'name' field)",
     )
-    name: str | None = Field(
-        None, description="Name for v5 UUID (required when namespace='v5')"
-    )
+    name: str | None = Field(None, description="Name for v5 UUID (required when namespace='v5')")
     name_namespace: str | None = Field(
         None,
         description="DNS URL for v5 namespace (e.g. 'dns:example.com'). Defaults to DNS namespace.",
@@ -53,9 +51,7 @@ class UUIDGeneratorTool(BaseTool):
         try:
             validated = UUIDGeneratorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         count = max(1, min(validated.count, 100))
 
@@ -194,17 +190,11 @@ class TimestampConverterTool(BaseTool):
         try:
             validated = TimestampConverterInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             ts_str = validated.timestamp.lower().strip()
-            dt = (
-                datetime.now(UTC)
-                if ts_str == "now"
-                else _parse_timestamp(validated.timestamp, validated.from_format)
-            )
+            dt = datetime.now(UTC) if ts_str == "now" else _parse_timestamp(validated.timestamp, validated.from_format)
 
             output = _format_timestamp(dt, validated.to_format)
 

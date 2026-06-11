@@ -170,9 +170,7 @@ def _run_with_timeout(func, timeout_seconds: float, *args, **kwargs):
     thread.start()
 
     if not done.wait(timeout=timeout_seconds):
-        error[0] = TimeoutError(
-            f"Langfuse SDK operation timed out after {timeout_seconds}s"
-        )
+        error[0] = TimeoutError(f"Langfuse SDK operation timed out after {timeout_seconds}s")
 
     return result[0], error[0]
 
@@ -300,15 +298,10 @@ class LangfuseService:
     def circuit_state(self) -> str:
         """Get the current circuit breaker state. Transitions OPEN->HALF_OPEN if cooldown elapsed."""
         with self._lock:
-            if (
-                self._circuit_state == CircuitState.OPEN
-                and time.time() >= self._circuit_open_until
-            ):
+            if self._circuit_state == CircuitState.OPEN and time.time() >= self._circuit_open_until:
                 self._circuit_state = CircuitState.HALF_OPEN
                 try:
-                    get_reliability_monitor().record_circuit_transition(
-                        "OPEN", "HALF_OPEN"
-                    )
+                    get_reliability_monitor().record_circuit_transition("OPEN", "HALF_OPEN")
                 except Exception:
                     logger.debug("langfuse_reliability_monitor_failed", exc_info=True)
                 logger.warning(
@@ -316,9 +309,7 @@ class LangfuseService:
                     self._worker_id,
                 )
                 try:
-                    update_circuit_breaker_gauge(
-                        self._worker_id, CircuitState.HALF_OPEN.value
-                    )
+                    update_circuit_breaker_gauge(self._worker_id, CircuitState.HALF_OPEN.value)
                 except Exception:
                     logger.debug("langfuse_gauge_update_failed", exc_info=True)
             return self._circuit_state.value
@@ -351,9 +342,7 @@ class LangfuseService:
         old_state = self._circuit_state
         self._circuit_state = CircuitState.OPEN
         try:
-            get_reliability_monitor().record_circuit_transition(
-                old_state.value, CircuitState.OPEN.value
-            )
+            get_reliability_monitor().record_circuit_transition(old_state.value, CircuitState.OPEN.value)
         except Exception:
             logger.debug("langfuse_transition_monitor_failed", exc_info=True)
         self._circuit_open_until = time.time() + CIRCUIT_RECOVERY_SECONDS
@@ -377,9 +366,7 @@ class LangfuseService:
             if self._circuit_state == CircuitState.HALF_OPEN:
                 self._circuit_state = CircuitState.CLOSED
                 try:
-                    get_reliability_monitor().record_circuit_transition(
-                        "HALF_OPEN", "CLOSED"
-                    )
+                    get_reliability_monitor().record_circuit_transition("HALF_OPEN", "CLOSED")
                 except Exception:
                     logger.debug("langfuse_close_transition_failed", exc_info=True)
                 logger.warning(
@@ -396,18 +383,13 @@ class LangfuseService:
         except Exception:
             logger.debug("langfuse_success_metrics_failed", exc_info=True)
 
-    def _record_failure(
-        self, reason=None, operation: str = "unknown", duration: float = 0.0
-    ):
+    def _record_failure(self, reason=None, operation: str = "unknown", duration: float = 0.0):
         """Record a failed SDK call with Prometheus metrics."""
         with self._lock:
             self._failure_count += 1
             self._last_failure_reason = reason
             self._traces_failed += 1
-            if (
-                self._circuit_state == CircuitState.HALF_OPEN
-                or self._failure_count >= CIRCUIT_FAILURE_THRESHOLD
-            ):
+            if self._circuit_state == CircuitState.HALF_OPEN or self._failure_count >= CIRCUIT_FAILURE_THRESHOLD:
                 self._transition_to_open()
             else:
                 logger.debug(
@@ -568,9 +550,7 @@ class LangfuseService:
             self._record_failure(str(error), operation="generation", duration=duration)
             return _LangfuseUnavailable._StubSpan()
 
-    def get_langchain_callback(
-        self, trace_id=None, name=None, user_id=None, metadata=None, tags=None
-    ):
+    def get_langchain_callback(self, trace_id=None, name=None, user_id=None, metadata=None, tags=None):
         """Get a LangChain callback handler that auto-traces LLM calls."""
         if not self._enabled:
             return None
@@ -593,9 +573,7 @@ class LangfuseService:
                 )
 
             start = time.perf_counter()
-            result, error = _run_with_timeout(
-                _create_callback, CALLBACK_CREATION_TIMEOUT_SECONDS
-            )
+            result, error = _run_with_timeout(_create_callback, CALLBACK_CREATION_TIMEOUT_SECONDS)
             duration = time.perf_counter() - start
             if error is not None:
                 if isinstance(error, TimeoutError):
@@ -625,12 +603,8 @@ class LangfuseService:
         def _call():
             return {
                 "callback_name": "langfuse",
-                "langfuse_public_key": (
-                    self._client.public_key if self._client else None
-                ),
-                "langfuse_secret_key": (
-                    self._client.secret_key if self._client else None
-                ),
+                "langfuse_public_key": (self._client.public_key if self._client else None),
+                "langfuse_secret_key": (self._client.secret_key if self._client else None),
                 "langfuse_host": self._client.host if self._client else None,
             }
 
@@ -642,9 +616,7 @@ class LangfuseService:
             return result
         else:
             logger.debug("LiteLLM callback config failed: %s", error)
-            self._record_failure(
-                str(error), operation="litellm_config", duration=duration
-            )
+            self._record_failure(str(error), operation="litellm_config", duration=duration)
             return {}
 
     def flush(self):

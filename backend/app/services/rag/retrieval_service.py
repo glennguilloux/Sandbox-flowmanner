@@ -103,19 +103,13 @@ class RetrievalService:
                 reordered = []
                 seen = set()
                 for idx in indices:
-                    if (
-                        isinstance(idx, int)
-                        and 0 <= idx < len(candidates)
-                        and idx not in seen
-                    ):
+                    if isinstance(idx, int) and 0 <= idx < len(candidates) and idx not in seen:
                         reordered.append(candidates[idx])
                         seen.add(idx)
                 remaining = [c for i, c in enumerate(candidates) if i not in seen]
                 return reordered + remaining
         except (json.JSONDecodeError, TypeError):
-            logger.warning(
-                "LLM re-rank returned unparseable result, using original order"
-            )
+            logger.warning("LLM re-rank returned unparseable result, using original order")
 
         return candidates
 

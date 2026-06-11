@@ -23,9 +23,7 @@ class BrowserPingTool(BaseTool):
         try:
             validated = BrowserPingInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context")
         user_id = context.get("user_id", "anonymous") if context else "anonymous"

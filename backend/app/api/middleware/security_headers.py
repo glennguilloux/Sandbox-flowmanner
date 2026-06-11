@@ -46,8 +46,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
 
         # HSTS
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains; preload"
-        )
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         return response

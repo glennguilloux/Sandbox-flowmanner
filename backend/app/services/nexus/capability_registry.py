@@ -104,9 +104,7 @@ class CapabilityRegistry:
 
         cap = self._capabilities.pop(capability_id)
         if cap.category in self._categories:
-            self._categories[cap.category] = [
-                c for c in self._categories[cap.category] if c != capability_id
-            ]
+            self._categories[cap.category] = [c for c in self._categories[cap.category] if c != capability_id]
 
         # Remove any aliases pointing to this capability
         self._aliases = {k: v for k, v in self._aliases.items() if v != capability_id}
@@ -166,9 +164,7 @@ class CapabilityRegistry:
             return {"input": cap.input_schema, "output": cap.output_schema}
         return None
 
-    def validate_input(
-        self, capability_id: str, params: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def validate_input(self, capability_id: str, params: dict[str, Any]) -> tuple[bool, str | None]:
         """
         Validate input parameters against the capability's schema.
 
@@ -203,9 +199,7 @@ class CapabilityRegistry:
         for field_name, value in params.items():
             expected_type = properties.get(field_name, {}).get("type")
             if (
-                expected_type
-                and expected_type in type_map
-                and not isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
+                expected_type and expected_type in type_map and not isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
             ):
                 return (
                     False,
@@ -246,9 +240,7 @@ class CapabilityRegistry:
 
         from app.models.capability_catalog_models import Capability as CapModel
 
-        result = await session.execute(
-            select(CapModel).where(CapModel.enabled.is_(True))
-        )
+        result = await session.execute(select(CapModel).where(CapModel.enabled.is_(True)))
         db_caps = result.scalars().all()
 
         hydrated = 0
@@ -293,9 +285,7 @@ class CapabilityRegistry:
             except Exception as exc:
                 logger.warning("Failed to hydrate capability %s: %s", row.slug, exc)
 
-        logger.info(
-            "CapabilityRegistry.hydrate_from_db: %d capabilities hydrated", hydrated
-        )
+        logger.info("CapabilityRegistry.hydrate_from_db: %d capabilities hydrated", hydrated)
         return hydrated
 
     @staticmethod

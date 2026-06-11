@@ -36,9 +36,7 @@ class ComfyUIHandler(BaseToolHandler):
             self.session = aiohttp.ClientSession(timeout=timeout)
         return self.session
 
-    async def validate_parameters(
-        self, parameters: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    async def validate_parameters(self, parameters: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate ComfyUI workflow parameters"""
         required_fields = ["workflow_id"]
 
@@ -51,9 +49,7 @@ class ComfyUIHandler(BaseToolHandler):
 
         return True, None
 
-    async def execute(
-        self, parameters: dict[str, Any], context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def execute(self, parameters: dict[str, Any], context: dict[str, Any] = None) -> dict[str, Any]:
         """Execute ComfyUI workflow with user isolation"""
         workflow_id = parameters["workflow_id"]
         prompt = parameters.get("prompt", {})
@@ -115,17 +111,13 @@ class ComfyUIHandler(BaseToolHandler):
 
                 else:
                     error_text = await response.text()
-                    raise Exception(
-                        f"ComfyUI API error: {response.status} - {error_text}"
-                    )
+                    raise Exception(f"ComfyUI API error: {response.status} - {error_text}")
 
         except Exception as e:
             self.logger.error(f"Failed to execute ComfyUI workflow {workflow_id}: {e}")
             raise
 
-    async def _wait_for_completion(
-        self, prompt_id: str, max_attempts: int = 60
-    ) -> dict[str, Any]:
+    async def _wait_for_completion(self, prompt_id: str, max_attempts: int = 60) -> dict[str, Any]:
         """Wait for ComfyUI execution to complete"""
         url = f"{self.comfyui_base_url}/history/{prompt_id}"
         session = await self._get_session()
@@ -151,9 +143,7 @@ class ComfyUIHandler(BaseToolHandler):
                     elif response.status != 404:
                         # 404 means still executing
                         error_text = await response.text()
-                        raise Exception(
-                            f"ComfyUI history error: {response.status} - {error_text}"
-                        )
+                        raise Exception(f"ComfyUI history error: {response.status} - {error_text}")
 
             except Exception as e:
                 self.logger.warning(f"Polling attempt {attempt + 1} failed: {e}")

@@ -49,9 +49,7 @@ class MissionCircuitBreaker(Base, TimestampMixin):
 
     __tablename__ = "mission_circuit_breakers"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     mission_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("missions.id", ondelete="CASCADE"),

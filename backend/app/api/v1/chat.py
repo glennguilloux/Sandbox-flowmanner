@@ -68,17 +68,11 @@ async def list_folders(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatFolder)
-        .where(ChatFolder.user_id == user.id)
-        .order_by(ChatFolder.name)
-    )
+    result = await db.execute(select(ChatFolder).where(ChatFolder.user_id == user.id).order_by(ChatFolder.name))
     return result.scalars().all()
 
 
-@router.post(
-    "/folders", response_model=ChatFolderResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/folders", response_model=ChatFolderResponse, status_code=status.HTTP_201_CREATED)
 async def create_folder(
     payload: ChatFolderCreate,
     db: AsyncSession = Depends(get_db),
@@ -98,11 +92,7 @@ async def rename_folder(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatFolder).where(
-            ChatFolder.id == folder_id, ChatFolder.user_id == user.id
-        )
-    )
+    result = await db.execute(select(ChatFolder).where(ChatFolder.id == folder_id, ChatFolder.user_id == user.id))
     folder = result.scalar_one_or_none()
     if not folder:
         raise _not_found()
@@ -118,22 +108,14 @@ async def delete_folder(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatFolder).where(
-            ChatFolder.id == folder_id, ChatFolder.user_id == user.id
-        )
-    )
+    result = await db.execute(select(ChatFolder).where(ChatFolder.id == folder_id, ChatFolder.user_id == user.id))
     folder = result.scalar_one_or_none()
     if not folder:
         raise _not_found()
     # Unset folder_id on any threads in this folder
     from sqlalchemy import update as sa_update
 
-    await db.execute(
-        sa_update(ChatThread)
-        .where(ChatThread.folder_id == folder_id)
-        .values(folder_id=None)
-    )
+    await db.execute(sa_update(ChatThread).where(ChatThread.folder_id == folder_id).values(folder_id=None))
     await db.delete(folder)
 
 
@@ -148,9 +130,7 @@ async def _list_threads(
     workspace_id: str | None = None,
 ):
     offset = (page - 1) * per_page
-    items, total = await list_chat_threads(
-        db, user.id, offset=offset, limit=per_page, workspace_id=workspace_id
-    )
+    items, total = await list_chat_threads(db, user.id, offset=offset, limit=per_page, workspace_id=workspace_id)
     pages = (total + per_page - 1) // per_page
     return {
         "items": items,
@@ -173,9 +153,7 @@ async def list_threads_route(
     return result["items"]
 
 
-@router.post(
-    "/threads", response_model=ChatThreadResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/threads", response_model=ChatThreadResponse, status_code=status.HTTP_201_CREATED)
 async def create_thread(
     payload: ChatThreadCreate,
     db: AsyncSession = Depends(get_db),
@@ -209,9 +187,7 @@ async def update_thread(
     user: User = Depends(get_current_user),
 ):
     await require_chat_thread_access(db, thread_id, user.id)
-    updated = await update_chat_thread(
-        db, thread_id, title=payload.title, is_archived=payload.is_archived
-    )
+    updated = await update_chat_thread(db, thread_id, title=payload.title, is_archived=payload.is_archived)
     if updated is None:
         raise _not_found()
     return updated
@@ -301,9 +277,7 @@ async def create_branch(
 ):
     await require_chat_thread_access(db, thread_id, user.id)
     try:
-        branch = await create_chat_branch(
-            db, user.id, thread_id, payload.parent_message_id, payload.title
-        )
+        branch = await create_chat_branch(db, user.id, thread_id, payload.parent_message_id, payload.title)
         return branch
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -358,12 +332,8 @@ async def chat_with_llm(
 ):
     thread = await require_chat_thread_access(db, thread_id, user.id)
 
-    user_api_key = (
-        request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
-    )
-    user_base_url = (
-        request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
-    )
+    user_api_key = request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
+    user_base_url = request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
 
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
@@ -408,12 +378,8 @@ async def chat_with_llm_stream(
 ):
     thread = await require_chat_thread_access(db, thread_id, user.id)
 
-    user_api_key = (
-        request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
-    )
-    user_base_url = (
-        request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
-    )
+    user_api_key = request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
+    user_base_url = request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
 
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
@@ -468,11 +434,7 @@ async def export_thread(
         }
     lines = ["# " + (thread.title or "Untitled"), ""]
     for m in msgs:
-        rl = (
-            "**User**"
-            if m.role == "user"
-            else "**Assistant**" if m.role == "assistant" else "**System**"
-        )
+        rl = "**User**" if m.role == "user" else "**Assistant**" if m.role == "assistant" else "**System**"
         ts = m.created_at.strftime("%Y-%m-%d %H:%M") if m.created_at else ""
         lines.append("### " + rl + (" (" + ts + ")" if ts else ""))
         lines.append("")
@@ -484,11 +446,7 @@ async def export_thread(
     return PlainTextResponse(
         content=md,
         media_type="text/markdown",
-        headers={
-            "Content-Disposition": "attachment; filename="
-            + (thread.title or "thread").replace(" ", "_")
-            + ".md"
-        },
+        headers={"Content-Disposition": "attachment; filename=" + (thread.title or "thread").replace(" ", "_") + ".md"},
     )
 
 
@@ -528,9 +486,7 @@ async def update_thread_metadata(
 
 # Template CRUD
 @router.get("/templates", response_model=list[ChatTemplateResponse])
-async def list_templates(
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
-):
+async def list_templates(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     result = await db.execute(select(ChatTemplate).order_by(ChatTemplate.name))
     return result.scalars().all()
 
@@ -572,9 +528,7 @@ async def instantiate_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatTemplate).where(ChatTemplate.id == template_id)
-    )
+    result = await db.execute(select(ChatTemplate).where(ChatTemplate.id == template_id))
     template = result.scalar_one_or_none()
     if template is None:
         raise _not_found()
@@ -583,9 +537,7 @@ async def instantiate_template(
         meta["model_preference"] = template.model
     if template.system_prompt:
         meta["system_prompt"] = template.system_prompt
-    thread = ChatThread(
-        title=payload.title, user_id=user.id, username=user.username, metadata_=meta
-    )
+    thread = ChatThread(title=payload.title, user_id=user.id, username=user.username, metadata_=meta)
     db.add(thread)
     await db.flush()
     await db.refresh(thread)
@@ -598,9 +550,7 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatTemplate).where(ChatTemplate.id == template_id)
-    )
+    result = await db.execute(select(ChatTemplate).where(ChatTemplate.id == template_id))
     template = result.scalar_one_or_none()
     if template is None:
         raise _not_found()

@@ -69,9 +69,7 @@ class TestRetrievalService:
         )
 
     @pytest.mark.asyncio
-    async def test_empty_candidates_returns_empty_list(
-        self, service, mock_vector_store
-    ):
+    async def test_empty_candidates_returns_empty_list(self, service, mock_vector_store):
         """When vector_store.search returns [], retrieve() returns []."""
         mock_vector_store.search.return_value = []
         result = await service.retrieve(user_id=1, query="test query")
@@ -113,9 +111,7 @@ class TestRetrievalService:
         assert "3" in ids
 
     @pytest.mark.asyncio
-    async def test_deduplication_preserves_different_chunks(
-        self, service, mock_vector_store
-    ):
+    async def test_deduplication_preserves_different_chunks(self, service, mock_vector_store):
         """Different chunks are all kept."""
         mock_vector_store.search.return_value = [
             _make_point(1, "alpha content here", 0.9),
@@ -128,29 +124,21 @@ class TestRetrievalService:
     @pytest.mark.asyncio
     async def test_limit_respects_max(self, service, mock_vector_store):
         """Result is capped at the limit parameter."""
-        mock_vector_store.search.return_value = [
-            _make_point(i, f"chunk {i}", 0.9 - i * 0.01) for i in range(10)
-        ]
+        mock_vector_store.search.return_value = [_make_point(i, f"chunk {i}", 0.9 - i * 0.01) for i in range(10)]
         result = await service.retrieve(user_id=1, query="test", limit=3)
         assert len(result) == 3
 
     @pytest.mark.asyncio
-    async def test_topic_filter_passed_to_vector_store(
-        self, service, mock_vector_store
-    ):
+    async def test_topic_filter_passed_to_vector_store(self, service, mock_vector_store):
         """topics arg is forwarded to vector_store.search."""
         mock_vector_store.search.return_value = []
-        await service.retrieve(
-            user_id=1, query="test", topics=["role_definition", "constraints"]
-        )
+        await service.retrieve(user_id=1, query="test", topics=["role_definition", "constraints"])
         mock_vector_store.search.assert_called_once()
         _kwargs = mock_vector_store.search.call_args.kwargs
         assert _kwargs["topics"] == ["role_definition", "constraints"]
 
     @pytest.mark.asyncio
-    async def test_book_title_filter_passed_to_vector_store(
-        self, service, mock_vector_store
-    ):
+    async def test_book_title_filter_passed_to_vector_store(self, service, mock_vector_store):
         """book_title arg is forwarded to vector_store.search."""
         mock_vector_store.search.return_value = []
         await service.retrieve(user_id=1, query="test", book_title="my book")
@@ -158,9 +146,7 @@ class TestRetrievalService:
         assert _kwargs["book_title"] == "my book"
 
     @pytest.mark.asyncio
-    async def test_llm_rerank_called_when_available(
-        self, service, mock_llm_router, mock_vector_store
-    ):
+    async def test_llm_rerank_called_when_available(self, service, mock_llm_router, mock_vector_store):
         """When llm_router is set, re-rank is called for multiple candidates."""
         mock_vector_store.search.return_value = [
             _make_point(1, "first chunk about testing", 0.9),
@@ -172,9 +158,7 @@ class TestRetrievalService:
         mock_llm_router.route_request.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_llm_rerank_fallback_on_error(
-        self, service, mock_llm_router, mock_vector_store
-    ):
+    async def test_llm_rerank_fallback_on_error(self, service, mock_llm_router, mock_vector_store):
         """When LLM re-rank errors, results fall back to Qdrant ordering."""
         mock_vector_store.search.return_value = [
             _make_point(1, "first chunk", 0.9),
@@ -186,9 +170,7 @@ class TestRetrievalService:
         assert result[0].id == "1"
 
     @pytest.mark.asyncio
-    async def test_llm_rerack_unparseable_json_falls_back(
-        self, service, mock_llm_router, mock_vector_store
-    ):
+    async def test_llm_rerack_unparseable_json_falls_back(self, service, mock_llm_router, mock_vector_store):
         """When LLM returns unparseable JSON, falls back to Qdrant ordering."""
         mock_vector_store.search.return_value = [
             _make_point(1, "first chunk", 0.9),
@@ -200,9 +182,7 @@ class TestRetrievalService:
         assert result[0].id == "1"
 
     @pytest.mark.asyncio
-    async def test_retrieve_embeds_query(
-        self, service, mock_embedding_service, mock_vector_store
-    ):
+    async def test_retrieve_embeds_query(self, service, mock_embedding_service, mock_vector_store):
         """embed_query is called with the query string."""
         mock_vector_store.search.return_value = []
         await service.retrieve(user_id=1, query="how to prompt")

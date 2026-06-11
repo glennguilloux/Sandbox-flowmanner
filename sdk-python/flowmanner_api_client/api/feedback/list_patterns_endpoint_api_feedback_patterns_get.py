@@ -1,17 +1,13 @@
 from http import HTTPStatus
-from typing import Any, cast
-from urllib.parse import quote
+from typing import Any
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.feedback_pattern_response import FeedbackPatternResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, Unset
-from typing import cast
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -65,9 +61,7 @@ def _parse_response(
         response_200 = []
         _response_200 = response.json()
         for response_200_item_data in _response_200:
-            response_200_item = FeedbackPatternResponse.from_dict(
-                response_200_item_data
-            )
+            response_200_item = FeedbackPatternResponse.from_dict(response_200_item_data)
 
             response_200.append(response_200_item)
 

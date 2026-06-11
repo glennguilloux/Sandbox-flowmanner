@@ -14,9 +14,7 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-AGENT_DEFINITIONS_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "agent_definitions"
-)
+AGENT_DEFINITIONS_DIR = Path(__file__).resolve().parent.parent.parent / "agent_definitions"
 
 
 def parse_agent_file(file_path: Path) -> dict | None:

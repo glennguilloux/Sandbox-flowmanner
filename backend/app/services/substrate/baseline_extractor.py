@@ -60,9 +60,7 @@ class BaselineExtractor:
             behaviors.append(
                 {
                     "type": "tool_sequence",
-                    "expected_tools": list(
-                        dict.fromkeys(tool_names)
-                    ),  # preserve order, dedupe
+                    "expected_tools": list(dict.fromkeys(tool_names)),  # preserve order, dedupe
                     "order": "subset",  # allow reordering
                     "max_calls_per_tool": {
                         name: count + 1  # allow 1 extra call as headroom
@@ -88,9 +86,7 @@ class BaselineExtractor:
         behaviors.append(
             {
                 "type": "latency",
-                "max_duration_seconds": (
-                    int(duration * latency_headroom) if duration > 0 else 300
-                ),
+                "max_duration_seconds": (int(duration * latency_headroom) if duration > 0 else 300),
                 "warn_at_pct": 80,
             }
         )

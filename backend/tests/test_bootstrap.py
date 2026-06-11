@@ -8,8 +8,9 @@ Usage (inside container):
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestBootstrapReport:
@@ -105,7 +106,7 @@ class TestBootstrapDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_skips_all_steps(self):
-        from app.cli.bootstrap import bootstrap, StepStatus
+        from app.cli.bootstrap import StepStatus, bootstrap
 
         report = await bootstrap(dry_run=True)
         assert report.all_ok is True
@@ -118,15 +119,11 @@ class TestBootstrapDryRun:
 
         report = await bootstrap(dry_run=True)
         step_names = [s.name for s in report.steps]
-        assert (
-            len(step_names) == 9
-        ), f"Expected 9 steps, got {len(step_names)}: {step_names}"
+        assert len(step_names) == 9, f"Expected 9 steps, got {len(step_names)}: {step_names}"
         assert any("DB" in n for n in step_names)
         assert any("migration" in n.lower() for n in step_names)
         assert any("tool" in n.lower() for n in step_names)
-        assert any(
-            "capabilit" in n.lower() for n in step_names
-        ), f"Missing capability step: {step_names}"
+        assert any("capabilit" in n.lower() for n in step_names), f"Missing capability step: {step_names}"
         assert any("topology" in n.lower() for n in step_names)
         assert any("qdrant" in n.lower() for n in step_names)
         assert any("health" in n.lower() for n in step_names)
@@ -137,7 +134,7 @@ class TestBootstrapSkips:
 
     @pytest.mark.asyncio
     async def test_skip_migrations(self):
-        from app.cli.bootstrap import bootstrap, StepStatus
+        from app.cli.bootstrap import StepStatus, bootstrap
 
         report = await bootstrap(skip_migrations=True, dry_run=True)
         migration_step = next(s for s in report.steps if "migration" in s.name.lower())
@@ -145,7 +142,7 @@ class TestBootstrapSkips:
 
     @pytest.mark.asyncio
     async def test_skip_qdrant(self):
-        from app.cli.bootstrap import bootstrap, StepStatus
+        from app.cli.bootstrap import StepStatus, bootstrap
 
         report = await bootstrap(skip_qdrant=True, dry_run=True)
         qdrant_step = next(s for s in report.steps if "qdrant" in s.name.lower())

@@ -197,9 +197,7 @@ def deepagents_stream_task(
         task_record.completed_at = datetime.now(UTC)
         self.db.commit()
 
-        logger.info(
-            "DeepAgents stream task completed successfully: %s", self.request.id
-        )
+        logger.info("DeepAgents stream task completed successfully: %s", self.request.id)
         return result
 
     except Exception as e:

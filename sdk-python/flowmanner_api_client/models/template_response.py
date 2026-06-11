@@ -51,9 +51,7 @@ class TemplateResponse:
     user_id: int
     default_plan: list[Any] | None | TemplateResponseDefaultPlanType0 | Unset = UNSET
     default_tasks: list[Any] | None | TemplateResponseDefaultTasksType0 | Unset = UNSET
-    default_constraints: (
-        list[Any] | None | TemplateResponseDefaultConstraintsType0 | Unset
-    ) = UNSET
+    default_constraints: list[Any] | None | TemplateResponseDefaultConstraintsType0 | Unset = UNSET
     created_at: datetime.datetime | None | Unset = UNSET
     updated_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -108,9 +106,7 @@ class TemplateResponse:
         default_constraints: dict[str, Any] | list[Any] | None | Unset
         if isinstance(self.default_constraints, Unset):
             default_constraints = UNSET
-        elif isinstance(
-            self.default_constraints, TemplateResponseDefaultConstraintsType0
-        ):
+        elif isinstance(self.default_constraints, TemplateResponseDefaultConstraintsType0):
             default_constraints = self.default_constraints.to_dict()
         elif isinstance(self.default_constraints, list):
             default_constraints = self.default_constraints
@@ -217,9 +213,7 @@ class TemplateResponse:
                 return default_plan_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                list[Any] | None | TemplateResponseDefaultPlanType0 | Unset, data
-            )
+            return cast(list[Any] | None | TemplateResponseDefaultPlanType0 | Unset, data)
 
         default_plan = _parse_default_plan(d.pop("default_plan", UNSET))
 
@@ -246,9 +240,7 @@ class TemplateResponse:
                 return default_tasks_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                list[Any] | None | TemplateResponseDefaultTasksType0 | Unset, data
-            )
+            return cast(list[Any] | None | TemplateResponseDefaultTasksType0 | Unset, data)
 
         default_tasks = _parse_default_tasks(d.pop("default_tasks", UNSET))
 
@@ -262,9 +254,7 @@ class TemplateResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                default_constraints_type_0 = (
-                    TemplateResponseDefaultConstraintsType0.from_dict(data)
-                )
+                default_constraints_type_0 = TemplateResponseDefaultConstraintsType0.from_dict(data)
 
                 return default_constraints_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -277,13 +267,9 @@ class TemplateResponse:
                 return default_constraints_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                list[Any] | None | TemplateResponseDefaultConstraintsType0 | Unset, data
-            )
+            return cast(list[Any] | None | TemplateResponseDefaultConstraintsType0 | Unset, data)
 
-        default_constraints = _parse_default_constraints(
-            d.pop("default_constraints", UNSET)
-        )
+        default_constraints = _parse_default_constraints(d.pop("default_constraints", UNSET))
 
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:

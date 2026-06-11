@@ -110,9 +110,7 @@ async def list_users(
     total = (await db.execute(count_query)).scalar() or 0
     pages = max(1, (total + page_size - 1) // page_size)
 
-    result = await db.execute(
-        query.offset((page - 1) * page_size).limit(page_size).order_by(User.id)
-    )
+    result = await db.execute(query.offset((page - 1) * page_size).limit(page_size).order_by(User.id))
     users = result.scalars().all()
 
     return UserListResponse(

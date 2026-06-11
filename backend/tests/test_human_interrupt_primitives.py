@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -16,14 +16,12 @@ from app.orchestration.human_interrupt import (
     get_hitl_manager,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # HumanInterrupt dataclass
 # ═══════════════════════════════════════════════════════════════════
 
 
 class TestHumanInterruptDataclass:
-
     def test_creates_with_required_fields(self):
         hi = HumanInterrupt(mission_id=str(uuid4()), interrupt_type="approval")
         assert hi.mission_id
@@ -32,7 +30,7 @@ class TestHumanInterruptDataclass:
 
     def test_to_dict_serializes(self):
         mid = str(uuid4())
-        deadline = datetime(2026, 7, 1, tzinfo=timezone.utc)
+        deadline = datetime(2026, 7, 1, tzinfo=UTC)
         hi = HumanInterrupt(
             mission_id=mid,
             interrupt_type="clarification",
@@ -59,7 +57,6 @@ class TestHumanInterruptDataclass:
 
 
 class TestInterruptPersistence:
-
     @pytest.mark.asyncio
     async def test_raise_interrupt_persists_record(self):
         mgr = HITLManager()
@@ -174,7 +171,6 @@ class TestInterruptPersistence:
 
 
 class TestListPending:
-
     @pytest.mark.asyncio
     async def test_returns_pending_records(self):
         mgr = HITLManager()
@@ -212,7 +208,6 @@ class TestListPending:
 
 
 class TestApprovalRequiredFor:
-
     def test_low_confidence_requires_approval(self):
         assert HITLManager.approval_required_for("read", confidence=0.5) is True
 
@@ -220,25 +215,12 @@ class TestApprovalRequiredFor:
         assert HITLManager.approval_required_for("read", confidence=0.9) is False
 
     def test_destructive_prefix_requires_approval(self):
-        assert (
-            HITLManager.approval_required_for("destructive_delete", confidence=1.0)
-            is True
-        )
+        assert HITLManager.approval_required_for("destructive_delete", confidence=1.0) is True
 
     def test_explicit_destructive_set(self):
         gate = {"delete_file", "transfer_funds"}
-        assert (
-            HITLManager.approval_required_for(
-                "delete_file", confidence=1.0, destructive_actions=gate
-            )
-            is True
-        )
-        assert (
-            HITLManager.approval_required_for(
-                "read", confidence=1.0, destructive_actions=gate
-            )
-            is False
-        )
+        assert HITLManager.approval_required_for("delete_file", confidence=1.0, destructive_actions=gate) is True
+        assert HITLManager.approval_required_for("read", confidence=1.0, destructive_actions=gate) is False
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -247,7 +229,6 @@ class TestApprovalRequiredFor:
 
 
 class TestSingleton:
-
     def test_get_hitl_manager_returns_same_instance(self):
         m1 = get_hitl_manager()
         m2 = get_hitl_manager()

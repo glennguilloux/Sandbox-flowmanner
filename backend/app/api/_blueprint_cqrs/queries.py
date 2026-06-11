@@ -76,9 +76,7 @@ class BlueprintQueryHandlers(QueryHandlerBase):
         bp = await svc.get(blueprint_id, user_id)
         return BlueprintResponse.model_validate(bp)
 
-    async def list_versions(
-        self, user_id: int, blueprint_id: str
-    ) -> list[BlueprintVersionResponse]:
+    async def list_versions(self, user_id: int, blueprint_id: str) -> list[BlueprintVersionResponse]:
         svc = BlueprintService(self.session)
         versions = await svc.get_versions(blueprint_id, user_id)
         return [BlueprintVersionResponse.model_validate(v) for v in versions]  # type: ignore[attr-defined]
@@ -119,9 +117,7 @@ class RunQueryHandlers(QueryHandlerBase):
         self, user_id: int, run_id: str, from_sequence: int = 0, limit: int = 1000
     ) -> list[RunEventResponse]:
         svc = RunService(self.session)
-        events = await svc.get_events(
-            run_id, user_id, from_sequence=from_sequence, limit=limit
-        )
+        events = await svc.get_events(run_id, user_id, from_sequence=from_sequence, limit=limit)
         return [RunEventResponse.model_validate(e) for e in events]  # type: ignore[attr-defined]
 
     async def replay_state(

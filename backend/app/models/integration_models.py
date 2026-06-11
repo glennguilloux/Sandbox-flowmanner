@@ -183,16 +183,10 @@ class UserOAuthConnection(Base, TimestampMixin):
     )
     encrypted_access_token: Mapped[str] = mapped_column(Text, nullable=False)
     encrypted_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
-    token_type: Mapped[str | None] = mapped_column(
-        String(50), nullable=True, default="Bearer"
-    )
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    token_type: Mapped[str | None] = mapped_column(String(50), nullable=True, default="Bearer")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     provider_account_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    provider_account_name: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    provider_account_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     scopes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(
         String(20),

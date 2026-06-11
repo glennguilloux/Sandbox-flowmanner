@@ -41,9 +41,7 @@ class WorkflowCache:
             self.client.ping()
             logger.info("✅ Redis connection established")
         except Exception as e:
-            logger.warning(
-                "⚠️ Redis connection failed: %s. Using in-memory cache only.", e
-            )
+            logger.warning("⚠️ Redis connection failed: %s. Using in-memory cache only.", e)
             self.client = None
 
     def store_workflow(self, workflow: dict[str, Any], ttl: int | None = None):
@@ -101,9 +99,7 @@ class WorkflowCache:
             logger.error("Error retrieving workflow from cache: %s", e)
             return None
 
-    def store_workflow_list(
-        self, workflows: list[dict[str, Any]], ttl: int | None = None
-    ):
+    def store_workflow_list(self, workflows: list[dict[str, Any]], ttl: int | None = None):
         """
         Store list of workflows
 
@@ -232,18 +228,14 @@ class WorkflowCache:
                     workflow_ids = json.loads(cached)
                     if workflow_id in workflow_ids:
                         workflow_ids.remove(workflow_id)
-                        self.client.setex(
-                            list_key, self.default_ttl, json.dumps(workflow_ids)
-                        )
+                        self.client.setex(list_key, self.default_ttl, json.dumps(workflow_ids))
 
             logger.info("Invalidated workflow %s", workflow_id)
 
         except Exception as e:
             logger.error("Error invalidating workflow: %s", e)
 
-    def store_imported_workflow(
-        self, imported_workflow: dict[str, Any], ttl: int | None = None
-    ):
+    def store_imported_workflow(self, imported_workflow: dict[str, Any], ttl: int | None = None):
         """
         Store imported workflow metadata in cache
 
@@ -298,9 +290,7 @@ class WorkflowCache:
             logger.error("Error retrieving imported workflow from cache: %s", e)
             return None
 
-    def store_imported_workflow_list(
-        self, imported_workflows: list[dict[str, Any]], ttl: int | None = None
-    ):
+    def store_imported_workflow_list(self, imported_workflows: list[dict[str, Any]], ttl: int | None = None):
         """
         Store list of imported workflows
 
@@ -317,9 +307,7 @@ class WorkflowCache:
                 self.store_imported_workflow(imported_workflow, ttl)
 
             # Store the list of import IDs
-            import_ids = [
-                w.get("import_id") for w in imported_workflows if w.get("import_id")
-            ]
+            import_ids = [w.get("import_id") for w in imported_workflows if w.get("import_id")]
             key = "workflow:import:list:all"
 
             if ttl is None:
@@ -419,9 +407,7 @@ class WorkflowCache:
         except Exception as e:
             logger.error("Error storing change event: %s", e)
 
-    def get_change_history(
-        self, workflow_id: str, limit: int = 10
-    ) -> list[dict[str, Any]]:
+    def get_change_history(self, workflow_id: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get change history for a workflow
 
@@ -508,9 +494,7 @@ class WorkflowCache:
             logger.error("Error retrieving n8n workflow from cache: %s", e)
             return None
 
-    def store_n8n_workflow_list(
-        self, workflows: list[dict[str, Any]], ttl: int | None = None
-    ):
+    def store_n8n_workflow_list(self, workflows: list[dict[str, Any]], ttl: int | None = None):
         """
         Store list of n8n workflows
 
@@ -527,9 +511,7 @@ class WorkflowCache:
                 self.store_n8n_workflow(workflow, ttl)
 
             # Store the list of workflow IDs
-            workflow_ids = [
-                w.get("workflow_id") for w in workflows if w.get("workflow_id")
-            ]
+            workflow_ids = [w.get("workflow_id") for w in workflows if w.get("workflow_id")]
             key = "n8n:workflow:list:all"
 
             if ttl is None:
@@ -595,9 +577,7 @@ class WorkflowCache:
                     workflow_ids = json.loads(cached)
                     if workflow_id in workflow_ids:
                         workflow_ids.remove(workflow_id)
-                        self.client.setex(
-                            list_key, self.default_ttl, json.dumps(workflow_ids)
-                        )
+                        self.client.setex(list_key, self.default_ttl, json.dumps(workflow_ids))
 
             logger.info("Invalidated n8n workflow %s", workflow_id)
 
@@ -629,8 +609,7 @@ class WorkflowCache:
                 "list_cache_entries": len(list_keys),
                 "change_history_entries": len(change_keys),
                 "total_n8n_workflows": len(n8n_workflow_keys),
-                "total_keys": len(self.client.keys("workflow:*"))
-                + len(n8n_workflow_keys),
+                "total_keys": len(self.client.keys("workflow:*")) + len(n8n_workflow_keys),
             }
 
         except Exception as e:

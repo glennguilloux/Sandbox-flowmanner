@@ -138,9 +138,7 @@ class OpenWhiskActionManager:
             logger.error("Error packaging action %s: %s", action_package.name, e)
             raise
 
-    async def deploy_package(
-        self, action_package: ActionPackage, overwrite: bool = True
-    ) -> dict[str, Any]:
+    async def deploy_package(self, action_package: ActionPackage, overwrite: bool = True) -> dict[str, Any]:
         """
         Deploy an action package to OpenWhisk
 
@@ -155,9 +153,7 @@ class OpenWhiskActionManager:
             >>> result = await manager.deploy_package(action_package)
             >>> print(result['activation_url'])
         """
-        logger.info(
-            "Deploying package: %s v%s", action_package.name, action_package.version
-        )
+        logger.info("Deploying package: %s v%s", action_package.name, action_package.version)
 
         try:
             # Package the action
@@ -214,9 +210,7 @@ class OpenWhiskActionManager:
                 "error": str(e),
             }
 
-    async def deploy_from_directory(
-        self, actions_dir: str, pattern: str = "*.py"
-    ) -> dict[str, Any]:
+    async def deploy_from_directory(self, actions_dir: str, pattern: str = "*.py") -> dict[str, Any]:
         """
         Deploy all actions from a directory
 

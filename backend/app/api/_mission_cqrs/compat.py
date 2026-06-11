@@ -63,11 +63,7 @@ def _blueprint_run_to_mission_response(
         Run.error_message       → error_message
     """
     bp_status = bp.status or "draft"
-    status = (
-        _map_run_status(latest_run.status)
-        if latest_run and latest_run.status
-        else _map_bp_status(bp_status)
-    )
+    status = _map_run_status(latest_run.status) if latest_run and latest_run.status else _map_bp_status(bp_status)
 
     return MissionResponse(
         id=uuid.UUID(str(bp.id)) if bp.id else uuid.uuid4(),
@@ -78,9 +74,7 @@ def _blueprint_run_to_mission_response(
         status=status,
         priority="medium",  # Blueprints don't have priority; safe default
         plan=bp.definition if bp.definition else None,
-        results=(
-            latest_run.output_data if latest_run and latest_run.output_data else None
-        ),
+        results=(latest_run.output_data if latest_run and latest_run.output_data else None),
         error_message=latest_run.error_message if latest_run else None,
         tokens_used=latest_run.total_tokens if latest_run else None,
         estimated_cost=None,
@@ -221,11 +215,7 @@ async def list_missions_from_blueprints(
     multiple runs share the same ``created_at`` timestamp.
     """
     # ── Count ────────────────────────────────────────────────────────────
-    count_q = (
-        select(func.count())
-        .select_from(Blueprint)
-        .where(Blueprint.deleted_at.is_(None))
-    )
+    count_q = select(func.count()).select_from(Blueprint).where(Blueprint.deleted_at.is_(None))
     if workspace_id is not None:
         count_q = count_q.where(Blueprint.workspace_id == workspace_id)
     else:
@@ -371,12 +361,8 @@ async def active_missions_from_blueprints(
         select(
             MissionTask.mission_id,
             func.count(MissionTask.id).label("total"),
-            func.sum(
-                case((MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0)
-            ).label("completed"),
-            func.sum(
-                case((MissionTask.status == MissionTaskStatus.FAILED, 1), else_=0)
-            ).label("failed"),
+            func.sum(case((MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0)).label("completed"),
+            func.sum(case((MissionTask.status == MissionTaskStatus.FAILED, 1), else_=0)).label("failed"),
         )
         .where(MissionTask.mission_id.in_(blueprint_ids))
         .group_by(MissionTask.mission_id)
@@ -399,26 +385,15 @@ async def active_missions_from_blueprints(
         completed = stats["completed"]
         progress = int((completed / total) * 100) if total > 0 else 0
         eta = None
-        if (
-            mr.status == MissionStatus.RUNNING
-            and mr.started_at
-            and total > 0
-            and completed > 0
-        ):
+        if mr.status == MissionStatus.RUNNING and mr.started_at and total > 0 and completed > 0:
             elapsed = (datetime.now(UTC) - mr.started_at).total_seconds()
             avg = elapsed / completed
             remaining = total - completed
-            eta = datetime.now(UTC).replace(microsecond=0) + timedelta(
-                seconds=int(avg * remaining)
-            )
+            eta = datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=int(avg * remaining))
 
         response.append(
             MissionResponse(
-                **{
-                    k: v
-                    for k, v in mr.model_dump().items()
-                    if k not in ("progress", "eta")
-                },
+                **{k: v for k, v in mr.model_dump().items() if k not in ("progress", "eta")},
                 progress=progress,
                 eta=eta,
             )
@@ -476,7 +451,7 @@ async def dual_write_sync_run_status(
                 run.completed_at = completed_at
             await db.commit()
     except Exception:
-        logger.debug('dual_write_sync_run_status_failed mission_id=%s', mission_id, exc_info=True)
+        logger.debug("dual_write_sync_run_status_failed mission_id=%s", mission_id, exc_info=True)
 
 
 async def dual_write_sync_blueprint(
@@ -501,7 +476,7 @@ async def dual_write_sync_blueprint(
             bp.updated_at = datetime.now(UTC)
             await db.commit()
     except Exception:
-        logger.debug('dual_write_sync_blueprint_failed mission_id=%s', mission_id, exc_info=True)
+        logger.debug("dual_write_sync_blueprint_failed mission_id=%s", mission_id, exc_info=True)
 
 
 async def dual_write_soft_delete_blueprint(
@@ -523,7 +498,7 @@ async def dual_write_soft_delete_blueprint(
             bp.deleted_by = user_id
             await db.commit()
     except Exception:
-        logger.debug('dual_write_soft_delete_failed mission_id=%s', mission_id, exc_info=True)
+        logger.debug("dual_write_soft_delete_failed mission_id=%s", mission_id, exc_info=True)
 
 
 # ── MissionShim: Mission-compatible object for ORM callers ───────────────
@@ -576,11 +551,7 @@ class MissionShim:
     def from_blueprint_run(cls, bp: Blueprint, run: Run | None = None) -> MissionShim:
         """Build a MissionShim from a Blueprint ORM object and optional Run."""
         bp_status = bp.status or "draft"
-        status = (
-            _map_run_status(run.status)
-            if run and run.status
-            else _map_bp_status(bp_status)
-        )
+        status = _map_run_status(run.status) if run and run.status else _map_bp_status(bp_status)
 
         return cls(
             id=str(bp.id),

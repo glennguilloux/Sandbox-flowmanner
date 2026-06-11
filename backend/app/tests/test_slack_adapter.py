@@ -143,9 +143,7 @@ class TestSendMessage:
 
     @pytest.mark.asyncio
     async def test_missing_text(self, adapter, connection):
-        result = await adapter.execute(
-            "send_message", {"channel": "#general"}, connection
-        )
+        result = await adapter.execute("send_message", {"channel": "#general"}, connection)
         assert result["success"] is False
         assert "text" in result["error"]
 
@@ -193,9 +191,7 @@ class TestSearchMessages:
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
             "ok": True,
-            "messages": {
-                "matches": [{"text": "found it", "channel": {"name": "general"}}]
-            },
+            "messages": {"matches": [{"text": "found it", "channel": {"name": "general"}}]},
         }
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:

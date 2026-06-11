@@ -22,7 +22,6 @@ from uuid import uuid4
 
 import pytest
 
-
 # ── Pre-mock to work around upstream _nexus_orchestrator bug ───────
 # The orchestrator.py file defines _nexus_orchestrator inside a class
 # method body, not at module level. This causes NameError when
@@ -30,21 +29,15 @@ import pytest
 
 _mock_nexus_orch_instance = MagicMock()
 _mock_nexus_orch_instance.plan_and_execute = AsyncMock(
-    return_value=MagicMock(
-        success=True, data={"ok": True}, error=None, capabilities_used=["test:cap"]
-    )
+    return_value=MagicMock(success=True, data={"ok": True}, error=None, capabilities_used=["test:cap"])
 )
 _mock_nexus_orch_instance.initialize = AsyncMock()
 
 _mock_orchestrator_module = MagicMock()
-_mock_orchestrator_module.NexusOrchestrator = MagicMock(
-    return_value=_mock_nexus_orch_instance
-)
+_mock_orchestrator_module.NexusOrchestrator = MagicMock(return_value=_mock_nexus_orch_instance)
 _mock_orchestrator_module.ExecutionContext = MagicMock()
 _mock_orchestrator_module.OperationResult = MagicMock()
-_mock_orchestrator_module.get_nexus_orchestrator = MagicMock(
-    return_value=_mock_nexus_orch_instance
-)
+_mock_orchestrator_module.get_nexus_orchestrator = MagicMock(return_value=_mock_nexus_orch_instance)
 
 sys.modules["app.services.nexus.orchestrator"] = _mock_orchestrator_module
 # Also mock capability_registry and distributed_executor that orchestrator imports
@@ -53,8 +46,8 @@ sys.modules["app.services.nexus.distributed_executor"] = MagicMock()
 sys.modules["app.services.learning_service"] = MagicMock()
 
 from app.services.nexus.failure_analyzer import (
-    ErrorClass,
     ErrorBudget,
+    ErrorClass,
     FailureAnalysisResult,
     FailureAnalyzer,
 )
@@ -63,7 +56,6 @@ from app.services.nexus.meta_loop_orchestrator import (
     MetaLoopResult,
     get_meta_loop_orchestrator,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -90,7 +82,6 @@ def _mock_analyzer():
 
 
 class TestPlanExecuteObserveBudgetReset:
-
     def test_resets_budgets_for_new_mission(self):
         """plan_execute_observe() resets budgets when mission_id changes."""
         analyzer = _mock_analyzer()
@@ -141,9 +132,7 @@ class TestPlanExecuteObserveBudgetReset:
             failure_analyzer=analyzer,
         )
 
-        result = asyncio.run(
-            orch.plan_execute_observe("solve everything", mission_id=str(uuid4()))
-        )
+        result = asyncio.run(orch.plan_execute_observe("solve everything", mission_id=str(uuid4())))
 
         assert isinstance(result, MetaLoopResult)
         assert result.success is True
@@ -171,7 +160,6 @@ class TestPlanExecuteObserveBudgetReset:
 
 
 class TestHandleFailure:
-
     def test_handle_failure_passes_wall_clock_and_cost(self):
         """_handle_failure() passes wall_clock_ms and cost_usd to analyzer."""
         nexus = MagicMock()
@@ -294,7 +282,6 @@ class TestHandleFailure:
 
 
 class TestGetEffectiveMaxDepth:
-
     def test_falls_back_to_requested_when_no_lattice(self):
         """_get_effective_max_depth() returns requested when lattice import fails."""
         orch = MetaLoopOrchestrator(nexus_orchestrator=_mock_nexus_orch_instance)
@@ -307,9 +294,7 @@ class TestGetEffectiveMaxDepth:
 
     def test_clamps_to_lattice_max_depth(self):
         """_get_effective_max_depth() clamps to CapabilityLattice.max_depth."""
-        with patch(
-            "app.services.nexus.capability_lattice.get_capability_lattice"
-        ) as mock_get_lattice:
+        with patch("app.services.nexus.capability_lattice.get_capability_lattice") as mock_get_lattice:
             mock_lattice = MagicMock()
             mock_lattice.max_depth = 3
             mock_get_lattice.return_value = mock_lattice
@@ -320,9 +305,7 @@ class TestGetEffectiveMaxDepth:
 
     def test_clamps_when_requested_equals_lattice(self):
         """_get_effective_max_depth() works when requested equals lattice max."""
-        with patch(
-            "app.services.nexus.capability_lattice.get_capability_lattice"
-        ) as mock_get_lattice:
+        with patch("app.services.nexus.capability_lattice.get_capability_lattice") as mock_get_lattice:
             mock_lattice = MagicMock()
             mock_lattice.max_depth = 3
             mock_get_lattice.return_value = mock_lattice
@@ -338,7 +321,6 @@ class TestGetEffectiveMaxDepth:
 
 
 class TestMaxDepthReached:
-
     def test_returns_failure_when_max_depth_reached(self):
         """plan_execute_observe() returns failure when depth limit reached."""
         analyzer = _mock_analyzer()
@@ -347,9 +329,7 @@ class TestMaxDepthReached:
             failure_analyzer=analyzer,
         )
 
-        result = asyncio.run(
-            orch.plan_execute_observe("goal", max_depth=0, mission_id=str(uuid4()))
-        )
+        result = asyncio.run(orch.plan_execute_observe("goal", max_depth=0, mission_id=str(uuid4())))
 
         assert result.success is False
         assert "depth" in (result.error or "").lower()
@@ -361,7 +341,6 @@ class TestMaxDepthReached:
 
 
 class TestAlternativeToolsPath:
-
     def test_alternative_tools_triggered_when_recoverable_no_retry(self):
         """When recoverable but no retry recommended with alt tools."""
         nexus = MagicMock()
@@ -396,7 +375,6 @@ class TestAlternativeToolsPath:
 
 
 class TestMetaLoopOrchestratorSingleton:
-
     def test_get_orchestrator_returns_same_instance(self):
         mlo1 = get_meta_loop_orchestrator()
         mlo2 = get_meta_loop_orchestrator()

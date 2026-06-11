@@ -14,9 +14,7 @@ redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 async def get_dashboard_analytics(db: AsyncSession) -> dict:
     seven_days_ago = datetime.now(UTC) - timedelta(days=7)
 
-    total_stmt = select(func.count(Mission.id)).where(
-        Mission.created_at >= seven_days_ago
-    )
+    total_stmt = select(func.count(Mission.id)).where(Mission.created_at >= seven_days_ago)
     total = (await db.execute(total_stmt)).scalar() or 0
 
     success_stmt = select(func.count(Mission.id)).where(
@@ -26,10 +24,7 @@ async def get_dashboard_analytics(db: AsyncSession) -> dict:
     success_rate = (success_count / total * 100) if total > 0 else 0.0
 
     avg_stmt = select(
-        func.avg(
-            func.extract("epoch", Mission.completed_at)
-            - func.extract("epoch", Mission.started_at)
-        )
+        func.avg(func.extract("epoch", Mission.completed_at) - func.extract("epoch", Mission.started_at))
     ).where(
         Mission.created_at >= seven_days_ago,
         Mission.started_at.isnot(None),
@@ -51,10 +46,7 @@ async def get_dashboard_analytics(db: AsyncSession) -> dict:
         .limit(5)
     )
     failed_result = await db.execute(failed_stmt)
-    top_failed = [
-        {"mission_name": row.mission_name, "failure_count": row.failure_count}
-        for row in failed_result
-    ]
+    top_failed = [{"mission_name": row.mission_name, "failure_count": row.failure_count} for row in failed_result]
 
     return {
         "seven_day_success_rate": round(success_rate, 2),
@@ -79,9 +71,7 @@ async def get_firefighting_metrics(db: AsyncSession, hours: int = 24) -> dict:
         return json.loads(cached)
 
     # AC-1: Total failed mission count in period
-    failed_count_stmt = select(func.count(Mission.id)).where(
-        Mission.status == "failed", Mission.created_at >= since
-    )
+    failed_count_stmt = select(func.count(Mission.id)).where(Mission.status == "failed", Mission.created_at >= since)
     failed_mission_count = (await db.execute(failed_count_stmt)).scalar() or 0
 
     # AC-2: Avg retry count per failed mission
@@ -115,9 +105,7 @@ async def get_firefighting_metrics(db: AsyncSession, hours: int = 24) -> dict:
         .limit(3)
     )
     error_code_result = await db.execute(error_code_stmt)
-    top_error_codes = [
-        {"code": row.error_code, "count": row.count} for row in error_code_result
-    ]
+    top_error_codes = [{"code": row.error_code, "count": row.count} for row in error_code_result]
 
     # AC-4: Manual intervention missions (H-2 fix: max retries exceeded)
     manual_intervention_stmt = (
@@ -142,9 +130,7 @@ async def get_firefighting_metrics(db: AsyncSession, hours: int = 24) -> dict:
         {
             "missionId": str(row.missionId),
             "errorCode": row.errorCode or "UNKNOWN",
-            "lastUpdateTimestamp": (
-                row.lastUpdateTimestamp.isoformat() if row.lastUpdateTimestamp else ""
-            ),
+            "lastUpdateTimestamp": (row.lastUpdateTimestamp.isoformat() if row.lastUpdateTimestamp else ""),
         }
         for row in manual_intervention_result
     ]

@@ -97,9 +97,7 @@ class Span:
         self.status = SpanStatus.ERROR
         self.error = str(error)
         self.error_stack = traceback.format_exc()
-        self.add_event(
-            "exception", {"type": type(error).__name__, "message": str(error)}
-        )
+        self.add_event("exception", {"type": type(error).__name__, "message": str(error)})
 
     def finish(self):
         """Mark span as complete"""
@@ -154,9 +152,7 @@ class Trace:
     def finish(self):
         """Mark trace as complete"""
         self.end_time = datetime.now(UTC)
-        self.total_duration_ms = (
-            self.end_time - self.start_time
-        ).total_seconds() * 1000
+        self.total_duration_ms = (self.end_time - self.start_time).total_seconds() * 1000
 
     def get_span_tree(self) -> dict[str, Any]:
         """Build hierarchical span tree"""
@@ -298,9 +294,7 @@ class ObservabilityService:
         """Register handler for error alerts"""
         self._error_handlers.append(handler)
 
-    def register_performance_handler(
-        self, handler: Callable[[str, float], Awaitable[None]]
-    ):
+    def register_performance_handler(self, handler: Callable[[str, float], Awaitable[None]]):
         """Register handler for performance alerts"""
         self._performance_handlers.append(handler)
 
@@ -370,9 +364,7 @@ class ObservabilityService:
         """
         span_id = self._generate_id()
         trace_id = self._context.get("current_trace_id", self._generate_id())
-        parent_span_id = (
-            parent_span.span_id if parent_span else self._context.get("current_span_id")
-        )
+        parent_span_id = parent_span.span_id if parent_span else self._context.get("current_span_id")
 
         span = Span(
             span_id=span_id,
@@ -419,9 +411,7 @@ class ObservabilityService:
 
         # Update performance stats
         if span.operation_name not in self._performance_stats:
-            self._performance_stats[span.operation_name] = PerformanceStats(
-                operation=span.operation_name
-            )
+            self._performance_stats[span.operation_name] = PerformanceStats(operation=span.operation_name)
 
         self._performance_stats[span.operation_name].update(
             span.duration_ms or 0, is_error=(span.status == SpanStatus.ERROR)
@@ -635,9 +625,7 @@ class ObservabilityService:
 
         return errors[-limit:]
 
-    async def get_performance_stats(
-        self, operation: str | None = None
-    ) -> dict[str, Any]:
+    async def get_performance_stats(self, operation: str | None = None) -> dict[str, Any]:
         """Get performance statistics"""
         if operation:
             stats = self._performance_stats.get(operation)

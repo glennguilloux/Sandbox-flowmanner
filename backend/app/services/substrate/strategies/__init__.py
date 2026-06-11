@@ -48,9 +48,7 @@ class StrategyRegistry:
             except ImportError as e:
                 import logging
 
-                logging.getLogger(__name__).warning(
-                    "Could not import strategy %s: %s", wf_type, e
-                )
+                logging.getLogger(__name__).warning("Could not import strategy %s: %s", wf_type, e)
 
         cls._imported.add("all")
 

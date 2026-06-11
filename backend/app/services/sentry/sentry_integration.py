@@ -8,7 +8,7 @@ with the existing ObservabilityService for unified error tracking.
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Any
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -94,9 +94,7 @@ class SentryConfig:
         """Load configuration from environment variables"""
         return cls(
             dsn=os.getenv("SENTRY_DSN"),
-            environment=os.getenv(
-                "SENTRY_ENVIRONMENT", os.getenv("NODE_ENV", "production")
-            ),
+            environment=os.getenv("SENTRY_ENVIRONMENT", os.getenv("NODE_ENV", "production")),
             release=os.getenv("SENTRY_RELEASE", os.getenv("GIT_COMMIT_SHA")),
             traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
             profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.1")),
@@ -184,16 +182,14 @@ class SentryIntegration:
             sentry_sdk.set_tag("seer_enabled", self.config.enable_seer)  # type: ignore[attr-defined]
 
             self._initialized = True
-            logger.info('✅ Sentry SDK initialized (environment: %s)', self.config.environment)
+            logger.info("✅ Sentry SDK initialized (environment: %s)", self.config.environment)
             return True
 
         except Exception as e:
-            logger.error('Failed to initialize Sentry SDK: %s', e)
+            logger.error("Failed to initialize Sentry SDK: %s", e)
             return False
 
-    def _before_send(
-        self, event: dict[str, Any], hint: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _before_send(self, event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
         """
         Process event before sending to Sentry.
         Handles data scrubbing and filtering.
@@ -215,9 +211,7 @@ class SentryIntegration:
 
         return event
 
-    def _before_send_transaction(
-        self, event: dict[str, Any], hint: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _before_send_transaction(self, event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
         """Process transaction before sending to Sentry."""
         # Apply same scrubbing to transactions
         return self._before_send(event, hint)
@@ -232,19 +226,14 @@ class SentryIntegration:
             key_lower = key.lower()
 
             # Check if this is a sensitive field
-            is_sensitive = any(
-                sensitive in key_lower for sensitive in self.config.sensitive_fields
-            )
+            is_sensitive = any(sensitive in key_lower for sensitive in self.config.sensitive_fields)
 
             if is_sensitive:
                 scrubbed[key] = "[Filtered]"
             elif isinstance(value, dict):
                 scrubbed[key] = self._scrub_dict(value)
             elif isinstance(value, list):
-                scrubbed[key] = [
-                    self._scrub_dict(item) if isinstance(item, dict) else item
-                    for item in value
-                ]
+                scrubbed[key] = [self._scrub_dict(item) if isinstance(item, dict) else item for item in value]
             else:
                 scrubbed[key] = value
 
@@ -295,16 +284,14 @@ class SentryIntegration:
                 # Capture the exception
                 event_id = sentry_sdk.capture_exception(error)  # type: ignore[attr-defined]
 
-                logger.debug('Captured error in Sentry: %s', event_id)
+                logger.debug("Captured error in Sentry: %s", event_id)
                 return event_id
 
         except Exception as e:
-            logger.error('Failed to capture exception in Sentry: %s', e)
+            logger.error("Failed to capture exception in Sentry: %s", e)
             return None
 
-    def capture_message(
-        self, message: str, level: str = "info", context: dict[str, Any] | None = None
-    ) -> str | None:
+    def capture_message(self, message: str, level: str = "info", context: dict[str, Any] | None = None) -> str | None:
         """
         Capture a message and send to Sentry.
 
@@ -327,12 +314,10 @@ class SentryIntegration:
                 event_id = sentry_sdk.capture_message(message, level=level)  # type: ignore[attr-defined]
                 return event_id
         except Exception as e:
-            logger.error('Failed to capture message in Sentry: %s', e)
+            logger.error("Failed to capture message in Sentry: %s", e)
             return None
 
-    def set_user(
-        self, user_id: str, email: str | None = None, username: str | None = None
-    ):
+    def set_user(self, user_id: str, email: str | None = None, username: str | None = None):
         """Set user context for Sentry events."""
         if not self._initialized or not SENTRY_AVAILABLE:
             return
@@ -394,9 +379,7 @@ class SentryIntegration:
             try:
                 raise Exception(f"{error_type}: {message}")
             except Exception as e:
-                e.__traceback__ = (
-                    self._create_traceback(stack_trace) if stack_trace else None
-                )
+                e.__traceback__ = self._create_traceback(stack_trace) if stack_trace else None
 
                 event_id = self.capture_exception(
                     error=e,
@@ -415,7 +398,7 @@ class SentryIntegration:
                     error_record.context["sentry_event_id"] = event_id
 
         except Exception as e:
-            logger.error('Error in Sentry error handler: %s', e)
+            logger.error("Error in Sentry error handler: %s", e)
 
     def _create_traceback(self, stack_trace: str):
         """Create a traceback object from string representation."""

@@ -40,9 +40,7 @@ class HttpIntegrationExecutor:
         try:
             auth_config = json.loads(decrypt_api_key(config.auth_config_encrypted))
         except Exception as e:
-            logger.warning(
-                "Failed to decrypt auth config for integration %s: %s", config.id, e
-            )
+            logger.warning("Failed to decrypt auth config for integration %s: %s", config.id, e)
             return {}
 
         if config.auth_type == "bearer":
@@ -101,11 +99,7 @@ class HttpIntegrationExecutor:
 
         # Redact sensitive headers for logging
         safe_headers = {
-            k: (
-                "[REDACTED]"
-                if k.lower() in ("authorization",) or "key" in k.lower()
-                else v
-            )
+            k: ("[REDACTED]" if k.lower() in ("authorization",) or "key" in k.lower() else v)
             for k, v in request_headers.items()
         }
 
@@ -169,9 +163,7 @@ class HttpIntegrationExecutor:
                         }
                     else:
                         log_entry.status = "failed"
-                        log_entry.error_message = (
-                            f"HTTP {response.status_code}: {response_body[:200]}"
-                        )
+                        log_entry.error_message = f"HTTP {response.status_code}: {response_body[:200]}"
                         await db.commit()
                         return {
                             "success": False,

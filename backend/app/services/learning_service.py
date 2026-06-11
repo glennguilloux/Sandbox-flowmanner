@@ -48,9 +48,7 @@ class LearningService:
             client.get_collections()
             self._qdrant_client = client
             self._qdrant_available = True
-            logger.info(
-                "LearningService connected to Qdrant at %s", settings.QDRANT_URL
-            )
+            logger.info("LearningService connected to Qdrant at %s", settings.QDRANT_URL)
             return self._qdrant_client
         except Exception as e:
             logger.warning(
@@ -67,9 +65,7 @@ class LearningService:
         try:
             from sentence_transformers import SentenceTransformer
 
-            logger.info(
-                "LearningService loading embedding model '%s'...", EMBEDDING_MODEL_NAME
-            )
+            logger.info("LearningService loading embedding model '%s'...", EMBEDDING_MODEL_NAME)
             self._embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
             logger.info("LearningService embedding model loaded")
             return self._embedding_model
@@ -90,13 +86,9 @@ class LearningService:
             if MISSION_EMBEDDINGS_COLLECTION not in names:
                 client.create_collection(
                     collection_name=MISSION_EMBEDDINGS_COLLECTION,
-                    vectors_config=VectorParams(
-                        size=EMBEDDING_DIM, distance=Distance.COSINE
-                    ),
+                    vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
                 )
-                logger.info(
-                    "Created Qdrant collection '%s'", MISSION_EMBEDDINGS_COLLECTION
-                )
+                logger.info("Created Qdrant collection '%s'", MISSION_EMBEDDINGS_COLLECTION)
             return True
         except Exception as e:
             logger.warning("LearningService: failed to ensure collection: %s", e)
@@ -138,15 +130,9 @@ class LearningService:
                 return None
 
             # Build context summary from similar tasks
-            success_count = sum(
-                1 for t in similar_tasks if t.get("success_rate", 0) > 0.5
-            )
+            success_count = sum(1 for t in similar_tasks if t.get("success_rate", 0) > 0.5)
             total = len(similar_tasks)
-            avg_success = (
-                sum(t.get("success_rate", 0) for t in similar_tasks) / total
-                if total
-                else 0
-            )
+            avg_success = sum(t.get("success_rate", 0) for t in similar_tasks) / total if total else 0
 
             # Extract success patterns
             success_patterns: list[str] = []
@@ -435,12 +421,9 @@ class LearningService:
 
                 # Build OR conditions for keyword matching
                 conditions = " OR ".join(
-                    f"(title ILIKE :kw{i} OR description ILIKE :kw{i})"
-                    for i in range(len(keywords))
+                    f"(title ILIKE :kw{i} OR description ILIKE :kw{i})" for i in range(len(keywords))
                 )
-                params: dict[str, Any] = {
-                    f"kw{i}": f"%{kw}%" for i, kw in enumerate(keywords)
-                }
+                params: dict[str, Any] = {f"kw{i}": f"%{kw}%" for i, kw in enumerate(keywords)}
 
                 query = text(
                     f"SELECT id, title, description, mission_type, status, "
@@ -470,9 +453,7 @@ class LearningService:
 
                     tasks.append(
                         {
-                            "task_description": f"{row[1] or ''} {row[2] or ''}".strip()[
-                                :200
-                            ],
+                            "task_description": f"{row[1] or ''} {row[2] or ''}".strip()[:200],
                             "mission_id": mission_id,
                             "success_rate": 1.0 if success else 0.0,
                             "avg_duration": duration,
@@ -514,9 +495,7 @@ def _summarize_plan(plan: dict) -> dict:
     tasks = plan.get("tasks", [])
     return {
         "task_count": len(tasks),
-        "task_types": (
-            list({t.get("task_type", "unknown") for t in tasks}) if tasks else []
-        ),
+        "task_types": (list({t.get("task_type", "unknown") for t in tasks}) if tasks else []),
     }
 
 

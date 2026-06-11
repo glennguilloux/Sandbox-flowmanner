@@ -183,9 +183,7 @@ class ToolRegistry:
         tool = self._tools.pop(tool_id)
 
         if tool.category in self._categories:
-            self._categories[tool.category] = [
-                t for t in self._categories[tool.category] if t != tool_id
-            ]
+            self._categories[tool.category] = [t for t in self._categories[tool.category] if t != tool_id]
 
         for tag in tool.tags:
             if tag in self._tags:
@@ -297,9 +295,7 @@ class ToolRegistry:
 
         _log = logging.getLogger(__name__)
 
-        result = await session.execute(
-            select(ToolModel).where(ToolModel.enabled.is_(True))
-        )
+        result = await session.execute(select(ToolModel).where(ToolModel.enabled.is_(True)))
         db_tools = result.scalars().all()
 
         hydrated = 0

@@ -5,8 +5,9 @@ Revises: phase104_retarget_aux_tables
 Create Date: 2026-06-10
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "add_community_comments"
 down_revision = "phase103_drop_old_tables"
@@ -46,9 +47,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("content", sa.Text, nullable=False),
-        sa.Column(
-            "is_deleted", sa.Boolean, nullable=False, server_default=sa.text("false")
-        ),
+        sa.Column("is_deleted", sa.Boolean, nullable=False, server_default=sa.text("false")),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

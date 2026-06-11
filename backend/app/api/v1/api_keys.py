@@ -272,10 +272,7 @@ async def list_keys(
 ):
     query = select(UserAPIKey).where(UserAPIKey.user_id == user.id)
     if workspace_id:
-        query = query.where(
-            (UserAPIKey.workspace_id == workspace_id)
-            | (UserAPIKey.workspace_id.is_(None))
-        )
+        query = query.where((UserAPIKey.workspace_id == workspace_id) | (UserAPIKey.workspace_id.is_(None)))
     query = query.order_by(UserAPIKey.id)
     result = await db.execute(query)
     keys = result.scalars().all()
@@ -354,14 +351,9 @@ async def delete_key(
     workspace_id: str | None = Depends(get_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(UserAPIKey).where(
-        UserAPIKey.id == key_id, UserAPIKey.user_id == user.id
-    )
+    query = select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id)
     if workspace_id:
-        query = query.where(
-            (UserAPIKey.workspace_id == workspace_id)
-            | (UserAPIKey.workspace_id.is_(None))
-        )
+        query = query.where((UserAPIKey.workspace_id == workspace_id) | (UserAPIKey.workspace_id.is_(None)))
     result = await db.execute(query)
     key = result.scalar_one_or_none()
     if not key:
@@ -377,14 +369,9 @@ async def test_key(
     workspace_id: str | None = Depends(get_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(UserAPIKey).where(
-        UserAPIKey.id == key_id, UserAPIKey.user_id == user.id
-    )
+    query = select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id)
     if workspace_id:
-        query = query.where(
-            (UserAPIKey.workspace_id == workspace_id)
-            | (UserAPIKey.workspace_id.is_(None))
-        )
+        query = query.where((UserAPIKey.workspace_id == workspace_id) | (UserAPIKey.workspace_id.is_(None)))
     result = await db.execute(query)
     key = result.scalar_one_or_none()
     if not key:
@@ -392,9 +379,7 @@ async def test_key(
     # Test the key by calling the provider's models endpoint
     try:
         api_key = key.get_api_key()
-        base_url = key.base_url or _PROVIDER_BASE_URLS.get(
-            key.provider.lower(), _PROVIDER_BASE_URLS["openai"]
-        )
+        base_url = key.base_url or _PROVIDER_BASE_URLS.get(key.provider.lower(), _PROVIDER_BASE_URLS["openai"])
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 f"{base_url.rstrip('/')}/models",

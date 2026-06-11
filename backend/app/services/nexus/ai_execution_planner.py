@@ -96,9 +96,7 @@ class AIExecutionPlanner:
                 self._topology_manager = get_topology_manager()
                 logger.info("AIExecutionPlanner initialized with semantic matching")
             except Exception as e:
-                logger.warning(
-                    "Semantic layer unavailable, using rule-based fallback: %s", e
-                )
+                logger.warning("Semantic layer unavailable, using rule-based fallback: %s", e)
                 self._use_semantic = False
 
     def _setup_default_rules(self):
@@ -198,9 +196,7 @@ class AIExecutionPlanner:
         if self._use_semantic and self._topology_manager:
             return await self._create_semantic_plan(goal, context, available_agents)
         else:
-            return await self._create_rule_based_plan(
-                goal, context, available_capabilities
-            )
+            return await self._create_rule_based_plan(goal, context, available_capabilities)
 
     async def _create_semantic_plan(
         self,
@@ -213,9 +209,7 @@ class AIExecutionPlanner:
         step_id = 0
 
         # Find best matching agents using attention
-        matches = await self._topology_manager.find_best_agent(
-            query=goal, max_results=5
-        )
+        matches = await self._topology_manager.find_best_agent(query=goal, max_results=5)
 
         # Filter by available agents if specified
         if available_agents:
@@ -276,9 +270,7 @@ class AIExecutionPlanner:
 
         # Filter by available capabilities if specified
         if available_capabilities:
-            matched_capabilities = matched_capabilities.intersection(
-                set(available_capabilities)
-            )
+            matched_capabilities = matched_capabilities.intersection(set(available_capabilities))
 
         # Create steps
         for cap_id in matched_capabilities:
@@ -353,9 +345,7 @@ class AIExecutionPlanner:
             "estimated_usd": round(total, 4),
             "step_count": len(steps),
             "llm_steps": sum(1 for s in steps if "agent" in s.capability_id),
-            "avg_confidence": (
-                sum(s.confidence for s in steps) / len(steps) if steps else 0
-            ),
+            "avg_confidence": (sum(s.confidence for s in steps) / len(steps) if steps else 0),
         }
 
     async def optimize_plan(self, plan: ExecutionPlan) -> ExecutionPlan:
@@ -383,13 +373,9 @@ class AIExecutionPlanner:
             deps = f" (depends on: {step.depends_on})" if step.depends_on else ""
             agent = f" [{step.agent_id}]" if step.agent_id else ""
             conf = f" ({step.confidence:.2f})" if step.confidence > 0 else ""
-            lines.append(
-                f"  Step {step.step_id}: {step.capability_id}{agent}{conf}{deps}"
-            )
+            lines.append(f"  Step {step.step_id}: {step.capability_id}{agent}{conf}{deps}")
 
-        lines.append(
-            f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}"
-        )
+        lines.append(f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}")
 
         return "\n".join(lines)
 

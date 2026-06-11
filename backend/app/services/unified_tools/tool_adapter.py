@@ -9,7 +9,7 @@ import inspect
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Any
+from typing import Any
 
 from .tool_registry import Tool, get_tool_registry
 
@@ -198,9 +198,7 @@ class ToolAdapter:
         self.registry = registry or get_tool_registry()
         self._adapted_services: dict[str, list[str]] = {}
 
-    def adapt_service(
-        self, service_name: str, service_instance: Any, methods: list[str] | None = None
-    ) -> list[Tool]:
+    def adapt_service(self, service_name: str, service_instance: Any, methods: list[str] | None = None) -> list[Tool]:
         """
         Adapt a service instance into tools.
 
@@ -365,9 +363,7 @@ class ToolAdapter:
         """List all adapted services and their tools"""
         return self._adapted_services.copy()
 
-    def register_service_mapping(
-        self, service_name: str, method_tools: dict[str, dict[str, Any]]
-    ) -> None:
+    def register_service_mapping(self, service_name: str, method_tools: dict[str, dict[str, Any]]) -> None:
         """Register custom service-to-tool mappings"""
         self.SERVICE_TOOL_MAPPING[service_name] = method_tools
         logger.info("Registered custom mapping for %s", service_name)

@@ -117,9 +117,7 @@ def _validate_date_range(start_str: str, end_str: str) -> tuple[str, str, str | 
         return (
             start_str,
             end_str,
-            (
-                f"Date range ({delta} days) exceeds maximum allowed ({GA_MAX_DATE_RANGE_DAYS} days)"
-            ),
+            (f"Date range ({delta} days) exceeds maximum allowed ({GA_MAX_DATE_RANGE_DAYS} days)"),
         )
 
     return start_str, end_str, None
@@ -265,9 +263,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
         try:
             validated = GoogleAnalyticsReporterInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in GA_ACTIONS:
             return ToolResult.error_result(
@@ -308,9 +304,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: GoogleAnalyticsReporterInput, property_id: str | None
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: GoogleAnalyticsReporterInput, property_id: str | None) -> dict[str, Any]:
         if validated.action == "run_report":
             return await self._run_report(validated, property_id)
         elif validated.action == "get_realtime":
@@ -332,9 +326,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
         elif GA_API_KEY:
             pass
         else:
-            raise ValueError(
-                "No Google Analytics credentials configured. Set GA_SERVICE_ACCOUNT_JSON or GA_API_KEY."
-            )
+            raise ValueError("No Google Analytics credentials configured. Set GA_SERVICE_ACCOUNT_JSON or GA_API_KEY.")
 
         return headers
 
@@ -357,9 +349,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
 
     # ── Action handlers ──────────────────────────────────────────
 
-    async def _run_report(
-        self, validated: GoogleAnalyticsReporterInput, property_id: str | None
-    ) -> dict[str, Any]:
+    async def _run_report(self, validated: GoogleAnalyticsReporterInput, property_id: str | None) -> dict[str, Any]:
         """Run a Google Analytics report with Redis caching."""
         if not validated.metrics:
             return {"error": "metrics is required for run_report", "success": False}
@@ -383,9 +373,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
             body["dimensions"] = [{"name": d} for d in validated.dimensions]
 
         if validated.order_by:
-            body["orderBys"] = [
-                {"metric": {"metricName": validated.order_by}, "desc": True}
-            ]
+            body["orderBys"] = [{"metric": {"metricName": validated.order_by}, "desc": True}]
 
         # Check Redis cache (skip for realtime or if bypass_cache set)
         cache_key = _build_cache_key(property_id or "unknown", body)
@@ -453,9 +441,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
 
         return result
 
-    async def _get_realtime(
-        self, validated: GoogleAnalyticsReporterInput, property_id: str | None
-    ) -> dict[str, Any]:
+    async def _get_realtime(self, validated: GoogleAnalyticsReporterInput, property_id: str | None) -> dict[str, Any]:
         """Get real-time analytics data (not cached)."""
         headers = await self._get_headers()
         params: dict[str, Any] = {}
@@ -468,15 +454,8 @@ class GoogleAnalyticsReporterTool(BaseTool):
                 f"{GA_API_BASE}/{property_id}:runRealtimeReport",
                 params=params,
                 json={
-                    "metrics": [
-                        {"name": m} for m in (validated.metrics or ["activeUsers"])
-                    ],
-                    "dimensions": [
-                        {"name": d}
-                        for d in (
-                            validated.dimensions or ["pagePath", "deviceCategory"]
-                        )
-                    ],
+                    "metrics": [{"name": m} for m in (validated.metrics or ["activeUsers"])],
+                    "dimensions": [{"name": d} for d in (validated.dimensions or ["pagePath", "deviceCategory"])],
                     "limit": str(validated.limit),
                 },
             )
@@ -498,9 +477,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
                 entry[h.get("name", "metric")] = v.get("value", "")
             table.append(entry)
 
-        active_now = sum(
-            int(r.get("activeUsers", r.get("activeUsers", 0))) for r in table
-        )
+        active_now = sum(int(r.get("activeUsers", r.get("activeUsers", 0))) for r in table)
 
         return {
             "action": "get_realtime",
@@ -511,9 +488,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
             "success": True,
         }
 
-    async def _list_properties(
-        self, validated: GoogleAnalyticsReporterInput
-    ) -> dict[str, Any]:
+    async def _list_properties(self, validated: GoogleAnalyticsReporterInput) -> dict[str, Any]:
         """List available GA4 properties for the authenticated account."""
         headers = await self._get_headers()
         params: dict[str, Any] = {}
@@ -556,9 +531,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
             "success": True,
         }
 
-        await self._cache_set(
-            cache_key, result, ttl=600
-        )  # 10 min TTL for property list
+        await self._cache_set(cache_key, result, ttl=600)  # 10 min TTL for property list
         return result
 
 

@@ -173,9 +173,7 @@ class TransferResult:
             "adapted_content": self.adapted_content,
             "verification_outcome": self.verification_outcome,
             "target_success_rate": self.target_success_rate,
-            "transferred_at": (
-                self.transferred_at.isoformat() if self.transferred_at else None
-            ),
+            "transferred_at": (self.transferred_at.isoformat() if self.transferred_at else None),
             "verified_at": self.verified_at.isoformat() if self.verified_at else None,
             "error_message": self.error_message,
         }
@@ -472,24 +470,16 @@ class KnowledgeTransferAgent:
 
         if knowledge_type == TransferType.STRATEGY:
             transferable.extend(
-                await self._identify_strategy_knowledge(
-                    source_agent_id, min_confidence, min_applications
-                )
+                await self._identify_strategy_knowledge(source_agent_id, min_confidence, min_applications)
             )
 
         elif knowledge_type == TransferType.PATTERN:
             transferable.extend(
-                await self._identify_pattern_knowledge(
-                    source_agent_id, min_confidence, min_applications
-                )
+                await self._identify_pattern_knowledge(source_agent_id, min_confidence, min_applications)
             )
 
         elif knowledge_type == TransferType.FAILURE_MAPPING:
-            transferable.extend(
-                await self._identify_failure_mapping_knowledge(
-                    source_agent_id, min_confidence
-                )
-            )
+            transferable.extend(await self._identify_failure_mapping_knowledge(source_agent_id, min_confidence))
 
         return transferable
 
@@ -506,9 +496,7 @@ class KnowledgeTransferAgent:
             return knowledge_items
 
         # Get all established variants for this agent
-        variants = self.strategy_evolver.get_all_variants(
-            status=StrategyStatus.ESTABLISHED
-        )
+        variants = self.strategy_evolver.get_all_variants(status=StrategyStatus.ESTABLISHED)
 
         for variant in variants:
             if variant.confidence < min_confidence:
@@ -592,9 +580,7 @@ class KnowledgeTransferAgent:
 
         # Query knowledge graph for successful mappings
         for failure_type in FailureType:
-            strategies = await self.knowledge_graph.get_strategies_for_failure(
-                failure_type
-            )
+            strategies = await self.knowledge_graph.get_strategies_for_failure(failure_type)
 
             for strategy_node, success_rate in strategies:
                 if success_rate < min_confidence:
@@ -643,21 +629,15 @@ class KnowledgeTransferAgent:
         results: list[dict[str, Any]] = []
 
         # Calculate similarity
-        similarity, similarity_score = await self.calculate_similarity(
-            source_agent_id, target_agent_id
-        )
+        similarity, similarity_score = await self.calculate_similarity(source_agent_id, target_agent_id)
 
         if similarity == AgentSimilarity.INCOMPATIBLE:
-            logger.warning(
-                "Agents %s and %s are incompatible", source_agent_id, target_agent_id
-            )
+            logger.warning("Agents %s and %s are incompatible", source_agent_id, target_agent_id)
             return results
 
         # Identify transferable knowledge
         transfer_type = TransferType(knowledge_type.rstrip("s"))  # Handle plural
-        knowledge_items = await self.identify_transferable_knowledge(
-            source_agent_id, transfer_type
-        )
+        knowledge_items = await self.identify_transferable_knowledge(source_agent_id, transfer_type)
 
         for knowledge in knowledge_items:
             # Check minimum similarity
@@ -688,9 +668,7 @@ class KnowledgeTransferAgent:
 
             # Adapt knowledge if needed
             if knowledge.requires_adaptation:
-                adapted_content = await self._adapt_knowledge(
-                    knowledge, target_agent_id, similarity_score
-                )
+                adapted_content = await self._adapt_knowledge(knowledge, target_agent_id, similarity_score)
                 result.adaptation_applied = True
                 result.adapted_content = adapted_content
 
@@ -740,9 +718,7 @@ class KnowledgeTransferAgent:
                 target_tools = set(target_profile.tools)
 
                 # Keep only tools that target has
-                adapted_sequence = [
-                    t for t in content["tool_sequence"] if t in target_tools
-                ]
+                adapted_sequence = [t for t in content["tool_sequence"] if t in target_tools]
 
                 # Find alternatives for missing tools
                 missing_tools = source_tools - target_tools
@@ -758,9 +734,7 @@ class KnowledgeTransferAgent:
                 # Adjust timeouts and rate limits for different models
                 if "timeout" in content["config_snapshot"]:
                     # Scale by similarity
-                    content["config_snapshot"]["timeout"] *= (
-                        0.8 + 0.4 * similarity_score
-                    )
+                    content["config_snapshot"]["timeout"] *= 0.8 + 0.4 * similarity_score
 
         return content
 
@@ -809,11 +783,7 @@ class KnowledgeTransferAgent:
                         "source_agent": result.knowledge.source_agent_id,
                         "target_agent": result.target_agent_id,
                         "content": content,
-                        "transferred_at": (
-                            result.transferred_at.isoformat()
-                            if result.transferred_at
-                            else None
-                        ),
+                        "transferred_at": (result.transferred_at.isoformat() if result.transferred_at else None),
                     },
                 )
 
@@ -900,7 +870,5 @@ def initialize_knowledge_transfer(
 ) -> KnowledgeTransferAgent:
     """Initialize the knowledge transfer agent."""
     global _knowledge_transfer
-    _knowledge_transfer = KnowledgeTransferAgent(
-        knowledge_graph, strategy_evolver, success_learner
-    )
+    _knowledge_transfer = KnowledgeTransferAgent(knowledge_graph, strategy_evolver, success_learner)
     return _knowledge_transfer

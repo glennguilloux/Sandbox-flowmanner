@@ -56,9 +56,7 @@ class BrowserService:
         try:
             page = session.page
 
-            response = await page.goto(
-                url, timeout=30000, wait_until="domcontentloaded"
-            )
+            response = await page.goto(url, timeout=30000, wait_until="domcontentloaded")
             final_url = page.url
 
             valid_redirect, redirect_error = validate_url_for_navigation(final_url)
@@ -292,9 +290,7 @@ class BrowserService:
                 logger.debug("click_selector_failed", exc_info=True)
 
             if locator.bbox_center_x is not None and locator.bbox_center_y is not None:
-                healed = await self._click_by_coordinates(
-                    page, locator.bbox_center_x, locator.bbox_center_y
-                )
+                healed = await self._click_by_coordinates(page, locator.bbox_center_x, locator.bbox_center_y)
                 if healed:
                     session.touch_user_interaction()
                     return {
@@ -318,9 +314,7 @@ class BrowserService:
             logger.error("Click error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
-    async def type_text(
-        self, user_id: str, ref: str, text: str, submit: bool = False
-    ) -> dict:
+    async def type_text(self, user_id: str, ref: str, text: str, submit: bool = False) -> dict:
         manager = get_browser_manager()
         session = manager.get_user_session(user_id)
 
@@ -355,13 +349,8 @@ class BrowserService:
                 else:
                     raise Exception("No handle")
             except Exception:
-                if (
-                    locator.bbox_center_x is not None
-                    and locator.bbox_center_y is not None
-                ):
-                    healed = await self._click_by_coordinates(
-                        page, locator.bbox_center_x, locator.bbox_center_y
-                    )
+                if locator.bbox_center_x is not None and locator.bbox_center_y is not None:
+                    healed = await self._click_by_coordinates(page, locator.bbox_center_x, locator.bbox_center_y)
                     if healed:
                         await page.keyboard.type(text)
                         if submit:
@@ -468,9 +457,7 @@ class BrowserService:
             session.touch()
             return {"success": True, "width": width, "height": height}
         except Exception as e:
-            logger.error(
-                "Viewport resize error for user %s: %s", user_id, e, exc_info=True
-            )
+            logger.error("Viewport resize error for user %s: %s", user_id, e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     async def get_console_logs(self, user_id: str) -> dict:

@@ -125,11 +125,7 @@ class CostAttributionEngine:
         )
         if year and month:
             start = datetime(year, month, 1)
-            end = (
-                datetime(year + 1, 1, 1)
-                if month == 12
-                else datetime(year, month + 1, 1)
-            )
+            end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
             stmt = stmt.where(
                 and_(
                     LLMCallRecord.timestamp >= start,
@@ -154,9 +150,7 @@ class CostAttributionEngine:
     ) -> float:
         """Total cost for a single mission."""
         result = await db.execute(
-            select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0)).where(
-                LLMCallRecord.mission_id == mission_id
-            )
+            select(func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0)).where(LLMCallRecord.mission_id == mission_id)
         )
         return float(result.scalar() or 0.0)
 
@@ -222,9 +216,7 @@ class CostAttributionEngine:
         # Map missions → users via separate query (avoids workspace_id dependency)
         user_costs: dict[int, float] = {}
         for mission_id, cost in missions.items():
-            user_result = await db.execute(
-                select(Mission.user_id).where(Mission.id == mission_id)
-            )
+            user_result = await db.execute(select(Mission.user_id).where(Mission.id == mission_id))
             uid = user_result.scalar()
             if uid is not None:
                 user_costs[int(uid)] = user_costs.get(int(uid), 0.0) + cost
@@ -268,9 +260,7 @@ class CostAttributionEngine:
 
         result = await db.execute(stmt)
         rows = result.all()
-        direct_costs: dict[str, float] = {
-            row[0]: float(row[1]) for row in rows if row[0]
-        }
+        direct_costs: dict[str, float] = {row[0]: float(row[1]) for row in rows if row[0]}
 
         # Also aggregate via Mission.workspace_id for records without direct attribution
         mission_stmt = (

@@ -82,7 +82,9 @@ def _fake_db_session(mock_db: AsyncMock):
 
 
 # Fake JWT: >50 chars, contains dots
-FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+FAKE_JWT = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+)
 
 # Fake UUID: 36-char hex with hyphens
 FAKE_UUID = "550e8400-e29b-41d4-a716-446655440000"
@@ -385,9 +387,7 @@ async def test_cached_result_skips_db():
     with (
         patch(_PATCH_DECODE, return_value="42"),
         patch(_PATCH_GET_DB, return_value=_fake_db_session(mock_db)),
-        patch(
-            _PATCH_GET_USER, new_callable=AsyncMock, return_value=mock_user
-        ) as mock_get_user,
+        patch(_PATCH_GET_USER, new_callable=AsyncMock, return_value=mock_user) as mock_get_user,
     ):
         result1 = await _authenticate_preview_request(req)
         assert result1 == "42"
@@ -397,9 +397,7 @@ async def test_cached_result_skips_db():
     with (
         patch(_PATCH_DECODE, return_value="42"),
         patch(_PATCH_GET_DB, return_value=_fake_db_session(mock_db)),
-        patch(
-            _PATCH_GET_USER, new_callable=AsyncMock, return_value=mock_user
-        ) as mock_get_user,
+        patch(_PATCH_GET_USER, new_callable=AsyncMock, return_value=mock_user) as mock_get_user,
     ):
         result2 = await _authenticate_preview_request(req)
         assert result2 == "42"

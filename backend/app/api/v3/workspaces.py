@@ -31,9 +31,7 @@ async def _require_workspaces_v3(db: AsyncSession) -> None:
         )
     )
     if not result.scalar():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
 
 
 async def _check_workspace_access(
@@ -50,13 +48,9 @@ async def _check_workspace_access(
     )
     membership = result.scalar_one_or_none()
     if not membership:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     if required_roles and membership.role not in required_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
     return membership
 
 
@@ -67,16 +61,12 @@ async def list_workspaces(
 ):
     await _require_workspaces_v3(db)
 
-    result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)
-    )
+    result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
     memberships = result.scalars().all()
 
     workspaces = []
     for m in memberships:
-        ws_result = await db.execute(
-            select(Workspace).where(Workspace.id == m.workspace_id)
-        )
+        ws_result = await db.execute(select(Workspace).where(Workspace.id == m.workspace_id))
         ws = ws_result.scalar_one_or_none()
         if ws and ws.is_active:
             workspaces.append(
@@ -108,9 +98,7 @@ async def create_workspace(
 
     existing = await db.execute(select(Workspace).where(Workspace.slug == slug))
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Slug already taken"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Slug already taken")
 
     ws = Workspace(id=ws_id, name=payload.name, slug=slug, owner_id=user.id)
     db.add(ws)
@@ -148,13 +136,9 @@ async def get_workspace(
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
     if not ws:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
-    member_count_result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id)
-    )
+    member_count_result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id))
     member_count = len(member_count_result.scalars().all())
 
     return ok(
@@ -188,9 +172,7 @@ async def update_workspace(
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
     if not ws:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     if payload.name is not None:
         ws.name = payload.name
@@ -232,9 +214,7 @@ async def delete_workspace(
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
     if not ws:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     await db.delete(ws)
     await db.flush()
@@ -250,9 +230,7 @@ async def list_members(
     await _require_workspaces_v3(db)
     await _check_workspace_access(db, workspace_id, user.id)
 
-    result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id)
-    )
+    result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id))
     members = result.scalars().all()
 
     member_list = []

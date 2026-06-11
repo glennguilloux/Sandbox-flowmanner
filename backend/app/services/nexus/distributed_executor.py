@@ -75,9 +75,7 @@ if CELERY_AVAILABLE:
                 len(registry.list_capabilities()),
             )
         except Exception as e:
-            logger.error(
-                "[Celery Worker] Failed to initialize capability registry: %s", e
-            )
+            logger.error("[Celery Worker] Failed to initialize capability registry: %s", e)
 
 
 class TaskStatus(str, Enum):
@@ -118,9 +116,7 @@ class DistributedTask:
             "progress": self.progress,
             "created_at": self.created_at.isoformat(),
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
             "worker_name": self.worker_name,
             "metadata": self.metadata,
         }
@@ -160,9 +156,7 @@ class ExecutionDAG:
         """Get nodes ready for execution (all dependencies met)"""
         ready = []
         for node_id, node in self.nodes.items():
-            if node["status"] == "pending" and all(
-                dep in completed for dep in node["depends_on"]
-            ):
+            if node["status"] == "pending" and all(dep in completed for dep in node["depends_on"]):
                 ready.append(node_id)
         return ready
 
@@ -188,9 +182,7 @@ class NexusCeleryTasks:
             logger.warning("Cannot register tasks: Celery not available")
             return
 
-        logger.info(
-            "[Celery Worker] Pre-initializing capability registry before task registration..."
-        )
+        logger.info("[Celery Worker] Pre-initializing capability registry before task registration...")
         try:
             from .capability_registry import get_capability_registry
             from .orchestrator import get_nexus_orchestrator
@@ -202,9 +194,7 @@ class NexusCeleryTasks:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     init_task = asyncio.create_task(orchestrator.initialize())
-                    init_task.add_done_callback(
-                        lambda task: task.exception() if not task.cancelled() else None
-                    )
+                    init_task.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
                 else:
                     loop.run_until_complete(orchestrator.initialize())
             except RuntimeError:
@@ -220,9 +210,7 @@ class NexusCeleryTasks:
                 len(registry.list_capabilities()),
             )
         except Exception as e:
-            logger.error(
-                "[Celery Worker] Failed to pre-initialize capability registry: %s", e
-            )
+            logger.error("[Celery Worker] Failed to pre-initialize capability registry: %s", e)
 
         @celery_app.task(bind=True, name="nexus.execute_capability")
         def execute_capability_task(
@@ -268,9 +256,7 @@ class NexusCeleryTasks:
                     "success": True,
                     "capability_id": capability_id,
                     "result": result,
-                    "worker": (
-                        self.request.hostname if hasattr(self, "request") else "unknown"
-                    ),
+                    "worker": (self.request.hostname if hasattr(self, "request") else "unknown"),
                 }
 
             except Exception as e:
@@ -298,9 +284,7 @@ class NexusCeleryTasks:
             logger.info("Executing DAG node: %s in DAG %s", node_id, dag_id)
 
             try:
-                self.update_state(
-                    state="PROGRESS", meta={"node_id": node_id, "progress": 0}
-                )
+                self.update_state(state="PROGRESS", meta={"node_id": node_id, "progress": 0})
 
                 # Merge dependency results into params
                 if dependency_results:
@@ -327,9 +311,7 @@ class NexusCeleryTasks:
                 else:
                     result = capability.execute(params)
 
-                self.update_state(
-                    state="PROGRESS", meta={"node_id": node_id, "progress": 100}
-                )
+                self.update_state(state="PROGRESS", meta={"node_id": node_id, "progress": 100})
 
                 return {
                     "success": True,
@@ -357,9 +339,7 @@ class NexusCeleryTasks:
             logger.info("Executing composed capability: %s", composed_id)
 
             try:
-                self.update_state(
-                    state="PROGRESS", meta={"composed_id": composed_id, "progress": 0}
-                )
+                self.update_state(state="PROGRESS", meta={"composed_id": composed_id, "progress": 0})
 
                 composer = get_capability_composer()
 
@@ -367,15 +347,11 @@ class NexusCeleryTasks:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    result = loop.run_until_complete(
-                        composer.execute_composed(composed_id, params)
-                    )
+                    result = loop.run_until_complete(composer.execute_composed(composed_id, params))
                 finally:
                     loop.close()
 
-                self.update_state(
-                    state="PROGRESS", meta={"composed_id": composed_id, "progress": 100}
-                )
+                self.update_state(state="PROGRESS", meta={"composed_id": composed_id, "progress": 100})
 
                 return {
                     "success": result.success,
@@ -539,9 +515,7 @@ class DistributedExecutor:
                     # Check for cycles or missing dependencies
                     remaining = [n for n in dag.nodes if n not in completed_nodes]
                     if remaining:
-                        logger.error(
-                            "DAG execution stuck, remaining nodes: %s", remaining
-                        )
+                        logger.error("DAG execution stuck, remaining nodes: %s", remaining)
                         break
                     break
 
@@ -551,9 +525,7 @@ class DistributedExecutor:
                     node = dag.nodes[node_id]
 
                     # Gather dependency results
-                    dep_results = {
-                        dep: node_results.get(dep) for dep in node["depends_on"]
-                    }
+                    dep_results = {dep: node_results.get(dep) for dep in node["depends_on"]}
 
                     tasks_to_submit.append(
                         {
@@ -591,9 +563,7 @@ class DistributedExecutor:
                             dag.nodes[node_id]["status"] = "completed"
                         else:
                             dag.nodes[node_id]["status"] = "failed"
-                            logger.error(
-                                "Node %s failed: %s", node_id, result.get("error")
-                            )
+                            logger.error("Node %s failed: %s", node_id, result.get("error"))
                     except Exception as e:
                         dag.nodes[node_id]["status"] = "failed"
                         logger.error("Node %s execution error: %s", node_id, e)
@@ -770,9 +740,7 @@ class DistributedExecutor:
             worker_stats = inspect.stats() or {}
             for worker, wstats in worker_stats.items():
                 if worker in stats["workers"]:
-                    stats["workers"][worker]["total_tasks"] = wstats.get(
-                        "total", {}
-                    ).get("tasks", 0)
+                    stats["workers"][worker]["total_tasks"] = wstats.get("total", {}).get("tasks", 0)
 
             return stats
 
@@ -792,8 +760,7 @@ class DistributedExecutor:
         to_remove = [
             task_id
             for task_id, task in self._tasks.items()
-            if task.status
-            in (TaskStatus.SUCCESS, TaskStatus.FAILURE, TaskStatus.REVOKED)
+            if task.status in (TaskStatus.SUCCESS, TaskStatus.FAILURE, TaskStatus.REVOKED)
         ]
         for task_id in to_remove:
             del self._tasks[task_id]

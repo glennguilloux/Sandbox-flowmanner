@@ -148,17 +148,11 @@ class RunService:
         if result.status in ("completed", "failed", "aborted"):
             run.completed_at = datetime.now(UTC)
         if result.data is not None:
-            run.output_data = (
-                result.data
-                if isinstance(result.data, dict)
-                else {"result": result.data}
-            )
+            run.output_data = result.data if isinstance(result.data, dict) else {"result": result.data}
 
         # Update blueprint stats
         if run.blueprint_id:
-            bp_result = await self.db.execute(
-                select(Blueprint).where(Blueprint.id == run.blueprint_id)
-            )
+            bp_result = await self.db.execute(select(Blueprint).where(Blueprint.id == run.blueprint_id))
             bp = bp_result.scalar_one_or_none()
             if bp:
                 bp.run_count = (bp.run_count or 0) + 1
@@ -179,9 +173,7 @@ class RunService:
             # Reuse existing Celery infrastructure with run_id
             dispatch_mission_execution(str(run.id), user_id)
         except Exception:
-            logger.warning(
-                "Celery dispatch failed for run %s, using background task", run_id
-            )
+            logger.warning("Celery dispatch failed for run %s, using background task", run_id)
             import asyncio
 
             async def _run():
@@ -197,9 +189,7 @@ class RunService:
 
     # ── Abort ───────────────────────────────────────────────────────
 
-    async def abort(
-        self, run_id: str, user_id: int, reason: str = "user_requested"
-    ) -> Run:
+    async def abort(self, run_id: str, user_id: int, reason: str = "user_requested") -> Run:
         """Abort a running execution."""
         run = await self.get(run_id, user_id)
 
@@ -210,9 +200,7 @@ class RunService:
             RunStatus.PAUSED.value,
         }
         if run.status not in active_statuses:
-            raise RunValidationError(
-                f"Cannot abort run in '{run.status}' status. Only active runs can be aborted."
-            )
+            raise RunValidationError(f"Cannot abort run in '{run.status}' status. Only active runs can be aborted.")
 
         run.status = RunStatus.ABORTED.value
         run.error_message = f"Aborted: {reason}"
@@ -235,9 +223,7 @@ class RunService:
         original = await self.get(run_id, user_id)
 
         if original.status != RunStatus.FAILED.value:
-            raise RunValidationError(
-                f"Can only retry a failed run, not '{original.status}'."
-            )
+            raise RunValidationError(f"Can only retry a failed run, not '{original.status}'.")
 
         # Create new run from same blueprint/snapshot
         new_run = Run(
@@ -324,9 +310,7 @@ class RunService:
 
     # ── Replay ──────────────────────────────────────────────────────
 
-    async def replay_state(
-        self, run_id: str, user_id: int, at_sequence: int | None = None
-    ) -> dict:
+    async def replay_state(self, run_id: str, user_id: int, at_sequence: int | None = None) -> dict:
         """Replay events to rebuild run state.
 
         If at_sequence is provided, rebuild state at that point (time-travel).
@@ -335,9 +319,7 @@ class RunService:
 
         replay = get_replay_engine()
         if at_sequence is not None:
-            state = await replay.rebuild_state_at_sequence(
-                self.db, str(run_id), at_sequence
-            )
+            state = await replay.rebuild_state_at_sequence(self.db, str(run_id), at_sequence)
         else:
             state = await replay.rebuild_state(self.db, str(run_id))
         return state.to_dict()

@@ -1,11 +1,11 @@
 """Tests for the evaluation system — models, services, API (sync only)."""
 
 import json
-import pytest
 from datetime import datetime, timezone
 
-from app.models.evaluation_models import GoldenDataset, GoldenTestCase, EvalRun
+import pytest
 
+from app.models.evaluation_models import EvalRun, GoldenDataset, GoldenTestCase
 
 # ── Model tests ─────────────────────────────────────────────────────────
 
@@ -151,12 +151,8 @@ def test_llm_judge_default_rubric():
 def test_eval_runner_config_hash():
     from app.services.evaluation.eval_runner import EvaluationRunner
 
-    h1 = EvaluationRunner._compute_config_hash(
-        {"system_prompt": "test", "temperature": 0.7}
-    )
-    h2 = EvaluationRunner._compute_config_hash(
-        {"temperature": 0.7, "system_prompt": "test"}
-    )
+    h1 = EvaluationRunner._compute_config_hash({"system_prompt": "test", "temperature": 0.7})
+    h2 = EvaluationRunner._compute_config_hash({"temperature": 0.7, "system_prompt": "test"})
     assert h1 == h2
 
 

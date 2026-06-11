@@ -14,9 +14,8 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
-
 
 # ── Test app setup ───────────────────────────────────────────────
 

@@ -98,8 +98,7 @@ def mission_to_workflow(
                     title=getattr(task, "title", ""),
                     description=getattr(task, "description", ""),
                     config={
-                        "prompt": getattr(task, "description", "")
-                        or getattr(task, "title", ""),
+                        "prompt": getattr(task, "description", "") or getattr(task, "title", ""),
                         "tool_name": getattr(task, "tool_id", None),
                     },
                     dependencies=_resolve_deps(task, tasks or []),
@@ -145,13 +144,9 @@ def mission_to_workflow(
         user_id=str(mission.user_id) if hasattr(mission, "user_id") else None,
         metadata={
             "substrate_run_id": (
-                mission.plan.get("substrate_run_id")
-                if hasattr(mission, "plan") and mission.plan
-                else None
+                mission.plan.get("substrate_run_id") if hasattr(mission, "plan") and mission.plan else None
             ),
-            "fallback_strategy": getattr(
-                mission, "fallback_strategy", "human_escalate"
-            ),
+            "fallback_strategy": getattr(mission, "fallback_strategy", "human_escalate"),
         },
     )
 

@@ -65,9 +65,7 @@ class CircuitBreakerTrip(Exception):
         self.limit = limit
         self.current = current
         self.max_val = max_val
-        super().__init__(
-            f"Circuit breaker [{limit}]: {reason} (current={current}, max={max_val})"
-        )
+        super().__init__(f"Circuit breaker [{limit}]: {reason} (current={current}, max={max_val})")
 
 
 # ── Breaker ────────────────────────────────────────────────────────

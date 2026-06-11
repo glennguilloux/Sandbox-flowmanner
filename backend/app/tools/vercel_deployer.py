@@ -233,10 +233,7 @@ class VercelDeployerTool(BaseTool):
             payload["projectSettings"] = {"framework": None}
 
         if v.env_vars:
-            payload["env"] = {
-                k: {"value": val, "type": "plain"}
-                for k, val in (v.env_vars or {}).items()
-            }
+            payload["env"] = {k: {"value": val, "type": "plain"} for k, val in (v.env_vars or {}).items()}
 
         resp = await self._request(
             "POST",
@@ -245,11 +242,7 @@ class VercelDeployerTool(BaseTool):
         )
 
         if resp.status_code >= 400:
-            error_body = (
-                resp.json()
-                if resp.headers.get("content-type", "").startswith("application/json")
-                else {}
-            )
+            error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             return {
                 "action": "trigger_deployment",
                 "error": f"Vercel API error {resp.status_code}: {error_body.get('error', {}).get('message', resp.text[:500])}",
@@ -399,11 +392,7 @@ class VercelDeployerTool(BaseTool):
                 "error": f"Vercel API error {resp.status_code}: {resp.text[:500]}",
             }
 
-        events = (
-            resp.json()
-            if isinstance(resp.json(), list)
-            else resp.json().get("events", [])
-        )
+        events = resp.json() if isinstance(resp.json(), list) else resp.json().get("events", [])
         # Summarize to most recent + key event types
         summarized: list[dict[str, Any]] = []
         for e in events[:50]:
@@ -412,11 +401,7 @@ class VercelDeployerTool(BaseTool):
                     "type": e.get("type"),
                     "created": e.get("created"),
                     "text": (e.get("payload", {}).get("text", "") or "")[:200],
-                    "info": (
-                        e.get("payload", {}).get("info", {})
-                        if e.get("payload")
-                        else None
-                    ),
+                    "info": (e.get("payload", {}).get("info", {}) if e.get("payload") else None),
                 }
             )
 

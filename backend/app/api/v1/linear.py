@@ -54,16 +54,12 @@ async def linear_webhook(
     # Verify signature
     signature = request.headers.get("Linear-Signature", "")
     if not _verify_linear_signature(body, signature, settings.LINEAR_WEBHOOK_SECRET):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
 
     action = payload.get("action")
     event_type = payload.get("type")
@@ -87,9 +83,7 @@ async def linear_webhook(
         return {"status": "ok", "action": action}
     except Exception as e:
         logger.error(f"Error handling Linear webhook: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 async def _find_system_user(db: AsyncSession) -> int | None:
@@ -98,9 +92,7 @@ async def _find_system_user(db: AsyncSession) -> int | None:
 
     from app.models.user import User
 
-    result = await db.execute(
-        select(User).where(User.email == "system@flowmanner.com").limit(1)
-    )
+    result = await db.execute(select(User).where(User.email == "system@flowmanner.com").limit(1))
     user = result.scalars().first()
     if user:
         return user.id
@@ -121,11 +113,7 @@ async def _handle_issue_created(db: AsyncSession, data: dict[str, Any]):
     issue_id = data.get("id")
 
     # Idempotency: check if already imported (Linear may retry webhooks)
-    existing = await db.execute(
-        select(Mission)
-        .where(Mission.plan["linear"]["issue_id"].astext == issue_id)
-        .limit(1)
-    )
+    existing = await db.execute(select(Mission).where(Mission.plan["linear"]["issue_id"].astext == issue_id).limit(1))
     if existing.scalars().first():
         logger.info(f"Linear issue {issue_id} already imported — skipping")
         return
@@ -175,11 +163,7 @@ async def _handle_issue_updated(db: AsyncSession, data: dict[str, Any]):
 
     # Find mission linked to this Linear issue
     # We search in plan->linear->issue_id (JSONB)
-    result = await db.execute(
-        select(Mission)
-        .where(Mission.plan["linear"]["issue_id"].astext == issue_id)
-        .limit(1)
-    )
+    result = await db.execute(select(Mission).where(Mission.plan["linear"]["issue_id"].astext == issue_id).limit(1))
     mission = result.scalars().first()
     if not mission:
         logger.debug(f"No linked mission for Linear issue {issue_id}")
@@ -193,9 +177,7 @@ async def _handle_issue_updated(db: AsyncSession, data: dict[str, Any]):
         if mission.status not in ("completed", "failed", "cancelled"):
             mission.status = "completed"
             await db.commit()
-            logger.info(
-                f"Marked mission {mission.id} as completed (Linear issue {issue_id} → {state_name})"
-            )
+            logger.info(f"Marked mission {mission.id} as completed (Linear issue {issue_id} → {state_name})")
     elif state_name in ("cancelled",) and mission.status not in (
         "completed",
         "failed",
@@ -203,9 +185,7 @@ async def _handle_issue_updated(db: AsyncSession, data: dict[str, Any]):
     ):
         mission.status = "cancelled"
         await db.commit()
-        logger.info(
-            f"Cancelled mission {mission.id} (Linear issue {issue_id} → {state_name})"
-        )
+        logger.info(f"Cancelled mission {mission.id} (Linear issue {issue_id} → {state_name})")
 
 
 async def _handle_issue_deleted(db: AsyncSession, data: dict[str, Any]):
@@ -216,11 +196,7 @@ async def _handle_issue_deleted(db: AsyncSession, data: dict[str, Any]):
 
     issue_id = data.get("id")
 
-    result = await db.execute(
-        select(Mission)
-        .where(Mission.plan["linear"]["issue_id"].astext == issue_id)
-        .limit(1)
-    )
+    result = await db.execute(select(Mission).where(Mission.plan["linear"]["issue_id"].astext == issue_id).limit(1))
     mission = result.scalars().first()
     if not mission:
         return

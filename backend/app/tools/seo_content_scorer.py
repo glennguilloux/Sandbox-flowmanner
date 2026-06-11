@@ -211,9 +211,7 @@ class SeoContentScorerTool(BaseTool):
         try:
             validated = SeoContentScorerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in SEO_ACTIONS:
             return ToolResult.error_result(
@@ -250,14 +248,10 @@ class SeoContentScorerTool(BaseTool):
             raise ValueError(f"URL validation failed: {error}")
 
         headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"
-            ),
+            "User-Agent": ("Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"),
             "Accept": "text/html,application/xhtml+xml",
         }
-        async with httpx.AsyncClient(
-            timeout=FETCH_TIMEOUT, follow_redirects=True
-        ) as client:
+        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             return resp.text
@@ -579,17 +573,11 @@ class SeoContentScorerTool(BaseTool):
                             f"({kw_info['density_pct']}%). Consider more usage."
                         )
                 else:
-                    issues.append(
-                        f"Keyword '{kw_info['keyword']}' not found in content"
-                    )
-                    recommendations.append(
-                        f"Add '{kw_info['keyword']}' naturally into headings and body text."
-                    )
+                    issues.append(f"Keyword '{kw_info['keyword']}' not found in content")
+                    recommendations.append(f"Add '{kw_info['keyword']}' naturally into headings and body text.")
         else:
             issues.append("No target keywords provided for scoring")
-            recommendations.append(
-                "Provide target_keywords for accurate keyword scoring."
-            )
+            recommendations.append("Provide target_keywords for accurate keyword scoring.")
 
         # -- Readability score (30%) --
         reading_target = validated._parse_reading_level()
@@ -613,9 +601,7 @@ class SeoContentScorerTool(BaseTool):
                 f"Reading level is too high (grade {grade} vs target {reading_target}). "
                 "Simplify vocabulary and shorten sentences."
             )
-            recommendations.append(
-                "Use shorter sentences and simpler words to lower reading level."
-            )
+            recommendations.append("Use shorter sentences and simpler words to lower reading level.")
         elif grade < reading_target - 2:
             issues.append(
                 f"Reading level is below target (grade {grade} vs target {reading_target}). "
@@ -654,9 +640,7 @@ class SeoContentScorerTool(BaseTool):
             structure_score += 3
         else:
             issues.append("No H2 tags found. Use H2s to structure sections.")
-            recommendations.append(
-                "Add H2 tags to break content into scannable sections."
-            )
+            recommendations.append("Add H2 tags to break content into scannable sections.")
 
         # -- Meta score (10%) --
         meta_score = 0.0
@@ -668,9 +652,7 @@ class SeoContentScorerTool(BaseTool):
                 meta_score += 3
             else:
                 meta_score += 1
-                issues.append(
-                    f"Title length ({tl} chars) is suboptimal. Aim for 50-60."
-                )
+                issues.append(f"Title length ({tl} chars) is suboptimal. Aim for 50-60.")
         else:
             issues.append("Missing <title> tag.")
             recommendations.append("Add a <title> tag with your primary keyword.")
@@ -686,17 +668,13 @@ class SeoContentScorerTool(BaseTool):
         else:
             meta_score += 0
             issues.append("Missing meta description.")
-            recommendations.append(
-                "Add a meta description (120-160 chars) with target keywords."
-            )
+            recommendations.append("Add a meta description (120-160 chars) with target keywords.")
 
         if meta["h1"]:
             meta_score += 2
 
         # Composite score
-        overall_score = round(
-            keyword_score + readability_score + structure_score + meta_score
-        )
+        overall_score = round(keyword_score + readability_score + structure_score + meta_score)
         grade_label = self._grade_label(int(overall_score))
 
         # Competitor comparison
@@ -723,12 +701,8 @@ class SeoContentScorerTool(BaseTool):
                 # Simple competitor scoring
                 comp_kw_score = 0.0
                 if validated.target_keywords:
-                    comp_cov = self._keyword_coverage(
-                        comp_text, validated.target_keywords
-                    )
-                    comp_kw_score = (
-                        sum(1 for k in comp_cov if k["found"]) / max(len(comp_cov), 1)
-                    ) * 40
+                    comp_cov = self._keyword_coverage(comp_text, validated.target_keywords)
+                    comp_kw_score = (sum(1 for k in comp_cov if k["found"]) / max(len(comp_cov), 1)) * 40
 
                 comp_read_score = max(0, 30 - abs(comp_grade - reading_target) * 5)
                 comp_struct_score = min(20, (comp_wc / 1500) * 20)
@@ -751,10 +725,7 @@ class SeoContentScorerTool(BaseTool):
                 "your_score": overall_score,
                 "ranking": sorted(
                     [{"source": "You", "score": overall_score}]
-                    + [
-                        {"source": c["url"], "score": c["overall_score"]}
-                        for c in competitor_scores
-                    ],
+                    + [{"source": c["url"], "score": c["overall_score"]} for c in competitor_scores],
                     key=lambda x: x["score"],
                     reverse=True,
                 ),
@@ -789,9 +760,7 @@ class SeoContentScorerTool(BaseTool):
             "success": True,
         }
 
-    async def _analyze_readability(
-        self, validated: SeoContentScorerInput
-    ) -> dict[str, Any]:
+    async def _analyze_readability(self, validated: SeoContentScorerInput) -> dict[str, Any]:
         """Analyze readability of text content with multiple metrics."""
         if not validated.content:
             return {
@@ -820,27 +789,19 @@ class SeoContentScorerTool(BaseTool):
         if diff <= 1:
             pass  # on target
         elif diff <= 3:
-            issues.append(
-                f"Reading grade ({grade}) is {diff} levels off target ({reading_target})"
-            )
+            issues.append(f"Reading grade ({grade}) is {diff} levels off target ({reading_target})")
         else:
-            issues.append(
-                f"Reading grade ({grade}) is significantly off target ({reading_target})."
-            )
+            issues.append(f"Reading grade ({grade}) is significantly off target ({reading_target}).")
             if grade > reading_target:
                 recommendations.append("Shorten sentences and use simpler words.")
             else:
-                recommendations.append(
-                    "Use more sophisticated vocabulary and longer sentences."
-                )
+                recommendations.append("Use more sophisticated vocabulary and longer sentences.")
 
         if avg_sentence_length > 25:
             issues.append(f"Sentences are long (avg {avg_sentence_length} words).")
             recommendations.append("Break up sentences longer than 25 words.")
         elif avg_sentence_length < 5 and sentence_count > 2:
-            issues.append(
-                f"Sentences are very short (avg {avg_sentence_length} words)."
-            )
+            issues.append(f"Sentences are very short (avg {avg_sentence_length} words).")
 
         if avg_syllables_per_word > 2.0:
             issues.append(f"High syllable count per word ({avg_syllables_per_word}).")
@@ -885,9 +846,7 @@ class SeoContentScorerTool(BaseTool):
         # Title check
         if not meta["title"]:
             issues.append("Missing <title> tag — critical for SEO")
-            recommendations.append(
-                "Add a <title> tag (50-60 chars) with your primary keyword."
-            )
+            recommendations.append("Add a <title> tag (50-60 chars) with your primary keyword.")
         else:
             title_len = len(meta["title"])
             if title_len < 30:
@@ -898,38 +857,24 @@ class SeoContentScorerTool(BaseTool):
         # Description check
         if not meta["description"]:
             issues.append("Missing meta description — important for CTR")
-            recommendations.append(
-                "Add a meta description (120-160 chars) with target keywords."
-            )
+            recommendations.append("Add a meta description (120-160 chars) with target keywords.")
         else:
             desc_len = len(meta["description"])
             if desc_len < 70:
-                issues.append(
-                    f"Description too short ({desc_len} chars). Aim for 120-160."
-                )
+                issues.append(f"Description too short ({desc_len} chars). Aim for 120-160.")
             elif desc_len > 160:
-                issues.append(
-                    f"Description too long ({desc_len} chars). Keep under 160."
-                )
+                issues.append(f"Description too long ({desc_len} chars). Keep under 160.")
 
             if validated.target_keywords and meta["description"]:
-                present = [
-                    kw
-                    for kw in validated.target_keywords
-                    if kw.lower() in meta["description"].lower()
-                ]
+                present = [kw for kw in validated.target_keywords if kw.lower() in meta["description"].lower()]
                 if not present:
                     issues.append("No target keywords found in meta description")
-                    recommendations.append(
-                        "Include target keywords naturally in meta description."
-                    )
+                    recommendations.append("Include target keywords naturally in meta description.")
 
         # H1 check
         if not meta["h1"]:
             issues.append("Missing H1 tag — every page needs one")
-            recommendations.append(
-                "Add exactly one H1 tag that includes your primary keyword."
-            )
+            recommendations.append("Add exactly one H1 tag that includes your primary keyword.")
         elif validated.target_keywords:
             h1_lower = meta["h1"].lower()
             present = [kw for kw in validated.target_keywords if kw.lower() in h1_lower]
@@ -948,12 +893,8 @@ class SeoContentScorerTool(BaseTool):
 
         og_title = soup.find("meta", property="og:title")
         if not og_title:
-            issues.append(
-                "Missing Open Graph tags — social sharing previews won't render well"
-            )
-            recommendations.append(
-                "Add og:title, og:description, and og:image meta tags."
-            )
+            issues.append("Missing Open Graph tags — social sharing previews won't render well")
+            recommendations.append("Add og:title, og:description, and og:image meta tags.")
 
         robots = soup.find("meta", attrs={"name": "robots"})
         if robots:
@@ -966,9 +907,7 @@ class SeoContentScorerTool(BaseTool):
             "title": meta["title"],
             "title_length": len(meta["title"]) if meta["title"] else 0,
             "description": meta["description"],
-            "description_length": (
-                len(meta["description"]) if meta["description"] else 0
-            ),
+            "description_length": (len(meta["description"]) if meta["description"] else 0),
             "h1": meta["h1"],
             "issues": issues[: validated.max_issues],
             "recommendations": recommendations[: validated.max_issues],
@@ -988,9 +927,7 @@ class SeoContentScorerTool(BaseTool):
         meta_result = await self._check_meta(validated)
 
         all_issues = (
-            content_result.get("issues", [])
-            + readability_result.get("issues", [])
-            + meta_result.get("issues", [])
+            content_result.get("issues", []) + readability_result.get("issues", []) + meta_result.get("issues", [])
         )
         all_recommendations = (
             content_result.get("recommendations", [])

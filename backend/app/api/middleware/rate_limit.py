@@ -91,11 +91,7 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
         else:
             # Phase 8.2: Key by workspace_id when available, fall back to IP
             workspace_id = request.headers.get("X-Workspace-Id")
-            key = (
-                f"ratelimit:ws:{workspace_id}"
-                if workspace_id
-                else f"ratelimit:{client_ip}"
-            )
+            key = f"ratelimit:ws:{workspace_id}" if workspace_id else f"ratelimit:{client_ip}"
         self._cleanup(key)
         limit = self._get_limit(request.url.path)
 
@@ -111,9 +107,7 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
                         "Retry-After": str(max(retry_after, 1)),
                         "X-RateLimit-Limit": str(limit),
                         "X-RateLimit-Remaining": "0",
-                        "X-RateLimit-Reset": str(
-                            int(time.time()) + self.WINDOW_SECONDS
-                        ),
+                        "X-RateLimit-Reset": str(int(time.time()) + self.WINDOW_SECONDS),
                     },
                 )
             self._windows[key].append(time.monotonic())
@@ -122,9 +116,7 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Reset"] = str(
-            int(time.time()) + self.WINDOW_SECONDS
-        )
+        response.headers["X-RateLimit-Reset"] = str(int(time.time()) + self.WINDOW_SECONDS)
         return response
 
 

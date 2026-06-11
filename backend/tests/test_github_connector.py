@@ -18,7 +18,6 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.github_connector import GitHubConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -164,18 +163,14 @@ async def test_list_issues():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/repos/owner/repo/issues": _make_mock_response(
-                200, issues
-            ),
+            "GET:https://api.github.com/repos/owner/repo/issues": _make_mock_response(200, issues),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "list_issues", {"owner": "owner", "repo": "repo"}
-        )
+        result = await connector.execute_action("list_issues", {"owner": "owner", "repo": "repo"})
 
     assert result.success is True
     assert len(result.data) == 2
@@ -189,18 +184,14 @@ async def test_get_issue():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/repos/owner/repo/issues/42": _make_mock_response(
-                200, issue
-            ),
+            "GET:https://api.github.com/repos/owner/repo/issues/42": _make_mock_response(200, issue),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "get_issue", {"owner": "owner", "repo": "repo", "issue_number": 42}
-        )
+        result = await connector.execute_action("get_issue", {"owner": "owner", "repo": "repo", "issue_number": 42})
 
     assert result.success is True
     assert result.data["number"] == 42
@@ -213,9 +204,7 @@ async def test_update_issue():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "PATCH:https://api.github.com/repos/owner/repo/issues/42": _make_mock_response(
-                200, updated
-            ),
+            "PATCH:https://api.github.com/repos/owner/repo/issues/42": _make_mock_response(200, updated),
         }
     )
 
@@ -244,18 +233,14 @@ async def test_close_issue():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "PATCH:https://api.github.com/repos/owner/repo/issues/42": _make_mock_response(
-                200, closed
-            ),
+            "PATCH:https://api.github.com/repos/owner/repo/issues/42": _make_mock_response(200, closed),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "close_issue", {"owner": "owner", "repo": "repo", "issue_number": 42}
-        )
+        result = await connector.execute_action("close_issue", {"owner": "owner", "repo": "repo", "issue_number": 42})
 
     assert result.success is True
     assert result.data["state"] == "closed"
@@ -271,9 +256,7 @@ async def test_create_pr():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "POST:https://api.github.com/repos/owner/repo/pulls": _make_mock_response(
-                201, pr
-            ),
+            "POST:https://api.github.com/repos/owner/repo/pulls": _make_mock_response(201, pr),
         }
     )
 
@@ -302,18 +285,14 @@ async def test_list_prs():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/repos/owner/repo/pulls": _make_mock_response(
-                200, prs
-            ),
+            "GET:https://api.github.com/repos/owner/repo/pulls": _make_mock_response(200, prs),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "list_prs", {"owner": "owner", "repo": "repo"}
-        )
+        result = await connector.execute_action("list_prs", {"owner": "owner", "repo": "repo"})
 
     assert result.success is True
     assert len(result.data) == 2
@@ -334,9 +313,7 @@ async def test_get_pr():
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "get_pr", {"owner": "owner", "repo": "repo", "pr_number": 5}
-        )
+        result = await connector.execute_action("get_pr", {"owner": "owner", "repo": "repo", "pr_number": 5})
 
     assert result.success is True
     assert result.data["number"] == 5
@@ -349,9 +326,7 @@ async def test_merge_pr():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "PUT:https://api.github.com/repos/owner/repo/pulls/5/merge": _make_mock_response(
-                200, merged
-            ),
+            "PUT:https://api.github.com/repos/owner/repo/pulls/5/merge": _make_mock_response(200, merged),
         }
     )
 
@@ -382,18 +357,14 @@ async def test_get_repo():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/repos/owner/repo": _make_mock_response(
-                200, repo
-            ),
+            "GET:https://api.github.com/repos/owner/repo": _make_mock_response(200, repo),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "get_repo", {"owner": "owner", "repo": "repo"}
-        )
+        result = await connector.execute_action("get_repo", {"owner": "owner", "repo": "repo"})
 
     assert result.success is True
     assert result.data["full_name"] == "owner/repo"
@@ -426,18 +397,14 @@ async def test_list_user_repos():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/users/otheruser/repos": _make_mock_response(
-                200, repos
-            ),
+            "GET:https://api.github.com/users/otheruser/repos": _make_mock_response(200, repos),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "list_user_repos", {"username": "otheruser"}
-        )
+        result = await connector.execute_action("list_user_repos", {"username": "otheruser"})
 
     assert result.success is True
     assert result.data[0]["name"] == "proj"
@@ -460,9 +427,7 @@ async def test_search_code():
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "search_code", {"q": "import requests language:python"}
-        )
+        result = await connector.execute_action("search_code", {"q": "import requests language:python"})
 
     assert result.success is True
     assert result.data["total_count"] == 1
@@ -489,18 +454,14 @@ async def test_search_repos():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/search/repositories": _make_mock_response(
-                200, results
-            ),
+            "GET:https://api.github.com/search/repositories": _make_mock_response(200, results),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "search_repos", {"q": "machine learning"}
-        )
+        result = await connector.execute_action("search_repos", {"q": "machine learning"})
 
     assert result.success is True
     assert result.data["total_count"] == 5
@@ -562,9 +523,7 @@ async def test_get_file_contents():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/repos/owner/repo/contents/main.py": _make_mock_response(
-                200, file_data
-            ),
+            "GET:https://api.github.com/repos/owner/repo/contents/main.py": _make_mock_response(200, file_data),
         }
     )
 
@@ -590,9 +549,7 @@ async def test_create_comment():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "POST:https://api.github.com/repos/owner/repo/issues/42/comments": _make_mock_response(
-                201, comment
-            ),
+            "POST:https://api.github.com/repos/owner/repo/issues/42/comments": _make_mock_response(201, comment),
         }
     )
 
@@ -620,9 +577,7 @@ async def test_list_comments():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"login": "test"}),
-            "GET:https://api.github.com/repos/owner/repo/issues/42/comments": _make_mock_response(
-                200, comments
-            ),
+            "GET:https://api.github.com/repos/owner/repo/issues/42/comments": _make_mock_response(200, comments),
         }
     )
 
@@ -644,13 +599,7 @@ async def test_list_comments():
 @pytest.mark.asyncio
 async def test_connect_with_invalid_token():
     """Connector connect() fails with 401."""
-    fake = _FakeSession(
-        {
-            "GET:https://api.github.com/user": _make_mock_response(
-                401, {"message": "Bad credentials"}
-            )
-        }
-    )
+    fake = _FakeSession({"GET:https://api.github.com/user": _make_mock_response(401, {"message": "Bad credentials"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = GitHubConnector(_make_config())

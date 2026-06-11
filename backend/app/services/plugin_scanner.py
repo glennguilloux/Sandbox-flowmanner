@@ -225,10 +225,7 @@ class PluginScanner:
                 if re.search(pattern, line):
                     severity = (
                         "critical"
-                        if any(
-                            k in message.lower()
-                            for k in ["eval", "exec", "system", "subprocess", "command"]
-                        )
+                        if any(k in message.lower() for k in ["eval", "exec", "system", "subprocess", "command"])
                         else "high"
                     )
                     result.findings.append(

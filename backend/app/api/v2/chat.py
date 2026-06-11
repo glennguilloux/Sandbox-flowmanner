@@ -74,11 +74,7 @@ async def list_folders(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatFolder)
-        .where(ChatFolder.user_id == user.id)
-        .order_by(ChatFolder.name)
-    )
+    result = await db.execute(select(ChatFolder).where(ChatFolder.user_id == user.id).order_by(ChatFolder.name))
     folders = result.scalars().all()
     return ok([ChatFolderResponse.model_validate(f).model_dump() for f in folders])
 
@@ -103,11 +99,7 @@ async def rename_folder(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatFolder).where(
-            ChatFolder.id == folder_id, ChatFolder.user_id == user.id
-        )
-    )
+    result = await db.execute(select(ChatFolder).where(ChatFolder.id == folder_id, ChatFolder.user_id == user.id))
     folder = result.scalar_one_or_none()
     if not folder:
         raise _not_found()
@@ -123,21 +115,13 @@ async def delete_folder(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ChatFolder).where(
-            ChatFolder.id == folder_id, ChatFolder.user_id == user.id
-        )
-    )
+    result = await db.execute(select(ChatFolder).where(ChatFolder.id == folder_id, ChatFolder.user_id == user.id))
     folder = result.scalar_one_or_none()
     if not folder:
         raise _not_found()
     from sqlalchemy import update as sa_update
 
-    await db.execute(
-        sa_update(ChatThread)
-        .where(ChatThread.folder_id == folder_id)
-        .values(folder_id=None)
-    )
+    await db.execute(sa_update(ChatThread).where(ChatThread.folder_id == folder_id).values(folder_id=None))
     await db.delete(folder)
 
 
@@ -145,9 +129,7 @@ async def delete_folder(
 async def list_threads_route(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    cursor: str | None = Query(
-        None, description="Opaque cursor token for keyset pagination"
-    ),
+    cursor: str | None = Query(None, description="Opaque cursor token for keyset pagination"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -191,9 +173,7 @@ async def create_thread(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    thread = await create_chat_thread(
-        db, user.id, user.username, payload.title, payload.model_preference
-    )
+    thread = await create_chat_thread(db, user.id, user.username, payload.title, payload.model_preference)
     return ok(ChatThreadResponse.model_validate(thread).model_dump())
 
 
@@ -217,9 +197,7 @@ async def update_thread(
 ):
     thread = await get_chat_thread(db, thread_id)
     _require_owner(thread, user)
-    updated = await update_chat_thread(
-        db, thread_id, title=payload.title, is_archived=payload.is_archived
-    )
+    updated = await update_chat_thread(db, thread_id, title=payload.title, is_archived=payload.is_archived)
     if updated is None:
         raise _not_found()
     return ok(ChatThreadResponse.model_validate(updated).model_dump())
@@ -370,9 +348,7 @@ async def create_branch(
     thread = await get_chat_thread(db, thread_id)
     _require_owner(thread, user)
     try:
-        branch = await create_chat_branch(
-            db, user.id, thread_id, payload.parent_message_id, payload.title
-        )
+        branch = await create_chat_branch(db, user.id, thread_id, payload.parent_message_id, payload.title)
         return ok(ChatBranchResponse.model_validate(branch).model_dump())
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -432,12 +408,8 @@ async def chat_with_llm(
         thread.metadata_ = meta
         await db.flush()
 
-    user_api_key = (
-        request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
-    )
-    user_base_url = (
-        request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
-    )
+    user_api_key = request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
+    user_base_url = request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
     attachments_data = None
@@ -496,12 +468,8 @@ async def chat_with_llm_stream(
         thread.metadata_ = meta
         await db.flush()
 
-    user_api_key = (
-        request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
-    )
-    user_base_url = (
-        request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
-    )
+    user_api_key = request.headers.get("X-User-API-Key") if hasattr(request, "headers") else None
+    user_base_url = request.headers.get("X-User-Base-URL") if hasattr(request, "headers") else None
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
     attachments_data = None

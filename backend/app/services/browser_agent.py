@@ -32,12 +32,8 @@ logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 15
 PER_ITERATION_TIMEOUT_SECONDS = 30
 MAX_TOTAL_COST_USD = float(os.getenv("BROWSER_AGENT_MAX_COST_USD", "0.50"))
-BROWSER_LLM_INPUT_COST_PER_1M = float(
-    os.getenv("BROWSER_LLM_INPUT_COST_PER_1M", "0.14")
-)
-BROWSER_LLM_OUTPUT_COST_PER_1M = float(
-    os.getenv("BROWSER_LLM_OUTPUT_COST_PER_1M", "0.28")
-)
+BROWSER_LLM_INPUT_COST_PER_1M = float(os.getenv("BROWSER_LLM_INPUT_COST_PER_1M", "0.14"))
+BROWSER_LLM_OUTPUT_COST_PER_1M = float(os.getenv("BROWSER_LLM_OUTPUT_COST_PER_1M", "0.28"))
 # Use actual per-call cost from LLM response when available;
 # fall back to this estimate when the response doesn't report token counts.
 ESTIMATED_COST_PER_LLM_CALL = 0.005
@@ -123,9 +119,7 @@ class BrowserAgent:
                     self.total_cost_estimate,
                     MAX_TOTAL_COST_USD,
                 )
-                return await self._done(
-                    "Cost budget reached. I've done as much as I could within budget."
-                )
+                return await self._done("Cost budget reached. I've done as much as I could within budget.")
 
             # Touch session to prevent timeout during this iteration
             self._touch_session()
@@ -134,9 +128,7 @@ class BrowserAgent:
             page_ctx = await self._get_page_context()
             current_url = self._extract_url_from_context(page_ctx)
             if page_ctx:
-                messages.append(
-                    {"role": "user", "content": "[Page context] " + page_ctx}
-                )
+                messages.append({"role": "user", "content": "[Page context] " + page_ctx})
 
             # Call LLM with per-iteration timeout
             route_kwargs = {
@@ -173,23 +165,15 @@ class BrowserAgent:
                         "error": f"Timed out after {PER_ITERATION_TIMEOUT_SECONDS}s",
                     }
                 )
-                return await self._done(
-                    "A step took too long. I'll stop here — please try again."
-                )
+                return await self._done("A step took too long. I'll stop here — please try again.")
 
-            llm_content = (
-                result.get("content", "")
-                if isinstance(result, dict)
-                else result.content
-            )
+            llm_content = result.get("content", "") if isinstance(result, dict) else result.content
             iter_tokens = 0
             if isinstance(result, dict):
                 iter_tokens = result.get("usage", {}).get("total_tokens", 0)
                 if iter_tokens == 0:
                     cost_info = result.get("cost", {})
-                    iter_tokens = cost_info.get("input_tokens", 0) + cost_info.get(
-                        "output_tokens", 0
-                    )
+                    iter_tokens = cost_info.get("input_tokens", 0) + cost_info.get("output_tokens", 0)
             self.total_tokens_used += iter_tokens
             # Use actual token cost from LLM response when available
             actual_cost = 0.0
@@ -199,20 +183,14 @@ class BrowserAgent:
                     prompt_tok = cost_info.get("input_tokens", 0)
                     completion_tok = cost_info.get("output_tokens", 0)
                     # Pricing from env vars (default: DeepSeek $0.14/M input, $0.28/M output)
-                    actual_cost = (
-                        prompt_tok / 1_000_000
-                    ) * BROWSER_LLM_INPUT_COST_PER_1M + (
+                    actual_cost = (prompt_tok / 1_000_000) * BROWSER_LLM_INPUT_COST_PER_1M + (
                         completion_tok / 1_000_000
                     ) * BROWSER_LLM_OUTPUT_COST_PER_1M
             if actual_cost <= 0:
                 actual_cost = ESTIMATED_COST_PER_LLM_CALL
             self.total_cost_estimate += actual_cost
 
-            llm_content = (
-                result.get("content", "")
-                if isinstance(result, dict)
-                else result.content
-            )
+            llm_content = result.get("content", "") if isinstance(result, dict) else result.content
             if not llm_content or not result.get("success", False):
                 self.iteration_metrics.append(
                     {
@@ -253,9 +231,7 @@ class BrowserAgent:
                         "screenshot_path": ss_path,
                     }
                 )
-                return await self._done(
-                    action.get("message", "Task completed."), screenshot_path=ss_path
-                )
+                return await self._done(action.get("message", "Task completed."), screenshot_path=ss_path)
 
             elif action_type == "navigate":
                 url = action.get("url", "").rstrip("']})\".,;:!? ")
@@ -297,9 +273,7 @@ class BrowserAgent:
                 if ss.get("success"):
                     count = len(ss.get("elements", []))
                     self._record("browser_snapshot", f"Found {count} elements")
-                    ss_path = await self._screenshot_and_persist(
-                        ss.get("url", current_url)
-                    )
+                    ss_path = await self._screenshot_and_persist(ss.get("url", current_url))
                     self.iteration_metrics.append(
                         {
                             "iteration_idx": self.iteration,
@@ -312,9 +286,7 @@ class BrowserAgent:
                         }
                     )
                     elements_text = self._format_elements(ss.get("elements", []))
-                    messages.append(
-                        {"role": "assistant", "content": json.dumps(action)}
-                    )
+                    messages.append({"role": "assistant", "content": json.dumps(action)})
                     messages.append(
                         {
                             "role": "user",
@@ -332,9 +304,7 @@ class BrowserAgent:
             elif action_type == "click":
                 ref = action.get("ref", "")
                 if not ref:
-                    messages.append(
-                        {"role": "user", "content": "click needs 'ref' parameter"}
-                    )
+                    messages.append({"role": "user", "content": "click needs 'ref' parameter"})
                     continue
                 if ref.startswith("e"):
                     ref = ref[1:]
@@ -381,9 +351,7 @@ class BrowserAgent:
                     continue
                 if ref.startswith("e"):
                     ref = ref[1:]
-                typed = await self.service.type_text(
-                    self.user_id, ref, text, submit=True
-                )
+                typed = await self.service.type_text(self.user_id, ref, text, submit=True)
                 self._record("browser_type", f"Typed '{text}' into e{ref}")
                 self.iteration_metrics.append(
                     {
@@ -450,9 +418,7 @@ class BrowserAgent:
                 )
 
         # Max iterations reached
-        return await self._done(
-            "I've done as much as I could. Let me know if you need anything else."
-        )
+        return await self._done("I've done as much as I could. Let me know if you need anything else.")
 
     def _extract_url_from_context(self, page_ctx: str) -> str | None:
         """Extract current URL from page context string."""
@@ -472,7 +438,7 @@ class BrowserAgent:
                 title = await session.page.title()
                 return f"Currently on: {url}\nPage title: {title}"
             except Exception as e:
-                logger.debug('browser_agent_page_context_failed user_id=%s error=%s', self.user_id, str(e))
+                logger.debug("browser_agent_page_context_failed user_id=%s error=%s", self.user_id, str(e))
         return ""
 
     def _touch_session(self) -> None:
@@ -493,9 +459,7 @@ class BrowserAgent:
             role = el.get("role", "")
             bbox = el.get("bbox")
             label = f" [{role}]" if role and role != "none" else ""
-            coord = (
-                f" at ({bbox['center_x']:.0f},{bbox['center_y']:.0f})" if bbox else ""
-            )
+            coord = f" at ({bbox['center_x']:.0f},{bbox['center_y']:.0f})" if bbox else ""
             lines.append(f"  e{ref}: <{tag}>{label} {text}{coord}")
         return "\n".join(lines) if lines else "No interactive elements found."
 
@@ -508,16 +472,14 @@ class BrowserAgent:
                 try:
                     return json.loads(match.group(0))
                 except json.JSONDecodeError as e:
-                    logger.debug('browser_agent_json_extraction_failed snippet=%s error=%s', llm_response[:100], str(e))
+                    logger.debug("browser_agent_json_extraction_failed snippet=%s error=%s", llm_response[:100], str(e))
         logger.warning("Could not parse LLM response: %s", llm_response[:200])
         return None
 
     def _record(self, tool: str, result: str) -> None:
         self.actions_taken.append({"tool": tool, "result": result})
 
-    async def _screenshot_and_persist(
-        self, current_url: str | None = None
-    ) -> str | None:
+    async def _screenshot_and_persist(self, current_url: str | None = None) -> str | None:
         """Take a screenshot and persist it to user storage namespace (H1.4).
 
         Returns the filesystem path on success, or None on failure.
@@ -529,14 +491,10 @@ class BrowserAgent:
             if ss.get("success") and ss.get("screenshot"):
                 return self._persist_screenshot(ss["screenshot"])
         except Exception as e:
-            logger.debug(
-                "[BrowserAgent %s] Screenshot capture skipped: %s", self.user_id, e
-            )
+            logger.debug("[BrowserAgent %s] Screenshot capture skipped: %s", self.user_id, e)
         return None
 
-    async def _done(
-        self, message: str, screenshot_path: str | None = None
-    ) -> dict[str, Any]:
+    async def _done(self, message: str, screenshot_path: str | None = None) -> dict[str, Any]:
         from app.services.browser_manager import get_browser_manager
 
         mgr = get_browser_manager()
@@ -555,7 +513,7 @@ class BrowserAgent:
                         screenshot_data = ss.get("screenshot")
                         screenshot_path = self._persist_screenshot(screenshot_data)
             except Exception as e:
-                logger.debug('browser_agent_final_screenshot_failed user_id=%s error=%s', self.user_id, str(e))
+                logger.debug("browser_agent_final_screenshot_failed user_id=%s error=%s", self.user_id, str(e))
 
         return {
             "response": message,

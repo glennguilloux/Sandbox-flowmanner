@@ -6,17 +6,18 @@ Create Date: 2026-04-15 12:10:43.024497
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSON
 
+from alembic import op
 
 revision: str = "83699f85a14e"
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -38,9 +39,7 @@ def upgrade() -> None:
         sa.Column("result", JSON, nullable=True),
         sa.Column("error", sa.Text, nullable=True),
         sa.Column("phase_history", JSON, server_default="[]"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),

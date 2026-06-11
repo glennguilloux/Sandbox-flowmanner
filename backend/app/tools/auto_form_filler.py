@@ -220,21 +220,15 @@ class AutoFormFillerTool(BaseTool):
         try:
             validated = AutoFormFillerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context")
         if not context:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No context provided"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 
         user_id = context.get("user_id")
         if not user_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No user_id in context"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No user_id in context")
 
         uid = str(user_id)
         service = get_browser_service()
@@ -251,9 +245,7 @@ class AutoFormFillerTool(BaseTool):
 
         session = manager.get_user_session(uid)
         if not session or not session.is_active():
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No active browser session"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No active browser session")
 
         try:
             # Detect form fields via JavaScript
@@ -406,9 +398,7 @@ class AutoFormFillerTool(BaseTool):
                         matched_override = val
                         break
                 if matched_override:
-                    resolved.append(
-                        {**field, "fill_value": matched_override, "method": "override"}
-                    )
+                    resolved.append({**field, "fill_value": matched_override, "method": "override"})
                     count += 1
                 continue
 
@@ -421,9 +411,7 @@ class AutoFormFillerTool(BaseTool):
                         matched_override = val
                         break
                 if matched_override:
-                    resolved.append(
-                        {**field, "fill_value": matched_override, "method": "override"}
-                    )
+                    resolved.append({**field, "fill_value": matched_override, "method": "override"})
                     count += 1
                 continue
 
@@ -506,9 +494,7 @@ class AutoFormFillerTool(BaseTool):
                     await handle.fill(str(fill_value))
                     results.append({**field, "filled": True, "fill_value": fill_value})
                 else:
-                    results.append(
-                        {**field, "filled": False, "error": "Element not found"}
-                    )
+                    results.append({**field, "filled": False, "error": "Element not found"})
             except Exception as e:
                 results.append({**field, "filled": False, "error": str(e)})
 

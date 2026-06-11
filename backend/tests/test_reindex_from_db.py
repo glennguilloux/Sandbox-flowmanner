@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestReindexFromDB:
@@ -55,9 +56,7 @@ class TestReindexFromDB:
 
         mock_model.encode.return_value = np.array([[0.1] * 384, [0.2] * 384])
 
-        with patch.object(
-            ToolDiscoveryService, "_get_embedding_model", return_value=mock_model
-        ):
+        with patch.object(ToolDiscoveryService, "_get_embedding_model", return_value=mock_model):
             result = await service.reindex_from_db(session)
 
         assert result["tools_indexed"] == 1
@@ -128,9 +127,7 @@ class TestReindexResponse:
     def test_schema_fields(self):
         from app.api.v1.admin import ReindexResponse
 
-        r = ReindexResponse(
-            tools_indexed=10, capabilities_indexed=20, total=30, source="db"
-        )
+        r = ReindexResponse(tools_indexed=10, capabilities_indexed=20, total=30, source="db")
         assert r.tools_indexed == 10
         assert r.capabilities_indexed == 20
         assert r.total == 30

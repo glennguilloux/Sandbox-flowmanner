@@ -19,9 +19,7 @@ class TestExecuteTaskDispatch:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(
-            return_value={"success": True, "output": {"text": "ok"}}
-        )
+        mock_llm.execute_llm = AsyncMock(return_value={"success": True, "output": {"text": "ok"}})
 
         executor = TaskExecutor(llm_executor=mock_llm, log_callback=AsyncMock())
         mock_db = AsyncMock()
@@ -43,9 +41,7 @@ class TestExecuteTaskDispatch:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(
-            return_value={"success": True, "output": {"text": "ok"}}
-        )
+        mock_llm.execute_llm = AsyncMock(return_value={"success": True, "output": {"text": "ok"}})
 
         executor = TaskExecutor(llm_executor=mock_llm, log_callback=AsyncMock())
         mock_db = AsyncMock()
@@ -78,9 +74,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"tool_id": "web_search", "params": {"query": "test"}}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_tool", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_tool", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -99,9 +93,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"tool_id": "code_executor", "params": {}}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_tool", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_tool", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -120,9 +112,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"query": "test", "collection": "docs"}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_rag", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_rag", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -141,9 +131,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"query": "test"}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_rag", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_rag", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -162,9 +150,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"query": "test"}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_web_search", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_web_search", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -183,9 +169,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"code": "print(1)"}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_code", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_code", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -204,9 +188,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"code": "print(1)"}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_code", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_code", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -225,9 +207,7 @@ class TestExecuteTaskDispatch:
         mock_task.input_data = {"operation": "read", "path": "test.txt"}
         mock_task.dependencies = []
 
-        with patch.object(
-            executor, "_execute_file", AsyncMock(return_value={"success": True})
-        ):
+        with patch.object(executor, "_execute_file", AsyncMock(return_value={"success": True})):
             result = await executor.execute_task(mock_db, mock_mission, mock_task, {})
             assert result["success"] is True
 
@@ -282,14 +262,10 @@ class TestExecuteTaskDispatch:
         from app.services.task_executor import TaskExecutor
 
         mock_browser = MagicMock()
-        mock_browser.execute_browser_tool = AsyncMock(
-            return_value={"success": True, "output": {}}
-        )
+        mock_browser.execute_browser_tool = AsyncMock(return_value={"success": True, "output": {}})
 
         mock_llm = MagicMock()
-        executor = TaskExecutor(
-            llm_executor=mock_llm, browser_runner=mock_browser, log_callback=AsyncMock()
-        )
+        executor = TaskExecutor(llm_executor=mock_llm, browser_runner=mock_browser, log_callback=AsyncMock())
         mock_db = AsyncMock()
         mock_db.commit = AsyncMock()
         mock_mission = MagicMock()
@@ -328,9 +304,7 @@ class TestExecuteTaskDispatch:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(
-            return_value={"success": True, "output": {"text": "ok"}}
-        )
+        mock_llm.execute_llm = AsyncMock(return_value={"success": True, "output": {"text": "ok"}})
 
         executor = TaskExecutor(llm_executor=mock_llm, log_callback=AsyncMock())
         mock_db = AsyncMock()
@@ -353,9 +327,7 @@ class TestExecuteTaskDispatch:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(
-            side_effect=RetryableMissionError("overloaded")
-        )
+        mock_llm.execute_llm = AsyncMock(side_effect=RetryableMissionError("overloaded"))
 
         executor = TaskExecutor(llm_executor=mock_llm, log_callback=AsyncMock())
         mock_db = AsyncMock()
@@ -424,9 +396,7 @@ class TestExecuteTool:
         from app.services.task_executor import TaskExecutor
 
         mock_llm = MagicMock()
-        mock_llm.execute_llm = AsyncMock(
-            return_value={"success": True, "output": {"text": "fallback"}}
-        )
+        mock_llm.execute_llm = AsyncMock(return_value={"success": True, "output": {"text": "fallback"}})
 
         executor = TaskExecutor(llm_executor=mock_llm)
         mock_task = MagicMock()
@@ -445,9 +415,7 @@ class TestExecuteTool:
         mock_task = MagicMock()
         mock_task.title = "Test"
 
-        result = await executor._execute_tool(
-            mock_task, {"tool_id": "nonexistent", "params": {}}
-        )
+        result = await executor._execute_tool(mock_task, {"tool_id": "nonexistent", "params": {}})
         assert result["success"] is False
         assert "Unknown tool" in result["error"]
 
@@ -463,9 +431,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_web_search",
             AsyncMock(return_value={"success": True}),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "web_search", "params": {"query": "test"}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "web_search", "params": {"query": "test"}})
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -479,9 +445,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_code_executor",
             AsyncMock(return_value={"success": True}),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "code_executor", "params": {"code": "1+1"}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "code_executor", "params": {"code": "1+1"}})
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -495,9 +459,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_file_reader",
             AsyncMock(return_value={"success": True}),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "file_reader", "params": {"path": "x"}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "file_reader", "params": {"path": "x"}})
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -507,12 +469,8 @@ class TestExecuteTool:
         executor = TaskExecutor()
         mock_task = MagicMock()
 
-        with patch.object(
-            executor, "_execute_rag_query", AsyncMock(return_value={"success": True})
-        ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "rag_search", "params": {"query": "test"}}
-            )
+        with patch.object(executor, "_execute_rag_query", AsyncMock(return_value={"success": True})):
+            result = await executor._execute_tool(mock_task, {"tool_id": "rag_search", "params": {"query": "test"}})
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -522,9 +480,7 @@ class TestExecuteTool:
         executor = TaskExecutor()
         mock_task = MagicMock()
 
-        result = await executor._execute_tool(
-            mock_task, {"tool_id": "rag_search", "params": {}}
-        )
+        result = await executor._execute_tool(mock_task, {"tool_id": "rag_search", "params": {}})
         assert result["success"] is False
         assert "No query" in result["error"]
 
@@ -535,9 +491,7 @@ class TestExecuteTool:
         executor = TaskExecutor()
         mock_task = MagicMock()
 
-        with patch.object(
-            executor, "_execute_rag_query", AsyncMock(return_value={"success": True})
-        ) as mock_rag:
+        with patch.object(executor, "_execute_rag_query", AsyncMock(return_value={"success": True})) as mock_rag:
             result = await executor._execute_tool(
                 mock_task,
                 {"tool_id": "rag_search", "params": {}, "query": "fallback query"},
@@ -556,9 +510,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_api_caller",
             AsyncMock(return_value={"success": True}),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "api_caller", "params": {"url": "x"}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "api_caller", "params": {"url": "x"}})
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -572,9 +524,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_data_analyzer",
             AsyncMock(return_value={"success": True}),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "data_analyzer", "params": {"data": []}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "data_analyzer", "params": {"data": []}})
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -584,9 +534,7 @@ class TestExecuteTool:
         executor = TaskExecutor()
         mock_task = MagicMock()
 
-        result = await executor._execute_tool(
-            mock_task, {"tool_id": "report_generator", "params": {"data": {}}}
-        )
+        result = await executor._execute_tool(mock_task, {"tool_id": "report_generator", "params": {"data": {}}})
         assert result["success"] is False
         assert "ModelRouter" in result["error"]
 
@@ -636,9 +584,7 @@ class TestExecuteTool:
             ),
             pytest.raises(RetryableMissionError),
         ):
-            await executor._execute_tool(
-                mock_task, {"tool_id": "web_search", "params": {"query": "test"}}
-            )
+            await executor._execute_tool(mock_task, {"tool_id": "web_search", "params": {"query": "test"}})
 
     @pytest.mark.asyncio
     async def test_tool_catches_permanent_error(self):
@@ -652,9 +598,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_web_search",
             AsyncMock(side_effect=PermanentMissionError("forbidden")),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "web_search", "params": {"query": "test"}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "web_search", "params": {"query": "test"}})
         assert result["success"] is False
         assert result.get("permanent") is True
 
@@ -669,9 +613,7 @@ class TestExecuteTool:
             "app.services.mission_tools.tool_web_search",
             AsyncMock(side_effect=RuntimeError("boom")),
         ):
-            result = await executor._execute_tool(
-                mock_task, {"tool_id": "web_search", "params": {"query": "test"}}
-            )
+            result = await executor._execute_tool(mock_task, {"tool_id": "web_search", "params": {"query": "test"}})
         assert result["success"] is False
         assert "Tool execution failed" in result["error"]
 
@@ -855,9 +797,7 @@ class TestApplyFallback:
         mock_task = MagicMock()
         mock_task.title = "Failing Task"
 
-        await executor._apply_fallback(
-            mock_db, mock_mission, mock_task, "something went wrong"
-        )
+        await executor._apply_fallback(mock_db, mock_mission, mock_task, "something went wrong")
         assert mock_mission.status == MissionStatus.PAUSED
         assert "Failing Task" in mock_mission.error_message
 
@@ -874,9 +814,7 @@ class TestApplyFallback:
         mock_task = MagicMock()
         mock_task.title = "Broken Task"
 
-        await executor._apply_fallback(
-            mock_db, mock_mission, mock_task, "unrecoverable"
-        )
+        await executor._apply_fallback(mock_db, mock_mission, mock_task, "unrecoverable")
         assert mock_mission.status == MissionStatus.FAILED
 
     @pytest.mark.asyncio
@@ -909,9 +847,7 @@ class TestApplyFallback:
         mock_task = MagicMock()
         mock_task.title = "Retryable"
 
-        await executor._apply_fallback(
-            mock_db, mock_mission, mock_task, "transient error"
-        )
+        await executor._apply_fallback(mock_db, mock_mission, mock_task, "transient error")
         assert mock_mission.status == "running"  # unchanged
 
     @pytest.mark.asyncio

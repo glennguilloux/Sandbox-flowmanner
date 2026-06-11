@@ -93,9 +93,7 @@ class SuccessPattern:
         else:
             sample_penalty = 0.0
 
-        self.confidence = max(
-            0.0, min(1.0, success_rate + sample_boost - sample_penalty)
-        )
+        self.confidence = max(0.0, min(1.0, success_rate + sample_boost - sample_penalty))
         return self.confidence
 
     def update_strength(self) -> PatternStrength:
@@ -293,12 +291,8 @@ class SuccessLearner:
 
         all_tools = set(success_tools.keys()) | set(failure_tools.keys())
         for tool in all_tools:
-            s_rate = (
-                success_tools[tool] / len(success_outcomes) if success_outcomes else 0
-            )
-            f_rate = (
-                failure_tools[tool] / len(failure_outcomes) if failure_outcomes else 0
-            )
+            s_rate = success_tools[tool] / len(success_outcomes) if success_outcomes else 0
+            f_rate = failure_tools[tool] / len(failure_outcomes) if failure_outcomes else 0
             diff = s_rate - f_rate
 
             if abs(diff) > 0.2:  # Significant difference
@@ -397,8 +391,7 @@ class SuccessLearner:
         patterns = [
             p
             for p in self._patterns.values()
-            if (p.agent_id == agent_id or p.agent_id is None)
-            and p.confidence >= min_confidence
+            if (p.agent_id == agent_id or p.agent_id is None) and p.confidence >= min_confidence
         ]
 
         # Sort by confidence and success count
@@ -430,9 +423,7 @@ class SuccessLearner:
                 continue
 
             # Calculate context similarity
-            similarity = self._calculate_context_similarity(
-                context, pattern.context_features
-            )
+            similarity = self._calculate_context_similarity(context, pattern.context_features)
 
             if similarity >= self.pattern_similarity_threshold:
                 matching_patterns.append((pattern, similarity))
@@ -519,9 +510,7 @@ class SuccessLearner:
         for key, value in pattern.config_snapshot.items():
             if key in new_config:
                 # Blend current and pattern values based on confidence
-                if isinstance(value, (int, float)) and isinstance(
-                    new_config[key], (int, float)
-                ):
+                if isinstance(value, (int, float)) and isinstance(new_config[key], (int, float)):
                     blend = pattern.confidence
                     new_config[key] = (1 - blend) * new_config[key] + blend * value
                 else:
@@ -573,9 +562,7 @@ class SuccessLearner:
 
             # Check tool sequence similarity
             if pattern.tool_sequence:
-                seq_similarity = self._calculate_sequence_similarity(
-                    outcome.tools_used, pattern.tool_sequence
-                )
+                seq_similarity = self._calculate_sequence_similarity(outcome.tools_used, pattern.tool_sequence)
                 if seq_similarity < self.pattern_similarity_threshold:
                     continue
 

@@ -37,21 +37,13 @@ async def get_user_sessions(db: AsyncSession, user_id: int) -> list[dict]:
         sessions.append(
             {
                 "id": token.id,
-                "token_prefix": (
-                    token.token[:8] + "..." if len(token.token) > 8 else token.token
-                ),
+                "token_prefix": (token.token[:8] + "..." if len(token.token) > 8 else token.token),
                 "device_name": token.device_name or "Unknown device",
                 "ip_address": token.ip_address,
                 "user_agent": token.user_agent,
-                "created_at": (
-                    token.created_at.isoformat() if token.created_at else None
-                ),
-                "last_used_at": (
-                    token.last_used_at.isoformat() if token.last_used_at else None
-                ),
-                "expires_at": (
-                    token.expires_at.isoformat() if token.expires_at else None
-                ),
+                "created_at": (token.created_at.isoformat() if token.created_at else None),
+                "last_used_at": (token.last_used_at.isoformat() if token.last_used_at else None),
+                "expires_at": (token.expires_at.isoformat() if token.expires_at else None),
             }
         )
 
@@ -77,9 +69,7 @@ async def revoke_session(db: AsyncSession, user_id: int, session_id: int) -> boo
     return True
 
 
-async def revoke_all_other_sessions(
-    db: AsyncSession, user_id: int, current_token: str
-) -> int:
+async def revoke_all_other_sessions(db: AsyncSession, user_id: int, current_token: str) -> int:
     """Revoke all sessions except the current one. Returns count of revoked sessions."""
     result = await db.execute(
         select(RefreshToken).where(

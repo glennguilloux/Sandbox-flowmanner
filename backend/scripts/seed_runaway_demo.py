@@ -357,9 +357,7 @@ def main() -> int:
     safe_bp_id = safe_bp["id"]
 
     # Publish it
-    r = requests.post(
-        f"{API}/blueprints/{safe_bp_id}/publish", headers=h, timeout=10
-    )
+    r = requests.post(f"{API}/blueprints/{safe_bp_id}/publish", headers=h, timeout=10)
     if r.status_code != 200:
         print(f"❌ Publish safe blueprint failed: {r.status_code}")
         return 1
@@ -368,15 +366,15 @@ def main() -> int:
     # ── Summary ───────────────────────────────────────────────────
     print(
         f"""
-{'═' * 60}
+{"═" * 60}
   🔥  RUNAWAY AGENT DEMO BLUEPRINTS CREATED
-{'═' * 60}
+{"═" * 60}
 
   Runaway Agent:
     Blueprint ID : {bp_id}
-    Title        : {bp_pub['title']}
+    Title        : {bp_pub["title"]}
     Budget       : $0.50 (will trigger circuit breaker)
-    Status       : {bp_pub['status']}
+    Status       : {bp_pub["status"]}
 
   Safe Agent (for comparison):
     Blueprint ID : {safe_bp_id}
@@ -384,9 +382,9 @@ def main() -> int:
     Budget       : $0.10
     Status       : published
 
-{'─' * 60}
+{"─" * 60}
   NEXT STEPS:
-{'─' * 60}
+{"─" * 60}
   1. Start a run:
      curl -X POST {API}/blueprints/{bp_id}/run \\
        -H "Authorization: Bearer <token>" \\
@@ -401,7 +399,7 @@ def main() -> int:
 
   4. Compare with safe agent:
      GET {API}/runs/<runaway_run_id>/diff/<safe_run_id>
-{'═' * 60}
+{"═" * 60}
 """
     )
     return 0

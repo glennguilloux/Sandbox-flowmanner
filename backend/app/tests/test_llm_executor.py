@@ -209,11 +209,7 @@ class TestExecuteLlm:
         assert result["success"] is False
 
         # Should record the failed call
-        failure_calls = [
-            c
-            for c in mock_cost_tracker.record_llm_call.call_args_list
-            if c[1]["success"] is False
-        ]
+        failure_calls = [c for c in mock_cost_tracker.record_llm_call.call_args_list if c[1]["success"] is False]
         assert len(failure_calls) == 1
         assert failure_calls[0][1]["error_message"] == "boom"
 
@@ -244,9 +240,7 @@ class TestExecuteLlm:
         from app.services.mission_errors import RetryableMissionError
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(
-            side_effect=RetryableMissionError("overloaded")
-        )
+        mock_router.route_request = AsyncMock(side_effect=RetryableMissionError("overloaded"))
 
         executor = LlmExecutor(get_model_router=lambda: mock_router)
         mock_task = MagicMock()
@@ -262,9 +256,7 @@ class TestExecuteLlm:
         from app.services.mission_errors import PermanentMissionError
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(
-            side_effect=PermanentMissionError("forbidden")
-        )
+        mock_router.route_request = AsyncMock(side_effect=PermanentMissionError("forbidden"))
 
         executor = LlmExecutor(get_model_router=lambda: mock_router)
         mock_task = MagicMock()

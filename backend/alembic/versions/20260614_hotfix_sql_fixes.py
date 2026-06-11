@@ -25,9 +25,7 @@ def upgrade() -> None:
     inspector = inspect(bind)
 
     # ── 1. user_api_keys: add workspace_id column + indexes ────────────
-    user_api_keys_cols = {
-        c["name"] for c in inspector.get_columns("user_api_keys")
-    }
+    user_api_keys_cols = {c["name"] for c in inspector.get_columns("user_api_keys")}
 
     if "workspace_id" not in user_api_keys_cols:
         op.add_column(
@@ -35,9 +33,7 @@ def upgrade() -> None:
             sa.Column("workspace_id", sa.String(36), nullable=True),
         )
 
-    existing_indexes = {
-        idx["name"] for idx in inspector.get_indexes("user_api_keys")
-    }
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("user_api_keys")}
 
     if "ix_user_api_keys_workspace" not in existing_indexes:
         op.create_index(
@@ -68,15 +64,11 @@ def upgrade() -> None:
             sa.Column("agent_count", sa.Integer(), server_default="0"),
             sa.Column("completed_count", sa.Integer(), server_default="0"),
             sa.Column("total_tokens", sa.Integer(), server_default="0"),
-            sa.Column(
-                "total_cost_usd", sa.Float(), server_default="0.0"
-            ),
+            sa.Column("total_cost_usd", sa.Float(), server_default="0.0"),
             sa.Column("error_message", sa.Text(), nullable=True),
             sa.Column("metadata", JSONB, nullable=True),
             sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-            sa.Column(
-                "completed_at", sa.DateTime(timezone=True), nullable=True
-            ),
+            sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
             sa.Column(
                 "created_at",
                 sa.DateTime(timezone=True),
@@ -130,10 +122,7 @@ def upgrade() -> None:
 
     # ── 3. mission_templates: add created_at / updated_at columns ──────
     if "mission_templates" in tables:
-        mt_cols = {
-            c["name"]
-            for c in inspector.get_columns("mission_templates")
-        }
+        mt_cols = {c["name"] for c in inspector.get_columns("mission_templates")}
 
         if "created_at" not in mt_cols:
             op.add_column(
@@ -165,10 +154,7 @@ def downgrade() -> None:
 
     # mission_templates: drop timestamp columns
     if "mission_templates" in tables:
-        mt_cols = {
-            c["name"]
-            for c in inspector.get_columns("mission_templates")
-        }
+        mt_cols = {c["name"] for c in inspector.get_columns("mission_templates")}
         if "updated_at" in mt_cols:
             op.drop_column("mission_templates", "updated_at")
         if "created_at" in mt_cols:
@@ -181,19 +167,11 @@ def downgrade() -> None:
         op.drop_table("orchestrator_executions")
 
     # user_api_keys: drop indexes and column
-    existing_indexes = {
-        idx["name"] for idx in inspector.get_indexes("user_api_keys")
-    }
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("user_api_keys")}
     if "ix_user_api_keys_workspace_user" in existing_indexes:
-        op.drop_index(
-            "ix_user_api_keys_workspace_user", table_name="user_api_keys"
-        )
+        op.drop_index("ix_user_api_keys_workspace_user", table_name="user_api_keys")
     if "ix_user_api_keys_workspace" in existing_indexes:
-        op.drop_index(
-            "ix_user_api_keys_workspace", table_name="user_api_keys"
-        )
-    user_api_keys_cols = {
-        c["name"] for c in inspector.get_columns("user_api_keys")
-    }
+        op.drop_index("ix_user_api_keys_workspace", table_name="user_api_keys")
+    user_api_keys_cols = {c["name"] for c in inspector.get_columns("user_api_keys")}
     if "workspace_id" in user_api_keys_cols:
         op.drop_column("user_api_keys", "workspace_id")

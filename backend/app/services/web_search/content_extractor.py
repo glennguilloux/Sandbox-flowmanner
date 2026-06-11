@@ -51,9 +51,7 @@ class ContentExtractor:
                 self._playwright = await async_playwright().start()
                 self._browser = await self._playwright.chromium.launch(headless=True)
             except ImportError:
-                logger.warning(
-                    "Playwright not installed, falling back to HTTP-only extraction"
-                )
+                logger.warning("Playwright not installed, falling back to HTTP-only extraction")
                 return None
         return self._browser
 
@@ -78,16 +76,10 @@ class ContentExtractor:
 
         try:
             async with aiohttp.ClientSession() as session:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                }
-                async with session.get(
-                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
                     if response.status != 200:
-                        return ExtractedContent(
-                            url=url, title="", text="", quality_score=0.0
-                        )
+                        return ExtractedContent(url=url, title="", text="", quality_score=0.0)
 
                     html = await response.text()
                     return self._parse_html(url, html)

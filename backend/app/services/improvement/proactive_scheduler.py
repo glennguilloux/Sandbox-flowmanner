@@ -113,9 +113,7 @@ class ScheduledAction:
         window_start = self.scheduled_time
         window_end = self.scheduled_time + self.execution_window
 
-        return (
-            self.status == ScheduleStatus.PENDING and window_start <= now <= window_end
-        )
+        return self.status == ScheduleStatus.PENDING and window_start <= now <= window_end
 
     def is_expired(self) -> bool:
         """Check if action has expired."""
@@ -140,9 +138,7 @@ class ScheduledAction:
             "status": self.status.value,
             "attempts": self.attempts,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
             "result": self.result,
             "error_message": self.error_message,
             "created_at": self.created_at.isoformat(),
@@ -258,9 +254,7 @@ class ProactiveScheduler:
             The scheduled action
         """
         # Calculate scheduled time
-        scheduled_time = prediction.predicted_time - timedelta(
-            minutes=lead_time_minutes
-        )
+        scheduled_time = prediction.predicted_time - timedelta(minutes=lead_time_minutes)
 
         # Don't schedule in the past
         if scheduled_time < datetime.now(UTC):
@@ -325,12 +319,8 @@ class ProactiveScheduler:
                 scheduled_time = now + timedelta(minutes=30)
             else:
                 # Find next low-traffic hour
-                hours_ahead = min(
-                    (h - now.hour) % 24 for h in self.config.low_traffic_hours
-                )
-                scheduled_time = now.replace(
-                    minute=0, second=0, microsecond=0
-                ) + timedelta(hours=hours_ahead)
+                hours_ahead = min((h - now.hour) % 24 for h in self.config.low_traffic_hours)
+                scheduled_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=hours_ahead)
 
         action_id = f"consolidation_{scheduled_time.strftime('%Y%m%d_%H%M')}"
 
@@ -364,12 +354,8 @@ class ProactiveScheduler:
         if not scheduled_time:
             # Schedule for next low-traffic period
             now = datetime.now(UTC)
-            hours_ahead = min(
-                (h - now.hour) % 24 for h in self.config.low_traffic_hours
-            )
-            scheduled_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(
-                hours=hours_ahead
-            )
+            hours_ahead = min((h - now.hour) % 24 for h in self.config.low_traffic_hours)
+            scheduled_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=hours_ahead)
 
         action_id = f"evolution_{scheduled_time.strftime('%Y%m%d_%H%M')}"
 
@@ -503,9 +489,7 @@ class ProactiveScheduler:
         ready_actions.sort(key=lambda a: priority_order.get(a.priority, 5))
 
         # Execute up to max concurrent
-        available_slots = self.config.max_concurrent_actions - len(
-            self._running_actions
-        )
+        available_slots = self.config.max_concurrent_actions - len(self._running_actions)
 
         for action in ready_actions[:available_slots]:
             asyncio.create_task(self._execute_action(action))
@@ -519,9 +503,7 @@ class ProactiveScheduler:
         self._running_actions.add(action.action_id)
         self._pending_queue.remove(action.action_id)
 
-        logger.info(
-            "Executing action %s (attempt %s)", action.action_id, action.attempts
-        )
+        logger.info("Executing action %s (attempt %s)", action.action_id, action.attempts)
 
         try:
             # Get handler
@@ -743,9 +725,7 @@ class ProactiveScheduler:
         cutoff = datetime.now(UTC) - timedelta(days=7)
         old_count = len(self._execution_history)
 
-        self._execution_history = [
-            a for a in self._execution_history if a.created_at >= cutoff
-        ]
+        self._execution_history = [a for a in self._execution_history if a.created_at >= cutoff]
 
         result["cleaned_items"] = old_count - len(self._execution_history)
 
@@ -788,20 +768,12 @@ class ProactiveScheduler:
         limit: int = 50,
     ) -> list[ScheduledAction]:
         """Get pending actions."""
-        actions = [
-            self._scheduled_actions[aid]
-            for aid in self._pending_queue
-            if aid in self._scheduled_actions
-        ]
+        actions = [self._scheduled_actions[aid] for aid in self._pending_queue if aid in self._scheduled_actions]
         return actions[:limit]
 
     def get_running_actions(self) -> list[ScheduledAction]:
         """Get currently running actions."""
-        return [
-            self._scheduled_actions[aid]
-            for aid in self._running_actions
-            if aid in self._scheduled_actions
-        ]
+        return [self._scheduled_actions[aid] for aid in self._running_actions if aid in self._scheduled_actions]
 
     async def cancel_action(self, action_id: str) -> bool:
         """Cancel a pending action."""

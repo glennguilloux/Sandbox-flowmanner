@@ -81,9 +81,7 @@ async def create_dataset(
     db: AsyncSession = Depends(get_db),
 ):
     builder = DatasetBuilder(db)
-    ds = await builder.create_dataset(
-        name=body.name, category=body.category, description=body.description
-    )
+    ds = await builder.create_dataset(name=body.name, category=body.category, description=body.description)
     return {
         "id": ds.id,
         "name": ds.name,
@@ -144,9 +142,7 @@ async def delete_dataset(
 
     from app.models.evaluation_models import GoldenDataset
 
-    result = await db.execute(
-        select(GoldenDataset).where(GoldenDataset.id == dataset_id)
-    )
+    result = await db.execute(select(GoldenDataset).where(GoldenDataset.id == dataset_id))
     ds = result.scalar_one_or_none()
     if not ds:
         raise HTTPException(404, "Dataset not found")
@@ -268,9 +264,7 @@ async def run_evaluation(
         "aggregate_score": eval_run.aggregate_score,
         "scores_by_category": eval_run.scores_by_category,
         "started_at": eval_run.started_at.isoformat() if eval_run.started_at else None,
-        "completed_at": (
-            eval_run.completed_at.isoformat() if eval_run.completed_at else None
-        ),
+        "completed_at": (eval_run.completed_at.isoformat() if eval_run.completed_at else None),
     }
 
 
@@ -418,9 +412,7 @@ async def detect_regressions(
                         "current_score": curr_score,
                         "previous_score": prev_score,
                         "delta": round(delta, 2),
-                        "detected_at": (
-                            curr.completed_at.isoformat() if curr.completed_at else None
-                        ),
+                        "detected_at": (curr.completed_at.isoformat() if curr.completed_at else None),
                         "category_deltas": _compute_category_deltas(
                             prev.scores_by_category or {},
                             curr.scores_by_category or {},
@@ -462,12 +454,8 @@ async def eval_stats(
 
     stmt = select(
         func.count(EvalRunModel.id).label("total_runs"),
-        func.count(EvalRunModel.id)
-        .filter(EvalRunModel.status == "completed")
-        .label("completed_runs"),
-        func.count(EvalRunModel.id)
-        .filter(EvalRunModel.status == "failed")
-        .label("failed_runs"),
+        func.count(EvalRunModel.id).filter(EvalRunModel.status == "completed").label("completed_runs"),
+        func.count(EvalRunModel.id).filter(EvalRunModel.status == "failed").label("failed_runs"),
         func.avg(EvalRunModel.aggregate_score).label("avg_score"),
         func.min(EvalRunModel.aggregate_score).label("min_score"),
         func.max(EvalRunModel.aggregate_score).label("max_score"),

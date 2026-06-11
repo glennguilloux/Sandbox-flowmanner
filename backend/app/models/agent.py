@@ -64,9 +64,7 @@ class Agent(Base, TimestampMixin):
         default=AgentState.DEFINED.value,
         nullable=False,
     )
-    version: Mapped[int] = mapped_column(
-        Integer, default=1, nullable=False, server_default="1"
-    )
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False, server_default="1")
     workspace_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),
@@ -257,9 +255,7 @@ class AgentMessage(Base, TimestampMixin):
         ForeignKey("agent_messages.id", ondelete="SET NULL"),
         nullable=True,
     )
-    execution_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True
-    )
+    execution_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), default="delivered", index=True)
 
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
@@ -271,9 +267,7 @@ class DebateRound(Base, TimestampMixin):
 
     __tablename__ = "debate_rounds"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     debate_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     round_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -308,9 +302,7 @@ class HandoffRecord(Base, TimestampMixin):
 
     __tablename__ = "handoff_records"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
 
     from_agent_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     from_agent_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -318,9 +310,7 @@ class HandoffRecord(Base, TimestampMixin):
     to_agent_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     task_description: Mapped[str] = mapped_column(Text, nullable=False)
-    task_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="general"
-    )
+    task_type: Mapped[str] = mapped_column(String(50), nullable=False, default="general")
     context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     constraints: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
@@ -333,17 +323,11 @@ class HandoffRecord(Base, TimestampMixin):
         ForeignKey("handoff_records.id", ondelete="SET NULL"),
         nullable=True,
     )
-    execution_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True
-    )
+    execution_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
 
 
@@ -352,9 +336,7 @@ class EscalationRecord(Base, TimestampMixin):
 
     __tablename__ = "escalation_records"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
 
     task_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     task_description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -364,12 +346,8 @@ class EscalationRecord(Base, TimestampMixin):
     attempted_agent_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    escalated_to_agent_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
-    escalated_to_agent_name: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    escalated_to_agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    escalated_to_agent_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     resolved: Mapped[bool] = mapped_column(default=False)
     resolution_output: Mapped[str | None] = mapped_column(Text, nullable=True)

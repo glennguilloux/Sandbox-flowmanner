@@ -5,8 +5,9 @@ Revises: 20260521_create_analytics_events
 Create Date: 2026-05-21
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "20260521_marketplace_integrations_tags"
 down_revision = "20260521_create_analytics_events"
@@ -20,9 +21,7 @@ def upgrade() -> None:
     columns = [c["name"] for c in inspector.get_columns("marketplace_listings")]
 
     if "integrations" not in columns:
-        op.add_column(
-            "marketplace_listings", sa.Column("integrations", sa.Text, nullable=True)
-        )
+        op.add_column("marketplace_listings", sa.Column("integrations", sa.Text, nullable=True))
     if "tags" not in columns:
         op.add_column("marketplace_listings", sa.Column("tags", sa.Text, nullable=True))
 

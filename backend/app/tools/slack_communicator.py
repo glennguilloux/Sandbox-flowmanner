@@ -23,19 +23,13 @@ class SlackCommunicatorInput(ToolInput):
         ...,
         description="Action: 'send_message', 'list_channels', 'list_users', 'post_reply', 'add_reaction'",
     )
-    channel: str | None = Field(
-        None, description="Channel name or ID (e.g., '#general' or 'C01234567')"
-    )
+    channel: str | None = Field(None, description="Channel name or ID (e.g., '#general' or 'C01234567')")
     message: str | None = Field(None, description="Message text to send")
     thread_ts: str | None = Field(None, description="Thread timestamp for replies")
-    emoji: str | None = Field(
-        None, description="Emoji name for reactions (without colons)"
-    )
+    emoji: str | None = Field(None, description="Emoji name for reactions (without colons)")
     message_ts: str | None = Field(None, description="Message timestamp for reactions")
     limit: int = Field(100, ge=1, le=1000, description="Max results for list actions")
-    bot_token: str | None = Field(
-        None, description="Slack bot token (uses SLACK_BOT_TOKEN env var if omitted)"
-    )
+    bot_token: str | None = Field(None, description="Slack bot token (uses SLACK_BOT_TOKEN env var if omitted)")
 
 
 class SlackCommunicatorTool(BaseTool):
@@ -55,9 +49,7 @@ class SlackCommunicatorTool(BaseTool):
         try:
             validated = SlackCommunicatorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         token = validated.bot_token or os.getenv("SLACK_BOT_TOKEN", "")
         if not token:
@@ -95,18 +87,14 @@ class SlackCommunicatorTool(BaseTool):
 
     async def _send_message(self, client: httpx.AsyncClient, v) -> ToolResult:
         if not v.channel or not v.message:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="channel and message are required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="channel and message are required")
         payload: dict[str, Any] = {"channel": v.channel, "text": v.message}
         if v.thread_ts:
             payload["thread_ts"] = v.thread_ts
         r = await client.post("https://slack.com/api/chat.postMessage", json=payload)
         data = r.json()
         if not data.get("ok"):
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Slack error: {data.get('error')}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Slack error: {data.get('error')}")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={
@@ -118,14 +106,10 @@ class SlackCommunicatorTool(BaseTool):
         )
 
     async def _list_channels(self, client: httpx.AsyncClient, v) -> ToolResult:
-        r = await client.get(
-            "https://slack.com/api/conversations.list", params={"limit": v.limit}
-        )
+        r = await client.get("https://slack.com/api/conversations.list", params={"limit": v.limit})
         data = r.json()
         if not data.get("ok"):
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Slack error: {data.get('error')}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Slack error: {data.get('error')}")
         channels = [
             {"id": c["id"], "name": c["name"], "is_private": c.get("is_private", False)}
             for c in data.get("channels", [])
@@ -140,14 +124,10 @@ class SlackCommunicatorTool(BaseTool):
         )
 
     async def _list_users(self, client: httpx.AsyncClient, v) -> ToolResult:
-        r = await client.get(
-            "https://slack.com/api/users.list", params={"limit": v.limit}
-        )
+        r = await client.get("https://slack.com/api/users.list", params={"limit": v.limit})
         data = r.json()
         if not data.get("ok"):
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Slack error: {data.get('error')}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Slack error: {data.get('error')}")
         users = [
             {
                 "id": u["id"],
@@ -181,9 +161,7 @@ class SlackCommunicatorTool(BaseTool):
         )
         data = r.json()
         if not data.get("ok"):
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Slack error: {data.get('error')}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Slack error: {data.get('error')}")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={
@@ -210,9 +188,7 @@ class SlackCommunicatorTool(BaseTool):
         )
         data = r.json()
         if not data.get("ok"):
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Slack error: {data.get('error')}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Slack error: {data.get('error')}")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={

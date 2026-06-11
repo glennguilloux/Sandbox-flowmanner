@@ -48,9 +48,7 @@ class AgentRegistryService:
             logger.info("AgentRegistry connected to Qdrant at %s", settings.QDRANT_URL)
             return self._qdrant_client
         except Exception as e:
-            logger.warning(
-                "AgentRegistry: Qdrant unavailable (%s), falling back to PostgreSQL", e
-            )
+            logger.warning("AgentRegistry: Qdrant unavailable (%s), falling back to PostgreSQL", e)
             self._qdrant_available = False
             return None
 
@@ -61,9 +59,7 @@ class AgentRegistryService:
             from sentence_transformers import SentenceTransformer
 
             self._embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-            logger.info(
-                "AgentRegistry loaded embedding model: %s", EMBEDDING_MODEL_NAME
-            )
+            logger.info("AgentRegistry loaded embedding model: %s", EMBEDDING_MODEL_NAME)
             return self._embedding_model
         except Exception as e:
             logger.warning("AgentRegistry: embedding model unavailable (%s)", e)
@@ -80,9 +76,7 @@ class AgentRegistryService:
             if QDRANT_COLLECTION not in collections:
                 client.create_collection(
                     collection_name=QDRANT_COLLECTION,
-                    vectors_config=VectorParams(
-                        size=EMBEDDING_DIM, distance=Distance.COSINE
-                    ),
+                    vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
                 )
                 logger.info("Created Qdrant collection: %s", QDRANT_COLLECTION)
         except Exception as e:
@@ -115,9 +109,7 @@ class AgentRegistryService:
     ) -> AgentCapability:
         """Register or update an agent's capability profile."""
         # Check if capability already exists for this agent
-        result = await db.execute(
-            select(AgentCapability).where(AgentCapability.agent_id == agent_id)
-        )
+        result = await db.execute(select(AgentCapability).where(AgentCapability.agent_id == agent_id))
         cap = result.scalar_one_or_none()
 
         # Build embedding text from name + description + task_types
@@ -143,9 +135,7 @@ class AgentRegistryService:
                                 points_selector=[cap.embedding_id],
                             )
                         except Exception:
-                            logger.debug(
-                                "qdrant_old_point_delete_failed", exc_info=True
-                            )
+                            logger.debug("qdrant_old_point_delete_failed", exc_info=True)
 
                     embedding_id = str(uuid4())
                     client.upsert(
@@ -280,11 +270,7 @@ class AgentRegistryService:
         else:
             # Simple text match on description
             keywords = task_description.lower().split()[:5]
-            conditions = [
-                AgentCapability.description.ilike(f"%{kw}%")
-                for kw in keywords
-                if len(kw) > 3
-            ]
+            conditions = [AgentCapability.description.ilike(f"%{kw}%") for kw in keywords if len(kw) > 3]
             if conditions:
                 stmt = stmt.where(or_(*conditions))
 
@@ -324,17 +310,9 @@ class AgentRegistryService:
         if required_tools:
             filtered = []
             for c in candidates:
-                cap_result = await db.execute(
-                    select(AgentCapability).where(
-                        AgentCapability.agent_id == c["agent_id"]
-                    )
-                )
+                cap_result = await db.execute(select(AgentCapability).where(AgentCapability.agent_id == c["agent_id"]))
                 cap = cap_result.scalar_one_or_none()
-                if (
-                    cap
-                    and cap.tools
-                    and all(tool in cap.tools for tool in required_tools)
-                ):
+                if cap and cap.tools and all(tool in cap.tools for tool in required_tools):
                     filtered.append(c)
             if filtered:
                 candidates = filtered
@@ -357,18 +335,12 @@ class AgentRegistryService:
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_capability(
-        self, db: AsyncSession, agent_id: str
-    ) -> AgentCapability | None:
-        result = await db.execute(
-            select(AgentCapability).where(AgentCapability.agent_id == agent_id)
-        )
+    async def get_capability(self, db: AsyncSession, agent_id: str) -> AgentCapability | None:
+        result = await db.execute(select(AgentCapability).where(AgentCapability.agent_id == agent_id))
         return result.scalar_one_or_none()
 
     async def delete_capability(self, db: AsyncSession, agent_id: str) -> bool:
-        result = await db.execute(
-            select(AgentCapability).where(AgentCapability.agent_id == agent_id)
-        )
+        result = await db.execute(select(AgentCapability).where(AgentCapability.agent_id == agent_id))
         cap = result.scalar_one_or_none()
         if not cap:
             return False

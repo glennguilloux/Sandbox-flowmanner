@@ -18,9 +18,7 @@ def _get_kwargs() -> dict[str, Any]:
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> User2FAStatusResponse | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> User2FAStatusResponse | None:
     if response.status_code == 200:
         response_200 = User2FAStatusResponse.from_dict(response.json())
 

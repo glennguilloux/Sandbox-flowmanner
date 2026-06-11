@@ -165,9 +165,7 @@ class FailureContext:
     # Sentry integration
     sentry_event_id: str | None = None
     sentry_issue_id: str | None = None
-    downstream_impact: list[str] = field(
-        default_factory=list
-    )  # Affected downstream steps
+    downstream_impact: list[str] = field(default_factory=list)  # Affected downstream steps
 
     # Tracing information
     trace_id: str | None = None
@@ -404,11 +402,7 @@ def determine_severity(
         return FailureSeverity.CRITICAL
 
     # High severity
-    if (
-        failure_type
-        in {FailureType.SERVICE_UNAVAILABLE, FailureType.CONNECTION_FAILURE}
-        and retry_count > 2
-    ):
+    if failure_type in {FailureType.SERVICE_UNAVAILABLE, FailureType.CONNECTION_FAILURE} and retry_count > 2:
         return FailureSeverity.HIGH
 
     if not upstream_success:
@@ -811,9 +805,7 @@ def get_failure_summary(failures: list[FailureContext]) -> dict[str, Any]:
         "by_type": by_type,
         "by_severity": by_severity,
         "by_tool": by_tool,
-        "infrastructure_count": sum(
-            1 for f in failures if f.failure_type.is_infrastructure
-        ),
+        "infrastructure_count": sum(1 for f in failures if f.failure_type.is_infrastructure),
         "application_count": sum(1 for f in failures if f.failure_type.is_application),
     }
 
@@ -863,18 +855,10 @@ def capture_failure_telemetry(
 
     telemetry_entry = {
         "id": telemetry_id,
-        "failure_type": (
-            failure_type.value
-            if isinstance(failure_type, FailureType)
-            else failure_type
-        ),
-        "severity": (
-            severity.value if isinstance(severity, FailureSeverity) else severity
-        ),
+        "failure_type": (failure_type.value if isinstance(failure_type, FailureType) else failure_type),
+        "severity": (severity.value if isinstance(severity, FailureSeverity) else severity),
         "context": (
-            asdict(failure_context)
-            if hasattr(failure_context, "__dataclass_fields__")
-            else str(failure_context)
+            asdict(failure_context) if hasattr(failure_context, "__dataclass_fields__") else str(failure_context)
         ),
         "metadata": metadata or {},
         "timestamp": datetime.now(UTC).isoformat(),
@@ -885,9 +869,7 @@ def capture_failure_telemetry(
     return telemetry_id
 
 
-def get_failure_telemetry(
-    limit: int = 100, failure_type: FailureType | None = None
-) -> list[dict[str, Any]]:
+def get_failure_telemetry(limit: int = 100, failure_type: FailureType | None = None) -> list[dict[str, Any]]:
     """
     Get stored failure telemetry entries.
     """

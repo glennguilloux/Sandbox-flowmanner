@@ -9,12 +9,12 @@ Tests cover:
 - Tool metadata and registration
 """
 
-import io
-import os
 import base64
-import struct
+import io
 import math
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+import os
+import struct
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -141,20 +141,20 @@ class TestLocalWhisper:
     """Test local whisper transcription path."""
 
     @pytest.mark.asyncio
-    async def test_transcribe_local_success(
-        self, transcriber, tiny_audio_b64, mock_whisper_model
-    ):
-        with patch(
-            "app.tools.speech_to_text_transcriber._get_local_whisper",
-            return_value=mock_whisper_model,
+    async def test_transcribe_local_success(self, transcriber, tiny_audio_b64, mock_whisper_model):
+        with (
+            patch(
+                "app.tools.speech_to_text_transcriber._get_local_whisper",
+                return_value=mock_whisper_model,
+            ),
+            patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True),
         ):
-            with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True):
-                r = await transcriber.execute(
-                    {
-                        "data": tiny_audio_b64,
-                        "response_format": "verbose_json",
-                    }
-                )
+            r = await transcriber.execute(
+                {
+                    "data": tiny_audio_b64,
+                    "response_format": "verbose_json",
+                }
+            )
         assert r.success
         assert r.result["engine"] == "local-whisper"
         assert "text" in r.result
@@ -163,57 +163,57 @@ class TestLocalWhisper:
         assert r.result["segments"][0]["text"] == "hello"
 
     @pytest.mark.asyncio
-    async def test_transcribe_local_json_format(
-        self, transcriber, tiny_audio_b64, mock_whisper_model
-    ):
-        with patch(
-            "app.tools.speech_to_text_transcriber._get_local_whisper",
-            return_value=mock_whisper_model,
+    async def test_transcribe_local_json_format(self, transcriber, tiny_audio_b64, mock_whisper_model):
+        with (
+            patch(
+                "app.tools.speech_to_text_transcriber._get_local_whisper",
+                return_value=mock_whisper_model,
+            ),
+            patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True),
         ):
-            with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True):
-                r = await transcriber.execute(
-                    {
-                        "data": tiny_audio_b64,
-                        "response_format": "json",
-                    }
-                )
+            r = await transcriber.execute(
+                {
+                    "data": tiny_audio_b64,
+                    "response_format": "json",
+                }
+            )
         assert r.success
         assert r.result["engine"] == "local-whisper"
         assert "text" in r.result
 
     @pytest.mark.asyncio
-    async def test_transcribe_local_text_format(
-        self, transcriber, tiny_audio_b64, mock_whisper_model
-    ):
-        with patch(
-            "app.tools.speech_to_text_transcriber._get_local_whisper",
-            return_value=mock_whisper_model,
+    async def test_transcribe_local_text_format(self, transcriber, tiny_audio_b64, mock_whisper_model):
+        with (
+            patch(
+                "app.tools.speech_to_text_transcriber._get_local_whisper",
+                return_value=mock_whisper_model,
+            ),
+            patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True),
         ):
-            with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True):
-                r = await transcriber.execute(
-                    {
-                        "data": tiny_audio_b64,
-                        "response_format": "text",
-                    }
-                )
+            r = await transcriber.execute(
+                {
+                    "data": tiny_audio_b64,
+                    "response_format": "text",
+                }
+            )
         assert r.success
 
     @pytest.mark.asyncio
-    async def test_transcribe_local_with_language(
-        self, transcriber, tiny_audio_b64, mock_whisper_model
-    ):
-        with patch(
-            "app.tools.speech_to_text_transcriber._get_local_whisper",
-            return_value=mock_whisper_model,
+    async def test_transcribe_local_with_language(self, transcriber, tiny_audio_b64, mock_whisper_model):
+        with (
+            patch(
+                "app.tools.speech_to_text_transcriber._get_local_whisper",
+                return_value=mock_whisper_model,
+            ),
+            patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True),
         ):
-            with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True):
-                r = await transcriber.execute(
-                    {
-                        "data": tiny_audio_b64,
-                        "language": "es",
-                        "response_format": "verbose_json",
-                    }
-                )
+            r = await transcriber.execute(
+                {
+                    "data": tiny_audio_b64,
+                    "language": "es",
+                    "response_format": "verbose_json",
+                }
+            )
         assert r.success
         # Verify language was passed through
         mock_whisper_model.transcribe.assert_called_once()
@@ -221,41 +221,41 @@ class TestLocalWhisper:
         assert call_kwargs.get("language") == "es"
 
     @pytest.mark.asyncio
-    async def test_transcribe_local_with_prompt(
-        self, transcriber, tiny_audio_b64, mock_whisper_model
-    ):
-        with patch(
-            "app.tools.speech_to_text_transcriber._get_local_whisper",
-            return_value=mock_whisper_model,
+    async def test_transcribe_local_with_prompt(self, transcriber, tiny_audio_b64, mock_whisper_model):
+        with (
+            patch(
+                "app.tools.speech_to_text_transcriber._get_local_whisper",
+                return_value=mock_whisper_model,
+            ),
+            patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True),
         ):
-            with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True):
-                r = await transcriber.execute(
-                    {
-                        "data": tiny_audio_b64,
-                        "prompt": "Technical terms",
-                        "response_format": "verbose_json",
-                    }
-                )
+            r = await transcriber.execute(
+                {
+                    "data": tiny_audio_b64,
+                    "prompt": "Technical terms",
+                    "response_format": "verbose_json",
+                }
+            )
         assert r.success
         call_kwargs = mock_whisper_model.transcribe.call_args[1]
         assert call_kwargs.get("initial_prompt") == "Technical terms"
 
     @pytest.mark.asyncio
-    async def test_transcribe_local_tempfile_cleaned(
-        self, transcriber, tiny_audio_b64, mock_whisper_model
-    ):
+    async def test_transcribe_local_tempfile_cleaned(self, transcriber, tiny_audio_b64, mock_whisper_model):
         """Verify temp file is cleaned up after transcription."""
-        with patch(
-            "app.tools.speech_to_text_transcriber._get_local_whisper",
-            return_value=mock_whisper_model,
+        with (
+            patch(
+                "app.tools.speech_to_text_transcriber._get_local_whisper",
+                return_value=mock_whisper_model,
+            ),
+            patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True),
         ):
-            with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", True):
-                r = await transcriber.execute(
-                    {
-                        "data": tiny_audio_b64,
-                        "response_format": "verbose_json",
-                    }
-                )
+            r = await transcriber.execute(
+                {
+                    "data": tiny_audio_b64,
+                    "response_format": "verbose_json",
+                }
+            )
         assert r.success
 
 
@@ -289,9 +289,7 @@ class TestOpenAIAPIPath:
 
         with patch("httpx.AsyncClient", return_value=mock_client):
             with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", False):
-                with patch(
-                    "app.tools.speech_to_text_transcriber.OPENAI_API_KEY", "sk-test"
-                ):
+                with patch("app.tools.speech_to_text_transcriber.OPENAI_API_KEY", "sk-test"):
                     r = await transcriber.execute(
                         {
                             "data": tiny_audio_b64,
@@ -314,9 +312,7 @@ class TestOpenAIAPIPath:
 
         with patch("httpx.AsyncClient", return_value=mock_client):
             with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", False):
-                with patch(
-                    "app.tools.speech_to_text_transcriber.OPENAI_API_KEY", "sk-test"
-                ):
+                with patch("app.tools.speech_to_text_transcriber.OPENAI_API_KEY", "sk-test"):
                     r = await transcriber.execute(
                         {
                             "data": tiny_audio_b64,
@@ -338,9 +334,7 @@ class TestOpenAIAPIPath:
 
         with patch("httpx.AsyncClient", return_value=mock_client):
             with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", False):
-                with patch(
-                    "app.tools.speech_to_text_transcriber.OPENAI_API_KEY", "sk-test"
-                ):
+                with patch("app.tools.speech_to_text_transcriber.OPENAI_API_KEY", "sk-test"):
                     r = await transcriber.execute(
                         {
                             "data": tiny_audio_b64,
@@ -355,9 +349,7 @@ class TestOpenAIAPIPath:
         assert any("fr" in str(v) for v in data_dict.values())
 
     @pytest.mark.asyncio
-    async def test_no_api_key_no_local_fallback_error(
-        self, transcriber, tiny_audio_b64
-    ):
+    async def test_no_api_key_no_local_fallback_error(self, transcriber, tiny_audio_b64):
         """When no API key and no local whisper, should return error result."""
         with patch("app.tools.speech_to_text_transcriber.USE_LOCAL_WHISPER", False):
             with patch("app.tools.speech_to_text_transcriber.OPENAI_API_KEY", ""):
@@ -373,8 +365,7 @@ class TestOpenAIAPIPath:
         assert r.success
         assert r.result is not None
         assert "error" in r.result or (
-            isinstance(r.result, dict)
-            and "not configured" in r.result.get("error", "").lower()
+            isinstance(r.result, dict) and "not configured" in r.result.get("error", "").lower()
         )
 
 

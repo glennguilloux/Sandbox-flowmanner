@@ -199,9 +199,7 @@ class NodeJsSandboxTool(BaseTool):
         try:
             validated = NodeJsSandboxInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         lang = validated.language.lower()
         if lang not in ("javascript", "typescript", "js", "ts"):
@@ -242,9 +240,7 @@ class NodeJsSandboxTool(BaseTool):
 
         # Wrap in async IIFE to support top-level await
         wrapped_code = (
-            "(async () => {\n"
-            + code
-            + "\n})().catch(e => { console.error(e.message || e); process.exit(1); });"
+            "(async () => {\n" + code + "\n})().catch(e => { console.error(e.message || e); process.exit(1); });"
         )
 
         # If TypeScript, convert with tsc or ts-node (best-effort)
@@ -333,9 +329,7 @@ class NodeJsSandboxTool(BaseTool):
 
         # Remove type annotations after variable declarations
         # let x: string = "hi" → let x = "hi"
-        code = re.sub(
-            r"\b(let|const|var)\s+(\w+)\s*:\s*[^=;]+(\s*=)", r"\1 \2 \3", code
-        )
+        code = re.sub(r"\b(let|const|var)\s+(\w+)\s*:\s*[^=;]+(\s*=)", r"\1 \2 \3", code)
 
         # Remove parameter type annotations
         # (name: string, age: number) → (name, age)

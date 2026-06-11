@@ -141,31 +141,23 @@ class TestCreateIssue:
 
         assert result["success"] is True
         assert result["response"]["number"] == 42
-        assert (
-            result["response"]["html_url"] == "https://github.com/user/repo/issues/42"
-        )
+        assert result["response"]["html_url"] == "https://github.com/user/repo/issues/42"
 
     @pytest.mark.asyncio
     async def test_missing_owner(self, adapter, connection):
-        result = await adapter.execute(
-            "create_issue", {"repo": "r", "title": "t"}, connection
-        )
+        result = await adapter.execute("create_issue", {"repo": "r", "title": "t"}, connection)
         assert result["success"] is False
         assert "owner" in result["error"]
 
     @pytest.mark.asyncio
     async def test_missing_repo(self, adapter, connection):
-        result = await adapter.execute(
-            "create_issue", {"owner": "o", "title": "t"}, connection
-        )
+        result = await adapter.execute("create_issue", {"owner": "o", "title": "t"}, connection)
         assert result["success"] is False
         assert "repo" in result["error"]
 
     @pytest.mark.asyncio
     async def test_missing_title(self, adapter, connection):
-        result = await adapter.execute(
-            "create_issue", {"owner": "o", "repo": "r"}, connection
-        )
+        result = await adapter.execute("create_issue", {"owner": "o", "repo": "r"}, connection)
         assert result["success"] is False
         assert "title" in result["error"]
 
@@ -422,9 +414,7 @@ class TestGetFileContents:
 
     @pytest.mark.asyncio
     async def test_missing_path(self, adapter, connection):
-        result = await adapter.execute(
-            "get_file_contents", {"owner": "o", "repo": "r"}, connection
-        )
+        result = await adapter.execute("get_file_contents", {"owner": "o", "repo": "r"}, connection)
         assert result["success"] is False
         assert "path" in result["error"]
 

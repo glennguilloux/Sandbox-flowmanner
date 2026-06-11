@@ -50,9 +50,7 @@ async def list_missions(
     per_page: int = Query(20, ge=1, le=100),
     status: str | None = Query(None, description="Filter by mission status"),
     search: str | None = Query(None, description="Search by title"),
-    sort_by: str = Query(
-        "started_at", pattern="^(started_at|completed_at|actual_cost|duration)$"
-    ),
+    sort_by: str = Query("started_at", pattern="^(started_at|completed_at|actual_cost|duration)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     date_from: str | None = Query(None, description="ISO date filter start"),
     date_to: str | None = Query(None, description="ISO date filter end"),
@@ -73,12 +71,8 @@ async def list_missions(
             Mission.tokens_used,
             Mission.error_message,
             func.count(MissionTask.id).label("task_count"),
-            func.count()
-            .filter(MissionTask.status == MissionTaskStatus.COMPLETED)
-            .label("completed_tasks"),
-            func.count()
-            .filter(MissionTask.status == MissionTaskStatus.FAILED)
-            .label("failed_tasks"),
+            func.count().filter(MissionTask.status == MissionTaskStatus.COMPLETED).label("completed_tasks"),
+            func.count().filter(MissionTask.status == MissionTaskStatus.FAILED).label("failed_tasks"),
             func.extract(
                 "epoch",
                 func.coalesce(Mission.completed_at, datetime.now(UTC))
@@ -118,11 +112,7 @@ async def list_missions(
         "duration": text("duration_seconds"),
     }
     sort_col = sort_cols.get(sort_by, Mission.started_at)
-    query = (
-        query.order_by(desc(sort_col))
-        if sort_order == "desc"
-        else query.order_by(sort_col)
-    )
+    query = query.order_by(desc(sort_col)) if sort_order == "desc" else query.order_by(sort_col)
 
     # Paginate
     offset = (page - 1) * per_page
@@ -218,10 +208,7 @@ async def get_cost_analytics(
             )
             .group_by(MissionTask.assigned_agent_id)
         )
-        by_agent = [
-            CostByAgent(agent_id=row[0], cost_usd=round(float(row[1]), 6))
-            for row in agent_cost_rows.all()
-        ]
+        by_agent = [CostByAgent(agent_id=row[0], cost_usd=round(float(row[1]), 6)) for row in agent_cost_rows.all()]
 
         # Cost by model
         model_cost_rows = await db.execute(
@@ -232,10 +219,7 @@ async def get_cost_analytics(
             .where(LLMCallRecord.mission_id.in_(mission_ids))
             .group_by(LLMCallRecord.model_id)
         )
-        by_model = [
-            CostByModel(model_id=row[0], cost_usd=round(float(row[1]), 6))
-            for row in model_cost_rows.all()
-        ]
+        by_model = [CostByModel(model_id=row[0], cost_usd=round(float(row[1]), 6)) for row in model_cost_rows.all()]
     else:
         by_agent = []
         by_model = []
@@ -250,9 +234,7 @@ async def get_cost_analytics(
             Mission.created_at < start,
         )
         if workspace_id:
-            prev_missions_query = prev_missions_query.where(
-                Mission.workspace_id == workspace_id
-            )
+            prev_missions_query = prev_missions_query.where(Mission.workspace_id == workspace_id)
         prev_mission_rows = (await db.execute(prev_missions_query)).all()
         prev_mission_ids = [str(row[0]) for row in prev_mission_rows]
         if prev_mission_ids:
@@ -263,9 +245,7 @@ async def get_cost_analytics(
             )
             previous_period_cost = round(float(prev_cost_result.scalar() or 0), 6)
             if previous_period_cost > 0:
-                trend_pct = round(
-                    (total_cost - previous_period_cost) / previous_period_cost * 100, 1
-                )
+                trend_pct = round((total_cost - previous_period_cost) / previous_period_cost * 100, 1)
 
     return ok(
         CostAnalyticsResponse(
@@ -320,9 +300,7 @@ async def search_logs(
 
     # Count
     count_subq = query.subquery()
-    total = (
-        await db.execute(select(func.count()).select_from(count_subq))
-    ).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(count_subq))).scalar() or 0
 
     # Paginate
     query = query.order_by(desc(MissionLog.timestamp))
@@ -363,9 +341,7 @@ async def get_dashboard_stats(
     status_result = await db.execute(
         select(
             func.count().label("total"),
-            func.count()
-            .filter(Mission.status == MissionStatus.COMPLETED)
-            .label("completed"),
+            func.count().filter(Mission.status == MissionStatus.COMPLETED).label("completed"),
             func.count().filter(Mission.status == MissionStatus.FAILED).label("failed"),
         ).where(
             Mission.user_id == user.id,
@@ -377,9 +353,7 @@ async def get_dashboard_stats(
     total_missions = status_row.total or 0
     completed = status_row.completed or 0
     failed = status_row.failed or 0
-    success_rate = (
-        round(completed / total_missions * 100, 1) if total_missions > 0 else 0.0
-    )
+    success_rate = round(completed / total_missions * 100, 1) if total_missions > 0 else 0.0
 
     # Average duration
     dur_result = await db.execute(
@@ -387,8 +361,7 @@ async def get_dashboard_stats(
             func.avg(
                 func.extract(
                     "epoch",
-                    Mission.completed_at
-                    - func.coalesce(Mission.started_at, Mission.created_at),
+                    Mission.completed_at - func.coalesce(Mission.started_at, Mission.created_at),
                 )
             )
         ).where(

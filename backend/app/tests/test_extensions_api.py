@@ -75,9 +75,7 @@ class TestListExtensions:
         try:
             ext1 = _make_extension(id="ext-1", name="alpha")
             ext2 = _make_extension(id="ext-2", name="beta")
-            mock_db_session.execute = AsyncMock(
-                return_value=_mock_scalars([ext2, ext1])
-            )
+            mock_db_session.execute = AsyncMock(return_value=_mock_scalars([ext2, ext1]))
             response = test_client.get("/api/extensions")
             assert response.status_code == 200
             data = response.json()

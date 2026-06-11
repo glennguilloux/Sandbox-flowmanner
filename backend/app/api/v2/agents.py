@@ -65,9 +65,7 @@ async def _list_agents(db: AsyncSession, user: User, page: int, per_page: int):
 async def list_items(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    cursor: str | None = Query(
-        None, description="Opaque cursor token for keyset pagination"
-    ),
+    cursor: str | None = Query(None, description="Opaque cursor token for keyset pagination"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):

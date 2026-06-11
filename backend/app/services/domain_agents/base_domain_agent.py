@@ -54,9 +54,7 @@ class BaseDomainAgent(ABC):
         """Process and structure the LLM response"""
         pass
 
-    async def run(
-        self, query: str, context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def run(self, query: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Execute a query against the domain agent using a real LLM call.
 
@@ -73,9 +71,7 @@ class BaseDomainAgent(ABC):
         Returns:
             Dict containing the response and metadata
         """
-        logger.info(
-            "[%s] Processing query: %s...", self.domain_name.upper(), query[:100]
-        )
+        logger.info("[%s] Processing query: %s...", self.domain_name.upper(), query[:100])
 
         try:
             from app.models.capability_models import Budget

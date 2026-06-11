@@ -37,9 +37,7 @@ async def list_subscriptions(
     user: User = Depends(get_current_user),
 ):
     offset = (page - 1) * limit
-    count_q = select(func.count(WebhookEndpoint.id)).where(
-        WebhookEndpoint.created_by == user.id
-    )
+    count_q = select(func.count(WebhookEndpoint.id)).where(WebhookEndpoint.created_by == user.id)
     total = (await db.execute(count_q)).scalar() or 0
 
     q = (
@@ -102,9 +100,7 @@ async def create_subscription(
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=409, detail="A webhook with this URL already exists"
-        )
+        raise HTTPException(status_code=409, detail="A webhook with this URL already exists")
     await db.refresh(endpoint)
 
     return {
@@ -115,12 +111,8 @@ async def create_subscription(
             "events": events,
             "secret": secret,
             "is_active": True,
-            "created_at": (
-                endpoint.created_at.isoformat() if endpoint.created_at else ""
-            ),
-            "updated_at": (
-                endpoint.updated_at.isoformat() if endpoint.updated_at else ""
-            ),
+            "created_at": (endpoint.created_at.isoformat() if endpoint.created_at else ""),
+            "updated_at": (endpoint.updated_at.isoformat() if endpoint.updated_at else ""),
             "last_triggered_at": None,
             "failure_count": 0,
         }
@@ -200,9 +192,7 @@ async def list_deliveries(
     if not ep_ids:
         return {"deliveries": [], "total": 0, "page": page, "limit": limit}
 
-    count_q = select(func.count(WebhookLog.id)).where(
-        WebhookLog.endpoint_id.in_(ep_ids)
-    )
+    count_q = select(func.count(WebhookLog.id)).where(WebhookLog.endpoint_id.in_(ep_ids))
     total = (await db.execute(count_q)).scalar() or 0
 
     q = (
@@ -228,12 +218,8 @@ async def list_deliveries(
                 "delivered": log.status == WebhookStatus.SUCCESS.value,
                 "retry_count": log.retry_count,
                 "created_at": log.created_at.isoformat() if log.created_at else "",
-                "delivered_at": (
-                    log.delivered_at.isoformat() if log.delivered_at else None
-                ),
-                "next_retry_at": (
-                    log.next_retry_at.isoformat() if log.next_retry_at else None
-                ),
+                "delivered_at": (log.delivered_at.isoformat() if log.delivered_at else None),
+                "next_retry_at": (log.next_retry_at.isoformat() if log.next_retry_at else None),
             }
             for log in logs
         ],
@@ -249,9 +235,7 @@ async def get_delivery(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(WebhookLog).where(WebhookLog.id == int(delivery_id))
-    )
+    result = await db.execute(select(WebhookLog).where(WebhookLog.id == int(delivery_id)))
     log = result.scalar_one_or_none()
     if not log:
         raise _not_found()
@@ -269,9 +253,7 @@ async def get_delivery(
             "retry_count": log.retry_count,
             "created_at": log.created_at.isoformat() if log.created_at else "",
             "delivered_at": log.delivered_at.isoformat() if log.delivered_at else None,
-            "next_retry_at": (
-                log.next_retry_at.isoformat() if log.next_retry_at else None
-            ),
+            "next_retry_at": (log.next_retry_at.isoformat() if log.next_retry_at else None),
         }
     }
 
@@ -328,29 +310,19 @@ async def emit_event(
             # Fallback: inline delivery if Celery is unavailable
             logger.warning("Celery dispatch failed, falling back to inline delivery")
             try:
-                async with httpx.AsyncClient(
-                    timeout=ep.timeout_seconds or 30
-                ) as client:
+                async with httpx.AsyncClient(timeout=ep.timeout_seconds or 30) as client:
                     body_bytes = json.dumps(event_data, default=str).encode()
                     headers = {
                         "Content-Type": "application/json",
                         "User-Agent": "Flowmanner-Webhook/1.0",
                     }
                     if ep.secret:
-                        sig = hmac.new(
-                            ep.secret.encode(), body_bytes, hashlib.sha256
-                        ).hexdigest()
+                        sig = hmac.new(ep.secret.encode(), body_bytes, hashlib.sha256).hexdigest()
                         headers["X-Webhook-Signature"] = f"sha256={sig}"
                         headers["X-Webhook-ID"] = str(log.id)
-                        headers["X-Webhook-Timestamp"] = (
-                            str(int(log.created_at.timestamp()))
-                            if log.created_at
-                            else ""
-                        )
+                        headers["X-Webhook-Timestamp"] = str(int(log.created_at.timestamp())) if log.created_at else ""
 
-                    resp = await client.post(
-                        ep.path, content=body_bytes, headers=headers
-                    )
+                    resp = await client.post(ep.path, content=body_bytes, headers=headers)
                     log.response_code = resp.status_code
                     log.response_body = {"body": resp.text[:5000]}
                     if 200 <= resp.status_code < 300:
@@ -409,9 +381,7 @@ async def get_stats(
             "status_breakdown": {},
         }
 
-    total_q = select(func.count(WebhookLog.id)).where(
-        WebhookLog.endpoint_id.in_(ep_ids)
-    )
+    total_q = select(func.count(WebhookLog.id)).where(WebhookLog.endpoint_id.in_(ep_ids))
     total_deliveries = (await db.execute(total_q)).scalar() or 0
 
     success_q = select(func.count(WebhookLog.id)).where(
@@ -448,9 +418,7 @@ async def get_stats(
     return {
         "total_subscriptions": total_subscriptions,
         "total_deliveries": total_deliveries,
-        "success_rate": (
-            round(success_count / total_deliveries, 2) if total_deliveries else 0.0
-        ),
+        "success_rate": (round(success_count / total_deliveries, 2) if total_deliveries else 0.0),
         "avg_delivery_time_ms": round(avg_time, 1),
         "p95_delivery_time_ms": round(float(p95_time), 1),
         "status_breakdown": status_breakdown,
@@ -463,9 +431,7 @@ async def get_stats(
 @router.get("/admin/logs")
 async def admin_webhook_logs(
     limit: int = Query(100, ge=1, le=500),
-    status_filter: str | None = Query(
-        None, description="Filter by status: pending, success, failed, retrying"
-    ),
+    status_filter: str | None = Query(None, description="Filter by status: pending, success, failed, retrying"),
     endpoint_id: int | None = Query(None, description="Filter by endpoint ID"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -501,9 +467,7 @@ async def admin_webhook_logs(
     logs = result.scalars().all()
 
     # Aggregated stats across all user deliveries (unfiltered)
-    total_q = select(func.count(WebhookLog.id)).where(
-        WebhookLog.endpoint_id.in_(ep_ids)
-    )
+    total_q = select(func.count(WebhookLog.id)).where(WebhookLog.endpoint_id.in_(ep_ids))
     total = (await db.execute(total_q)).scalar() or 0
 
     success_q = select(func.count(WebhookLog.id)).where(
@@ -542,12 +506,8 @@ async def admin_webhook_logs(
                 "processing_time_ms": log.processing_time_ms,
                 "last_error": log.last_error,
                 "created_at": log.created_at.isoformat() if log.created_at else "",
-                "delivered_at": (
-                    log.delivered_at.isoformat() if log.delivered_at else None
-                ),
-                "next_retry_at": (
-                    log.next_retry_at.isoformat() if log.next_retry_at else None
-                ),
+                "delivered_at": (log.delivered_at.isoformat() if log.delivered_at else None),
+                "next_retry_at": (log.next_retry_at.isoformat() if log.next_retry_at else None),
             }
             for log in logs
         ],

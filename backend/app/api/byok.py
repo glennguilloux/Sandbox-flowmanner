@@ -43,9 +43,7 @@ async def create_api_key(
     try:
         """Store a new API key (encrypted at rest)."""
         if not validate_provider(data.provider):
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported provider: {data.provider}"
-            )
+            raise HTTPException(status_code=400, detail=f"Unsupported provider: {data.provider}")
 
         encrypted = encrypt_api_key(data.api_key)
 
@@ -72,9 +70,7 @@ async def create_api_key(
             "updated_at": key.updated_at.isoformat(),
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/", response_model=list[APIKeyResponse])
@@ -84,11 +80,7 @@ async def list_api_keys(
 ):
     try:
         """List all API keys for the current user (keys are not decrypted)."""
-        result = await db.execute(
-            select(UserAPIKey).where(
-                UserAPIKey.user_id == user.id, UserAPIKey.is_active == True
-            )
-        )
+        result = await db.execute(select(UserAPIKey).where(UserAPIKey.user_id == user.id, UserAPIKey.is_active == True))
         keys = result.scalars().all()
         return [
             {
@@ -102,9 +94,7 @@ async def list_api_keys(
             for k in keys
         ]
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -115,11 +105,7 @@ async def delete_api_key(
 ):
     try:
         """Soft-delete an API key (set is_active=False)."""
-        result = await db.execute(
-            select(UserAPIKey).where(
-                UserAPIKey.id == key_id, UserAPIKey.user_id == user.id
-            )
-        )
+        result = await db.execute(select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id))
         key = result.scalar_one_or_none()
         if not key:
             raise HTTPException(status_code=404, detail="API key not found")
@@ -128,15 +114,11 @@ async def delete_api_key(
         await db.commit()
         return None
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # Internal helper for other services to get decrypted keys
-async def get_decrypted_key(
-    db: AsyncSession, user_id: int, provider: str
-) -> str | None:
+async def get_decrypted_key(db: AsyncSession, user_id: int, provider: str) -> str | None:
     """Retrieve and decrypt an API key for internal use."""
     result = await db.execute(
         select(UserAPIKey).where(

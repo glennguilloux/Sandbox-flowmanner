@@ -20,7 +20,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional, Any
+from typing import Any, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -84,9 +84,7 @@ class ComposedCapability:
             "loop_condition": self.loop_condition,
             "loop_max_iterations": self.loop_max_iterations,
             "execution_count": self.execution_count,
-            "last_executed": (
-                self.last_executed.isoformat() if self.last_executed else None
-            ),
+            "last_executed": (self.last_executed.isoformat() if self.last_executed else None),
         }
 
 
@@ -160,12 +158,8 @@ class CapabilityComposer:
     def _get_db_session(self) -> Session:
         """Get or create database session"""
         if self._sync_engine is None:
-            sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace(
-                "postgresql+asyncpg", "postgresql"
-            )
-            self._sync_engine = create_engine(
-                sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5
-            )
+            sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace("postgresql+asyncpg", "postgresql")
+            self._sync_engine = create_engine(sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
         factory = sessionmaker(bind=self._sync_engine)
         return factory()
 
@@ -210,11 +204,7 @@ class CapabilityComposer:
         db = None
         try:
             db = self._get_db_session()
-            existing = (
-                db.query(ComposedCapabilityModel)
-                .filter(ComposedCapabilityModel.id == composed.id)
-                .first()
-            )
+            existing = db.query(ComposedCapabilityModel).filter(ComposedCapabilityModel.id == composed.id).first()
 
             if existing:
                 # Update existing
@@ -266,9 +256,7 @@ class CapabilityComposer:
 
             # Remove from database
             db = self._get_db_session()
-            db.query(ComposedCapabilityModel).filter(
-                ComposedCapabilityModel.id == composed_id
-            ).delete()
+            db.query(ComposedCapabilityModel).filter(ComposedCapabilityModel.id == composed_id).delete()
             db.commit()
 
             logger.info("Deleted composed capability: %s", composed_id)
@@ -377,8 +365,7 @@ class CapabilityComposer:
         composed = ComposedCapability(
             id=composed_id,
             name=name or f"Composed-{comp_type.value}-{len(self._composed)}",
-            description=description
-            or f"{comp_type.value.title()} composition of {len(capability_ids)} capabilities",
+            description=description or f"{comp_type.value.title()} composition of {len(capability_ids)} capabilities",
             capability_ids=capability_ids,
             composition_type=comp_type,
             metadata=metadata or {},
@@ -386,9 +373,7 @@ class CapabilityComposer:
         )
 
         self._composed[composed_id] = composed
-        logger.info(
-            "Created composed capability: %s (%s)", composed_id, comp_type.value
-        )
+        logger.info("Created composed capability: %s (%s)", composed_id, comp_type.value)
 
         # Persist to database
         await self._save_composed_capability(composed)
@@ -453,9 +438,7 @@ class CapabilityComposer:
 
         return len(errors) == 0, errors
 
-    async def execute_composed(
-        self, composed_id: str, params: dict[str, Any]
-    ) -> CompositionResult:
+    async def execute_composed(self, composed_id: str, params: dict[str, Any]) -> CompositionResult:
         """
         Execute a composed capability.
 
@@ -495,13 +478,9 @@ class CapabilityComposer:
                     composed, registry, current_params, outputs, capabilities_executed
                 )
             elif composed.composition_type == CompositionType.LOOP:
-                result = await self._execute_loop(
-                    composed, registry, current_params, outputs, capabilities_executed
-                )
+                result = await self._execute_loop(composed, registry, current_params, outputs, capabilities_executed)
             else:
-                raise ValueError(
-                    f"Unknown composition type: {composed.composition_type}"
-                )
+                raise ValueError(f"Unknown composition type: {composed.composition_type}")
 
             # Update execution tracking
             composed.execution_count += 1
@@ -626,11 +605,7 @@ class CapabilityComposer:
         branch_to_take = None
         if composed.condition_field and isinstance(condition_result, dict):
             field_value = condition_result.get(composed.condition_field)
-            branch_to_take = (
-                composed.true_branch
-                if field_value == composed.condition_value
-                else composed.false_branch
-            )
+            branch_to_take = composed.true_branch if field_value == composed.condition_value else composed.false_branch
         else:
             # Default: truthy check
             if condition_result:
@@ -644,9 +619,7 @@ class CapabilityComposer:
             for cap_id in branch_to_take:
                 cap = registry.get(cap_id)
                 if cap:
-                    result = await cap.execute(
-                        {**params, "condition_result": condition_result}
-                    )
+                    result = await cap.execute({**params, "condition_result": condition_result})
                     outputs.append({"capability_id": cap_id, "output": result})
                     capabilities_executed.append(cap_id)
 
@@ -789,10 +762,7 @@ class CapabilityComposer:
         final_assignments = {**template.default_capabilities, **capability_assignments}
 
         # Build capability list from slots
-        capability_ids = [
-            final_assignments.get(slot, f"unknown:{slot}")
-            for slot in template.capability_slots
-        ]
+        capability_ids = [final_assignments.get(slot, f"unknown:{slot}") for slot in template.capability_slots]
 
         return await self.compose(
             capability_ids=capability_ids,

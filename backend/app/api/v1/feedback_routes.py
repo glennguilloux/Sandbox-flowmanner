@@ -49,9 +49,7 @@ async def list_feedback(
     """List feedback reports for the current user."""
     offset = (page - 1) * per_page
 
-    count_q = select(func.count(FeedbackReport.id)).where(
-        FeedbackReport.user_id == user.id
-    )
+    count_q = select(func.count(FeedbackReport.id)).where(FeedbackReport.user_id == user.id)
     total = (await db.execute(count_q)).scalar() or 0
 
     q = (
@@ -89,15 +87,11 @@ async def get_feedback_stats(
 ):
     """Get feedback statistics for the current user."""
     base = select(FeedbackReport).where(FeedbackReport.user_id == user.id)
-    total_q = select(func.count(FeedbackReport.id)).where(
-        FeedbackReport.user_id == user.id
-    )
+    total_q = select(func.count(FeedbackReport.id)).where(FeedbackReport.user_id == user.id)
     total = (await db.execute(total_q)).scalar() or 0
 
     # Score-based sentiment
-    avg_q = select(func.avg(FeedbackReport.overall_score)).where(
-        FeedbackReport.user_id == user.id
-    )
+    avg_q = select(func.avg(FeedbackReport.overall_score)).where(FeedbackReport.user_id == user.id)
     avg_score = (await db.execute(avg_q)).scalar() or 0
 
     positive_q = select(func.count(FeedbackReport.id)).where(
@@ -188,9 +182,7 @@ async def get_report_endpoint(
     return report
 
 
-@router.get(
-    "/missions/{mission_id}/reports", response_model=list[FeedbackReportResponse]
-)
+@router.get("/missions/{mission_id}/reports", response_model=list[FeedbackReportResponse])
 async def list_reports_endpoint(
     mission_id: str,
     offset: int = Query(0, ge=0),
@@ -278,9 +270,7 @@ async def delete_pattern_endpoint(
 
     from app.models.feedback_models import FeedbackPattern
 
-    pattern = await db.execute(
-        select(FeedbackPattern).where(FeedbackPattern.id == pattern_id)
-    )
+    pattern = await db.execute(select(FeedbackPattern).where(FeedbackPattern.id == pattern_id))
     pattern = pattern.scalar_one_or_none()
     if pattern is None or pattern.user_id != user.id:
         raise _not_found()
@@ -358,9 +348,7 @@ async def apply_improvement_endpoint(
     if mission is None or mission.user_id != user.id:
         raise _not_found()
 
-    result = await db.execute(
-        select(MissionImprovement).where(MissionImprovement.id == improvement_id)
-    )
+    result = await db.execute(select(MissionImprovement).where(MissionImprovement.id == improvement_id))
     improvement = result.scalar_one_or_none()
     if improvement is None:
         raise _not_found()

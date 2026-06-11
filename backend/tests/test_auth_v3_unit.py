@@ -6,6 +6,8 @@ scope validation, and session token utilities.
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from pydantic import ValidationError
 
@@ -15,8 +17,8 @@ from app.models.auth_v3_models import (
     AuthWebhookSubscription,
 )
 from app.schemas.auth_v3 import (
-    ApiKeyResponse,
     ApiKeyListResponse,
+    ApiKeyResponse,
     CreateApiKeyRequest,
     LoginRequest,
     RegisterRequest,
@@ -31,7 +33,6 @@ from app.services.auth_v3_service import (
     validate_api_key_scopes,
     validate_role,
 )
-
 
 # ═══════════════════════════════════════════════
 # LoginRequest Schema Tests
@@ -66,9 +67,7 @@ class TestLoginRequestSchema:
         assert req.provider == "credentials"
 
     def test_oidc_provider_accepted(self):
-        req = LoginRequest(
-            login="user@example.com", password="oidc-code", provider="oidc"
-        )
+        req = LoginRequest(login="user@example.com", password="oidc-code", provider="oidc")
         assert req.provider == "oidc"
 
 
@@ -152,7 +151,7 @@ class TestSessionResponseSchema:
         resp = SessionResponse(
             access_token="eyJ...",
             session_id="sess_abc123",
-            expires_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(UTC),
             user=UserSummary(
                 id=1,
                 email="a@b.com",
@@ -190,9 +189,7 @@ class TestSessionResponseSchema:
 
 class TestCreateApiKeyRequest:
     def test_valid_request(self):
-        req = CreateApiKeyRequest(
-            name="CI Key", scopes=["missions:read", "missions:write"]
-        )
+        req = CreateApiKeyRequest(name="CI Key", scopes=["missions:read", "missions:write"])
         assert req.name == "CI Key"
         assert req.scopes == ["missions:read", "missions:write"]
 
@@ -312,9 +309,7 @@ class TestScopeValidation:
             "agents:write",
         ]
         for scope in valid:
-            assert (
-                validate_api_key_scopes([scope]) is True
-            ), f"Scope {scope} should be valid"
+            assert validate_api_key_scopes([scope]) is True, f"Scope {scope} should be valid"
 
 
 # ═══════════════════════════════════════════════

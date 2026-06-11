@@ -88,9 +88,7 @@ async def list_active_missions(
 ):
     """Active missions with progress/ETA (pro required)."""
     is_pro = getattr(user, "is_pro", False) or getattr(user, "role", None) == "pro"
-    result = await q.active_missions(
-        user.id, getattr(user, "role", ""), is_pro, workspace_id=workspace_id
-    )
+    result = await q.active_missions(user.id, getattr(user, "role", ""), is_pro, workspace_id=workspace_id)
     return result.missions
 
 
@@ -264,12 +262,8 @@ async def stream_mission_status(
 # ── Improvements (CQRS DI) ────────────────────────────────────────────────────
 
 
-@router.get(
-    "/{mission_id}/improvements/", response_model=list[MissionImprovementResponse]
-)
-@router.get(
-    "/{mission_id}/improvements", response_model=list[MissionImprovementResponse]
-)
+@router.get("/{mission_id}/improvements/", response_model=list[MissionImprovementResponse])
+@router.get("/{mission_id}/improvements", response_model=list[MissionImprovementResponse])
 async def list_improvements(
     mission_id: uuid.UUID,
     user: User = Depends(get_current_user),
@@ -318,9 +312,7 @@ async def get_mission_events(
     Returns the append-only event log from the substrate_events table.
     Events are ordered by sequence ascending.
     """
-    events = await q.get_events(
-        user.id, mission_id, from_sequence=from_sequence, limit=limit
-    )
+    events = await q.get_events(user.id, mission_id, from_sequence=from_sequence, limit=limit)
     return {"mission_id": str(mission_id), "events": events, "count": len(events)}
 
 

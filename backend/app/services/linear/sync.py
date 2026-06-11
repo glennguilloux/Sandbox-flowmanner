@@ -39,9 +39,7 @@ async def sync_mission_to_linear(
 
         # Load mission to get Linear linkage
         async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(Mission).where(Mission.id == str(mission_id))
-            )
+            result = await db.execute(select(Mission).where(Mission.id == str(mission_id)))
             mission = result.scalars().first()
             if not mission:
                 logger.warning("Mission %s not found for Linear sync", mission_id)
@@ -52,9 +50,7 @@ async def sync_mission_to_linear(
             linear_data = plan.get("linear", {})
             issue_id = linear_data.get("issue_id")
             if not issue_id:
-                logger.debug(
-                    "Mission %s has no linked Linear issue — skipping sync", mission_id
-                )
+                logger.debug("Mission %s has no linked Linear issue — skipping sync", mission_id)
                 return False
 
             # Fetch current issue to get team context
@@ -76,8 +72,7 @@ async def sync_mission_to_linear(
                     completed = summary.get("completed", 0)
                     failed = summary.get("failed", 0)
                     comment_lines.append(
-                        f"- **Tasks**: {completed}/{total} completed"
-                        + (f", {failed} failed" if failed else "")
+                        f"- **Tasks**: {completed}/{total} completed" + (f", {failed} failed" if failed else "")
                     )
                     comment_lines.append("")
 
@@ -123,9 +118,7 @@ async def sync_mission_to_linear(
 
             comment_body = "\n".join(comment_lines)
             await client.add_comment(issue_id, comment_body)
-            logger.info(
-                "Posted Linear comment on issue %s for mission %s", issue_id, mission_id
-            )
+            logger.info("Posted Linear comment on issue %s for mission %s", issue_id, mission_id)
 
             # Optionally update issue state
             try:
@@ -139,15 +132,12 @@ async def sync_mission_to_linear(
                                 s
                                 for s in states
                                 if s.get("type") in ("completed", "done")
-                                or s.get("name", "").lower()
-                                in ("done", "completed", "closed")
+                                or s.get("name", "").lower() in ("done", "completed", "closed")
                             ),
                             None,
                         )
                         if done_state:
-                            await client.update_issue(
-                                issue_id, state_id=done_state["id"]
-                            )
+                            await client.update_issue(issue_id, state_id=done_state["id"])
                             logger.info(
                                 "Updated Linear issue %s to %s",
                                 issue_id,

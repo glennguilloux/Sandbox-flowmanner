@@ -33,9 +33,7 @@ def _broadcast_execution_event(execution_id: str, event: str, data: dict) -> Non
         import asyncio
 
         loop = asyncio.get_running_loop()
-        asyncio.create_task(
-            _socketio_server.emit(event, data, room=f"graph_exec_{execution_id}")
-        )
+        asyncio.create_task(_socketio_server.emit(event, data, room=f"graph_exec_{execution_id}"))
     except RuntimeError:
         pass
 
@@ -63,9 +61,7 @@ async def create_graph_workflow(
 
 
 async def get_graph_workflow(db: AsyncSession, workflow_id) -> GraphWorkflow | None:
-    result = await db.execute(
-        select(GraphWorkflow).where(GraphWorkflow.id == str(workflow_id))
-    )
+    result = await db.execute(select(GraphWorkflow).where(GraphWorkflow.id == str(workflow_id)))
     return result.scalar_one_or_none()
 
 
@@ -193,11 +189,7 @@ async def list_graph_workflows(
     total = (await db.execute(count_q)).scalar() or 0
 
     items_q = (
-        select(GraphWorkflow)
-        .where(base_filter)
-        .order_by(GraphWorkflow.created_at.desc())
-        .offset(offset)
-        .limit(limit)
+        select(GraphWorkflow).where(base_filter).order_by(GraphWorkflow.created_at.desc()).offset(offset).limit(limit)
     )
     items = list((await db.execute(items_q)).scalars().all())
     return items, total
@@ -258,9 +250,7 @@ async def execute_graph_workflow(
     await db.refresh(execution)
 
     # Launch background execution
-    asyncio.create_task(
-        _execute_graph_async(None, execution.id, str(workflow_id), user_id, input_data)
-    )
+    asyncio.create_task(_execute_graph_async(None, execution.id, str(workflow_id), user_id, input_data))
 
     return execution
 
@@ -273,36 +263,26 @@ async def list_graph_executions(
     offset: int = 0,
     limit: int = 20,
 ) -> tuple[list[GraphExecution], int]:
-    base_filter = (GraphExecution.workflow_id == str(workflow_id)) & (
-        GraphExecution.user_id == user_id
-    )
+    base_filter = (GraphExecution.workflow_id == str(workflow_id)) & (GraphExecution.user_id == user_id)
 
     count_q = select(func.count()).select_from(GraphExecution).where(base_filter)
     total = (await db.execute(count_q)).scalar() or 0
 
     items_q = (
-        select(GraphExecution)
-        .where(base_filter)
-        .order_by(GraphExecution.created_at.desc())
-        .offset(offset)
-        .limit(limit)
+        select(GraphExecution).where(base_filter).order_by(GraphExecution.created_at.desc()).offset(offset).limit(limit)
     )
     items = list((await db.execute(items_q)).scalars().all())
     return items, total
 
 
 async def get_graph_execution(db: AsyncSession, execution_id) -> GraphExecution | None:
-    result = await db.execute(
-        select(GraphExecution).where(GraphExecution.id == str(execution_id))
-    )
+    result = await db.execute(select(GraphExecution).where(GraphExecution.id == str(execution_id)))
     return result.scalar_one_or_none()
 
 
 async def get_graph_states(db: AsyncSession, execution_id) -> list[GraphState]:
     result = await db.execute(
-        select(GraphState)
-        .where(GraphState.execution_id == str(execution_id))
-        .order_by(GraphState.created_at.asc())
+        select(GraphState).where(GraphState.execution_id == str(execution_id)).order_by(GraphState.created_at.asc())
     )
     return list(result.scalars().all())
 

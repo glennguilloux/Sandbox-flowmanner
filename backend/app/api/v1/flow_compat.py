@@ -37,9 +37,7 @@ def _add_deprecation_headers(response: Response):
     response.headers["Link"] = '</api/v2/blueprints>; rel="successor-version"'
 
 
-router = APIRouter(
-    tags=["flow-compat"], dependencies=[Depends(_add_deprecation_headers)]
-)
+router = APIRouter(tags=["flow-compat"], dependencies=[Depends(_add_deprecation_headers)])
 
 
 @router.get("/runs")
@@ -55,9 +53,7 @@ async def get_flow_runs(
     """
     offset = (page - 1) * limit
     count_result = await db.execute(
-        select(func.count())
-        .select_from(GraphExecution)
-        .where(GraphExecution.user_id == current_user.id)
+        select(func.count()).select_from(GraphExecution).where(GraphExecution.user_id == current_user.id)
     )
     total = count_result.scalar() or 0
 

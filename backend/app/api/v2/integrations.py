@@ -119,9 +119,7 @@ async def get_integration(
     )
     config = result.scalars().first()
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
     return ok(_to_response(config))
 
 
@@ -141,9 +139,7 @@ async def update_integration(
     )
     config = result.scalars().first()
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
 
     if payload.name is not None:
         config.name = payload.name
@@ -155,9 +151,7 @@ async def update_integration(
         config.auth_type = payload.auth_type
     if payload.auth_config is not None:
         try:
-            config.auth_config_encrypted = encrypt_api_key(
-                json.dumps(payload.auth_config)
-            )
+            config.auth_config_encrypted = encrypt_api_key(json.dumps(payload.auth_config))
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -190,9 +184,7 @@ async def delete_integration(
     )
     config = result.scalars().first()
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
 
     await db.delete(config)
     await db.commit()
@@ -219,17 +211,11 @@ async def list_integration_logs(
         )
     )
     if not config_result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration config not found")
 
     # Count
     total = (
-        await db.execute(
-            select(func.count()).where(
-                HttpIntegrationLog.integration_id == str(integration_id)
-            )
-        )
+        await db.execute(select(func.count()).where(HttpIntegrationLog.integration_id == str(integration_id)))
     ).scalar() or 0
 
     # Fetch logs

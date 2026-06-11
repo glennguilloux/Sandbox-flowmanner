@@ -305,9 +305,7 @@ class Query:
         )
 
     @strawberry.field
-    async def missions(
-        self, info: Info, page: int = 1, per_page: int = 20
-    ) -> MissionConnection:
+    async def missions(self, info: Info, page: int = 1, per_page: int = 20) -> MissionConnection:
         user = _get_user(info)
         db = _get_db(info)
         from app.services.mission_service import list_missions
@@ -332,17 +330,13 @@ class Query:
         return _mission_to_gql(mission)
 
     @strawberry.field
-    async def agents(
-        self, info: Info, page: int = 1, per_page: int = 20
-    ) -> AgentConnection:
+    async def agents(self, info: Info, page: int = 1, per_page: int = 20) -> AgentConnection:
         user = _get_user(info)
         db = _get_db(info)
         from app.services.agent_service import list_agents
 
         offset = (page - 1) * per_page
-        items, total = await list_agents(
-            db, str(user.id), offset=offset, limit=per_page
-        )
+        items, total = await list_agents(db, str(user.id), offset=offset, limit=per_page)
         pages = (total + per_page - 1) // per_page if per_page > 0 else 0
         return AgentConnection(
             items=[_agent_to_gql(a) for a in items],
@@ -361,17 +355,13 @@ class Query:
         return _agent_to_gql(agent)
 
     @strawberry.field
-    async def chat_threads(
-        self, info: Info, page: int = 1, per_page: int = 20
-    ) -> ChatThreadConnection:
+    async def chat_threads(self, info: Info, page: int = 1, per_page: int = 20) -> ChatThreadConnection:
         user = _get_user(info)
         db = _get_db(info)
         from app.services.chat_service import list_chat_threads
 
         offset = (page - 1) * per_page
-        items, total = await list_chat_threads(
-            db, user.id, offset=offset, limit=per_page
-        )
+        items, total = await list_chat_threads(db, user.id, offset=offset, limit=per_page)
         pages = (total + per_page - 1) // per_page if per_page > 0 else 0
         return ChatThreadConnection(
             items=[_thread_to_gql(t) for t in items],
@@ -409,16 +399,12 @@ class Query:
 
         from app.models.workspace_models import Workspace, WorkspaceMember
 
-        result = await db.execute(
-            select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)
-        )
+        result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
         memberships = result.scalars().all()
         workspace_ids = [m.workspace_id for m in memberships]
         if not workspace_ids:
             return []
-        result = await db.execute(
-            select(Workspace).where(Workspace.id.in_(workspace_ids))
-        )
+        result = await db.execute(select(Workspace).where(Workspace.id.in_(workspace_ids)))
         workspaces = result.scalars().all()
         return [
             WorkspaceType(
@@ -481,9 +467,7 @@ class Query:
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    async def create_mission(
-        self, info: Info, input: MissionCreateInput
-    ) -> MissionType:
+    async def create_mission(self, info: Info, input: MissionCreateInput) -> MissionType:
         user = _get_user(info)
         db = _get_db(info)
         from app.services.mission_service import create_mission
@@ -500,9 +484,7 @@ class Mutation:
         return _mission_to_gql(mission)
 
     @strawberry.mutation
-    async def update_mission(
-        self, info: Info, id: str, input: MissionUpdateInput
-    ) -> MissionType:
+    async def update_mission(self, info: Info, id: str, input: MissionUpdateInput) -> MissionType:
         user = _get_user(info)
         db = _get_db(info)
         from app.services.mission_service import get_mission, update_mission
@@ -567,16 +549,12 @@ class Mutation:
         return await delete_agent(db, id)  # type: ignore[arg-type]
 
     @strawberry.mutation
-    async def create_chat_thread(
-        self, info: Info, input: ChatThreadCreateInput
-    ) -> ChatThreadType:
+    async def create_chat_thread(self, info: Info, input: ChatThreadCreateInput) -> ChatThreadType:
         user = _get_user(info)
         db = _get_db(info)
         from app.services.chat_service import create_chat_thread
 
-        thread = await create_chat_thread(
-            db, user.id, user.username, input.title, input.model_preference
-        )
+        thread = await create_chat_thread(db, user.id, user.username, input.title, input.model_preference)
         return _thread_to_gql(thread)
 
     @strawberry.mutation

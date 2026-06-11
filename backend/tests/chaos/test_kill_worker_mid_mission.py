@@ -30,7 +30,6 @@ from app.models.substrate_models import (
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -132,9 +131,7 @@ def _simulate_mission_until_crash(
 def _mock_event_log(events):
     el = MagicMock(spec=EventLog)
 
-    async def _get_events(
-        db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000
-    ):
+    async def _get_events(db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000):
         filtered = [e for e in events if e.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [e for e in filtered if e.sequence <= to_sequence]
@@ -152,15 +149,12 @@ def _mock_event_log(events):
 
 
 class TestKillWorkerMidMission:
-
     def test_crash_after_task_started(self):
         """Crash after 2 tasks started: replay shows mission=executing."""
         run_id = str(uuid4())
         mission_id = str(uuid4())
 
-        persisted, expected = _simulate_mission_until_crash(
-            run_id, mission_id, crash_after_sequence=3
-        )
+        persisted, expected = _simulate_mission_until_crash(run_id, mission_id, crash_after_sequence=3)
 
         el = _mock_event_log(persisted)
         engine = ReplayEngine(event_log=el)
@@ -178,9 +172,7 @@ class TestKillWorkerMidMission:
         run_id = str(uuid4())
         mission_id = str(uuid4())
 
-        persisted, expected = _simulate_mission_until_crash(
-            run_id, mission_id, crash_after_sequence=5
-        )
+        persisted, expected = _simulate_mission_until_crash(run_id, mission_id, crash_after_sequence=5)
 
         el = _mock_event_log(persisted)
         engine = ReplayEngine(event_log=el)
@@ -324,9 +316,7 @@ class TestKillWorkerMidMission:
         run_id = str(uuid4())
         mission_id = str(uuid4())
 
-        persisted, _ = _simulate_mission_until_crash(
-            run_id, mission_id, crash_after_sequence=6
-        )
+        persisted, _ = _simulate_mission_until_crash(run_id, mission_id, crash_after_sequence=6)
 
         el = _mock_event_log(persisted)
         engine = ReplayEngine(event_log=el)
@@ -344,7 +334,6 @@ class TestKillWorkerMidMission:
 
 
 class TestResumeAfterCrash:
-
     def test_pending_tasks_identified(self):
         """After crash, tasks not in completed/failed sets are pending."""
         run_id = str(uuid4())

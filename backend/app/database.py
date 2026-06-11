@@ -16,9 +16,7 @@ engine = create_async_engine(
     connect_args={
         "server_settings": {
             "statement_timeout": str(settings.DATABASE_STATEMENT_TIMEOUT_MS),
-            "idle_in_transaction_session_timeout": str(
-                settings.DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS
-            ),
+            "idle_in_transaction_session_timeout": str(settings.DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS),
         },
         "timeout": settings.DATABASE_CONNECT_TIMEOUT,
     },

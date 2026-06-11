@@ -86,9 +86,7 @@ class Budget:
     hard_limit: bool = True  # Block when exceeded
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def check_within_limits(
-        self, current_spend: dict[str, float]
-    ) -> tuple[bool, str | None]:
+    def check_within_limits(self, current_spend: dict[str, float]) -> tuple[bool, str | None]:
         """Check if current spend is within budget limits"""
         if current_spend.get("daily", 0) > self.daily_limit:
             return (
@@ -113,13 +111,9 @@ class Budget:
         if current_spend.get("daily", 0) >= self.daily_limit * self.alert_threshold:
             alerts.append(f"Daily: {current_spend['daily']:.2f}/{self.daily_limit:.2f}")
         if current_spend.get("weekly", 0) >= self.weekly_limit * self.alert_threshold:
-            alerts.append(
-                f"Weekly: {current_spend['weekly']:.2f}/{self.weekly_limit:.2f}"
-            )
+            alerts.append(f"Weekly: {current_spend['weekly']:.2f}/{self.weekly_limit:.2f}")
         if current_spend.get("monthly", 0) >= self.monthly_limit * self.alert_threshold:
-            alerts.append(
-                f"Monthly: {current_spend['monthly']:.2f}/{self.monthly_limit:.2f}"
-            )
+            alerts.append(f"Monthly: {current_spend['monthly']:.2f}/{self.monthly_limit:.2f}")
 
         return len(alerts) > 0, ", ".join(alerts)
 
@@ -189,9 +183,7 @@ class CostOptimizer:
         self._usage_records: list[TokenUsage] = []
         self._budgets: dict[str, Budget] = {}  # entity_id -> Budget
         self._model_pricing: dict[str, ModelPricing] = dict(self.DEFAULT_PRICING)
-        self._spend_cache: dict[str, dict[str, float]] = (
-            {}
-        )  # entity_id -> {daily, weekly, monthly}
+        self._spend_cache: dict[str, dict[str, float]] = {}  # entity_id -> {daily, weekly, monthly}
         self._recommendations: list[OptimizationRecommendation] = []
         self._tool_cost_history: dict[str, list[float]] = {}  # tool_name -> [costs]
         self._lock = asyncio.Lock()
@@ -274,9 +266,7 @@ class CostOptimizer:
             estimated_output_tokens = int(estimated_input_tokens * 0.5)
 
         pricing = self.get_model_pricing(model_id)
-        estimated_cost = pricing.calculate_cost(
-            estimated_input_tokens, estimated_output_tokens
-        )
+        estimated_cost = pricing.calculate_cost(estimated_input_tokens, estimated_output_tokens)
 
         # Calculate confidence based on historical data
         confidence = 0.7  # Base confidence
@@ -291,19 +281,14 @@ class CostOptimizer:
         alternatives = []
         for alt_model, alt_pricing in self._model_pricing.items():
             if alt_model != model_id and alt_model != "default":
-                alt_cost = alt_pricing.calculate_cost(
-                    estimated_input_tokens, estimated_output_tokens
-                )
+                alt_cost = alt_pricing.calculate_cost(estimated_input_tokens, estimated_output_tokens)
                 if alt_cost < estimated_cost:
                     alternatives.append(
                         {
                             "model_id": alt_model,
                             "estimated_cost": alt_cost,
                             "savings": estimated_cost - alt_cost,
-                            "savings_percent": (
-                                (estimated_cost - alt_cost) / estimated_cost
-                            )
-                            * 100,
+                            "savings_percent": ((estimated_cost - alt_cost) / estimated_cost) * 100,
                         }
                     )
 
@@ -319,9 +304,7 @@ class CostOptimizer:
             alternatives=alternatives[:3],  # Top 3 alternatives
         )
 
-    async def check_budget(
-        self, entity_id: str, estimated_cost: float
-    ) -> tuple[bool, str | None]:
+    async def check_budget(self, entity_id: str, estimated_cost: float) -> tuple[bool, str | None]:
         """
         Check if an operation would exceed budget.
 
@@ -336,9 +319,7 @@ class CostOptimizer:
         if not budget:
             return True, None  # No budget set, allow
 
-        spend = self._spend_cache.get(
-            entity_id, {"daily": 0.0, "weekly": 0.0, "monthly": 0.0}
-        )
+        spend = self._spend_cache.get(entity_id, {"daily": 0.0, "weekly": 0.0, "monthly": 0.0})
 
         # Check if adding this cost would exceed limits
         projected = {
@@ -504,9 +485,7 @@ class CostOptimizer:
     async def get_spend_summary(self, entity_id: str) -> dict[str, Any]:
         """Get current spend summary for an entity"""
         budget = self._budgets.get(entity_id)
-        spend = self._spend_cache.get(
-            entity_id, {"daily": 0.0, "weekly": 0.0, "monthly": 0.0}
-        )
+        spend = self._spend_cache.get(entity_id, {"daily": 0.0, "weekly": 0.0, "monthly": 0.0})
 
         result = {"entity_id": entity_id, "spend": spend, "budget": None}
 
@@ -518,20 +497,12 @@ class CostOptimizer:
                 "daily_remaining": max(0, budget.daily_limit - spend["daily"]),
                 "weekly_remaining": max(0, budget.weekly_limit - spend["weekly"]),
                 "monthly_remaining": max(0, budget.monthly_limit - spend["monthly"]),
-                "daily_percent_used": (
-                    (spend["daily"] / budget.daily_limit * 100)
-                    if budget.daily_limit > 0
-                    else 0
-                ),
+                "daily_percent_used": ((spend["daily"] / budget.daily_limit * 100) if budget.daily_limit > 0 else 0),
                 "weekly_percent_used": (
-                    (spend["weekly"] / budget.weekly_limit * 100)
-                    if budget.weekly_limit > 0
-                    else 0
+                    (spend["weekly"] / budget.weekly_limit * 100) if budget.weekly_limit > 0 else 0
                 ),
                 "monthly_percent_used": (
-                    (spend["monthly"] / budget.monthly_limit * 100)
-                    if budget.monthly_limit > 0
-                    else 0
+                    (spend["monthly"] / budget.monthly_limit * 100) if budget.monthly_limit > 0 else 0
                 ),
             }
 
@@ -576,9 +547,7 @@ class CostOptimizer:
                 continue
 
             pricing = self.get_model_pricing(model_id)
-            cost = pricing.calculate_cost(
-                estimated_input_tokens, estimated_output_tokens
-            )
+            cost = pricing.calculate_cost(estimated_input_tokens, estimated_output_tokens)
 
             if cost < best_cost:
                 best_cost = cost
@@ -588,9 +557,7 @@ class CostOptimizer:
             # Fallback to first model if none meet threshold
             best_model = models[0] if models else "default"
             pricing = self.get_model_pricing(best_model)
-            best_cost = pricing.calculate_cost(
-                estimated_input_tokens, estimated_output_tokens
-            )
+            best_cost = pricing.calculate_cost(estimated_input_tokens, estimated_output_tokens)
 
         return best_model, best_cost
 
@@ -612,9 +579,7 @@ class CostOptimizer:
                         recommendation_id=f"high_cost_tool_{tool_name}",
                         category="model_selection",
                         description=f"Consider using a cheaper model for {tool_name} (avg cost: ${avg_cost:.4f})",
-                        potential_savings=avg_cost
-                        * len(costs)
-                        * 0.5,  # Estimate 50% savings
+                        potential_savings=avg_cost * len(costs) * 0.5,  # Estimate 50% savings
                         impact="medium",
                         implementation_effort="easy",
                         metadata={"tool_name": tool_name, "avg_cost": avg_cost},

@@ -85,9 +85,7 @@ def _format_paragraph_markdown(para) -> str:
     if prefix:
         # Strip the matched prefix characters from formatted text
         # Match leading whitespace + bullet/number + whitespace
-        m = re.match(
-            r"^\s*(?:[-\u2022\u2023\u25E6\u2043\u2219\*]\s*|\d+[\.\)]\s*)", formatted
-        )
+        m = re.match(r"^\s*(?:[-\u2022\u2023\u25E6\u2043\u2219\*]\s*|\d+[\.\)]\s*)", formatted)
         if m:
             formatted = formatted[m.end() :]
         return f"{prefix}{formatted.strip()}\n"
@@ -172,20 +170,14 @@ class DocxToMarkdownTool(BaseTool):
         try:
             validated = DocxToMarkdownInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
-            docx_bytes = await resolve_input(
-                validated.data, validated.url, label="DOCX"
-            )
+            docx_bytes = await resolve_input(validated.data, validated.url, label="DOCX")
         except ValueError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Failed to read DOCX: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Failed to read DOCX: {e}")
 
         try:
             doc = Document(io.BytesIO(docx_bytes))
@@ -208,11 +200,7 @@ class DocxToMarkdownTool(BaseTool):
                         p_idx += 1
                         md_lines.append(_format_paragraph_markdown(para))
 
-                elif (
-                    tag == "tbl"
-                    and validated.include_tables
-                    and tbl_idx < len(doc.tables)
-                ):
+                elif tag == "tbl" and validated.include_tables and tbl_idx < len(doc.tables):
                     table = doc.tables[tbl_idx]
                     tbl_idx += 1
                     md_lines.append(_table_to_markdown(table))

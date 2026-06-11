@@ -52,9 +52,7 @@ async def decompose_endpoint(
     if payload.tasks:
         tasks_data = [t.model_dump() for t in payload.tasks]
 
-    result = await decompose_mission(
-        db, mission_id, mode=payload.mode, tasks=tasks_data
-    )
+    result = await decompose_mission(db, mission_id, mode=payload.mode, tasks=tasks_data)
 
     if result["errors"]:
         raise _bad_request(result["errors"])

@@ -72,9 +72,7 @@ class FeedbackCompareResponse:
         missions = []
         _missions = d.pop("missions")
         for missions_item_data in _missions:
-            missions_item = FeedbackCompareResponseMissionsItem.from_dict(
-                missions_item_data
-            )
+            missions_item = FeedbackCompareResponseMissionsItem.from_dict(missions_item_data)
 
             missions.append(missions_item)
 

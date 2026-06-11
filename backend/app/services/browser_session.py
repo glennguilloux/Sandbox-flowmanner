@@ -71,9 +71,7 @@ class BrowserSession:
         pw = await async_playwright().start()
         self.playwright = pw
 
-        browser = await pw.chromium.launch(
-            headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"]
-        )
+        browser = await pw.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
         self.browser = browser
 
         context = await browser.new_context(
@@ -95,21 +93,15 @@ class BrowserSession:
 
         self._start_timeout_watchdog()
 
-        logger.info(
-            "Browser session %s started for user %s", self.session_id, self.user_id
-        )
+        logger.info("Browser session %s started for user %s", self.session_id, self.user_id)
 
     def _start_timeout_watchdog(self):
         async def watchdog():
             while self.status == SessionStatus.ACTIVE:
                 await asyncio.sleep(10)
-                idle_time = (
-                    datetime.now(UTC) - self.last_user_interaction
-                ).total_seconds()
+                idle_time = (datetime.now(UTC) - self.last_user_interaction).total_seconds()
                 if idle_time >= self.timeout_seconds:
-                    logger.info(
-                        "Session %s timed out after %ss", self.session_id, idle_time
-                    )
+                    logger.info("Session %s timed out after %ss", self.session_id, idle_time)
                     if self.on_timeout_callback:
                         await self.on_timeout_callback(self.session_id)
                     break
@@ -167,12 +159,8 @@ class BrowserSession:
             bbox_y=bbox.get("y") if bbox else None,
             bbox_width=bbox.get("width") if bbox else None,
             bbox_height=bbox.get("height") if bbox else None,
-            bbox_center_x=(
-                (bbox.get("x", 0) + bbox.get("width", 0) / 2) if bbox else None
-            ),
-            bbox_center_y=(
-                (bbox.get("y", 0) + bbox.get("height", 0) / 2) if bbox else None
-            ),
+            bbox_center_x=((bbox.get("x", 0) + bbox.get("width", 0) / 2) if bbox else None),
+            bbox_center_y=((bbox.get("y", 0) + bbox.get("height", 0) / 2) if bbox else None),
         )
         return ref
 

@@ -185,9 +185,7 @@ class BlueprintService:
 
     # ── Version history ─────────────────────────────────────────────
 
-    async def get_versions(
-        self, blueprint_id: str, user_id: int
-    ) -> list[BlueprintVersion]:
+    async def get_versions(self, blueprint_id: str, user_id: int) -> list[BlueprintVersion]:
         """Get version history for a blueprint."""
         await self.get(blueprint_id, user_id)  # ownership check
         result = await self.db.execute(
@@ -197,9 +195,7 @@ class BlueprintService:
         )
         return list(result.scalars().all())
 
-    async def get_by_source_mission_id(
-        self, mission_id: str, user_id: int
-    ) -> Blueprint | None:
+    async def get_by_source_mission_id(self, mission_id: str, user_id: int) -> Blueprint | None:
         """Lookup blueprint by source_mission_id in metadata (used during dual-write)."""
         result = await self.db.execute(
             select(Blueprint).where(
@@ -215,9 +211,7 @@ class BlueprintService:
 
     # ── Internal helpers ────────────────────────────────────────────
 
-    async def _create_version(
-        self, bp: Blueprint, change_summary: str | None = None
-    ) -> BlueprintVersion:
+    async def _create_version(self, bp: Blueprint, change_summary: str | None = None) -> BlueprintVersion:
         """Snapshot current definition as a new version."""
         version = BlueprintVersion(
             id=str(uuid4()),

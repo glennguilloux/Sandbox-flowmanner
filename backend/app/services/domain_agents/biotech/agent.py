@@ -14,9 +14,7 @@ class BiotechAgent(BaseDomainAgent):
     domain_name = "biotech"
     domain_icon = "🧬"
     domain_color = "#7ED321"
-    domain_description = (
-        "Biotech assistant for drug discovery, clinical trials, and regulatory affairs"
-    )
+    domain_description = "Biotech assistant for drug discovery, clinical trials, and regulatory affairs"
 
     def get_system_prompt(self) -> str:
         return """You are a specialized biotech AI assistant with expertise in:

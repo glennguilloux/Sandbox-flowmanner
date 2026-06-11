@@ -48,9 +48,7 @@ class SearchService:
             elif entity_type == "agents":
                 results.extend(await self._search_agents(db, tsquery, user_id, limit))
             elif entity_type == "knowledge":
-                results.extend(
-                    await self._search_knowledge(db, tsquery, user_id, limit)
-                )
+                results.extend(await self._search_knowledge(db, tsquery, user_id, limit))
 
         # Sort by relevance score
         results.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -62,9 +60,7 @@ class SearchService:
             "query": query,
         }
 
-    async def _search_missions(
-        self, db: AsyncSession, tsquery: str, user_id: int | None, limit: int
-    ) -> list[dict]:
+    async def _search_missions(self, db: AsyncSession, tsquery: str, user_id: int | None, limit: int) -> list[dict]:
         """Search missions using full-text search."""
         try:
             # Check if tsvector column exists
@@ -120,9 +116,7 @@ class SearchService:
             logger.warning("Mission search failed: %s", e)
             return []
 
-    async def _search_agents(
-        self, db: AsyncSession, tsquery: str, user_id: int | None, limit: int
-    ) -> list[dict]:
+    async def _search_agents(self, db: AsyncSession, tsquery: str, user_id: int | None, limit: int) -> list[dict]:
         """Search agents using full-text search."""
         try:
             query = text(
@@ -154,9 +148,7 @@ class SearchService:
             logger.warning("Agent search failed: %s", e)
             return []
 
-    async def _search_knowledge(
-        self, db: AsyncSession, tsquery: str, user_id: int | None, limit: int
-    ) -> list[dict]:
+    async def _search_knowledge(self, db: AsyncSession, tsquery: str, user_id: int | None, limit: int) -> list[dict]:
         """Search knowledge/memories using full-text search."""
         try:
             query = text(
@@ -200,9 +192,7 @@ class SearchService:
                 cleaned.append(w)
         return " & ".join(cleaned) if cleaned else query.strip()
 
-    async def get_suggestions(
-        self, db: AsyncSession, query: str, limit: int = 5
-    ) -> list[str]:
+    async def get_suggestions(self, db: AsyncSession, query: str, limit: int = 5) -> list[str]:
         """Get search suggestions based on partial input."""
         if not query or len(query.strip()) < 2:
             return []
@@ -211,9 +201,7 @@ class SearchService:
             pattern = f"%{query}%"
             # Get recent matching titles
             missions = await db.execute(
-                text(
-                    "SELECT DISTINCT title FROM missions WHERE title ILIKE :p LIMIT :l"
-                ),
+                text("SELECT DISTINCT title FROM missions WHERE title ILIKE :p LIMIT :l"),
                 {"p": pattern, "l": limit},
             )
 

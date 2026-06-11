@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
+
 from app.services.substrate.strategies.swarm import SwarmStrategy
 from app.services.substrate.workflow_models import (
+    NodeType,
+    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
-    NodeType,
-    StrategyResult,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -28,13 +28,9 @@ def _make_swarm_workflow(
 ):
     nodes = []
     for i in range(fan_out_count):
-        nodes.append(
-            WorkflowNode(id=f"fo{i}", type=NodeType.FAN_OUT, title=f"Fan Out {i}")
-        )
+        nodes.append(WorkflowNode(id=f"fo{i}", type=NodeType.FAN_OUT, title=f"Fan Out {i}"))
     for i in range(fan_in_count):
-        nodes.append(
-            WorkflowNode(id=f"fi{i}", type=NodeType.FAN_IN, title=f"Fan In {i}")
-        )
+        nodes.append(WorkflowNode(id=f"fi{i}", type=NodeType.FAN_IN, title=f"Fan In {i}"))
     if extra_nodes:
         nodes.extend(extra_nodes)
     return Workflow(
@@ -330,9 +326,7 @@ class TestSwarmExecute:
             side_effect=[
                 {
                     "success": True,
-                    "response": json.dumps(
-                        {"subtasks": [{"id": "t1", "description": "A"}]}
-                    ),
+                    "response": json.dumps({"subtasks": [{"id": "t1", "description": "A"}]}),
                     "tokens": 10,
                 },
                 {"success": False, "error": "Synthesis failed"},

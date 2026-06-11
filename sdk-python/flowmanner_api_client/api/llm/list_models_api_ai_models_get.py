@@ -10,7 +10,6 @@ from ...types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/ai/models",
@@ -19,9 +18,7 @@ def _get_kwargs() -> dict[str, Any]:
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> list[ModelInfo] | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> list[ModelInfo] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -38,9 +35,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[list[ModelInfo]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[list[ModelInfo]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,

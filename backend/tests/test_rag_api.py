@@ -12,7 +12,6 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 from app.api.deps import get_current_user
 from app.main_fastapi import app
-
 from app.services.rag.prompt_synthesizer import GeneratedPrompt
 
 BASE = "/api/v1/rag"
@@ -124,9 +123,7 @@ class TestRAGApiIngest:
         mocks["vector_store"].upsert_chunks.return_value = 2
         _auth()
 
-        resp = client.post(
-            f"{BASE}/ingest", json={"book_title": "my book", "text": "some long text"}
-        )
+        resp = client.post(f"{BASE}/ingest", json={"book_title": "my book", "text": "some long text"})
         assert resp.status_code == 202
         data = resp.json()
         assert data["status"] == "accepted"
@@ -265,9 +262,7 @@ class TestRAGApiPrompt:
         mocks["vector_store"].list_books.return_value = [
             {"title": "Book", "chunk_count": 1},
         ]
-        mocks["synthesizer"].synthesize.return_value = GeneratedPrompt(
-            system_prompt="Be concise.", rationale={}
-        )
+        mocks["synthesizer"].synthesize.return_value = GeneratedPrompt(system_prompt="Be concise.", rationale={})
         _auth()
 
         resp = client.post(f"{BASE}/prompt", json={"goal": "be concise"})

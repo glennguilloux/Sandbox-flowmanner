@@ -15,32 +15,31 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import pytest
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test"
-)
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
 
 from app.models.capability_models import Budget, BudgetExhausted
 from app.models.substrate_models import SubstrateEventType
 from app.services.substrate.executor import UnifiedExecutor, _find_resume_point
 from app.services.substrate.node_executor import NodeExecutor
-from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.strategies.dag import DAGStrategy
 from app.services.substrate.strategies.graph import GraphStrategy
 from app.services.substrate.strategies.pipeline import PipelineStrategy
+from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.strategies.swarm import SwarmStrategy
 from app.services.substrate.workflow_models import (
-    Workflow,
-    WorkflowNode,
-    WorkflowEdge,
-    WorkflowType,
     NodeType,
     StrategyResult,
+    Workflow,
+    WorkflowEdge,
+    WorkflowNode,
+    WorkflowType,
 )
 
 pytestmark = pytest.mark.integration
@@ -327,9 +326,10 @@ def _patch_budget_and_event_log(mock_enforcer=None, mock_el=None):
     @contextmanager
     def _ctx():
         enforcer = mock_enforcer or AsyncMock()
-        with patch(BUDGET_ENFORCER_PATCH) as mock_get_enf, patch(
-            "app.services.substrate.node_executor.get_event_log"
-        ) as mock_get_el:
+        with (
+            patch(BUDGET_ENFORCER_PATCH) as mock_get_enf,
+            patch("app.services.substrate.node_executor.get_event_log") as mock_get_el,
+        ):
             mock_get_enf.return_value = enforcer
             mock_get_el.return_value = mock_el or _make_mock_event_log()
             yield enforcer
@@ -372,9 +372,7 @@ class TestSoloStrategy:
         executor = _make_executor(event_log=mock_event_log)
 
         with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(
-                call=AsyncMock(return_value=_mock_llm_failure("Rate limit"))
-            ),
+            mock_enforcer=AsyncMock(call=AsyncMock(return_value=_mock_llm_failure("Rate limit"))),
             mock_el=mock_event_log,
         ):
             strategy = SoloStrategy()
@@ -678,9 +676,7 @@ class TestDAGTopologicalSort:
         a = _make_llm_node(node_id="a")
         b = _make_llm_node(node_id="b")
         b.dependencies = ["a"]
-        workflow = _make_dag_workflow(
-            nodes=[a, b], edges=[WorkflowEdge(source="a", target="b")]
-        )
+        workflow = _make_dag_workflow(nodes=[a, b], edges=[WorkflowEdge(source="a", target="b")])
         strategy = DAGStrategy()
         layers = strategy._topological_sort(workflow)
         assert len(layers) == 2
@@ -767,11 +763,7 @@ class TestUnifiedExecutorExecute:
         executor = _make_executor(event_log=mock_event_log)
 
         with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(
-                call=AsyncMock(
-                    side_effect=BudgetExhausted("Cost exceeded", workflow.budget)
-                )
-            ),
+            mock_enforcer=AsyncMock(call=AsyncMock(side_effect=BudgetExhausted("Cost exceeded", workflow.budget))),
             mock_el=mock_event_log,
         ):
             result = await executor.execute(db=mock_db, workflow=workflow)
@@ -793,9 +785,7 @@ class TestUnifiedExecutorExecute:
         assert "Crash" in (result.error or "")
 
     @pytest.mark.asyncio
-    async def test_execute_records_started_and_terminal_events(
-        self, mock_db, mock_event_log
-    ):
+    async def test_execute_records_started_and_terminal_events(self, mock_db, mock_event_log):
         """execute() emits MISSION_STARTED and MISSION_COMPLETED events."""
         workflow = _make_solo_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -814,9 +804,7 @@ class TestUnifiedExecutorExecute:
         assert last_type == SubstrateEventType.MISSION_COMPLETED
 
     @pytest.mark.asyncio
-    async def test_execute_records_failed_event_on_failure(
-        self, mock_db, mock_event_log
-    ):
+    async def test_execute_records_failed_event_on_failure(self, mock_db, mock_event_log):
         """execute() emits MISSION_FAILED when workflow fails."""
         workflow = _make_solo_workflow()
         workflow.nodes[0].max_retries = 0
@@ -884,9 +872,7 @@ class TestUnifiedExecutorCrashRecovery:
     """Test crash recovery via ReplayEngine."""
 
     @pytest.mark.asyncio
-    async def test_resume_completed_run_returns_immediately(
-        self, mock_db, mock_event_log, mock_replay_engine
-    ):
+    async def test_resume_completed_run_returns_immediately(self, mock_db, mock_event_log, mock_replay_engine):
         """If a run already completed, executor returns the result immediately."""
         workflow = _make_solo_workflow()
         run_id = str(uuid4())
@@ -901,9 +887,7 @@ class TestUnifiedExecutorCrashRecovery:
         completed_state.error_message = None
         mock_replay_engine.rebuild_state = AsyncMock(return_value=completed_state)
 
-        executor = _make_executor(
-            event_log=mock_event_log, replay_engine=mock_replay_engine
-        )
+        executor = _make_executor(event_log=mock_event_log, replay_engine=mock_replay_engine)
 
         result = await executor.execute(db=mock_db, workflow=workflow, run_id=run_id)
 
@@ -912,9 +896,7 @@ class TestUnifiedExecutorCrashRecovery:
         assert result.total_tokens == 100
 
     @pytest.mark.asyncio
-    async def test_resume_failed_run_returns_immediately(
-        self, mock_db, mock_event_log, mock_replay_engine
-    ):
+    async def test_resume_failed_run_returns_immediately(self, mock_db, mock_event_log, mock_replay_engine):
         """If a run already failed, executor returns the failed result."""
         workflow = _make_solo_workflow()
         run_id = str(uuid4())
@@ -929,9 +911,7 @@ class TestUnifiedExecutorCrashRecovery:
         failed_state.error_message = "API timeout"
         mock_replay_engine.rebuild_state = AsyncMock(return_value=failed_state)
 
-        executor = _make_executor(
-            event_log=mock_event_log, replay_engine=mock_replay_engine
-        )
+        executor = _make_executor(event_log=mock_event_log, replay_engine=mock_replay_engine)
 
         result = await executor.execute(db=mock_db, workflow=workflow, run_id=run_id)
 
@@ -1031,9 +1011,7 @@ class TestNodeExecutorRetry:
         executor = _make_executor(event_log=mock_event_log)
 
         with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(
-                call=AsyncMock(return_value=_mock_llm_failure("Persistent error"))
-            ),
+            mock_enforcer=AsyncMock(call=AsyncMock(return_value=_mock_llm_failure("Persistent error"))),
             mock_el=mock_event_log,
         ):
             result = await executor.execute_node(
@@ -1178,9 +1156,7 @@ class TestNodeExecutorDispatch:
             executor = _make_executor(event_log=mock_event_log)
 
             node_exec = NodeExecutor(executor)
-            result = await node_exec._dispatch(
-                mock_db, node, {}, budget, run_id, workflow
-            )
+            result = await node_exec._dispatch(mock_db, node, {}, budget, run_id, workflow)
             assert result["success"] is True, f"{node_type.value} should pass through"
 
     @pytest.mark.asyncio
@@ -1192,11 +1168,12 @@ class TestNodeExecutorDispatch:
         workflow = _make_solo_workflow(node=node)
         executor = _make_executor(event_log=mock_event_log)
 
-        with patch(
-            "app.services.substrate.node_executor.get_event_log",
-            return_value=mock_event_log,
-        ), patch.object(
-            NodeExecutor, "_dispatch", side_effect=RuntimeError("Unexpected crash")
+        with (
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
+            patch.object(NodeExecutor, "_dispatch", side_effect=RuntimeError("Unexpected crash")),
         ):
             result = await executor.execute_node(
                 db=mock_db,
@@ -1215,9 +1192,7 @@ class TestNodeExecutorBudgetExhaustion:
     """Test budget exhaustion during node execution."""
 
     @pytest.mark.asyncio
-    async def test_budget_exhausted_before_node_execution(
-        self, mock_db, mock_event_log
-    ):
+    async def test_budget_exhausted_before_node_execution(self, mock_db, mock_event_log):
         """BudgetExhausted is raised when budget is already exhausted."""
         node = _make_llm_node()
         budget = Budget(max_cost_usd=Decimal("0.00"), max_iterations=0)
@@ -1237,19 +1212,13 @@ class TestNodeExecutorBudgetExhaustion:
             )
 
     @pytest.mark.asyncio
-    async def test_budget_exhausted_propagates_from_enforcer(
-        self, mock_db, mock_event_log
-    ):
+    async def test_budget_exhausted_propagates_from_enforcer(self, mock_db, mock_event_log):
         """BudgetExhausted from BudgetEnforcer.call() propagates to executor."""
         workflow = _make_solo_workflow()
         executor = _make_executor(event_log=mock_event_log)
 
         with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(
-                call=AsyncMock(
-                    side_effect=BudgetExhausted("Cost exhausted", workflow.budget)
-                )
-            ),
+            mock_enforcer=AsyncMock(call=AsyncMock(side_effect=BudgetExhausted("Cost exhausted", workflow.budget))),
             mock_el=mock_event_log,
         ):
             result = await executor.execute(db=mock_db, workflow=workflow)
@@ -1267,9 +1236,7 @@ class TestCircuitBreakerIntegration:
     """Test circuit breaker integration in the executor."""
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_failure_doesnt_poison_execution(
-        self, mock_db, mock_event_log
-    ):
+    async def test_circuit_breaker_failure_doesnt_poison_execution(self, mock_db, mock_event_log):
         """Circuit breaker failure is caught and doesn't stop execution.
 
         The real _ensure_circuit_breaker wraps its DB ops in a savepoint
@@ -1283,13 +1250,16 @@ class TestCircuitBreakerIntegration:
         # Don't override _ensure_circuit_breaker — let the real method run.
         # Instead, make the CircuitBreakerService.get_or_create raise.
 
-        with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(call=AsyncMock(return_value=_mock_llm_response())),
-            mock_el=mock_event_log,
-        ), patch.object(
-            CircuitBreakerService,
-            "get_or_create",
-            side_effect=Exception("FK violation: mission_id not in missions"),
+        with (
+            _patch_budget_and_event_log(
+                mock_enforcer=AsyncMock(call=AsyncMock(return_value=_mock_llm_response())),
+                mock_el=mock_event_log,
+            ),
+            patch.object(
+                CircuitBreakerService,
+                "get_or_create",
+                side_effect=Exception("FK violation: mission_id not in missions"),
+            ),
         ):
             result = await executor.execute(db=mock_db, workflow=workflow)
 
@@ -1479,9 +1449,7 @@ class TestEdgeCases:
         executor = _make_executor(event_log=mock_event_log)
 
         with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(
-                call=AsyncMock(return_value=_mock_llm_response(content="Hello world"))
-            ),
+            mock_enforcer=AsyncMock(call=AsyncMock(return_value=_mock_llm_response(content="Hello world"))),
             mock_el=mock_event_log,
         ):
             strategy = SoloStrategy()
@@ -1497,9 +1465,7 @@ class TestEdgeCases:
     async def test_budget_tracks_iterations(self, mock_db, mock_event_log):
         """BudgetEnforcer.call() receives the budget and is invoked for LLM nodes."""
         node = _make_llm_node()
-        budget = Budget(
-            max_cost_usd=Decimal("5.00"), max_iterations=50, max_wall_time_seconds=120
-        )
+        budget = Budget(max_cost_usd=Decimal("5.00"), max_iterations=50, max_wall_time_seconds=120)
         run_id = str(uuid4())
         workflow = _make_solo_workflow(node=node)
         executor = _make_executor(event_log=mock_event_log)
@@ -1527,9 +1493,7 @@ class TestEdgeCases:
         assert call_kwargs["budget"] is budget
 
     @pytest.mark.asyncio
-    async def test_llm_node_exception_in_dispatch_returns_failure(
-        self, mock_db, mock_event_log
-    ):
+    async def test_llm_node_exception_in_dispatch_returns_failure(self, mock_db, mock_event_log):
         """Generic exception from _handle_llm dispatch is caught by NodeExecutor."""
         node = _make_llm_node(max_retries=0)
         budget = Budget(max_cost_usd=Decimal("5.00"), max_iterations=50)
@@ -1538,9 +1502,7 @@ class TestEdgeCases:
         executor = _make_executor(event_log=mock_event_log)
 
         with _patch_budget_and_event_log(
-            mock_enforcer=AsyncMock(
-                call=AsyncMock(side_effect=RuntimeError("Connection reset"))
-            ),
+            mock_enforcer=AsyncMock(call=AsyncMock(side_effect=RuntimeError("Connection reset"))),
             mock_el=mock_event_log,
         ):
             result = await executor.execute_node(
@@ -1631,9 +1593,7 @@ class TestGraphStrategy:
         assert result.total_tokens == 300  # 150 per node
 
     @pytest.mark.asyncio
-    async def test_graph_conditional_edge_false_skips_downstream(
-        self, mock_db, mock_event_log
-    ):
+    async def test_graph_conditional_edge_false_skips_downstream(self, mock_db, mock_event_log):
         """Edge condition evaluates to False — downstream node is skipped."""
         n1 = _make_llm_node("n1")
         n2 = _make_llm_node("n2")
@@ -1654,9 +1614,7 @@ class TestGraphStrategy:
         assert executor.execute_node.call_count == 1  # only n1 executed
 
     @pytest.mark.asyncio
-    async def test_graph_context_interpolation_resolves_string_truthy(
-        self, mock_db, mock_event_log
-    ):
+    async def test_graph_context_interpolation_resolves_string_truthy(self, mock_db, mock_event_log):
         """{{n1.output.score}} resolves string 'true' -> condition passes."""
         n1 = _make_llm_node("n1")
         n2 = _make_llm_node("n2")
@@ -1673,9 +1631,7 @@ class TestGraphStrategy:
         async def _exec_side_effect(*args, **kwargs):
             node = kwargs.get("node") or args[1]
             if node.id == "n1":
-                return _mock_node_result(
-                    output={"text": "ok", "output": {"score": "true"}}
-                )
+                return _mock_node_result(output={"text": "ok", "output": {"score": "true"}})
             return _mock_node_result()
 
         executor.execute_node = AsyncMock(side_effect=_exec_side_effect)
@@ -1690,9 +1646,7 @@ class TestGraphStrategy:
         assert len(result.completed_nodes) == 3
 
     @pytest.mark.asyncio
-    async def test_graph_subgraph_filter_via_start_node_id(
-        self, mock_db, mock_event_log
-    ):
+    async def test_graph_subgraph_filter_via_start_node_id(self, mock_db, mock_event_log):
         """start_node_id filters to reachable subgraph only."""
         # Diamond: n1 -> n2, n1 -> n3, n2 -> n4, n3 -> n4
         n1 = _make_llm_node("n1")
@@ -1710,9 +1664,7 @@ class TestGraphStrategy:
         executor.execute_node = AsyncMock(return_value=_mock_node_result())
 
         strategy = GraphStrategy()
-        result = await strategy.execute(
-            workflow, {"start_node_id": "n2"}, executor, mock_db
-        )
+        result = await strategy.execute(workflow, {"start_node_id": "n2"}, executor, mock_db)
 
         assert result.success is True
         # Only n2 and n4 are reachable from n2 (n1 and n3 excluded)
@@ -1723,15 +1675,11 @@ class TestGraphStrategy:
         assert "n3" not in executed_ids
 
     @pytest.mark.asyncio
-    async def test_graph_condition_missing_node_defaults_to_false(
-        self, mock_db, mock_event_log
-    ):
+    async def test_graph_condition_missing_node_defaults_to_false(self, mock_db, mock_event_log):
         """Condition referencing a nonexistent node resolves to None (falsy) — edge skipped."""
         n1 = _make_llm_node("n1")
         n2 = _make_llm_node("n2")
-        edge = WorkflowEdge(
-            source="n1", target="n2", condition="{{nonexistent.output.field}}"
-        )
+        edge = WorkflowEdge(source="n1", target="n2", condition="{{nonexistent.output.field}}")
         workflow = _make_graph_workflow(nodes=[n1, n2], edges=[edge])
         executor = _make_executor(event_log=mock_event_log)
         executor.execute_node = AsyncMock(return_value=_mock_node_result())
@@ -1746,9 +1694,7 @@ class TestGraphStrategy:
         assert executor.execute_node.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_graph_condition_interpolation_exception_defaults_to_true(
-        self, mock_db, mock_event_log
-    ):
+    async def test_graph_condition_interpolation_exception_defaults_to_true(self, mock_db, mock_event_log):
         """If _resolve_interpolation raises internally, _evaluate_condition catches
         the exception and defaults to True (edge passes anyway)."""
         n1 = _make_llm_node("n1")
@@ -1781,9 +1727,7 @@ class TestGraphStrategy:
         """Node output with pause=True stops execution and returns paused status."""
         n1 = _make_llm_node("n1")
         n2 = _make_llm_node("n2")
-        workflow = _make_graph_workflow(
-            nodes=[n1, n2], edges=[WorkflowEdge(source="n1", target="n2")]
-        )
+        workflow = _make_graph_workflow(nodes=[n1, n2], edges=[WorkflowEdge(source="n1", target="n2")])
         executor = _make_executor(event_log=mock_event_log)
 
         # n1 returns a pause signal in its output
@@ -1837,9 +1781,7 @@ class TestGraphStrategy:
         assert result.success is False
 
     @pytest.mark.asyncio
-    async def test_graph_node_exception_gather_returns_failure(
-        self, mock_db, mock_event_log
-    ):
+    async def test_graph_node_exception_gather_returns_failure(self, mock_db, mock_event_log):
         """Exception from execute_node is caught and node marked as failed."""
         n1 = _make_llm_node("n1")
         workflow = _make_graph_workflow(
@@ -1855,9 +1797,7 @@ class TestGraphStrategy:
         assert result.success is False
         assert "n1" in result.failed_nodes
         assert "Connection broken" in (
-            result.data.get("n1", {}).get("error", "")
-            if isinstance(result.data, dict)
-            else ""
+            result.data.get("n1", {}).get("error", "") if isinstance(result.data, dict) else ""
         )
 
     @pytest.mark.asyncio
@@ -1919,9 +1859,7 @@ class TestGraphStrategyValidation:
         """Graph strategy checks abort between layers."""
         n1 = _make_llm_node("n1")
         n2 = _make_llm_node("n2")
-        workflow = _make_graph_workflow(
-            nodes=[n1, n2], edges=[WorkflowEdge(source="n1", target="n2")]
-        )
+        workflow = _make_graph_workflow(nodes=[n1, n2], edges=[WorkflowEdge(source="n1", target="n2")])
         executor = _make_executor(event_log=mock_event_log)
         run_id = workflow.metadata["substrate_run_id"]
 
@@ -2007,9 +1945,7 @@ class TestPipelineStrategy:
         async def _exec_node(*args, **kwargs):
             node = kwargs.get("node") or args[1]
             if node.config.get("phase") == "review":
-                return _mock_node_result(
-                    output={"verdict": "PASS", "summary": "All good"}
-                )
+                return _mock_node_result(output={"verdict": "PASS", "summary": "All good"})
             return _mock_node_result()
 
         executor.execute_node = AsyncMock(side_effect=_exec_node)
@@ -2023,9 +1959,7 @@ class TestPipelineStrategy:
         assert result.total_tokens > 0
 
     @pytest.mark.asyncio
-    async def test_pipeline_review_revise_triggers_retry_then_passes(
-        self, mock_db, mock_event_log
-    ):
+    async def test_pipeline_review_revise_triggers_retry_then_passes(self, mock_db, mock_event_log):
         """Review returns REVISE -> retry from debate, then PASS on second attempt."""
         workflow = _make_pipeline_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -2040,9 +1974,7 @@ class TestPipelineStrategy:
             if node.config.get("phase") == "review":
                 review_calls += 1
                 if review_calls == 1:
-                    return _mock_node_result(
-                        output={"verdict": "REVISE", "feedback": "Needs work"}
-                    )
+                    return _mock_node_result(output={"verdict": "REVISE", "feedback": "Needs work"})
                 return _mock_node_result(output={"verdict": "PASS"})
             return _mock_node_result()
 
@@ -2058,9 +1990,7 @@ class TestPipelineStrategy:
         assert executor.execute_node.call_count == 11
 
     @pytest.mark.asyncio
-    async def test_pipeline_review_fails_four_times_exceeded(
-        self, mock_db, mock_event_log
-    ):
+    async def test_pipeline_review_fails_four_times_exceeded(self, mock_db, mock_event_log):
         """Review returns REVISE 4 times -> max retries exceeded."""
         workflow = _make_pipeline_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -2070,9 +2000,7 @@ class TestPipelineStrategy:
         async def _exec_node(*args, **kwargs):
             node = kwargs.get("node") or args[1]
             if node.config.get("phase") == "review":
-                return _mock_node_result(
-                    output={"verdict": "REVISE", "feedback": "Still needs work"}
-                )
+                return _mock_node_result(output={"verdict": "REVISE", "feedback": "Still needs work"})
             return _mock_node_result()
 
         executor.execute_node = AsyncMock(side_effect=_exec_node)
@@ -2084,9 +2012,7 @@ class TestPipelineStrategy:
         assert "Max review retries exceeded" in (result.error or "")
 
     @pytest.mark.asyncio
-    async def test_pipeline_phase_failure_returns_immediately(
-        self, mock_db, mock_event_log
-    ):
+    async def test_pipeline_phase_failure_returns_immediately(self, mock_db, mock_event_log):
         """A non-review phase fails -> pipeline returns failed immediately."""
         workflow = _make_pipeline_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -2223,9 +2149,7 @@ class TestSwarmStrategy:
     """Test SwarmStrategy — decompose, dispatch, synthesize."""
 
     @pytest.mark.asyncio
-    async def test_swarm_full_decompose_dispatch_synthesize(
-        self, mock_db, mock_event_log
-    ):
+    async def test_swarm_full_decompose_dispatch_synthesize(self, mock_db, mock_event_log):
         """Full swarm: decompose goal -> dispatch tasks -> synthesize."""
         workflow = _make_swarm_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -2275,9 +2199,7 @@ class TestSwarmStrategy:
         assert "synthesis" in result.data
 
     @pytest.mark.asyncio
-    async def test_swarm_decompose_failure_falls_back_to_single_task(
-        self, mock_db, mock_event_log
-    ):
+    async def test_swarm_decompose_failure_falls_back_to_single_task(self, mock_db, mock_event_log):
         """LLM decomposition fails -> falls back to single-task execution.
 
         When call_llm returns {success: False}, the decompose response has
@@ -2310,9 +2232,7 @@ class TestSwarmStrategy:
         assert result.success is True  # synthesis succeeded
 
     @pytest.mark.asyncio
-    async def test_swarm_decompose_invalid_json_falls_back(
-        self, mock_db, mock_event_log
-    ):
+    async def test_swarm_decompose_invalid_json_falls_back(self, mock_db, mock_event_log):
         """LLM returns invalid JSON for decomposition -> falls back to single task."""
         workflow = _make_swarm_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -2330,9 +2250,7 @@ class TestSwarmStrategy:
         assert result.success is True
 
     @pytest.mark.asyncio
-    async def test_swarm_synthesis_failure_returns_failed(
-        self, mock_db, mock_event_log
-    ):
+    async def test_swarm_synthesis_failure_returns_failed(self, mock_db, mock_event_log):
         """Synthesis LLM call fails -> swarm reports failure."""
         workflow = _make_swarm_workflow()
         executor = _make_executor(event_log=mock_event_log)
@@ -2384,9 +2302,7 @@ class TestSwarmStrategy:
 
         # Task failed (exception caught by gather) but synthesis still runs
         assert result.success is True  # synthesis LLM call succeeded
-        assert (
-            result.total_tokens == 0
-        )  # task produced 0 tokens (exception, not result)
+        assert result.total_tokens == 0  # task produced 0 tokens (exception, not result)
 
 
 class TestSwarmStrategyValidation:

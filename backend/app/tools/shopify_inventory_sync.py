@@ -104,9 +104,7 @@ class ShopifyInventorySyncTool(BaseTool):
         try:
             validated = ShopifyInventorySyncInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in SHOPIFY_ACTIONS:
             return ToolResult.error_result(
@@ -117,9 +115,7 @@ class ShopifyInventorySyncTool(BaseTool):
         if not SHOPIFY_STORE_URL or not SHOPIFY_ACCESS_TOKEN:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=(
-                    "Shopify not configured. Set SHOPIFY_STORE_URL and SHOPIFY_ACCESS_TOKEN environment variables."
-                ),
+                error=("Shopify not configured. Set SHOPIFY_STORE_URL and SHOPIFY_ACCESS_TOKEN environment variables."),
             )
 
         if is_placeholder(SHOPIFY_STORE_URL) or is_placeholder(SHOPIFY_ACCESS_TOKEN):
@@ -142,9 +138,7 @@ class ShopifyInventorySyncTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: ShopifyInventorySyncInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: ShopifyInventorySyncInput) -> dict[str, Any]:
         """Route to the appropriate API handler."""
         base = f"{SHOPIFY_STORE_URL}/admin/api/{SHOPIFY_API_VERSION}"
         headers = {
@@ -153,35 +147,25 @@ class ShopifyInventorySyncTool(BaseTool):
         }
         params = validated.query_params or {}
 
-        async with httpx.AsyncClient(
-            timeout=SHOPIFY_TIMEOUT, headers=headers
-        ) as client:
+        async with httpx.AsyncClient(timeout=SHOPIFY_TIMEOUT, headers=headers) as client:
             if validated.action == "list_products":
                 return await self._list_products(client, base, params)
             elif validated.action == "get_product":
                 return await self._get_product(client, base, validated.product_id)
             elif validated.action == "update_product":
-                return await self._update_product(
-                    client, base, validated.product_id, validated.data
-                )
+                return await self._update_product(client, base, validated.product_id, validated.data)
             elif validated.action == "list_inventory_levels":
                 return await self._list_inventory_levels(client, base, params)
             elif validated.action == "get_inventory_item":
-                return await self._get_inventory_item(
-                    client, base, validated.inventory_item_id
-                )
+                return await self._get_inventory_item(client, base, validated.inventory_item_id)
             elif validated.action == "update_inventory":
-                return await self._update_inventory(
-                    client, base, validated.inventory_item_id, validated.data
-                )
+                return await self._update_inventory(client, base, validated.inventory_item_id, validated.data)
             else:
                 return {"error": f"Unhandled action: {validated.action}"}
 
     # ── Products ─────────────────────────────────────────────────
 
-    async def _list_products(
-        self, client: httpx.AsyncClient, base: str, params: dict
-    ) -> dict[str, Any]:
+    async def _list_products(self, client: httpx.AsyncClient, base: str, params: dict) -> dict[str, Any]:
         resp = await client.get(f"{base}/products.json", params=params)
         resp.raise_for_status()
         data = resp.json()
@@ -202,9 +186,7 @@ class ShopifyInventorySyncTool(BaseTool):
             ],
         }
 
-    async def _get_product(
-        self, client: httpx.AsyncClient, base: str, product_id: int | None
-    ) -> dict[str, Any]:
+    async def _get_product(self, client: httpx.AsyncClient, base: str, product_id: int | None) -> dict[str, Any]:
         if not product_id:
             return {"error": "product_id is required for get_product"}
         resp = await client.get(f"{base}/products/{product_id}.json")
@@ -257,9 +239,7 @@ class ShopifyInventorySyncTool(BaseTool):
 
     # ── Inventory ────────────────────────────────────────────────
 
-    async def _list_inventory_levels(
-        self, client: httpx.AsyncClient, base: str, params: dict
-    ) -> dict[str, Any]:
+    async def _list_inventory_levels(self, client: httpx.AsyncClient, base: str, params: dict) -> dict[str, Any]:
         resp = await client.get(f"{base}/inventory_levels.json", params=params)
         resp.raise_for_status()
         levels = resp.json().get("inventory_levels", [])
@@ -276,9 +256,7 @@ class ShopifyInventorySyncTool(BaseTool):
             ],
         }
 
-    async def _get_inventory_item(
-        self, client: httpx.AsyncClient, base: str, item_id: int | None
-    ) -> dict[str, Any]:
+    async def _get_inventory_item(self, client: httpx.AsyncClient, base: str, item_id: int | None) -> dict[str, Any]:
         if not item_id:
             return {"error": "inventory_item_id is required"}
         resp = await client.get(f"{base}/inventory_items/{item_id}.json")

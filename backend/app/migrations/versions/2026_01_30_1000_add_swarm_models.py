@@ -38,12 +38,8 @@ def upgrade():
         sa.Column("changes", postgresql.JSONB(astext_type=sa.Text()), default=dict),
         sa.Column("ip_address", sa.String(length=45), nullable=True),
         sa.Column("user_agent", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"], ["users.id"], name="fk_litellm_audit_user"
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_litellm_audit_user"),
         sa.PrimaryKeyConstraint("id", name="pk_litellm_audit_log"),
     )
     op.create_index("idx_litellm_audit_user", "litellm_audit_log", ["user_id"])
@@ -58,9 +54,7 @@ def upgrade():
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("category", sa.String(length=100), nullable=True),
-        sa.Column(
-            "capabilities", postgresql.JSONB(astext_type=sa.Text()), server_default="[]"
-        ),
+        sa.Column("capabilities", postgresql.JSONB(astext_type=sa.Text()), server_default="[]"),
         sa.Column(
             "default_config",
             postgresql.JSONB(astext_type=sa.Text()),
@@ -72,12 +66,8 @@ def upgrade():
         sa.Column("rating_count", sa.Integer(), server_default="0"),
         sa.Column("usage_count", sa.Integer(), server_default="0"),
         sa.Column("is_active", sa.Boolean(), server_default="true"),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
+        sa.Column("updated_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
         sa.PrimaryKeyConstraint("id", name="pk_agent_templates"),
         sa.UniqueConstraint("template_id", name="uq_agent_templates_template_id"),
     )
@@ -99,13 +89,9 @@ def upgrade():
         ),
         sa.Column("status", sa.String(length=50), server_default="active"),
         sa.Column("created_by", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
         sa.Column("dissolved_at", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["created_by"], ["users.id"], name="fk_swarm_profiles_user"
-        ),
+        sa.ForeignKeyConstraint(["created_by"], ["users.id"], name="fk_swarm_profiles_user"),
         sa.PrimaryKeyConstraint("id", name="pk_swarm_profiles"),
         sa.UniqueConstraint("swarm_id", name="uq_swarm_profiles_swarm_id"),
     )
@@ -121,13 +107,9 @@ def upgrade():
         sa.Column("agent_instance_id", sa.String(length=255), nullable=False),
         sa.Column("role", sa.String(length=100), nullable=True),
         sa.Column("priority", sa.Integer(), server_default="5"),
-        sa.Column(
-            "config", postgresql.JSONB(astext_type=sa.Text()), server_default="{}"
-        ),
+        sa.Column("config", postgresql.JSONB(astext_type=sa.Text()), server_default="{}"),
         sa.Column("status", sa.String(length=50), server_default="active"),
-        sa.Column(
-            "joined_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
+        sa.Column("joined_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
         sa.Column(
             "last_active_at",
             sa.DateTime(),
@@ -157,17 +139,13 @@ def upgrade():
         sa.Column("id", sa.String(length=64), nullable=False),
         sa.Column("swarm_id", sa.String(length=255), nullable=False),
         sa.Column("task_type", sa.String(length=100), nullable=False),
-        sa.Column(
-            "payload", postgresql.JSONB(astext_type=sa.Text()), server_default="{}"
-        ),
+        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), server_default="{}"),
         sa.Column("status", sa.String(length=50), server_default="pending"),
         sa.Column("assigned_agent_id", sa.String(length=255), nullable=True),
         sa.Column("celery_task_id", sa.String(length=255), nullable=True),
         sa.Column("result", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
         sa.Column("assigned_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(
@@ -187,18 +165,12 @@ def upgrade():
         "swarm_consensus_rounds",
         sa.Column("id", sa.String(length=64), nullable=False),
         sa.Column("swarm_id", sa.String(length=255), nullable=False),
-        sa.Column(
-            "proposal", postgresql.JSONB(astext_type=sa.Text()), server_default="{}"
-        ),
+        sa.Column("proposal", postgresql.JSONB(astext_type=sa.Text()), server_default="{}"),
         sa.Column("initiator_agent_id", sa.String(length=255), nullable=True),
-        sa.Column(
-            "votes", postgresql.JSONB(astext_type=sa.Text()), server_default="[]"
-        ),
+        sa.Column("votes", postgresql.JSONB(astext_type=sa.Text()), server_default="[]"),
         sa.Column("result", sa.String(length=50), nullable=True),
         sa.Column("strategy_used", sa.String(length=50), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("NOW()"), nullable=True),
         sa.Column("resolved_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(
             ["swarm_id"],
@@ -218,9 +190,7 @@ def upgrade():
     )
     op.add_column(
         "agent_communications",
-        sa.Column(
-            "swarm_context", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("swarm_context", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     )
     op.create_index("idx_agent_comm_swarm", "agent_communications", ["swarm_id"])
 

@@ -75,9 +75,7 @@ class SandboxdPreviewTool(BaseTool):
         try:
             validated = SandboxdPreviewInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             client = self._get_client()
@@ -96,9 +94,7 @@ class SandboxdPreviewTool(BaseTool):
                 if not sandbox_id:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            "Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."
-                        ),
+                        error=("Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."),
                     )
                 # Store in context so subsequent tool calls reuse it
                 self._set_sandbox_id(sandbox_id)

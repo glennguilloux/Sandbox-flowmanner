@@ -55,9 +55,7 @@ class UnifiedToolHandler:
         if state and "user_id" in state:
             user_id = state.get("user_id")
 
-        return await self.bridge.execute_tool(
-            tool_name=tool_name, parameters=parameters, user_id=user_id
-        )
+        return await self.bridge.execute_tool(tool_name=tool_name, parameters=parameters, user_id=user_id)
 
     def get_tool_schemas(self) -> list:
         """

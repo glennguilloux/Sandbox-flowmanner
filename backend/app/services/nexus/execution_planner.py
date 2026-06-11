@@ -165,9 +165,7 @@ class ExecutionPlanner:
 
         # Filter by available capabilities if specified
         if available_capabilities:
-            matched_capabilities = matched_capabilities.intersection(
-                set(available_capabilities)
-            )
+            matched_capabilities = matched_capabilities.intersection(set(available_capabilities))
 
         # Create steps for matched capabilities
         for cap_id in matched_capabilities:
@@ -288,8 +286,6 @@ class ExecutionPlanner:
             lines.append(f"  Step {step.step_id}: {step.capability_id}{deps}")
             lines.append(f"           {step.description[:60]}...")
 
-        lines.append(
-            f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}"
-        )
+        lines.append(f"\nEstimated cost: ${plan.estimated_cost.get('estimated_usd', 0):.4f}")
 
         return "\n".join(lines)

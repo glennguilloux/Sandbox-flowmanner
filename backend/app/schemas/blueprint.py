@@ -164,9 +164,7 @@ class RunResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator(
-        "id", "blueprint_id", "workspace_id", "parent_run_id", mode="before"
-    )
+    @field_validator("id", "blueprint_id", "workspace_id", "parent_run_id", mode="before")
     @classmethod
     def _coerce_uuid(cls, v: Any) -> Any:
         return str(v) if isinstance(v, UUID) else v

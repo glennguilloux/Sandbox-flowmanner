@@ -114,17 +114,11 @@ class StatefulMemoryStoreTool(BaseTool):
         try:
             validated = StatefulMemoryStoreInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Resolve user_id from auth context if not explicitly provided
         context = input_data.get("context", {}) or {}
-        user_id = (
-            validated.user_id
-            if validated.user_id is not None
-            else context.get("user_id")
-        )
+        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -256,11 +250,7 @@ class StatefulMemoryStoreTool(BaseTool):
                 "key": key,
                 "namespace": namespace,
                 "created_at": now.isoformat(),
-                "persisted_to": [
-                    s
-                    for s, ok in [("postgresql", pg_stored), ("redis", redis_stored)]
-                    if ok
-                ],
+                "persisted_to": [s for s, ok in [("postgresql", pg_stored), ("redis", redis_stored)] if ok],
             },
         )
 
@@ -297,21 +287,11 @@ class StatefulMemoryStoreTool(BaseTool):
                             "action": "retrieve",
                             "key": key,
                             "namespace": namespace,
-                            "value": (
-                                data.get("value", raw)
-                                if isinstance(data, dict)
-                                else raw
-                            ),
+                            "value": (data.get("value", raw) if isinstance(data, dict) else raw),
                             "source": "redis",
                             "id": data.get("id") if isinstance(data, dict) else None,
-                            "metadata": (
-                                data.get("metadata") if isinstance(data, dict) else None
-                            ),
-                            "created_at": (
-                                data.get("created_at")
-                                if isinstance(data, dict)
-                                else None
-                            ),
+                            "metadata": (data.get("metadata") if isinstance(data, dict) else None),
+                            "created_at": (data.get("created_at") if isinstance(data, dict) else None),
                         },
                     )
             except Exception as e:
@@ -348,9 +328,7 @@ class StatefulMemoryStoreTool(BaseTool):
                         "value": row.content,
                         "source": "postgresql",
                         "id": row.id,
-                        "created_at": (
-                            row.created_at.isoformat() if row.created_at else None
-                        ),
+                        "created_at": (row.created_at.isoformat() if row.created_at else None),
                         "metadata": row.metadata_json,
                     },
                 )
@@ -393,20 +371,10 @@ class StatefulMemoryStoreTool(BaseTool):
                 memories = [
                     {
                         "id": row.id,
-                        "key": (
-                            row.agent_id.replace(f"{namespace}:", "", 1)
-                            if row.agent_id
-                            else ""
-                        ),
+                        "key": (row.agent_id.replace(f"{namespace}:", "", 1) if row.agent_id else ""),
                         "namespace": namespace,
-                        "value": (
-                            row.content[:500] + "..."
-                            if len(row.content) > 500
-                            else row.content
-                        ),
-                        "created_at": (
-                            row.created_at.isoformat() if row.created_at else None
-                        ),
+                        "value": (row.content[:500] + "..." if len(row.content) > 500 else row.content),
+                        "created_at": (row.created_at.isoformat() if row.created_at else None),
                         "metadata": row.metadata_json,
                     }
                     for row in rows
@@ -442,11 +410,7 @@ class StatefulMemoryStoreTool(BaseTool):
                     .where(
                         AgentMemory.user_id == (user_id or 0),
                         AgentMemory.content_type == "stateful_memory",
-                        (
-                            AgentMemory.agent_id.like(f"{namespace}:%")
-                            if namespace != "*"
-                            else True
-                        ),
+                        (AgentMemory.agent_id.like(f"{namespace}:%") if namespace != "*" else True),
                     )
                     .order_by(AgentMemory.created_at.desc())
                     .limit(validated.max_results)
@@ -461,24 +425,12 @@ class StatefulMemoryStoreTool(BaseTool):
                 memories = [
                     {
                         "id": row.id,
-                        "key": (
-                            row.agent_id.split(":", 1)[1]
-                            if ":" in (row.agent_id or "")
-                            else row.agent_id
-                        ),
+                        "key": (row.agent_id.split(":", 1)[1] if ":" in (row.agent_id or "") else row.agent_id),
                         "namespace": (
-                            row.agent_id.split(":", 1)[0]
-                            if row.agent_id and ":" in row.agent_id
-                            else namespace
+                            row.agent_id.split(":", 1)[0] if row.agent_id and ":" in row.agent_id else namespace
                         ),
-                        "value_preview": (
-                            row.content[:200] + "..."
-                            if len(row.content) > 200
-                            else row.content
-                        ),
-                        "created_at": (
-                            row.created_at.isoformat() if row.created_at else None
-                        ),
+                        "value_preview": (row.content[:200] + "..." if len(row.content) > 200 else row.content),
+                        "created_at": (row.created_at.isoformat() if row.created_at else None),
                     }
                     for row in rows
                 ]

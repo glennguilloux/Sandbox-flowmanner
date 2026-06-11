@@ -23,7 +23,6 @@ from app.models.substrate_models import (
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine, get_replay_engine
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -48,9 +47,7 @@ def _make_event(
     )
 
 
-def _make_mission_lifecycle_events(
-    run_id: str, mission_id: str | None = None
-) -> list[SubstrateEvent]:
+def _make_mission_lifecycle_events(run_id: str, mission_id: str | None = None) -> list[SubstrateEvent]:
     """Create a realistic mission lifecycle event stream."""
     return [
         _make_event(
@@ -106,9 +103,7 @@ def _mock_event_log_with_events(events: list[SubstrateEvent]):
     """Create a mock EventLog that returns given events from get_events()."""
     el = MagicMock(spec=EventLog)
 
-    async def mock_get_events(
-        db, run_id, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000
-    ):
+    async def mock_get_events(db, run_id, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000):
         filtered = [e for e in events if e.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [e for e in filtered if e.sequence <= to_sequence]
@@ -126,7 +121,6 @@ def _mock_event_log_with_events(events: list[SubstrateEvent]):
 
 
 class TestRebuildState:
-
     def test_rebuilds_empty_state_for_no_events(self):
         """rebuild_state() returns pending state when no events exist."""
         el = _mock_event_log_with_events([])
@@ -165,9 +159,7 @@ class TestRebuildState:
         """rebuild_state() handles mission.failed events."""
         run_id = str(uuid4())
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Will Fail"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Will Fail"}),
             _make_event(
                 run_id,
                 2,
@@ -203,9 +195,7 @@ class TestRebuildState:
         """rebuild_state() handles mission.aborted events."""
         run_id = str(uuid4())
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Aborted"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Aborted"}),
             _make_event(
                 run_id,
                 2,
@@ -225,9 +215,7 @@ class TestRebuildState:
         """rebuild_state() handles task.retrying events."""
         run_id = str(uuid4())
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Retry"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Retry"}),
             _make_event(
                 run_id,
                 2,
@@ -256,12 +244,8 @@ class TestRebuildState:
         """rebuild_state() handles substrate.budget_exhausted events."""
         run_id = str(uuid4())
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Budget"}
-            ),
-            _make_event(
-                run_id, 2, SubstrateEventType.BUDGET_EXHAUSTED, {"budget_type": "cost"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "Budget"}),
+            _make_event(run_id, 2, SubstrateEventType.BUDGET_EXHAUSTED, {"budget_type": "cost"}),
         ]
         el = _mock_event_log_with_events(events)
         engine = ReplayEngine(event_log=el)
@@ -322,9 +306,7 @@ class TestRebuildState:
                 {"task_id": "t1"},
                 task_id="t1",
             ),
-            _make_event(
-                run_id, 3, SubstrateEventType.MISSION_PAUSED, {"reason": "cooldown"}
-            ),
+            _make_event(run_id, 3, SubstrateEventType.MISSION_PAUSED, {"reason": "cooldown"}),
             _make_event(
                 run_id,
                 4,
@@ -369,12 +351,8 @@ class TestRebuildState:
                 {"task_id": "t1", "tokens": 75, "cost_usd": 0.03},
                 task_id="t1",
             ),
-            _make_event(
-                run_id, 4, SubstrateEventType.MISSION_PAUSED, {"reason": "rate limit"}
-            ),
-            _make_event(
-                run_id, 5, SubstrateEventType.MISSION_RESUMED, {"resumed_by": "auto"}
-            ),
+            _make_event(run_id, 4, SubstrateEventType.MISSION_PAUSED, {"reason": "rate limit"}),
+            _make_event(run_id, 5, SubstrateEventType.MISSION_RESUMED, {"resumed_by": "auto"}),
             _make_event(
                 run_id,
                 6,
@@ -419,7 +397,6 @@ class TestRebuildState:
 
 
 class TestRebuildStateAtSequence:
-
     def test_rebuilds_at_specific_sequence(self):
         """rebuild_state_at_sequence() returns state as it was after given seq."""
         run_id = str(uuid4())
@@ -456,7 +433,6 @@ class TestRebuildStateAtSequence:
 
 
 class TestVerifyDeterminism:
-
     def test_deterministic_replay_returns_true(self):
         """verify_determinism() returns True for a stable event stream."""
         run_id = str(uuid4())
@@ -491,21 +467,14 @@ class TestVerifyDeterminism:
 
 
 class TestGetCheckpointSequences:
-
     def test_returns_checkpoint_sequences(self):
         """get_checkpoint_sequences() returns sequences of checkpoint events."""
         run_id = str(uuid4())
         events = [
-            _make_event(
-                run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "test"}
-            ),
-            _make_event(
-                run_id, 2, SubstrateEventType.CHECKPOINT, {"note": "after setup"}
-            ),
+            _make_event(run_id, 1, SubstrateEventType.MISSION_STARTED, {"title": "test"}),
+            _make_event(run_id, 2, SubstrateEventType.CHECKPOINT, {"note": "after setup"}),
             _make_event(run_id, 3, SubstrateEventType.TASK_STARTED, {"task_id": "t1"}),
-            _make_event(
-                run_id, 4, SubstrateEventType.CHECKPOINT, {"note": "mid execution"}
-            ),
+            _make_event(run_id, 4, SubstrateEventType.CHECKPOINT, {"note": "mid execution"}),
             _make_event(run_id, 5, SubstrateEventType.MISSION_COMPLETED, {}),
         ]
         el = _mock_event_log_with_events(events)
@@ -533,7 +502,6 @@ class TestGetCheckpointSequences:
 
 
 class TestReplayEngineSingleton:
-
     def test_get_replay_engine_returns_same_instance(self):
         re1 = get_replay_engine()
         re2 = get_replay_engine()

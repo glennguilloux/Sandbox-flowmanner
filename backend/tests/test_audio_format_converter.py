@@ -9,15 +9,14 @@ Tests cover:
 - Tool metadata and registration
 """
 
-import io
-import os
 import base64
-import struct
+import io
 import math
+import os
+import struct
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -105,18 +104,14 @@ class TestInputValidation:
     async def test_bitrate_accepted(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
 
-        inp = AudioFormatConverterInput(
-            data="Zm9v", target_format="mp3", bitrate="320k"
-        )
+        inp = AudioFormatConverterInput(data="Zm9v", target_format="mp3", bitrate="320k")
         assert inp.bitrate == "320k"
 
     @pytest.mark.asyncio
     async def test_sample_rate_accepted(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
 
-        inp = AudioFormatConverterInput(
-            data="Zm9v", target_format="wav", sample_rate=22050
-        )
+        inp = AudioFormatConverterInput(data="Zm9v", target_format="wav", sample_rate=22050)
         assert inp.sample_rate == 22050
 
     @pytest.mark.asyncio
@@ -124,9 +119,7 @@ class TestInputValidation:
         from app.tools.audio_format_converter import AudioFormatConverterInput
 
         with pytest.raises(Exception):
-            AudioFormatConverterInput(
-                data="Zm9v", target_format="wav", sample_rate=1000
-            )
+            AudioFormatConverterInput(data="Zm9v", target_format="wav", sample_rate=1000)
 
     @pytest.mark.asyncio
     async def test_channels_accepted(self, converter):
@@ -275,10 +268,7 @@ class TestFormatConversion:
             )
             if not r.success:
                 # Skip formats needing encoders not installed (ffmpeg error 234)
-                if (
-                    "error code: 234" in str(r.error)
-                    or "encoder" in str(r.error).lower()
-                ):
+                if "error code: 234" in str(r.error) or "encoder" in str(r.error).lower():
                     continue
             assert r.success, f"Format {fmt} failed: {r.error}"
             assert r.result["output_format"] == fmt

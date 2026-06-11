@@ -10,16 +10,15 @@ Tests cover:
 - Tool metadata and registration
 """
 
-import io
-import os
 import base64
-import struct
+import io
 import math
-from unittest.mock import MagicMock, patch, PropertyMock
+import os
+import struct
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -130,9 +129,7 @@ class TestMergeSpeechFrames:
     def test_single_contiguous_segment(self, diarization):
         # 100 frames, all speech
         speech = np.ones(100, dtype=bool)
-        segments = diarization._merge_speech_frames(
-            speech, min_frames=1, hop_length=512, sr=16000
-        )
+        segments = diarization._merge_speech_frames(speech, min_frames=1, hop_length=512, sr=16000)
         assert len(segments) == 1
         start, end = segments[0]
         assert start == 0
@@ -143,9 +140,7 @@ class TestMergeSpeechFrames:
         speech = np.zeros(60, dtype=bool)
         speech[:20] = True
         speech[40:] = True
-        segments = diarization._merge_speech_frames(
-            speech, min_frames=1, hop_length=512, sr=16000
-        )
+        segments = diarization._merge_speech_frames(speech, min_frames=1, hop_length=512, sr=16000)
         assert len(segments) == 2
 
     def test_min_frames_filter(self, diarization):
@@ -153,9 +148,7 @@ class TestMergeSpeechFrames:
         speech = np.zeros(100, dtype=bool)
         speech[10:12] = True  # 2 frames — too short
         speech[50:80] = True  # 30 frames — kept
-        segments = diarization._merge_speech_frames(
-            speech, min_frames=5, hop_length=512, sr=16000
-        )
+        segments = diarization._merge_speech_frames(speech, min_frames=5, hop_length=512, sr=16000)
         assert len(segments) == 1
         start, end = segments[0]
         assert start == 50 * 512
@@ -163,25 +156,19 @@ class TestMergeSpeechFrames:
 
     def test_no_speech_frames(self, diarization):
         speech = np.zeros(100, dtype=bool)
-        segments = diarization._merge_speech_frames(
-            speech, min_frames=1, hop_length=512, sr=16000
-        )
+        segments = diarization._merge_speech_frames(speech, min_frames=1, hop_length=512, sr=16000)
         assert len(segments) == 0
 
     def test_all_speech(self, diarization):
         speech = np.ones(50, dtype=bool)
-        segments = diarization._merge_speech_frames(
-            speech, min_frames=1, hop_length=512, sr=16000
-        )
+        segments = diarization._merge_speech_frames(speech, min_frames=1, hop_length=512, sr=16000)
         assert len(segments) == 1
 
     def test_trailing_speech(self, diarization):
         """Speech that continues to end should be captured."""
         speech = np.zeros(100, dtype=bool)
         speech[90:] = True
-        segments = diarization._merge_speech_frames(
-            speech, min_frames=1, hop_length=512, sr=16000
-        )
+        segments = diarization._merge_speech_frames(speech, min_frames=1, hop_length=512, sr=16000)
         assert len(segments) == 1
         start, end = segments[0]
         assert start == 90 * 512
@@ -304,9 +291,7 @@ class TestFullPipeline:
         buf.write(b"RIFF")
         buf.write(struct.pack("<I", 36 + num_samples * 2))
         buf.write(b"WAVEfmt ")
-        buf.write(
-            struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16)
-        )
+        buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16))
         buf.write(b"data")
         buf.write(struct.pack("<I", num_samples * 2))
         for i in range(num_samples):

@@ -41,16 +41,11 @@ PERMISSION_CATALOGUE: list[PermissionKeyResponse] = [
 # ── helpers ─────────────────────────────────────────────────────────────
 
 
-async def _get_role_or_404(
-    role_id: str, db: AsyncSession, workspace_id: str | None = None
-) -> CustomRole:
+async def _get_role_or_404(role_id: str, db: AsyncSession, workspace_id: str | None = None) -> CustomRole:
     q = select(CustomRole).where(CustomRole.id == role_id)
     if workspace_id is not None:
         # Allow access to workspace-scoped roles AND global system roles
-        q = q.where(
-            (CustomRole.workspace_id == workspace_id)
-            | (CustomRole.workspace_id.is_(None))
-        )
+        q = q.where((CustomRole.workspace_id == workspace_id) | (CustomRole.workspace_id.is_(None)))
     role = (await db.execute(q)).scalar_one_or_none()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -73,9 +68,7 @@ async def list_roles(
 ):
     """List roles for the current workspace (system + custom)."""
     wid = workspace_id or _resolve_workspace(user)
-    q = select(CustomRole).where(
-        (CustomRole.workspace_id == wid) | (CustomRole.workspace_id.is_(None))
-    )
+    q = select(CustomRole).where((CustomRole.workspace_id == wid) | (CustomRole.workspace_id.is_(None)))
     result = await db.execute(q)
     roles = result.scalars().all()
     return RoleListResponse(
@@ -104,9 +97,7 @@ async def create_role(
         )
     ).scalar_one_or_none()
     if existing:
-        raise HTTPException(
-            status_code=409, detail=f"Role '{payload.name}' already exists"
-        )
+        raise HTTPException(status_code=409, detail=f"Role '{payload.name}' already exists")
 
     role = CustomRole(
         workspace_id=wid,
@@ -264,9 +255,7 @@ async def assign_role_to_user(
 
     role = await _get_role_or_404(role_id, db, wid)
     if role.is_system:
-        raise HTTPException(
-            status_code=403, detail="Cannot assign system roles via this endpoint"
-        )
+        raise HTTPException(status_code=403, detail="Cannot assign system roles via this endpoint")
 
     # Check for existing assignment
     existing = (

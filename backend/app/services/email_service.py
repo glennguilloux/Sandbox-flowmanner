@@ -202,9 +202,7 @@ class EmailService:
         elif self._smtp_host:
             return await self._send_via_smtp(to, subject, html, reply_to)
         else:
-            logger.warning(
-                "No email provider configured (no RESEND_API_KEY or SMTP_HOST)"
-            )
+            logger.warning("No email provider configured (no RESEND_API_KEY or SMTP_HOST)")
             return False
 
     async def _send_via_resend(

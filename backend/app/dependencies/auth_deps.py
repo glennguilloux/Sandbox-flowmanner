@@ -45,9 +45,7 @@ class JWTAuth:
 
         try:
             token = credentials.credentials
-            payload = jwt.decode(
-                token, JWTAuth._get_secret(), algorithms=[JWTAuth.JWT_ALGORITHM]
-            )
+            payload = jwt.decode(token, JWTAuth._get_secret(), algorithms=[JWTAuth.JWT_ALGORITHM])
             return payload
         except jwt.ExpiredSignatureError:
             raise HTTPException(

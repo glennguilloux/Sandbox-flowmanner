@@ -11,11 +11,13 @@ down_revision = "h13_observability"
 branch_labels = None
 depends_on = None
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 
 def upgrade() -> None:
@@ -129,9 +131,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"
-    )
+    op.execute("DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events")
     op.execute("DROP FUNCTION IF EXISTS enforce_substrate_events_append_only()")
     op.drop_index("ix_substrate_events_timestamp", table_name="substrate_events")
     op.drop_index("ix_substrate_events_type", table_name="substrate_events")

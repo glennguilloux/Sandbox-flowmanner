@@ -111,14 +111,10 @@ class LinkedinPublisherTool(BaseTool):
         try:
             validated = LinkedinPublisherInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.message.strip():
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="Message must not be empty"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="Message must not be empty")
 
         valid_vis = ("PUBLIC", "CONNECTIONS", "LOGGED_IN")
         if validated.visibility not in valid_vis:
@@ -133,11 +129,7 @@ class LinkedinPublisherTool(BaseTool):
                 error="article_title is required when post_type='article'",
             )
 
-        max_len = (
-            LINKEDIN_MAX_ARTICLE_LENGTH
-            if validated.post_type == "article"
-            else LINKEDIN_MAX_UPDATE_LENGTH
-        )
+        max_len = LINKEDIN_MAX_ARTICLE_LENGTH if validated.post_type == "article" else LINKEDIN_MAX_UPDATE_LENGTH
         if len(validated.message) > max_len:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -165,8 +157,7 @@ class LinkedinPublisherTool(BaseTool):
                     "type": validated.post_type,
                     "visibility": validated.visibility,
                     "length": len(validated.message),
-                    "truncated": validated.message[:200]
-                    + ("..." if len(validated.message) > 200 else ""),
+                    "truncated": validated.message[:200] + ("..." if len(validated.message) > 200 else ""),
                     "has_attachment": bool(validated.share_url),
                 },
             }
@@ -184,8 +175,7 @@ class LinkedinPublisherTool(BaseTool):
                     "type": validated.post_type,
                     "visibility": validated.visibility,
                     "length": len(validated.message),
-                    "truncated": validated.message[:200]
-                    + ("..." if len(validated.message) > 200 else ""),
+                    "truncated": validated.message[:200] + ("..." if len(validated.message) > 200 else ""),
                     "has_attachment": bool(validated.share_url),
                 },
             }
@@ -194,9 +184,7 @@ class LinkedinPublisherTool(BaseTool):
             return await self._publish_article(validated)
         return await self._publish_update(validated)
 
-    async def _publish_update(
-        self, validated: LinkedinPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish_update(self, validated: LinkedinPublisherInput) -> dict[str, Any]:
         """Create a share/update post on LinkedIn."""
         author = self._resolve_author(validated.post_as_organization)
         headers = self._auth_headers()
@@ -210,16 +198,12 @@ class LinkedinPublisherTool(BaseTool):
                     "shareMediaCategory": "NONE",
                 }
             },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": validated.visibility
-            },
+            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": validated.visibility},
         }
 
         # Add URL attachment if provided
         if validated.share_url:
-            body["specificContent"]["com.linkedin.ugc.ShareContent"][
-                "shareMediaCategory"
-            ] = "ARTICLE"
+            body["specificContent"]["com.linkedin.ugc.ShareContent"]["shareMediaCategory"] = "ARTICLE"
             body["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
                 {
                     "status": "READY",
@@ -229,14 +213,10 @@ class LinkedinPublisherTool(BaseTool):
             ]
 
         async with httpx.AsyncClient(timeout=LINKEDIN_TIMEOUT) as client:
-            resp = await client.post(
-                f"{LINKEDIN_API_BASE}/ugcPosts", headers=headers, json=body
-            )
+            resp = await client.post(f"{LINKEDIN_API_BASE}/ugcPosts", headers=headers, json=body)
             return self._handle_response(resp, "update")
 
-    async def _publish_article(
-        self, validated: LinkedinPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish_article(self, validated: LinkedinPublisherInput) -> dict[str, Any]:
         """Create a long-form article on LinkedIn."""
         author = self._resolve_author(validated.post_as_organization)
         headers = self._auth_headers()
@@ -246,26 +226,18 @@ class LinkedinPublisherTool(BaseTool):
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
-                        "text": validated.article_description
-                        or validated.article_title
-                        or ""
-                    },
+                    "shareCommentary": {"text": validated.article_description or validated.article_title or ""},
                     "shareMediaCategory": "ARTICLE",
                     "media": [
                         {
                             "status": "READY",
-                            "description": {
-                                "text": validated.article_description or ""
-                            },
+                            "description": {"text": validated.article_description or ""},
                             "title": {"text": validated.article_title or "Untitled"},
                         }
                     ],
                 }
             },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": validated.visibility
-            },
+            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": validated.visibility},
         }
 
         # NOTE: LinkedIn long-form articles use a separate Articles API endpoint
@@ -274,20 +246,14 @@ class LinkedinPublisherTool(BaseTool):
         # For full long-form article support, integrate with LinkedIn's Articles API.
 
         async with httpx.AsyncClient(timeout=LINKEDIN_TIMEOUT) as client:
-            resp = await client.post(
-                f"{LINKEDIN_API_BASE}/ugcPosts", headers=headers, json=body
-            )
+            resp = await client.post(f"{LINKEDIN_API_BASE}/ugcPosts", headers=headers, json=body)
             return self._handle_response(resp, "article")
 
     def _resolve_author(self, as_org: bool) -> str:
         """Resolve the author URN for the post."""
         if as_org and LINKEDIN_ORG_ID:
             return f"urn:li:organization:{LINKEDIN_ORG_ID}"
-        return (
-            LINKEDIN_USER_ID
-            if LINKEDIN_USER_ID.startswith("urn:li:")
-            else f"urn:li:person:{LINKEDIN_USER_ID}"
-        )
+        return LINKEDIN_USER_ID if LINKEDIN_USER_ID.startswith("urn:li:") else f"urn:li:person:{LINKEDIN_USER_ID}"
 
     def _auth_headers(self) -> dict[str, str]:
         return {
@@ -305,11 +271,7 @@ class LinkedinPublisherTool(BaseTool):
                 "status": "published",
                 "message_id": post_id,
                 "type": post_type,
-                "activity_url": (
-                    f"https://www.linkedin.com/feed/update/{post_id}"
-                    if post_id != "unknown"
-                    else None
-                ),
+                "activity_url": (f"https://www.linkedin.com/feed/update/{post_id}" if post_id != "unknown" else None),
             }
 
         try:

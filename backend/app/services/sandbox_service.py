@@ -44,9 +44,7 @@ class SandboxService:
         # 1. Check for existing mapping
         existing = await self.get_sandbox_for_mission(mission_id, db=db)
         if existing:
-            logger.info(
-                "Sandbox %s already exists for mission %s", existing, mission_id
-            )
+            logger.info("Sandbox %s already exists for mission %s", existing, mission_id)
             return existing
 
         # 2. Create sandbox via sandboxd
@@ -155,9 +153,7 @@ class SandboxService:
 
     # ── Snapshots ──────────────────────────────────────────────────────
 
-    async def create_snapshot(
-        self, mission_id: str, name: str = "", *, db
-    ) -> dict[str, Any]:
+    async def create_snapshot(self, mission_id: str, name: str = "", *, db) -> dict[str, Any]:
         """Create a snapshot of the sandbox workspace."""
         sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db)
         if not sandbox_id:
@@ -230,9 +226,7 @@ class SandboxService:
                 "status": s.status,
                 "template": s.template,
                 "created_at": s.created_at.isoformat(),
-                "last_active_at": (
-                    s.last_active_at.isoformat() if s.last_active_at else None
-                ),
+                "last_active_at": (s.last_active_at.isoformat() if s.last_active_at else None),
             }
             for s in sandboxes
         ]

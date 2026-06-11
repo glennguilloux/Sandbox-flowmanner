@@ -91,9 +91,7 @@ class TemplateCreate:
         default_constraints: dict[str, Any] | None | Unset
         if isinstance(self.default_constraints, Unset):
             default_constraints = UNSET
-        elif isinstance(
-            self.default_constraints, TemplateCreateDefaultConstraintsType0
-        ):
+        elif isinstance(self.default_constraints, TemplateCreateDefaultConstraintsType0):
             default_constraints = self.default_constraints.to_dict()
         else:
             default_constraints = self.default_constraints
@@ -203,18 +201,14 @@ class TemplateCreate:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                default_constraints_type_0 = (
-                    TemplateCreateDefaultConstraintsType0.from_dict(data)
-                )
+                default_constraints_type_0 = TemplateCreateDefaultConstraintsType0.from_dict(data)
 
                 return default_constraints_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | TemplateCreateDefaultConstraintsType0 | Unset, data)
 
-        default_constraints = _parse_default_constraints(
-            d.pop("default_constraints", UNSET)
-        )
+        default_constraints = _parse_default_constraints(d.pop("default_constraints", UNSET))
 
         template_create = cls(
             name=name,

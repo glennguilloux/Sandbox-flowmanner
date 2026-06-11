@@ -1,19 +1,16 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.fork_template_api_community_templates_template_id_fork_post_data import (
     ForkTemplateApiCommunityTemplatesTemplateIdForkPostData,
 )
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, Unset
-from typing import cast
+from ...types import Response, Unset
 
 
 def _get_kwargs(

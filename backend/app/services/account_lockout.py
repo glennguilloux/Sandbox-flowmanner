@@ -32,9 +32,7 @@ class InMemoryAttemptTracker:
             if total_keys > self.MAX_KEYS:
                 # Remove oldest lockouts first
                 if self._lockouts:
-                    oldest = sorted(self._lockouts.items(), key=lambda x: x[1])[
-                        : total_keys - self.MAX_KEYS
-                    ]
+                    oldest = sorted(self._lockouts.items(), key=lambda x: x[1])[: total_keys - self.MAX_KEYS]
                     for k, _ in oldest:
                         self._lockouts.pop(k, None)
                 # Then oldest attempts if still over
@@ -43,14 +41,10 @@ class InMemoryAttemptTracker:
                         self._attempts.keys(),
                         key=lambda k: self._attempts[k][-1] if self._attempts[k] else 0,
                     )
-                    for old_key in sorted_keys[
-                        : len(self._attempts) + len(self._lockouts) - self.MAX_KEYS
-                    ]:
+                    for old_key in sorted_keys[: len(self._attempts) + len(self._lockouts) - self.MAX_KEYS]:
                         self._attempts.pop(old_key, None)
 
-    def record_attempt(
-        self, key: str, max_attempts: int = 5, window: int = 900
-    ) -> dict:
+    def record_attempt(self, key: str, max_attempts: int = 5, window: int = 900) -> dict:
         """Record a failed login attempt.
 
         Returns dict with:
@@ -113,9 +107,7 @@ class RedisAttemptTracker:
     def __init__(self, redis_url: str):
         self._redis = redis.from_url(redis_url, decode_responses=True)
 
-    def record_attempt(
-        self, key: str, max_attempts: int = 5, window: int = 900
-    ) -> dict:
+    def record_attempt(self, key: str, max_attempts: int = 5, window: int = 900) -> dict:
         redis_key = f"login_attempts:{key}"
         lockout_key = f"login_lockout:{key}"
 
@@ -173,9 +165,7 @@ def get_tracker() -> InMemoryAttemptTracker | RedisAttemptTracker:
             _tracker = RedisAttemptTracker(settings.REDIS_URL)
             logger.info("Account lockout tracker initialized with Redis backend")
         except Exception as e:
-            logger.warning(
-                "Redis unavailable for lockout tracker, using in-memory: %s", e
-            )
+            logger.warning("Redis unavailable for lockout tracker, using in-memory: %s", e)
             _tracker = InMemoryAttemptTracker()
     return _tracker
 

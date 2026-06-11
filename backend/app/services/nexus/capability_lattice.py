@@ -74,9 +74,7 @@ class CapabilityNode:
             "capability_id": self.capability_id,
             "name": self.name,
             "depth": self.depth,
-            "composition_type": (
-                self.composition_type.value if self.composition_type else None
-            ),
+            "composition_type": (self.composition_type.value if self.composition_type else None),
             "children": self.children,
             "parents": self.parents,
             "max_iterations": self.max_iterations,
@@ -108,9 +106,7 @@ class CapabilityLattice:
 
     def __init__(self, max_depth: int = DEFAULT_MAX_DEPTH):
         if max_depth > self.HARD_MAX_DEPTH:
-            raise ValueError(
-                f"max_depth {max_depth} exceeds hard ceiling {self.HARD_MAX_DEPTH}"
-            )
+            raise ValueError(f"max_depth {max_depth} exceeds hard ceiling {self.HARD_MAX_DEPTH}")
         self.max_depth = max_depth
         self._nodes: dict[str, CapabilityNode] = {}
 
@@ -148,26 +144,17 @@ class CapabilityLattice:
         # Validate children exist
         for child_id in children:
             if child_id not in self._nodes:
-                raise LatticeError(
-                    f"Child capability '{child_id}' not registered in lattice"
-                )
+                raise LatticeError(f"Child capability '{child_id}' not registered in lattice")
             if child_id == capability_id:
-                raise LatticeError(
-                    f"Self-referential composition detected: {capability_id}"
-                )
+                raise LatticeError(f"Self-referential composition detected: {capability_id}")
 
         # Validate loop termination
         if composition_type == CompositionType.LOOP:
-            self._validate_loop_termination(
-                capability_id, children, max_iterations, termination_condition
-            )
+            self._validate_loop_termination(capability_id, children, max_iterations, termination_condition)
 
         # Compute depth
         child_depths = [self._nodes[c].depth for c in children]
-        if (
-            composition_type == CompositionType.PARALLEL
-            or composition_type == CompositionType.CONDITIONAL
-        ):
+        if composition_type == CompositionType.PARALLEL or composition_type == CompositionType.CONDITIONAL:
             new_depth = 1 + max(child_depths) if child_depths else 1
         elif composition_type == CompositionType.LOOP:
             # Loop depth is bounded by max_iterations + body depth
@@ -355,11 +342,7 @@ def get_capability_lattice(max_depth: int | None = None) -> CapabilityLattice:
     global _lattice
     if _lattice is None:
         _lattice = CapabilityLattice(
-            max_depth=(
-                max_depth
-                if max_depth is not None
-                else CapabilityLattice.DEFAULT_MAX_DEPTH
-            )
+            max_depth=(max_depth if max_depth is not None else CapabilityLattice.DEFAULT_MAX_DEPTH)
         )
     return _lattice
 

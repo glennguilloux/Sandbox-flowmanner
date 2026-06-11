@@ -127,9 +127,7 @@ async def is_port_serving(
     Treats any 2xx/3xx response as "serving".  Connection refused,
     timeout, and any non-2xx/3xx response return ``False``.
     """
-    result = await client.exec_command(
-        sandbox_id, _build_check_port_command(port), timeout=timeout
-    )
+    result = await client.exec_command(sandbox_id, _build_check_port_command(port), timeout=timeout)
     output = result.get("stdout", "").strip().strip("'")
     return output in _SERVING_STATUS_CODES
 

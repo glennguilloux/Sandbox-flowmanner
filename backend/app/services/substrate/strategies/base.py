@@ -102,9 +102,7 @@ class WorkflowWSManager:
     All strategies use this single manager for event broadcasting.
     """
 
-    async def send_event(
-        self, run_id: str, event_type: str, data: dict[str, Any]
-    ) -> None:
+    async def send_event(self, run_id: str, event_type: str, data: dict[str, Any]) -> None:
         """Send an event to all clients watching a specific run."""
         try:
             from app.websocket.mission_ws import sio

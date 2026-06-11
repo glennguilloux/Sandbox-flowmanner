@@ -142,9 +142,7 @@ class HypothesisTest:
         return {
             "test_id": self.test_id,
             "strategy_id": self.strategy.strategy_id if self.strategy else None,
-            "strategy_type": (
-                self.strategy.strategy_type.value if self.strategy else None
-            ),
+            "strategy_type": (self.strategy.strategy_type.value if self.strategy else None),
             "test_type": self.test_type.value,
             "duration_minutes": self.duration_minutes,
             "sample_size": self.sample_size,
@@ -154,17 +152,13 @@ class HypothesisTest:
             "risk_level": self.risk_level.value,
             "state": self.state.value,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
             "baseline_metrics": self.baseline_metrics,
             "test_metrics": self.test_metrics,
             "improvement_delta": self.improvement_delta,
             "p_value": self.p_value,
             "rollback_triggered": self.rollback_triggered,
-            "rollback_trigger": (
-                self.rollback_trigger.value if self.rollback_trigger else None
-            ),
+            "rollback_trigger": (self.rollback_trigger.value if self.rollback_trigger else None),
             "agent_id": self.agent_id,
             "created_at": self.created_at.isoformat(),
         }
@@ -345,9 +339,7 @@ class TestResult:
             "recommendation": self.recommendation,
             "details": self.details,
             "rollback_triggered": self.rollback_triggered,
-            "rollback_trigger": (
-                self.rollback_trigger.value if self.rollback_trigger else None
-            ),
+            "rollback_trigger": (self.rollback_trigger.value if self.rollback_trigger else None),
             "agent_id": self.agent_id,
             "created_at": self.created_at.isoformat(),
             "metadata": self.metadata,
@@ -381,9 +373,7 @@ class HypothesisTester:
         self._active_tests: dict[str, HypothesisTest] = {}
 
         # Custom validators registry
-        self._custom_validators: dict[str, Callable[[Any], tuple[bool, str | None]]] = (
-            {}
-        )
+        self._custom_validators: dict[str, Callable[[Any], tuple[bool, str | None]]] = {}
 
         # Register default custom validators
         self._register_default_validators()
@@ -455,9 +445,7 @@ class HypothesisTester:
 
         for constraint in self.safety_constraints:
             if constraint.knob_type == strategy.knob:
-                is_valid, error = await self._validate_constraint(
-                    constraint, strategy.knob_value
-                )
+                is_valid, error = await self._validate_constraint(constraint, strategy.knob_value)
                 if not is_valid:
                     violations.append(f"{constraint.name}: {error}")
 
@@ -504,18 +492,12 @@ class HypothesisTester:
         # 2. Oscillation risk (check knob history)
         knob = await self.knob_manager.get_knob(
             strategy.knob,
-            (
-                strategy.applicable_failure_types[0].value
-                if strategy.applicable_failure_types
-                else None
-            ),
+            (strategy.applicable_failure_types[0].value if strategy.applicable_failure_types else None),
         )
         if knob and len(knob.modification_history) >= 3:
             recent_values = [m["new_value"] for m in knob.modification_history[-3:]]
             if strategy.knob_value in recent_values:
-                issues.append(
-                    f"Oscillation risk: value {strategy.knob_value} was recently tried"
-                )
+                issues.append(f"Oscillation risk: value {strategy.knob_value} was recently tried")
 
         # 3. High-risk strategies need approval
         if strategy.risk_level == RiskLevel.HIGH:
@@ -546,18 +528,14 @@ class HypothesisTester:
         if test.strategy:
             can_deploy, issues = await self.run_pre_deployment_check(test.strategy)
             if not can_deploy:
-                logger.error(
-                    "Pre-deployment check failed for test %s: %s", test.test_id, issues
-                )
+                logger.error("Pre-deployment check failed for test %s: %s", test.test_id, issues)
                 test.state = HypothesisState.CANCELLED
                 test.notes = "; ".join(issues)
                 return False
 
         # Apply the improvement
         if test.strategy:
-            adjustment = await self.knob_manager.apply_strategy(
-                test.strategy, test.agent_id
-            )
+            adjustment = await self.knob_manager.apply_strategy(test.strategy, test.agent_id)
             if not adjustment:
                 logger.error("Failed to apply strategy for test %s", test.test_id)
                 test.state = HypothesisState.FAILED
@@ -600,9 +578,7 @@ class HypothesisTester:
 
         # Check for rollback triggers
         if test.auto_rollback_enabled:
-            should_rollback, trigger = self._check_rollback_triggers(
-                test, current_metrics
-            )
+            should_rollback, trigger = self._check_rollback_triggers(test, current_metrics)
             if should_rollback:
                 await self.rollback_test(test, trigger)
                 return TestResult(
@@ -668,10 +644,7 @@ class HypothesisTester:
             elif trigger == RollbackTrigger.ERROR_RATE_SPIKE:
                 baseline_rate = baseline.get("error_rate", 0)
                 current_rate = current_metrics.get("error_rate", 0)
-                if (
-                    baseline_rate > 0
-                    and current_rate > baseline_rate * test.error_rate_spike_threshold
-                ):
+                if baseline_rate > 0 and current_rate > baseline_rate * test.error_rate_spike_threshold:
                     return True, trigger
 
         return False, None
@@ -703,9 +676,7 @@ class HypothesisTester:
                 test.rollback_triggered = True
                 test.rollback_trigger = trigger
                 test.rollback_at = datetime.now(UTC)
-                logger.info(
-                    "Rolled back test %s due to %s", test.test_id, trigger.value
-                )
+                logger.info("Rolled back test %s due to %s", test.test_id, trigger.value)
                 return True
 
         return False

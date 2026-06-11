@@ -48,9 +48,7 @@ class HealthCheck:
         """
         self.client = client or get_openwhisk_client()
         self.gateway = gateway
-        self.controller = controller or create_integration_controller(
-            client=self.client
-        )
+        self.controller = controller or create_integration_controller(client=self.client)
 
         # Cache health status
         self.health_status = {
@@ -114,11 +112,7 @@ class HealthCheck:
             uptime = metrics.get("uptime_seconds", 0)
             total_requests = metrics.get("total_requests", 0)
 
-            success_rate = (
-                metrics.get("successful_requests", 0) / total_requests * 100
-                if total_requests > 0
-                else 0
-            )
+            success_rate = metrics.get("successful_requests", 0) / total_requests * 100 if total_requests > 0 else 0
 
             # Gateway is healthy if:
             # - Has been running for at least 30 seconds

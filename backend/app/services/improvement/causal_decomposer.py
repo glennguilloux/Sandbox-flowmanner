@@ -132,7 +132,9 @@ class ImprovementStrategy:
 
     def __post_init__(self):
         if self.strategy_id is None:
-            self.strategy_id = f"{self.strategy_type.value}_{self.knob.value}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
+            self.strategy_id = (
+                f"{self.strategy_type.value}_{self.knob.value}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
@@ -147,9 +149,7 @@ class ImprovementStrategy:
             "confidence": self.confidence,
             "rollback_value": self.rollback_value,
             "rollback_reason": self.rollback_reason,
-            "applicable_failure_types": [
-                ft.value for ft in self.applicable_failure_types
-            ],
+            "applicable_failure_types": [ft.value for ft in self.applicable_failure_types],
             "prerequisites": self.prerequisites,
             "created_at": self.created_at.isoformat(),
         }
@@ -168,15 +168,9 @@ class ImprovementStrategy:
             confidence=data.get("confidence", 0.5),
             rollback_value=data["rollback_value"],
             rollback_reason=data.get("rollback_reason", ""),
-            applicable_failure_types=[
-                FailureType(ft) for ft in data.get("applicable_failure_types", [])
-            ],
+            applicable_failure_types=[FailureType(ft) for ft in data.get("applicable_failure_types", [])],
             prerequisites=data.get("prerequisites", []),
-            created_at=(
-                datetime.fromisoformat(data["created_at"])
-                if "created_at" in data
-                else datetime.now(UTC)
-            ),
+            created_at=(datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(UTC)),
         )
 
 
@@ -216,10 +210,7 @@ class WeakArea:
 
     @property
     def is_critical(self) -> bool:
-        return (
-            self.severity in [FailureSeverity.CRITICAL, FailureSeverity.HIGH]
-            or self.success_rate < 0.5
-        )
+        return self.severity in [FailureSeverity.CRITICAL, FailureSeverity.HIGH] or self.success_rate < 0.5
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -227,9 +218,7 @@ class WeakArea:
             "success_rate": self.success_rate,
             "total_attempts": self.total_attempts,
             "failure_count": self.failure_count,
-            "failure_distribution": {
-                ft.value: count for ft, count in self.failure_distribution.items()
-            },
+            "failure_distribution": {ft.value: count for ft, count in self.failure_distribution.items()},
             "tool_names": self.tool_names,
             "model_ids": self.model_ids,
             "time_window": [
@@ -835,41 +824,25 @@ class CausalDecomposer:
         total_latency = 0.0
 
         for failure in failures:
-            type_counts[failure.failure_type] = (
-                type_counts.get(failure.failure_type, 0) + 1
-            )
-            severity_counts[failure.severity] = (
-                severity_counts.get(failure.severity, 0) + 1
-            )
+            type_counts[failure.failure_type] = type_counts.get(failure.failure_type, 0) + 1
+            severity_counts[failure.severity] = severity_counts.get(failure.severity, 0) + 1
             if failure.tool_name:
-                tool_counts[failure.tool_name] = (
-                    tool_counts.get(failure.tool_name, 0) + 1
-                )
+                tool_counts[failure.tool_name] = tool_counts.get(failure.tool_name, 0) + 1
             total_latency += failure.latency_ms
 
         # Identify dominant failure type
-        dominant_type = (
-            max(type_counts.items(), key=lambda x: x[1])[0]
-            if type_counts
-            else FailureType.UNKNOWN
-        )
+        dominant_type = max(type_counts.items(), key=lambda x: x[1])[0] if type_counts else FailureType.UNKNOWN
 
         # Identify most affected tool
-        most_affected_tool = (
-            max(tool_counts.items(), key=lambda x: x[1])[0] if tool_counts else None
-        )
+        most_affected_tool = max(tool_counts.items(), key=lambda x: x[1])[0] if tool_counts else None
 
         # Get recommended strategies
         strategies = self.select_strategies(failures)
 
         return {
             "total_failures": len(failures),
-            "failure_type_distribution": {
-                ft.value: count for ft, count in type_counts.items()
-            },
-            "severity_distribution": {
-                s.value: count for s, count in severity_counts.items()
-            },
+            "failure_type_distribution": {ft.value: count for ft, count in type_counts.items()},
+            "severity_distribution": {s.value: count for s, count in severity_counts.items()},
             "dominant_failure_type": dominant_type.value,
             "most_affected_tool": most_affected_tool,
             "average_latency_ms": total_latency / len(failures) if failures else 0,

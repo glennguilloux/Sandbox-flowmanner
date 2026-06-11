@@ -30,11 +30,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.dev.set_exc_info,
         structlog.processors.TimeStamper(fmt="iso"),
-        (
-            structlog.processors.JSONRenderer()
-            if settings.APP_ENV != "development"
-            else structlog.dev.ConsoleRenderer()
-        ),
+        (structlog.processors.JSONRenderer() if settings.APP_ENV != "development" else structlog.dev.ConsoleRenderer()),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
     context_class=dict,
@@ -48,9 +44,7 @@ logging.basicConfig(
 )
 
 # Determine if we're in production
-_is_production = settings.APP_ENV != "development" and not getattr(
-    settings, "DEBUG", False
-)
+_is_production = settings.APP_ENV != "development" and not getattr(settings, "DEBUG", False)
 
 API_DESCRIPTION = """
 ## Flowmanner API
@@ -119,12 +113,8 @@ app.add_middleware(AuthCookieMiddleware)
 app.add_middleware(ScopeValidationMiddleware)
 
 # CORS — tightened for production
-_cors_methods = (
-    ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] if _is_production else ["*"]
-)
-_cors_headers = (
-    ["Content-Type", "Authorization", "X-Request-ID"] if _is_production else ["*"]
-)
+_cors_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] if _is_production else ["*"]
+_cors_headers = ["Content-Type", "Authorization", "X-Request-ID"] if _is_production else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -382,9 +372,7 @@ try:
         if auth.startswith("Bearer "):
             token = auth[7:]
             try:
-                payload = _jwt.decode(
-                    token, _settings.JWT_SECRET_KEY, algorithms=["HS256"]
-                )
+                payload = _jwt.decode(token, _settings.JWT_SECRET_KEY, algorithms=["HS256"])
                 user_id = payload.get("sub")
                 if user_id:
                     async with AsyncSessionLocal() as session:
@@ -399,9 +387,7 @@ try:
     graphql_app = GraphQLRouter(gql_schema, context_getter=_gql_context_getter)
     app.include_router(graphql_app, prefix="/api/v2/graphql")
 except ImportError:
-    logging.getLogger(__name__).warning(
-        "strawberry-graphql not installed — GraphQL endpoint disabled"
-    )
+    logging.getLogger(__name__).warning("strawberry-graphql not installed — GraphQL endpoint disabled")
 
 # Extensions / Plugin API — registered independently of GraphQL
 from app.api.v1.extensions import router as extensions_router
@@ -434,12 +420,8 @@ async def get_stats():
             rows = await session.execute(
                 select(
                     func.count().label("total_runs"),
-                    func.count()
-                    .filter(GraphExecution.status == "completed")
-                    .label("success"),
-                    func.count()
-                    .filter(GraphExecution.status == "failed")
-                    .label("failed"),
+                    func.count().filter(GraphExecution.status == "completed").label("success"),
+                    func.count().filter(GraphExecution.status == "failed").label("failed"),
                 )
             )
             row = rows.one_or_none()

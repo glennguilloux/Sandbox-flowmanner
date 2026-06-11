@@ -211,9 +211,7 @@ def test_social_token_github_new_user(
         # All DB queries return None (no existing user / OIDC link)
         mock_db_session.execute.return_value = _make_db_result(scalar_one_or_none=None)
 
-        new_user = _make_mock_user(
-            id=42, email=profile["email"], username=profile["login"]
-        )
+        new_user = _make_mock_user(id=42, email=profile["email"], username=profile["login"])
         mock_create_user_svc.return_value = new_user
 
         with (
@@ -398,9 +396,7 @@ def test_social_token_google_new_user(
     ):
         mock_db_session.execute.return_value = _make_db_result(scalar_one_or_none=None)
 
-        new_user = _make_mock_user(
-            id=55, email=profile["email"], username=profile["login"]
-        )
+        new_user = _make_mock_user(id=55, email=profile["email"], username=profile["login"])
         mock_create_user_svc.return_value = new_user
 
         with (

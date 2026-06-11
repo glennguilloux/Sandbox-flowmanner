@@ -26,9 +26,7 @@ class StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0:
         d = dict(src_dict)
         start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0 = cls()
 
-        start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0.additional_properties = (
-            d
-        )
+        start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0.additional_properties = d
         return start_agent_api_agent_registry_agents_agent_id_start_post_body_type_0
 
     @property

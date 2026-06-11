@@ -123,9 +123,7 @@ class GmailSenderTool(BaseTool):
         try:
             validated = GmailSenderInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in GMAIL_ACTIONS:
             return ToolResult.error_result(
@@ -136,14 +134,10 @@ class GmailSenderTool(BaseTool):
         if not GMAIL_SERVICE_ACCOUNT_FILE or not GMAIL_DELEGATED_ACCOUNT:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=(
-                    "Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE and GMAIL_DELEGATED_ACCOUNT."
-                ),
+                error=("Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE and GMAIL_DELEGATED_ACCOUNT."),
             )
 
-        if is_placeholder(GMAIL_SERVICE_ACCOUNT_FILE) or is_placeholder(
-            GMAIL_DELEGATED_ACCOUNT
-        ):
+        if is_placeholder(GMAIL_SERVICE_ACCOUNT_FILE) or is_placeholder(GMAIL_DELEGATED_ACCOUNT):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
@@ -185,9 +179,7 @@ class GmailSenderTool(BaseTool):
     async def _get_access_token(self) -> str:
         """Get an OAuth2 access token for Gmail API via service account."""
         if not GMAIL_SERVICE_ACCOUNT_FILE or not GMAIL_DELEGATED_ACCOUNT:
-            raise ValueError(
-                "Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE and GMAIL_DELEGATED_ACCOUNT."
-            )
+            raise ValueError("Gmail not configured. Set GMAIL_SERVICE_ACCOUNT_FILE and GMAIL_DELEGATED_ACCOUNT.")
 
         import json
 
@@ -238,9 +230,7 @@ class GmailSenderTool(BaseTool):
         """Send an email via the Gmail API."""
         sender = validated.sender or GMAIL_DELEGATED_ACCOUNT
         if not sender:
-            return {
-                "error": "No sender address. Set sender or GMAIL_DELEGATED_ACCOUNT."
-            }
+            return {"error": "No sender address. Set sender or GMAIL_DELEGATED_ACCOUNT."}
 
         token = await self._get_access_token()
         raw_base64 = self._build_mime_message(validated)

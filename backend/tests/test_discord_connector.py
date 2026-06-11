@@ -19,13 +19,10 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.discord_connector import DiscordConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
-def _make_mock_response(
-    status: int, body: dict | list | str, headers: dict | None = None
-):
+def _make_mock_response(status: int, body: dict | list | str, headers: dict | None = None):
     """Create a mock aiohttp ClientResponse."""
     resp = MagicMock(spec=ClientResponse)
     resp.status = status
@@ -62,9 +59,7 @@ class _FakeSession:
         key = f"{method}:{url}"
         resp = self._response_map.get(key, self._response_map.get("default"))
         if resp is None:
-            resp = _make_mock_response(
-                404, {"code": 10003, "message": "Unknown Channel"}
-            )
+            resp = _make_mock_response(404, {"code": 10003, "message": "Unknown Channel"})
 
         class _Ctx:
             async def __aenter__(self):
@@ -105,7 +100,7 @@ def test_constructor_defaults():
 
 def test_init_falls_back_to_settings_token():
     """When auth_config has no token, reads DISCORD_BOT_TOKEN from settings."""
-    from app.services.connectors.base import ConnectorConfig, AuthType
+    from app.services.connectors.base import AuthType, ConnectorConfig
 
     with patch(
         "app.services.connectors.discord_connector.settings.DISCORD_BOT_TOKEN",
@@ -151,9 +146,7 @@ def test_available_actions_count():
 @pytest.mark.asyncio
 async def test_unknown_action_returns_error():
     """Non-existent action returns error."""
-    fake = _FakeSession(
-        {"default": _make_mock_response(200, {"id": "bot1", "username": "MyBot"})}
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"id": "bot1", "username": "MyBot"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
@@ -219,21 +212,15 @@ async def test_send_message_success():
     }
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1", "username": "MyBot"}
-            ),
-            "POST:https://discord.com/api/v10/channels/123/messages": _make_mock_response(
-                200, msg
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1", "username": "MyBot"}),
+            "POST:https://discord.com/api/v10/channels/123/messages": _make_mock_response(200, msg),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "send_message", {"channel_id": "123", "content": "Hello world"}
-        )
+        result = await connector.execute_action("send_message", {"channel_id": "123", "content": "Hello world"})
 
     assert result.success is True
     assert result.data["content"] == "Hello world"
@@ -265,21 +252,15 @@ async def test_send_message_with_embeds():
     msg = {"id": "msg2", "content": "", "embeds": [embed]}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "POST:https://discord.com/api/v10/channels/456/messages": _make_mock_response(
-                200, msg
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "POST:https://discord.com/api/v10/channels/456/messages": _make_mock_response(200, msg),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "send_message", {"channel_id": "456", "embeds": [embed]}
-        )
+        result = await connector.execute_action("send_message", {"channel_id": "456", "embeds": [embed]})
 
     assert result.success is True
     assert result.data["embeds"][0]["title"] == "Announcement"
@@ -295,12 +276,8 @@ async def test_edit_message():
     }
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "PATCH:https://discord.com/api/v10/channels/123/messages/msg1": _make_mock_response(
-                200, edited
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "PATCH:https://discord.com/api/v10/channels/123/messages/msg1": _make_mock_response(200, edited),
         }
     )
 
@@ -335,21 +312,15 @@ async def test_delete_message():
     """Delete a message (returns 204 No Content)."""
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "DELETE:https://discord.com/api/v10/channels/123/messages/msg1": _make_mock_response(
-                204, {}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "DELETE:https://discord.com/api/v10/channels/123/messages/msg1": _make_mock_response(204, {}),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "delete_message", {"channel_id": "123", "message_id": "msg1"}
-        )
+        result = await connector.execute_action("delete_message", {"channel_id": "123", "message_id": "msg1"})
 
     assert result.success is True
 
@@ -366,21 +337,15 @@ async def test_get_channel_messages():
     ]
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "GET:https://discord.com/api/v10/channels/123/messages": _make_mock_response(
-                200, messages
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "GET:https://discord.com/api/v10/channels/123/messages": _make_mock_response(200, messages),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "get_channel_messages", {"channel_id": "123"}
-        )
+        result = await connector.execute_action("get_channel_messages", {"channel_id": "123"})
 
     assert result.success is True
     assert len(result.data) == 2
@@ -407,12 +372,8 @@ async def test_get_channel():
     ch = {"id": "123", "name": "general", "type": 0, "guild_id": "g1"}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "GET:https://discord.com/api/v10/channels/123": _make_mock_response(
-                200, ch
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "GET:https://discord.com/api/v10/channels/123": _make_mock_response(200, ch),
         }
     )
 
@@ -434,12 +395,8 @@ async def test_list_channels():
     ]
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "GET:https://discord.com/api/v10/guilds/g1/channels": _make_mock_response(
-                200, channels
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "GET:https://discord.com/api/v10/guilds/g1/channels": _make_mock_response(200, channels),
         }
     )
 
@@ -465,12 +422,8 @@ async def test_list_guilds():
     ]
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "GET:https://discord.com/api/v10/users/@me/guilds": _make_mock_response(
-                200, guilds
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "GET:https://discord.com/api/v10/users/@me/guilds": _make_mock_response(200, guilds),
         }
     )
 
@@ -490,12 +443,8 @@ async def test_get_guild():
     guild = {"id": "g1", "name": "My Server", "owner_id": "u1", "member_count": 42}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "GET:https://discord.com/api/v10/guilds/g1": _make_mock_response(
-                200, guild
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "GET:https://discord.com/api/v10/guilds/g1": _make_mock_response(200, guild),
         }
     )
 
@@ -532,9 +481,7 @@ async def test_get_user():
     user = {"id": "u42", "username": "carol", "discriminator": "1234", "avatar": "abc"}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
             "GET:https://discord.com/api/v10/users/u42": _make_mock_response(200, user),
         }
     )
@@ -554,12 +501,8 @@ async def test_create_dm():
     dm_ch = {"id": "dm1", "type": 1, "recipients": [{"id": "u42", "username": "carol"}]}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "POST:https://discord.com/api/v10/users/@me/channels": _make_mock_response(
-                200, dm_ch
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "POST:https://discord.com/api/v10/users/@me/channels": _make_mock_response(200, dm_ch),
         }
     )
 
@@ -595,9 +538,7 @@ async def test_add_reaction():
     """Add a reaction to a message (returns 204)."""
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
             "PUT:https://discord.com/api/v10/channels/123/messages/msg1/reactions/%F0%9F%91%8D/@me": _make_mock_response(
                 204, {}
             ),
@@ -622,9 +563,7 @@ async def test_add_reaction_missing_params():
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "add_reaction", {"channel_id": "123", "message_id": "msg1"}
-        )
+        result = await connector.execute_action("add_reaction", {"channel_id": "123", "message_id": "msg1"})
 
     assert result.success is False
     assert result.status_code == 400
@@ -635,9 +574,7 @@ async def test_delete_reaction():
     """Remove a reaction from a message."""
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
             "DELETE:https://discord.com/api/v10/channels/123/messages/msg1/reactions/%F0%9F%91%8D/@me": _make_mock_response(
                 204, {}
             ),
@@ -661,9 +598,7 @@ async def test_get_reactions():
     users = [{"id": "u1", "username": "alice"}, {"id": "u2", "username": "bob"}]
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
             "GET:https://discord.com/api/v10/channels/123/messages/msg1/reactions/%F0%9F%91%8D": _make_mock_response(
                 200, users
             ),
@@ -690,21 +625,15 @@ async def test_create_channel():
     ch = {"id": "c3", "name": "new-channel", "type": 0, "guild_id": "g1"}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "POST:https://discord.com/api/v10/guilds/g1/channels": _make_mock_response(
-                200, ch
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "POST:https://discord.com/api/v10/guilds/g1/channels": _make_mock_response(200, ch),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "create_channel", {"guild_id": "g1", "name": "new-channel", "type": 0}
-        )
+        result = await connector.execute_action("create_channel", {"guild_id": "g1", "name": "new-channel", "type": 0})
 
     assert result.success is True
     assert result.data["name"] == "new-channel"
@@ -730,12 +659,8 @@ async def test_delete_channel():
     ch = {"id": "c3", "name": "to-delete", "type": 0}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "DELETE:https://discord.com/api/v10/channels/c3": _make_mock_response(
-                200, ch
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "DELETE:https://discord.com/api/v10/channels/c3": _make_mock_response(200, ch),
         }
     )
 
@@ -753,12 +678,8 @@ async def test_modify_channel():
     updated = {"id": "c1", "name": "renamed", "topic": "New topic"}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "PATCH:https://discord.com/api/v10/channels/c1": _make_mock_response(
-                200, updated
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "PATCH:https://discord.com/api/v10/channels/c1": _make_mock_response(200, updated),
         }
     )
 
@@ -783,21 +704,15 @@ async def test_create_invite():
     invite = {"code": "abc123", "channel": {"id": "c1", "name": "general"}}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "POST:https://discord.com/api/v10/channels/c1/invites": _make_mock_response(
-                200, invite
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "POST:https://discord.com/api/v10/channels/c1/invites": _make_mock_response(200, invite),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "create_invite", {"channel_id": "c1", "max_age": 3600, "max_uses": 10}
-        )
+        result = await connector.execute_action("create_invite", {"channel_id": "c1", "max_age": 3600, "max_uses": 10})
 
     assert result.success is True
     assert result.data["code"] == "abc123"
@@ -809,12 +724,8 @@ async def test_get_invites():
     invites = [{"code": "abc", "uses": 5}, {"code": "def", "uses": 0}]
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "GET:https://discord.com/api/v10/channels/c1/invites": _make_mock_response(
-                200, invites
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "GET:https://discord.com/api/v10/channels/c1/invites": _make_mock_response(200, invites),
         }
     )
 
@@ -835,12 +746,8 @@ async def test_trigger_typing():
     """Trigger typing indicator (returns 204)."""
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
-            "POST:https://discord.com/api/v10/channels/123/typing": _make_mock_response(
-                204, {}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
+            "POST:https://discord.com/api/v10/channels/123/typing": _make_mock_response(204, {}),
         }
     )
 
@@ -861,9 +768,7 @@ async def test_crosspost_message():
     crossposted = {"id": "msg2", "content": "Announcement", "flags": 2}
     fake = _FakeSession(
         {
-            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(
-                200, {"id": "bot1"}
-            ),
+            "GET:https://discord.com/api/v10/users/@me": _make_mock_response(200, {"id": "bot1"}),
             "POST:https://discord.com/api/v10/channels/123/messages/msg1/crosspost": _make_mock_response(
                 200, crossposted
             ),
@@ -873,9 +778,7 @@ async def test_crosspost_message():
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "crosspost_message", {"channel_id": "123", "message_id": "msg1"}
-        )
+        result = await connector.execute_action("crosspost_message", {"channel_id": "123", "message_id": "msg1"})
 
     assert result.success is True
     assert result.data["flags"] == 2
@@ -889,9 +792,7 @@ async def test_crosspost_message_missing_params():
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = DiscordConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "crosspost_message", {"channel_id": "123"}
-        )
+        result = await connector.execute_action("crosspost_message", {"channel_id": "123"})
 
     assert result.success is False
     assert result.status_code == 400

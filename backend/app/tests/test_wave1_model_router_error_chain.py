@@ -159,9 +159,7 @@ class TestModelRouterIsModelAvailable:
             )
             mock_db = MagicMock()
             # Simulate empty BYOK lookup
-            with patch.object(
-                router, "_get_byok_key", AsyncMock(return_value=(None, None))
-            ):
+            with patch.object(router, "_get_byok_key", AsyncMock(return_value=(None, None))):
                 result = await router._is_model_available(
                     "some-provider/some-model",
                     user_id="user-no-key",
@@ -197,9 +195,7 @@ class TestModelRouterIsModelAvailable:
         # _resolve_provider returns empty key, so we check BYOK
         with patch("app.services.llm_router._resolve_provider") as mock_resolve:
             mock_resolve.return_value = ("https://api.example.com", "", "some-model")
-            with patch.object(
-                router, "_get_byok_key", AsyncMock(return_value=("sk-byok", None))
-            ):
+            with patch.object(router, "_get_byok_key", AsyncMock(return_value=("sk-byok", None))):
                 result = await router._is_model_available(
                     "some-provider/some-model",
                     # user_id NOT passed explicitly — uses self.user_id

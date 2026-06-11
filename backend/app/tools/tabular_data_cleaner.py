@@ -159,18 +159,14 @@ class TabularDataCleanerTool(BaseTool):
         try:
             validated = TabularDataCleanerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             csv_bytes = await resolve_input(validated.data, validated.url, label="CSV")
         except ValueError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Failed to read CSV: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Failed to read CSV: {e}")
 
         try:
             csv_str = csv_bytes.decode("utf-8")
@@ -178,16 +174,11 @@ class TabularDataCleanerTool(BaseTool):
             rows = list(reader)
 
             if len(rows) < 1:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id, error="CSV has no rows"
-                )
+                return ToolResult.error_result(tool_id=self.tool_id, error="CSV has no rows")
 
             # Extract and normalize headers
             original_headers = rows[0]
-            headers = [
-                _clean_header(h) if validated.normalize_headers else h.strip()
-                for h in original_headers
-            ]
+            headers = [_clean_header(h) if validated.normalize_headers else h.strip() for h in original_headers]
             data_rows = rows[1:]
 
             # Limit rows
@@ -205,23 +196,16 @@ class TabularDataCleanerTool(BaseTool):
 
             # Trim whitespace
             if validated.trim_whitespace:
-                data_rows = [
-                    [cell.strip() if isinstance(cell, str) else cell for cell in row]
-                    for row in data_rows
-                ]
+                data_rows = [[cell.strip() if isinstance(cell, str) else cell for cell in row] for row in data_rows]
                 stats["actions"].append("trimmed_whitespace")
 
             # Detect types
             if validated.detect_types:
-                data_rows = [
-                    [_detect_and_cast(cell) for cell in row] for row in data_rows
-                ]
+                data_rows = [[_detect_and_cast(cell) for cell in row] for row in data_rows]
                 stats["actions"].append("detected_types")
 
             # Count missing values before filling
-            missing_before = sum(
-                1 for row in data_rows for cell in row if cell is None or cell == ""
-            )
+            missing_before = sum(1 for row in data_rows for cell in row if cell is None or cell == "")
             stats["missing_values_before"] = missing_before
 
             # Fill missing values
@@ -230,15 +214,8 @@ class TabularDataCleanerTool(BaseTool):
                 num_cols = len(headers)
                 columns: list[list[Any]] = []
                 for col_idx in range(num_cols):
-                    col_values = [
-                        row[col_idx] if col_idx < len(row) else None
-                        for row in data_rows
-                    ]
-                    columns.append(
-                        _fill_missing_column(
-                            col_values, validated.fill_missing, headers[col_idx]
-                        )
-                    )
+                    col_values = [row[col_idx] if col_idx < len(row) else None for row in data_rows]
+                    columns.append(_fill_missing_column(col_values, validated.fill_missing, headers[col_idx]))
 
                 # Transpose back to rows
                 data_rows = [list(col) for col in zip(*columns, strict=False)]
@@ -246,11 +223,7 @@ class TabularDataCleanerTool(BaseTool):
 
             # Remove rows where ALL values are None (if drop strategy)
             if validated.fill_missing == "drop":
-                data_rows = [
-                    row
-                    for row in data_rows
-                    if not all(cell is None or cell == "" for cell in row)
-                ]
+                data_rows = [row for row in data_rows if not all(cell is None or cell == "" for cell in row)]
                 stats["actions"].append("dropped_empty_rows")
                 stats["rows_after_drop"] = len(data_rows)
 
@@ -269,9 +242,7 @@ class TabularDataCleanerTool(BaseTool):
                 stats["duplicates_removed"] = duplicates_removed
 
             # Count missing after
-            missing_after = sum(
-                1 for row in data_rows for cell in row if cell is None or cell == ""
-            )
+            missing_after = sum(1 for row in data_rows for cell in row if cell is None or cell == "")
             stats["missing_values_after"] = missing_after
             stats["final_rows"] = len(data_rows)
 

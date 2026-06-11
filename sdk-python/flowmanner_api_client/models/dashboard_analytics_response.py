@@ -68,9 +68,7 @@ class DashboardAnalyticsResponse:
         top_failed_missions = []
         _top_failed_missions = d.pop("topFailedMissions")
         for top_failed_missions_item_data in _top_failed_missions:
-            top_failed_missions_item = TopFailedMission.from_dict(
-                top_failed_missions_item_data
-            )
+            top_failed_missions_item = TopFailedMission.from_dict(top_failed_missions_item_data)
 
             top_failed_missions.append(top_failed_missions_item)
 

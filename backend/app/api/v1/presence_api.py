@@ -54,9 +54,7 @@ async def get_workspace_presence(
     # Fetch user info for online members
     online_users = []
     if online_user_ids:
-        result = await db.execute(
-            select(User).where(User.id.in_(online_user_ids), User.is_active == True)
-        )
+        result = await db.execute(select(User).where(User.id.in_(online_user_ids), User.is_active == True))
         users = result.scalars().all()
         online_users = [
             {

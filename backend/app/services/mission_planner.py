@@ -106,9 +106,7 @@ class MissionPlanner:
             try:
                 from sqlalchemy import select
 
-                result = await db.execute(
-                    select(Mission).where(Mission.id == str(mission_id))
-                )
+                result = await db.execute(select(Mission).where(Mission.id == str(mission_id)))
                 mission = result.scalars().first()
                 if not mission:
                     logger.error("Mission %s not found", mission_id)
@@ -132,9 +130,7 @@ class MissionPlanner:
                 )
 
                 # Check if tasks already exist
-                existing = await db.execute(
-                    select(MissionTask).where(MissionTask.mission_id == str(mission_id))
-                )
+                existing = await db.execute(select(MissionTask).where(MissionTask.mission_id == str(mission_id)))
                 if existing.scalars().first():
                     await self._log(
                         db,
@@ -247,9 +243,7 @@ class MissionPlanner:
                 }
 
             except PermanentMissionError as e:
-                logger.error(
-                    "Planning permanently failed for mission %s: %s", mission_id, e
-                )
+                logger.error("Planning permanently failed for mission %s: %s", mission_id, e)
                 await self._transition_status(
                     db,
                     mission,
@@ -260,9 +254,7 @@ class MissionPlanner:
                 )
                 return {"success": False, "error": str(e), "permanent": True}
             except RetryableMissionError as e:
-                logger.warning(
-                    "Retryable planning failure for mission %s: %s", mission_id, e
-                )
+                logger.warning("Retryable planning failure for mission %s: %s", mission_id, e)
                 raise
             except Exception as e:
                 logger.error("Planning failed for mission %s: %s", mission_id, e)
@@ -373,11 +365,7 @@ class MissionPlanner:
                     logger.error("Plan generation failed: %s", error_msg)
                     raise RuntimeError(f"Plan generation failed: {error_msg}")
 
-                content = (
-                    response.get("content", "")
-                    if isinstance(response, dict)
-                    else str(response)
-                )
+                content = response.get("content", "") if isinstance(response, dict) else str(response)
             else:
                 llm_url = getattr(settings, "LLM_BASE_URL", "http://localhost:11434")
                 llm_key = getattr(settings, "LLM_API_KEY", "")
@@ -389,9 +377,7 @@ class MissionPlanner:
                 if llm_key:
                     headers["Authorization"] = f"Bearer {llm_key}"
 
-                async with httpx.AsyncClient(
-                    timeout=settings.MISSION_LLM_REQUEST_TIMEOUT
-                ) as client:
+                async with httpx.AsyncClient(timeout=settings.MISSION_LLM_REQUEST_TIMEOUT) as client:
                     resp = await client.post(
                         f"{llm_url}/v1/chat/completions",
                         headers=headers,
@@ -403,15 +389,9 @@ class MissionPlanner:
                         },
                     )
                     data = resp.json()
-                    content = (
-                        data.get("choices", [{}])[0]
-                        .get("message", {})
-                        .get("content", "")
-                    )
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                     prompt_tokens = data.get("usage", {}).get("prompt_tokens", 0)
-                    completion_tokens = data.get("usage", {}).get(
-                        "completion_tokens", 0
-                    )
+                    completion_tokens = data.get("usage", {}).get("completion_tokens", 0)
 
             # Extract JSON array from response
             content = content.strip()
@@ -449,9 +429,7 @@ class MissionPlanner:
                     provider=provider,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
-                    cost_usd=self.cost_tracker.estimate_cost(
-                        model_id, prompt_tokens + completion_tokens
-                    ),
+                    cost_usd=self.cost_tracker.estimate_cost(model_id, prompt_tokens + completion_tokens),
                     latency_ms=latency_ms,
                     success=success,
                     error_message=error_msg,
@@ -463,8 +441,6 @@ async def _nop_log(db, mission_id, task_id, level, message, extra_data=None):
     pass
 
 
-async def _nop_transition(
-    db, mission, new_status, *, cause="", error_message=None, level="info"
-):
+async def _nop_transition(db, mission, new_status, *, cause="", error_message=None, level="info"):
     """No-op transition callback used when none is provided to MissionPlanner."""
     pass

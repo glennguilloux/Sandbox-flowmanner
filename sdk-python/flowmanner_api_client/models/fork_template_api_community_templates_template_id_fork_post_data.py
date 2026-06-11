@@ -26,9 +26,7 @@ class ForkTemplateApiCommunityTemplatesTemplateIdForkPostData:
         d = dict(src_dict)
         fork_template_api_community_templates_template_id_fork_post_data = cls()
 
-        fork_template_api_community_templates_template_id_fork_post_data.additional_properties = (
-            d
-        )
+        fork_template_api_community_templates_template_id_fork_post_data.additional_properties = d
         return fork_template_api_community_templates_template_id_fork_post_data
 
     @property

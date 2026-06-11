@@ -208,9 +208,7 @@ def record_llm_request(
     if prompt_tokens > 0:
         llm_tokens_used.labels(provider=provider, type="prompt").inc(prompt_tokens)
     if completion_tokens > 0:
-        llm_tokens_used.labels(provider=provider, type="completion").inc(
-            completion_tokens
-        )
+        llm_tokens_used.labels(provider=provider, type="completion").inc(completion_tokens)
 
 
 def record_cache_hit(cache_name: str = "default") -> None:

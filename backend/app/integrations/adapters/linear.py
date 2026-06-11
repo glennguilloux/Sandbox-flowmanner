@@ -156,9 +156,7 @@ class LinearAdapter(BaseIntegrationAdapter):
 
     # ── Action: create_issue ───────────────────────────────────────────────
 
-    async def _create_issue(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _create_issue(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Create an issue in a Linear team.
 
         Required params: ``team_id``, ``title``
@@ -187,9 +185,7 @@ class LinearAdapter(BaseIntegrationAdapter):
 
     # ── Action: update_issue ───────────────────────────────────────────────
 
-    async def _update_issue(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _update_issue(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Update an existing Linear issue.
 
         Required params: ``issue_id``
@@ -223,9 +219,7 @@ class LinearAdapter(BaseIntegrationAdapter):
 
     # ── Action: search_issues ──────────────────────────────────────────────
 
-    async def _search_issues(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _search_issues(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Search for issues across Linear teams.
 
         Required params: ``query``
@@ -245,9 +239,7 @@ class LinearAdapter(BaseIntegrationAdapter):
 
     # ── Action: list_projects ──────────────────────────────────────────────
 
-    async def _list_projects(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _list_projects(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """List Linear projects, optionally scoped to a team.
 
         Optional params: ``team_id``, ``limit`` (default 25, max 50)
@@ -299,17 +291,11 @@ def _parse_linear_response(resp: httpx.Response) -> dict[str, Any]:
         first = graphql_errors[0]
         msg = first.get("message", "Unknown GraphQL error")
         extensions = first.get("extensions", {})
-        code = extensions.get(
-            "code", first.get("extensions", {}).get("type", "graphql_error")
-        )
+        code = extensions.get("code", first.get("extensions", {}).get("type", "graphql_error"))
 
         # Detect auth / not-found errors
         err_str = str(first).lower()
-        if (
-            "authentication" in err_str
-            or "unauthorized" in err_str
-            or "auth" in err_str
-        ):
+        if "authentication" in err_str or "unauthorized" in err_str or "auth" in err_str:
             return {"success": False, "error": "token_expired", "error_detail": msg}
 
         return {

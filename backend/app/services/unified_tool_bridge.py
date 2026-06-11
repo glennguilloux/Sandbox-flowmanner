@@ -11,7 +11,7 @@ attempt to verify and require one via the CapabilityEngine.
 
 import logging
 from collections.abc import Callable
-from typing import Any, Any
+from typing import Any
 from uuid import UUID
 
 from app.tools.base import get_tool_registry
@@ -141,9 +141,7 @@ class UnifiedToolBridge:
             logger.error("Error executing tool %s: %s", tool_name, e)
             return {"success": False, "error": str(e), "tool_name": tool_name}
 
-    async def verify_capability(
-        self, tool_name: str, capability_token_id: UUID | None
-    ) -> None:
+    async def verify_capability(self, tool_name: str, capability_token_id: UUID | None) -> None:
         """H3.2: Verify that the caller has a valid capability token.
 
         If no token is provided, this is a violation of Invariant I.3
@@ -176,9 +174,7 @@ class UnifiedToolBridge:
             tool_name,
         )
 
-    async def discover_tools_for_task(
-        self, task_description: str
-    ) -> list[dict[str, Any]]:
+    async def discover_tools_for_task(self, task_description: str) -> list[dict[str, Any]]:
         """Use semantic discovery to find relevant tools for a task."""
         self._ensure_initialized()
 
@@ -195,9 +191,7 @@ class UnifiedToolBridge:
     def get_tool_handler(self, tool_name: str) -> Callable | None:
         """Get a callable handler for a tool that can be registered with LangGraph."""
 
-        async def handler(
-            state: dict[str, Any], params: dict[str, Any]
-        ) -> dict[str, Any]:
+        async def handler(state: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
             return await self.execute_tool(tool_name, params)
 
         return handler

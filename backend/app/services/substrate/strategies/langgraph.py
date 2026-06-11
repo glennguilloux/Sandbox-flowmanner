@@ -49,9 +49,7 @@ class LangGraphStrategy(ExecutionStrategy):
         for node in workflow.nodes:
             graph_name = node.config.get("graph_name")
             if not graph_name:
-                errors.append(
-                    f"LangGraph node '{node.id}' missing 'graph_name' in config"
-                )
+                errors.append(f"LangGraph node '{node.id}' missing 'graph_name' in config")
 
         return errors
 
@@ -73,9 +71,7 @@ class LangGraphStrategy(ExecutionStrategy):
                 return StrategyResult(success=False, status="aborted", error="Aborted")
 
             # Try native LangGraph execution first
-            result = await self._execute_langgraph_node(
-                node, context, executor, db, run_id, workflow
-            )
+            result = await self._execute_langgraph_node(node, context, executor, db, run_id, workflow)
 
             if result.get("success"):
                 completed.append(node.id)

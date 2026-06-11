@@ -117,24 +117,18 @@ async def _resolve_tier_from_db(user: User) -> str:
             )
             sub = sub_result.scalar_one_or_none()
             if sub:
-                tier_result = await session.execute(
-                    select(SubscriptionTier).where(SubscriptionTier.id == sub.tier_id)
-                )
+                tier_result = await session.execute(select(SubscriptionTier).where(SubscriptionTier.id == sub.tier_id))
                 tier = tier_result.scalar_one_or_none()
                 if tier:
                     return tier.name.lower()
 
             # Fall back to workspace plan
             member_result = await session.execute(
-                select(WorkspaceMember)
-                .where(WorkspaceMember.user_id == user.id)
-                .limit(1)
+                select(WorkspaceMember).where(WorkspaceMember.user_id == user.id).limit(1)
             )
             member = member_result.scalar_one_or_none()
             if member:
-                ws_result = await session.execute(
-                    select(Workspace).where(Workspace.id == member.workspace_id)
-                )
+                ws_result = await session.execute(select(Workspace).where(Workspace.id == member.workspace_id))
                 ws = ws_result.scalar_one_or_none()
                 if ws and ws.plan:
                     return ws.plan.lower()

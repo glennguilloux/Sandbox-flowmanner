@@ -55,11 +55,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             db.commit()
 
             # Get agent info
-            agent = (
-                db.query(SwarmAgent)
-                .filter(SwarmAgent.agent_instance_id == agent_id)
-                .first()
-            )
+            agent = db.query(SwarmAgent).filter(SwarmAgent.agent_instance_id == agent_id).first()
 
             # Initialize services
             model_router = get_agent_model_router_service()
@@ -70,9 +66,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             model_name = agent.assigned_model if agent else "default"
 
             # Execute task based on task_type
-            task_result = _execute_task_by_type(
-                task_type=task.task_type, payload=payload, agent=agent, db=db
-            )
+            task_result = _execute_task_by_type(task_type=task.task_type, payload=payload, agent=agent, db=db)
 
             # Update task as completed
             task.mark_completed(result=task_result)
@@ -110,9 +104,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             from app.cache.redis_cache import redis_cache_manager
 
             if redis_cache_manager.redis_client:
-                redis_cache_manager.redis_client.decr(
-                    f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks"
-                )
+                redis_cache_manager.redis_client.decr(f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks")
 
             logger.info(f"✅ Task {task_id} completed successfully")
 
@@ -140,9 +132,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
                     from app.cache.redis_cache import redis_cache_manager
 
                     if redis_cache_manager.redis_client:
-                        redis_cache_manager.redis_client.decr(
-                            f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks"
-                        )
+                        redis_cache_manager.redis_client.decr(f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks")
             finally:
                 db.close()
         except Exception as db_error:
@@ -151,17 +141,13 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
         # Retry with exponential backoff
         if self.request.retries < 3:
             retry_in = 60 * (2**self.request.retries)
-            logger.info(
-                f"Retrying task {task_id} in {retry_in}s (attempt {self.request.retries + 1}/3)"
-            )
+            logger.info(f"Retrying task {task_id} in {retry_in}s (attempt {self.request.retries + 1}/3)")
             raise self.retry(exc=e, countdown=retry_in)
 
         return {"success": False, "task_id": task_id, "error": str(e)}
 
 
-def _execute_task_by_type(
-    task_type: str, payload: dict[str, Any], agent, db
-) -> dict[str, Any]:
+def _execute_task_by_type(task_type: str, payload: dict[str, Any], agent, db) -> dict[str, Any]:
     """
     Execute task based on its type.
 
@@ -354,28 +340,20 @@ def check_consensus_timeouts():
 
         try:
             # Find all pending consensus rounds
-            pending_rounds = (
-                db.query(SwarmConsensusRound)
-                .filter(SwarmConsensusRound.result == "pending")
-                .all()
-            )
+            pending_rounds = db.query(SwarmConsensusRound).filter(SwarmConsensusRound.result == "pending").all()
 
             resolved_count = 0
             for consensus in pending_rounds:
                 # Check if timeout expired (60 seconds default)
                 created_at = consensus.created_at
-                if created_at and (datetime.now(UTC) - created_at) > timedelta(
-                    seconds=60
-                ):
+                if created_at and (datetime.now(UTC) - created_at) > timedelta(seconds=60):
                     # Get strategy default behavior
                     strategy = consensus.strategy_used or "simple_majority"
 
                     # Auto-reject on timeout for simple strategies
                     default_result = "rejected"
                     if strategy == "unanimous":
-                        default_result = (
-                            "rejected"  # Can't achieve unanimous on timeout
-                        )
+                        default_result = "rejected"  # Can't achieve unanimous on timeout
 
                     # Resolve the round
                     consensus.resolve(default_result)
@@ -394,13 +372,9 @@ def check_consensus_timeouts():
                         )
 
                     resolved_count += 1
-                    logger.info(
-                        f"Auto-resolved consensus {consensus.id} due to timeout"
-                    )
+                    logger.info(f"Auto-resolved consensus {consensus.id} due to timeout")
 
-            logger.info(
-                f"Consensus timeout check complete: {resolved_count} rounds resolved"
-            )
+            logger.info(f"Consensus timeout check complete: {resolved_count} rounds resolved")
 
             return {"success": True, "resolved_count": resolved_count}
 
@@ -429,9 +403,7 @@ def check_agent_heartbeats():
 
         try:
             # Find active agents
-            active_agents = (
-                db.query(SwarmAgent).filter(SwarmAgent.status == "active").all()
-            )
+            active_agents = db.query(SwarmAgent).filter(SwarmAgent.status == "active").all()
 
             offline_count = 0
             heartbeat_threshold = timedelta(minutes=5)
@@ -440,16 +412,12 @@ def check_agent_heartbeats():
                 last_active = agent.last_active_at
 
                 # Check if heartbeat is stale
-                if (
-                    last_active
-                    and (datetime.now(UTC) - last_active) > heartbeat_threshold
-                ):
+                if last_active and (datetime.now(UTC) - last_active) > heartbeat_threshold:
                     agent.mark_inactive()
                     offline_count += 1
 
                     logger.warning(
-                        f"Agent {agent.agent_instance_id} marked offline - "
-                        f"last heartbeat: {last_active.isoformat()}"
+                        f"Agent {agent.agent_instance_id} marked offline - last heartbeat: {last_active.isoformat()}"
                     )
 
                     # Update Redis
@@ -466,9 +434,7 @@ def check_agent_heartbeats():
 
             db.commit()
 
-            logger.info(
-                f"Heartbeat check complete: {offline_count} agents marked offline"
-            )
+            logger.info(f"Heartbeat check complete: {offline_count} agents marked offline")
 
             return {
                 "success": True,
@@ -503,9 +469,7 @@ def check_swarm_budgets():
 
         try:
             # Find active swarms
-            active_swarms = (
-                db.query(SwarmProfile).filter(SwarmProfile.status == "active").all()
-            )
+            active_swarms = db.query(SwarmProfile).filter(SwarmProfile.status == "active").all()
 
             action_count = 0
             warning_count = 0
@@ -518,22 +482,15 @@ def check_swarm_budgets():
                     # Budget exceeded - pause swarm
                     coordinator.pause_swarm(swarm.swarm_id)
                     action_count += 1
-                    logger.warning(
-                        f"Swarm {swarm.swarm_id} paused due to budget exceeded"
-                    )
+                    logger.warning(f"Swarm {swarm.swarm_id} paused due to budget exceeded")
 
                 elif budget_check.get("warnings", []):
                     # Budget warning
                     warning_count += 1
                     warnings = budget_check.get("warnings", [])
-                    logger.warning(
-                        f"Swarm {swarm.swarm_id} budget warnings: {warnings}"
-                    )
+                    logger.warning(f"Swarm {swarm.swarm_id} budget warnings: {warnings}")
 
-            logger.info(
-                f"Budget check complete: {action_count} swarms paused, "
-                f"{warning_count} swarms with warnings"
-            )
+            logger.info(f"Budget check complete: {action_count} swarms paused, {warning_count} swarms with warnings")
 
             return {
                 "success": True,

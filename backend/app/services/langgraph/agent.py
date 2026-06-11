@@ -97,37 +97,23 @@ class LangGraphAgent:
         # Register ComfyUI handler
         comfyui_base_url = config.get("comfyui_base_url")
         if comfyui_base_url:
-            self.tool_registry.register_handler(
-                "execute_comfyui_workflow", ComfyUIHandler
-            )
+            self.tool_registry.register_handler("execute_comfyui_workflow", ComfyUIHandler)
             logger.info("Registered ComfyUI handler with URL: %s", comfyui_base_url)
 
         # Register integration handlers (always available — no config needed)
-        self.tool_registry.register_handler(
-            "list_integrations", ListIntegrationsHandler
-        )
-        self.tool_registry.register_handler(
-            "execute_integration", ExecuteIntegrationHandler
-        )
+        self.tool_registry.register_handler("list_integrations", ListIntegrationsHandler)
+        self.tool_registry.register_handler("execute_integration", ExecuteIntegrationHandler)
         logger.info("Registered integration tool handlers")
 
     def _initialize_default_handlers(self):
         """Initialize default tool execution handlers"""
         # These handlers will be connected to actual workflow services
         self.register_tool_handler("execute_n8n_workflow", self._handle_n8n_workflow)
-        self.register_tool_handler(
-            "execute_comfyui_workflow", self._handle_comfyui_workflow
-        )
-        self.register_tool_handler(
-            "execute_3dglenn_workflow", self._handle_3dglenn_workflow
-        )
+        self.register_tool_handler("execute_comfyui_workflow", self._handle_comfyui_workflow)
+        self.register_tool_handler("execute_3dglenn_workflow", self._handle_3dglenn_workflow)
         self.register_tool_handler("search_workflows", self._handle_search_workflows)
-        self.register_tool_handler(
-            "get_workflow_details", self._handle_get_workflow_details
-        )
-        self.register_tool_handler(
-            "list_saved_configs", self._handle_list_saved_configs
-        )
+        self.register_tool_handler("get_workflow_details", self._handle_get_workflow_details)
+        self.register_tool_handler("list_saved_configs", self._handle_list_saved_configs)
         self.register_tool_handler("load_saved_config", self._handle_load_saved_config)
         self.register_tool_handler("save_tool_config", self._handle_save_tool_config)
 
@@ -422,13 +408,9 @@ class LangGraphAgent:
                 # The approval workflow has created the request
                 # Update state with the approval request
                 state["current_approval_request"] = result["approval_request"]
-                logger.info(
-                    "Approval workflow created request for tool %s", tool["tool_name"]
-                )
+                logger.info("Approval workflow created request for tool %s", tool["tool_name"])
             else:
-                logger.warning(
-                    "Failed to create approval request: %s", result.get("error")
-                )
+                logger.warning("Failed to create approval request: %s", result.get("error"))
 
         return state
 
@@ -537,9 +519,7 @@ class LangGraphAgent:
         result = asyncio.run(self.execute_tool_call(tool_call))
         return result
 
-    async def execute_tool_call(
-        self, tool_call: dict[str, Any], user_context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def execute_tool_call(self, tool_call: dict[str, Any], user_context: dict[str, Any] = None) -> dict[str, Any]:
         """
         Execute tool call using registered handlers with permission checking
 
@@ -567,9 +547,7 @@ class LangGraphAgent:
         elif tool_id == "execute_comfyui_workflow":
             handler_config = {
                 "comfyui_base_url": self.tool_handler_config.get("comfyui_base_url"),
-                "client_id": self.tool_handler_config.get(
-                    "comfyui_client_id", "workflow-agent"
-                ),
+                "client_id": self.tool_handler_config.get("comfyui_client_id", "workflow-agent"),
             }
 
         handler = self.tool_registry.get_handler(tool_id, **handler_config)
@@ -631,9 +609,7 @@ class LangGraphAgent:
             return {"success": False, "error": "workflow_id is required"}
 
         try:
-            result = execute_n8n_workflow(
-                workflow_id=workflow_id, parameters=parameters.get("parameters", {})
-            )
+            result = execute_n8n_workflow(workflow_id=workflow_id, parameters=parameters.get("parameters", {}))
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
@@ -656,9 +632,7 @@ class LangGraphAgent:
             return {"success": False, "error": "prompt is required"}
 
         try:
-            result = generate_hero_background(
-                prompt=prompt, style=parameters.get("style", "modern")
-            )
+            result = generate_hero_background(prompt=prompt, style=parameters.get("style", "modern"))
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
@@ -681,9 +655,7 @@ class LangGraphAgent:
             return {"success": False, "error": "description is required"}
 
         try:
-            result = generate_3d_model(
-                description=description, style=parameters.get("style", "modern")
-            )
+            result = generate_3d_model(description=description, style=parameters.get("style", "modern"))
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
@@ -844,9 +816,7 @@ def get_agent(
             try:
                 llm = get_llm()
                 if llm is None:
-                    raise ValueError(
-                        "No LLM available. Please configure an LLM or pass one to get_agent."
-                    )
+                    raise ValueError("No LLM available. Please configure an LLM or pass one to get_agent.")
                 logger.info("Auto-initialized LLM for LangGraph agent")
             except Exception as e:
                 logger.error("Failed to auto-initialize LLM: %s", e)

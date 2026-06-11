@@ -71,9 +71,7 @@ def register_v3_exception_handlers(app: FastAPI) -> None:
             )
 
         trace_id = getattr(request.state, "trace_id", None)
-        logger.error(
-            "Unhandled v3 exception", error=str(exc), exc_info=True, trace_id=trace_id
-        )
+        logger.error("Unhandled v3 exception", error=str(exc), exc_info=True, trace_id=trace_id)
         return _make_error_response(
             status_code=500,
             code="INTERNAL_ERROR",

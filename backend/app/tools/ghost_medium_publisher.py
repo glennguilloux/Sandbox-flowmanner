@@ -118,9 +118,7 @@ class GhostMediumPublisherTool(BaseTool):
         try:
             validated = GhostMediumPublisherInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         valid_platforms = ("ghost", "medium", "both")
         if validated.platform not in valid_platforms:
@@ -156,9 +154,7 @@ class GhostMediumPublisherTool(BaseTool):
             else:
                 results["platforms"]["ghost"] = {
                     "status": "not_configured",
-                    "message": (
-                        "Ghost not configured. Set GHOST_URL and GHOST_ADMIN_API_KEY."
-                    ),
+                    "message": ("Ghost not configured. Set GHOST_URL and GHOST_ADMIN_API_KEY."),
                 }
 
         # Medium
@@ -183,9 +179,7 @@ class GhostMediumPublisherTool(BaseTool):
 
         return results
 
-    async def _publish_ghost(
-        self, validated: GhostMediumPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish_ghost(self, validated: GhostMediumPublisherInput) -> dict[str, Any]:
         """Publish to Ghost Admin API."""
         # Ghost uses JWT-like key: split the key into id:secret
         try:
@@ -248,11 +242,7 @@ class GhostMediumPublisherTool(BaseTool):
                     "status": validated.status,
                     "feature_image": validated.featured_image_url or None,
                     "excerpt": validated.excerpt or None,
-                    "tags": (
-                        [{"name": t} for t in (validated.tags or [])]
-                        if validated.tags
-                        else None
-                    ),
+                    "tags": ([{"name": t} for t in (validated.tags or [])] if validated.tags else None),
                     "canonical_url": validated.canonical_url or None,
                 }
             ]
@@ -272,9 +262,7 @@ class GhostMediumPublisherTool(BaseTool):
                 data = resp.json()
                 post = data.get("posts", [{}])[0]
                 return {
-                    "status": (
-                        "published" if validated.status == "published" else "draft"
-                    ),
+                    "status": ("published" if validated.status == "published" else "draft"),
                     "message_id": post.get("id", "unknown"),
                     "url": post.get("url"),
                     "ghost_url": GHOST_URL,
@@ -284,9 +272,7 @@ class GhostMediumPublisherTool(BaseTool):
                 "error": f"Ghost API returned {resp.status_code}: {resp.text[:500]}",
             }
 
-    async def _publish_medium(
-        self, validated: GhostMediumPublisherInput
-    ) -> dict[str, Any]:
+    async def _publish_medium(self, validated: GhostMediumPublisherInput) -> dict[str, Any]:
         """Publish to Medium via REST API."""
         headers = {
             "Authorization": f"Bearer {MEDIUM_ACCESS_TOKEN}",
@@ -323,9 +309,7 @@ class GhostMediumPublisherTool(BaseTool):
             if resp.status_code in (200, 201):
                 data = resp.json()["data"]
                 return {
-                    "status": (
-                        "published" if validated.status == "published" else "draft"
-                    ),
+                    "status": ("published" if validated.status == "published" else "draft"),
                     "message_id": data.get("id", "unknown"),
                     "url": data.get("url"),
                 }

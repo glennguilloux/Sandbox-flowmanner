@@ -48,9 +48,7 @@ class DallEImageGenInput(ToolInput):
         "dall-e-3",
         description="DALL-E model to use",
     )
-    size: (
-        Literal["1024x1024", "1792x1024", "1024x1792", "256x256", "512x512"] | None
-    ) = Field(
+    size: Literal["1024x1024", "1792x1024", "1024x1792", "256x256", "512x512"] | None = Field(
         None,
         description="Image size. DALL-E 3: 1024x1024, 1792x1024, 1024x1792. DALL-E 2: 256x256, 512x512, 1024x1024.",
     )
@@ -126,15 +124,11 @@ class DallEImageGenTool(BaseTool):
         try:
             validated = DallEImageGenInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         api_key = validated.api_key or OPENAI_API_KEY
         if not api_key:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="OpenAI API key required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="OpenAI API key required")
 
         size = validated.size or (DALLE_SIZES.get(validated.model, ("1024x1024",))[0])
 
@@ -144,9 +138,7 @@ class DallEImageGenTool(BaseTool):
             # Build prompt with negative prompt engineering
             enhanced_prompt = validated.prompt
             if validated.negative_prompt:
-                enhanced_prompt = (
-                    f"{validated.prompt}. Avoid: {validated.negative_prompt}"
-                )
+                enhanced_prompt = f"{validated.prompt}. Avoid: {validated.negative_prompt}"
 
             body: dict[str, Any] = {
                 "model": validated.model,
@@ -183,9 +175,7 @@ class DallEImageGenTool(BaseTool):
                 if "b64_json" in img:
                     image_entry["b64_json"] = img["b64_json"][:200] + "..."
                     if validated.save_to_storage:
-                        path = self._save_image(
-                            img["b64_json"], validated.model, i, validated.output_prefix
-                        )
+                        path = self._save_image(img["b64_json"], validated.model, i, validated.output_prefix)
                         image_entry["local_path"] = path
                 elif "url" in img:
                     image_entry["url"] = img["url"]
@@ -213,16 +203,12 @@ class DallEImageGenTool(BaseTool):
                 detail = str(e.response.json())
             except Exception:
                 detail = e.response.text[:500]
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"DALL-E API error: {detail}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"DALL-E API error: {detail}")
         except Exception as e:
             logger.exception("dall_e_image_gen failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    def _save_image(
-        self, b64_data: str, model: str, index: int, prefix: str | None = None
-    ) -> str:
+    def _save_image(self, b64_data: str, model: str, index: int, prefix: str | None = None) -> str:
         os.makedirs(DALLE_STORAGE_DIR, exist_ok=True)
         digest = hashlib.sha256(b64_data.encode()).hexdigest()[:16]
         prefix_part = f"{prefix}_" if prefix else ""

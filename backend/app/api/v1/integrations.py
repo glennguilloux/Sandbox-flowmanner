@@ -261,9 +261,7 @@ async def oauth_authorize(
     if request and request.headers.get("x-forwarded-proto"):
         scheme = request.headers["x-forwarded-proto"]
     redirect_uri = (
-        str(request.url_for("oauth_callback", slug=slug)).replace(
-            "http://", f"{scheme}://"
-        )
+        str(request.url_for("oauth_callback", slug=slug)).replace("http://", f"{scheme}://")
         if request
         else f"https://flowmanner.com/api/integrations/{slug}/oauth/callback"
     )
@@ -448,10 +446,7 @@ async def get_connected_integrations(
                 "account_name": conn.account_name,
                 "account_id": conn.account_id,
                 "auth_type": "oauth2",
-                "actions": [
-                    {"id": c["id"], "name": c["name"], "description": c["description"]}
-                    for c in caps
-                ],
+                "actions": [{"id": c["id"], "name": c["name"], "description": c["description"]} for c in caps],
                 "action_count": len(caps),
             }
         )

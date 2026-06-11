@@ -10,12 +10,11 @@ Verifies:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -56,7 +55,7 @@ def _make_activity_event(
         "actor_name": "Alice",
         "description": description,
     }
-    event.timestamp = datetime.now(timezone.utc)
+    event.timestamp = datetime.now(UTC)
     return event
 
 
@@ -124,12 +123,8 @@ class TestWorkspaceOverviewData:
             if call_count == 7:
                 return _make_scalars_result(
                     [
-                        _make_activity_event(
-                            1, "mission_started", description="started Build API"
-                        ),
-                        _make_activity_event(
-                            2, "member_joined", description="Bob joined"
-                        ),
+                        _make_activity_event(1, "mission_started", description="started Build API"),
+                        _make_activity_event(2, "member_joined", description="Bob joined"),
                     ]
                 )
             return _make_scalar_result(0)
@@ -137,9 +132,7 @@ class TestWorkspaceOverviewData:
         db.execute = AsyncMock(side_effect=side_effect)
 
         # Patch CostAttributionService
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {"total_cost_usd": 4.56},
@@ -177,9 +170,7 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {"total_cost_usd": 0},
@@ -214,18 +205,14 @@ class TestWorkspaceOverviewData:
             if call_count == 7:
                 return _make_scalars_result(
                     [
-                        _make_activity_event(
-                            42, "mission_completed", description="Deploy done"
-                        ),
+                        _make_activity_event(42, "mission_completed", description="Deploy done"),
                     ]
                 )
             return _make_scalar_result(0)
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {"total_cost_usd": 0},
@@ -263,12 +250,8 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
-            MockCost.return_value.get_aggregates = AsyncMock(
-                side_effect=RuntimeError("DB connection lost")
-            )
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
+            MockCost.return_value.get_aggregates = AsyncMock(side_effect=RuntimeError("DB connection lost"))
 
             result = await get_workspace_overview("ws-1", user, db)
 
@@ -295,9 +278,7 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {"total_cost_usd": 12.3456789},
@@ -330,9 +311,7 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {},
@@ -360,7 +339,7 @@ class TestWorkspaceOverviewData:
         event.event_type = "member_online"
         event.user_id = "1"
         event.properties = None
-        event.timestamp = datetime.now(timezone.utc)
+        event.timestamp = datetime.now(UTC)
 
         call_count = 0
 
@@ -375,9 +354,7 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {"total_cost_usd": 0},
@@ -418,9 +395,7 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {"total_cost_usd": 0},
@@ -452,9 +427,7 @@ class TestWorkspaceOverviewData:
 
         db.execute = AsyncMock(side_effect=side_effect)
 
-        with patch(
-            "app.services.cost_attribution_service.CostAttributionService"
-        ) as MockCost:
+        with patch("app.services.cost_attribution_service.CostAttributionService") as MockCost:
             MockCost.return_value.get_aggregates = AsyncMock(
                 return_value={
                     "totals": {},  # missing total_cost_usd

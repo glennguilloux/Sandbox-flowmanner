@@ -200,9 +200,7 @@ class MissionTaskCreate:
                 return dependencies_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                list[Any] | MissionTaskCreateDependenciesType1 | None | Unset, data
-            )
+            return cast(list[Any] | MissionTaskCreateDependenciesType1 | None | Unset, data)
 
         dependencies = _parse_dependencies(d.pop("dependencies", UNSET))
 

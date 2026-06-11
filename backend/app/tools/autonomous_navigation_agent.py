@@ -96,21 +96,15 @@ class AutonomousNavigationAgentTool(BaseTool):
         try:
             validated = AutonomousNavigationAgentInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context")
         if not context:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No context provided"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 
         user_id = context.get("user_id")
         if not user_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No user_id in context"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No user_id in context")
 
         uid = str(user_id)
 

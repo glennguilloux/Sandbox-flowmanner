@@ -78,9 +78,7 @@ def _build_restricted_wrapper(code: str, workspace: str) -> str:
     # Ensure non-empty code block for valid Python syntax
     # Empty code, whitespace-only, or comment-only would produce invalid try: block
     stripped = code.strip()
-    if not stripped or all(
-        line.strip() == "" or line.strip().startswith("#") for line in code.split("\n")
-    ):
+    if not stripped or all(line.strip() == "" or line.strip().startswith("#") for line in code.split("\n")):
         code = "pass"
     return f"""
 import sys
@@ -149,9 +147,7 @@ except Exception as _exec_err:
 def _indent(text: str, spaces: int) -> str:
     """Indent every non-empty line by `spaces` spaces."""
     prefix = " " * spaces
-    return "\n".join(
-        prefix + line if line.strip() else line for line in text.split("\n")
-    )
+    return "\n".join(prefix + line if line.strip() else line for line in text.split("\n"))
 
 
 def scan_for_dangerous_patterns(code: str) -> str | None:
@@ -224,8 +220,7 @@ def execute_python_in_sandbox(
         if proc.returncode != 0:
             return {
                 "success": False,
-                "error": stderr.strip()
-                or f"Process exited with code {proc.returncode}",
+                "error": stderr.strip() or f"Process exited with code {proc.returncode}",
                 "output": stdout,
             }
 

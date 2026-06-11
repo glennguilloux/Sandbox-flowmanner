@@ -5,8 +5,9 @@ Revises: fix_notifications_columns
 Create Date: 2026-05-21
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "20260521_create_analytics_events"
 down_revision = "fix_notifications_columns"
@@ -29,9 +30,7 @@ def upgrade() -> None:
         sa.Column("properties", sa.JSON, default={}),
         sa.Column("session_id", sa.String),
     )
-    op.create_index(
-        "idx_analytics_user_type", "analytics_events", ["user_id", "event_type"]
-    )
+    op.create_index("idx_analytics_user_type", "analytics_events", ["user_id", "event_type"])
     op.create_index("idx_analytics_timestamp", "analytics_events", ["timestamp"])
     op.create_index("idx_analytics_event_type", "analytics_events", ["event_type"])
 

@@ -111,14 +111,10 @@ class XTwitterSchedulerTool(BaseTool):
         try:
             validated = XTwitterSchedulerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.message.strip():
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="Message must not be empty"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="Message must not be empty")
 
         try:
             result = await self._publish_or_schedule(validated)
@@ -127,9 +123,7 @@ class XTwitterSchedulerTool(BaseTool):
             logger.exception("x_twitter_scheduler failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _publish_or_schedule(
-        self, validated: XTwitterSchedulerInput
-    ) -> dict[str, Any]:
+    async def _publish_or_schedule(self, validated: XTwitterSchedulerInput) -> dict[str, Any]:
         """Split message into thread, validate, and publish or schedule."""
         # Split into thread parts
         tweets = [t.strip() for t in validated.message.split("|||") if t.strip()]
@@ -137,16 +131,12 @@ class XTwitterSchedulerTool(BaseTool):
             return {"error": "No valid tweet content after splitting"}
 
         if len(tweets) > MAX_THREAD_LENGTH:
-            return {
-                "error": f"Thread too long: {len(tweets)} tweets (max {MAX_THREAD_LENGTH})"
-            }
+            return {"error": f"Thread too long: {len(tweets)} tweets (max {MAX_THREAD_LENGTH})"}
 
         # Validate each tweet length
         for i, tweet in enumerate(tweets):
             if len(tweet) > MAX_TWEET_LENGTH:
-                return {
-                    "error": f"Tweet {i + 1} exceeds {MAX_TWEET_LENGTH} characters ({len(tweet)} chars)"
-                }
+                return {"error": f"Tweet {i + 1} exceeds {MAX_TWEET_LENGTH} characters ({len(tweet)} chars)"}
 
         preview = {
             "tweet_count": len(tweets),
@@ -181,10 +171,7 @@ class XTwitterSchedulerTool(BaseTool):
                 "preview": preview,
             }
 
-        if any(
-            is_placeholder(v)
-            for v in [X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET]
-        ):
+        if any(is_placeholder(v) for v in [X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET]):
             return {
                 "status": "not_configured",
                 "message": (
@@ -214,9 +201,7 @@ class XTwitterSchedulerTool(BaseTool):
     ) -> dict[str, Any]:
         """Store tweet for later publishing."""
         try:
-            scheduled_time = datetime.fromisoformat(
-                validated.schedule_at.replace("Z", "+00:00")
-            )
+            scheduled_time = datetime.fromisoformat(validated.schedule_at.replace("Z", "+00:00"))
         except ValueError as e:
             return {"error": f"Invalid schedule_at format: {e}"}
 
@@ -294,9 +279,7 @@ class XTwitterSchedulerTool(BaseTool):
             if resp.status_code not in (200, 201):
                 try:
                     err = resp.json()
-                    raise Exception(
-                        f"X API error {resp.status_code}: {err.get('detail', resp.text)}"
-                    )
+                    raise Exception(f"X API error {resp.status_code}: {err.get('detail', resp.text)}")
                 except (json.JSONDecodeError, KeyError):
                     raise Exception(f"X API error {resp.status_code}: {resp.text}")
             return resp.json()["data"]
@@ -334,9 +317,7 @@ class XTwitterSchedulerStatusTool(BaseTool):
         try:
             validated = XTwitterSchedulerStatusInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         sched = _scheduled_tweets.get(validated.schedule_id)
         if not sched:

@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -145,15 +145,9 @@ class KnowledgeGraph:
         self.db_session = db_session
         self._nodes: dict[str, KnowledgeNode] = {}
         self._edges: dict[str, KnowledgeEdge] = {}
-        self._node_index: dict[NodeType, dict[str, str]] = defaultdict(
-            dict
-        )  # type -> key -> id
-        self._outgoing_edges: dict[str, set[str]] = defaultdict(
-            set
-        )  # node_id -> edge_ids
-        self._incoming_edges: dict[str, set[str]] = defaultdict(
-            set
-        )  # node_id -> edge_ids
+        self._node_index: dict[NodeType, dict[str, str]] = defaultdict(dict)  # type -> key -> id
+        self._outgoing_edges: dict[str, set[str]] = defaultdict(set)  # node_id -> edge_ids
+        self._incoming_edges: dict[str, set[str]] = defaultdict(set)  # node_id -> edge_ids
 
         # Configuration
         self.max_path_length = 5
@@ -310,9 +304,7 @@ class KnowledgeGraph:
         """
         # Verify nodes exist
         if source_id not in self._nodes or target_id not in self._nodes:
-            logger.warning(
-                "Cannot add edge: nodes %s or %s not found", source_id, target_id
-            )
+            logger.warning("Cannot add edge: nodes %s or %s not found", source_id, target_id)
             return None
 
         # Check for duplicate edge
@@ -553,9 +545,7 @@ class KnowledgeGraph:
             start_node = self.get_node_by_key(start_type, start_key)
             start_nodes = [start_node] if start_node else []
         else:
-            start_nodes = [
-                self._nodes[nid] for nid in self._node_index[start_type].values()
-            ]
+            start_nodes = [self._nodes[nid] for nid in self._node_index[start_type].values()]
 
         for start_node in start_nodes:
             visited = set()
@@ -752,9 +742,7 @@ class KnowledgeGraph:
         if fixes_edge:
             # Update success rate
             total = fixes_edge.properties.get("total", 0) + 1
-            successes = fixes_edge.properties.get("successes", 0) + (
-                1 if success else 0
-            )
+            successes = fixes_edge.properties.get("successes", 0) + (1 if success else 0)
             fixes_edge.properties["total"] = total
             fixes_edge.properties["successes"] = successes
             fixes_edge.properties["success_rate"] = successes / total

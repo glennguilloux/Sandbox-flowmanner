@@ -116,32 +116,24 @@ class ModelRouter:
             "local_model_ratio": self.local_model_ratio,
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
-            "total_models": len(self.LOCAL_MODELS)
-            + len(self.FREE_CLOUD_MODELS)
-            + len(self.PAID_CLOUD_MODELS),
+            "total_models": len(self.LOCAL_MODELS) + len(self.FREE_CLOUD_MODELS) + len(self.PAID_CLOUD_MODELS),
             "local_count": len(self.LOCAL_MODELS),
             "free_cloud_count": len(self.FREE_CLOUD_MODELS),
             "paid_cloud_count": len(self.PAID_CLOUD_MODELS),
         }
 
-    async def get_model_status(
-        self, model_id: str, user_id: int = None, db_session: Session = None
-    ) -> dict[str, Any]:
+    async def get_model_status(self, model_id: str, user_id: int = None, db_session: Session = None) -> dict[str, Any]:
         """Get current status of a model"""
         return self._model_status.get(
             model_id,
             {
-                "available": await self._is_model_available(
-                    model_id, user_id=user_id, db_session=db_session
-                ),
+                "available": await self._is_model_available(model_id, user_id=user_id, db_session=db_session),
                 "health": self.model_health.get(model_id, "unknown"),
                 "last_check": datetime.now(UTC).isoformat(),
             },
         )
 
-    async def _is_model_available(
-        self, model_id: str, user_id: int = None, db_session: Session = None
-    ) -> bool:
+    async def _is_model_available(self, model_id: str, user_id: int = None, db_session: Session = None) -> bool:
         """Check if a model is available (platform or BYOK).
 
         Args:
@@ -168,9 +160,7 @@ class ModelRouter:
         try:
             model = llm_manager.get_model(model_id, user_id=user_id)
             if model is not None:
-                return not (
-                    model_id in self.model_health and not self.model_health[model_id]
-                )
+                return not (model_id in self.model_health and not self.model_health[model_id])
         except Exception as e:
             logger.warning("Platform model check failed for %s: %s", model_id, e)
 
@@ -185,9 +175,7 @@ class ModelRouter:
             # Extract original model_id from BYOK format: byok_{user_id}_{model_id}
             original_model_id = model_id
             if model_id.startswith("byok_"):
-                parts = model_id.split(
-                    "_", 2
-                )  # Split into ['byok', '{user_id}', '{model_id}']
+                parts = model_id.split("_", 2)  # Split into ['byok', '{user_id}', '{model_id}']
                 if len(parts) >= 3:
                     byok_prefix_user = parts[1]
                     original_model_id = parts[2]
@@ -238,13 +226,9 @@ class ModelRouter:
                     )
                     .all()
                 )
-                logger.info(
-                    "BYOK lookup (sqlite): found %s active keys for user", len(keys)
-                )
+                logger.info("BYOK lookup (sqlite): found %s active keys for user", len(keys))
                 for key in keys:
-                    logger.info(
-                        "BYOK lookup: checking key %s, models=%s", key.id, key.models
-                    )
+                    logger.info("BYOK lookup: checking key %s, models=%s", key.id, key.models)
                     if key.models and original_model_id in key.models:
                         logger.info("BYOK lookup: MATCH found! key_id=%s", key.id)
                         return key
@@ -294,11 +278,7 @@ class ModelRouter:
             logger.info("  LLM manager: %s", llm_manager is not None)
             logger.info(
                 "  Has get_model_with_user_key: %s",
-                (
-                    hasattr(llm_manager, "get_model_with_user_key")
-                    if llm_manager
-                    else False
-                ),
+                (hasattr(llm_manager, "get_model_with_user_key") if llm_manager else False),
             )
             if not llm_manager:
                 return {
@@ -308,16 +288,12 @@ class ModelRouter:
                     "provider": "byok",
                 }
 
-            llm = llm_manager.get_model_with_user_key(
-                model_id=model_id, api_key=api_key, base_url=base_url
-            )
+            llm = llm_manager.get_model_with_user_key(model_id=model_id, api_key=api_key, base_url=base_url)
 
             raw_response = await llm.ainvoke(messages, **kwargs)
 
             # Extract tokens with fallbacks
-            input_tokens, output_tokens = self._extract_token_usage(
-                raw_response, messages
-            )
+            input_tokens, output_tokens = self._extract_token_usage(raw_response, messages)
             cost = self._calculate_cost(model_id, input_tokens, output_tokens)
             latency_ms = int((time.time() - start_time) * 1000)
 
@@ -326,19 +302,11 @@ class ModelRouter:
                 try:
                     from app.services.usage_tracking_service import UsageTrackingService
 
-                    user_id_int = (
-                        int(user_id)
-                        if isinstance(user_id, str) and user_id.isdigit()
-                        else user_id
-                    )
+                    user_id_int = int(user_id) if isinstance(user_id, str) and user_id.isdigit() else user_id
                     UsageTrackingService.log_usage(
                         db=db_session,
                         api_key_id=api_key_id,
-                        user_id=(
-                            user_id_int
-                            if isinstance(user_id_int, int)
-                            else int(user_id_int)
-                        ),
+                        user_id=(user_id_int if isinstance(user_id_int, int) else int(user_id_int)),
                         model_id=model_id,
                         request_type=request_type,
                         input_tokens=input_tokens,
@@ -359,11 +327,7 @@ class ModelRouter:
             )
             return {
                 "success": True,
-                "response": (
-                    raw_response.content
-                    if hasattr(raw_response, "content")
-                    else str(raw_response)
-                ),
+                "response": (raw_response.content if hasattr(raw_response, "content") else str(raw_response)),
                 "model_id": model_id,
                 "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
                 "cost": cost,
@@ -387,11 +351,7 @@ class ModelRouter:
                     UsageTrackingService.log_usage(
                         db=db_session,
                         api_key_id=api_key_id,
-                        user_id=(
-                            int(user_id)
-                            if isinstance(user_id, str) and user_id.isdigit()
-                            else user_id
-                        ),
+                        user_id=(int(user_id) if isinstance(user_id, str) and user_id.isdigit() else user_id),
                         model_id=model_id,
                         request_type=request_type,
                         input_tokens=0,
@@ -425,9 +385,7 @@ class ModelRouter:
         if input_tokens == 0:
             input_tokens = self._estimate_tokens(messages)
             if hasattr(raw_response, "content"):
-                output_tokens = self._estimate_tokens(
-                    [{"content": raw_response.content}]
-                )
+                output_tokens = self._estimate_tokens([{"content": raw_response.content}])
 
         return input_tokens, output_tokens
 
@@ -444,16 +402,12 @@ class ModelRouter:
                         total += len(part["text"]) // 4
         return max(total, 1)
 
-    def _calculate_cost(
-        self, model_id: str, input_tokens: int, output_tokens: int
-    ) -> float:
+    def _calculate_cost(self, model_id: str, input_tokens: int, output_tokens: int) -> float:
         """Calculate cost for token usage using PricingService."""
         try:
             from app.services.pricing_service import PricingService
 
-            return float(
-                PricingService.estimate_cost(model_id, input_tokens, output_tokens)
-            )
+            return float(PricingService.estimate_cost(model_id, input_tokens, output_tokens))
         except ImportError:
             # Fallback if PricingService not available
             return (input_tokens / 1_000_000) * 0.5 + (output_tokens / 1_000_000) * 1.5
@@ -482,19 +436,13 @@ class ModelRouter:
         """Route to platform or BYOK model."""
 
         with tracer.start_as_current_span("model.route") as span:
-            span.set_attribute(
-                "model.user_id", str(user_id) if user_id else "anonymous"
-            )
+            span.set_attribute("model.user_id", str(user_id) if user_id else "anonymous")
             span.set_attribute("model.preference", model_preference or "auto")
             span.set_attribute("model.is_admin", is_admin)
 
         # Normalize user_id
         normalized_user_id = str(user_id) if isinstance(user_id, int) else user_id
-        user_id_int = (
-            int(normalized_user_id)
-            if normalized_user_id and str(normalized_user_id).isdigit()
-            else None
-        )
+        user_id_int = int(normalized_user_id) if normalized_user_id and str(normalized_user_id).isdigit() else None
 
         target_model = model_id or model_preference
 
@@ -509,9 +457,7 @@ class ModelRouter:
             if byok_key:
                 try:
                     decrypted_key = byok_key.get_api_key()
-                    base_url = byok_key.base_url or self._get_default_base_url(
-                        byok_key.provider
-                    )
+                    base_url = byok_key.base_url or self._get_default_base_url(byok_key.provider)
                     return await self._execute_with_byok(
                         messages,
                         target_model,
@@ -559,26 +505,14 @@ class ModelRouter:
         llm_manager = self._get_llm_manager()
         if llm_manager:
             try:
-                model = (
-                    llm_manager.get_model(model_id, user_id=user_id_int)
-                    if model_id
-                    else None
-                )
+                model = llm_manager.get_model(model_id, user_id=user_id_int) if model_id else None
                 if model:
                     raw_response = await model.ainvoke(messages, **kwargs)
-                    input_tokens, output_tokens = self._extract_token_usage(
-                        raw_response, messages
-                    )
-                    cost = self._calculate_cost(
-                        model_id or "default", input_tokens, output_tokens
-                    )
+                    input_tokens, output_tokens = self._extract_token_usage(raw_response, messages)
+                    cost = self._calculate_cost(model_id or "default", input_tokens, output_tokens)
                     return {
                         "success": True,
-                        "response": (
-                            raw_response.content
-                            if hasattr(raw_response, "content")
-                            else str(raw_response)
-                        ),
+                        "response": (raw_response.content if hasattr(raw_response, "content") else str(raw_response)),
                         "model_id": model_id,
                         "usage": {
                             "input_tokens": input_tokens,
@@ -594,28 +528,18 @@ class ModelRouter:
             # Fallback: try any available platform model via fallback chain
             try:
                 fallback_model = (
-                    llm_manager.get_model(
-                        model_id, user_id=user_id_int, use_fallback=True
-                    )
+                    llm_manager.get_model(model_id, user_id=user_id_int, use_fallback=True)
                     if model_id
                     else llm_manager.get_model(user_id=user_id_int)
                 )
                 if fallback_model:
                     raw_response = await fallback_model.ainvoke(messages, **kwargs)
-                    input_tokens, output_tokens = self._extract_token_usage(
-                        raw_response, messages
-                    )
+                    input_tokens, output_tokens = self._extract_token_usage(raw_response, messages)
                     used_model_id = model_id or llm_manager.default_model_id
-                    cost = self._calculate_cost(
-                        used_model_id, input_tokens, output_tokens
-                    )
+                    cost = self._calculate_cost(used_model_id, input_tokens, output_tokens)
                     return {
                         "success": True,
-                        "response": (
-                            raw_response.content
-                            if hasattr(raw_response, "content")
-                            else str(raw_response)
-                        ),
+                        "response": (raw_response.content if hasattr(raw_response, "content") else str(raw_response)),
                         "model_id": used_model_id,
                         "usage": {
                             "input_tokens": input_tokens,
@@ -633,24 +557,17 @@ class ModelRouter:
             try:
                 from app.models.byok_models import UserAPIKey as UserApiKey
 
-                stmt = (
-                    select(UserApiKey)
-                    .where(UserApiKey.user_id == user_id_int)
-                    .where(UserApiKey.is_active == True)
-                )
+                stmt = select(UserApiKey).where(UserApiKey.user_id == user_id_int).where(UserApiKey.is_active == True)
                 result = await db_session.execute(stmt)
                 keys = result.scalars().all()
                 for key in keys:
                     if key.models and key.models:
                         try:
                             decrypted_key = key.get_api_key()
-                            base_url = key.base_url or self._get_default_base_url(
-                                key.provider
-                            )
+                            base_url = key.base_url or self._get_default_base_url(key.provider)
                             return await self._execute_with_byok(
                                 messages,
-                                model_id
-                                or (key.models[0] if key.models else "gpt-3.5-turbo"),
+                                model_id or (key.models[0] if key.models else "gpt-3.5-turbo"),
                                 decrypted_key,
                                 base_url,
                                 str(user_id),
@@ -660,9 +577,7 @@ class ModelRouter:
                                 **kwargs,
                             )
                         except Exception as byok_err:
-                            logger.warning(
-                                "BYOK fallback with key %s failed: %s", key.id, byok_err
-                            )
+                            logger.warning("BYOK fallback with key %s failed: %s", key.id, byok_err)
                             continue
             except Exception as e:
                 logger.warning("BYOK fallback lookup failed: %s", e)

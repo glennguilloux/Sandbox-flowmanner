@@ -261,9 +261,7 @@ class MetaTagGeneratorTool(BaseTool):
         try:
             validated = MetaTagGeneratorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in META_ACTIONS:
             return ToolResult.error_result(
@@ -308,14 +306,10 @@ class MetaTagGeneratorTool(BaseTool):
             raise ValueError(f"URL validation failed: {error}")
 
         headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"
-            ),
+            "User-Agent": ("Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"),
             "Accept": "text/html,application/xhtml+xml",
         }
-        async with httpx.AsyncClient(
-            timeout=FETCH_TIMEOUT, follow_redirects=True
-        ) as client:
+        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             return resp.text
@@ -388,9 +382,7 @@ class MetaTagGeneratorTool(BaseTool):
         text = re.sub(r"\s+", " ", text)
         return text
 
-    def _compute_tfidf_keywords(
-        self, text: str, top_n: int = 15
-    ) -> list[dict[str, Any]]:
+    def _compute_tfidf_keywords(self, text: str, top_n: int = 15) -> list[dict[str, Any]]:
         """Compute TF-IDF scores for words in text and return top keywords."""
         if not text or len(text) < 50:
             return []
@@ -450,13 +442,9 @@ class MetaTagGeneratorTool(BaseTool):
         if meta["title"]:
             title_len = len(meta["title"])
             if title_len < 30:
-                issues.append(
-                    f"Title is too short ({title_len} chars). Aim for 50-{validated.max_title_length} chars."
-                )
+                issues.append(f"Title is too short ({title_len} chars). Aim for 50-{validated.max_title_length} chars.")
             elif title_len > validated.max_title_length:
-                issues.append(
-                    f"Title is too long ({title_len} chars). Keep under {validated.max_title_length} chars."
-                )
+                issues.append(f"Title is too long ({title_len} chars). Keep under {validated.max_title_length} chars.")
         else:
             issues.append("No <title> tag found. Add one immediately.")
 
@@ -472,24 +460,16 @@ class MetaTagGeneratorTool(BaseTool):
                     f"Description is too long ({desc_len} chars). Keep under {validated.max_description_length} chars."
                 )
         else:
-            issues.append(
-                "No meta description found. Add one for better SERP appearance."
-            )
+            issues.append("No meta description found. Add one for better SERP appearance.")
 
         if not meta["og_title"] and not meta["og_description"]:
-            issues.append(
-                "Missing Open Graph tags — social sharing previews will be limited."
-            )
+            issues.append("Missing Open Graph tags — social sharing previews will be limited.")
 
         # Check keyword relevance in title
         if validated.target_keywords and meta["title"]:
             title_lower = meta["title"].lower()
-            present = [
-                kw for kw in validated.target_keywords if kw.lower() in title_lower
-            ]
-            missing = [
-                kw for kw in validated.target_keywords if kw.lower() not in title_lower
-            ]
+            present = [kw for kw in validated.target_keywords if kw.lower() in title_lower]
+            missing = [kw for kw in validated.target_keywords if kw.lower() not in title_lower]
             if missing:
                 issues.append(f"Missing target keywords in title: {', '.join(missing)}")
 
@@ -503,9 +483,7 @@ class MetaTagGeneratorTool(BaseTool):
             # Score based on keyword coverage
             top_kw_names = [k["keyword"] for k in keywords[:10]] if keywords else []
             kw_match = sum(
-                1
-                for kw in validated.target_keywords
-                if any(kw.lower() in tk.lower() for tk in top_kw_names)
+                1 for kw in validated.target_keywords if any(kw.lower() in tk.lower() for tk in top_kw_names)
             )
             score = round((kw_match / max(len(validated.target_keywords), 1)) * 100)
 
@@ -544,11 +522,7 @@ class MetaTagGeneratorTool(BaseTool):
 
         # Build a title from primary keyword + secondary keywords
         primary = keywords[0].strip().title()
-        secondary = (
-            " | " + " & ".join(k.strip().title() for k in keywords[1:3])
-            if len(keywords) > 1
-            else ""
-        )
+        secondary = " | " + " & ".join(k.strip().title() for k in keywords[1:3]) if len(keywords) > 1 else ""
 
         # If we have HTML content, enrich with site name or page context
         site_name = ""
@@ -577,9 +551,7 @@ class MetaTagGeneratorTool(BaseTool):
             "success": True,
         }
 
-    async def _generate_description(
-        self, validated: MetaTagGeneratorInput
-    ) -> dict[str, Any]:
+    async def _generate_description(self, validated: MetaTagGeneratorInput) -> dict[str, Any]:
         """Generate an SEO-optimized meta description."""
         keywords = validated.target_keywords
         if not keywords:
@@ -611,17 +583,13 @@ class MetaTagGeneratorTool(BaseTool):
                 if len(sentences) > 1:
                     sentence2 = sentences[1].strip()
                     if len(sentence2) > 20:
-                        remaining = (
-                            validated.max_description_length - len(description) - 1
-                        )
+                        remaining = validated.max_description_length - len(description) - 1
                         if remaining > 20:
                             description += f"{sentence2[:remaining].rstrip()}."
 
         # Default CTA if still too short
         if len(description) < 80:
-            description += (
-                f"Learn more about {keywords[0]} with our comprehensive guide."
-            )
+            description += f"Learn more about {keywords[0]} with our comprehensive guide."
 
         # Truncate to limit
         if len(description) > validated.max_description_length:
@@ -640,9 +608,7 @@ class MetaTagGeneratorTool(BaseTool):
             "success": True,
         }
 
-    async def _analyze_and_generate(
-        self, validated: MetaTagGeneratorInput
-    ) -> dict[str, Any]:
+    async def _analyze_and_generate(self, validated: MetaTagGeneratorInput) -> dict[str, Any]:
         """Run full analysis and generate optimized tags."""
         analysis = await self._analyze_meta(validated)
         title_result = await self._generate_title(validated)
@@ -659,12 +625,7 @@ class MetaTagGeneratorTool(BaseTool):
                 {
                     "title": title_result.get("generated_title", ""),
                     "description": desc_result.get("generated_description", ""),
-                    "score": (
-                        100
-                        if title_result.get("within_limit")
-                        and desc_result.get("within_limit")
-                        else 70
-                    ),
+                    "score": (100 if title_result.get("within_limit") and desc_result.get("within_limit") else 70),
                 }
             ],
             "top_keywords": analysis.get("top_keywords"),

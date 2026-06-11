@@ -24,9 +24,7 @@ logger = logging.getLogger(__name__)
 class WebhookHandlerService:
     """Main service for handling webhooks"""
 
-    def __init__(
-        self, router: WebhookRouter = None, retry_manager: RetryManager = None
-    ):
+    def __init__(self, router: WebhookRouter = None, retry_manager: RetryManager = None):
         self.router = router or webhook_router
         self.retry_manager = retry_manager or retry_manager
         self._session_factory = None
@@ -64,11 +62,7 @@ class WebhookHandlerService:
         session = self._get_session()
         try:
             # Check if endpoint already exists
-            existing = (
-                session.query(WebhookEndpoint)
-                .filter(WebhookEndpoint.name == name)
-                .first()
-            )
+            existing = session.query(WebhookEndpoint).filter(WebhookEndpoint.name == name).first()
 
             if existing:
                 return {
@@ -98,9 +92,7 @@ class WebhookHandlerService:
             session.commit()
             session.refresh(endpoint)
 
-            logger.info(
-                "Registered webhook endpoint '%s' for source '%s'", name, source
-            )
+            logger.info("Registered webhook endpoint '%s' for source '%s'", name, source)
 
             return {"success": True, "endpoint": endpoint.to_dict()}
         except Exception as e:
@@ -132,19 +124,13 @@ class WebhookHandlerService:
 
         session = self._get_session()
         try:
-            endpoint = (
-                session.query(WebhookEndpoint)
-                .filter(WebhookEndpoint.name == name)
-                .first()
-            )
+            endpoint = session.query(WebhookEndpoint).filter(WebhookEndpoint.name == name).first()
 
             return endpoint.to_dict() if endpoint else None
         finally:
             session.close()
 
-    def list_endpoints(
-        self, source: str | None = None, active_only: bool = True
-    ) -> list[dict[str, Any]]:
+    def list_endpoints(self, source: str | None = None, active_only: bool = True) -> list[dict[str, Any]]:
         """List all registered endpoints"""
         from app.models.webhook_models import WebhookEndpoint
 
@@ -180,9 +166,7 @@ class WebhookHandlerService:
 
         return verifier.verify(payload, signature, secret)
 
-    def extract_event_type(
-        self, source: str, payload: dict[str, Any], headers: dict[str, str]
-    ) -> str | None:
+    def extract_event_type(self, source: str, payload: dict[str, Any], headers: dict[str, str]) -> str | None:
         """Extract event type from webhook payload based on source"""
         source_lower = source.lower()
 
@@ -203,9 +187,7 @@ class WebhookHandlerService:
 
         return payload.get("event_type") or payload.get("type")
 
-    async def process_webhook(
-        self, path: str, payload: bytes, headers: dict[str, str]
-    ) -> dict[str, Any]:
+    async def process_webhook(self, path: str, payload: bytes, headers: dict[str, str]) -> dict[str, Any]:
         """Process an incoming webhook"""
         from app.models.webhook_models import WebhookLog, WebhookStatus
 
@@ -228,9 +210,7 @@ class WebhookHandlerService:
                 payload_json = {"raw": payload.decode("utf-8", errors="replace")}
 
             # Extract event type
-            event_type = self.extract_event_type(
-                endpoint["source"], payload_json, headers
-            )
+            event_type = self.extract_event_type(endpoint["source"], payload_json, headers)
 
             # Create webhook log entry
             webhook_log = WebhookLog(
@@ -250,9 +230,7 @@ class WebhookHandlerService:
             # Verify signature if required
             if endpoint.get("verify_signature", True):
                 signature_header = endpoint.get("signature_header", "x-signature")
-                signature = headers.get(signature_header) or headers.get(
-                    signature_header.lower()
-                )
+                signature = headers.get(signature_header) or headers.get(signature_header.lower())
 
                 if not signature:
                     logger.warning("Missing signature header: %s", signature_header)
@@ -269,11 +247,7 @@ class WebhookHandlerService:
                     }
 
                 # Get timestamp for Slack
-                timestamp = (
-                    headers.get("x-slack-request-timestamp")
-                    if endpoint["source"].lower() == "slack"
-                    else None
-                )
+                timestamp = headers.get("x-slack-request-timestamp") if endpoint["source"].lower() == "slack" else None
 
                 if not self.verify_signature(
                     payload,
@@ -282,9 +256,7 @@ class WebhookHandlerService:
                     endpoint["source"],
                     timestamp,
                 ):
-                    logger.warning(
-                        "Invalid signature for endpoint: %s", endpoint["name"]
-                    )
+                    logger.warning("Invalid signature for endpoint: %s", endpoint["name"])
                     webhook_log.status = WebhookStatus.FAILED.value
                     webhook_log.last_error = "Invalid signature"
                     webhook_log.last_error_at = datetime.now(UTC)
@@ -303,9 +275,7 @@ class WebhookHandlerService:
             session.commit()
 
             # Route to handlers
-            result = await self.router.route(
-                endpoint["source"], event_type, payload_json, headers
-            )
+            result = await self.router.route(endpoint["source"], event_type, payload_json, headers)
 
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)

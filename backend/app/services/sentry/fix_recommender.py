@@ -56,9 +56,7 @@ class PendingFix:
             "fix_id": self.fix_id,
             "issue_id": self.issue_id,
             "recommendation": (
-                self.recommendation.to_dict()
-                if hasattr(self.recommendation, "to_dict")
-                else self.recommendation
+                self.recommendation.to_dict() if hasattr(self.recommendation, "to_dict") else self.recommendation
             ),
             "status": self.status.value,
             "priority": self.priority.value,
@@ -97,26 +95,18 @@ class FixRecommender:
 
         # Callbacks for fix events
         self._on_fix_applied: list[Callable[[PendingFix], Awaitable[None]]] = []
-        self._on_fix_failed: list[
-            Callable[[PendingFix, Exception], Awaitable[None]]
-        ] = []
+        self._on_fix_failed: list[Callable[[PendingFix, Exception], Awaitable[None]]] = []
         self._on_approval_required: list[Callable[[PendingFix], Awaitable[None]]] = []
 
-    def register_on_fix_applied(
-        self, callback: Callable[[PendingFix], Awaitable[None]]
-    ):
+    def register_on_fix_applied(self, callback: Callable[[PendingFix], Awaitable[None]]):
         """Register callback for when a fix is applied."""
         self._on_fix_applied.append(callback)
 
-    def register_on_fix_failed(
-        self, callback: Callable[[PendingFix, Exception], Awaitable[None]]
-    ):
+    def register_on_fix_failed(self, callback: Callable[[PendingFix, Exception], Awaitable[None]]):
         """Register callback for when a fix fails."""
         self._on_fix_failed.append(callback)
 
-    def register_on_approval_required(
-        self, callback: Callable[[PendingFix], Awaitable[None]]
-    ):
+    def register_on_approval_required(self, callback: Callable[[PendingFix], Awaitable[None]]):
         """Register callback for when human approval is required."""
         self._on_approval_required.append(callback)
 
@@ -182,9 +172,7 @@ class FixRecommender:
             # Route based on confidence
             if recommendation.auto_applicable and self.auto_apply_enabled:
                 # Auto-apply high confidence fixes
-                logger.info(
-                    f"Auto-applying fix {pending_fix.fix_id} (confidence: {recommendation.confidence})"
-                )
+                logger.info(f"Auto-applying fix {pending_fix.fix_id} (confidence: {recommendation.confidence})")
                 await self.apply_fix(pending_fix.fix_id)
             else:
                 # Require human approval
@@ -204,9 +192,7 @@ class FixRecommender:
             logger.error(f"Failed to process error for fix recommendation: {e}")
             return None
 
-    def _determine_priority(
-        self, error: Exception, context: dict[str, Any]
-    ) -> FixPriority:
+    def _determine_priority(self, error: Exception, context: dict[str, Any]) -> FixPriority:
         """Determine fix priority based on error and context."""
         error_type = type(error).__name__
 
@@ -275,27 +261,13 @@ class FixRecommender:
                 improvement_context = {
                     "fix_id": fix_id,
                     "issue_id": pending_fix.issue_id,
-                    "code_changes": (
-                        recommendation.code_changes
-                        if hasattr(recommendation, "code_changes")
-                        else []
-                    ),
-                    "description": (
-                        recommendation.description
-                        if hasattr(recommendation, "description")
-                        else ""
-                    ),
-                    "confidence": (
-                        recommendation.confidence
-                        if hasattr(recommendation, "confidence")
-                        else 0.0
-                    ),
+                    "code_changes": (recommendation.code_changes if hasattr(recommendation, "code_changes") else []),
+                    "description": (recommendation.description if hasattr(recommendation, "description") else ""),
+                    "confidence": (recommendation.confidence if hasattr(recommendation, "confidence") else 0.0),
                 }
 
                 # Store rollback data
-                pending_fix.rollback_data = await self._create_rollback_data(
-                    recommendation
-                )
+                pending_fix.rollback_data = await self._create_rollback_data(recommendation)
 
                 # Apply the fix
                 result = await improvement_loop.apply_fix(improvement_context)
@@ -311,9 +283,7 @@ class FixRecommender:
                         client = get_sentry_mcp_client()
                         await client.resolve_issue(pending_fix.issue_id)
                     except Exception as e:
-                        logger.warning(
-                            f"Could not mark issue as resolved in Sentry: {e}"
-                        )
+                        logger.warning(f"Could not mark issue as resolved in Sentry: {e}")
 
                     # Notify callbacks
                     for callback in self._on_fix_applied:
@@ -328,9 +298,7 @@ class FixRecommender:
                     raise Exception(result.get("error", "Unknown error"))
 
             except ImportError:
-                logger.warning(
-                    "ImprovementLoop not available, simulating fix application"
-                )
+                logger.warning("ImprovementLoop not available, simulating fix application")
                 pending_fix.status = FixStatus.APPLIED
                 pending_fix.applied_at = datetime.now(UTC)
                 return True
@@ -354,11 +322,7 @@ class FixRecommender:
         # In production, this would capture current state of files to be modified
         return {
             "timestamp": datetime.now(UTC).isoformat(),
-            "code_changes": (
-                recommendation.code_changes
-                if hasattr(recommendation, "code_changes")
-                else []
-            ),
+            "code_changes": (recommendation.code_changes if hasattr(recommendation, "code_changes") else []),
         }
 
     async def rollback_fix(self, fix_id: str) -> bool:

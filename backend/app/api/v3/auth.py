@@ -167,9 +167,7 @@ async def register_user(
         import re as _re
 
         ws_id = str(uuid.uuid4())
-        ws_name = (
-            f"{payload.full_name or payload.username or user.username}'s Workspace"
-        )
+        ws_name = f"{payload.full_name or payload.username or user.username}'s Workspace"
         ws_slug = _re.sub(r"[^a-z0-9]+", "-", ws_name.lower()).strip("-") or "workspace"
         ws = Workspace(id=ws_id, name=ws_name, slug=ws_slug, owner_id=user.id)
         db.add(ws)
@@ -248,11 +246,7 @@ async def create_session_handler(
         )
 
     # Find user by email or username
-    result = await db.execute(
-        select(User).where(
-            or_(User.email == payload.login, User.username == payload.login)
-        )
-    )
+    result = await db.execute(select(User).where(or_(User.email == payload.login, User.username == payload.login)))
     user = result.scalar_one_or_none()
 
     if not user or not user.hashed_password:
@@ -607,9 +601,7 @@ async def revoke_session_handler(
 
 
 @router.get("/users/me", status_code=status.HTTP_200_OK)
-async def get_me(
-    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
-):
+async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Get current user profile.
 
     Returns:

@@ -225,10 +225,7 @@ def _build_v2_openapi(request: Request) -> dict[str, Any]:
     for schema_name in list(v2_referenced):
         schema_str = json.dumps(full_schemas.get(schema_name, {}))
         for other_name in full_schemas:
-            if (
-                other_name not in v2_referenced
-                and f"#/components/schemas/{other_name}" in schema_str
-            ):
+            if other_name not in v2_referenced and f"#/components/schemas/{other_name}" in schema_str:
                 v2_referenced.add(other_name)
 
     for name in v2_referenced:

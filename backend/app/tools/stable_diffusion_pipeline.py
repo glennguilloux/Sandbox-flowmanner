@@ -58,9 +58,7 @@ SDXL_DEFAULT_STEPS = 30
 class ControlNetUnit(BaseModel):
     """ControlNet configuration for guided image generation."""
 
-    control_type: Literal[
-        "canny", "depth", "pose", "scribble", "seg", "normal", "lineart"
-    ] = Field(
+    control_type: Literal["canny", "depth", "pose", "scribble", "seg", "normal", "lineart"] = Field(
         "canny",
         description="ControlNet preprocessing type",
     )
@@ -68,15 +66,9 @@ class ControlNetUnit(BaseModel):
         ...,
         description="URL or base64 data URI of the control image",
     )
-    weight: float = Field(
-        0.8, ge=0.0, le=2.0, description="ControlNet conditioning scale"
-    )
-    start_percent: float = Field(
-        0.0, ge=0.0, le=1.0, description="When ControlNet starts (0-1)"
-    )
-    end_percent: float = Field(
-        1.0, ge=0.0, le=1.0, description="When ControlNet ends (0-1)"
-    )
+    weight: float = Field(0.8, ge=0.0, le=2.0, description="ControlNet conditioning scale")
+    start_percent: float = Field(0.0, ge=0.0, le=1.0, description="When ControlNet starts (0-1)")
+    end_percent: float = Field(1.0, ge=0.0, le=1.0, description="When ControlNet ends (0-1)")
 
 
 class LoRAUnit(BaseModel):
@@ -236,9 +228,7 @@ class StableDiffusionPipelineInput(ToolInput):
             return v
         # Require http/https scheme
         if not v.startswith(("http://", "https://")):
-            raise ValueError(
-                f"Image URL must use http/https scheme or data URI, got: {v[:80]}"
-            )
+            raise ValueError(f"Image URL must use http/https scheme or data URI, got: {v[:80]}")
         # Block internal IPs (SSRF protection)
         from urllib.parse import urlparse
 
@@ -323,9 +313,7 @@ class StableDiffusionPipelineTool(BaseTool):
         try:
             validated = StableDiffusionPipelineInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         start = time.monotonic()
 
@@ -350,21 +338,15 @@ class StableDiffusionPipelineTool(BaseTool):
                 detail = str(e.response.json())
             except Exception:
                 detail = e.response.text[:500]
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Provider API error: {detail}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Provider API error: {detail}")
         except Exception as e:
             logger.exception("stable_diffusion_pipeline failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _run_replicate(
-        self, validated: StableDiffusionPipelineInput, start: float
-    ) -> ToolResult:
+    async def _run_replicate(self, validated: StableDiffusionPipelineInput, start: float) -> ToolResult:
         """Run inference via Replicate API."""
         if not REPLICATE_API_TOKEN and not validated.api_key:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="Replicate API token required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="Replicate API token required")
 
         # Resolve model version
         model_version = REPLICATE_MODELS.get(
@@ -404,17 +386,13 @@ class StableDiffusionPipelineTool(BaseTool):
 
         if validated.use_refiner:
             replicate_input["refine"] = "expert_ensemble_refiner"
-            replicate_input["refine_steps"] = int(
-                (1.0 - validated.refiner_start) * validated.num_inference_steps
-            )
+            replicate_input["refine_steps"] = int((1.0 - validated.refiner_start) * validated.num_inference_steps)
 
         if validated.clip_skip > 1:
             replicate_input["clip_skip"] = validated.clip_skip
 
         if validated.loras:
-            replicate_input["lora_weights"] = ",".join(
-                f"{l.lora_url}:{l.scale}" for l in validated.loras
-            )
+            replicate_input["lora_weights"] = ",".join(f"{l.lora_url}:{l.scale}" for l in validated.loras)
 
         async with httpx.AsyncClient(timeout=SD_TIMEOUT) as client:
             # Create prediction
@@ -464,19 +442,13 @@ class StableDiffusionPipelineTool(BaseTool):
                         error=f"Replicate prediction failed: {status_data.get('error', 'unknown')}",
                     )
 
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="Replicate generation timed out"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="Replicate generation timed out")
 
-    async def _run_huggingface(
-        self, validated: StableDiffusionPipelineInput, start: float
-    ) -> ToolResult:
+    async def _run_huggingface(self, validated: StableDiffusionPipelineInput, start: float) -> ToolResult:
         """Run inference via HuggingFace Inference API."""
         token = validated.api_key or HF_API_TOKEN
         if not token:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="HuggingFace API token required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="HuggingFace API token required")
 
         headers = {"Authorization": f"Bearer {token}"}
         url = f"https://api-inference.huggingface.co/models/{validated.model}"
@@ -511,17 +483,11 @@ class StableDiffusionPipelineTool(BaseTool):
                 # JSON response with URLs
                 data = resp.json()
                 if isinstance(data, list):
-                    output_urls = [
-                        d.get("url", d) if isinstance(d, dict) else d for d in data
-                    ]
+                    output_urls = [d.get("url", d) if isinstance(d, dict) else d for d in data]
                 else:
-                    output_urls = [
-                        data.get("url", data) if isinstance(data, dict) else data
-                    ]
+                    output_urls = [data.get("url", data) if isinstance(data, dict) else data]
 
-                images = await self._process_output_images(
-                    output_urls, validated, start
-                )
+                images = await self._process_output_images(output_urls, validated, start)
 
             gen_time = int((time.monotonic() - start) * 1000)
             return ToolResult.success_result(
@@ -539,9 +505,7 @@ class StableDiffusionPipelineTool(BaseTool):
                 },
             )
 
-    async def _run_local(
-        self, validated: StableDiffusionPipelineInput, start: float
-    ) -> ToolResult:
+    async def _run_local(self, validated: StableDiffusionPipelineInput, start: float) -> ToolResult:
         """Run inference via local Automatic1111/ComfyUI API."""
         url = f"{LOCAL_SD_ENDPOINT}/sdapi/v1/txt2img"
 

@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Any
+from typing import Any
 
 import redis
 
@@ -80,9 +80,7 @@ class SearchCache:
         redis_client = self._get_redis()
         if redis_client:
             try:
-                cached = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: redis_client.get(cache_key)
-                )
+                cached = await asyncio.get_event_loop().run_in_executor(None, lambda: redis_client.get(cache_key))
                 if cached:
                     response = self._deserialize_response(cached)
                     self._memory_cache[cache_key] = response
@@ -199,9 +197,7 @@ class SearchCache:
         if len(self._memory_cache) >= self.max_memory_items:
             # Remove oldest 10%
             items_to_remove = self.max_memory_items // 10
-            sorted_keys = sorted(
-                self._access_times.keys(), key=lambda k: self._access_times[k]
-            )
+            sorted_keys = sorted(self._access_times.keys(), key=lambda k: self._access_times[k])
 
             for key in sorted_keys[:items_to_remove]:
                 del self._memory_cache[key]
@@ -219,13 +215,9 @@ class SearchCache:
         redis_client = self._get_redis()
         if redis_client:
             try:
-                keys = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: redis_client.keys("search:*")
-                )
+                keys = await asyncio.get_event_loop().run_in_executor(None, lambda: redis_client.keys("search:*"))
                 if keys:
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: redis_client.delete(*keys)
-                    )
+                    await asyncio.get_event_loop().run_in_executor(None, lambda: redis_client.delete(*keys))
                 logger.info("Cleared %d Redis cache keys", len(keys) if keys else 0)
             except Exception as e:
                 logger.warning("Redis clear error: %s", e)
@@ -242,9 +234,7 @@ class SearchCache:
         redis_client = self._get_redis()
         if redis_client:
             try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: redis_client.delete(cache_key)
-                )
+                await asyncio.get_event_loop().run_in_executor(None, lambda: redis_client.delete(cache_key))
             except Exception as e:
                 logger.warning("Redis delete error: %s", e)
 
@@ -272,9 +262,7 @@ class ResultDeduplicator:
     def __init__(self, similarity_threshold: float = 0.85):
         self.similarity_threshold = similarity_threshold
 
-    def deduplicate(
-        self, results: list[SearchResult], max_results: int = 10
-    ) -> list[SearchResult]:
+    def deduplicate(self, results: list[SearchResult], max_results: int = 10) -> list[SearchResult]:
         """
         Remove duplicate/near-duplicate results
         """
@@ -293,10 +281,7 @@ class ResultDeduplicator:
             # Check for duplicates
             is_duplicate = False
             for seen_hash in seen_hashes:
-                if (
-                    self._similarity(content_hash, seen_hash)
-                    >= self.similarity_threshold
-                ):
+                if self._similarity(content_hash, seen_hash) >= self.similarity_threshold:
                     is_duplicate = True
                     break
 

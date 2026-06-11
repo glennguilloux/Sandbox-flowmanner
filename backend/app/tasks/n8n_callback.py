@@ -30,9 +30,7 @@ def get_redis_client():
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
-def wait_for_n8n_callback(
-    self, execution_id: str, timeout: int = None
-) -> dict[str, Any]:
+def wait_for_n8n_callback(self, execution_id: str, timeout: int = None) -> dict[str, Any]:
     """
     Wait for an n8n webhook callback with the given execution ID.
 
@@ -53,9 +51,7 @@ def wait_for_n8n_callback(
     start_time = datetime.now(UTC)
     poll_interval = 2  # seconds
 
-    logger.info(
-        "Waiting for n8n callback: execution_id=%s, timeout=%ss", execution_id, timeout
-    )
+    logger.info("Waiting for n8n callback: execution_id=%s, timeout=%ss", execution_id, timeout)
 
     while True:
         elapsed = (datetime.now(UTC) - start_time).total_seconds()

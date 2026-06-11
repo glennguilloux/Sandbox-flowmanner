@@ -152,9 +152,7 @@ class EmailConnector(BaseConnector):
         """Validate email credentials by testing connection"""
         return self._smtp_connection is not None and self._imap_connection is not None
 
-    async def execute_action(
-        self, action: str, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> ConnectorResponse:
         """Execute an email action"""
 
         action_handlers = {
@@ -175,9 +173,7 @@ class EmailConnector(BaseConnector):
 
         handler = action_handlers.get(action)
         if not handler:
-            return ConnectorResponse(
-                success=False, error=f"Unknown action: {action}", status_code=400
-            )
+            return ConnectorResponse(success=False, error=f"Unknown action: {action}", status_code=400)
 
         return await handler(params)
 
@@ -255,9 +251,7 @@ class EmailConnector(BaseConnector):
         reply_to = params.get("reply_to")
 
         if not to:
-            return ConnectorResponse(
-                success=False, error="Missing required param: to", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: to", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -290,9 +284,7 @@ class EmailConnector(BaseConnector):
                 if not self._smtp_connection:
                     raise Exception("SMTP not connected")
 
-                self._smtp_connection.sendmail(
-                    self._username, recipients, msg.as_string()
-                )
+                self._smtp_connection.sendmail(self._username, recipients, msg.as_string())
                 return True
 
             await loop.run_in_executor(None, _send)
@@ -307,22 +299,16 @@ class EmailConnector(BaseConnector):
             logger.error("Failed to send email: %s", e)
             return ConnectorResponse(success=False, error=str(e), status_code=500)
 
-    async def _send_email_with_attachment(
-        self, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def _send_email_with_attachment(self, params: dict[str, Any]) -> ConnectorResponse:
         """Send an email with attachments"""
         to = params.get("to")
         subject = params.get("subject", "")
         body = params.get("body", "")
         html = params.get("html")
-        attachments = params.get(
-            "attachments", []
-        )  # List of {filename, content, content_type}
+        attachments = params.get("attachments", [])  # List of {filename, content, content_type}
 
         if not to:
-            return ConnectorResponse(
-                success=False, error="Missing required param: to", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: to", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -344,9 +330,7 @@ class EmailConnector(BaseConnector):
                 for attachment in attachments:
                     filename = attachment.get("filename", "attachment")
                     content = attachment.get("content", "")
-                    content_type = attachment.get(
-                        "content_type", "application/octet-stream"
-                    )
+                    content_type = attachment.get("content_type", "application/octet-stream")
 
                     if isinstance(content, str):
                         content = content.encode()
@@ -354,18 +338,14 @@ class EmailConnector(BaseConnector):
                     part = MIMEBase(*content_type.split("/", 1))
                     part.set_payload(content)
                     encoders.encode_base64(part)
-                    part.add_header(
-                        "Content-Disposition", f'attachment; filename="{filename}"'
-                    )
+                    part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
                     msg.attach(part)
 
                 if not self._smtp_connection:
                     raise Exception("SMTP not connected")
 
                 recipients = [to] if isinstance(to, str) else to
-                self._smtp_connection.sendmail(
-                    self._username, recipients, msg.as_string()
-                )
+                self._smtp_connection.sendmail(self._username, recipients, msg.as_string())
                 return True
 
             await loop.run_in_executor(None, _send)
@@ -404,18 +384,14 @@ class EmailConnector(BaseConnector):
 
                 results = []
                 for email_id in email_ids[offset : offset + limit]:
-                    status, msg_data = self._imap_connection.fetch(
-                        email_id, "(RFC822.HEADER)"
-                    )
+                    status, msg_data = self._imap_connection.fetch(email_id, "(RFC822.HEADER)")
                     if status == "OK":
                         raw_email = msg_data[0][1]
                         msg = email.message_from_bytes(raw_email)
                         results.append(
                             {
                                 "id": email_id.decode(),
-                                "subject": self._decode_header_value(
-                                    msg.get("Subject", "")
-                                ),
+                                "subject": self._decode_header_value(msg.get("Subject", "")),
                                 "from": self._decode_header_value(msg.get("From", "")),
                                 "date": msg.get("Date", ""),
                                 "unread": "\\Seen" not in str(msg.get("Flags", "")),
@@ -442,9 +418,7 @@ class EmailConnector(BaseConnector):
         folder = params.get("folder", "INBOX")
 
         if not email_id:
-            return ConnectorResponse(
-                success=False, error="Missing required param: email_id", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: email_id", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -454,9 +428,7 @@ class EmailConnector(BaseConnector):
                     raise Exception("IMAP not connected")
 
                 self._imap_connection.select(folder)
-                status, msg_data = self._imap_connection.fetch(
-                    email_id.encode(), "(RFC822)"
-                )
+                status, msg_data = self._imap_connection.fetch(email_id.encode(), "(RFC822)")
 
                 if status != "OK":
                     return None
@@ -470,9 +442,7 @@ class EmailConnector(BaseConnector):
             if result:
                 return ConnectorResponse(success=True, data=result, status_code=200)
             else:
-                return ConnectorResponse(
-                    success=False, error="Email not found", status_code=404
-                )
+                return ConnectorResponse(success=False, error="Email not found", status_code=404)
 
         except Exception as e:
             logger.error("Failed to get email: %s", e)
@@ -528,18 +498,14 @@ class EmailConnector(BaseConnector):
 
                 results = []
                 for email_id in email_ids:
-                    status, msg_data = self._imap_connection.fetch(
-                        email_id, "(RFC822.HEADER)"
-                    )
+                    status, msg_data = self._imap_connection.fetch(email_id, "(RFC822.HEADER)")
                     if status == "OK":
                         raw_email = msg_data[0][1]
                         msg = email.message_from_bytes(raw_email)
                         results.append(
                             {
                                 "id": email_id.decode(),
-                                "subject": self._decode_header_value(
-                                    msg.get("Subject", "")
-                                ),
+                                "subject": self._decode_header_value(msg.get("Subject", "")),
                                 "from": self._decode_header_value(msg.get("From", "")),
                                 "date": msg.get("Date", ""),
                             }
@@ -565,9 +531,7 @@ class EmailConnector(BaseConnector):
         folder = params.get("folder", "INBOX")
 
         if not email_id:
-            return ConnectorResponse(
-                success=False, error="Missing required param: email_id", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: email_id", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -583,9 +547,7 @@ class EmailConnector(BaseConnector):
 
             await loop.run_in_executor(None, _delete)
 
-            return ConnectorResponse(
-                success=True, data={"message": "Email deleted"}, status_code=200
-            )
+            return ConnectorResponse(success=True, data={"message": "Email deleted"}, status_code=200)
 
         except Exception as e:
             logger.error("Failed to delete email: %s", e)
@@ -635,9 +597,7 @@ class EmailConnector(BaseConnector):
         folder = params.get("folder", "INBOX")
 
         if not email_id:
-            return ConnectorResponse(
-                success=False, error="Missing required param: email_id", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: email_id", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -652,9 +612,7 @@ class EmailConnector(BaseConnector):
 
             await loop.run_in_executor(None, _mark)
 
-            return ConnectorResponse(
-                success=True, data={"message": "Email marked as read"}, status_code=200
-            )
+            return ConnectorResponse(success=True, data={"message": "Email marked as read"}, status_code=200)
 
         except Exception as e:
             logger.error("Failed to mark email as read: %s", e)
@@ -666,9 +624,7 @@ class EmailConnector(BaseConnector):
         folder = params.get("folder", "INBOX")
 
         if not email_id:
-            return ConnectorResponse(
-                success=False, error="Missing required param: email_id", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: email_id", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -723,9 +679,7 @@ class EmailConnector(BaseConnector):
 
             results = await loop.run_in_executor(None, _list)
 
-            return ConnectorResponse(
-                success=True, data={"folders": results}, status_code=200
-            )
+            return ConnectorResponse(success=True, data={"folders": results}, status_code=200)
 
         except Exception as e:
             logger.error("Failed to list folders: %s", e)
@@ -736,9 +690,7 @@ class EmailConnector(BaseConnector):
         folder_name = params.get("name")
 
         if not folder_name:
-            return ConnectorResponse(
-                success=False, error="Missing required param: name", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: name", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()
@@ -767,9 +719,7 @@ class EmailConnector(BaseConnector):
         folder_name = params.get("name")
 
         if not folder_name:
-            return ConnectorResponse(
-                success=False, error="Missing required param: name", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: name", status_code=400)
 
         try:
             loop = asyncio.get_event_loop()

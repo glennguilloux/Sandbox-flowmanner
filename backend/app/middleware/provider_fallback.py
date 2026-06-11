@@ -189,9 +189,7 @@ class ProviderFallbackMiddleware:
         except Exception as e:
             logger.warning("Failed to track cost: %s", e)
 
-    def _calculate_cost(
-        self, model: str, prompt_tokens: int, completion_tokens: int
-    ) -> float:
+    def _calculate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
         """Calculate cost based on model pricing (simplified)."""
         # Default pricing per 1M tokens
         pricing = {

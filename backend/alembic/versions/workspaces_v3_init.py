@@ -5,10 +5,10 @@ Revises: auth_v3_001
 Create Date: 2026-06-08
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
+from alembic import op
 
 revision = "workspaces_v3_001"
 down_revision = "auth_v3_001"
@@ -21,15 +21,11 @@ def upgrade():
     op.add_column("workspaces", sa.Column("logo_url", sa.String(500), nullable=True))
     op.add_column(
         "workspaces",
-        sa.Column(
-            "settings", JSONB, nullable=True, server_default=sa.text("'{}'::jsonb")
-        ),
+        sa.Column("settings", JSONB, nullable=True, server_default=sa.text("'{}'::jsonb")),
     )
     op.add_column(
         "workspaces",
-        sa.Column(
-            "member_limit", sa.Integer(), nullable=True, server_default=sa.text("5")
-        ),
+        sa.Column("member_limit", sa.Integer(), nullable=True, server_default=sa.text("5")),
     )  # Free tier: 5 members
     op.add_column(
         "workspaces",
@@ -44,9 +40,7 @@ def upgrade():
     # ── Add columns to workspace_invitations ──
     op.add_column(
         "workspace_invitations",
-        sa.Column(
-            "invitation_message", sa.Text(), nullable=True, server_default=sa.text("''")
-        ),
+        sa.Column("invitation_message", sa.Text(), nullable=True, server_default=sa.text("''")),
     )
 
     # ── Add workspace_activity_log table ──
@@ -69,12 +63,8 @@ def upgrade():
         sa.Column("action", sa.String(50), nullable=False),
         sa.Column("target_type", sa.String(50), nullable=True),
         sa.Column("target_id", sa.String(100), nullable=True),
-        sa.Column(
-            "metadata", JSONB, nullable=True, server_default=sa.text("'{}'::jsonb")
-        ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("metadata", JSONB, nullable=True, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Index("ix_activity_log_workspace_time", "workspace_id", "created_at"),
     )
 

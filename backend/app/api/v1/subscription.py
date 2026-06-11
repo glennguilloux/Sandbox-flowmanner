@@ -42,9 +42,7 @@ class TierResponse(BaseModel):
 async def list_tiers(db: AsyncSession = Depends(get_db)):
     try:
         """List all active subscription tiers."""
-        result = await db.execute(
-            select(SubscriptionTier).where(SubscriptionTier.is_active == True)
-        )
+        result = await db.execute(select(SubscriptionTier).where(SubscriptionTier.is_active == True))
         tiers = result.scalars().all()
         return [
             {
@@ -63,9 +61,7 @@ async def list_tiers(db: AsyncSession = Depends(get_db)):
             for t in tiers
         ]
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 class UpgradeRequest(BaseModel):
@@ -94,9 +90,7 @@ async def initiate_upgrade(
     tier = result.scalars().first()
 
     if not tier:
-        raise HTTPException(
-            status_code=404, detail=f"Tier '{data.tier_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Tier '{data.tier_name}' not found")
 
     # If tier has no price (enterprise), handle differently
     if tier.price_monthly is None or not tier.paypal_plan_id:
@@ -132,9 +126,7 @@ async def initiate_upgrade(
 
 
 @router.get("/my-subscription")
-async def get_my_subscription(
-    user=Depends(get_current_user), db: AsyncSession = Depends(get_db)
-):
+async def get_my_subscription(user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try:
         """Get current user's subscription details from the database."""
         # Query real subscription from UserSubscription + SubscriptionTier
@@ -157,17 +149,11 @@ async def get_my_subscription(
                     "missions_per_month": tier.missions_per_month,
                 },
                 "status": sub.status,
-                "current_period_end": (
-                    sub.current_period_end.isoformat()
-                    if sub.current_period_end
-                    else None
-                ),
+                "current_period_end": (sub.current_period_end.isoformat() if sub.current_period_end else None),
             }
 
         # Fall back to free tier if no active subscription found
-        free_tier_result = await db.execute(
-            select(SubscriptionTier).where(SubscriptionTier.name == "free")
-        )
+        free_tier_result = await db.execute(select(SubscriptionTier).where(SubscriptionTier.name == "free"))
         free_tier = free_tier_result.scalars().first()
 
         if free_tier:
@@ -186,9 +172,7 @@ async def get_my_subscription(
             "status": "free",
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # PayPal webhook/return endpoints
@@ -202,9 +186,7 @@ async def paypal_return(subscription_id: str, user=Depends(get_current_user)):
             "subscription_id": subscription_id,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/paypal/cancel")
@@ -216,9 +198,7 @@ async def paypal_cancel():
             "message": "Subscription cancelled by user",
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ── PayPal Webhook (Phase 8.4) ─────────────────────────────────────────────
@@ -271,11 +251,7 @@ async def paypal_webhook(
     logger.info("PayPal webhook: %s subscription=%s", event_type, paypal_sub_id)
 
     # Find the UserSubscription linked to this PayPal subscription
-    result = await db.execute(
-        select(UserSubscription).where(
-            UserSubscription.paypal_subscription_id == paypal_sub_id
-        )
-    )
+    result = await db.execute(select(UserSubscription).where(UserSubscription.paypal_subscription_id == paypal_sub_id))
     sub = result.scalar_one_or_none()
 
     if not sub:
@@ -290,14 +266,10 @@ async def paypal_webhook(
         billing_info = resource.get("billing_info", {})
         last_payment = billing_info.get("last_payment", {})
         if last_payment.get("time"):
-            sub.current_period_start = datetime.fromisoformat(
-                last_payment["time"].replace("Z", "+00:00")
-            )
+            sub.current_period_start = datetime.fromisoformat(last_payment["time"].replace("Z", "+00:00"))
         next_billing = billing_info.get("next_billing_time", "")
         if next_billing:
-            sub.current_period_end = datetime.fromisoformat(
-                next_billing.replace("Z", "+00:00")
-            )
+            sub.current_period_end = datetime.fromisoformat(next_billing.replace("Z", "+00:00"))
         sub.cancel_at_period_end = False
 
     elif event_type == "BILLING.SUBSCRIPTION.CANCELLED":
@@ -373,9 +345,7 @@ async def paypal_activate(
     tier = tier_result.scalar_one_or_none()
 
     if not tier:
-        raise HTTPException(
-            status_code=400, detail=f"No tier found for PayPal plan {plan_id}"
-        )
+        raise HTTPException(status_code=400, detail=f"No tier found for PayPal plan {plan_id}")
 
     # Create or update UserSubscription
     existing_result = await db.execute(
@@ -454,13 +424,11 @@ async def billing_dashboard(
                 ),
                 "missions_this_month_remaining": max(
                     0,
-                    dashboard.plan.missions_per_month
-                    - dashboard.usage.missions_this_month,
+                    dashboard.plan.missions_per_month - dashboard.usage.missions_this_month,
                 ),
                 "concurrent_remaining": max(
                     0,
-                    dashboard.plan.max_concurrent_missions
-                    - dashboard.usage.active_missions,
+                    dashboard.plan.max_concurrent_missions - dashboard.usage.active_missions,
                 ),
             },
             "subscription": {
@@ -472,14 +440,10 @@ async def billing_dashboard(
                     else None
                 ),
                 "current_period_start": (
-                    dashboard.current_period_start.isoformat()
-                    if dashboard.current_period_start
-                    else None
+                    dashboard.current_period_start.isoformat() if dashboard.current_period_start else None
                 ),
                 "current_period_end": (
-                    dashboard.current_period_end.isoformat()
-                    if dashboard.current_period_end
-                    else None
+                    dashboard.current_period_end.isoformat() if dashboard.current_period_end else None
                 ),
                 "cancel_at_period_end": dashboard.cancel_at_period_end,
                 "paypal_subscription_id": dashboard.paypal_subscription_id,
@@ -487,6 +451,4 @@ async def billing_dashboard(
         }
     except Exception as e:
         logger.exception("Billing dashboard error")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

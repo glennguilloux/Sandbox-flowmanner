@@ -55,20 +55,10 @@ class TestScanForDangerousPatterns:
         assert scan_for_dangerous_patterns("x = 1 + 2\nprint(x)") is None
 
     def test_clean_function_returns_none(self):
-        assert (
-            scan_for_dangerous_patterns(
-                "def factorial(n):\n    return 1 if n <= 1 else n * factorial(n-1)"
-            )
-            is None
-        )
+        assert scan_for_dangerous_patterns("def factorial(n):\n    return 1 if n <= 1 else n * factorial(n-1)") is None
 
     def test_clean_data_analysis_returns_none(self):
-        assert (
-            scan_for_dangerous_patterns(
-                "import json\nimport csv\nprint(json.dumps([1,2,3]))"
-            )
-            is None
-        )
+        assert scan_for_dangerous_patterns("import json\nimport csv\nprint(json.dumps([1,2,3]))") is None
 
     def test_detects_os_system(self):
         result = scan_for_dangerous_patterns("os.system('rm -rf /')")
@@ -365,9 +355,7 @@ class TestExecutePythonInSandbox:
 
     def test_whitespace_only(self):
         result = execute_python_in_sandbox("   \n  \n  ")
-        assert (
-            result["success"] is True
-        ), f"Whitespace-only failed: {result.get('error')}"
+        assert result["success"] is True, f"Whitespace-only failed: {result.get('error')}"
 
     def test_large_code_output(self):
         code = "print('hello' * 1000)"

@@ -499,9 +499,7 @@ class TestHandleUpdateTask:
                 cost=None,
             )
             handler = MissionCommandHandlers(mock_db)
-            result = await handler.update_task(
-                make_user(), MISSION_ID, TASK_ID, payload
-            )
+            result = await handler.update_task(make_user(), MISSION_ID, TASK_ID, payload)
             assert mock_task.status == "running"
 
     @pytest.mark.asyncio
@@ -609,9 +607,7 @@ class TestHandlePlanMission:
                 "app.api._mission_cqrs.commands.get_mission_tasks",
                 new=AsyncMock(return_value=[]),
             ),
-            patch(
-                "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
-            ),
+            patch("app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec),
         ):
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.plan_mission(make_user(), MISSION_ID)
@@ -624,18 +620,14 @@ class TestHandlePlanMission:
 
         mock_mission = make_mission()
         mock_exec = MagicMock()
-        mock_exec.plan_mission = AsyncMock(
-            return_value={"success": False, "error": "Plan failed"}
-        )
+        mock_exec.plan_mission = AsyncMock(return_value={"success": False, "error": "Plan failed"})
 
         with (
             patch(
                 "app.api._mission_cqrs.commands.require_mission_access",
                 new=AsyncMock(return_value=mock_mission),
             ),
-            patch(
-                "app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec
-            ),
+            patch("app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec),
         ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionValidationError):
@@ -769,9 +761,7 @@ class TestHandleAbortMission:
             ),
         ):
             handler = MissionCommandHandlers(mock_db)
-            result = await handler.abort_mission(
-                make_user(), MISSION_ID, "user_requested"
-            )
+            result = await handler.abort_mission(make_user(), MISSION_ID, "user_requested")
             assert result.status == MissionStatus.ABORTED
 
     @pytest.mark.asyncio
@@ -957,9 +947,7 @@ class TestHandleApplyImprovement:
             ),
         ):
             handler = MissionCommandHandlers(AsyncMock())
-            result = await handler.apply_improvement(
-                make_user(), MISSION_ID, improvement_id
-            )
+            result = await handler.apply_improvement(make_user(), MISSION_ID, improvement_id)
             assert result is True
 
 
@@ -999,9 +987,7 @@ class TestHandleMissionAnalytics:
             ),
         ):
             handler = MissionQueryHandlers(MagicMock())
-            result = await handler.mission_analytics(
-                user_id=1, mission_id=MISSION_ID, days=30
-            )
+            result = await handler.mission_analytics(user_id=1, mission_id=MISSION_ID, days=30)
             assert "summary" in result
             assert "over_time" in result
             assert "token_usage" in result
@@ -1026,9 +1012,7 @@ class TestHandleStreamStatus:
             new=AsyncMock(return_value=[]),
         ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = handler.stream_status(
-                user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission
-            )
+            result = handler.stream_status(user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission)
 
         from fastapi.responses import StreamingResponse
 
@@ -1045,9 +1029,7 @@ class TestHandleStreamStatus:
             new=AsyncMock(return_value=[]),
         ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = handler.stream_status(
-                user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission
-            )
+            result = handler.stream_status(user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission)
 
         assert result.headers["Cache-Control"] == "no-cache"
         assert result.headers["Connection"] == "keep-alive"
@@ -1072,9 +1054,7 @@ class TestHandleStreamStatus:
             patch("app.api._mission_cqrs.queries.cache_set", new=AsyncMock()),
         ):
             handler = MissionQueryHandlers(AsyncMock())
-            result = handler.stream_status(
-                user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission
-            )
+            result = handler.stream_status(user_id=1, mission_id=MISSION_ID, initial_mission=mock_mission)
 
             # Collect all SSE events from the async generator
             body = ""

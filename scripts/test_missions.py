@@ -5,10 +5,10 @@ TASK-06: Run 10 Real Missions — Find the Bugs Unit Tests Miss
 This script tests the live mission executor against DeepSeek V4 Flash.
 Results written to /opt/flowmanner/plans/tasks/BUGS-FROM-REAL-MISSIONS.md
 """
+
 import asyncio
 import json
 import time
-import sys
 import os
 import traceback
 from datetime import datetime, timezone, timedelta
@@ -107,9 +107,9 @@ async def api_delete(path, timeout=30):
 
 async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120):
     """Create a mission, plan it, execute it, and return results."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"MISSION {mission_num}: {name}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     outcome = {
         "name": name,
@@ -126,7 +126,7 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
 
     try:
         # 1. Create mission
-        print(f"  [1/4] Creating mission...")
+        print("  [1/4] Creating mission...")
         status, data = await api_post("/", create_data)
         if status not in (200, 201):
             outcome["create_error"] = f"HTTP {status}: {data}"
@@ -137,7 +137,7 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
         print(f"  ✓ Created: {mission_id} (status: {data.get('status')})")
 
         # 2. Plan it
-        print(f"  [2/4] Planning mission...")
+        print("  [2/4] Planning mission...")
         status, plan_data = await api_post(f"/{mission_id}/plan", {}, timeout=timeout)
         outcome["plan_result"] = {"status": status, "data": plan_data}
         if status != 200:
@@ -149,7 +149,7 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
             )
 
         # 3. Execute
-        print(f"  [3/4] Executing mission...")
+        print("  [3/4] Executing mission...")
         t0 = time.time()
         status, exec_data = await api_post(
             f"/{mission_id}/execute", {}, timeout=timeout
@@ -172,15 +172,15 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
             )
 
         # 4. Get tasks
-        print(f"  [4/4] Fetching tasks & logs...")
+        print("  [4/4] Fetching tasks & logs...")
         status, tasks_data = await api_get(f"/{mission_id}/tasks")
         if status == 200:
             outcome["tasks"] = tasks_data
             for t in tasks_data:
                 print(
                     f"    Task: {t['title']} — {t['status']}"
-                    f"{' (retry #' + str(t.get('retry_count',0)) + ')' if t.get('retry_count') else ''}"
-                    f" | error: {t.get('error_message','')[:80] if t.get('error_message') else 'none'}"
+                    f"{' (retry #' + str(t.get('retry_count', 0)) + ')' if t.get('retry_count') else ''}"
+                    f" | error: {t.get('error_message', '')[:80] if t.get('error_message') else 'none'}"
                 )
 
         status, logs_data = await api_get(f"/{mission_id}/logs")
@@ -196,7 +196,7 @@ async def run_mission(mission_num, name, create_data, check_fn=None, timeout=120
                     print(f"  🐛 BUG: {b}")
 
         print(
-            f"  Summary: {len(outcome['errors'])} errors, {len(outcome.get('tasks',[]))} tasks"
+            f"  Summary: {len(outcome['errors'])} errors, {len(outcome.get('tasks', []))} tasks"
         )
 
     except Exception as e:
@@ -315,7 +315,7 @@ async def main():
     print("=" * 70)
     print("TASK-06: Real Mission Testing — 10 Missions")
     print(f"Base URL: {BASE_URL}")
-    print(f"Token user: 1")
+    print("Token user: 1")
     print(f"Time: {datetime.now(timezone.utc).isoformat()}")
     print("=" * 70)
 
@@ -327,7 +327,7 @@ async def main():
             return
         health = r.json()
         print(f"✓ Backend healthy: {health.get('app')} ({health.get('env')})")
-        print(f"  LLM: {health.get('components',{}).get('llm_provider',{})}")
+        print(f"  LLM: {health.get('components', {}).get('llm_provider', {})}")
 
     # ── Mission 1: Code Review (simple LLM task) ──────────
     await run_mission(
@@ -425,9 +425,7 @@ async def main():
                 for j in range(1, 10)
             ]
         )
-    )[
-        :8000
-    ]  # keep it reasonable for API
+    )[:8000]  # keep it reasonable for API
     await run_mission(
         8,
         "Large Prompt (stress test)",
@@ -440,9 +438,9 @@ async def main():
     )
 
     # ── Mission 9: Concurrent Missions (race conditions) ──
-    print(f"\n{'='*60}")
-    print(f"MISSION 9: Concurrent Missions (race conditions)")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("MISSION 9: Concurrent Missions (race conditions)")
+    print(f"{'=' * 60}")
     m9_outcomes = []
 
     async def run_concurrent(i, name, data):
@@ -456,8 +454,8 @@ async def main():
         status, data = await api_post(
             "/",
             {
-                "title": f"Concurrent Mission {i+1}",
-                "description": f"This is concurrent mission {i+1} running simultaneously with others. Write a {i+2}-line poem about concurrency.",
+                "title": f"Concurrent Mission {i + 1}",
+                "description": f"This is concurrent mission {i + 1} running simultaneously with others. Write a {i + 2}-line poem about concurrency.",
                 "mission_type": "general",
                 "priority": "normal",
             },
@@ -466,7 +464,7 @@ async def main():
             m9_ids.append(data["id"])
             print(f"  Created concurrent mission: {data['id']}")
         else:
-            print(f"  ❌ Failed to create concurrent mission {i+1}")
+            print(f"  ❌ Failed to create concurrent mission {i + 1}")
 
     # Plan all
     for mid in m9_ids:
@@ -482,9 +480,11 @@ async def main():
     concurrent_results = await asyncio.gather(*futures, return_exceptions=True)
     for i, cr in enumerate(concurrent_results):
         if isinstance(cr, Exception):
-            print(f"  💥 Concurrent {i+1} failed with exception: {cr}")
+            print(f"  💥 Concurrent {i + 1} failed with exception: {cr}")
         else:
-            print(f"  Concurrent {i+1}: HTTP {cr.get('status')}, data={cr.get('data')}")
+            print(
+                f"  Concurrent {i + 1}: HTTP {cr.get('status')}, data={cr.get('data')}"
+            )
 
     # Get final task status for each
     for mid in m9_ids:
@@ -536,29 +536,29 @@ async def main():
         print(f"  Added bad-model task: HTTP {status}")
 
     # ── Write Results ──────────────────────────────────────
-    print(f"\n{'='*70}")
-    print(f"WRITING RESULTS TO FILE")
-    print(f"{'='*70}")
+    print(f"\n{'=' * 70}")
+    print("WRITING RESULTS TO FILE")
+    print(f"{'=' * 70}")
 
     output_path = "/opt/flowmanner/plans/tasks/BUGS-FROM-REAL-MISSIONS.md"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with open(output_path, "w") as f:
-        f.write(f"# Real Mission Testing Results — TASK-06\n\n")
+        f.write("# Real Mission Testing Results — TASK-06\n\n")
         f.write(f"**Date:** {datetime.now(timezone.utc).isoformat()}\n")
         f.write(f"**Backend:** {BASE_URL}\n")
-        f.write(f"**LLM:** DeepSeek V4 Flash (via api.deepseek.com/v1)\n")
-        f.write(f"**User ID:** 1\n\n")
-        f.write(f"---\n\n")
+        f.write("**LLM:** DeepSeek V4 Flash (via api.deepseek.com/v1)\n")
+        f.write("**User ID:** 1\n\n")
+        f.write("---\n\n")
 
-        f.write(f"## Summary\n\n")
+        f.write("## Summary\n\n")
         total_ok = sum(
             1
             for r in results
             if r.get("final_status") == "completed" or not r.get("create_error")
         )
         total_fail = sum(1 for r in results if r.get("errors"))
-        f.write(f"| Metric | Value |\n|---|---|\n")
+        f.write("| Metric | Value |\n|---|---|\n")
         f.write(f"| Total missions run | {len(results)} |\n")
         f.write(f"| Successful | {total_ok} |\n")
         f.write(f"| With errors | {total_fail} |\n\n")
@@ -567,16 +567,16 @@ async def main():
         for r in results:
             all_errors.extend(r.get("errors", []))
 
-        f.write(f"### All Errors Found\n\n")
+        f.write("### All Errors Found\n\n")
         if all_errors:
             for e in all_errors:
                 f.write(f"- {e}\n")
         else:
-            f.write(f"(No errors found)\n")
-        f.write(f"\n")
+            f.write("(No errors found)\n")
+        f.write("\n")
 
-        f.write(f"---\n\n")
-        f.write(f"## Detailed Results\n\n")
+        f.write("---\n\n")
+        f.write("## Detailed Results\n\n")
 
         for r in results:
             num = r.get("num", "?")
@@ -596,38 +596,38 @@ async def main():
                     f"  - Completed: {data.get('completed_tasks', '?')}, Failed: {data.get('failed_tasks', '?')}\n"
                 )
 
-            f.write(f"\n#### Tasks\n\n")
+            f.write("\n#### Tasks\n\n")
             tasks = r.get("tasks", [])
             if tasks:
-                f.write(f"| # | Title | Type | Status | Retries | Error |\n")
-                f.write(f"|---|---|---|---|---|---|\n")
+                f.write("| # | Title | Type | Status | Retries | Error |\n")
+                f.write("|---|---|---|---|---|---|\n")
                 for t in tasks:
                     error = (t.get("error_message") or "")[:60]
                     f.write(
-                        f"| {t.get('order_index', '?')} | {t.get('title','?')[:40]} | {t.get('task_type','?')} | {t.get('status','?')} | {t.get('retry_count',0)} | {error} |\n"
+                        f"| {t.get('order_index', '?')} | {t.get('title', '?')[:40]} | {t.get('task_type', '?')} | {t.get('status', '?')} | {t.get('retry_count', 0)} | {error} |\n"
                     )
             else:
-                f.write(f"(No tasks)\n")
+                f.write("(No tasks)\n")
 
-            f.write(f"\n#### Errors\n\n")
+            f.write("\n#### Errors\n\n")
             errs = r.get("errors", [])
             if errs:
                 for e in errs:
                     f.write(f"- {e}\n")
             else:
-                f.write(f"(No errors detected)\n")
+                f.write("(No errors detected)\n")
 
             # Special handling for concurrent results
             if "concurrent_results" in r:
-                f.write(f"\n#### Concurrent Execution Results\n\n")
+                f.write("\n#### Concurrent Execution Results\n\n")
                 for cr in r.get("concurrent_results", []):
                     f.write(f"- Mission `{cr['id']}`: {cr['result'][:200]}\n")
 
-            f.write(f"\n---\n\n")
+            f.write("\n---\n\n")
 
         # Bug analysis section
-        f.write(f"## Bug Analysis\n\n")
-        f.write(f"### Specific Bugs Found\n\n")
+        f.write("## Bug Analysis\n\n")
+        f.write("### Specific Bugs Found\n\n")
 
         all_bugs_found = []
         for r in results:
@@ -648,7 +648,7 @@ async def main():
             if r.get("create_error"):
                 bugs.append(f"**Mission creation failed:** {r['create_error']}")
             if not r.get("mission_id"):
-                bugs.append(f"**No mission ID returned** on creation")
+                bugs.append("**No mission ID returned** on creation")
             for e in r.get("errors", []):
                 bugs.append(f"**Error:** {e}")
             all_bugs_found.extend(bugs)
@@ -657,38 +657,38 @@ async def main():
             for b in all_bugs_found:
                 f.write(f"- {b}\n")
         else:
-            f.write(f"(No specific bugs found — all missions ran cleanly)\n")
+            f.write("(No specific bugs found — all missions ran cleanly)\n")
 
         f.write(
-            f"\n### code_searcher: except Exception blocks in mission_executor.py\n\n"
+            "\n### code_searcher: except Exception blocks in mission_executor.py\n\n"
         )
-        f.write(f"Total `except Exception` blocks in mission_executor.py: **29**\n\n")
-        f.write(f"These are the areas where exceptions could be silently swallowed:\n")
-        f.write(f"- `_get_model_router()` — 2 except blocks\n")
-        f.write(f"- `_get_rag_service()` — 2 except blocks\n")
-        f.write(f"- `_update_step_status()` — 1 except block\n")
+        f.write("Total `except Exception` blocks in mission_executor.py: **29**\n\n")
+        f.write("These are the areas where exceptions could be silently swallowed:\n")
+        f.write("- `_get_model_router()` — 2 except blocks\n")
+        f.write("- `_get_rag_service()` — 2 except blocks\n")
+        f.write("- `_update_step_status()` — 1 except block\n")
         f.write(
-            f"- `plan_mission()` — 3 except blocks (permanent, retryable, general)\n"
+            "- `plan_mission()` — 3 except blocks (permanent, retryable, general)\n"
         )
-        f.write(f"- `_generate_plan()` — 3 except blocks\n")
+        f.write("- `_generate_plan()` — 3 except blocks\n")
         f.write(
-            f"- `execute_mission()` — 3 except blocks (task-level + analytics + audit)\n"
+            "- `execute_mission()` — 3 except blocks (task-level + analytics + audit)\n"
         )
-        f.write(f"- `execute_task()` — 2 except blocks\n")
-        f.write(f"- `_execute_llm()` — 2 except blocks\n")
-        f.write(f"- `_execute_tool()` — 2 except blocks\n")
-        f.write(f"- `_execute_browser_tool()` — 2 except blocks\n")
-        f.write(f"- `_execute_code_from_string()` — 1 except block\n")
-        f.write(f"- `_log()` — 1 except block\n")
-        f.write(f"- `_resolve_agent_system_prompt()` — 1 except block\n")
-        f.write(f"- Various tool handlers — 5+ except blocks\n")
+        f.write("- `execute_task()` — 2 except blocks\n")
+        f.write("- `_execute_llm()` — 2 except blocks\n")
+        f.write("- `_execute_tool()` — 2 except blocks\n")
+        f.write("- `_execute_browser_tool()` — 2 except blocks\n")
+        f.write("- `_execute_code_from_string()` — 1 except block\n")
+        f.write("- `_log()` — 1 except block\n")
+        f.write("- `_resolve_agent_system_prompt()` — 1 except block\n")
+        f.write("- Various tool handlers — 5+ except blocks\n")
 
     print(f"\n✓ Results written to {output_path}")
 
     # Also print a quick summary
-    print(f"\n{'='*70}")
-    print(f"FINAL SUMMARY")
-    print(f"{'='*70}")
+    print(f"\n{'=' * 70}")
+    print("FINAL SUMMARY")
+    print(f"{'=' * 70}")
     for r in results:
         num = r.get("num", "?")
         name = r.get("name", "Unknown")

@@ -189,9 +189,7 @@ Output format:
             AgentToolConfig(tool_id="document_analyzer", enabled=True),
             AgentToolConfig(tool_id="data_visualization", enabled=True),
         ],
-        memory_config=AgentMemoryConfig(
-            enabled=True, max_entries=300, retention_days=60
-        ),
+        memory_config=AgentMemoryConfig(enabled=True, max_entries=300, retention_days=60),
         capabilities=["analysis", "chat", "code"],
         featured=True,
         rating=4.7,
@@ -315,9 +313,7 @@ Response structure:
             AgentToolConfig(tool_id="ticket_system", enabled=True),
             AgentToolConfig(tool_id="order_lookup", enabled=True),
         ],
-        memory_config=AgentMemoryConfig(
-            enabled=True, max_entries=500, retention_days=90
-        ),
+        memory_config=AgentMemoryConfig(enabled=True, max_entries=500, retention_days=90),
         capabilities=["chat", "analysis"],
         rating=4.5,
         installs=1800,
@@ -436,9 +432,7 @@ Important disclaimer:
             AgentToolConfig(tool_id="web_search", enabled=True),
             AgentToolConfig(tool_id="document_analyzer", enabled=True),
         ],
-        memory_config=AgentMemoryConfig(
-            enabled=True, max_entries=300, retention_days=90
-        ),
+        memory_config=AgentMemoryConfig(enabled=True, max_entries=300, retention_days=90),
         capabilities=["analysis", "chat"],
         rating=4.3,
         installs=320,

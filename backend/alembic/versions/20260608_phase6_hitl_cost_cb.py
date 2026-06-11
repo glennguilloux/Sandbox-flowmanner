@@ -10,9 +10,10 @@ Revises: marketplace_v2_001
 Create Date: 2026-06-08
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "phase6_hitl_cost_cb"
 down_revision = "marketplace_v2_001"
@@ -86,9 +87,7 @@ def upgrade() -> None:
         sa.Column("workspace_id", sa.String(36), nullable=True),
         sa.Column("max_llm_calls", sa.Integer, nullable=False, server_default="100"),
         sa.Column("max_cost_usd", sa.Float, nullable=False, server_default="10.0"),
-        sa.Column(
-            "max_duration_seconds", sa.Integer, nullable=False, server_default="3600"
-        ),
+        sa.Column("max_duration_seconds", sa.Integer, nullable=False, server_default="3600"),
         sa.Column("max_tool_calls", sa.Integer, nullable=False, server_default="200"),
         sa.Column(
             "destructive_actions_require_approval",
@@ -98,9 +97,7 @@ def upgrade() -> None:
         ),
         sa.Column("llm_calls_made", sa.Integer, nullable=False, server_default="0"),
         sa.Column("tool_calls_made", sa.Integer, nullable=False, server_default="0"),
-        sa.Column(
-            "cost_accumulated_usd", sa.Float, nullable=False, server_default="0.0"
-        ),
+        sa.Column("cost_accumulated_usd", sa.Float, nullable=False, server_default="0.0"),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("state", sa.String(20), nullable=False, server_default="armed"),
         sa.Column("trigger_reason", sa.Text, nullable=True),
@@ -120,9 +117,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index(
-        "ix_mcb_mission", "mission_circuit_breakers", ["mission_id"], unique=True
-    )
+    op.create_index("ix_mcb_mission", "mission_circuit_breakers", ["mission_id"], unique=True)
     op.create_index("ix_mcb_workspace", "mission_circuit_breakers", ["workspace_id"])
     op.create_index("ix_mcb_state", "mission_circuit_breakers", ["state"])
 

@@ -102,9 +102,7 @@ class ViralTrendAnalyzerTool(BaseTool):
         try:
             validated = ViralTrendAnalyzerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.max_results < 1 or validated.max_results > 50:
             return ToolResult.error_result(
@@ -134,9 +132,7 @@ class ViralTrendAnalyzerTool(BaseTool):
         platform_data: dict[str, Any] = {}
         for platform in platforms:
             try:
-                platform_data[platform] = await self._fetch_platform_trends(
-                    platform, validated.topic, validated.region
-                )
+                platform_data[platform] = await self._fetch_platform_trends(platform, validated.topic, validated.region)
             except Exception as e:
                 logger.warning("Failed to fetch %s trends: %s", platform, e)
                 platform_data[platform] = {"error": str(e), "trends": []}
@@ -171,9 +167,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             "engine": "llm-enhanced",
         }
 
-    async def _fetch_platform_trends(
-        self, platform: str, topic: str | None, region: str
-    ) -> dict[str, Any]:
+    async def _fetch_platform_trends(self, platform: str, topic: str | None, region: str) -> dict[str, Any]:
         """Scrape trend data from a platform's public endpoints."""
         # All data is gathered from public, non-authenticated endpoints
         async with httpx.AsyncClient(timeout=TREND_TIMEOUT) as client:
@@ -191,18 +185,14 @@ class ViralTrendAnalyzerTool(BaseTool):
                 return await self._fetch_linkedin_trends(client, topic)
             return {"error": f"Unknown platform: {platform}"}
 
-    async def _fetch_reddit_trends(
-        self, client: httpx.AsyncClient, topic: str | None
-    ) -> dict[str, Any]:
+    async def _fetch_reddit_trends(self, client: httpx.AsyncClient, topic: str | None) -> dict[str, Any]:
         """Fetch trending posts from Reddit."""
         subreddit = "all"
         if topic:
             subreddit = topic.replace(" ", "")
 
         url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=25"
-        resp = await client.get(
-            url, headers={"User-Agent": "Flowmanner/1.0"}, follow_redirects=True
-        )
+        resp = await client.get(url, headers={"User-Agent": "Flowmanner/1.0"}, follow_redirects=True)
         if resp.status_code != 200:
             return {"error": f"Reddit returned {resp.status_code}"}
 
@@ -227,9 +217,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             "total_fetched": len(posts),
         }
 
-    async def _fetch_news_trends(
-        self, client: httpx.AsyncClient, topic: str | None, region: str
-    ) -> dict[str, Any]:
+    async def _fetch_news_trends(self, client: httpx.AsyncClient, topic: str | None, region: str) -> dict[str, Any]:
         """Fetch trending news headlines."""
         # Use NewsAPI-like approach with public RSS feeds
         feeds = {
@@ -258,12 +246,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             )
 
         if topic:
-            items = [
-                i
-                for i in items
-                if topic.lower()
-                in (i.get("title", "") + i.get("description", "")).lower()
-            ]
+            items = [i for i in items if topic.lower() in (i.get("title", "") + i.get("description", "")).lower()]
 
         return {
             "source": f"news-{region}",
@@ -271,9 +254,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             "total_fetched": len(items),
         }
 
-    async def _fetch_twitter_trends(
-        self, client: httpx.AsyncClient, region: str
-    ) -> dict[str, Any]:
+    async def _fetch_twitter_trends(self, client: httpx.AsyncClient, region: str) -> dict[str, Any]:
         """Note: Twitter trends require API v1.1 which is restricted."""
         return {
             "source": "twitter",
@@ -285,9 +266,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             ),
         }
 
-    async def _fetch_youtube_trends(
-        self, client: httpx.AsyncClient, region: str
-    ) -> dict[str, Any]:
+    async def _fetch_youtube_trends(self, client: httpx.AsyncClient, region: str) -> dict[str, Any]:
         """Fetch YouTube trending videos via public RSS feed."""
         region_code = region.lower()
         url = f"https://www.youtube.com/feeds/videos.xml?gl={region_code}"
@@ -304,17 +283,10 @@ class ViralTrendAnalyzerTool(BaseTool):
         for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
             items.append(
                 {
-                    "title": (
-                        entry.findtext("{http://www.w3.org/2005/Atom}title") or ""
-                    ).strip(),
-                    "link": entry.find("{http://www.w3.org/2005/Atom}link").get(
-                        "href", ""
-                    ),
+                    "title": (entry.findtext("{http://www.w3.org/2005/Atom}title") or "").strip(),
+                    "link": entry.find("{http://www.w3.org/2005/Atom}link").get("href", ""),
                     "channel": (
-                        entry.findtext(
-                            "{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name"
-                        )
-                        or ""
+                        entry.findtext("{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name") or ""
                     ).strip(),
                 }
             )
@@ -325,9 +297,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             "total_fetched": len(items),
         }
 
-    async def _fetch_tiktok_trends(
-        self, client: httpx.AsyncClient, topic: str | None
-    ) -> dict[str, Any]:
+    async def _fetch_tiktok_trends(self, client: httpx.AsyncClient, topic: str | None) -> dict[str, Any]:
         """TikTok trends via public RSS-style endpoint (limited)."""
         return {
             "source": "tiktok",
@@ -338,9 +308,7 @@ class ViralTrendAnalyzerTool(BaseTool):
             ),
         }
 
-    async def _fetch_linkedin_trends(
-        self, client: httpx.AsyncClient, topic: str | None
-    ) -> dict[str, Any]:
+    async def _fetch_linkedin_trends(self, client: httpx.AsyncClient, topic: str | None) -> dict[str, Any]:
         """LinkedIn trends via public pulse/content (limited)."""
         return {
             "source": "linkedin",
@@ -365,14 +333,9 @@ class ViralTrendAnalyzerTool(BaseTool):
             total_trends += len(trends)
             if trends and not pdata.get("note"):
                 titles = [t.get("title", t.get("headline", "")) for t in trends[:5]]
-                data_summary_parts.append(
-                    f"**{platform.capitalize()}**:\n"
-                    + "\n".join(f"- {t}" for t in titles)
-                )
+                data_summary_parts.append(f"**{platform.capitalize()}**:\n" + "\n".join(f"- {t}" for t in titles))
             elif pdata.get("note"):
-                data_summary_parts.append(
-                    f"**{platform.capitalize()}**: {pdata.get('note')}"
-                )
+                data_summary_parts.append(f"**{platform.capitalize()}**: {pdata.get('note')}")
 
         if not data_summary_parts:
             return {

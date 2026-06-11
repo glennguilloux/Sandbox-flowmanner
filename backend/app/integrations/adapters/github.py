@@ -64,9 +64,7 @@ class GitHubAdapter(BaseIntegrationAdapter):
 
     # ── Action: create_issue ───────────────────────────────────────────────
 
-    async def _create_issue(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _create_issue(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Create an issue in a GitHub repository.
 
         Required params: ``owner``, ``repo``, ``title``
@@ -99,9 +97,7 @@ class GitHubAdapter(BaseIntegrationAdapter):
 
     # ── Action: create_pr ──────────────────────────────────────────────────
 
-    async def _create_pr(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _create_pr(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Create a pull request.
 
         Required params: ``owner``, ``repo``, ``title``, ``head``, ``base``
@@ -142,9 +138,7 @@ class GitHubAdapter(BaseIntegrationAdapter):
 
     # ── Action: search_repos ───────────────────────────────────────────────
 
-    async def _search_repos(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _search_repos(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Search repositories on GitHub.
 
         Required params: ``query``
@@ -171,9 +165,7 @@ class GitHubAdapter(BaseIntegrationAdapter):
 
     # ── Action: get_file_contents ──────────────────────────────────────────
 
-    async def _get_file_contents(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _get_file_contents(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Retrieve file contents from a GitHub repository.
 
         Required params: ``owner``, ``repo``, ``path``

@@ -249,9 +249,7 @@ async def _send_pagerduty(payload: dict) -> bool:
     """
     integration_key = os.getenv("PAGERDUTY_INTEGRATION_KEY", "")
     if not integration_key:
-        logger.debug(
-            "pagerduty channel: PAGERDUTY_INTEGRATION_KEY not configured — skipping"
-        )
+        logger.debug("pagerduty channel: PAGERDUTY_INTEGRATION_KEY not configured — skipping")
         return False
 
     # Map payload severity to PagerDuty severity
@@ -284,9 +282,7 @@ async def _send_pagerduty(payload: dict) -> bool:
             )
             if resp.status_code < 300:
                 return True
-            logger.warning(
-                "pagerduty channel returned %d: %s", resp.status_code, resp.text[:200]
-            )
+            logger.warning("pagerduty channel returned %d: %s", resp.status_code, resp.text[:200])
             return False
     except Exception as e:
         logger.warning("pagerduty channel failed (non-fatal): %s", e)
@@ -364,11 +360,7 @@ async def send_circuit_alert(
         return
 
     emoji = "🔴" if new_state == "open" else "🟡" if new_state == "half_open" else "🟢"
-    severity = (
-        "CRITICAL"
-        if new_state == "open"
-        else "WARNING" if new_state == "half_open" else "INFO"
-    )
+    severity = "CRITICAL" if new_state == "open" else "WARNING" if new_state == "half_open" else "INFO"
 
     # Build rich internal payload — each channel dispatcher formats as needed
     payload = {
@@ -381,11 +373,7 @@ async def send_circuit_alert(
         "username": "Flowmanner Alerts",
         "icon_emoji": ":warning:",
         "title": f"[{severity}] Circuit Breaker: {dependency}",
-        "priority": (
-            "urgent"
-            if severity == "CRITICAL"
-            else "high" if severity == "WARNING" else "default"
-        ),
+        "priority": ("urgent" if severity == "CRITICAL" else "high" if severity == "WARNING" else "default"),
         "tags": ["circuit_breaker", new_state],
     }
 
@@ -491,13 +479,9 @@ def get_alerting_status() -> dict:
         "pagerduty_configured": bool(os.getenv("PAGERDUTY_INTEGRATION_KEY", "")),
         "cooldown_seconds": _ALERT_COOLDOWN_SECONDS,
         "last_alert_ago_seconds": (
-            round(time.monotonic() - _alert_state.last_sent, 1)
-            if _alert_state.last_sent > 0
-            else None
+            round(time.monotonic() - _alert_state.last_sent, 1) if _alert_state.last_sent > 0 else None
         ),
         "last_slo_alert_ago_seconds": (
-            round(time.monotonic() - _slo_alert_state.last_sent, 1)
-            if _slo_alert_state.last_sent > 0
-            else None
+            round(time.monotonic() - _slo_alert_state.last_sent, 1) if _slo_alert_state.last_sent > 0 else None
         ),
     }

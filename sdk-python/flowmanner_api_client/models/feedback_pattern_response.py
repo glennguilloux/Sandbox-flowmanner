@@ -39,9 +39,7 @@ class FeedbackPatternResponse:
     description: str
     frequency: int
     severity: str
-    example_mission_ids: (
-        FeedbackPatternResponseExampleMissionIdsType0 | None | Unset
-    ) = UNSET
+    example_mission_ids: FeedbackPatternResponseExampleMissionIdsType0 | None | Unset = UNSET
     suggested_fix: None | str | Unset = UNSET
     status: str | Unset = "active"
     created_at: datetime.datetime | None | Unset = UNSET
@@ -65,9 +63,7 @@ class FeedbackPatternResponse:
         example_mission_ids: dict[str, Any] | None | Unset
         if isinstance(self.example_mission_ids, Unset):
             example_mission_ids = UNSET
-        elif isinstance(
-            self.example_mission_ids, FeedbackPatternResponseExampleMissionIdsType0
-        ):
+        elif isinstance(self.example_mission_ids, FeedbackPatternResponseExampleMissionIdsType0):
             example_mission_ids = self.example_mission_ids.to_dict()
         else:
             example_mission_ids = self.example_mission_ids
@@ -137,20 +133,14 @@ class FeedbackPatternResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                example_mission_ids_type_0 = (
-                    FeedbackPatternResponseExampleMissionIdsType0.from_dict(data)
-                )
+                example_mission_ids_type_0 = FeedbackPatternResponseExampleMissionIdsType0.from_dict(data)
 
                 return example_mission_ids_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                FeedbackPatternResponseExampleMissionIdsType0 | None | Unset, data
-            )
+            return cast(FeedbackPatternResponseExampleMissionIdsType0 | None | Unset, data)
 
-        example_mission_ids = _parse_example_mission_ids(
-            d.pop("example_mission_ids", UNSET)
-        )
+        example_mission_ids = _parse_example_mission_ids(d.pop("example_mission_ids", UNSET))
 
         def _parse_suggested_fix(data: object) -> None | str | Unset:
             if data is None:

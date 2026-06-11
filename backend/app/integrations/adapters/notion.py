@@ -28,9 +28,7 @@ class NotionAdapter(BaseIntegrationAdapter):
 
     # ── Action dispatch ────────────────────────────────────────────────────
 
-    async def _execute_action(
-        self, action: str, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _execute_action(self, action: str, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         match action:
             case "create_page":
                 return await self._create_page(params, access_token)
@@ -54,9 +52,7 @@ class NotionAdapter(BaseIntegrationAdapter):
 
     # ── Action: create_page ────────────────────────────────────────────────
 
-    async def _create_page(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _create_page(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Create a new Notion page.
 
         Required: ``parent_page_id``, ``properties`` (dict of property values)
@@ -91,9 +87,7 @@ class NotionAdapter(BaseIntegrationAdapter):
 
     # ── Action: query_database ─────────────────────────────────────────────
 
-    async def _query_database(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _query_database(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Query a Notion database with optional filters and sorting.
 
         Required: ``database_id``
@@ -121,9 +115,7 @@ class NotionAdapter(BaseIntegrationAdapter):
 
     # ── Action: append_block ───────────────────────────────────────────────
 
-    async def _append_block(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _append_block(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Append block children to a page or block.
 
         Required: ``block_id``, ``children`` (list of block objects)

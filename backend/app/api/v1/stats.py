@@ -23,9 +23,7 @@ async def get_dashboard_stats(
     # Missions counts
     try:
         rows = await db.execute(
-            text(
-                "SELECT status, COUNT(*) FROM missions WHERE user_id=:uid GROUP BY status"
-            ),
+            text("SELECT status, COUNT(*) FROM missions WHERE user_id=:uid GROUP BY status"),
             {"uid": uid},
         )
         stats["missions"] = {row[0]: row[1] for row in rows.fetchall()}
@@ -35,9 +33,7 @@ async def get_dashboard_stats(
     # Workflow runs counts
     try:
         rows = await db.execute(
-            text(
-                "SELECT status, COUNT(*) FROM workflow_runs WHERE user_id=:uid GROUP BY status"
-            ),
+            text("SELECT status, COUNT(*) FROM workflow_runs WHERE user_id=:uid GROUP BY status"),
             {"uid": uid},
         )
         stats["workflow_runs"] = {row[0]: row[1] for row in rows.fetchall()}

@@ -33,16 +33,13 @@ def _make_mission_payload(**overrides):
 
 
 class TestProcessMission:
-
     @pytest.mark.asyncio
     async def test_extracts_episode_tuple_and_persists(self):
         worker = MemoryConsolidationWorker()
         db = AsyncMock(spec=AsyncSession)
         mid = str(uuid4())
 
-        await worker.process_mission(
-            db, mid, user_id=42, payload=_make_mission_payload()
-        )
+        await worker.process_mission(db, mid, user_id=42, payload=_make_mission_payload())
 
         calls = [c.args[0] for c in db.add.call_args_list]
         sessions = [o for o in calls if isinstance(o, MemorySession)]
@@ -82,9 +79,7 @@ class TestProcessMission:
         db = AsyncMock(spec=AsyncSession)
         mid = str(uuid4())
 
-        await worker.process_mission(
-            db, mid, user_id=1, payload=_make_mission_payload()
-        )
+        await worker.process_mission(db, mid, user_id=1, payload=_make_mission_payload())
 
         calls = [c.args[0] for c in db.add.call_args_list]
         memories = [o for o in calls if isinstance(o, Memory)]
@@ -99,7 +94,6 @@ class TestProcessMission:
 
 
 class TestRetrieveByMission:
-
     @pytest.mark.asyncio
     async def test_returns_matching_memories(self):
         worker = MemoryConsolidationWorker()
@@ -150,7 +144,6 @@ class TestRetrieveByMission:
 
 
 class TestRetrieveByAgent:
-
     @pytest.mark.asyncio
     async def test_filters_by_agent_id_in_metadata(self):
         worker = MemoryConsolidationWorker()
@@ -193,7 +186,6 @@ class TestRetrieveByAgent:
 
 
 class TestRetention:
-
     @pytest.mark.asyncio
     async def test_deletes_sessions_older_than_90_days(self):
         worker = MemoryConsolidationWorker()
@@ -237,7 +229,6 @@ class TestRetention:
 
 
 class TestSingleton:
-
     def test_get_consolidation_worker_returns_same_instance(self):
         w1 = get_consolidation_worker()
         w2 = get_consolidation_worker()

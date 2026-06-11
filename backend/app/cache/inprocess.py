@@ -38,9 +38,7 @@ def cached_agent_templates(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Build cache key from function name + args
-        cache_key = (
-            f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
-        )
+        cache_key = f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
         result = _agent_templates_cache.get(cache_key)
         if result is not None:
             return result

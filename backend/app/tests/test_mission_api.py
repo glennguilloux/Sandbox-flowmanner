@@ -259,9 +259,7 @@ class TestMissionSlashCompatibility:
             ),
         ],
     )
-    def test_dual_routes_return_200(
-        self, auth_client, mission_service_mocks, path_a, path_b
-    ):
+    def test_dual_routes_return_200(self, auth_client, mission_service_mocks, path_a, path_b):
         if "/stream" in path_a:
             # stream uses async generator — already set up in fixture
             pass

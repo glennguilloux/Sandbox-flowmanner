@@ -11,6 +11,4 @@ import logging
 logger = logging.getLogger(__name__)
 
 # This module is deprecated - rate limiting is handled by Traefik
-logger.info(
-    "Traefik integration middleware - rate limiting disabled, using Traefik only"
-)
+logger.info("Traefik integration middleware - rate limiting disabled, using Traefik only")

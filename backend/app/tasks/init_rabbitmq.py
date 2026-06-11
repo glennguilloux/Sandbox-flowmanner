@@ -63,9 +63,7 @@ QUEUES: dict[str, dict[str, Any]] = {
 }
 
 
-def initialize_rabbitmq_infrastructure(
-    max_retries: int = 5, retry_delay: int = 5
-) -> dict[str, Any]:
+def initialize_rabbitmq_infrastructure(max_retries: int = 5, retry_delay: int = 5) -> dict[str, Any]:
     """
     Initialize RabbitMQ by declaring all exchanges and queues.
 
@@ -111,9 +109,7 @@ def initialize_rabbitmq_infrastructure(
     for attempt in range(1, max_retries + 1):
         try:
             with Connection(broker_url, connect_timeout=10) as conn:
-                logger.info(
-                    "Connected to RabbitMQ (attempt %s/%s)", attempt, max_retries
-                )
+                logger.info("Connected to RabbitMQ (attempt %s/%s)", attempt, max_retries)
 
                 channel = conn.default_channel
 
@@ -158,9 +154,7 @@ def initialize_rabbitmq_infrastructure(
 
                 result["success"] = len(result["errors"]) == 0
                 if result["success"]:
-                    logger.info(
-                        "RabbitMQ infrastructure initialization completed successfully"
-                    )
+                    logger.info("RabbitMQ infrastructure initialization completed successfully")
                 else:
                     logger.warning(
                         "RabbitMQ initialization completed with %s errors",
@@ -178,9 +172,7 @@ def initialize_rabbitmq_infrastructure(
                 logger.info("Retrying in %s seconds...", retry_delay)
                 time.sleep(retry_delay)
             else:
-                logger.error(
-                    "Failed to connect to RabbitMQ after %s attempts", max_retries
-                )
+                logger.error("Failed to connect to RabbitMQ after %s attempts", max_retries)
 
     return result
 
@@ -232,9 +224,7 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
             for queue_name in QUEUES:
                 try:
                     queue_config = QUEUES[queue_name]
-                    exchange = Exchange(
-                        queue_config["exchange"], type="direct", durable=True
-                    )
+                    exchange = Exchange(queue_config["exchange"], type="direct", durable=True)
                     queue = Queue(
                         queue_name,
                         exchange=exchange,
@@ -249,10 +239,7 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
                     result["queues_missing"].append(queue_name)
                     logger.warning("Queue missing: %s", queue_name)
 
-            result["healthy"] = (
-                len(result["exchanges_missing"]) == 0
-                and len(result["queues_missing"]) == 0
-            )
+            result["healthy"] = len(result["exchanges_missing"]) == 0 and len(result["queues_missing"]) == 0
 
             if result["healthy"]:
                 logger.info("RabbitMQ infrastructure verification: HEALTHY")

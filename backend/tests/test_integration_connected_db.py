@@ -17,7 +17,7 @@ Usage:
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -48,9 +48,7 @@ _TEST_DATABASE_URL = settings.DATABASE_URL.replace("workflow-postgres", "localho
 # NullPool: each async session gets a fresh connection, avoiding asyncpg
 # "another operation is in progress" errors from connection reuse across tests.
 _test_engine = create_async_engine(_TEST_DATABASE_URL, echo=False, poolclass=NullPool)
-TestSessionLocal = sessionmaker(
-    _test_engine, class_=AsyncSession, expire_on_commit=False
-)
+TestSessionLocal = sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 # ── Engine lifecycle ───────────────────────────────────────────────────────
@@ -192,7 +190,7 @@ async def _seed_connection(
         account_id=account_id,
         is_active=is_active,
         encrypted_access_token=access_token,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     session.add(conn)
     await session.commit()
@@ -219,9 +217,7 @@ class TestRealDBSingleOAuth:
     """Single OAuth connection seeded in the real DB."""
 
     @pytest.mark.asyncio
-    async def test_slack_connection_returns_correct_structure(
-        self, test_user_and_session, real_db_client
-    ):
+    async def test_slack_connection_returns_correct_structure(self, test_user_and_session, real_db_client):
         test_user, session = test_user_and_session
         conn_id = str(uuid.uuid4())
         await _seed_connection(
@@ -249,9 +245,7 @@ class TestRealDBSingleOAuth:
         assert len(entry["actions"]) == expected_actions
 
     @pytest.mark.asyncio
-    async def test_github_connection_includes_expected_actions(
-        self, test_user_and_session, real_db_client
-    ):
+    async def test_github_connection_includes_expected_actions(self, test_user_and_session, real_db_client):
         test_user, session = test_user_and_session
         conn_id = str(uuid.uuid4())
         await _seed_connection(
@@ -272,9 +266,7 @@ class TestRealDBSingleOAuth:
         assert "search_code" in action_ids, f"Missing search_code in {action_ids}"
 
     @pytest.mark.asyncio
-    async def test_multiple_oauth_connections(
-        self, test_user_and_session, real_db_client
-    ):
+    async def test_multiple_oauth_connections(self, test_user_and_session, real_db_client):
         test_user, session = test_user_and_session
         slack_id = str(uuid.uuid4())
         github_id = str(uuid.uuid4())
@@ -306,9 +298,7 @@ class TestRealDBFiltering:
     """Inactive connections should not appear."""
 
     @pytest.mark.asyncio
-    async def test_inactive_connection_is_excluded(
-        self, test_user_and_session, real_db_client
-    ):
+    async def test_inactive_connection_is_excluded(self, test_user_and_session, real_db_client):
         test_user, session = test_user_and_session
         active_id = str(uuid.uuid4())
         inactive_id = str(uuid.uuid4())
@@ -343,13 +333,9 @@ class TestRealDBNonOAuth:
     """Non-OAuth integrations via env vars (Linear, Discord)."""
 
     @pytest.mark.asyncio
-    async def test_linear_appears_when_api_key_set(
-        self, monkeypatch, test_user_and_session, real_db_client
-    ):
+    async def test_linear_appears_when_api_key_set(self, monkeypatch, test_user_and_session, real_db_client):
         monkeypatch.setenv("LINEAR_API_KEY", "real-test-linear-key-integration")
-        monkeypatch.setattr(
-            settings, "LINEAR_API_KEY", "real-test-linear-key-integration"
-        )
+        monkeypatch.setattr(settings, "LINEAR_API_KEY", "real-test-linear-key-integration")
 
         response = real_db_client.get("/api/integrations/connected")
 
@@ -366,13 +352,9 @@ class TestRealDBNonOAuth:
         assert len(linear["actions"]) == expected
 
     @pytest.mark.asyncio
-    async def test_discord_appears_when_bot_token_set(
-        self, monkeypatch, test_user_and_session, real_db_client
-    ):
+    async def test_discord_appears_when_bot_token_set(self, monkeypatch, test_user_and_session, real_db_client):
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "real-test-discord-token-integration")
-        monkeypatch.setattr(
-            settings, "DISCORD_BOT_TOKEN", "real-test-discord-token-integration"
-        )
+        monkeypatch.setattr(settings, "DISCORD_BOT_TOKEN", "real-test-discord-token-integration")
 
         response = real_db_client.get("/api/integrations/connected")
 
@@ -385,9 +367,7 @@ class TestRealDBNonOAuth:
         assert discord["account_id"] is None
 
     @pytest.mark.asyncio
-    async def test_linear_and_oauth_together(
-        self, monkeypatch, test_user_and_session, real_db_client
-    ):
+    async def test_linear_and_oauth_together(self, monkeypatch, test_user_and_session, real_db_client):
         test_user, session = test_user_and_session
         monkeypatch.setenv("LINEAR_API_KEY", "real-test-linear-key-mixed")
         monkeypatch.setattr(settings, "LINEAR_API_KEY", "real-test-linear-key-mixed")
@@ -415,9 +395,7 @@ class TestRealDBUnknownSlug:
     """Integration slugs not in _INTEGRATION_CAPABILITIES get zero actions."""
 
     @pytest.mark.asyncio
-    async def test_unknown_slug_has_empty_actions(
-        self, test_user_and_session, real_db_client
-    ):
+    async def test_unknown_slug_has_empty_actions(self, test_user_and_session, real_db_client):
         test_user, session = test_user_and_session
         conn_id = str(uuid.uuid4())
         await _seed_connection(

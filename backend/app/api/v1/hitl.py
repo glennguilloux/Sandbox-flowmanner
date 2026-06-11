@@ -50,9 +50,7 @@ class ClarifyRequest(BaseModel):
 
 @router.get("/")
 async def list_inbox(
-    interrupt_type: str | None = Query(
-        None, description="Filter by type: approval, clarification, escalation"
-    ),
+    interrupt_type: str | None = Query(None, description="Filter by type: approval, clarification, escalation"),
     mission_id: str | None = Query(None, description="Filter by mission"),
     status: str | None = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=200),
@@ -96,13 +94,7 @@ async def list_inbox(
         count_stmt = select(func.count()).select_from(InboxItem).where(where)
         total = (await db.execute(count_stmt)).scalar() or 0
 
-        stmt = (
-            select(InboxItem)
-            .where(where)
-            .order_by(InboxItem.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-        )
+        stmt = select(InboxItem).where(where).order_by(InboxItem.created_at.desc()).offset(offset).limit(limit)
         items = (await db.execute(stmt)).scalars().all()
         result = {
             "items": [HITLService._item_to_dict(i) for i in items],
@@ -219,9 +211,7 @@ async def clarify_item(
     if item.status != InboxItemStatus.PENDING.value:
         raise HTTPException(status_code=409, detail=f"Item already {item.status}")
     if item.interrupt_type != HumanInterruptType.CLARIFICATION.value:
-        raise HTTPException(
-            status_code=400, detail="Item is not a clarification request"
-        )
+        raise HTTPException(status_code=400, detail="Item is not a clarification request")
 
     payload = body.resolution_payload or {}
     payload["response_text"] = body.response_text

@@ -555,9 +555,7 @@ Response Format:
                         "tool_id": tool_call["tool_id"],
                         "tool_name": tool_call["tool_name"],
                         "parameters": tool_call.get("parameters", {}),
-                        "requires_approval": tool_call.get(
-                            "requires_approval", tool_def.requires_approval
-                        ),
+                        "requires_approval": tool_call.get("requires_approval", tool_def.requires_approval),
                     }
                 )
 
@@ -588,9 +586,7 @@ Response Format:
             use_fallback=True,
         )
 
-    def _extract_workflow_file_info(
-        self, message: str
-    ) -> tuple[str | None, dict[str, Any] | None]:
+    def _extract_workflow_file_info(self, message: str) -> tuple[str | None, dict[str, Any] | None]:
         """
         Extract workflow file reference from message and load it.
 
@@ -631,9 +627,7 @@ Response Format:
             match = re.search(pattern, message, re.IGNORECASE)
             if match:
                 workflow_name = match.group(1)
-                logger.info(
-                    "[DEBUG] Pattern %s matched, captured: '%s'", pattern, workflow_name
-                )
+                logger.info("[DEBUG] Pattern %s matched, captured: '%s'", pattern, workflow_name)
                 # Remove .json extension if present
                 if workflow_name.endswith(".json"):
                     workflow_name = workflow_name[:-5]
@@ -685,9 +679,7 @@ Response Format:
                 )
             elif "comfyui" in message_lower or "image" in message_lower:
                 # Try to extract workflow file reference
-                logger.info(
-                    "[DEBUG] ComfyUI detected in message, calling _extract_workflow_file_info"
-                )
+                logger.info("[DEBUG] ComfyUI detected in message, calling _extract_workflow_file_info")
                 workflow_name, workflow_data = self._extract_workflow_file_info(message)
                 logger.info(
                     "[DEBUG] Extraction result - workflow_name: %s, workflow_data: %s",
@@ -788,9 +780,7 @@ Response Format:
                     errors.append(f"Parameter {param_name} should be a string")
                 elif expected_type == "integer" and not isinstance(param_value, int):
                     errors.append(f"Parameter {param_name} should be an integer")
-                elif expected_type == "number" and not isinstance(
-                    param_value, (int, float)
-                ):
+                elif expected_type == "number" and not isinstance(param_value, (int, float)):
                     errors.append(f"Parameter {param_name} should be a number")
                 elif expected_type == "boolean" and not isinstance(param_value, bool):
                     errors.append(f"Parameter {param_name} should be a boolean")

@@ -175,15 +175,11 @@ class OpenWhiskClient:
 
         while retry_count < self.config.max_retries:
             try:
-                async with session.request(
-                    method=method, url=url, json=data, params=params
-                ) as response:
+                async with session.request(method=method, url=url, json=data, params=params) as response:
                     if response.status == 200:
                         return await response.json()
                     elif response.status == 401:
-                        raise ValueError(
-                            "Authentication failed. Check OPENWHISK_API_KEY."
-                        )
+                        raise ValueError("Authentication failed. Check OPENWHISK_API_KEY.")
                     elif response.status == 404:
                         raise ValueError(f"Resource not found: {endpoint}")
                     else:
@@ -202,9 +198,7 @@ class OpenWhiskClient:
                     )
                     await asyncio.sleep(2**retry_count)  # Exponential backoff
 
-        raise ValueError(
-            f"Request failed after {self.config.max_retries} retries: {last_error}"
-        )
+        raise ValueError(f"Request failed after {self.config.max_retries} retries: {last_error}")
 
     async def invoke_action(
         self,
@@ -238,9 +232,7 @@ class OpenWhiskClient:
             if params:
                 payload["params"] = params
 
-            response = await self._request(
-                method="POST", endpoint=f"/actions/{action_name}", data=payload
-            )
+            response = await self._request(method="POST", endpoint=f"/actions/{action_name}", data=payload)
 
             end_time = datetime.now(UTC)
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
@@ -282,9 +274,7 @@ class OpenWhiskClient:
             return ActionInvocation(
                 success=False,
                 error=str(e),
-                duration_ms=int(
-                    (datetime.now(UTC) - start_time).total_seconds() * 1000
-                ),
+                duration_ms=int((datetime.now(UTC) - start_time).total_seconds() * 1000),
             )
 
     async def create_action(
@@ -363,9 +353,7 @@ class OpenWhiskClient:
         if description is not None:
             payload["description"] = description
 
-        response = await self._request(
-            method="PUT", endpoint=f"/actions/{action_name}", data=payload
-        )
+        response = await self._request(method="PUT", endpoint=f"/actions/{action_name}", data=payload)
 
         logger.info("Action %s updated successfully", action_name)
         return response
@@ -419,9 +407,7 @@ class OpenWhiskClient:
                     kind=action.get("exec", {}).get("kind"),
                     exec=action.get("exec", {}),
                     limits=action.get("limits", {}),
-                    updated=datetime.fromisoformat(
-                        action.get("updated", "").replace("Z", "+00:00")
-                    ),
+                    updated=datetime.fromisoformat(action.get("updated", "").replace("Z", "+00:00")),
                 )
             )
 
@@ -453,9 +439,7 @@ class OpenWhiskClient:
             kind=action.get("exec", {}).get("kind"),
             exec=action.get("exec", {}),
             limits=action.get("limits", {}),
-            updated=datetime.fromisoformat(
-                action.get("updated", "").replace("Z", "+00:00")
-            ),
+            updated=datetime.fromisoformat(action.get("updated", "").replace("Z", "+00:00")),
         )
 
     async def create_trigger(
@@ -482,9 +466,7 @@ class OpenWhiskClient:
         if parameters:
             payload["parameters"] = parameters
 
-        response = await self._request(
-            method="PUT", endpoint=f"/triggers/{trigger_name}", data=payload
-        )
+        response = await self._request(method="PUT", endpoint=f"/triggers/{trigger_name}", data=payload)
 
         logger.info("Trigger %s created successfully", trigger_name)
         return response
@@ -517,9 +499,7 @@ class OpenWhiskClient:
                 "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    async def batch_invoke(
-        self, invocations: list[dict[str, Any]], max_concurrent: int = 10
-    ) -> list[ActionInvocation]:
+    async def batch_invoke(self, invocations: list[dict[str, Any]], max_concurrent: int = 10) -> list[ActionInvocation]:
         """
         Invoke multiple actions concurrently
 
@@ -552,9 +532,7 @@ class OpenWhiskClient:
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error("Batch invocation %s failed: %s", i, result)
-                processed_results.append(
-                    ActionInvocation(success=False, error=str(result))
-                )
+                processed_results.append(ActionInvocation(success=False, error=str(result)))
             else:
                 processed_results.append(result)  # type: ignore[arg-type]
 

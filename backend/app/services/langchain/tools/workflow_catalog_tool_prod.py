@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 LangChain Tool: Workflow Catalog Agent - Production Ready
 Search and recommend workflows from the catalog
@@ -68,9 +69,7 @@ class CatalogConnectionError(CatalogError):
 class CatalogRequest(BaseModel):
     """Request model for catalog operations"""
 
-    action: str = Field(
-        ..., description="Action: search, recommend, describe, categories"
-    )
+    action: str = Field(..., description="Action: search, recommend, describe, categories")
     query: str | None = Field(None, description="Search query or workflow ID")
     category: str | None = Field(None, description="Filter by category")
     limit: int | None = Field(5, description="Max results to return")
@@ -95,9 +94,7 @@ class HTTPClient:
             allowed_methods=["HEAD", "GET", "POST"],
         )
 
-        adapter = HTTPAdapter(
-            max_retries=retry_strategy, pool_connections=3, pool_maxsize=3
-        )
+        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=3, pool_maxsize=3)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
@@ -152,9 +149,7 @@ class CatalogClient:
         )
         logger.info("CatalogClient initialized for %s", self.config.BACKEND_API_URL)
 
-    def search_workflows(
-        self, query: str, category: str | None = None, limit: int = 5
-    ) -> list[dict]:
+    def search_workflows(self, query: str, category: str | None = None, limit: int = 5) -> list[dict]:
         """Search workflows by query with fallback"""
         logger.info(
             "Searching workflows - query: %s, category: %s, limit: %s",
@@ -184,13 +179,9 @@ class CatalogClient:
         logger.info("Recommending workflows - intent: %s, limit: %s", intent, limit)
 
         try:
-            response = self.http_client.post(
-                "/catalog/recommend", json_data={"intent": intent, "limit": limit}
-            )
+            response = self.http_client.post("/catalog/recommend", json_data={"intent": intent, "limit": limit})
             recommendations = response.json().get("recommendations", [])
-            logger.info(
-                "API recommendations returned %s workflows", len(recommendations)
-            )
+            logger.info("API recommendations returned %s workflows", len(recommendations))
             return recommendations
 
         except CatalogConnectionError as e:
@@ -234,9 +225,7 @@ class CatalogClient:
 
     # ==================== LOCAL FALLBACKS ====================
 
-    def _local_search(
-        self, query: str, category: str | None = None, limit: int = 5
-    ) -> list[dict]:
+    def _local_search(self, query: str, category: str | None = None, limit: int = 5) -> list[dict]:
         """Local fallback search"""
         workflows = self._get_local_workflows()
         query_lower = query.lower() if query else ""
@@ -244,9 +233,7 @@ class CatalogClient:
         # Extract keywords from query (remove common words)
         if query_lower:
             common_words = {"find", "search", "for", "workflows", "show", "me", "all"}
-            keywords = [
-                w for w in query_lower.split() if w not in common_words and len(w) > 2
-            ]
+            keywords = [w for w in query_lower.split() if w not in common_words and len(w) > 2]
         else:
             keywords = []
 
@@ -298,9 +285,7 @@ class CatalogClient:
         if not recommended_categories:
             recommended_categories = ["Visual", "Automation"]
 
-        results = [
-            wf for wf in workflows if wf.get("category") in recommended_categories
-        ]
+        results = [wf for wf in workflows if wf.get("category") in recommended_categories]
 
         logger.info("Intent-based recommendations: %s workflows", len(results[:limit]))
         return results[:limit]
@@ -437,9 +422,7 @@ class CatalogClient:
 # ==================== MAIN FUNCTION ====================
 
 
-def workflow_catalog(
-    action: str, query: str = None, category: str = None, limit: int = 5
-) -> str:
+def workflow_catalog(action: str, query: str = None, category: str = None, limit: int = 5) -> str:
     """
     Search and recommend workflows from the catalog.
 
@@ -462,9 +445,7 @@ def workflow_catalog(
     try:
         if action == "search":
             results = client.search_workflows(query, category, limit)
-            return json.dumps(
-                {"success": True, "count": len(results), "workflows": results}, indent=2
-            )
+            return json.dumps({"success": True, "count": len(results), "workflows": results}, indent=2)
 
         elif action == "recommend":
             results = client.recommend_workflows(query or "general", limit)
@@ -475,9 +456,7 @@ def workflow_catalog(
 
         elif action == "describe":
             if not query:
-                return json.dumps(
-                    {"success": False, "error": "query required for describe"}
-                )
+                return json.dumps({"success": False, "error": "query required for describe"})
 
             result = client.describe_workflow(query)
             return json.dumps({"success": True, "workflow": result}, indent=2)
@@ -500,9 +479,7 @@ def workflow_catalog(
 
 
 @tool
-def workflow_catalog_tool(
-    action: str, query: str = None, category: str = None, limit: int = 5
-) -> str:
+def workflow_catalog_tool(action: str, query: str = None, category: str = None, limit: int = 5) -> str:
     """
     Search and recommend workflows from the catalog.
 

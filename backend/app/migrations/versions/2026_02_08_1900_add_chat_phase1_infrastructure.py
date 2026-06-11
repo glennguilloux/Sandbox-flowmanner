@@ -54,43 +54,29 @@ def upgrade():
         sa.Column("created_by", sa.Integer(), nullable=True, index=True),
         sa.Column("is_active", sa.Boolean(), default=True, index=True),
         sa.Column("branch_data", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.ForeignKeyConstraint(
-            ["parent_thread_id"], ["chat_threads.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["parent_message_id"], ["chat_messages.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["branching_point_message_id"], ["chat_messages.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["parent_thread_id"], ["chat_threads.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["parent_message_id"], ["chat_messages.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["branching_point_message_id"], ["chat_messages.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Create indexes for chat_thread_branches
-    op.create_index(
-        "idx_branches_branch_id", "chat_thread_branches", ["branch_id"], unique=True
-    )
+    op.create_index("idx_branches_branch_id", "chat_thread_branches", ["branch_id"], unique=True)
     op.create_index(
         "idx_branches_parent_thread",
         "chat_thread_branches",
         ["parent_thread_id"],
         unique=False,
     )
-    op.create_index(
-        "idx_branches_created_by", "chat_thread_branches", ["created_by"], unique=False
-    )
-    op.create_index(
-        "idx_branches_active", "chat_thread_branches", ["is_active"], unique=False
-    )
+    op.create_index("idx_branches_created_by", "chat_thread_branches", ["created_by"], unique=False)
+    op.create_index("idx_branches_active", "chat_thread_branches", ["is_active"], unique=False)
 
     # Create shared_links table
     # Stores public sharing links with expiration and permission levels
@@ -108,9 +94,7 @@ def upgrade():
         sa.Column("last_accessed", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), default=True, index=True),
         sa.Column("share_metadata", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -118,9 +102,7 @@ def upgrade():
             onupdate=sa.func.now(),
         ),
         sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["branch_id"], ["chat_thread_branches.branch_id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["branch_id"], ["chat_thread_branches.branch_id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 
@@ -141,9 +123,7 @@ def upgrade():
         sa.Column("model_name", sa.String(100), nullable=False, index=True),
         sa.Column("model_provider", sa.String(50), nullable=True),
         sa.Column("model_config", sa.JSON(), nullable=True),
-        sa.Column(
-            "started_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("started_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("ended_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("total_tokens", sa.Integer(), default=0),
         sa.Column("prompt_tokens", sa.Integer(), default=0),
@@ -160,15 +140,9 @@ def upgrade():
         ["session_id"],
         unique=True,
     )
-    op.create_index(
-        "idx_model_sessions_thread", "chat_model_sessions", ["thread_id"], unique=False
-    )
-    op.create_index(
-        "idx_model_sessions_model", "chat_model_sessions", ["model_name"], unique=False
-    )
-    op.create_index(
-        "idx_model_sessions_active", "chat_model_sessions", ["is_active"], unique=False
-    )
+    op.create_index("idx_model_sessions_thread", "chat_model_sessions", ["thread_id"], unique=False)
+    op.create_index("idx_model_sessions_model", "chat_model_sessions", ["model_name"], unique=False)
+    op.create_index("idx_model_sessions_active", "chat_model_sessions", ["is_active"], unique=False)
 
     # Create context_settings table
     # Stores user context preferences per thread
@@ -188,9 +162,7 @@ def upgrade():
         sa.Column("smart_compression", sa.Boolean(), default=False),
         sa.Column("preserve_important", sa.Boolean(), default=True),
         sa.Column("priority_messages", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -208,21 +180,15 @@ def upgrade():
         ["setting_id"],
         unique=True,
     )
-    op.create_index(
-        "idx_context_settings_user", "context_settings", ["user_id"], unique=False
-    )
-    op.create_index(
-        "idx_context_settings_thread", "context_settings", ["thread_id"], unique=False
-    )
+    op.create_index("idx_context_settings_user", "context_settings", ["user_id"], unique=False)
+    op.create_index("idx_context_settings_thread", "context_settings", ["thread_id"], unique=False)
 
     # Create voice_transcriptions table
     # Stores voice input history and transcriptions
     op.create_table(
         "voice_transcriptions",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "transcription_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("transcription_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("message_id", sa.Integer(), nullable=False, index=True),
         sa.Column("thread_id", sa.Integer(), nullable=True, index=True),
         sa.Column("user_id", sa.Integer(), nullable=True, index=True),
@@ -233,19 +199,11 @@ def upgrade():
         sa.Column("confidence_score", sa.Float(), nullable=True),
         sa.Column("language_code", sa.String(10), nullable=True),
         sa.Column("stt_provider", sa.String(50), nullable=True),
-        sa.Column(
-            "processed_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("processed_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("processing_metadata", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["message_id"], ["chat_messages.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["thread_id"], ["chat_threads.id"], ondelete="SET NULL"
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["message_id"], ["chat_messages.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
     )
 
@@ -256,12 +214,8 @@ def upgrade():
         ["transcription_id"],
         unique=True,
     )
-    op.create_index(
-        "idx_voice_message", "voice_transcriptions", ["message_id"], unique=False
-    )
-    op.create_index(
-        "idx_voice_thread", "voice_transcriptions", ["thread_id"], unique=False
-    )
+    op.create_index("idx_voice_message", "voice_transcriptions", ["message_id"], unique=False)
+    op.create_index("idx_voice_thread", "voice_transcriptions", ["thread_id"], unique=False)
     op.create_index("idx_voice_user", "voice_transcriptions", ["user_id"], unique=False)
 
     # Create export_tokens table
@@ -285,9 +239,7 @@ def upgrade():
         sa.Column("checksum", sa.String(64), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("download_count", sa.Integer(), default=0),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -295,9 +247,7 @@ def upgrade():
             onupdate=sa.func.now(),
         ),
         sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["branch_id"], ["chat_thread_branches.branch_id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["branch_id"], ["chat_thread_branches.branch_id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 

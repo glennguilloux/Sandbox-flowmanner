@@ -12,9 +12,7 @@ from app.models import Base, TimestampMixin
 class ToolChain(Base, TimestampMixin):
     __tablename__ = "tool_chains"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     owner_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
@@ -29,9 +27,7 @@ class ToolChain(Base, TimestampMixin):
 class ToolChainExecution(Base, TimestampMixin):
     __tablename__ = "tool_chain_executions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     chain_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("tool_chains.id", ondelete="CASCADE"),
@@ -50,9 +46,7 @@ class ToolChainExecution(Base, TimestampMixin):
 class CustomTool(Base, TimestampMixin):
     __tablename__ = "custom_tools"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     owner_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
@@ -68,9 +62,7 @@ class CustomTool(Base, TimestampMixin):
 class ToolPermission(Base, TimestampMixin):
     __tablename__ = "tool_permissions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     tool_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     permission: Mapped[str] = mapped_column(String(50), default="use")
@@ -79,9 +71,7 @@ class ToolPermission(Base, TimestampMixin):
 class ToolAnalytics(Base, TimestampMixin):
     __tablename__ = "tool_analytics"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     tool_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)

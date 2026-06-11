@@ -113,9 +113,7 @@ class GoogleSearchApiTool(BaseTool):
         try:
             validated = GoogleSearchApiInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in SEARCH_ACTIONS:
             return ToolResult.error_result(

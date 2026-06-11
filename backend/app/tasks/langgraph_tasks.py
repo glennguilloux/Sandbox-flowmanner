@@ -93,9 +93,7 @@ def langgraph_execute_task(
 
 
 @celery_app.task(base=BaseTask, bind=True, name="langgraph.approval")
-def langgraph_approval_task(
-    self, session_id: str, approval: bool, notes: str | None = None
-) -> dict[str, Any]:
+def langgraph_approval_task(self, session_id: str, approval: bool, notes: str | None = None) -> dict[str, Any]:
     """
     Handle LangGraph approval asynchronously.
 

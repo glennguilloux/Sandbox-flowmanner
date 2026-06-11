@@ -23,9 +23,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def create_swarm(
-    db: AsyncSession, user_id: int, data: SwarmCreate
-) -> SwarmProfile:
+async def create_swarm(db: AsyncSession, user_id: int, data: SwarmCreate) -> SwarmProfile:
     swarm_id = uuid4().hex[:12]
     swarm = SwarmProfile(
         swarm_id=swarm_id,
@@ -46,15 +44,11 @@ async def create_swarm(
 
 
 async def get_swarm(db: AsyncSession, swarm_id: str) -> SwarmProfile | None:
-    result = await db.execute(
-        select(SwarmProfile).where(SwarmProfile.swarm_id == swarm_id)
-    )
+    result = await db.execute(select(SwarmProfile).where(SwarmProfile.swarm_id == swarm_id))
     return result.scalars().first()
 
 
-async def list_swarms(
-    db: AsyncSession, user_id: int | None = None, status: str | None = None
-) -> list[SwarmProfile]:
+async def list_swarms(db: AsyncSession, user_id: int | None = None, status: str | None = None) -> list[SwarmProfile]:
     q = select(SwarmProfile).order_by(SwarmProfile.created_at.desc())
     if user_id is not None:
         q = q.where(SwarmProfile.created_by == user_id)
@@ -64,9 +58,7 @@ async def list_swarms(
     return list(result.scalars().all())
 
 
-async def update_swarm(
-    db: AsyncSession, swarm_id: str, data: SwarmUpdate
-) -> SwarmProfile | None:
+async def update_swarm(db: AsyncSession, swarm_id: str, data: SwarmUpdate) -> SwarmProfile | None:
     swarm = await get_swarm(db, swarm_id)
     if not swarm:
         return None
@@ -105,9 +97,7 @@ async def add_agent_to_swarm(
     if not swarm:
         return None
 
-    tmpl_result = await db.execute(
-        select(AgentTemplate).where(AgentTemplate.id == template_id)
-    )
+    tmpl_result = await db.execute(select(AgentTemplate).where(AgentTemplate.id == template_id))
     template = tmpl_result.scalars().first()
     if not template:
         return None
@@ -136,9 +126,7 @@ async def add_agent_by_slug(
     role: str | None = None,
     assigned_model: str | None = None,
 ) -> SwarmAgent | None:
-    tmpl_result = await db.execute(
-        select(AgentTemplate).where(AgentTemplate.model_config["slug"].astext == slug)
-    )
+    tmpl_result = await db.execute(select(AgentTemplate).where(AgentTemplate.model_config["slug"].astext == slug))
     template = tmpl_result.scalars().first()
     if not template:
         logger.warning("Agent template not found for slug: %s", slug)
@@ -146,9 +134,7 @@ async def add_agent_by_slug(
     return await add_agent_to_swarm(db, swarm_id, template.id, role, assigned_model)
 
 
-async def populate_swarm_from_division(
-    db: AsyncSession, swarm_id: str, division: str
-) -> list[SwarmAgent]:
+async def populate_swarm_from_division(db: AsyncSession, swarm_id: str, division: str) -> list[SwarmAgent]:
     swarm = await get_swarm(db, swarm_id)
     if not swarm:
         return []
@@ -175,9 +161,7 @@ async def populate_swarm_from_division(
     return agents
 
 
-async def populate_swarm_from_slugs(
-    db: AsyncSession, swarm_id: str, slugs: list[str]
-) -> list[SwarmAgent]:
+async def populate_swarm_from_slugs(db: AsyncSession, swarm_id: str, slugs: list[str]) -> list[SwarmAgent]:
     agents = []
     for slug in slugs:
         agent = await add_agent_by_slug(db, swarm_id, slug)
@@ -193,18 +177,12 @@ async def populate_swarm_from_slugs(
 
 
 async def list_swarm_agents(db: AsyncSession, swarm_id: str) -> list[SwarmAgent]:
-    result = await db.execute(
-        select(SwarmAgent)
-        .where(SwarmAgent.swarm_id == swarm_id)
-        .order_by(SwarmAgent.joined_at)
-    )
+    result = await db.execute(select(SwarmAgent).where(SwarmAgent.swarm_id == swarm_id).order_by(SwarmAgent.joined_at))
     return list(result.scalars().all())
 
 
 async def remove_agent(db: AsyncSession, agent_instance_id: str) -> bool:
-    result = await db.execute(
-        select(SwarmAgent).where(SwarmAgent.agent_instance_id == agent_instance_id)
-    )
+    result = await db.execute(select(SwarmAgent).where(SwarmAgent.agent_instance_id == agent_instance_id))
     agent = result.scalars().first()
     if not agent:
         return False
@@ -213,9 +191,7 @@ async def remove_agent(db: AsyncSession, agent_instance_id: str) -> bool:
     return True
 
 
-async def create_swarm_task(
-    db: AsyncSession, swarm_id: str, data: SwarmTaskCreate
-) -> SwarmTask | None:
+async def create_swarm_task(db: AsyncSession, swarm_id: str, data: SwarmTaskCreate) -> SwarmTask | None:
     swarm = await get_swarm(db, swarm_id)
     if not swarm:
         return None
@@ -237,14 +213,8 @@ async def create_swarm_task(
     return task
 
 
-async def list_swarm_tasks(
-    db: AsyncSession, swarm_id: str, status: str | None = None
-) -> list[SwarmTask]:
-    q = (
-        select(SwarmTask)
-        .where(SwarmTask.swarm_id == swarm_id)
-        .order_by(SwarmTask.created_at)
-    )
+async def list_swarm_tasks(db: AsyncSession, swarm_id: str, status: str | None = None) -> list[SwarmTask]:
+    q = select(SwarmTask).where(SwarmTask.swarm_id == swarm_id).order_by(SwarmTask.created_at)
     if status:
         q = q.where(SwarmTask.status == status)
     result = await db.execute(q)
@@ -256,9 +226,7 @@ async def get_swarm_task(db: AsyncSession, task_id: str) -> SwarmTask | None:
     return result.scalars().first()
 
 
-async def update_swarm_task(
-    db: AsyncSession, task_id: str, data: SwarmTaskUpdate
-) -> SwarmTask | None:
+async def update_swarm_task(db: AsyncSession, task_id: str, data: SwarmTaskUpdate) -> SwarmTask | None:
     task = await get_swarm_task(db, task_id)
     if not task:
         return None

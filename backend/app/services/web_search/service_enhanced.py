@@ -110,9 +110,7 @@ class EnhancedWebSearchService:
         query_understanding = None
         if use_query_understanding:
             try:
-                query_understanding = await self.query_understanding.understand_query(
-                    query
-                )
+                query_understanding = await self.query_understanding.understand_query(query)
                 logger.info(
                     "Query intent: %s, complexity: %.2f",
                     query_understanding.intent.value,
@@ -164,9 +162,7 @@ class EnhancedWebSearchService:
                     results = []
                 all_results.extend(results)
                 providers_used.append(provider_name)
-                logger.info(
-                    "Provider %s returned %s results", provider_name, len(results)
-                )
+                logger.info("Provider %s returned %s results", provider_name, len(results))
             except Exception as e:
                 logger.error("Provider %s error: %s", provider_name, e)
 
@@ -176,14 +172,8 @@ class EnhancedWebSearchService:
         # Step 5: Rerank Results
         if use_reranking and deduped_results:
             try:
-                intent = (
-                    query_understanding.intent.value
-                    if query_understanding
-                    else "informational"
-                )
-                time_sensitive = (
-                    query_understanding.time_sensitive if query_understanding else False
-                )
+                intent = query_understanding.intent.value if query_understanding else "informational"
+                time_sensitive = query_understanding.time_sensitive if query_understanding else False
 
                 reranked = await self.result_reranker.rerank_results(
                     results=deduped_results,
@@ -238,17 +228,13 @@ class EnhancedWebSearchService:
             query_understanding=query_understanding,
         )
 
-    def _select_providers(
-        self, query_understanding: QueryUnderstanding | None
-    ) -> list[str]:
+    def _select_providers(self, query_understanding: QueryUnderstanding | None) -> list[str]:
         """Select best providers based on query understanding"""
         if query_understanding:
             return query_understanding.suggested_providers
         return list(self.providers.keys())
 
-    def _generate_cache_key(
-        self, query: str, max_results: int, providers: list[str] | None
-    ) -> str:
+    def _generate_cache_key(self, query: str, max_results: int, providers: list[str] | None) -> str:
         """Generate cache key for search"""
         provider_str = ",".join(sorted(providers or []))
         return f"search:{query}:{max_results}:{provider_str}"
@@ -259,11 +245,7 @@ class EnhancedWebSearchService:
         unique_results = []
 
         for result in results:
-            url = (
-                result.get("url", "")
-                if isinstance(result, dict)
-                else getattr(result, "url", "") or ""
-            )
+            url = result.get("url", "") if isinstance(result, dict) else getattr(result, "url", "") or ""
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 unique_results.append(result)

@@ -112,9 +112,7 @@ class HITLService:
             raise ValueError(f"Inbox item {item_id} not found")
 
         if item.status != InboxItemStatus.PENDING.value:
-            raise ValueError(
-                f"Inbox item {item_id} is already {item.status}, cannot resolve"
-            )
+            raise ValueError(f"Inbox item {item_id} is already {item.status}, cannot resolve")
 
         item.status = status.value
         item.resolved_at = datetime.now(UTC)
@@ -163,13 +161,7 @@ class HITLService:
         total = (await self.db.execute(count_stmt)).scalar() or 0
 
         # Fetch
-        stmt = (
-            select(InboxItem)
-            .where(where)
-            .order_by(InboxItem.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-        )
+        stmt = select(InboxItem).where(where).order_by(InboxItem.created_at.desc()).offset(offset).limit(limit)
         items = (await self.db.execute(stmt)).scalars().all()
 
         return {
@@ -210,9 +202,7 @@ class HITLService:
         stmt = select(func.count()).select_from(InboxItem).where(and_(*conditions))
         return (await self.db.execute(stmt)).scalar() or 0
 
-    async def _push_inbox_event(
-        self, user_id: int, event: str, item: InboxItem
-    ) -> None:
+    async def _push_inbox_event(self, user_id: int, event: str, item: InboxItem) -> None:
         """Push inbox event to user's SSE channel via Redis pub/sub."""
         try:
             from app.services.sse_service import publish_user_notification

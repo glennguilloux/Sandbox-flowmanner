@@ -112,12 +112,8 @@ class ComfyUIRequest(BaseModel):
         "hero-background",
         description="Type: hero-background, product-shot, 3d-model, general",
     )
-    style: str = Field(
-        "modern", description="Style: modern, minimal, dark, vibrant, professional"
-    )
-    resolution: str = Field(
-        "1920x1080", description="Resolution: 1920x1080, 1024x1024, etc"
-    )
+    style: str = Field("modern", description="Style: modern, minimal, dark, vibrant, professional")
+    resolution: str = Field("1920x1080", description="Resolution: 1920x1080, 1024x1024, etc")
     seed: int | None = Field(None, description="Seed for reproducibility")
 
     @validator("workflow_type")
@@ -145,9 +141,7 @@ class ComfyUIRequest(BaseModel):
             if width < 1 or height < 1:
                 raise ValueError
         except:
-            raise ValueError(
-                f"Invalid resolution format: {v}. Use WIDTHxHEIGHT (e.g., 1920x1080)"
-            )
+            raise ValueError(f"Invalid resolution format: {v}. Use WIDTHxHEIGHT (e.g., 1920x1080)")
         return v
 
 
@@ -184,9 +178,7 @@ class HTTPClient:
         )
 
         # Mount adapter with retry strategy
-        adapter = HTTPAdapter(
-            max_retries=retry_strategy, pool_connections=10, pool_maxsize=10
-        )
+        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=10)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
@@ -206,9 +198,7 @@ class HTTPClient:
             return response
         except requests.exceptions.Timeout:
             logger.error("GET timeout: %s", url)
-            raise ComfyUITimeoutError(
-                f"Request to {url} timed out after {self.timeout}s"
-            )
+            raise ComfyUITimeoutError(f"Request to {url} timed out after {self.timeout}s")
         except requests.exceptions.ConnectionError:
             logger.error("GET connection error: %s", url)
             raise ComfyUIConnectionError(f"Cannot connect to {url}")
@@ -225,9 +215,7 @@ class HTTPClient:
             return response
         except requests.exceptions.Timeout:
             logger.error("POST timeout: %s", url)
-            raise ComfyUITimeoutError(
-                f"Request to {url} timed out after {self.timeout}s"
-            )
+            raise ComfyUITimeoutError(f"Request to {url} timed out after {self.timeout}s")
         except requests.exceptions.ConnectionError:
             logger.error("POST connection error: %s", url)
             raise ComfyUIConnectionError(f"Cannot connect to {url}")
@@ -389,9 +377,7 @@ class ComfyUIClient:
             "product-shot": "hy3dgen/sd3_medium_incl_clanks.safetensors",
             "general": "hy3dgen/sd3_medium_incl_clanks.safetensors",
         }
-        return available_models.get(
-            workflow_type, "hy3dgen/sd3_medium_incl_clanks.safetensors"
-        )
+        return available_models.get(workflow_type, "hy3dgen/sd3_medium_incl_clanks.safetensors")
 
     def _get_width(self, resolution: str) -> int:
         """Extract width from resolution"""
@@ -436,9 +422,7 @@ class ComfyUIClient:
 
     def _build_negative_prompt(self, request: ComfyUIRequest) -> str:
         """Build negative prompt"""
-        base_negative = (
-            "blurry, low quality, watermark, text, signature, ugly, deformed, distorted"
-        )
+        base_negative = "blurry, low quality, watermark, text, signature, ugly, deformed, distorted"
 
         if request.workflow_type == "hero-background":
             return f"{base_negative}, people, faces, text overlay"
@@ -454,9 +438,7 @@ class ComfyUIClient:
         start_time = time.time()
         timeout = self.config.TIMEOUT
 
-        logger.info(
-            "Waiting for completion - prompt_id: %s, timeout: %ss", prompt_id, timeout
-        )
+        logger.info("Waiting for completion - prompt_id: %s, timeout: %ss", prompt_id, timeout)
 
         while time.time() - start_time < timeout:
             try:
@@ -511,9 +493,7 @@ class ComfyUIClient:
         subfolder = image.get("subfolder", "")
 
         if subfolder:
-            return (
-                f"{self.config.BASE_URL}/view?filename={filename}&subfolder={subfolder}"
-            )
+            return f"{self.config.BASE_URL}/view?filename={filename}&subfolder={subfolder}"
         else:
             return f"{self.config.BASE_URL}/view?filename={filename}"
 

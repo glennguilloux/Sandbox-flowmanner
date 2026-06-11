@@ -55,9 +55,7 @@ def _cleanup_state_store() -> None:
     for k in expired:
         del _state_store[k]
     if len(_state_store) > MAX_STATE_KEYS:
-        sorted_keys = sorted(
-            _state_store.keys(), key=lambda k: _state_store[k].get("_ts", 0)
-        )
+        sorted_keys = sorted(_state_store.keys(), key=lambda k: _state_store[k].get("_ts", 0))
         for old_key in sorted_keys[: len(_state_store) - MAX_STATE_KEYS]:
             del _state_store[old_key]
 
@@ -83,9 +81,7 @@ async def get_provider_config(
 
 async def list_providers(db: AsyncSession) -> list[dict[str, str]]:
     """List all active OIDC providers."""
-    result = await db.execute(
-        select(OIDCProvider).where(OIDCProvider.is_active == True)
-    )
+    result = await db.execute(select(OIDCProvider).where(OIDCProvider.is_active == True))
     providers = result.scalars().all()
     return [
         {
@@ -197,9 +193,7 @@ def consume_state(state: str) -> dict[str, Any] | None:
 def _cleanup_expired_states() -> None:
     """Remove expired state entries."""
     now = time.time()
-    expired = [
-        k for k, v in _state_store.items() if now - v.get("created_at", 0) > STATE_TTL
-    ]
+    expired = [k for k, v in _state_store.items() if now - v.get("created_at", 0) > STATE_TTL]
     for k in expired:
         del _state_store[k]
 
@@ -437,9 +431,7 @@ async def find_or_create_user(
             _update_user_from_claims(user, userinfo)
             await db.flush()
             await db.refresh(user)
-            logger.info(
-                "Linked existing user %s to OIDC provider %s", user.id, provider.name
-            )
+            logger.info("Linked existing user %s to OIDC provider %s", user.id, provider.name)
             return user
 
     # Create new user
@@ -449,9 +441,7 @@ async def find_or_create_user(
     user = User(
         email=email or f"{oidc_sub}@{provider.name}.local",
         username=username,
-        password_hash=hash_password(
-            secrets.token_urlsafe(32)
-        ),  # Random password for OIDC users
+        password_hash=hash_password(secrets.token_urlsafe(32)),  # Random password for OIDC users
         full_name=full_name,
         avatar_url=userinfo.get("picture"),
         is_active=True,
@@ -547,9 +537,7 @@ async def authenticate_with_oidc(
         code_verifier = state_data.get("code_verifier")
 
     # Exchange code for tokens
-    token_response = await exchange_code_for_tokens(
-        db, provider_name, code, redirect_uri, code_verifier
-    )
+    token_response = await exchange_code_for_tokens(db, provider_name, code, redirect_uri, code_verifier)
 
     # Validate nonce in ID token
     nonce = state_data.get("nonce") if state_data else None

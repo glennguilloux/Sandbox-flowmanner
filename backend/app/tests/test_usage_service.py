@@ -37,17 +37,13 @@ def test_record_usage_stores_record(svc: UsageService) -> None:
 
 
 def test_record_usage_auto_calculates_cost(svc: UsageService) -> None:
-    record = svc.record_usage(
-        "u2", "gpt-4o", "openai", prompt_tokens=1000, completion_tokens=500
-    )
+    record = svc.record_usage("u2", "gpt-4o", "openai", prompt_tokens=1000, completion_tokens=500)
     expected_cost = round((1000 * 0.000003) + (500 * 0.000006), 8)
     assert record.cost == expected_cost
 
 
 def test_record_usage_accepts_explicit_cost(svc: UsageService) -> None:
-    record = svc.record_usage(
-        "u3", "gpt-4o", "openai", prompt_tokens=10, completion_tokens=10, cost=0.99
-    )
+    record = svc.record_usage("u3", "gpt-4o", "openai", prompt_tokens=10, completion_tokens=10, cost=0.99)
     assert record.cost == 0.99
 
 
@@ -68,9 +64,7 @@ def test_get_summary_aggregates_tokens_and_cost(svc: UsageService) -> None:
 
 def test_get_summary_separates_by_model(svc: UsageService) -> None:
     svc.record_usage("u5", "gpt-4o", "openai", prompt_tokens=100, completion_tokens=50)
-    svc.record_usage(
-        "u5", "claude-3", "anthropic", prompt_tokens=200, completion_tokens=100
-    )
+    svc.record_usage("u5", "claude-3", "anthropic", prompt_tokens=200, completion_tokens=100)
 
     summary = svc.get_summary("u5", period="day")
 
@@ -81,9 +75,7 @@ def test_get_summary_separates_by_model(svc: UsageService) -> None:
 
 
 def test_get_summary_filters_by_period(svc: UsageService) -> None:
-    old_record = svc.record_usage(
-        "u6", "gpt-4o", "openai", prompt_tokens=9999, completion_tokens=9999
-    )
+    old_record = svc.record_usage("u6", "gpt-4o", "openai", prompt_tokens=9999, completion_tokens=9999)
     old_record.timestamp = datetime.now(UTC) - timedelta(days=2)
 
     svc.record_usage("u6", "gpt-4o", "openai", prompt_tokens=10, completion_tokens=5)
@@ -116,12 +108,8 @@ def test_get_timeseries_returns_data_points(svc: UsageService) -> None:
 
 
 def test_get_timeseries_buckets_by_hour(svc: UsageService) -> None:
-    record1 = svc.record_usage(
-        "u8", "gpt-4o", "openai", prompt_tokens=100, completion_tokens=50
-    )
-    record2 = svc.record_usage(
-        "u8", "gpt-4o", "openai", prompt_tokens=200, completion_tokens=100
-    )
+    record1 = svc.record_usage("u8", "gpt-4o", "openai", prompt_tokens=100, completion_tokens=50)
+    record2 = svc.record_usage("u8", "gpt-4o", "openai", prompt_tokens=200, completion_tokens=100)
 
     points = svc.get_timeseries("u8", period="day", granularity="hour")
 
@@ -148,12 +136,8 @@ def test_clear_removes_user_records(svc: UsageService) -> None:
 
 
 def test_multiple_users_are_isolated(svc: UsageService) -> None:
-    svc.record_usage(
-        "alice", "gpt-4o", "openai", prompt_tokens=100, completion_tokens=50
-    )
-    svc.record_usage(
-        "bob", "gpt-4o", "openai", prompt_tokens=500, completion_tokens=250
-    )
+    svc.record_usage("alice", "gpt-4o", "openai", prompt_tokens=100, completion_tokens=50)
+    svc.record_usage("bob", "gpt-4o", "openai", prompt_tokens=500, completion_tokens=250)
 
     alice_summary = svc.get_summary("alice", period="day")
     bob_summary = svc.get_summary("bob", period="day")

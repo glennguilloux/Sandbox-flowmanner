@@ -46,9 +46,7 @@ class ToolHandlerRegistry:
         self.register_handler("worker", WorkerHandler())
         self.logger.info("Registered WorkerHandler as 'worker' handler")
 
-    def register_handler(
-        self, handler_id: str, handler: Any, config: dict[str, Any] | None = None
-    ):
+    def register_handler(self, handler_id: str, handler: Any, config: dict[str, Any] | None = None):
         """
         Register a tool handler.
 
@@ -61,9 +59,7 @@ class ToolHandlerRegistry:
         required_methods = ["execute", "get_available_actions"]
         for method in required_methods:
             if not hasattr(handler, method):
-                raise ValueError(
-                    f"Handler must implement method '{method}': {type(handler).__name__}"
-                )
+                raise ValueError(f"Handler must implement method '{method}': {type(handler).__name__}")
 
         self._handlers[handler_id] = handler
         if config:
@@ -83,9 +79,7 @@ class ToolHandlerRegistry:
         """
         return self._handlers.get(handler_id)
 
-    def select_handler_for_task(
-        self, task_type: str, task_params: dict[str, Any]
-    ) -> str | None:
+    def select_handler_for_task(self, task_type: str, task_params: dict[str, Any]) -> str | None:
         """
         Select appropriate handler for a task.
 
@@ -118,9 +112,7 @@ class ToolHandlerRegistry:
         # Default to worker handler
         return "worker"
 
-    def execute(
-        self, handler_id: str, action: str, params: dict[str, Any], **kwargs
-    ) -> dict[str, Any]:
+    def execute(self, handler_id: str, action: str, params: dict[str, Any], **kwargs) -> dict[str, Any]:
         """
         Execute a task via specified handler.
 
@@ -150,9 +142,7 @@ class ToolHandlerRegistry:
             self.logger.error(f"Execution error via {handler_id}: {e}")
             return {"success": False, "error": str(e), "handler_id": handler_id}
 
-    def execute_with_auto_select(
-        self, action: str, params: dict[str, Any], **kwargs
-    ) -> dict[str, Any]:
+    def execute_with_auto_select(self, action: str, params: dict[str, Any], **kwargs) -> dict[str, Any]:
         """
         Execute a task with automatic handler selection.
 

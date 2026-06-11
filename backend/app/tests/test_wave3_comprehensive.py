@@ -245,9 +245,7 @@ class TestHttpIntegrationExecutor:
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_client.request = AsyncMock(
-                side_effect=httpx.TimeoutException("timed out")
-            )
+            mock_client.request = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             result = await executor.execute(
@@ -289,9 +287,7 @@ class TestHttpIntegrationExecutor:
         mock_config = MagicMock()
         mock_config.id = str(uuid4())
         mock_config.auth_type = "basic"
-        mock_config.auth_config_encrypted = encrypt_api_key(
-            '{"username":"admin","password":"pass123"}'
-        )
+        mock_config.auth_config_encrypted = encrypt_api_key('{"username":"admin","password":"pass123"}')
 
         headers = executor._get_auth_headers(mock_config)
         assert "Authorization" in headers

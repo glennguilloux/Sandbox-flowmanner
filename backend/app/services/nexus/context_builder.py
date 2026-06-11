@@ -46,17 +46,13 @@ class ContextBuilder:
         self._cache: dict[str, dict] = {}
         self._cache_ttl: int = 300  # 5 minutes
 
-    def register_source(
-        self, name: str, fetcher: Callable[[dict], Awaitable[dict]], priority: int = 0
-    ) -> None:
+    def register_source(self, name: str, fetcher: Callable[[dict], Awaitable[dict]], priority: int = 0) -> None:
         """Register a context source with its fetcher function"""
         self._sources[name] = ContextSource(name=name, priority=priority)
         self._fetchers[name] = fetcher
         logger.info("Registered context source: %s (priority %s)", name, priority)
 
-    def add_relevance_scorer(
-        self, scorer: Callable[[dict, dict], Awaitable[float]]
-    ) -> None:
+    def add_relevance_scorer(self, scorer: Callable[[dict, dict], Awaitable[float]]) -> None:
         """Add a function that scores relevance of context to a query"""
         self._scorers.append(scorer)
 
@@ -95,12 +91,8 @@ class ContextBuilder:
         start_time = datetime.now(UTC)
 
         # Determine which sources to use
-        source_names: list[str] = (
-            list(sources) if sources else list(self._sources.keys())
-        )
-        source_names = [
-            s for s in source_names if s in self._sources and self._sources[s].enabled
-        ]
+        source_names: list[str] = list(sources) if sources else list(self._sources.keys())
+        source_names = [s for s in source_names if s in self._sources and self._sources[s].enabled]
 
         # Sort by priority (higher first)
         source_names.sort(key=lambda s: self._sources[s].priority, reverse=True)
@@ -111,9 +103,7 @@ class ContextBuilder:
             fetch_tasks[name] = self._fetch_from_source(name, query, context_params)
 
         # Wait for all fetches
-        fetch_results = await asyncio.gather(
-            *fetch_tasks.values(), return_exceptions=True
-        )
+        fetch_results = await asyncio.gather(*fetch_tasks.values(), return_exceptions=True)
 
         # Process results
         for name, fetch_result in zip(fetch_tasks.keys(), fetch_results, strict=False):
@@ -136,15 +126,11 @@ class ContextBuilder:
             max_tokens,  # type: ignore[arg-type]
         )
 
-        result["metadata"]["build_time_ms"] = (
-            datetime.now(UTC) - start_time
-        ).total_seconds() * 1000
+        result["metadata"]["build_time_ms"] = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         return result
 
-    async def _fetch_from_source(
-        self, source_name: str, query: str, context_params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _fetch_from_source(self, source_name: str, query: str, context_params: dict[str, Any]) -> dict[str, Any]:
         """Fetch context from a single source"""
         fetcher = self._fetchers.get(source_name)
         if not fetcher:
@@ -156,9 +142,7 @@ class ContextBuilder:
             logger.error("Error fetching from %s: %s", source_name, e)
             raise
 
-    def _assemble_context(
-        self, sources_data: dict[str, dict], query: str, max_tokens: int
-    ) -> str:
+    def _assemble_context(self, sources_data: dict[str, dict], query: str, max_tokens: int) -> str:
         """Assemble context string from all source data"""
         parts = []
 
@@ -178,10 +162,7 @@ class ContextBuilder:
                 parts.append(f"[{source_name}]\n{docs_text}\n")
             elif "memories" in data:
                 mem_text = "\n".join(
-                    [
-                        f"- {mem.get('content', mem.get('text', str(mem)))[:300]}"
-                        for mem in data["memories"][:5]
-                    ]
+                    [f"- {mem.get('content', mem.get('text', str(mem)))[:300]}" for mem in data["memories"][:5]]
                 )
                 parts.append(f"[{source_name}]\n{mem_text}\n")
 
@@ -228,9 +209,7 @@ class ContextBuilder:
                 "name": source.name,
                 "priority": source.priority,
                 "enabled": source.enabled,
-                "last_fetch": (
-                    source.last_fetch.isoformat() if source.last_fetch else None
-                ),
+                "last_fetch": (source.last_fetch.isoformat() if source.last_fetch else None),
                 "error_count": source.error_count,
             }
             for source in self._sources.values()

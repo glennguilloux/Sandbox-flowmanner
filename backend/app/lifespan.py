@@ -198,16 +198,14 @@ async def _register_agent_capabilities():
 
         # ── 1. Register agent templates from the database ──────────
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
-                select(AgentTemplate).where(AgentTemplate.is_active.is_(True))
-            )
+            result = await session.execute(select(AgentTemplate).where(AgentTemplate.is_active.is_(True)))
             db_templates = result.scalars().all()
 
             for tpl in db_templates:
                 try:
-                    slug = (
-                        tpl.model_config.get("slug") if tpl.model_config else None
-                    ) or tpl.name.lower().replace(" ", "-")
+                    slug = (tpl.model_config.get("slug") if tpl.model_config else None) or tpl.name.lower().replace(
+                        " ", "-"
+                    )
                     cap_id = f"agent:{slug}"
 
                     async def make_handler(template=tpl):
@@ -228,8 +226,7 @@ async def _register_agent_capabilities():
                     capability = Capability(
                         id=cap_id,
                         name=tpl.name,
-                        description=tpl.description
-                        or f"{tpl.agent_type} agent template",
+                        description=tpl.description or f"{tpl.agent_type} agent template",
                         category="agent",
                         handler=await make_handler(),
                         input_schema={
@@ -383,9 +380,7 @@ def _init_tool_discovery():
         if count > 0:
             logger.info("Tool discovery initialized: %d tools indexed in Qdrant", count)
         else:
-            logger.info(
-                "Tool discovery initialized (no tools in registry or Qdrant unavailable)"
-            )
+            logger.info("Tool discovery initialized (no tools in registry or Qdrant unavailable)")
     except Exception as e:
         logger.warning("Failed to initialize tool discovery (non-fatal): %s", e)
 
@@ -395,9 +390,7 @@ def _validate_production_secrets():
     for w in warnings:
         logger.error("SECURITY: %s", w)
     if warnings:
-        raise RuntimeError(
-            f"Refusing to start with placeholder secrets: {'; '.join(warnings)}"
-        )
+        raise RuntimeError(f"Refusing to start with placeholder secrets: {'; '.join(warnings)}")
 
 
 def _init_langfuse():
@@ -416,9 +409,7 @@ def _init_langfuse():
         )
 
         if service.enabled:
-            logger.info(
-                "Langfuse observability enabled (host=%s)", settings.LANGFUSE_HOST
-            )
+            logger.info("Langfuse observability enabled (host=%s)", settings.LANGFUSE_HOST)
         else:
             logger.info("Langfuse observability disabled")
     except Exception as e:
@@ -721,13 +712,9 @@ def _init_sentry():
 
         success = do_init_sentry()
         if success:
-            logger.info(
-                "Sentry error tracking enabled (env=%s)", settings.SENTRY_ENVIRONMENT
-            )
+            logger.info("Sentry error tracking enabled (env=%s)", settings.SENTRY_ENVIRONMENT)
         else:
-            logger.warning(
-                "Sentry initialization failed — continuing without error tracking"
-            )
+            logger.warning("Sentry initialization failed — continuing without error tracking")
     except Exception as e:
         logger.warning("Failed to initialize Sentry (non-fatal): %s", e)
 

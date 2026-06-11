@@ -46,9 +46,7 @@ async def publish_user_notification(user_id: int, notification_data: dict) -> No
         await redis.aclose()
 
 
-async def user_notification_sse_stream(
-    user_id: int, initial_unread_count: int = 0
-) -> AsyncGenerator[str, None]:
+async def user_notification_sse_stream(user_id: int, initial_unread_count: int = 0) -> AsyncGenerator[str, None]:
     """
     SSE event stream for user notifications.
     Subscribes to Redis channel and yields events with proper SSE format
@@ -68,9 +66,7 @@ async def user_notification_sse_stream(
         yield f"event: unread_count\ndata: {json.dumps({'unread_count': initial_unread_count})}\n\n"
 
         while True:
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=30.0
-            )
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
             if message:
                 data = json.loads(message["data"])
                 event_type = data.get("event", "notification")
@@ -99,9 +95,7 @@ async def mission_sse_stream(mission_id: str) -> AsyncGenerator[str, None]:
 
     try:
         while True:
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=30.0
-            )
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
             if message:
                 yield f"data: {message['data']}\n\n"
             else:
@@ -116,6 +110,4 @@ async def mission_sse_stream(mission_id: str) -> AsyncGenerator[str, None]:
 
 async def mission_events_endpoint(mission_id: str):
     """FastAPI endpoint handler for SSE mission events."""
-    return StreamingResponse(
-        mission_sse_stream(mission_id), media_type="text/event-stream"
-    )
+    return StreamingResponse(mission_sse_stream(mission_id), media_type="text/event-stream")

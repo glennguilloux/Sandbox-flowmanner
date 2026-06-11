@@ -153,9 +153,7 @@ class DebateProtocol:
 
             # If consensus reached, return
             if debate_round.consensus_reached:
-                logger.info(
-                    "Debate %s reached consensus in round %s", debate_id, round_num
-                )
+                logger.info("Debate %s reached consensus in round %s", debate_id, round_num)
                 return debate_round
 
         # Max rounds reached without consensus — mark deadlock
@@ -457,15 +455,11 @@ class DebateProtocol:
     async def get_debate(self, debate_id: str) -> list[DebateRound]:
         """Get all rounds for a debate."""
         result = await self.db.execute(
-            select(DebateRound)
-            .where(DebateRound.debate_id == debate_id)
-            .order_by(DebateRound.round_number)
+            select(DebateRound).where(DebateRound.debate_id == debate_id).order_by(DebateRound.round_number)
         )
         return list(result.scalars().all())
 
     async def list_debates(self, limit: int = 20) -> list[DebateRound]:
         """List recent debate rounds."""
-        result = await self.db.execute(
-            select(DebateRound).order_by(DebateRound.created_at.desc()).limit(limit)
-        )
+        result = await self.db.execute(select(DebateRound).order_by(DebateRound.created_at.desc()).limit(limit))
         return list(result.scalars().all())

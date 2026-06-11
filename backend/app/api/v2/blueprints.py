@@ -36,9 +36,7 @@ router = APIRouter(prefix="/blueprints", tags=["blueprints-v2"])
 async def list_blueprints(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    blueprint_type: str | None = Query(
-        None, description="Filter by blueprint type (solo, dag, swarm, etc.)"
-    ),
+    blueprint_type: str | None = Query(None, description="Filter by blueprint type (solo, dag, swarm, etc.)"),
     status_filter: str | None = Query(
         None,
         alias="status",

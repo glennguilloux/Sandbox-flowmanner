@@ -24,20 +24,14 @@ class LoginRequest(BaseModel):
     For the initial OIDC login, use POST /auth/oidc/{provider}/login instead.
     """
 
-    login: str = Field(
-        ..., min_length=1, max_length=255, description="Email or username"
-    )
+    login: str = Field(..., min_length=1, max_length=255, description="Email or username")
     password: str = Field(..., min_length=1, max_length=128)
     provider: str = Field(default="credentials", description="'credentials' | 'oidc'")
 
     @model_validator(mode="after")
     def validate_login(self):
         """Basic email format check — only for credentials provider."""
-        if (
-            self.provider == "credentials"
-            and "@" in self.login
-            and self.login.count("@") != 1
-        ):
+        if self.provider == "credentials" and "@" in self.login and self.login.count("@") != 1:
             raise ValueError("Invalid email format")
         return self
 
@@ -65,9 +59,7 @@ class RefreshSessionRequest(BaseModel):
     with ?token_response=body).
     """
 
-    refresh_token: str | None = Field(
-        default=None, description="Required if not using cookies"
-    )
+    refresh_token: str | None = Field(default=None, description="Required if not using cookies")
 
 
 class CreateApiKeyRequest(BaseModel):

@@ -18,13 +18,10 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.slack_connector import SlackConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
-def _make_mock_response(
-    status: int, body: dict | list | str, headers: dict | None = None
-):
+def _make_mock_response(status: int, body: dict | list | str, headers: dict | None = None):
     """Create a mock aiohttp ClientResponse."""
     resp = MagicMock(spec=ClientResponse)
     resp.status = status
@@ -126,9 +123,7 @@ async def test_send_message_success():
     """Send a message to a channel."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/chat.postMessage": _make_mock_response(
                 200,
                 {
@@ -145,9 +140,7 @@ async def test_send_message_success():
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "send_message", {"channel": "C123", "text": "Hello world"}
-        )
+        result = await connector.execute_action("send_message", {"channel": "C123", "text": "Hello world"})
 
     assert result.success is True
     assert result.data["ok"] is True
@@ -159,9 +152,7 @@ async def test_send_message_with_optional_params():
     """Send a message with threads, blocks, and attachments."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/chat.postMessage": _make_mock_response(
                 200,
                 {"ok": True, "channel": "C123", "ts": "1234567890.0002"},
@@ -194,13 +185,7 @@ async def test_send_message_with_optional_params():
 @pytest.mark.asyncio
 async def test_send_message_missing_params():
     """Missing channel or text returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
@@ -216,9 +201,7 @@ async def test_send_ephemeral():
     """Send an ephemeral message to a user in a channel."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/chat.postEphemeral": _make_mock_response(
                 200,
                 {"ok": True, "message_ts": "1234567890.0003"},
@@ -242,20 +225,12 @@ async def test_send_ephemeral():
 @pytest.mark.asyncio
 async def test_send_ephemeral_missing_params():
     """Missing required params for ephemeral returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "send_ephemeral", {"channel": "C123", "user": "U1"}
-        )
+        result = await connector.execute_action("send_ephemeral", {"channel": "C123", "user": "U1"})
 
     assert result.success is False
     assert result.status_code == 400
@@ -266,9 +241,7 @@ async def test_update_message():
     """Update an existing message."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/chat.update": _make_mock_response(
                 200,
                 {
@@ -297,13 +270,7 @@ async def test_update_message():
 @pytest.mark.asyncio
 async def test_update_message_missing_params():
     """Missing channel or ts returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
@@ -319,9 +286,7 @@ async def test_delete_message():
     """Delete a message."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/chat.delete": _make_mock_response(
                 200,
                 {"ok": True, "channel": "C123", "ts": "1234567890.0001"},
@@ -333,9 +298,7 @@ async def test_delete_message():
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "delete_message", {"channel": "C123", "ts": "1234567890.0001"}
-        )
+        result = await connector.execute_action("delete_message", {"channel": "C123", "ts": "1234567890.0001"})
 
     assert result.success is True
     assert result.data["ok"] is True
@@ -353,9 +316,7 @@ async def test_get_channel_history():
     ]
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "GET:https://slack.com/api/conversations.history": _make_mock_response(
                 200,
                 {"ok": True, "messages": messages, "has_more": False},
@@ -367,9 +328,7 @@ async def test_get_channel_history():
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "get_channel_history", {"channel": "C123"}
-        )
+        result = await connector.execute_action("get_channel_history", {"channel": "C123"})
 
     assert result.success is True
     assert len(result.data["messages"]) == 2
@@ -379,13 +338,7 @@ async def test_get_channel_history():
 @pytest.mark.asyncio
 async def test_get_channel_history_missing_channel():
     """Missing channel param returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
@@ -405,9 +358,7 @@ async def test_list_channels():
     ]
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "GET:https://slack.com/api/conversations.list": _make_mock_response(
                 200,
                 {"ok": True, "channels": channels},
@@ -431,9 +382,7 @@ async def test_create_channel():
     """Create a new channel."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/conversations.create": _make_mock_response(
                 200,
                 {"ok": True, "channel": {"id": "C3", "name": "new-channel"}},
@@ -445,9 +394,7 @@ async def test_create_channel():
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "create_channel", {"name": "new-channel", "is_private": True}
-        )
+        result = await connector.execute_action("create_channel", {"name": "new-channel", "is_private": True})
 
     assert result.success is True
     assert result.data["channel"]["name"] == "new-channel"
@@ -456,13 +403,7 @@ async def test_create_channel():
 @pytest.mark.asyncio
 async def test_create_channel_missing_name():
     """Missing name param returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
@@ -478,9 +419,7 @@ async def test_archive_channel():
     """Archive a channel."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/conversations.archive": _make_mock_response(
                 200,
                 {"ok": True},
@@ -510,9 +449,7 @@ async def test_list_users():
     ]
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "GET:https://slack.com/api/users.list": _make_mock_response(
                 200,
                 {"ok": True, "members": users},
@@ -536,9 +473,7 @@ async def test_get_user_info():
     user = {"id": "U42", "name": "carol", "real_name": "Carol"}
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "GET:https://slack.com/api/users.info": _make_mock_response(
                 200,
                 {"ok": True, "user": user},
@@ -559,13 +494,7 @@ async def test_get_user_info():
 @pytest.mark.asyncio
 async def test_get_user_info_missing_user():
     """Missing user param returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
@@ -584,9 +513,7 @@ async def test_add_reaction():
     """Add a reaction to a message."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/reactions.add": _make_mock_response(
                 200,
                 {"ok": True},
@@ -610,20 +537,12 @@ async def test_add_reaction():
 @pytest.mark.asyncio
 async def test_add_reaction_missing_params():
     """Missing required params for reaction returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "add_reaction", {"channel": "C123", "ts": "1"}
-        )
+        result = await connector.execute_action("add_reaction", {"channel": "C123", "ts": "1"})
 
     assert result.success is False
     assert result.status_code == 400
@@ -634,9 +553,7 @@ async def test_remove_reaction():
     """Remove a reaction from a message."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/reactions.remove": _make_mock_response(
                 200,
                 {"ok": True},
@@ -665,9 +582,7 @@ async def test_send_message_to_nonexistent_channel():
     """Slack returns ok=false when posting to a non-existent channel."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/chat.postMessage": _make_mock_response(
                 200,
                 {"ok": False, "error": "channel_not_found"},
@@ -679,9 +594,7 @@ async def test_send_message_to_nonexistent_channel():
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "send_message", {"channel": "C_NOPE", "text": "Hello"}
-        )
+        result = await connector.execute_action("send_message", {"channel": "C_NOPE", "text": "Hello"})
 
     assert result.success is False  # Slack ok=false translated to success=False
     assert result.data["ok"] is False
@@ -693,9 +606,7 @@ async def test_get_channel_history_not_in_channel():
     """Slack returns ok=false when bot is not in the channel."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "GET:https://slack.com/api/conversations.history": _make_mock_response(
                 200,
                 {"ok": False, "error": "not_in_channel"},
@@ -707,9 +618,7 @@ async def test_get_channel_history_not_in_channel():
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "get_channel_history", {"channel": "C_SECRET"}
-        )
+        result = await connector.execute_action("get_channel_history", {"channel": "C_SECRET"})
 
     assert result.success is False  # Slack not_in_channel translated to success=False
     assert result.data["ok"] is False
@@ -721,9 +630,7 @@ async def test_get_user_info_not_found():
     """Slack returns ok=false when user does not exist."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "GET:https://slack.com/api/users.info": _make_mock_response(
                 200,
                 {"ok": False, "error": "user_not_found"},
@@ -747,9 +654,7 @@ async def test_add_reaction_already_exists():
     """Slack returns ok=false when reaction already exists."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/reactions.add": _make_mock_response(
                 200,
                 {"ok": False, "error": "already_reacted"},
@@ -776,9 +681,7 @@ async def test_create_channel_name_taken():
     """Slack returns ok=false when channel name is already taken."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/conversations.create": _make_mock_response(
                 200,
                 {"ok": False, "error": "name_taken"},
@@ -803,21 +706,13 @@ async def test_create_channel_name_taken():
 @pytest.mark.asyncio
 async def test_upload_file_returns_501():
     """File upload returns 501 as multipart is not implemented."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
         await connector.connect()
 
-        result = await connector.execute_action(
-            "upload_file", {"channel": "C123", "file": "content"}
-        )
+        result = await connector.execute_action("upload_file", {"channel": "C123", "file": "content"})
 
     assert result.success is False
     assert result.status_code == 501
@@ -832,9 +727,7 @@ async def test_open_im():
     """Open a direct message channel with a user."""
     fake = _FakeSession(
         {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            ),
+            "default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"}),
             "POST:https://slack.com/api/conversations.open": _make_mock_response(
                 200,
                 {"ok": True, "channel": {"id": "D123"}},
@@ -855,13 +748,7 @@ async def test_open_im():
 @pytest.mark.asyncio
 async def test_open_im_missing_users():
     """Missing users param returns 400."""
-    fake = _FakeSession(
-        {
-            "default": _make_mock_response(
-                200, {"ok": True, "team_id": "T1", "user_id": "U1"}
-            )
-        }
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"ok": True, "team_id": "T1", "user_id": "U1"})})
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = SlackConnector(_make_config())
@@ -879,11 +766,7 @@ async def test_open_im_missing_users():
 async def test_connect_with_invalid_token():
     """Connector connect() fails when auth.test returns error."""
     fake = _FakeSession(
-        {
-            "GET:https://slack.com/api/auth.test": _make_mock_response(
-                200, {"ok": False, "error": "invalid_auth"}
-            )
-        }
+        {"GET:https://slack.com/api/auth.test": _make_mock_response(200, {"ok": False, "error": "invalid_auth"})}
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):

@@ -178,9 +178,7 @@ class AgentPersistence:
                     logger.debug("Loaded state for session %s from memory", session_id)
                     return state
                 else:
-                    logger.info(
-                        "[DEBUG] Session %s not found in in-memory states", session_id
-                    )
+                    logger.info("[DEBUG] Session %s not found in in-memory states", session_id)
         except Exception as e:
             logger.error("Failed to load state: %s", e)
             import traceback

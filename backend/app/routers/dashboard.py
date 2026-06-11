@@ -18,9 +18,7 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 async def get_current_admin_user(user: dict = Depends(get_current_user)):
     """Dependency to ensure user is an admin."""
     if user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user
 
 
@@ -32,9 +30,7 @@ async def read_dashboard_analytics(
     try:
         return await get_dashboard_analytics(db)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/firefighting-metrics", response_model=FirefightingMetricsResponse)
@@ -50,6 +46,4 @@ async def read_firefighting_metrics(
         """
         return await get_firefighting_metrics(db, hours)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

@@ -77,15 +77,11 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     # ── Create ───────────────────────────────────────────────────────────────
 
-    async def create_mission(
-        self, user: User, payload: MissionCreate, workspace_id: str | None = None
-    ):
+    async def create_mission(self, user: User, payload: MissionCreate, workspace_id: str | None = None):
         from app.services.subscription_service import check_mission_create_allowed
 
         # Phase 8.4: Check subscription tier limits before creating
-        limit_check = await check_mission_create_allowed(
-            self.session, user.id, workspace_id
-        )
+        limit_check = await check_mission_create_allowed(self.session, user.id, workspace_id)
         if not limit_check.allowed:
             from app.services.mission_errors import MissionValidationError
 
@@ -133,9 +129,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                             )
                             await bp_db.commit()
                     except Exception:
-                        logger.warning(
-                            "Dual-write blueprint creation failed", exc_info=True
-                        )
+                        logger.warning("Dual-write blueprint creation failed", exc_info=True)
 
                 _schedule_fire_and_forget(_dual_write_blueprint())
             except Exception:
@@ -147,13 +141,9 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     # ── CRUD mutations ──────────────────────────────────────────────────────
 
-    async def update_mission(
-        self, user: User, mission_id: uuid.UUID, payload: MissionUpdate
-    ):
+    async def update_mission(self, user: User, mission_id: uuid.UUID, payload: MissionUpdate):
         mission = await require_mission_access(self.session, mission_id, user.id)
-        old_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        old_status = mission.status.value if hasattr(mission.status, "value") else mission.status
 
         async def _op():
             updated = await update_mission(
@@ -171,11 +161,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             )
             if updated is None:
                 raise MissionNotFoundError(f"Mission {mission_id} not found")
-            new_status = (
-                updated.status.value
-                if hasattr(updated.status, "value")
-                else updated.status
-            )
+            new_status = updated.status.value if hasattr(updated.status, "value") else updated.status
             if self.audit:
                 self.audit.mission_updated(
                     mission_id=mission_id,
@@ -184,9 +170,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                     new_status=new_status,
                     request_id=self._request_id,
                 )
-            _schedule_fire_and_forget(
-                invalidate_mission_cache(user.id, str(mission_id))
-            )
+            _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
 
             # Dual-write: sync status/title/description to Blueprint+Run
             _schedule_fire_and_forget(
@@ -215,9 +199,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     async def delete_mission(self, user: User, mission_id: uuid.UUID) -> None:
         mission = await require_mission_access(self.session, mission_id, user.id)
-        old_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        old_status = mission.status.value if hasattr(mission.status, "value") else mission.status
 
         async def _op():
             if not await delete_mission(self.session, mission_id, deleted_by=user.id):
@@ -231,9 +213,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                 )
             # Invalidate both user-wide list caches and per-mission caches
             _schedule_fire_and_forget(invalidate_user_caches(user.id))
-            _schedule_fire_and_forget(
-                invalidate_mission_cache(user.id, str(mission_id))
-            )
+            _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
 
             # Dual-write: soft-delete linked Blueprint
             _schedule_fire_and_forget(
@@ -247,9 +227,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     # ── Tasks ────────────────────────────────────────────────────────────────
 
-    async def create_task(
-        self, user: User, mission_id: uuid.UUID, payload: MissionTaskCreate
-    ) -> MissionTask:
+    async def create_task(self, user: User, mission_id: uuid.UUID, payload: MissionTaskCreate) -> MissionTask:
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         async def _op():
@@ -286,9 +264,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             )
             task = result.scalar_one_or_none()
             if task is None:
-                raise MissionNotFoundError(
-                    f"Task {task_id} not found in mission {mission_id}"
-                )
+                raise MissionNotFoundError(f"Task {task_id} not found in mission {mission_id}")
             if payload.status is not None:
                 task.status = payload.status
             if payload.output_data is not None:
@@ -305,23 +281,17 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     # ── Logs ─────────────────────────────────────────────────────────────────
 
-    async def create_log(
-        self, user: User, mission_id: uuid.UUID, payload: MissionLogCreate
-    ) -> MissionLog:
+    async def create_log(self, user: User, mission_id: uuid.UUID, payload: MissionLogCreate) -> MissionLog:
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         async def _op():
-            return await create_mission_log(
-                self.session, mission_id, payload.level, payload.message
-            )
+            return await create_mission_log(self.session, mission_id, payload.level, payload.message)
 
         return await self.wrap_command(_op)
 
     # ── Planning ─────────────────────────────────────────────────────────────
 
-    async def plan_mission(
-        self, user: User, mission_id: uuid.UUID
-    ) -> MissionExecutionStatus:
+    async def plan_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         async def _op():
@@ -357,9 +327,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
             raise MissionValidationError(limit_check.reason)
 
-        old_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        old_status = mission.status.value if hasattr(mission.status, "value") else mission.status
 
         async def _op():
             # Phase 8.1 GA: UnifiedExecutor is the sole execution path.
@@ -394,8 +362,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
                             bp_result = await run_db.execute(
                                 _sel(Blueprint).where(
-                                    Blueprint.definition["_source_mission_id"].astext
-                                    == str(mission_id),
+                                    Blueprint.definition["_source_mission_id"].astext == str(mission_id),
                                     Blueprint.deleted_at.is_(None),
                                 )
                             )
@@ -417,11 +384,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                             run.total_tokens = strategy_result.total_tokens
                             run.total_cost_usd = strategy_result.total_cost_usd
                             run.error_message = strategy_result.error
-                            run.output_data = (
-                                strategy_result.data
-                                if strategy_result.success
-                                else None
-                            )
+                            run.output_data = strategy_result.data if strategy_result.success else None
                             if strategy_result.status in (
                                 "completed",
                                 "failed",
@@ -461,11 +424,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                 logger.debug("analytics_track_failed", exc_info=True)
 
             tasks = await get_mission_tasks(self.session, mission_id)
-            new_status = (
-                mission.status.value
-                if hasattr(mission.status, "value")
-                else mission.status
-            )
+            new_status = mission.status.value if hasattr(mission.status, "value") else mission.status
             if self.audit:
                 self.audit.mission_executed(
                     mission_id=mission_id,
@@ -478,12 +437,8 @@ class MissionCommandHandlers(CommandHandlerBase):
                 mission_id=mission_id,
                 status=mission.status,
                 total_tasks=len(tasks),
-                completed_tasks=sum(
-                    1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
-                ),
-                failed_tasks=sum(
-                    1 for t in tasks if t.status == MissionTaskStatus.FAILED
-                ),
+                completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
+                failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
                 total_tokens_used=mission.tokens_used or 0,
                 started_at=mission.started_at,
                 estimated_completion=None,
@@ -516,9 +471,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
             raise MissionValidationError(limit_check.reason)
 
-        prev_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.QUEUED
         await self.session.commit()
 
@@ -546,9 +499,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         except Exception:
             # Fallback: use UnifiedExecutor in a background task
             logger = __import__("structlog").get_logger(__name__)
-            logger.warning(
-                "celery_dispatch_failed_fallback", mission_id=str(mission_id)
-            )
+            logger.warning("celery_dispatch_failed_fallback", mission_id=str(mission_id))
 
             async def _run_execution():
                 from app.database import AsyncSessionLocal
@@ -556,9 +507,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                 from app.services.substrate.executor import get_unified_executor
 
                 async with AsyncSessionLocal() as db_session:
-                    result = await db_session.execute(
-                        select(Mission).where(Mission.id == str(mission_id))
-                    )
+                    result = await db_session.execute(select(Mission).where(Mission.id == str(mission_id)))
                     m = result.scalars().first()
                     if m:
                         tasks = await get_mission_tasks(db_session, mission_id)
@@ -574,9 +523,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             mission_id=mission_id,
             status=MissionStatus.QUEUED,
             total_tasks=len(tasks),
-            completed_tasks=sum(
-                1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
-            ),
+            completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
             failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
             total_tokens_used=mission.tokens_used or 0,
             started_at=mission.started_at,
@@ -600,9 +547,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             )
 
         # SELECT ... FOR UPDATE to prevent TOCTOU races
-        result = await self.session.execute(
-            select(Mission).where(Mission.id == str(mission_id)).with_for_update()
-        )
+        result = await self.session.execute(select(Mission).where(Mission.id == str(mission_id)).with_for_update())
         mission = result.scalars().first()
         if mission is None:
             raise MissionNotFoundError("Mission not found")
@@ -638,9 +583,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                 f"Cannot abort mission in '{mission.status}' state. Only active missions can be aborted."
             )
 
-        prev_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.ABORTED
         mission.error_message = f"Aborted: {abort_reason.value} (was: {prev_status})"
         mission.completed_at = datetime.now(UTC)
@@ -736,9 +679,7 @@ class MissionCommandHandlers(CommandHandlerBase):
             mission_id=mission_id,
             status=MissionStatus.ABORTED,
             total_tasks=len(tasks),
-            completed_tasks=sum(
-                1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
-            ),
+            completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),
             failed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED),
             total_tokens_used=mission.tokens_used or 0,
             started_at=mission.started_at,
@@ -746,22 +687,16 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     # ── Lifecycle: Pause / Resume / Retry ────────────────────────────────────
 
-    async def pause_mission(
-        self, user: User, mission_id: uuid.UUID
-    ) -> MissionExecutionStatus:
+    async def pause_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
         # NOTE: not wrapped in wrap_command — multi-commit flow:
         #   1. commit status → PAUSED + reset running tasks to PENDING
         #   2. commit transition log separately
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         if mission.status != MissionStatus.RUNNING:
-            raise MissionTransitionConflictError(
-                f"Can only pause a running mission, not '{mission.status}'"
-            )
+            raise MissionTransitionConflictError(f"Can only pause a running mission, not '{mission.status}'")
 
-        prev_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PAUSED
 
         # Cancel all RUNNING tasks back to PENDING
@@ -811,22 +746,16 @@ class MissionCommandHandlers(CommandHandlerBase):
         tasks = await get_mission_tasks(self.session, mission_id)
         return _make_execution_status(mission, tasks)
 
-    async def resume_mission(
-        self, user: User, mission_id: uuid.UUID
-    ) -> MissionExecutionStatus:
+    async def resume_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
         # NOTE: not wrapped in wrap_command — multi-commit flow:
         #   1. commit status → QUEUED
         #   2. commit transition log separately
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         if mission.status != MissionStatus.PAUSED:
-            raise MissionTransitionConflictError(
-                f"Can only resume a paused mission, not '{mission.status}'"
-            )
+            raise MissionTransitionConflictError(f"Can only resume a paused mission, not '{mission.status}'")
 
-        prev_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.QUEUED
         await self.session.commit()
 
@@ -865,9 +794,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         tasks = await get_mission_tasks(self.session, mission_id)
         return _make_execution_status(mission, tasks)
 
-    async def retry_mission(
-        self, user: User, mission_id: uuid.UUID
-    ) -> MissionExecutionStatus:
+    async def retry_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
         # NOTE: not wrapped in wrap_command — multi-commit flow:
         #   1. commit status → PENDING + clear error_message
         #   2. commit transition log separately
@@ -875,13 +802,9 @@ class MissionCommandHandlers(CommandHandlerBase):
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         if mission.status != MissionStatus.FAILED:
-            raise MissionTransitionConflictError(
-                f"Can only retry a failed mission, not '{mission.status}'"
-            )
+            raise MissionTransitionConflictError(f"Can only retry a failed mission, not '{mission.status}'")
 
-        prev_status = (
-            mission.status.value if hasattr(mission.status, "value") else mission.status
-        )
+        prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PENDING
         mission.error_message = None
         await self.session.commit()
@@ -929,9 +852,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     # ── Batch Abort ──────────────────────────────────────────────────────────
 
-    async def batch_abort(
-        self, user: User, mission_ids: list[uuid.UUID], reason: str = "user_requested"
-    ) -> dict:
+    async def batch_abort(self, user: User, mission_ids: list[uuid.UUID], reason: str = "user_requested") -> dict:
         # NOTE: not wrapped in wrap_command — single-commit batch flow with
         #   FOR UPDATE: iterates N missions, mutates ORM objects, then one
         #   final commit persists all changes atomically.
@@ -944,9 +865,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         str_ids = [str(mid) for mid in mission_ids]
 
-        result = await self.session.execute(
-            select(Mission).where(Mission.id.in_(str_ids)).with_for_update()
-        )
+        result = await self.session.execute(select(Mission).where(Mission.id.in_(str_ids)).with_for_update())
         missions = result.scalars().all()
 
         results = []
@@ -999,15 +918,9 @@ class MissionCommandHandlers(CommandHandlerBase):
                 )
                 continue
 
-            prev_status = (
-                mission.status.value
-                if hasattr(mission.status, "value")
-                else mission.status
-            )
+            prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
             mission.status = MissionStatus.ABORTED
-            mission.error_message = (
-                f"Batch aborted: {abort_reason.value} (was: {prev_status})"
-            )
+            mission.error_message = f"Batch aborted: {abort_reason.value} (was: {prev_status})"
             mission.completed_at = datetime.now(UTC)
 
             if self.audit:
@@ -1071,9 +984,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         #   wrap_command if the refresh were moved to the caller.)
         from uuid import uuid4
 
-        result = await self.session.execute(
-            select(MissionTemplate).where(MissionTemplate.id == str(template_id))
-        )
+        result = await self.session.execute(select(MissionTemplate).where(MissionTemplate.id == str(template_id)))
         template = result.scalars().first()
         if template is None:
             raise MissionNotFoundError(f"Template {template_id} not found")
@@ -1134,9 +1045,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         await self.session.refresh(improvement)
         return MissionImprovementResponse.model_validate(improvement)
 
-    async def apply_improvement(
-        self, user: User, mission_id: uuid.UUID, improvement_id: uuid.UUID
-    ) -> bool:
+    async def apply_improvement(self, user: User, mission_id: uuid.UUID, improvement_id: uuid.UUID) -> bool:
         # NOTE: not wrapped in wrap_command — SelfImprovementEngine manages its
         #   own persistence internally (apply_strategy mutates + commits).
         mission = await require_mission_access(self.session, mission_id, user.id)

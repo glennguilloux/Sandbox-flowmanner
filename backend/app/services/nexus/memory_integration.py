@@ -44,9 +44,7 @@ class MemoryIntegration:
                 return None
         return self._memory_service
 
-    async def inject_memories(
-        self, user_id: int, query: str, thread_id: str, limit: int = 5
-    ) -> str | None:
+    async def inject_memories(self, user_id: int, query: str, thread_id: str, limit: int = 5) -> str | None:
         """
         Inject relevant memories into the conversation context.
 
@@ -76,22 +74,16 @@ class MemoryIntegration:
                 return None
 
             # Format memories for context injection
-            memory_context = "\n".join(
-                [f"- {m.get('content', '')}" for m in memories[:limit]]
-            )
+            memory_context = "\n".join([f"- {m.get('content', '')}" for m in memories[:limit]])
 
-            logger.info(
-                "Injected %s memories for user %s", len(memories[:limit]), user_id
-            )
+            logger.info("Injected %s memories for user %s", len(memories[:limit]), user_id)
             return f"[Relevant memories from past conversations:]\n{memory_context}"
 
         except Exception as e:
             logger.error("Error injecting memories: %s", e)
             return None
 
-    async def extract_and_store(
-        self, user_id: int, conversation: list[dict[str, str]], thread_id: str
-    ) -> bool:
+    async def extract_and_store(self, user_id: int, conversation: list[dict[str, str]], thread_id: str) -> bool:
         """
         Extract important information from conversation and store as memories.
 
@@ -144,9 +136,7 @@ class MemoryIntegration:
             logger.error("Error in extract_and_store: %s", e)
             return False
 
-    async def _extract_key_information(
-        self, conversation: list[dict[str, str]]
-    ) -> list[dict[str, Any]]:
+    async def _extract_key_information(self, conversation: list[dict[str, str]]) -> list[dict[str, Any]]:
         """
         Extract key information from a conversation.
 
@@ -159,9 +149,7 @@ class MemoryIntegration:
         extracted = []
 
         # Combine conversation for analysis
-        full_text = "\n".join(
-            [f"{m.get('role', 'user')}: {m.get('content', '')}" for m in conversation]
-        )
+        full_text = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in conversation])
 
         # Simple extraction heuristics
         preference_keywords = [

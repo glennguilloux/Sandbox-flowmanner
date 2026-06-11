@@ -8,9 +8,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
-_current_sandbox_id: ContextVar[str | None] = ContextVar(
-    "current_sandbox_id", default=None
-)
+_current_sandbox_id: ContextVar[str | None] = ContextVar("current_sandbox_id", default=None)
 
 
 def set_current_sandbox_id(sandbox_id: str | None) -> None:

@@ -101,9 +101,7 @@ async def get_workspace_context(
     )
     rows = result.all()
 
-    workspaces = [
-        {"workspace": row.Workspace, "role": row.WorkspaceMember.role} for row in rows
-    ]
+    workspaces = [{"workspace": row.Workspace, "role": row.WorkspaceMember.role} for row in rows]
 
     primary = workspaces[0] if workspaces else None  # highest priority first
 
@@ -114,9 +112,7 @@ async def get_workspace_context(
         "primary_workspace_id": primary["workspace"].id if primary else None,
         "primary_role": primary["role"] if primary else None,
         "is_workspace_owner": primary["role"] == "owner" if primary else False,
-        "is_workspace_admin": (
-            primary["role"] in ("owner", "admin") if primary else False
-        ),
+        "is_workspace_admin": (primary["role"] in ("owner", "admin") if primary else False),
         # Deprecated compat keys (H4 Phase 3 will remove)
         "tenant": None,
         "tenant_id": None,
@@ -261,11 +257,7 @@ async def get_current_session(
         AuthSession.user_id == int(user_id),
         AuthSession.is_active == True,
     )
-    query = (
-        query.where(AuthSession.id == session_id)
-        if session_id
-        else query.where(AuthSession.revoked_at.is_(None))
-    )
+    query = query.where(AuthSession.id == session_id) if session_id else query.where(AuthSession.revoked_at.is_(None))
 
     query = query.order_by(AuthSession.created_at.desc()).limit(1)
     result = await db.execute(query)
@@ -305,9 +297,7 @@ async def get_workspace_id(
 
     from app.models.workspace_models import WorkspaceMember
 
-    workspace_id = request.headers.get("X-Workspace-Id") or request.query_params.get(
-        "workspace_id"
-    )
+    workspace_id = request.headers.get("X-Workspace-Id") or request.query_params.get("workspace_id")
 
     if workspace_id:
         # Validate membership

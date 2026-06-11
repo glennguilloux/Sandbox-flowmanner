@@ -87,9 +87,7 @@ class ImprovementSession:
     session_id: str = field(default_factory=lambda: str(uuid4()))
 
     # Trigger info
-    trigger_type: str = (
-        "manual"  # "mission_complete", "scheduled", "manual", "threshold"
-    )
+    trigger_type: str = "manual"  # "mission_complete", "scheduled", "manual", "threshold"
     trigger_context: dict[str, Any] = field(default_factory=dict)
 
     # State
@@ -128,20 +126,12 @@ class ImprovementSession:
             "trigger_context": self.trigger_context,
             "state": self.state.value,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
             "weak_areas": [wa.to_dict() for wa in self.weak_areas],
-            "failure_patterns": {
-                ft.value: count for ft, count in self.failure_patterns.items()
-            },
+            "failure_patterns": {ft.value: count for ft, count in self.failure_patterns.items()},
             "strategies": [s.to_dict() for s in self.strategies],
-            "selected_strategy_id": (
-                self.selected_strategy.strategy_id if self.selected_strategy else None
-            ),
-            "hypothesis_test_id": (
-                self.hypothesis_test.test_id if self.hypothesis_test else None
-            ),
+            "selected_strategy_id": (self.selected_strategy.strategy_id if self.selected_strategy else None),
+            "hypothesis_test_id": (self.hypothesis_test.test_id if self.hypothesis_test else None),
             "test_result": self.test_result.to_dict() if self.test_result else None,
             "agent_id": self.agent_id,
             "created_at": self.created_at.isoformat(),
@@ -182,14 +172,8 @@ class ImprovementSessionData:
             completed_at=session.completed_at,
             weak_areas_count=len(session.weak_areas),
             strategies_count=len(session.strategies),
-            selected_strategy_id=(
-                session.selected_strategy.strategy_id
-                if session.selected_strategy
-                else None
-            ),
-            test_result_success=(
-                session.test_result.success if session.test_result else None
-            ),
+            selected_strategy_id=(session.selected_strategy.strategy_id if session.selected_strategy else None),
+            test_result_success=(session.test_result.success if session.test_result else None),
             agent_id=session.agent_id,
             created_at=session.created_at,
         )
@@ -207,17 +191,13 @@ class ImprovementKnowledge:
     """
 
     # Strategy effectiveness: strategy_type -> {success_count, failure_count}
-    strategy_effectiveness: dict[StrategyType, dict[str, int]] = field(
-        default_factory=dict
-    )
+    strategy_effectiveness: dict[StrategyType, dict[str, int]] = field(default_factory=dict)
 
     # Knob effectiveness: knob_type -> {success_count, failure_count, avg_improvement}
     knob_effectiveness: dict[KnobType, dict[str, Any]] = field(default_factory=dict)
 
     # Failure type to strategy mapping: what works for each failure type
-    failure_strategy_map: dict[FailureType, dict[StrategyType, float]] = field(
-        default_factory=dict
-    )
+    failure_strategy_map: dict[FailureType, dict[StrategyType, float]] = field(default_factory=dict)
 
     # Oscillation patterns: knob -> list of recent values to avoid
     oscillation_patterns: dict[KnobType, list[Any]] = field(default_factory=dict)
@@ -255,8 +235,7 @@ class ImprovementKnowledge:
                 self.failure_strategy_map[ft][strategy.strategy_type] = 0.0
             # Weighted average with recency bias
             self.failure_strategy_map[ft][strategy.strategy_type] = (
-                0.7 * self.failure_strategy_map[ft][strategy.strategy_type]
-                + 0.3 * improvement_delta
+                0.7 * self.failure_strategy_map[ft][strategy.strategy_type] + 0.3 * improvement_delta
             )
 
     def record_failure(self, strategy: ImprovementStrategy):
@@ -277,9 +256,7 @@ class ImprovementKnowledge:
             }
         self.knob_effectiveness[strategy.knob]["failure"] += 1
 
-    def get_best_strategy_for_failure(
-        self, failure_type: FailureType
-    ) -> StrategyType | None:
+    def get_best_strategy_for_failure(self, failure_type: FailureType) -> StrategyType | None:
         """Get the best strategy for a given failure type based on history"""
         if failure_type not in self.failure_strategy_map:
             return None
@@ -343,9 +320,7 @@ class ImprovementLoopV2:
         self.db_session = db_session
         self.causal_decomposer = causal_decomposer or CausalDecomposer()
         self.knob_manager = knob_manager or KnobManager(db_session=db_session)
-        self.hypothesis_tester = hypothesis_tester or HypothesisTester(
-            knob_manager=self.knob_manager
-        )
+        self.hypothesis_tester = hypothesis_tester or HypothesisTester(knob_manager=self.knob_manager)
 
         self.enable_auto_improve = enable_auto_improve
         self.min_failures_for_analysis = min_failures_for_analysis
@@ -384,9 +359,7 @@ class ImprovementLoopV2:
             success: Whether the mission succeeded
             metrics: Performance metrics from the mission
         """
-        logger.info(
-            "Mission complete hook: mission=%s, success=%s", mission_id, success
-        )
+        logger.info("Mission complete hook: mission=%s, success=%s", mission_id, success)
 
         # Capture success metrics for learning
         if success:
@@ -487,9 +460,7 @@ class ImprovementLoopV2:
         try:
             # Step 1: Analyze failures
             session.state = SessionState.ANALYZING
-            session.weak_areas, session.failure_patterns = await self._analyze_failures(
-                agent_id
-            )
+            session.weak_areas, session.failure_patterns = await self._analyze_failures(agent_id)
 
             if not session.weak_areas:
                 session.state = SessionState.COMPLETED
@@ -506,9 +477,7 @@ class ImprovementLoopV2:
                 return session
 
             # Step 3: Select best strategy
-            session.selected_strategy = await self._select_best_strategy(
-                session.strategies
-            )
+            session.selected_strategy = await self._select_best_strategy(session.strategies)
 
             if not session.selected_strategy:
                 session.state = SessionState.FAILED
@@ -527,9 +496,7 @@ class ImprovementLoopV2:
             session.hypothesis_test.baseline_metrics = session.baseline_metrics
 
             # Start the test
-            test_started = await self.hypothesis_tester.start_test(
-                session.hypothesis_test
-            )
+            test_started = await self.hypothesis_tester.start_test(session.hypothesis_test)
 
             if not test_started:
                 session.state = SessionState.FAILED
@@ -569,9 +536,7 @@ class ImprovementLoopV2:
                 if session.test_result.state == HypothesisState.ROLLED_BACK:  # type: ignore[attr-defined]
                     session.notes = "Improvement rolled back due to regression"
                 else:
-                    session.notes = (
-                        f"Improvement not applied: {session.test_result.recommendation}"  # type: ignore[attr-defined]
-                    )
+                    session.notes = f"Improvement not applied: {session.test_result.recommendation}"  # type: ignore[attr-defined]
 
                 self.knowledge.record_failure(session.selected_strategy)
                 session.state = SessionState.COMPLETED
@@ -715,10 +680,7 @@ class ImprovementLoopV2:
 
             # Check oscillation risk
             if strategy.knob in self.knowledge.oscillation_patterns:
-                if (
-                    strategy.knob_value
-                    in self.knowledge.oscillation_patterns[strategy.knob]
-                ):
+                if strategy.knob_value in self.knowledge.oscillation_patterns[strategy.knob]:
                     score *= 0.3  # Heavy penalty for oscillation
 
             if score > best_score:
@@ -752,15 +714,9 @@ class ImprovementLoopV2:
             # Build base query for recent missions
             base_query = select(
                 func.count().label("total"),
-                func.sum(case((Mission.status == "completed", 1), else_=0)).label(
-                    "completed"
-                ),
-                func.sum(case((Mission.status == "failed", 1), else_=0)).label(
-                    "failed"
-                ),
-                func.avg(
-                    func.extract("epoch", Mission.completed_at - Mission.started_at)
-                ).label("avg_duration"),
+                func.sum(case((Mission.status == "completed", 1), else_=0)).label("completed"),
+                func.sum(case((Mission.status == "failed", 1), else_=0)).label("failed"),
+                func.avg(func.extract("epoch", Mission.completed_at - Mission.started_at)).label("avg_duration"),
             )
 
             if agent_id:
@@ -782,31 +738,21 @@ class ImprovementLoopV2:
 
                 tool_query = select(
                     func.count().label("total_tool_calls"),
-                    func.sum(case((ToolAnalytics.success == True, 1), else_=0)).label(
-                        "successful_tool_calls"
-                    ),
+                    func.sum(case((ToolAnalytics.success == True, 1), else_=0)).label("successful_tool_calls"),
                 )
 
                 if agent_id:
                     try:
                         user_id_str = str(int(agent_id))
-                        tool_query = tool_query.where(
-                            ToolAnalytics.user_id == user_id_str
-                        )
+                        tool_query = tool_query.where(ToolAnalytics.user_id == user_id_str)
                     except (ValueError, TypeError):
                         pass
 
                 tool_result = await self.db_session.execute(tool_query)
                 tool_row = tool_result.one_or_none()
 
-                if (
-                    tool_row
-                    and tool_row.total_tool_calls
-                    and tool_row.total_tool_calls > 0
-                ):
-                    tool_success_rate = (
-                        tool_row.successful_tool_calls or 0
-                    ) / tool_row.total_tool_calls
+                if tool_row and tool_row.total_tool_calls and tool_row.total_tool_calls > 0:
+                    tool_success_rate = (tool_row.successful_tool_calls or 0) / tool_row.total_tool_calls
                 else:
                     tool_success_rate = 0.85  # default when no tool data available
             except Exception as tool_e:
@@ -852,13 +798,8 @@ class ImprovementLoopV2:
     def get_knowledge_summary(self) -> dict[str, Any]:
         """Get summary of accumulated knowledge"""
         return {
-            "strategy_effectiveness": {
-                st.value: data
-                for st, data in self.knowledge.strategy_effectiveness.items()
-            },
-            "knob_effectiveness": {
-                kt.value: data for kt, data in self.knowledge.knob_effectiveness.items()
-            },
+            "strategy_effectiveness": {st.value: data for st, data in self.knowledge.strategy_effectiveness.items()},
+            "knob_effectiveness": {kt.value: data for kt, data in self.knowledge.knob_effectiveness.items()},
             "total_sessions": len(self.knowledge.recent_sessions),
             "pending_failures": len(self._failure_buffer),
         }

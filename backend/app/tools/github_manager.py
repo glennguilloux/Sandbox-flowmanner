@@ -35,9 +35,7 @@ class GithubManagerInput(ToolInput):
     query: str | None = Field(None, description="Search query for search_code")
     issue_number: int | None = Field(None, description="Issue/PR number")
     limit: int = Field(30, ge=1, le=100)
-    token: str | None = Field(
-        None, description="GitHub PAT (uses GITHUB_TOKEN env var if omitted)"
-    )
+    token: str | None = Field(None, description="GitHub PAT (uses GITHUB_TOKEN env var if omitted)")
 
 
 class GithubManagerTool(BaseTool):
@@ -57,9 +55,7 @@ class GithubManagerTool(BaseTool):
         try:
             validated = GithubManagerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         token = validated.token or os.getenv("GITHUB_TOKEN", "")
         if not token:
@@ -97,21 +93,15 @@ class GithubManagerTool(BaseTool):
                 elif action == "search_code":
                     return await self._search_code(client, base_url, validated)
                 else:
-                    return ToolResult.error_result(
-                        tool_id=self.tool_id, error=f"Unknown action: {action}"
-                    )
+                    return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}")
         except Exception as e:
             logger.exception("github_manager failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
     async def _list_repos(self, client, base_url, v) -> ToolResult:
-        r = await client.get(
-            f"{base_url}/user/repos", params={"per_page": v.limit, "sort": "updated"}
-        )
+        r = await client.get(f"{base_url}/user/repos", params={"per_page": v.limit, "sort": "updated"})
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}")
         repos = [
             {
                 "name": repo["name"],
@@ -131,9 +121,7 @@ class GithubManagerTool(BaseTool):
 
     async def _get_repo(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner and repo required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner and repo required")
         r = await client.get(f"{base_url}/repos/{v.owner}/{v.repo}")
         if r.status_code != 200:
             return ToolResult.error_result(
@@ -161,17 +149,13 @@ class GithubManagerTool(BaseTool):
 
     async def _list_issues(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner and repo required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner and repo required")
         r = await client.get(
             f"{base_url}/repos/{v.owner}/{v.repo}/issues",
             params={"state": v.state, "per_page": v.limit},
         )
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}")
         issues = [
             {
                 "number": i["number"],
@@ -190,16 +174,10 @@ class GithubManagerTool(BaseTool):
 
     async def _get_issue(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo or not v.issue_number:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner, repo, and issue_number required"
-            )
-        r = await client.get(
-            f"{base_url}/repos/{v.owner}/{v.repo}/issues/{v.issue_number}"
-        )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner, repo, and issue_number required")
+        r = await client.get(f"{base_url}/repos/{v.owner}/{v.repo}/issues/{v.issue_number}")
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}")
         i = r.json()
         return ToolResult.success_result(
             tool_id=self.tool_id,
@@ -219,17 +197,13 @@ class GithubManagerTool(BaseTool):
 
     async def _create_issue(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo or not v.title:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner, repo, and title required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner, repo, and title required")
         payload: dict = {"title": v.title}
         if v.body:
             payload["body"] = v.body
         if v.labels:
             payload["labels"] = v.labels
-        r = await client.post(
-            f"{base_url}/repos/{v.owner}/{v.repo}/issues", json=payload
-        )
+        r = await client.post(f"{base_url}/repos/{v.owner}/{v.repo}/issues", json=payload)
         if r.status_code not in (200, 201):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -250,17 +224,13 @@ class GithubManagerTool(BaseTool):
 
     async def _list_prs(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner and repo required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner and repo required")
         r = await client.get(
             f"{base_url}/repos/{v.owner}/{v.repo}/pulls",
             params={"state": v.state, "per_page": v.limit},
         )
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}")
         prs = [
             {
                 "number": p["number"],
@@ -280,15 +250,11 @@ class GithubManagerTool(BaseTool):
 
     async def _create_pr(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo or not v.title or not v.branch:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner, repo, title, and branch required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner, repo, title, and branch required")
         payload: dict = {"title": v.title, "head": v.branch, "base": v.base_branch}
         if v.body:
             payload["body"] = v.body
-        r = await client.post(
-            f"{base_url}/repos/{v.owner}/{v.repo}/pulls", json=payload
-        )
+        r = await client.post(f"{base_url}/repos/{v.owner}/{v.repo}/pulls", json=payload)
         if r.status_code not in (200, 201):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
@@ -309,22 +275,14 @@ class GithubManagerTool(BaseTool):
 
     async def _get_file(self, client, base_url, v) -> ToolResult:
         if not v.owner or not v.repo or not v.file_path:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="owner, repo, and file_path required"
-            )
-        r = await client.get(
-            f"{base_url}/repos/{v.owner}/{v.repo}/contents/{v.file_path}"
-        )
+            return ToolResult.error_result(tool_id=self.tool_id, error="owner, repo, and file_path required")
+        r = await client.get(f"{base_url}/repos/{v.owner}/{v.repo}/contents/{v.file_path}")
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}")
         f = r.json()
         import base64
 
-        content = base64.b64decode(f.get("content", "")).decode(
-            "utf-8", errors="replace"
-        )
+        content = base64.b64decode(f.get("content", "")).decode("utf-8", errors="replace")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={
@@ -342,9 +300,7 @@ class GithubManagerTool(BaseTool):
         params = {"q": v.query, "per_page": min(v.limit, 30)}
         r = await client.get(f"{base_url}/search/code", params=params)
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"GitHub API error: {r.status_code}")
         data = r.json()
         items = [
             {

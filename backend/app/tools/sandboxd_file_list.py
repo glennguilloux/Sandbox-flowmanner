@@ -62,9 +62,7 @@ class SandboxdFileListTool(BaseTool):
         try:
             validated = SandboxdFileListInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()

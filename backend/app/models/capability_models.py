@@ -283,26 +283,18 @@ class Budget(BaseModel):
         import time as _time
 
         if self.spent_usd >= self.max_cost_usd:
-            return True, (
-                f"Cost budget exhausted (${self.spent_usd:.4f}/${self.max_cost_usd:.2f})"
-            )
+            return True, (f"Cost budget exhausted (${self.spent_usd:.4f}/${self.max_cost_usd:.2f})")
 
         if self.max_wall_time_seconds > 0 and self.wall_time_started_at > 0:
             elapsed = _time.monotonic() - self.wall_time_started_at
             if elapsed >= self.max_wall_time_seconds:
-                return True, (
-                    f"Wall-clock budget exhausted ({elapsed:.1f}s/{self.max_wall_time_seconds}s)"
-                )
+                return True, (f"Wall-clock budget exhausted ({elapsed:.1f}s/{self.max_wall_time_seconds}s)")
 
         if self.iterations_used >= self.max_iterations:
-            return True, (
-                f"Iteration budget exhausted ({self.iterations_used}/{self.max_iterations})"
-            )
+            return True, (f"Iteration budget exhausted ({self.iterations_used}/{self.max_iterations})")
 
         if self.depth_used >= self.max_depth:
-            return True, (
-                f"Depth budget exhausted ({self.depth_used}/{self.max_depth})"
-            )
+            return True, (f"Depth budget exhausted ({self.depth_used}/{self.max_depth})")
 
         return False, ""
 
@@ -410,9 +402,7 @@ class PydanticAdapter:
         return cap
 
     @staticmethod
-    def validate_input(
-        capability: Capability, params: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def validate_input(capability: Capability, params: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate input params against a capability's typed contract.
 
         For dict-based capabilities, falls back to basic JSON Schema validation.
@@ -452,9 +442,7 @@ class PydanticAdapter:
         for field_name, value in params.items():
             expected_type = properties.get(field_name, {}).get("type")
             if (
-                expected_type
-                and expected_type in type_map
-                and not isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
+                expected_type and expected_type in type_map and not isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
             ):
                 return (
                     False,

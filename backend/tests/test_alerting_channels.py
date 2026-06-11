@@ -70,7 +70,6 @@ def _make_slo_payload() -> dict:
 
 
 class TestChannelParsing:
-
     @pytest.mark.parametrize(
         "env_val,expected",
         [
@@ -122,7 +121,6 @@ class TestChannelParsing:
 
 
 class TestNtfyFormatting:
-
     def test_ntfy_url_from_topic(self):
         """NTFY_TOPIC=my-topic → https://ntfy.sh/my-topic"""
         am = _reload_alerting(
@@ -217,7 +215,6 @@ class TestNtfyFormatting:
 
 
 class TestWebhookChannel:
-
     @pytest.mark.asyncio
     async def test_webhook_sends_json_payload(self):
         """_send_webhook() POSTs the payload as JSON to ALERT_WEBHOOK_URL."""
@@ -257,7 +254,6 @@ class TestWebhookChannel:
 
 
 class TestPlaceholderChannels:
-
     @pytest.mark.asyncio
     async def test_email_returns_false(self):
         """email channel is placeholder — returns False."""
@@ -279,7 +275,6 @@ class TestPlaceholderChannels:
 
 
 class TestMultiChannelDispatch:
-
     @pytest.mark.asyncio
     async def test_dispatches_to_all_configured_channels(self):
         """_dispatch_to_channels() sends to every channel in the list."""
@@ -307,9 +302,7 @@ class TestMultiChannelDispatch:
                 "webhook": fake_webhook,
             },
         ):
-            results = await am._dispatch_to_channels(
-                _make_payload(), channels=["ntfy", "webhook"]
-            )
+            results = await am._dispatch_to_channels(_make_payload(), channels=["ntfy", "webhook"])
 
         assert results == {"ntfy": True, "webhook": True}
         assert "ntfy" in call_log
@@ -346,9 +339,7 @@ class TestMultiChannelDispatch:
                 "email": fake_email,
             },
         ):
-            dispatch_results = await am._dispatch_to_channels(
-                _make_payload(), channels=["ntfy", "webhook", "email"]
-            )
+            dispatch_results = await am._dispatch_to_channels(_make_payload(), channels=["ntfy", "webhook", "email"])
 
         assert dispatch_results == {"ntfy": False, "webhook": True, "email": False}
         assert results_tracker["ntfy_ok"] is True
@@ -359,9 +350,7 @@ class TestMultiChannelDispatch:
     async def test_unknown_channel_skipped(self):
         """Unknown channel names are skipped with a warning, not an error."""
         am = _reload_alerting()
-        results = await am._dispatch_to_channels(
-            _make_payload(), channels=["nonexistent_channel"]
-        )
+        results = await am._dispatch_to_channels(_make_payload(), channels=["nonexistent_channel"])
         assert results == {"nonexistent_channel": False}
 
     @pytest.mark.asyncio
@@ -382,7 +371,6 @@ class TestMultiChannelDispatch:
 
 
 class TestCircuitAlertEndToEnd:
-
     @pytest.mark.asyncio
     async def test_send_circuit_alert_dispatches_to_channels(self):
         """send_circuit_alert() dispatches through _dispatch_to_channels."""
@@ -395,9 +383,7 @@ class TestCircuitAlertEndToEnd:
         async def fake_dispatch(payload, channels):
             return {"webhook": True}
 
-        with patch.object(
-            am, "_dispatch_to_channels", side_effect=fake_dispatch
-        ) as mock_dispatch:
+        with patch.object(am, "_dispatch_to_channels", side_effect=fake_dispatch) as mock_dispatch:
             await am.send_circuit_alert("test-db", "closed", "open", 3)
 
         mock_dispatch.assert_awaited_once()
@@ -479,7 +465,6 @@ class TestCircuitAlertEndToEnd:
 
 
 class TestSLOAlertEndToEnd:
-
     @pytest.mark.asyncio
     async def test_send_slo_alert_dispatches_to_channels(self):
         """send_slo_alert() dispatches through _dispatch_to_channels."""
@@ -493,9 +478,7 @@ class TestSLOAlertEndToEnd:
         async def fake_dispatch(payload, channels):
             return {"webhook": True, "ntfy": True}
 
-        with patch.object(
-            am, "_dispatch_to_channels", side_effect=fake_dispatch
-        ) as mock_dispatch:
+        with patch.object(am, "_dispatch_to_channels", side_effect=fake_dispatch) as mock_dispatch:
             await am.send_slo_alert(
                 slo_name="mission_success_rate",
                 description="Mission execution success rate > 95%",
@@ -581,7 +564,6 @@ class TestSLOAlertEndToEnd:
 
 
 class TestAlertingStatus:
-
     def test_status_includes_channels_and_config(self):
         """get_alerting_status() reports channel configuration."""
         am = _reload_alerting(

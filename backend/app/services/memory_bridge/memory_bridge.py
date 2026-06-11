@@ -84,14 +84,8 @@ class MemoryBridge:
         )
 
         # Sync to RAG if enabled and important enough
-        should_sync = (
-            sync_to_rag if sync_to_rag is not None else self.config.sync_to_rag
-        )
-        if (
-            should_sync
-            and self.rag_service
-            and importance >= self.config.max_shared_importance
-        ):
+        should_sync = sync_to_rag if sync_to_rag is not None else self.config.sync_to_rag
+        if should_sync and self.rag_service and importance >= self.config.max_shared_importance:
             await self._sync_to_rag(memory)
 
         # Sync to external bridges
@@ -121,9 +115,7 @@ class MemoryBridge:
                 },
             }
 
-            await self.rag_service.ingest(
-                documents=[doc], collection=self.config.rag_collection
-            )
+            await self.rag_service.ingest(documents=[doc], collection=self.config.rag_collection)
 
             logger.info("Synced memory %s to RAG", memory.id)
             return True
@@ -161,9 +153,7 @@ class MemoryBridge:
         }
 
         # Get agent's own memories
-        agent_memories = await self.memory_service.recall(
-            agent_id=agent_id, query=query, limit=limit
-        )
+        agent_memories = await self.memory_service.recall(agent_id=agent_id, query=query, limit=limit)
         result["agent_memories"] = [m.to_dict() for m in agent_memories]
 
         # Get RAG results if enabled
@@ -186,9 +176,7 @@ class MemoryBridge:
 
         return result
 
-    async def _get_shared_memories(
-        self, query: str, limit: int
-    ) -> list[dict[str, Any]]:
+    async def _get_shared_memories(self, query: str, limit: int) -> list[dict[str, Any]]:
         """Get shared memories from other agents"""
         if not self.rag_service:
             return []
@@ -226,16 +214,12 @@ class MemoryBridge:
 
         return "\n".join(parts)
 
-    def register_external_bridge(
-        self, name: str, bridge_func: Callable[[str, Memory], Awaitable[None]]
-    ) -> None:
+    def register_external_bridge(self, name: str, bridge_func: Callable[[str, Memory], Awaitable[None]]) -> None:
         """Register an external memory bridge"""
         self._external_bridges[name] = bridge_func
         logger.info("Registered external bridge: %s", name)
 
-    async def inject_context(
-        self, agent_id: str, query: str, max_tokens: int = 1000
-    ) -> str:
+    async def inject_context(self, agent_id: str, query: str, max_tokens: int = 1000) -> str:
         """
         Inject relevant context for a query.
 

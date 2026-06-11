@@ -40,9 +40,16 @@ LOGGER_METHODS = frozenset(
 def _is_logger_attr(node: ast.expr) -> bool:
     """True if `node` looks like a logger reference: `logger`, `self.logger`, etc."""
     if isinstance(node, ast.Name):
-        return node.id.lower().endswith("logger") or node.id == "logger" or node.id == "_logger"
+        return (
+            node.id.lower().endswith("logger")
+            or node.id == "logger"
+            or node.id == "_logger"
+        )
     if isinstance(node, ast.Attribute):
-        return node.attr.lower().endswith("logger") or node.attr in {"logger", "_logger"}
+        return node.attr.lower().endswith("logger") or node.attr in {
+            "logger",
+            "_logger",
+        }
     return False
 
 
@@ -179,7 +186,7 @@ def transform_source(src: str) -> tuple[str, int, int]:
     """Run the converter over `src`. Returns (new_src, converted_count, skipped_count)."""
     try:
         tree = ast.parse(src)
-    except SyntaxError as e:
+    except SyntaxError:
         return src, 0, 0  # leave broken files alone
 
     # Walk and collect (call, new_call) pairs, then apply bottom-up so line numbers

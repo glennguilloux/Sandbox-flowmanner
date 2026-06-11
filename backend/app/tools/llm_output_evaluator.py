@@ -64,21 +64,11 @@ _EVALUATION_STYLES = ("numeric", "pairwise", "likert")
 class EvaluationCriterion(BaseModel):
     """Single evaluation dimension with weight and rubric."""
 
-    name: str = Field(
-        ..., min_length=1, description="Criterion name (e.g., 'hallucination')"
-    )
-    description: str = Field(
-        "", description="Detailed description of what this criterion measures"
-    )
-    weight: float = Field(
-        1.0, ge=0.0, le=10.0, description="Relative weight in overall score"
-    )
-    min_score: float = Field(
-        0.0, ge=0.0, le=1.0, description="Minimum acceptable score"
-    )
-    rubric: list[str] | None = Field(
-        None, description="Scoring rubric levels (e.g., ['Poor: 0-3', 'Good: 7-10'])"
-    )
+    name: str = Field(..., min_length=1, description="Criterion name (e.g., 'hallucination')")
+    description: str = Field("", description="Detailed description of what this criterion measures")
+    weight: float = Field(1.0, ge=0.0, le=10.0, description="Relative weight in overall score")
+    min_score: float = Field(0.0, ge=0.0, le=1.0, description="Minimum acceptable score")
+    rubric: list[str] | None = Field(None, description="Scoring rubric levels (e.g., ['Poor: 0-3', 'Good: 7-10'])")
 
 
 class LlmOutputEvaluatorInput(ToolInput):
@@ -102,14 +92,11 @@ class LlmOutputEvaluatorInput(ToolInput):
         None,
         description="Evaluation criteria with weights. Defaults: hallucination (w=2), factual_accuracy (w=2), coherence (w=1), relevance (w=1)",
     )
-    evaluator_model: (
-        Literal[
-            "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "claude-3.5-sonnet", "claude-3-opus"
-        ]
-        | None
-    ) = Field(
-        None,
-        description="Model to use as judge (cheaper models are usually sufficient)",
+    evaluator_model: Literal["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "claude-3.5-sonnet", "claude-3-opus"] | None = (
+        Field(
+            None,
+            description="Model to use as judge (cheaper models are usually sufficient)",
+        )
     )
     evaluation_style: Literal["numeric", "pairwise", "likert"] = Field(
         "numeric",
@@ -176,9 +163,7 @@ class LlmOutputEvaluatorTool(BaseTool):
         try:
             validated = LlmOutputEvaluatorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Convert EvaluationCriterion objects to criteria dicts
         if validated.criteria:
@@ -196,9 +181,7 @@ class LlmOutputEvaluatorTool(BaseTool):
                     weight=2.0,
                     description="Verify facts against ground truth",
                 ),
-                EvaluationCriterion(
-                    name="coherence", weight=1.0, description="Logical flow and clarity"
-                ),
+                EvaluationCriterion(name="coherence", weight=1.0, description="Logical flow and clarity"),
                 EvaluationCriterion(
                     name="relevance_to_query",
                     weight=1.0,
@@ -230,28 +213,21 @@ class LlmOutputEvaluatorTool(BaseTool):
 
             # Compute weighted aggregate
             criteria_map = {c.name: c for c in criteria_items}
-            detail_scores = {
-                c["criterion"]: c["score"] for c in evaluation.get("criteria", [])
-            }
+            detail_scores = {c["criterion"]: c["score"] for c in evaluation.get("criteria", [])}
             if detail_scores:
                 weighted_sum = sum(
                     s * criteria_map.get(name, EvaluationCriterion(name=name)).weight
                     for name, s in detail_scores.items()
                 )
                 total_weight = sum(
-                    criteria_map.get(name, EvaluationCriterion(name=name)).weight
-                    for name in detail_scores
+                    criteria_map.get(name, EvaluationCriterion(name=name)).weight for name in detail_scores
                 )
-                overall = (
-                    round(weighted_sum / total_weight, 1) if total_weight > 0 else 0.0
-                )
+                overall = round(weighted_sum / total_weight, 1) if total_weight > 0 else 0.0
             else:
                 overall = 0.0
             issues = self._extract_issues(evaluation)
             hallucinations = evaluation.get("hallucinations", [])
-            summary = self._build_summary(
-                detail_scores, overall, issues, hallucinations
-            )
+            summary = self._build_summary(detail_scores, overall, issues, hallucinations)
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
@@ -272,9 +248,7 @@ class LlmOutputEvaluatorTool(BaseTool):
             logger.exception("llm_output_evaluator failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _multi_judge_evaluate(
-        self, validated: LlmOutputEvaluatorInput, criteria: list[str]
-    ) -> dict[str, Any]:
+    async def _multi_judge_evaluate(self, validated: LlmOutputEvaluatorInput, criteria: list[str]) -> dict[str, Any]:
         judges = validated.min_judges
         all_criteria: list[list[dict]] = []
         all_hallucinations: list[list[dict]] = []
@@ -336,9 +310,7 @@ class LlmOutputEvaluatorTool(BaseTool):
             {"role": "system", "content": _EVALUATOR_SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": self._build_evaluation_prompt(
-                    text, query, context, criteria, evaluation_style, output_b
-                ),
+                "content": self._build_evaluation_prompt(text, query, context, criteria, evaluation_style, output_b),
             },
         ]
         response = await self._call_evaluator(messages, model_preference)
@@ -370,38 +342,26 @@ class LlmOutputEvaluatorTool(BaseTool):
             parts.append("<output_b>\n" + (output_b or "") + "\n</output_b>\n")
             parts.append("Return JSON: {\n")
             parts.append('  "winner": "A" or "B" or "tie",')
-            parts.append(
-                '  "criteria": [{"criterion": "...", "score_a": 0, "score_b": 0}]'
-            )
+            parts.append('  "criteria": [{"criterion": "...", "score_a": 0, "score_b": 0}]')
             parts.append("}")
         elif evaluation_style == "likert":
             parts.append("\nRate each criterion on a 1-5 Likert scale:\n")
             for c in criteria:
-                parts.append(
-                    f"- {c}: 1=Strongly Disagree, 2=Disagree, 3=Neutral, 4=Agree, 5=Strongly Agree"
-                )
+                parts.append(f"- {c}: 1=Strongly Disagree, 2=Disagree, 3=Neutral, 4=Agree, 5=Strongly Agree")
             parts.append("\nReturn JSON:\n{")
-            parts.append(
-                '  "criteria": [{"criterion": "...", "score": 3, "comment": "..."}]'
-            )
+            parts.append('  "criteria": [{"criterion": "...", "score": 3, "comment": "..."}]')
             parts.append("}")
         else:
             parts.append("\nScore each criterion 0-10:\n")
             for c in criteria:
                 parts.append(f"- {c}")
             parts.append("\nReturn JSON:\n{")
-            parts.append(
-                '  "criteria": [{"criterion": "...", "score": 0, "comment": "..."}],'
-            )
-            parts.append(
-                '  "hallucinations": [{"passage": "...", "description": "..."}]'
-            )
+            parts.append('  "criteria": [{"criterion": "...", "score": 0, "comment": "..."}],')
+            parts.append('  "hallucinations": [{"passage": "...", "description": "..."}]')
             parts.append("}")
         return "\n".join(parts)
 
-    async def _call_evaluator(
-        self, messages: list[dict], model_preference: str | None
-    ) -> str:
+    async def _call_evaluator(self, messages: list[dict], model_preference: str | None) -> str:
         from app.services.llm_router import ModelRouter
 
         router = ModelRouter()
@@ -459,9 +419,7 @@ class LlmOutputEvaluatorTool(BaseTool):
         parsed = []
         for c in criteria:
             pattern = c.replace("_", r"[\s_]")
-            m = re.search(
-                rf"{pattern}[:\\s]+(\\d+)(?:\\s*/\\s*10)?", response, re.IGNORECASE
-            )
+            m = re.search(rf"{pattern}[:\\s]+(\\d+)(?:\\s*/\\s*10)?", response, re.IGNORECASE)
             if m:
                 score = min(max(int(m.group(1)), 0), 10)
                 parsed.append(
@@ -495,9 +453,7 @@ class LlmOutputEvaluatorTool(BaseTool):
             )
         return issues
 
-    def _build_summary(
-        self, scores: dict, overall: float, issues: list, hallucinations: list
-    ) -> str:
+    def _build_summary(self, scores: dict, overall: float, issues: list, hallucinations: list) -> str:
         parts = [f"Overall score: {overall}/10"]
         for c, s in scores.items():
             emoji = "✅" if s >= 7 else ("⚠️" if s >= 4 else "❌")

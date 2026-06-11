@@ -97,9 +97,7 @@ class UnifiedExecutor:
         self._load_strategies()
         strategy = self._strategies.get(workflow_type)
         if strategy is None:
-            raise ValueError(
-                f"No strategy registered for workflow type: {workflow_type}"
-            )
+            raise ValueError(f"No strategy registered for workflow type: {workflow_type}")
         return strategy
 
     # ── Public API ──────────────────────────────────────────────────
@@ -185,9 +183,7 @@ class UnifiedExecutor:
             strategy = self._get_strategy(workflow.type)
             errors = await strategy.validate(workflow)
             if errors:
-                await self._finalize_run(
-                    db, workflow, run_id, "failed", "; ".join(errors)
-                )
+                await self._finalize_run(db, workflow, run_id, "failed", "; ".join(errors))
                 return StrategyResult(
                     success=False,
                     status="failed",
@@ -395,9 +391,7 @@ class UnifiedExecutor:
 
     # ── Phase 6.4: Circuit breaker ────────────────────────────────────
 
-    async def _ensure_circuit_breaker(
-        self, db: AsyncSession, workflow: Workflow
-    ) -> None:
+    async def _ensure_circuit_breaker(self, db: AsyncSession, workflow: Workflow) -> None:
         """Lazily create or get a circuit breaker for this mission.
 
         Passes the workflow's budget limits to the circuit breaker so that
@@ -457,9 +451,7 @@ class UnifiedExecutor:
             async with db.begin_nested():
                 breaker = await service.get_breaker(mission_id)
                 if breaker is not None:
-                    await service.record_call(
-                        breaker, call_type=call_type, cost_usd=cost_usd
-                    )
+                    await service.record_call(breaker, call_type=call_type, cost_usd=cost_usd)
         except Exception as e:
             logger.debug("Circuit breaker record skipped: %s", e)
 

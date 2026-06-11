@@ -197,9 +197,7 @@ class TestSandboxNodeEvents:
             assert result["success"] is True
 
             # Verify events were emitted
-            event_types = [
-                c.args[2][0]["type"] for c in mock_event_log.append.call_args_list
-            ]
+            event_types = [c.args[2][0]["type"] for c in mock_event_log.append.call_args_list]
             assert SubstrateEventType.SANDBOX_CREATED in event_types
             assert SubstrateEventType.SANDBOX_TASK_SUBMITTED in event_types
             assert SubstrateEventType.SANDBOX_TASK_PROGRESS in event_types
@@ -508,9 +506,7 @@ class TestSandboxNodeConfig:
 
         mock_svc.get_sandbox_for_mission = AsyncMock(return_value=None)
         mock_svc.ensure_sandbox_for_mission = AsyncMock(return_value="sb-1")
-        mock_client.create_snapshot = AsyncMock(
-            return_value={"id": "snap-1", "name": "pre_n1"}
-        )
+        mock_client.create_snapshot = AsyncMock(return_value={"id": "snap-1", "name": "pre_n1"})
         mock_client.submit_task.return_value = {"id": "task-1"}
 
         async def mock_events(*args, **kwargs):
@@ -596,9 +592,7 @@ class TestSandboxNodeLazyProperties:
         executor._sbx_client = mock_client
         executor._sbx_svc = mock_svc
 
-        mock_client.create = AsyncMock(
-            return_value={"id": "ephemeral-sb", "status": "running"}
-        )
+        mock_client.create = AsyncMock(return_value={"id": "ephemeral-sb", "status": "running"})
         mock_client.submit_task = AsyncMock(return_value={"id": "task-1"})
 
         async def mock_events(*args, **kwargs):

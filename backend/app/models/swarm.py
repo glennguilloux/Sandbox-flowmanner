@@ -38,21 +38,15 @@ class SwarmProfile(Base):
         onupdate=datetime.utcnow,
     )
     dissolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    created_by: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=True
-    )
+    created_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
 
 
 class SwarmAgent(Base):
     __tablename__ = "swarm_agents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    agent_instance_id: Mapped[str] = mapped_column(
-        String(64), nullable=False, unique=True
-    )
-    swarm_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("swarm_profiles.swarm_id"), nullable=False
-    )
+    agent_instance_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    swarm_id: Mapped[str] = mapped_column(String(64), ForeignKey("swarm_profiles.swarm_id"), nullable=False)
     agent_template_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("agent_templates.template_id"), nullable=True
     )
@@ -78,12 +72,8 @@ class SwarmTask(Base):
     __tablename__ = "swarm_tasks"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    swarm_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("swarm_profiles.swarm_id"), nullable=False
-    )
-    parent_task_id: Mapped[str | None] = mapped_column(
-        String(64), ForeignKey("swarm_tasks.id"), nullable=True
-    )
+    swarm_id: Mapped[str] = mapped_column(String(64), ForeignKey("swarm_profiles.swarm_id"), nullable=False)
+    parent_task_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("swarm_tasks.id"), nullable=True)
     task_type: Mapped[str] = mapped_column(String(50), nullable=False)
     priority: Mapped[int | None] = mapped_column(Integer, nullable=True)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -107,9 +97,7 @@ class SwarmConsensusRound(Base):
     __tablename__ = "swarm_consensus_rounds"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    swarm_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("swarm_profiles.swarm_id"), nullable=False
-    )
+    swarm_id: Mapped[str] = mapped_column(String(64), ForeignKey("swarm_profiles.swarm_id"), nullable=False)
     proposal: Mapped[dict] = mapped_column(JSON, nullable=False)
     initiator_agent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     votes: Mapped[dict | None] = mapped_column(JSON, nullable=True)

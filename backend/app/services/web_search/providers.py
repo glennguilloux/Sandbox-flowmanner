@@ -36,16 +36,13 @@ class BaseSearchProvider(ABC):
         pass
 
     @abstractmethod
-    async def search(
-        self, query: str, search_type: SearchType, max_results: int
-    ) -> SearchResponse:
+    async def search(self, query: str, search_type: SearchType, max_results: int) -> SearchResponse:
         pass
 
     @property
     def is_available(self) -> bool:
         return self.config.enabled and (
-            self.config.api_key is not None
-            or self.provider_name in [SearchProvider.SEARXNG, SearchProvider.DUCKDUCKGO]
+            self.config.api_key is not None or self.provider_name in [SearchProvider.SEARXNG, SearchProvider.DUCKDUCKGO]
         )
 
     def _create_result(self, **kwargs) -> SearchResult:
@@ -57,17 +54,13 @@ class SearXNGProvider(BaseSearchProvider):
 
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
-        self.base_url = config.base_url or os.getenv(
-            "SEARXNG_URL", "http://localhost:55510"
-        )
+        self.base_url = config.base_url or os.getenv("SEARXNG_URL", "http://localhost:55510")
 
     @property
     def provider_name(self) -> SearchProvider:
         return SearchProvider.SEARXNG
 
-    async def search(
-        self, query: str, search_type: SearchType, max_results: int
-    ) -> SearchResponse:
+    async def search(self, query: str, search_type: SearchType, max_results: int) -> SearchResponse:
         start_time = time.time()
         results = []
         error = None
@@ -154,9 +147,7 @@ class TavilyProvider(BaseSearchProvider):
     def provider_name(self) -> SearchProvider:
         return SearchProvider.TAVILY
 
-    async def search(
-        self, query: str, search_type: SearchType, max_results: int
-    ) -> SearchResponse:
+    async def search(self, query: str, search_type: SearchType, max_results: int) -> SearchResponse:
         start_time = time.time()
         results = []
         error = None
@@ -235,9 +226,7 @@ class ExaProvider(BaseSearchProvider):
     def provider_name(self) -> SearchProvider:
         return SearchProvider.EXA
 
-    async def search(
-        self, query: str, search_type: SearchType, max_results: int
-    ) -> SearchResponse:
+    async def search(self, query: str, search_type: SearchType, max_results: int) -> SearchResponse:
         start_time = time.time()
         results = []
         error = None
@@ -275,9 +264,7 @@ class ExaProvider(BaseSearchProvider):
             }
 
             async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
-                response = await client.post(
-                    f"{self.base_url}/search", json=payload, headers=headers
-                )
+                response = await client.post(f"{self.base_url}/search", json=payload, headers=headers)
                 response.raise_for_status()
                 data = response.json()
 
@@ -337,9 +324,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
     def provider_name(self) -> SearchProvider:
         return SearchProvider.DUCKDUCKGO
 
-    async def search(
-        self, query: str, search_type: SearchType, max_results: int
-    ) -> SearchResponse:
+    async def search(self, query: str, search_type: SearchType, max_results: int) -> SearchResponse:
         start_time = time.time()
         results = []
         error = None
@@ -348,14 +333,10 @@ class DuckDuckGoProvider(BaseSearchProvider):
             # Use DuckDuckGo HTML endpoint
             params = {"q": query}
 
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
             async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
-                response = await client.get(
-                    self.base_url, params=params, headers=headers
-                )
+                response = await client.get(self.base_url, params=params, headers=headers)
                 response.raise_for_status()
                 html = response.text
 
@@ -403,9 +384,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
                     self._create_result(
                         title=title_elem.get_text(strip=True),
                         url=url,
-                        snippet=(
-                            snippet_elem.get_text(strip=True) if snippet_elem else ""
-                        ),
+                        snippet=(snippet_elem.get_text(strip=True) if snippet_elem else ""),
                         rank=i + 1,
                         score=1.0 - (i * 0.1),
                     )

@@ -454,9 +454,7 @@ class TestGeneratePlan:
         mock_response.raise_for_status = MagicMock()
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                return_value=mock_response
-            )
+            mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
             tasks = await planner._generate_plan("Plan via HTTP")
 
         assert len(tasks) == 1
@@ -484,9 +482,7 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(
-            side_effect=RetryableMissionError("overloaded")
-        )
+        mock_router.route_request = AsyncMock(side_effect=RetryableMissionError("overloaded"))
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         with pytest.raises(RetryableMissionError):
@@ -498,9 +494,7 @@ class TestGeneratePlan:
         from app.services.mission_planner import MissionPlanner
 
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(
-            side_effect=PermanentMissionError("forbidden")
-        )
+        mock_router.route_request = AsyncMock(side_effect=PermanentMissionError("forbidden"))
 
         planner = MissionPlanner(get_model_router=lambda: mock_router)
         tasks = await planner._generate_plan("Plan this")
@@ -513,9 +507,7 @@ class TestGeneratePlan:
         planner = MissionPlanner(get_model_router=lambda: None)
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                side_effect=Exception("Connection error")
-            )
+            mock_client.return_value.__aenter__.return_value.post = AsyncMock(side_effect=Exception("Connection error"))
             tasks = await planner._generate_plan("Plan this")
         assert tasks == []
 

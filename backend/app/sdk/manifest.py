@@ -41,9 +41,7 @@ class PluginNodeType(BaseModel):
     )
     description: str | None = None
     icon: str | None = Field(default=None, description="Lucide icon name or emoji")
-    color: str | None = Field(
-        default=None, description="Hex color for node in graph editor"
-    )
+    color: str | None = Field(default=None, description="Hex color for node in graph editor")
     inputs: dict[str, NodeTypeInput] = Field(default_factory=dict)
     outputs: dict[str, NodeTypeOutput] = Field(default_factory=dict)
 
@@ -98,16 +96,12 @@ class PluginManifest(BaseModel):
         allowed = {"network", "filesystem", "subprocess", "env_read", "env_write"}
         for p in v:
             if p not in allowed:
-                raise ValueError(
-                    f"Unknown permission '{p}'. Allowed: {sorted(allowed)}"
-                )
+                raise ValueError(f"Unknown permission '{p}'. Allowed: {sorted(allowed)}")
         return v
 
     @field_validator("node_types")
     @classmethod
-    def validate_node_type_ids_unique(
-        cls, v: list[PluginNodeType]
-    ) -> list[PluginNodeType]:
+    def validate_node_type_ids_unique(cls, v: list[PluginNodeType]) -> list[PluginNodeType]:
         seen: set[str] = set()
         for nt in v:
             if nt.id in seen:

@@ -5,9 +5,10 @@ Revises: flo118_triggers
 Create Date: 2026-05-17
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "roadmap_001"
 down_revision = "flo118_triggers"
@@ -21,9 +22,7 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("description", sa.Text(), nullable=False, server_default=""),
-        sa.Column(
-            "status", sa.String(32), nullable=False, server_default="under_review"
-        ),
+        sa.Column("status", sa.String(32), nullable=False, server_default="under_review"),
         sa.Column("category", sa.String(64), nullable=False, server_default="general"),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("is_public", sa.Boolean(), nullable=False, server_default="true"),

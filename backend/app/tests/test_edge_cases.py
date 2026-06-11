@@ -13,10 +13,7 @@ async def test_user_friendly_error_mapping():
     error = TimeoutError("Connection timed out")
     result = get_user_friendly_error(error)
 
-    assert (
-        "timed out" in result["message"].lower()
-        or "timeout" in result["message"].lower()
-    )
+    assert "timed out" in result["message"].lower() or "timeout" in result["message"].lower()
     assert result["retryable"] == True
 
     # Test unknown error

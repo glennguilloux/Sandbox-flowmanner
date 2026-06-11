@@ -104,9 +104,7 @@ class AudioSentimentAnalyzerTool(BaseTool):
         try:
             validated = AudioSentimentAnalyzerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -125,9 +123,7 @@ class AudioSentimentAnalyzerTool(BaseTool):
 
     async def _analyze(self, validated: AudioSentimentAnalyzerInput) -> dict[str, Any]:
         """Extract audio features and compute sentiment scores."""
-        audio_bytes = await resolve_input(
-            validated.data, validated.url, label="audio", fetch_timeout=60
-        )
+        audio_bytes = await resolve_input(validated.data, validated.url, label="audio", fetch_timeout=60)
 
         tmp_path: str | None = None
         try:
@@ -201,12 +197,8 @@ class AudioSentimentAnalyzerTool(BaseTool):
             tempo_val = float(tempo)
 
         # Spectral features
-        spectral_centroid = float(
-            np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
-        )
-        spectral_bandwidth = float(
-            np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr))
-        )
+        spectral_centroid = float(np.mean(librosa.feature.spectral_centroid(y=y, sr=sr)))
+        spectral_bandwidth = float(np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr)))
         spectral_rolloff = float(np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr)))
         zero_crossing_rate = float(np.mean(librosa.feature.zero_crossing_rate(y)))
 
@@ -267,43 +259,30 @@ class AudioSentimentAnalyzerTool(BaseTool):
         fast_tempo = min((tempo - 80) / 80, 1.0) if tempo > 80 else 0
         slow_tempo = min((120 - tempo) / 120, 1.0) if tempo < 120 else 0
 
-        scores["happy"] = round(
-            min(energy_factor * 0.5 + pitch_var_factor * 0.3 + fast_tempo * 0.2, 1.0), 3
-        )
-        scores["excited"] = round(
-            min(energy_factor * 0.6 + pitch_var_factor * 0.3 + fast_tempo * 0.1, 1.0), 3
-        )
+        scores["happy"] = round(min(energy_factor * 0.5 + pitch_var_factor * 0.3 + fast_tempo * 0.2, 1.0), 3)
+        scores["excited"] = round(min(energy_factor * 0.6 + pitch_var_factor * 0.3 + fast_tempo * 0.1, 1.0), 3)
         scores["calm"] = round(
             min(
-                (1 - energy_factor) * 0.4
-                + slow_tempo * 0.4
-                + (1 - pitch_var_factor) * 0.2,
+                (1 - energy_factor) * 0.4 + slow_tempo * 0.4 + (1 - pitch_var_factor) * 0.2,
                 1.0,
             ),
             3,
         )
         scores["sad"] = round(
             min(
-                (1 - energy_factor) * 0.3
-                + slow_tempo * 0.3
-                + (1 - pitch_var_factor) * 0.4,
+                (1 - energy_factor) * 0.3 + slow_tempo * 0.3 + (1 - pitch_var_factor) * 0.4,
                 1.0,
             ),
             3,
         )
         scores["angry"] = round(
             min(
-                energy_factor * 0.4
-                + pitch_var_factor * 0.2
-                + (1 - slow_tempo) * 0.1
-                + 0.3,
+                energy_factor * 0.4 + pitch_var_factor * 0.2 + (1 - slow_tempo) * 0.1 + 0.3,
                 1.0,
             ),
             3,
         )
-        scores["fearful"] = round(
-            min(pitch_var_factor * 0.4 + energy_factor * 0.3, 1.0), 3
-        )
+        scores["fearful"] = round(min(pitch_var_factor * 0.4 + energy_factor * 0.3, 1.0), 3)
         scores["anxious"] = round(
             min(
                 pitch_var_factor * 0.5 + (1 - slow_tempo) * 0.2 + energy_factor * 0.2,
@@ -311,15 +290,9 @@ class AudioSentimentAnalyzerTool(BaseTool):
             ),
             3,
         )
-        scores["surprised"] = round(
-            min(pitch_var_factor * 0.3 + energy_factor * 0.3, 1.0), 3
-        )
-        scores["disgusted"] = round(
-            min((1 - pitch_var_factor) * 0.2 + energy_factor * 0.2, 1.0), 3
-        )
-        scores["neutral"] = round(
-            1.0 - sum(v for k, v in scores.items() if k != "neutral") / 9, 3
-        )
+        scores["surprised"] = round(min(pitch_var_factor * 0.3 + energy_factor * 0.3, 1.0), 3)
+        scores["disgusted"] = round(min((1 - pitch_var_factor) * 0.2 + energy_factor * 0.2, 1.0), 3)
+        scores["neutral"] = round(1.0 - sum(v for k, v in scores.items() if k != "neutral") / 9, 3)
         scores["neutral"] = max(0.0, scores["neutral"])
 
         # Normalize

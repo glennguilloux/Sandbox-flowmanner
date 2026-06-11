@@ -14,9 +14,9 @@ This script:
 import asyncio
 import json
 import logging
-import sys
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -29,12 +29,13 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
     from app.services.agent_parser import load_all_agents
     from app.services.nexus.agent_templates import AGENT_TEMPLATES
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     new_count = 0
     updated_count = 0
@@ -43,8 +44,7 @@ async def run():
         # Verify required columns exist (migration must have run first)
         has_slug = await conn.execute(
             sa_text(
-                "SELECT 1 FROM information_schema.columns "
-                "WHERE table_name = 'agent_templates' AND column_name = 'slug'"
+                "SELECT 1 FROM information_schema.columns WHERE table_name = 'agent_templates' AND column_name = 'slug'"
             )
         )
         if not has_slug.fetchone():
@@ -64,9 +64,7 @@ async def run():
             definition = json.dumps(agent_data, default=str)
 
             result = await conn.execute(
-                sa_text(
-                    "SELECT template_id, version FROM agent_templates WHERE slug = :slug"
-                ),
+                sa_text("SELECT template_id, version FROM agent_templates WHERE slug = :slug"),
                 {"slug": slug},
             )
             existing = result.fetchone()
@@ -183,9 +181,7 @@ async def run():
                     "model_name": tpl.model_config.model_name,
                     "temperature": tpl.model_config.temperature,
                     "max_tokens": tpl.model_config.max_tokens,
-                    "tools": [
-                        {"tool_id": t.tool_id, "enabled": t.enabled} for t in tpl.tools
-                    ],
+                    "tools": [{"tool_id": t.tool_id, "enabled": t.enabled} for t in tpl.tools],
                 },
                 default=str,
             )
@@ -197,9 +193,7 @@ async def run():
             }
 
             result = await conn.execute(
-                sa_text(
-                    "SELECT template_id, version FROM agent_templates WHERE slug = :slug"
-                ),
+                sa_text("SELECT template_id, version FROM agent_templates WHERE slug = :slug"),
                 {"slug": slug},
             )
             existing = result.fetchone()

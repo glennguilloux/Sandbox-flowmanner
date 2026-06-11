@@ -104,11 +104,7 @@ class SlackConnector(BaseConnector):
         """
         response = await self._execute_with_retry(method, endpoint, **kwargs)
 
-        if (
-            response.success
-            and isinstance(response.data, dict)
-            and response.data.get("ok") is False
-        ):
+        if response.success and isinstance(response.data, dict) and response.data.get("ok") is False:
             return ConnectorResponse(
                 success=False,
                 data=response.data,
@@ -118,9 +114,7 @@ class SlackConnector(BaseConnector):
 
         return response
 
-    async def execute_action(
-        self, action: str, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> ConnectorResponse:
         """Execute a Slack action"""
 
         action_handlers = {
@@ -142,9 +136,7 @@ class SlackConnector(BaseConnector):
 
         handler = action_handlers.get(action)
         if not handler:
-            return ConnectorResponse(
-                success=False, error=f"Unknown action: {action}", status_code=400
-            )
+            return ConnectorResponse(success=False, error=f"Unknown action: {action}", status_code=400)
 
         return await handler(params)
 
@@ -209,9 +201,7 @@ class SlackConnector(BaseConnector):
         if params.get("attachments"):
             payload["attachments"] = params["attachments"]
 
-        return await self._slack_request(
-            "POST", "chat.postEphemeral", json_data=payload
-        )
+        return await self._slack_request("POST", "chat.postEphemeral", json_data=payload)
 
     async def _update_message(self, params: dict[str, Any]) -> ConnectorResponse:
         """Update an existing message"""
@@ -251,18 +241,14 @@ class SlackConnector(BaseConnector):
                 status_code=400,
             )
 
-        return await self._slack_request(
-            "POST", "chat.delete", json_data={"channel": channel, "ts": ts}
-        )
+        return await self._slack_request("POST", "chat.delete", json_data={"channel": channel, "ts": ts})
 
     async def _get_channel_history(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get messages from a channel"""
         channel = params.get("channel")
 
         if not channel:
-            return ConnectorResponse(
-                success=False, error="Missing required param: channel", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: channel", status_code=400)
 
         query_params = {"channel": channel}
 
@@ -277,9 +263,7 @@ class SlackConnector(BaseConnector):
         else:
             query_params["limit"] = 100
 
-        return await self._slack_request(
-            "GET", "conversations.history", params=query_params
-        )
+        return await self._slack_request("GET", "conversations.history", params=query_params)
 
     async def _list_channels(self, params: dict[str, Any]) -> ConnectorResponse:
         """List all channels"""
@@ -296,9 +280,7 @@ class SlackConnector(BaseConnector):
         if params.get("cursor"):
             query_params["cursor"] = params["cursor"]
 
-        return await self._slack_request(
-            "GET", "conversations.list", params=query_params
-        )
+        return await self._slack_request("GET", "conversations.list", params=query_params)
 
     async def _list_users(self, params: dict[str, Any]) -> ConnectorResponse:
         """List all users in the workspace"""
@@ -318,9 +300,7 @@ class SlackConnector(BaseConnector):
         user = params.get("user")
 
         if not user:
-            return ConnectorResponse(
-                success=False, error="Missing required param: user", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: user", status_code=400)
 
         return await self._slack_request("GET", "users.info", params={"user": user})
 
@@ -329,9 +309,7 @@ class SlackConnector(BaseConnector):
         name = params.get("name")
 
         if not name:
-            return ConnectorResponse(
-                success=False, error="Missing required param: name", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: name", status_code=400)
 
         payload = {"name": name}
 
@@ -340,22 +318,16 @@ class SlackConnector(BaseConnector):
         if params.get("team_id"):
             payload["team_id"] = params["team_id"]
 
-        return await self._slack_request(
-            "POST", "conversations.create", json_data=payload
-        )
+        return await self._slack_request("POST", "conversations.create", json_data=payload)
 
     async def _archive_channel(self, params: dict[str, Any]) -> ConnectorResponse:
         """Archive a channel"""
         channel = params.get("channel")
 
         if not channel:
-            return ConnectorResponse(
-                success=False, error="Missing required param: channel", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: channel", status_code=400)
 
-        return await self._slack_request(
-            "POST", "conversations.archive", json_data={"channel": channel}
-        )
+        return await self._slack_request("POST", "conversations.archive", json_data={"channel": channel})
 
     async def _add_reaction(self, params: dict[str, Any]) -> ConnectorResponse:
         """Add a reaction to a message"""
@@ -421,13 +393,9 @@ class SlackConnector(BaseConnector):
         users = params.get("users")
 
         if not users:
-            return ConnectorResponse(
-                success=False, error="Missing required param: users", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: users", status_code=400)
 
-        return await self._slack_request(
-            "POST", "conversations.open", json_data={"users": users}
-        )
+        return await self._slack_request("POST", "conversations.open", json_data={"users": users})
 
     def get_stats(self) -> dict[str, Any]:
         """Get connector statistics including Slack-specific info"""

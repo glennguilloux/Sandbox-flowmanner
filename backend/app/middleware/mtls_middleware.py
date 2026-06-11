@@ -16,9 +16,7 @@ class MTLSValidator:
     @property
     def context(self) -> ssl.SSLContext:
         if self._context is None:
-            self._context = ssl.create_default_context(
-                purpose=ssl.Purpose.CLIENT_AUTH, cafile=self.ca_cert_path
-            )
+            self._context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH, cafile=self.ca_cert_path)
             self._context.verify_mode = ssl.CERT_REQUIRED  # type: ignore[attr-defined]
             self._context.check_hostname = False  # For internal services  # type: ignore[attr-defined]
         return self._context

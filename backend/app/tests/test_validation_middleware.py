@@ -92,10 +92,7 @@ class TestIsJsonSerializable:
 
         from app.api.v2.validation_middleware import _is_json_serializable
 
-        assert (
-            _is_json_serializable({"id": UUID("12345678-1234-5678-1234-567812345678")})
-            == []
-        )
+        assert _is_json_serializable({"id": UUID("12345678-1234-5678-1234-567812345678")}) == []
 
     def test_class_instance_fails(self):
         from app.api.v2.validation_middleware import _is_json_serializable
@@ -188,9 +185,7 @@ class TestStrictValidationMiddleware:
         req = _make_request(path="/api/v2/missions", headers={"X-Request-ID": "req-1"})
 
         async def call_next(request):
-            return _make_json_response(
-                {"data": {"items": [1, 2, 3]}, "meta": {}, "error": None}
-            )
+            return _make_json_response({"data": {"items": [1, 2, 3]}, "meta": {}, "error": None})
 
         resp = await middleware.dispatch(req, call_next)
         assert resp.status_code == 200
@@ -202,14 +197,10 @@ class TestStrictValidationMiddleware:
         )
 
         middleware = StrictValidationMiddleware(app=MagicMock())
-        req = _make_request(
-            path="/api/v2/missions", headers={"X-Request-ID": "req-test-123"}
-        )
+        req = _make_request(path="/api/v2/missions", headers={"X-Request-ID": "req-test-123"})
 
         async def call_next(request):
-            return _make_json_response(
-                {"data": {"items": [1, 2, 3]}, "meta": {}, "error": None}
-            )
+            return _make_json_response({"data": {"items": [1, 2, 3]}, "meta": {}, "error": None})
 
         with patch(
             "app.api.v2.validation_middleware._is_json_serializable",

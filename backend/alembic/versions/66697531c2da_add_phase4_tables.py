@@ -5,8 +5,9 @@ Revises: 06de994342a5
 Create Date: 2026-05-19
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers
 revision = "66697531c2da"
@@ -35,12 +36,8 @@ def upgrade() -> None:
         ),
         sa.Column("size", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("storage_path", sa.String(1000), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -59,12 +56,8 @@ def upgrade() -> None:
         sa.Column("scopes", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -73,15 +66,9 @@ def upgrade() -> None:
         sa.Column("key", sa.String(100), unique=True, nullable=False, index=True),
         sa.Column("name", sa.String(200), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "enabled_globally", sa.Boolean(), nullable=False, server_default="false"
-        ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("enabled_globally", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -97,16 +84,10 @@ def upgrade() -> None:
         ),
         sa.Column("theme", sa.String(50), nullable=False, server_default="dark"),
         sa.Column("language", sa.String(10), nullable=False, server_default="en"),
-        sa.Column(
-            "email_notifications", sa.Boolean(), nullable=False, server_default="true"
-        ),
+        sa.Column("email_notifications", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("settings_json", sa.Text(), nullable=True, server_default="{}"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
 

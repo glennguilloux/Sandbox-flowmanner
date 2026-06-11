@@ -11,13 +11,13 @@ Tests:
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.main_fastapi import app
 from app.api.deps import get_current_user, get_db
+from app.main_fastapi import app
+from app.models.graph import GraphExecution, GraphWorkflow
 from app.models.user import User
-from app.models.graph import GraphWorkflow, GraphExecution
 
 pytestmark = pytest.mark.integration
 
@@ -171,9 +171,7 @@ class TestClassifyRouteWorkflow:
                 "message": "test-input",
             }
         }
-        exec_resp = await client.post(
-            f"/api/graphs/{workflow_id}/execute", json=exec_payload
-        )
+        exec_resp = await client.post(f"/api/graphs/{workflow_id}/execute", json=exec_payload)
         assert exec_resp.status_code == 200, f"Execute failed: {exec_resp.text}"
 
         execution = exec_resp.json()
@@ -186,9 +184,7 @@ class TestClassifyRouteWorkflow:
         status = execution["status"]
         for _ in range(60):  # up to 30 seconds
             await asyncio.sleep(0.5)
-            detail_resp = await client.get(
-                f"/api/graphs/{workflow_id}/executions/{execution_id}"
-            )
+            detail_resp = await client.get(f"/api/graphs/{workflow_id}/executions/{execution_id}")
             if detail_resp.status_code == 200:
                 detail = detail_resp.json()
                 status = detail.get("status", status)
@@ -218,12 +214,8 @@ class TestClassifyRouteWorkflow:
                 "message": "subgraph-test",
             }
         }
-        exec_resp = await client.post(
-            f"/api/graphs/{workflow_id}/execute", json=exec_payload
-        )
-        assert (
-            exec_resp.status_code == 200
-        ), f"Subgraph execute failed: {exec_resp.text}"
+        exec_resp = await client.post(f"/api/graphs/{workflow_id}/execute", json=exec_payload)
+        assert exec_resp.status_code == 200, f"Subgraph execute failed: {exec_resp.text}"
 
         execution = exec_resp.json()
         execution_id = execution["id"]
@@ -235,38 +227,26 @@ class TestClassifyRouteWorkflow:
         detail = None
         for _ in range(60):
             await asyncio.sleep(0.5)
-            detail_resp = await client.get(
-                f"/api/graphs/{workflow_id}/executions/{execution_id}"
-            )
+            detail_resp = await client.get(f"/api/graphs/{workflow_id}/executions/{execution_id}")
             if detail_resp.status_code == 200:
                 detail = detail_resp.json()
                 status = detail.get("status", status)
                 if status in ("completed", "failed"):
                     break
 
-        assert (
-            status == "completed"
-        ), f"Subgraph execution did not complete: status={status}"
+        assert status == "completed", f"Subgraph execution did not complete: status={status}"
 
         # Verify node states: start and classify should be "not_executed" or absent
         if detail and detail.get("node_states"):
             node_states = detail["node_states"]
-            executed_nodes = {
-                ns["node_id"] for ns in node_states if ns.get("status") == "completed"
-            }
+            executed_nodes = {ns["node_id"] for ns in node_states if ns.get("status") == "completed"}
             # n-process, n-log, n-end should have executed
-            assert (
-                "n-process" in executed_nodes
-            ), f"Expected n-process in executed nodes, got {executed_nodes}"
+            assert "n-process" in executed_nodes, f"Expected n-process in executed nodes, got {executed_nodes}"
             assert "n-log" in executed_nodes
             assert "n-end" in executed_nodes
             # n-start and n-classify should NOT have executed (subgraph skip)
-            assert (
-                "n-start" not in executed_nodes
-            ), "n-start should NOT have executed in subgraph"
-            assert (
-                "n-classify" not in executed_nodes
-            ), "n-classify should NOT have executed in subgraph"
+            assert "n-start" not in executed_nodes, "n-start should NOT have executed in subgraph"
+            assert "n-classify" not in executed_nodes, "n-classify should NOT have executed in subgraph"
 
     @pytest.mark.asyncio
     async def test_subgraph_execution_curl_equivalent(self, client: AsyncClient):

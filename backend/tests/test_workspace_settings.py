@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
@@ -80,7 +79,6 @@ def _workspace_result(ws):
 
 
 class TestGetWorkspaceSettings:
-
     @pytest.mark.asyncio
     async def test_non_member_gets_404(self):
         """Non-member should get 404 from _verify_membership."""
@@ -229,13 +227,12 @@ class TestGetWorkspaceSettings:
 
 
 class TestUpdateWorkspaceSettings:
-
     @pytest.mark.asyncio
     async def test_non_member_gets_404(self):
         """Non-member should get 404 from _verify_membership."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
             WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         db = _mock_db_queries(_membership_result(None))
@@ -250,8 +247,8 @@ class TestUpdateWorkspaceSettings:
     async def test_member_gets_403(self):
         """Regular member (not owner/admin) should get 403."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
             WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         db = _mock_db_queries(_membership_result(_make_membership("member")))
@@ -267,8 +264,8 @@ class TestUpdateWorkspaceSettings:
     async def test_guest_gets_403(self):
         """Guest should get 403."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
             WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         db = _mock_db_queries(_membership_result(_make_membership("guest")))
@@ -283,9 +280,9 @@ class TestUpdateWorkspaceSettings:
     async def test_owner_can_update(self):
         """Owner can update workspace settings."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
             CircuitBreakerDefaults,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         ws = _make_workspace(settings=None)
@@ -312,9 +309,9 @@ class TestUpdateWorkspaceSettings:
     async def test_admin_can_update(self):
         """Admin can update workspace settings."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
             ApprovalPolicy,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         ws = _make_workspace(settings=None)
@@ -337,9 +334,9 @@ class TestUpdateWorkspaceSettings:
     async def test_partial_update_only_cb(self):
         """Updating only circuit_breaker_defaults leaves approval_policies untouched."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
             CircuitBreakerDefaults,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         existing_settings = {
@@ -370,9 +367,9 @@ class TestUpdateWorkspaceSettings:
     async def test_partial_update_only_approval(self):
         """Updating only approval_policies leaves circuit_breaker_defaults untouched."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
             ApprovalPolicy,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         existing_settings = {
@@ -405,10 +402,10 @@ class TestUpdateWorkspaceSettings:
     async def test_update_merges_with_existing_settings(self):
         """PATCH merges new values into existing stored settings."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
-            CircuitBreakerDefaults,
             ApprovalPolicy,
+            CircuitBreakerDefaults,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         existing_settings = {
@@ -435,21 +432,17 @@ class TestUpdateWorkspaceSettings:
 
         # CB: max_llm_calls updated, rest from defaults (new full object replaces old)
         assert result["circuit_breaker_defaults"]["max_llm_calls"] == 300
-        assert (
-            result["circuit_breaker_defaults"]["max_cost_usd"] == 10.0
-        )  # from defaults
+        assert result["circuit_breaker_defaults"]["max_cost_usd"] == 10.0  # from defaults
         # Approval: auto_approve_low_risk updated, rest from defaults
         assert result["approval_policies"]["auto_approve_low_risk"] is False
-        assert (
-            result["approval_policies"]["require_approval_for_deployments"] is False
-        )  # default
+        assert result["approval_policies"]["require_approval_for_deployments"] is False  # default
 
     @pytest.mark.asyncio
     async def test_workspace_not_found_after_membership(self):
         """If workspace is None after membership check, raises 404."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
             WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         db = _mock_db_queries(
@@ -468,9 +461,9 @@ class TestUpdateWorkspaceSettings:
     async def test_ws_settings_attribute_is_updated(self):
         """The workspace.settings attribute should be set on the model."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
             CircuitBreakerDefaults,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         ws = _make_workspace(settings=None)
@@ -493,8 +486,8 @@ class TestUpdateWorkspaceSettings:
     async def test_empty_payload_returns_defaults(self):
         """Empty payload (no CB, no approval) returns full defaults unchanged."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
             WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         ws = _make_workspace(settings=None)
@@ -515,9 +508,9 @@ class TestUpdateWorkspaceSettings:
     async def test_commit_called_on_update(self):
         """db.commit() and db.refresh(ws) should be called after update."""
         from app.api.v1.workspace import (
-            update_workspace_settings,
-            WorkspaceSettingsUpdate,
             CircuitBreakerDefaults,
+            WorkspaceSettingsUpdate,
+            update_workspace_settings,
         )
 
         ws = _make_workspace(settings=None)

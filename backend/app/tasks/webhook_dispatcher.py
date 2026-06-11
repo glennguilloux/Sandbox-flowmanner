@@ -1,4 +1,5 @@
 from typing import Any
+
 #!/usr/bin/env python3
 """
 Webhook Dispatcher Task
@@ -39,9 +40,7 @@ def generate_hmac_signature(secret: str, payload: str) -> str:
     """Generate HMAC-SHA256 signature for webhook payload"""
     if not secret:
         return ""
-    return hmac.new(
-        secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
-    ).hexdigest()
+    return hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def get_subscriptions_for_event(event_type: str, db: Session) -> list:
@@ -93,11 +92,7 @@ async def deliver_webhook_async(
     payload_str = json.dumps(webhook_payload)
 
     # Generate signature if secret is configured
-    signature = (
-        generate_hmac_signature(subscription.secret, payload_str)
-        if subscription.secret
-        else None
-    )
+    signature = generate_hmac_signature(subscription.secret, payload_str) if subscription.secret else None
 
     # Prepare headers
     headers = {
@@ -140,9 +135,7 @@ async def deliver_webhook_async(
 
                 delivery.response_time_ms = response_time_ms
                 delivery.http_status = response.status
-                delivery.response_body = response_text[
-                    :10000
-                ]  # Limit response body size
+                delivery.response_body = response_text[:10000]  # Limit response body size
 
                 if 200 <= response.status < 300:
                     # Success
@@ -161,13 +154,9 @@ async def deliver_webhook_async(
                 else:
                     # HTTP error
                     delivery.status = "failed"
-                    delivery.error_message = (
-                        f"HTTP {response.status}: {response_text[:500]}"
-                    )
+                    delivery.error_message = f"HTTP {response.status}: {response_text[:500]}"
 
-                    logger.warning(
-                        "Webhook delivery failed with HTTP %s", response.status
-                    )
+                    logger.warning("Webhook delivery failed with HTTP %s", response.status)
 
         except TimeoutError:
             delivery.status = "failed"
@@ -187,9 +176,7 @@ async def deliver_webhook_async(
         # Check if we should retry
         if attempt < max_attempts and delivery.status == "failed":
             delivery.status = "retry"
-            delivery.next_retry_at = datetime.now(UTC) + timedelta(
-                seconds=subscription.retry_delay_seconds * attempt
-            )
+            delivery.next_retry_at = datetime.now(UTC) + timedelta(seconds=subscription.retry_delay_seconds * attempt)
             db.commit()
 
             # Wait before retry (exponential backoff)
@@ -250,10 +237,7 @@ def dispatch_webhook_event(event_type: str, event_id: str, payload: dict) -> dic
         results: list[dict[str, Any]] = []
 
         async def deliver_all():
-            tasks = [
-                deliver_webhook_async(sub, event_type, event_id, payload, db)
-                for sub in subscriptions
-            ]
+            tasks = [deliver_webhook_async(sub, event_type, event_id, payload, db) for sub in subscriptions]
             return await asyncio.gather(*tasks, return_exceptions=True)
 
         # Run async deliveries
@@ -372,9 +356,7 @@ def emit_workflow_failed(workflow_id: int, user_id: int, error: str):
     )
 
 
-def emit_agent_approval_required(
-    execution_id: int, user_id: int, tool_name: str, params: dict
-):
+def emit_agent_approval_required(execution_id: int, user_id: int, tool_name: str, params: dict):
     emit_event(
         WebhookEventType.AGENT_APPROVAL_REQUIRED.value,
         {

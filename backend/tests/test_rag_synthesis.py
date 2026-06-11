@@ -56,9 +56,7 @@ class TestPromptSynthesizer:
         )
 
     @pytest.mark.asyncio
-    async def test_empty_retrieval_returns_error_prompt(
-        self, synthesizer, mock_retrieval_service
-    ):
+    async def test_empty_retrieval_returns_error_prompt(self, synthesizer, mock_retrieval_service):
         """When no chunks found, returns GeneratedPrompt with empty system_prompt and error rationale."""
         mock_retrieval_service.retrieve.return_value = []
         result = await synthesizer.synthesize(user_id=1, goal="build a chatbot")
@@ -107,9 +105,7 @@ class TestPromptSynthesizer:
         assert result.usage == {"prompt_tokens": 50, "completion_tokens": 30}
 
     @pytest.mark.asyncio
-    async def test_synthesis_without_role_description(
-        self, synthesizer, mock_retrieval_service, mock_llm_router
-    ):
+    async def test_synthesis_without_role_description(self, synthesizer, mock_retrieval_service, mock_llm_router):
         """role_description is optional and doesn't break the pipeline."""
         mock_retrieval_service.retrieve.return_value = [
             make_chunk(1, "Always be concise.", topics=["constraints"]),
@@ -121,9 +117,7 @@ class TestPromptSynthesizer:
         assert result.system_prompt == "Be concise."
 
     @pytest.mark.asyncio
-    async def test_single_book_passed_to_retrieval(
-        self, synthesizer, mock_retrieval_service, mock_llm_router
-    ):
+    async def test_single_book_passed_to_retrieval(self, synthesizer, mock_retrieval_service, mock_llm_router):
         """When a single book is specified, it's forwarded as book_title to retrieval."""
         mock_retrieval_service.retrieve.return_value = []
         mock_llm_router.route_request.return_value = {
@@ -135,9 +129,7 @@ class TestPromptSynthesizer:
         assert _kwargs["book_title"] == "My Prompt Book"
 
     @pytest.mark.asyncio
-    async def test_multiple_books_does_not_pass_title(
-        self, synthesizer, mock_retrieval_service, mock_llm_router
-    ):
+    async def test_multiple_books_does_not_pass_title(self, synthesizer, mock_retrieval_service, mock_llm_router):
         """When multiple books are specified, book_title is None (search all)."""
         mock_retrieval_service.retrieve.return_value = []
         mock_llm_router.route_request.return_value = {
@@ -148,9 +140,7 @@ class TestPromptSynthesizer:
         assert _kwargs["book_title"] is None
 
     @pytest.mark.asyncio
-    async def test_usage_dict_carried_through(
-        self, synthesizer, mock_retrieval_service, mock_llm_router
-    ):
+    async def test_usage_dict_carried_through(self, synthesizer, mock_retrieval_service, mock_llm_router):
         """LLM usage stats are included in the output."""
         mock_retrieval_service.retrieve.return_value = [
             make_chunk(1, "test", topics=["role_definition"]),
@@ -246,11 +236,7 @@ class TestParseResponse:
         assert result.temperature == 0.7
 
     def test_malformed_temperature_falls_back(self):
-        content = (
-            "## System Prompt\nHi\n\n"
-            "## Rationale\n\n"
-            "## Configuration\n- Temperature: not-a-number\n"
-        )
+        content = "## System Prompt\nHi\n\n## Rationale\n\n## Configuration\n- Temperature: not-a-number\n"
         result = PromptSynthesizer._parse_response(content)
         assert result.temperature == 0.7
 

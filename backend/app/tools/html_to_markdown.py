@@ -165,9 +165,7 @@ class _MarkdownConverter(HTMLParser):
                 self._list_stack.pop()
                 self._list_idx.pop()
             self.output.append("\n")
-        elif tag in ("p", "div", "section", "article") and not self.output[-1].endswith(
-            "\n\n"
-        ):
+        elif tag in ("p", "div", "section", "article") and not self.output[-1].endswith("\n\n"):
             self.output.append("\n\n")
 
     def handle_data(self, data):
@@ -229,20 +227,14 @@ class HtmlToMarkdownTool(BaseTool):
         try:
             validated = HtmlToMarkdownInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
-            html_bytes = await resolve_input(
-                validated.data, validated.url, label="HTML"
-            )
+            html_bytes = await resolve_input(validated.data, validated.url, label="HTML")
         except ValueError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Failed to read HTML: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Failed to read HTML: {e}")
 
         try:
             html_str = html_bytes.decode("utf-8", errors="replace")
@@ -264,9 +256,7 @@ class HtmlToMarkdownTool(BaseTool):
                     "html_length": len(html_str),
                     "markdown_length": len(markdown),
                     "markdown": markdown,
-                    "compression_ratio": round(
-                        len(markdown) / max(len(html_str), 1), 4
-                    ),
+                    "compression_ratio": round(len(markdown) / max(len(html_str), 1), 4),
                 },
             )
 

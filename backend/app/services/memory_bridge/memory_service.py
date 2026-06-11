@@ -163,9 +163,7 @@ class MemoryService:
 
         return memories[:limit]
 
-    async def _semantic_search(
-        self, memories: list[Memory], query: str
-    ) -> list[Memory]:
+    async def _semantic_search(self, memories: list[Memory], query: str) -> list[Memory]:
         """Perform semantic search using embeddings"""
         if not self._embedding_service:
             return memories
@@ -177,9 +175,7 @@ class MemoryService:
             scored_memories = []
             for memory in memories:
                 if memory.embedding:
-                    similarity = self._cosine_similarity(
-                        query_embedding, memory.embedding
-                    )
+                    similarity = self._cosine_similarity(query_embedding, memory.embedding)
                     scored_memories.append((memory, similarity))
                 else:
                     scored_memories.append((memory, 0.0))
@@ -264,9 +260,7 @@ class MemoryService:
         """Get memory statistics"""
         if agent_id:
             memory_ids = self._agent_memories.get(agent_id, [])
-            memories = [
-                self._memories[mid] for mid in memory_ids if mid in self._memories
-            ]
+            memories = [self._memories[mid] for mid in memory_ids if mid in self._memories]
         else:
             memories = list(self._memories.values())
 
@@ -276,8 +270,6 @@ class MemoryService:
                 mtype: len([m for m in memories if m.memory_type == mtype])
                 for mtype in ["episodic", "semantic", "procedural"]
             },
-            "avg_importance": (
-                sum(m.importance for m in memories) / len(memories) if memories else 0
-            ),
+            "avg_importance": (sum(m.importance for m in memories) / len(memories) if memories else 0),
             "total_access_count": sum(m.access_count for m in memories),
         }

@@ -58,9 +58,7 @@ async def list_models():
     for provider_id, (_base_url, key_env) in PROVIDER_MAP.items():
         api_key = os.getenv(key_env) if key_env else "no-key-needed"
         if key_env and (
-            not api_key
-            or api_key
-            in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
+            not api_key or api_key in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
         ):
             continue
         for model_name in provider_models.get(provider_id, []):
@@ -68,9 +66,7 @@ async def list_models():
                 ModelInfo(
                     name=f"{provider_id}/{model_name}",
                     provider=provider_id,
-                    is_default=(
-                        provider_id == "deepseek" and model_name == "deepseek-v4-flash"
-                    ),
+                    is_default=(provider_id == "deepseek" and model_name == "deepseek-v4-flash"),
                 )
             )
     return models
@@ -118,9 +114,7 @@ async def list_models_frontend(
     for provider_id, (_base_url, key_env) in PROVIDER_MAP.items():
         api_key = os.getenv(key_env) if key_env else "no-key-needed"
         if key_env and (
-            not api_key
-            or api_key
-            in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
+            not api_key or api_key in ("", "sk-no-key-required", "sk-xxx", "sk-or-v1-your-openrouter-api-key")
         ):
             continue
         for model_name in provider_models.get(provider_id, []):
@@ -140,9 +134,7 @@ async def list_models_frontend(
     # ── BYOK models ──
     if user and user.id:
         result = await db.execute(
-            select(UserAPIKey)
-            .where(UserAPIKey.user_id == user.id)
-            .where(UserAPIKey.is_active == True)
+            select(UserAPIKey).where(UserAPIKey.user_id == user.id).where(UserAPIKey.is_active == True)
         )
         byok_keys = result.scalars().all()
         for key in byok_keys:

@@ -141,15 +141,11 @@ class HeyGenVideoAvatarTool(BaseTool):
         try:
             validated = HeyGenVideoAvatarInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         api_key = validated.api_key or HEYGEN_API_KEY
         if not api_key:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="HeyGen API key required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="HeyGen API key required")
 
         start = time.monotonic()
 
@@ -267,9 +263,7 @@ class HeyGenVideoAvatarTool(BaseTool):
                         # Download if saving
                         if video_url and validated.save_to_storage:
                             try:
-                                dl_resp = await client.get(
-                                    video_url, follow_redirects=True
-                                )
+                                dl_resp = await client.get(video_url, follow_redirects=True)
                                 video_data = dl_resp.content
                                 file_size = len(video_data)
                                 video_path = self._save_video(
@@ -300,9 +294,7 @@ class HeyGenVideoAvatarTool(BaseTool):
                         )
 
                     elif status == "failed":
-                        error_msg = status_data.get("data", {}).get(
-                            "error", "Unknown error"
-                        )
+                        error_msg = status_data.get("data", {}).get("error", "Unknown error")
                         return ToolResult.error_result(
                             tool_id=self.tool_id,
                             error=f"Video generation failed: {error_msg}",
@@ -320,9 +312,7 @@ class HeyGenVideoAvatarTool(BaseTool):
                 detail = str(e.response.json())
             except Exception:
                 detail = e.response.text[:500]
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"HeyGen API error: {detail}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"HeyGen API error: {detail}")
         except Exception as e:
             logger.exception("heygen_video_avatar failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))

@@ -198,15 +198,7 @@ class MissionExecutor:
                         "actor": "mission_executor",
                         "prev_state": prev_state,
                         "next_state": status,
-                        "cause": (
-                            error
-                            if error
-                            else (
-                                "completed"
-                                if status == "completed"
-                                else "status_update"
-                            )
-                        ),
+                        "cause": (error if error else ("completed" if status == "completed" else "status_update")),
                         "task_id": str(step.id),
                         "task_type": step.task_type,
                     },
@@ -246,8 +238,7 @@ class MissionExecutor:
             mission.id,
             None,
             level,
-            f"Mission {mission.title}: {prev_status} → {new_status}"
-            + (f" — {cause}" if cause else ""),
+            f"Mission {mission.title}: {prev_status} → {new_status}" + (f" — {cause}" if cause else ""),
             extra_data={
                 "actor": "mission_executor",
                 "prev_state": prev_status,
@@ -267,11 +258,7 @@ class MissionExecutor:
                 span.set_attribute("mission.id", str(mission_id))
 
                 try:
-                    result = await db.execute(
-                        select(Mission)
-                        .where(Mission.id == str(mission_id))
-                        .with_for_update()
-                    )
+                    result = await db.execute(select(Mission).where(Mission.id == str(mission_id)).with_for_update())
                     mission = result.scalars().first()
                     if not mission:
                         logger.error("Mission %s not found", mission_id)
@@ -348,9 +335,7 @@ class MissionExecutor:
                             )
 
                     task_result = await db.execute(
-                        select(MT)
-                        .where(MT.mission_id == str(mission_id))
-                        .order_by(MT.order_index)
+                        select(MT).where(MT.mission_id == str(mission_id)).order_by(MT.order_index)
                     )
                     tasks = list(task_result.scalars().all())
 
@@ -363,9 +348,7 @@ class MissionExecutor:
                             "No tasks found - mission may need planning first",
                         )
                         mission.status = MissionStatus.FAILED
-                        mission.error_message = (
-                            "No tasks to execute. Run mission planning first."
-                        )
+                        mission.error_message = "No tasks to execute. Run mission planning first."
                         mission.completed_at = datetime.now(UTC)
                         await db.commit()
                         return {
@@ -379,24 +362,18 @@ class MissionExecutor:
                     failed: set = set()
                     skipped: set = set()
 
-                    max_iterations = (
-                        len(tasks) * settings.MISSION_MAX_ITERATION_MULTIPLIER
-                    )
+                    max_iterations = len(tasks) * settings.MISSION_MAX_ITERATION_MULTIPLIER
                     iteration = 0
 
                     while len(completed) + len(failed) + len(skipped) < len(tasks):
                         iteration += 1
                         if iteration > max_iterations:
-                            await self._log(
-                                db, mission.id, None, "error", "Max iterations exceeded"
-                            )
+                            await self._log(db, mission.id, None, "error", "Max iterations exceeded")
                             break
 
                         await db.refresh(mission)
                         if mission.status == MissionStatus.PAUSED:
-                            await self._log(
-                                db, mission.id, None, "info", "Mission paused"
-                            )
+                            await self._log(db, mission.id, None, "info", "Mission paused")
                             return {"success": True, "status": MissionStatus.PAUSED}
                         if mission.status == MissionStatus.ABORTED:
                             await self._log(
@@ -424,9 +401,7 @@ class MissionExecutor:
 
                             deps_met = True
                             for dep_idx in task.dependencies or []:
-                                dep_task = next(
-                                    (t for t in tasks if t.order_index == dep_idx), None
-                                )
+                                dep_task = next((t for t in tasks if t.order_index == dep_idx), None)
                                 if dep_task and str(dep_task.id) not in completed:
                                     deps_met = False
                                     break
@@ -435,11 +410,7 @@ class MissionExecutor:
                                 ready.append(task)
 
                         if not ready:
-                            pending = [
-                                t
-                                for t in tasks
-                                if t.status == MissionTaskStatus.PENDING
-                            ]
+                            pending = [t for t in tasks if t.status == MissionTaskStatus.PENDING]
                             if pending:
                                 await self._log(
                                     db,
@@ -457,10 +428,7 @@ class MissionExecutor:
                         for task in ready:
                             try:
                                 # Check for human approval requirement before execution
-                                if (
-                                    getattr(task, "approval_required", False)
-                                    and self.hitl_manager
-                                ):
+                                if getattr(task, "approval_required", False) and self.hitl_manager:
                                     interrupt = HumanInterrupt(
                                         mission_id=str(mission.id),
                                         interrupt_type="approval",
@@ -476,9 +444,7 @@ class MissionExecutor:
                                         },
                                         confidence=0.5,
                                     )
-                                    await self.hitl_manager.raise_interrupt(
-                                        db, interrupt
-                                    )
+                                    await self.hitl_manager.raise_interrupt(db, interrupt)
                                     mission.status = MissionStatus.PAUSED
                                     await db.commit()
                                     await self._log(
@@ -494,9 +460,7 @@ class MissionExecutor:
                                     }
 
                                 # Delegate to TaskExecutor
-                                result = await self.task_exec.execute_task(
-                                    db, mission, task, task_map
-                                )
+                                result = await self.task_exec.execute_task(db, mission, task, task_map)
 
                                 if result.get("success"):
                                     completed.add(str(task.id))
@@ -507,23 +471,13 @@ class MissionExecutor:
                                     tokens = result.get("tokens", 0)
                                     if tokens:
                                         task.tokens_used = tokens
-                                        mission.tokens_used = (
-                                            mission.tokens_used or 0
-                                        ) + tokens
-                                        cost_per_1m = (
-                                            self.cost_tracker.COST_PER_1M_TOKENS.get(
-                                                task.assigned_model or "deepseek-chat",
-                                                self.cost_tracker.COST_PER_1M_TOKENS[
-                                                    "default"
-                                                ],
-                                            )
+                                        mission.tokens_used = (mission.tokens_used or 0) + tokens
+                                        cost_per_1m = self.cost_tracker.COST_PER_1M_TOKENS.get(
+                                            task.assigned_model or "deepseek-chat",
+                                            self.cost_tracker.COST_PER_1M_TOKENS["default"],
                                         )
-                                        task.cost = (
-                                            tokens / settings.MISSION_COST_DIVISOR
-                                        ) * cost_per_1m
-                                        mission.actual_cost = (
-                                            mission.actual_cost or 0
-                                        ) + task.cost
+                                        task.cost = (tokens / settings.MISSION_COST_DIVISOR) * cost_per_1m
+                                        mission.actual_cost = (mission.actual_cost or 0) + task.cost
 
                                     await self._log(
                                         db,
@@ -533,9 +487,7 @@ class MissionExecutor:
                                         f"Task completed: {task.title}",
                                     )
                                 else:
-                                    if (task.retry_count or 0) < (
-                                        task.max_retries or 0
-                                    ):
+                                    if (task.retry_count or 0) < (task.max_retries or 0):
                                         task.retry_count = (task.retry_count or 0) + 1
                                         task.status = MissionTaskStatus.PENDING
                                         await self._log(
@@ -556,9 +508,7 @@ class MissionExecutor:
                                             "error",
                                             f"Task failed after {task.max_retries} retries: {result.get('error')}",
                                         )
-                                        await self.task_exec._apply_fallback(
-                                            db, mission, task, result.get("error")
-                                        )
+                                        await self.task_exec._apply_fallback(db, mission, task, result.get("error"))
 
                             except Exception as e:
                                 logger.exception("Error executing task %s", task.id)
@@ -630,9 +580,7 @@ class MissionExecutor:
                         await analytics_service.calculate_mission_metrics(mission.id)
                         logger.info("Analytics calculated for mission %s", mission.id)
                     except Exception as analytics_error:
-                        logger.warning(
-                            "Non-critical failure in analytics: %s", analytics_error
-                        )
+                        logger.warning("Non-critical failure in analytics: %s", analytics_error)
 
                     await db.commit()
 
@@ -651,9 +599,7 @@ class MissionExecutor:
                             },
                         )
                     except Exception as audit_error:
-                        logger.warning(
-                            "Non-critical failure in audit log: %s", audit_error
-                        )
+                        logger.warning("Non-critical failure in audit log: %s", audit_error)
 
                     # Sync to Linear if linked
                     try:
@@ -666,9 +612,7 @@ class MissionExecutor:
                             error_message=mission.error_message,
                         )
                     except Exception as linear_err:
-                        logger.warning(
-                            "Non-critical failure in Linear sync: %s", linear_err
-                        )
+                        logger.warning("Non-critical failure in Linear sync: %s", linear_err)
 
                     # Record execution for learning
                     try:
@@ -678,9 +622,7 @@ class MissionExecutor:
                         if learning_svc:
                             duration = None
                             if mission.started_at and mission.completed_at:
-                                duration = (
-                                    mission.completed_at - mission.started_at
-                                ).total_seconds()
+                                duration = (mission.completed_at - mission.started_at).total_seconds()
                             await learning_svc.record_execution(
                                 task_description=f"{mission.title} {mission.description or ''}",
                                 plan=mission.plan or {},
@@ -704,9 +646,7 @@ class MissionExecutor:
                     }
 
                 except PermanentMissionError as e:
-                    logger.error(
-                        "Permanent error executing mission %s: %s", mission_id, e
-                    )
+                    logger.error("Permanent error executing mission %s: %s", mission_id, e)
                     await self._transition_status(
                         db,
                         mission,
@@ -717,9 +657,7 @@ class MissionExecutor:
                     )
                     return {"success": False, "error": str(e), "permanent": True}
                 except RetryableMissionError as e:
-                    logger.warning(
-                        "Retryable error executing mission %s: %s", mission_id, e
-                    )
+                    logger.warning("Retryable error executing mission %s: %s", mission_id, e)
                     raise
                 except Exception as e:
                     logger.exception("Error executing mission %s", mission_id)
@@ -750,18 +688,14 @@ class MissionExecutor:
                 success=(mission.status == MissionStatus.COMPLETED),
                 metrics={
                     "title": mission.title,
-                    "task_count": float(
-                        len(mission.tasks) if hasattr(mission, "tasks") else 0
-                    ),
+                    "task_count": float(len(mission.tasks) if hasattr(mission, "tasks") else 0),
                     "error_message": mission.error_message,
                 },
             )
 
             logger.info("Improvement analysis completed for mission %s", mission.id)
         except Exception as improvement_error:
-            logger.warning(
-                "Non-critical failure in improvement analysis: %s", improvement_error
-            )
+            logger.warning("Non-critical failure in improvement analysis: %s", improvement_error)
 
     # ── Logging ───────────────────────────────────────────────────────────────
 
@@ -796,9 +730,7 @@ class MissionExecutor:
     async def plan_mission(self, mission_id: UUID) -> dict[str, Any]:
         """Plan a mission — delegates to MissionPlanner."""
         async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(Mission).where(Mission.id == str(mission_id))
-            )
+            result = await db.execute(select(Mission).where(Mission.id == str(mission_id)))
             mission = result.scalars().first()
             if mission:
                 ModelRouter = _import_model_router()

@@ -96,9 +96,7 @@ class ImprovementAlert:
             "metrics": self.metrics,
             "context": self.context,
             "acknowledged": self.acknowledged,
-            "acknowledged_at": (
-                self.acknowledged_at.isoformat() if self.acknowledged_at else None
-            ),
+            "acknowledged_at": (self.acknowledged_at.isoformat() if self.acknowledged_at else None),
             "acknowledged_by": self.acknowledged_by,
         }
 
@@ -325,9 +323,7 @@ class ImprovementAlertHandler:
         Returns:
             The created alert
         """
-        multiplier = (
-            current_count / baseline_count if baseline_count > 0 else float("inf")
-        )
+        multiplier = current_count / baseline_count if baseline_count > 0 else float("inf")
 
         return await self.raise_alert(
             alert_type=AlertType.CRITICAL_FAILURE_SPIKE,
@@ -456,9 +452,7 @@ class ImprovementAlertHandler:
             The created alert
         """
         severity = AlertSeverity.INFO if success else AlertSeverity.WARNING
-        title = (
-            "Improvement Session Completed" if success else "Improvement Session Failed"
-        )
+        title = "Improvement Session Completed" if success else "Improvement Session Failed"
         message = f"Session {session_id} completed."
         if improvement_delta is not None:
             message += f" Improvement: {improvement_delta:.1%}"
@@ -470,9 +464,7 @@ class ImprovementAlertHandler:
             message=message,
             agent_id=agent_id,
             session_id=session_id,
-            metrics=(
-                {"improvement_delta": improvement_delta} if improvement_delta else {}
-            ),
+            metrics=({"improvement_delta": improvement_delta} if improvement_delta else {}),
         )
 
     def get_recent_alerts(

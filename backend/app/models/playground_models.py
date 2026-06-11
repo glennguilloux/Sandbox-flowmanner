@@ -38,9 +38,7 @@ class PlaygroundSandbox(Base, TimestampMixin):
 
     __tablename__ = "playground_sandboxes"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
     sandbox_id: Mapped[str] = mapped_column(
         String(64),
         unique=True,

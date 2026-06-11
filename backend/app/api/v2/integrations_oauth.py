@@ -166,9 +166,7 @@ async def _exchange_code(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to parse token exchange response: {resp.text[:200]}",
             )
-        logger.debug(
-            "Token exchange response for %s: keys=%s", provider_slug, list(data.keys())
-        )
+        logger.debug("Token exchange response for %s: keys=%s", provider_slug, list(data.keys()))
 
         # Extract common fields
         access_token = data.get("access_token")
@@ -194,9 +192,7 @@ async def _exchange_code(
             provider_account_id = authed_user.get("id") or data.get("user_id")
             team = data.get("team", {})
             provider_account_name = team.get("name") or authed_user.get("name")
-            granted_scopes = (
-                data.get("scope", "").split(",") if data.get("scope") else None
-            )
+            granted_scopes = data.get("scope", "").split(",") if data.get("scope") else None
 
         elif provider_slug == "github":
             # GitHub we may need an extra API call to get user info
@@ -211,12 +207,8 @@ async def _exchange_code(
             # Notion returns workspace info
             workspace = data.get("workspace")
             if workspace:
-                provider_account_id = workspace.get("workspace_id") or data.get(
-                    "workspace_id"
-                )
-                provider_account_name = workspace.get("workspace_name") or data.get(
-                    "workspace_name"
-                )
+                provider_account_id = workspace.get("workspace_id") or data.get("workspace_id")
+                provider_account_name = workspace.get("workspace_name") or data.get("workspace_name")
 
         elif provider_slug == "linear":
             pass  # Linear doesn't return extra info in token exchange
@@ -270,9 +262,7 @@ async def list_oauth_apps(
 ):
     """List all registered OAuth apps for the current user."""
     result = await db.execute(
-        select(UserOAuthApp)
-        .where(UserOAuthApp.user_id == user.id)
-        .order_by(desc(UserOAuthApp.created_at))
+        select(UserOAuthApp).where(UserOAuthApp.user_id == user.id).order_by(desc(UserOAuthApp.created_at))
     )
     apps = result.scalars().all()
     return ok([_app_to_response(a) for a in apps])
@@ -293,9 +283,7 @@ async def get_oauth_app(
     )
     app = result.scalars().first()
     if not app:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="OAuth app not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OAuth app not found")
     return ok(_app_to_response(app))
 
 
@@ -315,9 +303,7 @@ async def update_oauth_app(
     )
     app = result.scalars().first()
     if not app:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="OAuth app not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OAuth app not found")
 
     if payload.client_id is not None:
         app.encrypted_client_id = encrypt_token(payload.client_id)
@@ -348,14 +334,10 @@ async def delete_oauth_app(
     )
     app = result.scalars().first()
     if not app:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="OAuth app not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OAuth app not found")
 
     # Delete associated connections first
-    conns_result = await db.execute(
-        select(UserOAuthConnection).where(UserOAuthConnection.app_id == str(app_id))
-    )
+    conns_result = await db.execute(select(UserOAuthConnection).where(UserOAuthConnection.app_id == str(app_id)))
     for conn in conns_result.scalars().all():
         await db.delete(conn)
 
@@ -561,9 +543,7 @@ async def oauth_callback(
         # Update existing connection
         existing_conn.encrypted_access_token = encrypt_token(token_data["access_token"])
         existing_conn.encrypted_refresh_token = (
-            encrypt_token(token_data["refresh_token"])
-            if token_data.get("refresh_token")
-            else None
+            encrypt_token(token_data["refresh_token"]) if token_data.get("refresh_token") else None
         )
         existing_conn.token_type = token_data.get("token_type", "Bearer")
         existing_conn.expires_at = expires_at
@@ -582,9 +562,7 @@ async def oauth_callback(
         app_id=app_id,
         encrypted_access_token=encrypt_token(token_data["access_token"]),
         encrypted_refresh_token=(
-            encrypt_token(token_data["refresh_token"])
-            if token_data.get("refresh_token")
-            else None
+            encrypt_token(token_data["refresh_token"]) if token_data.get("refresh_token") else None
         ),
         token_type=token_data.get("token_type", "Bearer"),
         expires_at=expires_at,
@@ -633,9 +611,7 @@ async def get_oauth_connection(
     )
     conn = result.scalars().first()
     if not conn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
     return ok(_connection_to_response(conn))
 
 
@@ -654,9 +630,7 @@ async def disconnect_oauth(
     )
     conn = result.scalars().first()
     if not conn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
 
     await db.delete(conn)
     await db.commit()

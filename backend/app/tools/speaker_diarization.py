@@ -96,9 +96,7 @@ class SpeakerDiarizationTool(BaseTool):
         try:
             validated = SpeakerDiarizationInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -117,9 +115,7 @@ class SpeakerDiarizationTool(BaseTool):
 
     async def _diarize(self, validated: SpeakerDiarizationInput) -> dict[str, Any]:
         """Load audio and run speaker diarization pipeline."""
-        audio_bytes = await resolve_input(
-            validated.data, validated.url, label="audio", fetch_timeout=60
-        )
+        audio_bytes = await resolve_input(validated.data, validated.url, label="audio", fetch_timeout=60)
 
         tmp_path: str | None = None
         try:
@@ -163,11 +159,7 @@ class SpeakerDiarizationTool(BaseTool):
                 "speaker_count": len(speaker_ids),
                 "speaker_ids": speaker_ids,
                 "total_speech_seconds": round(total_speech, 2),
-                "speech_percentage": (
-                    round(total_speech / duration_sec * 100, 1)
-                    if duration_sec > 0
-                    else 0.0
-                ),
+                "speech_percentage": (round(total_speech / duration_sec * 100, 1) if duration_sec > 0 else 0.0),
                 "segments": segments,
                 "speaker_timelines": speaker_timelines,
                 "engine": "mfcc-clustering",
@@ -194,9 +186,7 @@ class SpeakerDiarizationTool(BaseTool):
         # Use energy-based VAD: find frames where RMS exceeds threshold
         frame_length = 2048
         hop_length = 512
-        rms = librosa.feature.rms(
-            y=y, frame_length=frame_length, hop_length=hop_length
-        )[0]
+        rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
         rms_db = librosa.amplitude_to_db(rms, ref=np.max)
 
         # Dynamic threshold: mean - 10dB for speech
@@ -242,9 +232,7 @@ class SpeakerDiarizationTool(BaseTool):
         mfcc_array = np.array(mfcc_features)
 
         # Normalize features
-        mfcc_array = (mfcc_array - np.mean(mfcc_array, axis=0)) / (
-            np.std(mfcc_array, axis=0) + 1e-8
-        )
+        mfcc_array = (mfcc_array - np.mean(mfcc_array, axis=0)) / (np.std(mfcc_array, axis=0) + 1e-8)
 
         labels = self._cluster_segments(mfcc_array, max_speakers)
 

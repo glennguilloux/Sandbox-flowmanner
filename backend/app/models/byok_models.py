@@ -14,35 +14,21 @@ class UserAPIKey(Base, TimestampMixin):
     __tablename__ = "user_api_keys"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     workspace_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, index=True
     )  # Phase 8.2: workspace scoping
-    provider: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # e.g., "openai", "anthropic", "openrouter"
-    encrypted_key: Mapped[str] = mapped_column(
-        String(500), nullable=False
-    )  # AES-256 encrypted
-    key_label: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )  # User-friendly label
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "openai", "anthropic", "openrouter"
+    encrypted_key: Mapped[str] = mapped_column(String(500), nullable=False)  # AES-256 encrypted
+    key_label: Mapped[str | None] = mapped_column(String(100), nullable=True)  # User-friendly label
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    base_url: Mapped[str | None] = mapped_column(
-        String(500), nullable=True
-    )  # Custom API base URL
-    models: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )  # JSON array of supported model IDs
+    base_url: Mapped[str | None] = mapped_column(String(500), nullable=True)  # Custom API base URL
+    models: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of supported model IDs
 
     # Relationship
     user = relationship("User", back_populates="api_keys")
 
-    __table_args__ = (
-        Index("ix_user_api_keys_workspace_user", "workspace_id", "user_id"),
-    )
+    __table_args__ = (Index("ix_user_api_keys_workspace_user", "workspace_id", "user_id"),)
 
     def get_api_key(self) -> str:
         """Decrypt and return the API key."""

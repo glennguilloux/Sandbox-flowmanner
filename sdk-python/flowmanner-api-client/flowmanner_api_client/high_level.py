@@ -15,6 +15,7 @@ import os
 from typing import Any
 
 import httpx
+
 from .client import AuthenticatedClient
 
 
@@ -40,9 +41,7 @@ class FlowmannerClient:
         self.base_url = base_url.rstrip("/")
         self._api_key = api_key or os.environ.get("FLOWMANNER_API_KEY", "")
         if not self._api_key:
-            raise ValueError(
-                "API key required. Pass api_key= or set FLOWMANNER_API_KEY env var."
-            )
+            raise ValueError("API key required. Pass api_key= or set FLOWMANNER_API_KEY env var.")
         self._client = AuthenticatedClient(
             base_url=self.base_url,
             token=self._api_key,

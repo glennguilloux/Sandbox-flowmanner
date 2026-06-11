@@ -5,15 +5,11 @@ Tests call main(argv=...) directly with mocked FlowmannerClient to avoid real HT
 
 from __future__ import annotations
 
-import json
-import os
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from flowmanner_api_client.cli import main
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -85,9 +81,7 @@ class TestStatusCommand:
 
     def test_status_custom_url(self, capsys, mock_fm):
         mock_fm.health_check.return_value = {"status": "ok"}
-        result = main(
-            argv=["--url", "http://localhost:8000", "--key", "sk-test", "status"]
-        )
+        result = main(argv=["--url", "http://localhost:8000", "--key", "sk-test", "status"])
         assert result == 0
         captured = capsys.readouterr()
         assert "Connected to http://localhost:8000" in captured.out

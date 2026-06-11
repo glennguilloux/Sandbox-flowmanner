@@ -110,9 +110,7 @@ class AudioFormatConverterTool(BaseTool):
         try:
             validated = AudioFormatConverterInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -137,13 +135,9 @@ class AudioFormatConverterTool(BaseTool):
 
     # ── _convert ─────────────────────────────────────────────────
 
-    async def _convert(
-        self, validated: AudioFormatConverterInput, target: str
-    ) -> dict[str, Any]:
+    async def _convert(self, validated: AudioFormatConverterInput, target: str) -> dict[str, Any]:
         """Load audio and convert to target format."""
-        audio_bytes = await resolve_input(
-            validated.data, validated.url, label="audio", fetch_timeout=60
-        )
+        audio_bytes = await resolve_input(validated.data, validated.url, label="audio", fetch_timeout=60)
 
         # Check file size
         size_mb = len(audio_bytes) / (1024 * 1024)

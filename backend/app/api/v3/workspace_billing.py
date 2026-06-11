@@ -28,15 +28,9 @@ router = APIRouter(prefix="/workspaces", tags=["v3-workspace-billing"])
 async def _require_billing_enabled(db: AsyncSession) -> None:
     from sqlalchemy import text
 
-    result = await db.execute(
-        text(
-            "SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_BILLING'"
-        )
-    )
+    result = await db.execute(text("SELECT enabled_globally FROM feature_flags WHERE key = 'WORKSPACES_V3_BILLING'"))
     if not result.scalar():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
 
 
 @router.get("/{workspace_id}/billing", status_code=status.HTTP_200_OK)
@@ -54,25 +48,17 @@ async def get_billing(
         )
     )
     if not membership.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     ws = result.scalar_one_or_none()
     if not ws:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     # H4.1: Resolve subscription tier details from Workspace
     tier = None
     if ws.subscription_tier_id:
-        tier_result = await db.execute(
-            select(SubscriptionTier).where(
-                SubscriptionTier.id == ws.subscription_tier_id
-            )
-        )
+        tier_result = await db.execute(select(SubscriptionTier).where(SubscriptionTier.id == ws.subscription_tier_id))
         tier = tier_result.scalar_one_or_none()
 
     return ok(

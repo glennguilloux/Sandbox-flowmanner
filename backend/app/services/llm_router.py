@@ -67,9 +67,7 @@ class ModelRouter:
         effective_user_id = user_id or self.user_id or "system"
         # Use the db_session passed per-request if constructor didn't have one
         effective_db = db_session or self.db
-        raw_model = model_preference or os.getenv(
-            "LLM_MODEL_NAME", "deepseek/deepseek-v4-flash"
-        )
+        raw_model = model_preference or os.getenv("LLM_MODEL_NAME", "deepseek/deepseek-v4-flash")
 
         base_url, api_key, _model_name = _resolve_provider(raw_model)
 
@@ -150,9 +148,7 @@ class ModelRouter:
             content = response.choices[0].message.content or ""
             usage = {
                 "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                "completion_tokens": (
-                    response.usage.completion_tokens if response.usage else 0
-                ),
+                "completion_tokens": (response.usage.completion_tokens if response.usage else 0),
                 "total_tokens": response.usage.total_tokens if response.usage else 0,
             }
 
@@ -166,9 +162,7 @@ class ModelRouter:
                 usage=usage,
             )
 
-            return self._maybe_dict_result(
-                result, duration, effective_user_id, is_admin
-            )
+            return self._maybe_dict_result(result, duration, effective_user_id, is_admin)
 
         except Exception as e:
             logger.error("route_request failed for %s: %s", raw_model, e)
@@ -193,9 +187,7 @@ class ModelRouter:
 
             return self._maybe_dict_result(result, 0, effective_user_id, is_admin)
 
-    def _maybe_dict_result(
-        self, result: LLMRouteResult, duration: float, user_id: str, is_admin: bool
-    ) -> Any:
+    def _maybe_dict_result(self, result: LLMRouteResult, duration: float, user_id: str, is_admin: bool) -> Any:
         if self.db is not None:
             return result
 
@@ -257,15 +249,9 @@ class ModelRouter:
 
                 content = response.choices[0].message.content or ""
                 usage = {
-                    "prompt_tokens": (
-                        response.usage.prompt_tokens if response.usage else 0
-                    ),
-                    "completion_tokens": (
-                        response.usage.completion_tokens if response.usage else 0
-                    ),
-                    "total_tokens": (
-                        response.usage.total_tokens if response.usage else 0
-                    ),
+                    "prompt_tokens": (response.usage.prompt_tokens if response.usage else 0),
+                    "completion_tokens": (response.usage.completion_tokens if response.usage else 0),
+                    "total_tokens": (response.usage.total_tokens if response.usage else 0),
                 }
                 provider = model_id.split("/", 1)[0]
 
@@ -277,9 +263,7 @@ class ModelRouter:
                     usage=usage,
                 )
 
-                logger.info(
-                    "Fallback to %s succeeded after %s failed", model_id, failed_model
-                )
+                logger.info("Fallback to %s succeeded after %s failed", model_id, failed_model)
 
                 return self._maybe_dict_result(result, 0, user_id, is_admin)
 
@@ -302,9 +286,7 @@ class ModelRouter:
                     "sk-or-v1-your-openrouter-api-key",
                 )
             ):
-                results[provider_id] = ProviderStatus(
-                    name=provider_id, healthy=False, error_count=1
-                )
+                results[provider_id] = ProviderStatus(name=provider_id, healthy=False, error_count=1)
                 continue
 
             test_models = {
@@ -326,9 +308,7 @@ class ModelRouter:
                 results[provider_id] = ProviderStatus(name=provider_id, healthy=True)
             except Exception as e:
                 logger.warning("Provider %s health check failed: %s", provider_id, e)
-                results[provider_id] = ProviderStatus(
-                    name=provider_id, healthy=False, error_count=1
-                )
+                results[provider_id] = ProviderStatus(name=provider_id, healthy=False, error_count=1)
 
         return results
 
@@ -355,9 +335,7 @@ class ModelRouter:
             True if the model has a usable API key (platform or BYOK),
             False otherwise.
         """
-        raw_model = model_id or os.getenv(
-            "LLM_MODEL_NAME", "deepseek/deepseek-v4-flash"
-        )
+        raw_model = model_id or os.getenv("LLM_MODEL_NAME", "deepseek/deepseek-v4-flash")
 
         # 1. Check for platform API key
         try:
@@ -365,7 +343,7 @@ class ModelRouter:
             if api_key and api_key not in ("", "sk-xxx", "sk-no-key-required"):
                 return True
         except Exception as e:
-            logger.debug('model_availability_resolve_provider_failed raw_model=%s error=%s', raw_model, str(e))
+            logger.debug("model_availability_resolve_provider_failed raw_model=%s error=%s", raw_model, str(e))
 
         # 2. Check for BYOK key
         effective_user_id = user_id or self.user_id or "system"
@@ -380,9 +358,7 @@ class ModelRouter:
                 if byok_key:
                     return True
             except Exception as e:
-                logger.debug(
-                    "BYOK check in _is_model_available failed for %s: %s", raw_model, e
-                )
+                logger.debug("BYOK check in _is_model_available failed for %s: %s", raw_model, e)
 
         return False
 
@@ -408,11 +384,7 @@ class ModelRouter:
             if uid is None:
                 return None, None
 
-            stmt = (
-                select(UserAPIKey)
-                .where(UserAPIKey.user_id == uid)
-                .where(UserAPIKey.is_active == True)
-            )
+            stmt = select(UserAPIKey).where(UserAPIKey.user_id == uid).where(UserAPIKey.is_active == True)
             result = await effective_db.execute(stmt)
             keys = list(result.scalars().all())
             if not keys:
@@ -451,8 +423,6 @@ class ModelRouter:
             # Fall back to the first active key
             return keys[0].get_api_key(), keys[0].base_url
         except Exception as e:
-            logger.error(
-                "BYOK key select: ERROR user=%s error=%s", user_id, e, exc_info=True
-            )
+            logger.error("BYOK key select: ERROR user=%s error=%s", user_id, e, exc_info=True)
 
         return None, None

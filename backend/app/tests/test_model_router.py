@@ -36,9 +36,7 @@ class TestRouteRequest:
                 mock_client = AsyncMock()
                 mock_response = AsyncMock()
                 mock_response.choices = [MagicMock(message=MagicMock(content="Hello"))]
-                mock_response.usage = MagicMock(
-                    prompt_tokens=10, completion_tokens=5, total_tokens=15
-                )
+                mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
                 mock_client.chat.completions.create.return_value = mock_response
                 mock_client_class.return_value = mock_client
 

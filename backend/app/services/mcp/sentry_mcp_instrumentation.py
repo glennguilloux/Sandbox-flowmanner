@@ -44,13 +44,9 @@ def instrument_mcp_server(server: Any) -> Any:
     if original_handle_tool_call:
 
         @wraps(original_handle_tool_call)
-        async def wrapped_handle_tool_call(
-            tool_name: str, arguments: dict[str, Any], *args, **kwargs
-        ):
+        async def wrapped_handle_tool_call(tool_name: str, arguments: dict[str, Any], *args, **kwargs):
             """Wrapped tool call handler with Sentry instrumentation."""
-            with sentry_sdk.start_transaction(
-                name=f"mcp.tool.{tool_name}", op="mcp.tool_call"
-            ) as transaction:
+            with sentry_sdk.start_transaction(name=f"mcp.tool.{tool_name}", op="mcp.tool_call") as transaction:
                 # Set tool context
                 sentry_sdk.set_context(
                     "mcp_tool",
@@ -70,9 +66,7 @@ def instrument_mcp_server(server: Any) -> Any:
 
                 start_time = time.time()
                 try:
-                    result = await original_handle_tool_call(
-                        tool_name, arguments, *args, **kwargs
-                    )
+                    result = await original_handle_tool_call(tool_name, arguments, *args, **kwargs)
 
                     # Record success metrics
                     duration = time.time() - start_time
@@ -101,9 +95,7 @@ def instrument_mcp_server(server: Any) -> Any:
             """Wrapped request handler with Sentry instrumentation."""
             method = request.get("method", "unknown")
 
-            with sentry_sdk.start_span(
-                op="mcp.request", description=f"MCP request: {method}"
-            ) as span:
+            with sentry_sdk.start_span(op="mcp.request", description=f"MCP request: {method}") as span:
                 span.set_data("method", method)
                 span.set_data("request_id", request.get("id"))
 
@@ -193,10 +185,8 @@ class MCPPerformanceTracker:
                 f"mcp_tool_{tool_name}",
                 {
                     "total_calls": metrics["total_calls"],
-                    "success_rate": metrics["successful_calls"]
-                    / metrics["total_calls"],
-                    "avg_duration_ms": metrics["total_duration_ms"]
-                    / metrics["total_calls"],
+                    "success_rate": metrics["successful_calls"] / metrics["total_calls"],
+                    "avg_duration_ms": metrics["total_duration_ms"] / metrics["total_calls"],
                 },
             )
 

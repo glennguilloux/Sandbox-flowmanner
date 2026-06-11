@@ -86,8 +86,6 @@ professional legal counsel for critical decisions."""
     async def run(self, query: str, context: dict[str, Any] = None) -> dict[str, Any]:
         """Execute a legal query"""
         result = await super().run(query, context)
-        result["disclaimer"] = (
-            "This is informational only. Consult a licensed attorney for legal advice."
-        )
+        result["disclaimer"] = "This is informational only. Consult a licensed attorney for legal advice."
         result["capabilities"] = self.get_capabilities()
         return result

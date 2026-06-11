@@ -196,9 +196,7 @@ class GlobalNewsAggregatorTool(BaseTool):
         try:
             validated = GlobalNewsAggregatorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in NEWS_ACTIONS:
             return ToolResult.error_result(
@@ -238,9 +236,7 @@ class GlobalNewsAggregatorTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: GlobalNewsAggregatorInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: GlobalNewsAggregatorInput) -> dict[str, Any]:
         if validated.action == "top_headlines":
             return await self._top_headlines(validated)
         elif validated.action == "search":
@@ -269,16 +265,12 @@ class GlobalNewsAggregatorTool(BaseTool):
     def _get_date_range(self, validated: GlobalNewsAggregatorInput) -> dict[str, str]:
         """Resolve from_date and to_date with defaults."""
         to_date = validated.to_date or date.today().isoformat()
-        from_date = (
-            validated.from_date or (date.today() - timedelta(days=30)).isoformat()
-        )
+        from_date = validated.from_date or (date.today() - timedelta(days=30)).isoformat()
         return {"from": from_date, "to": to_date}
 
     # ── Action handlers ──────────────────────────────────────────
 
-    async def _top_headlines(
-        self, validated: GlobalNewsAggregatorInput
-    ) -> dict[str, Any]:
+    async def _top_headlines(self, validated: GlobalNewsAggregatorInput) -> dict[str, Any]:
         """Fetch top headlines."""
         params: dict[str, Any] = {
             "apiKey": NEWS_API_KEY,
@@ -319,9 +311,7 @@ class GlobalNewsAggregatorTool(BaseTool):
             "articles": articles,
         }
 
-    async def _search_news(
-        self, validated: GlobalNewsAggregatorInput
-    ) -> dict[str, Any]:
+    async def _search_news(self, validated: GlobalNewsAggregatorInput) -> dict[str, Any]:
         """Search news articles by query."""
         if not validated.query:
             return {"error": "query is required for search action"}
@@ -377,9 +367,7 @@ class GlobalNewsAggregatorTool(BaseTool):
         }
 
         async with httpx.AsyncClient(timeout=NEWS_TIMEOUT) as client:
-            resp = await client.get(
-                f"{NEWS_API_BASE}/top-headlines/sources", params=params
-            )
+            resp = await client.get(f"{NEWS_API_BASE}/top-headlines/sources", params=params)
             resp.raise_for_status()
             data = resp.json()
 

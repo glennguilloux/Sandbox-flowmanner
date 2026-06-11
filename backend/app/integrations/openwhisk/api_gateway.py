@@ -61,9 +61,7 @@ class RequestLimiter:
             self.requests[key] = []
 
         # Remove old requests
-        self.requests[key] = [
-            req_time for req_time in self.requests[key] if req_time > minute_ago
-        ]
+        self.requests[key] = [req_time for req_time in self.requests[key] if req_time > minute_ago]
 
         # Check if under limit
         if len(self.requests[key]) >= limit:
@@ -252,9 +250,7 @@ class OpenWhiskAPIGateway:
                 payload = {}
 
             # Invoke OpenWhisk action
-            invocation = await self.client.invoke_action(
-                action_name=route.action_name, params=payload
-            )
+            invocation = await self.client.invoke_action(action_name=route.action_name, params=payload)
 
             if invocation.success:
                 self.metrics["successful_requests"] += 1
@@ -286,9 +282,7 @@ class OpenWhiskAPIGateway:
                 "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    async def batch_handle(
-        self, requests: list[dict[str, Any]], max_concurrent: int = 10
-    ) -> list[dict[str, Any]]:
+    async def batch_handle(self, requests: list[dict[str, Any]], max_concurrent: int = 10) -> list[dict[str, Any]]:
         """
         Handle multiple requests concurrently
 
@@ -353,9 +347,7 @@ class OpenWhiskAPIGateway:
             "failed_requests": self.metrics["failed_requests"],
             "rate_limited": self.metrics["rate_limited"],
             "success_rate": (
-                self.metrics["successful_requests"]
-                / self.metrics["total_requests"]
-                * 100
+                self.metrics["successful_requests"] / self.metrics["total_requests"] * 100
                 if self.metrics["total_requests"] > 0
                 else 0
             ),
@@ -431,9 +423,7 @@ def create_gateway(
             logger.warning("Cannot create gateway: missing client or auth")
             return None
 
-        gateway = OpenWhiskAPIGateway(
-            client=client, auth_manager=auth_manager, enable_rate_limiting=True
-        )
+        gateway = OpenWhiskAPIGateway(client=client, auth_manager=auth_manager, enable_rate_limiting=True)
 
         logger.info("API gateway created successfully")
         return gateway

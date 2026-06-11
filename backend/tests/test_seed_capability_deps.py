@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from collections import defaultdict
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 class TestSeedCapabilityDepsLogic:
@@ -52,9 +53,7 @@ class TestSeedCapabilityDepsLogic:
 
         assert len(domain_members["academic-"]) == 2
         assert len(domain_members["customer-support"]) == 1  # only 1, no pair
-        assert "random-agent" not in [
-            s for members in domain_members.values() for s in members
-        ]
+        assert "random-agent" not in [s for members in domain_members.values() for s in members]
 
     def test_max_deps_per_agent_cap(self):
         """Dependencies should be capped per agent."""

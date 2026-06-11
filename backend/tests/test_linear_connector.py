@@ -16,7 +16,6 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.linear_connector import LinearConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -32,9 +31,7 @@ def _make_config(auth_config: dict | None = None) -> ConnectorConfig:
 def _make_mock_linear_client():
     """Create a mock LinearClient with standard method returns."""
     client = AsyncMock()
-    client.get_teams.return_value = [
-        {"id": "team1", "name": "Engineering", "key": "ENG"}
-    ]
+    client.get_teams.return_value = [{"id": "team1", "name": "Engineering", "key": "ENG"}]
     client.get_default_team_id.return_value = "team1"
     client.create_issue.return_value = {
         "id": "issue1",
@@ -173,10 +170,13 @@ async def test_create_issue():
     """Create a Linear issue."""
     mock_client = _make_mock_linear_client()
 
-    with patch(
-        "app.services.linear.client.LinearClient",
-        return_value=mock_client,
-    ), patch("app.services.connectors.linear_connector.settings") as mock_settings:
+    with (
+        patch(
+            "app.services.linear.client.LinearClient",
+            return_value=mock_client,
+        ),
+        patch("app.services.connectors.linear_connector.settings") as mock_settings,
+    ):
         mock_settings.LINEAR_TEAM_ID = "team1"
         mock_settings.LINEAR_API_KEY = "test"
 

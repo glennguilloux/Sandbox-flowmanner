@@ -176,9 +176,7 @@ class HITLManager:
         if record is None:
             return False
         if record.status != "pending":
-            logger.debug(
-                "Interrupt %s already resolved: %s", interrupt_id, record.status
-            )
+            logger.debug("Interrupt %s already resolved: %s", interrupt_id, record.status)
             return False
 
         record.status = resolution

@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
+import pytest
 
 from app.models.capability_models import Budget
 from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.workflow_models import (
+    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
-    StrategyResult,
 )
 
 
 def _make_solo_workflow(node_count: int = 1):
-    nodes = [
-        WorkflowNode(id=f"n{i}", type="llm_call", title=f"Node {i}")
-        for i in range(node_count)
-    ]
+    nodes = [WorkflowNode(id=f"n{i}", type="llm_call", title=f"Node {i}") for i in range(node_count)]
     return Workflow(
         id=str(uuid4()),
         type=WorkflowType.SOLO,
@@ -146,9 +144,7 @@ class TestSoloExecute:
 
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=False)
-        mock_executor.execute_node = AsyncMock(
-            return_value={"success": True, "output": "ok"}
-        )
+        mock_executor.execute_node = AsyncMock(return_value={"success": True, "output": "ok"})
 
         await strategy.execute(wf, {}, mock_executor, db)
 

@@ -140,18 +140,14 @@ class InfiniscrollExtractorTool(BaseTool):
         try:
             validated = InfiniscrollExtractorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             import httpx
 
             headers = {
                 "User-Agent": validated.user_agent
-                or (
-                    "Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"
-                ),
+                or ("Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"),
                 "Accept": "text/html,application/xhtml+xml",
             }
             if validated.headers:
@@ -162,9 +158,7 @@ class InfiniscrollExtractorTool(BaseTool):
                 headers=headers,
                 proxy=validated.proxy_url,
             ) as client:
-                items, scrolls, per_scroll = await self._scroll_extract(
-                    client, validated
-                )
+                items, scrolls, per_scroll = await self._scroll_extract(client, validated)
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
@@ -181,9 +175,7 @@ class InfiniscrollExtractorTool(BaseTool):
             logger.exception("infiniscroll_extractor failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _scroll_extract(
-        self, client, validated: InfiniscrollExtractorInput
-    ) -> tuple[list[dict], int, list[int]]:
+    async def _scroll_extract(self, client, validated: InfiniscrollExtractorInput) -> tuple[list[dict], int, list[int]]:
         from bs4 import BeautifulSoup
 
         all_items: list[dict] = []
@@ -211,9 +203,7 @@ class InfiniscrollExtractorTool(BaseTool):
 
                 if not validated.deduplicate or content_hash not in seen_hashes:
                     seen_hashes.add(content_hash)
-                    item = self._extract_item(
-                        el, validated.extract, validated.extract_fields
-                    )
+                    item = self._extract_item(el, validated.extract, validated.extract_fields)
                     item["_scroll_index"] = i
                     all_items.append(item)
                     new_in_this_scroll += 1
@@ -246,9 +236,7 @@ class InfiniscrollExtractorTool(BaseTool):
         new_query = urllib.parse.urlencode(query, doseq=True)
         return urllib.parse.urlunparse(parsed._replace(query=new_query))
 
-    def _extract_item(
-        self, element, extract_mode: str, extract_fields: list[str] | None = None
-    ) -> dict[str, Any]:
+    def _extract_item(self, element, extract_mode: str, extract_fields: list[str] | None = None) -> dict[str, Any]:
         result: dict[str, Any] = {}
 
         if extract_mode.startswith("attribute:"):

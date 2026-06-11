@@ -84,11 +84,7 @@ class TokenStorage:
     def all_active(self) -> list[CapabilityToken]:
         """Get all active (non-revoked, non-expired) tokens."""
         now = datetime.now(UTC)
-        return [
-            t
-            for t in self._tokens.values()
-            if not t.revoked and (t.expires_at is None or t.expires_at > now)
-        ]
+        return [t for t in self._tokens.values() if not t.revoked and (t.expires_at is None or t.expires_at > now)]
 
 
 class CapabilityEngine:
@@ -149,8 +145,7 @@ class CapabilityEngine:
             resource=resource,
             actions=actions,
             parent=parent,
-            attenuation_proof="issued_by=capability_engine;actions="
-            + ",".join(sorted(a.value for a in actions)),
+            attenuation_proof="issued_by=capability_engine;actions=" + ",".join(sorted(a.value for a in actions)),
             issued_to=to,
             issued_at=datetime.now(UTC),
             expires_at=expires_at,
@@ -174,9 +169,7 @@ class CapabilityEngine:
         """
         return token.can(required)
 
-    def verify_and_require(
-        self, token: CapabilityToken | None, required: Action
-    ) -> CapabilityToken:
+    def verify_and_require(self, token: CapabilityToken | None, required: Action) -> CapabilityToken:
         """Verify a token and raise if not authorized.
 
         Returns the token for chaining.
@@ -185,15 +178,11 @@ class CapabilityEngine:
             PermissionError: If token is None, revoked, expired, or lacks the action.
         """
         if token is None:
-            raise PermissionError(
-                f"No capability token provided. Action '{required.value}' requires a valid token."
-            )
+            raise PermissionError(f"No capability token provided. Action '{required.value}' requires a valid token.")
 
         if not token.can(required):
             if token.revoked:
-                raise PermissionError(
-                    f"Token {token.id} has been revoked. Action '{required.value}' denied."
-                )
+                raise PermissionError(f"Token {token.id} has been revoked. Action '{required.value}' denied.")
             if token.expires_at and datetime.now(UTC) > token.expires_at:
                 raise PermissionError(
                     f"Token {token.id} expired at {token.expires_at}. Action '{required.value}' denied."
@@ -290,15 +279,9 @@ class CapabilityEngine:
         """Get all active tokens held by a principal."""
         return [t for t in self.storage.all_active() if t.issued_to == principal_id]
 
-    def get_authorized_actions(
-        self, principal_id: UUID, resource: ResourceRef
-    ) -> set[Action]:
+    def get_authorized_actions(self, principal_id: UUID, resource: ResourceRef) -> set[Action]:
         """Get all actions a principal is authorized for on a resource."""
-        tokens = [
-            t
-            for t in self.storage.all_active()
-            if t.issued_to == principal_id and t.resource == resource
-        ]
+        tokens = [t for t in self.storage.all_active() if t.issued_to == principal_id and t.resource == resource]
         if not tokens:
             return set()
         return set().union(*(t.actions for t in tokens))
@@ -316,13 +299,7 @@ class CapabilityEngine:
             "total_tokens": len(all_tokens),
             "active_tokens": len(active),
             "revoked_tokens": len([t for t in all_tokens if t.revoked]),
-            "expired_tokens": len(
-                [
-                    t
-                    for t in all_tokens
-                    if t.expires_at and t.expires_at <= datetime.now(UTC)
-                ]
-            ),
+            "expired_tokens": len([t for t in all_tokens if t.expires_at and t.expires_at <= datetime.now(UTC)]),
             "revocation_count": len(self.storage._revocation_log),
         }
 

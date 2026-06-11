@@ -82,21 +82,13 @@ class ControlFlowAgent:
         self.register_tool_handler("cancel_task", self._handle_cancel_task)
 
         # Register workflow config handlers
-        self.register_tool_handler(
-            "get_workflow_config", self._handle_get_workflow_config
-        )
-        self.register_tool_handler(
-            "save_workflow_config", self._handle_save_workflow_config
-        )
-        self.register_tool_handler(
-            "list_workflow_configs", self._handle_list_workflow_configs
-        )
+        self.register_tool_handler("get_workflow_config", self._handle_get_workflow_config)
+        self.register_tool_handler("save_workflow_config", self._handle_save_workflow_config)
+        self.register_tool_handler("list_workflow_configs", self._handle_list_workflow_configs)
 
         # Register legacy handlers for backward compatibility
         self.register_tool_handler("execute_n8n_workflow", self._handle_n8n_workflow)
-        self.register_tool_handler(
-            "execute_comfyui_workflow", self._handle_comfyui_workflow
-        )
+        self.register_tool_handler("execute_comfyui_workflow", self._handle_comfyui_workflow)
 
     def register_tool_handler(
         self,
@@ -235,9 +227,7 @@ class ControlFlowAgent:
     def _save_state(self, state: AgentState):
         """Save state to config manager"""
         try:
-            self.config_manager.save_session_state(
-                state["session_id"], state_to_dict(state)
-            )
+            self.config_manager.save_session_state(state["session_id"], state_to_dict(state))
         except Exception as e:
             logger.error("Failed to save state: %s", e)
 
@@ -268,17 +258,13 @@ class ControlFlowAgent:
 
         return state
 
-    def _simple_tool_conversion(
-        self, message: str, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _simple_tool_conversion(self, message: str, context: dict[str, Any]) -> dict[str, Any]:
         """Simple tool conversion based on keywords"""
         message_lower = message.lower()
         tools = []
 
         # Detect worker task execution
-        if "execute" in message_lower and (
-            "step" in message_lower or "task" in message_lower
-        ):
+        if "execute" in message_lower and ("step" in message_lower or "task" in message_lower):
             step_name = None
             for step in [
                 "step_2a_generate_request",
@@ -498,9 +484,7 @@ class ControlFlowAgent:
             return {"success": False, "error": "actions is required"}
 
         try:
-            result = self.worker_handler.execute_chain(
-                actions=actions, params_list=params_list
-            )
+            result = self.worker_handler.execute_chain(actions=actions, params_list=params_list)
             return result
         except Exception as e:
             logger.error("Chain execution failed: %s", e)
@@ -580,9 +564,7 @@ class ControlFlowAgent:
             return {"success": False, "error": "workflow_id is required"}
 
         try:
-            result = self.config_manager.save_config(
-                workflow_id=workflow_id, config_data=config_data, name=name
-            )
+            result = self.config_manager.save_config(workflow_id=workflow_id, config_data=config_data, name=name)
             return result
         except Exception as e:
             logger.error("Save workflow config failed: %s", e)
@@ -618,9 +600,7 @@ class ControlFlowAgent:
             return {"success": False, "error": "workflow_id is required"}
 
         try:
-            result = execute_n8n_workflow(
-                workflow_id=workflow_id, parameters=parameters.get("parameters", {})
-            )
+            result = execute_n8n_workflow(workflow_id=workflow_id, parameters=parameters.get("parameters", {}))
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}
@@ -643,9 +623,7 @@ class ControlFlowAgent:
             return {"success": False, "error": "prompt is required"}
 
         try:
-            result = generate_hero_background(
-                prompt=prompt, style=parameters.get("style", "modern")
-            )
+            result = generate_hero_background(prompt=prompt, style=parameters.get("style", "modern"))
             return {"success": True, "result": json.loads(result)}
         except json.JSONDecodeError as e:
             return {"success": False, "error": f"Invalid JSON response: {e}"}

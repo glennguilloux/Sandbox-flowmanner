@@ -102,9 +102,7 @@ async def get_stats(
         {"uid": uid},
     )
     active_count = await db.execute(
-        text(
-            "SELECT COUNT(*) FROM orchestration_agents WHERE user_id=:uid AND status='IDLE'"
-        ),
+        text("SELECT COUNT(*) FROM orchestration_agents WHERE user_id=:uid AND status='IDLE'"),
         {"uid": uid},
     )
     teams_count = await db.execute(
@@ -117,9 +115,7 @@ async def get_stats(
     )
     # Real task status aggregation
     status_q = await db.execute(
-        text(
-            "SELECT status, COUNT(*) FROM orchestration_tasks WHERE user_id=:uid GROUP BY status"
-        ),
+        text("SELECT status, COUNT(*) FROM orchestration_tasks WHERE user_id=:uid GROUP BY status"),
         {"uid": uid},
     )
     _status_map = {
@@ -188,9 +184,7 @@ async def list_agents(
                 "name": r[1],
                 "description": r[2],
                 "model": r[3] or "deepseek-v4-flash",
-                "system_prompt": (
-                    config.get("system_prompt") if isinstance(config, dict) else None
-                ),
+                "system_prompt": (config.get("system_prompt") if isinstance(config, dict) else None),
                 "tools": tools,
                 "team_id": None,
                 "is_active": _status_to_bool(r[4]),
@@ -224,9 +218,7 @@ async def get_agent(
             "name": row[1],
             "description": row[2],
             "model": row[3] or "deepseek-v4-flash",
-            "system_prompt": (
-                config.get("system_prompt") if isinstance(config, dict) else None
-            ),
+            "system_prompt": (config.get("system_prompt") if isinstance(config, dict) else None),
             "tools": caps.get("tools", []) if isinstance(caps, dict) else [],
             "team_id": None,
             "is_active": _status_to_bool(row[4]),
@@ -246,11 +238,7 @@ async def create_agent(
 
     aid = str(uuid.uuid4())
     caps = json.dumps({"tools": data.get("capabilities", data.get("tools", []))})
-    config = (
-        json.dumps({"system_prompt": data.get("system_prompt")})
-        if data.get("system_prompt")
-        else "{}"
-    )
+    config = json.dumps({"system_prompt": data.get("system_prompt")}) if data.get("system_prompt") else "{}"
     await db.execute(
         text(
             "INSERT INTO orchestration_agents (id, name, description, role, status, capabilities, config, user_id, created_at, updated_at) VALUES (:id, :name, :desc, :role, 'IDLE', :caps, :cfg, :uid, NOW(), NOW())"
@@ -297,11 +285,7 @@ async def update_agent(
         raise HTTPException(400, "No valid fields to update")
     sets.append("updated_at = NOW()")
     await db.execute(
-        text(
-            "UPDATE orchestration_agents SET "
-            + ", ".join(sets)
-            + " WHERE id = :id AND user_id = :uid"
-        ),
+        text("UPDATE orchestration_agents SET " + ", ".join(sets) + " WHERE id = :id AND user_id = :uid"),
         params,
     )
     await db.commit()
@@ -328,9 +312,7 @@ async def delete_agent(
 
 
 @router.get("/teams")
-async def list_teams(
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
-):
+async def list_teams(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     count_r = await db.execute(
         text("SELECT COUNT(*) FROM orchestration_teams WHERE user_id=:uid"),
         {"uid": user.id},
@@ -344,11 +326,7 @@ async def list_teams(
     teams = []
     for r in rows_r.fetchall():
         members = _json(r[3])
-        agent_ids = (
-            [m.get("id", m) if isinstance(m, dict) else m for m in members]
-            if isinstance(members, list)
-            else []
-        )
+        agent_ids = [m.get("id", m) if isinstance(m, dict) else m for m in members] if isinstance(members, list) else []
         teams.append(
             {
                 "id": str(r[0]),
@@ -379,11 +357,7 @@ async def get_team(
     if not row:
         raise HTTPException(404, "Team not found")
     members = _json(row[3])
-    agent_ids = (
-        [m.get("id", m) if isinstance(m, dict) else m for m in members]
-        if isinstance(members, list)
-        else []
-    )
+    agent_ids = [m.get("id", m) if isinstance(m, dict) else m for m in members] if isinstance(members, list) else []
     return {
         "team": {
             "id": str(row[0]),
@@ -580,11 +554,7 @@ async def update_task(
         raise HTTPException(400, "No valid fields to update")
     sets.append("updated_at = NOW()")
     await db.execute(
-        text(
-            "UPDATE orchestration_tasks SET "
-            + ", ".join(sets)
-            + " WHERE id = :id AND user_id = :uid"
-        ),
+        text("UPDATE orchestration_tasks SET " + ", ".join(sets) + " WHERE id = :id AND user_id = :uid"),
         params,
     )
     await db.commit()

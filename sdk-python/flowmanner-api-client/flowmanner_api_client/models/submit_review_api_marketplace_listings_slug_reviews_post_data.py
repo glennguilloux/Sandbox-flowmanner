@@ -26,9 +26,7 @@ class SubmitReviewApiMarketplaceListingsSlugReviewsPostData:
         d = dict(src_dict)
         submit_review_api_marketplace_listings_slug_reviews_post_data = cls()
 
-        submit_review_api_marketplace_listings_slug_reviews_post_data.additional_properties = (
-            d
-        )
+        submit_review_api_marketplace_listings_slug_reviews_post_data.additional_properties = d
         return submit_review_api_marketplace_listings_slug_reviews_post_data
 
     @property

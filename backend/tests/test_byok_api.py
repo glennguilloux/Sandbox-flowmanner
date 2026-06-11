@@ -265,9 +265,7 @@ def test_model_cache():
             call_count += 1
             return mock_resp
 
-    with patch(
-        "app.api.v1.api_keys.httpx.AsyncClient", return_value=_CountingFakeClient()
-    ):
+    with patch("app.api.v1.api_keys.httpx.AsyncClient", return_value=_CountingFakeClient()):
         client.post(DISCOVER_URL, json={"provider": "openai", "api_key": "sk-key-1"})
         client.post(DISCOVER_URL, json={"provider": "openai", "api_key": "sk-key-2"})
 

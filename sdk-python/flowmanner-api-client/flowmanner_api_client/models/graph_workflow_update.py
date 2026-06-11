@@ -114,9 +114,7 @@ class GraphWorkflowUpdate:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                graph_definition_type_0 = (
-                    GraphWorkflowUpdateGraphDefinitionType0.from_dict(data)
-                )
+                graph_definition_type_0 = GraphWorkflowUpdateGraphDefinitionType0.from_dict(data)
 
                 return graph_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

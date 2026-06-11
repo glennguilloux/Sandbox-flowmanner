@@ -123,9 +123,7 @@ class WikipediaFetcherTool(BaseTool):
         try:
             validated = WikipediaFetcherInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in WIKI_ACTIONS:
             return ToolResult.error_result(
@@ -305,13 +303,9 @@ class WikipediaFetcherTool(BaseTool):
                 {
                     "title": r.get("title", ""),
                     "page_id": r.get("pageid"),
-                    "snippet": BeautifulSoup(
-                        r.get("snippet", ""), "html.parser"
-                    ).get_text(),
+                    "snippet": BeautifulSoup(r.get("snippet", ""), "html.parser").get_text(),
                     "word_count": r.get("wordcount", 0),
-                    "url": self._build_article_url(
-                        r.get("title", ""), validated.language
-                    ),
+                    "url": self._build_article_url(r.get("title", ""), validated.language),
                 }
             )
 
@@ -319,9 +313,7 @@ class WikipediaFetcherTool(BaseTool):
             "action": "search",
             "query": validated.query,
             "language": validated.language or DEFAULT_LANGUAGE,
-            "total_hits": data.get("query", {})
-            .get("searchinfo", {})
-            .get("totalhits", 0),
+            "total_hits": data.get("query", {}).get("searchinfo", {}).get("totalhits", 0),
             "result_count": len(articles),
             "results": articles,
         }
@@ -372,9 +364,7 @@ class WikipediaFetcherTool(BaseTool):
             ],
         }
 
-    async def _get_section_content(
-        self, validated: WikipediaFetcherInput
-    ) -> dict[str, Any]:
+    async def _get_section_content(self, validated: WikipediaFetcherInput) -> dict[str, Any]:
         """Fetch content of a specific section by index."""
         if not validated.title:
             return {"error": "title is required for get_section_content"}

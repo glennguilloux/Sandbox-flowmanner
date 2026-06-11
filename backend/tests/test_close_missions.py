@@ -1,8 +1,9 @@
 """Integration tests for close-missions features: graphs list, execution history, resume, trigger-to-graph."""
 
-import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.services.graph_executor import ExecutionContext, GraphInterpreter
 from app.services.graph_node_handlers import ApprovalNodeHandler
@@ -30,9 +31,7 @@ class TestExecutionHistoryAPI:
     def test_get_execution_detail_unauthenticated(self):
         import httpx
 
-        resp = httpx.get(
-            f"http://localhost:8000/api/graphs/{uuid.uuid4()}/executions/{uuid.uuid4()}"
-        )
+        resp = httpx.get(f"http://localhost:8000/api/graphs/{uuid.uuid4()}/executions/{uuid.uuid4()}")
         assert resp.status_code == 401
 
 
@@ -42,9 +41,7 @@ class TestResumeAPI:
     def test_resume_unauthenticated(self):
         import httpx
 
-        resp = httpx.post(
-            f"http://localhost:8000/api/graphs/{uuid.uuid4()}/resume/{uuid.uuid4()}"
-        )
+        resp = httpx.post(f"http://localhost:8000/api/graphs/{uuid.uuid4()}/resume/{uuid.uuid4()}")
         assert resp.status_code == 401
 
 
@@ -54,9 +51,7 @@ class TestTriggerGraphAPI:
     def test_fire_graph_unauthenticated(self):
         import httpx
 
-        resp = httpx.post(
-            f"http://localhost:8000/api/triggers/{uuid.uuid4()}/fire-graph"
-        )
+        resp = httpx.post(f"http://localhost:8000/api/triggers/{uuid.uuid4()}/fire-graph")
         assert resp.status_code == 401
 
 
@@ -85,9 +80,7 @@ class TestApprovalPauseResume:
 
         interp = GraphInterpreter(db, workflow, execution)
 
-        with patch(
-            "app.services.graph_service.pause_execution", new_callable=AsyncMock
-        ):
+        with patch("app.services.graph_service.pause_execution", new_callable=AsyncMock):
             result = await interp.execute()
             assert result["status"] == "paused"
             assert result["paused_at"] == "a"
@@ -113,9 +106,7 @@ class TestTriggerEndpointRegistration:
     def test_fire_graph_returns_401_not_404(self):
         import httpx
 
-        resp = httpx.post(
-            f"http://localhost:8000/api/triggers/{uuid.uuid4()}/fire-graph"
-        )
+        resp = httpx.post(f"http://localhost:8000/api/triggers/{uuid.uuid4()}/fire-graph")
         assert resp.status_code == 401
 
 

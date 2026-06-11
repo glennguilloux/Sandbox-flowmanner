@@ -93,9 +93,7 @@ class ToolDiscoveryService:
     def client(self) -> QdrantClient:
         if self._client is None:
             self._client = QdrantClient(url=self._qdrant_url, timeout=15)
-            logger.info(
-                "ToolDiscoveryService connected to Qdrant at %s", self._qdrant_url
-            )
+            logger.info("ToolDiscoveryService connected to Qdrant at %s", self._qdrant_url)
         return self._client
 
     def _collection_exists(self) -> bool:
@@ -179,9 +177,7 @@ class ToolDiscoveryService:
         try:
             info = self.client.get_collection(self._collection_name)
             config = info.config.params.vectors
-            needs_recreate = getattr(
-                config, "size", None
-            ) != EMBEDDING_DIM or not isinstance(
+            needs_recreate = getattr(config, "size", None) != EMBEDDING_DIM or not isinstance(
                 getattr(config, "distance", None), Distance
             )
         except Exception:
@@ -296,15 +292,11 @@ class ToolDiscoveryService:
         from app.models.tool_catalog_models import Tool as ToolModel
 
         # 1. Load tools from DB
-        tool_result = await session.execute(
-            select(ToolModel).where(ToolModel.enabled.is_(True))
-        )
+        tool_result = await session.execute(select(ToolModel).where(ToolModel.enabled.is_(True)))
         db_tools = tool_result.scalars().all()
 
         # 2. Load capabilities from DB
-        cap_result = await session.execute(
-            select(CapModel).where(CapModel.enabled.is_(True))
-        )
+        cap_result = await session.execute(select(CapModel).where(CapModel.enabled.is_(True)))
         db_caps = cap_result.scalars().all()
 
         # 3. Build documents for embedding
@@ -392,9 +384,7 @@ class ToolDiscoveryService:
         return result
 
     @staticmethod
-    def _build_search_text_from_row(
-        name: str, description: str, tags: list, category: str
-    ) -> str:
+    def _build_search_text_from_row(name: str, description: str, tags: list, category: str) -> str:
         """Build a rich text blob for embedding from DB row fields."""
         parts = [name, description]
         if tags:
@@ -473,25 +463,19 @@ class ToolDiscoveryService:
 
                 score = hit.score or 0.0
                 reasons = self._build_match_reasons(tool, query)
-                results.append(
-                    ToolResult(tool=tool, score=score, match_reasons=reasons)
-                )
+                results.append(ToolResult(tool=tool, score=score, match_reasons=reasons))
 
                 if len(results) >= top_k:
                     break
 
-            logger.debug(
-                "Tool discovery search for '%s' -> %d results", query[:50], len(results)
-            )
+            logger.debug("Tool discovery search for '%s' -> %d results", query[:50], len(results))
             return results
 
         except Exception as exc:
             logger.warning("Tool discovery search failed (falling back): %s", exc)
             return []
 
-    def plan_for_task(
-        self, task_description: str, max_tools: int = 10
-    ) -> ToolPlan | None:
+    def plan_for_task(self, task_description: str, max_tools: int = 10) -> ToolPlan | None:
         """Build a ranked tool plan for a natural-language task description.
 
         Uses semantic search to find relevant tools.  Confidence is estimated
@@ -515,9 +499,7 @@ class ToolDiscoveryService:
 
             # Build a short summary
             tool_names = [r.tool.name for r in results[:3]]  # type: ignore[attr-defined]
-            summary = (
-                f"Plan for: {task_description[:80]}. Top tools: {', '.join(tool_names)}"
-            )
+            summary = f"Plan for: {task_description[:80]}. Top tools: {', '.join(tool_names)}"
 
             return ToolPlan(
                 recommended_tools=results,

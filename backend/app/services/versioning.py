@@ -74,14 +74,10 @@ def _snapshot_mission(mission) -> dict:
         "context_urls": mission.context_urls,
         "constraints": mission.constraints,
         "plan": mission.plan,
-        "status": (
-            mission.status if isinstance(mission.status, str) else mission.status.value
-        ),
+        "status": (mission.status if isinstance(mission.status, str) else mission.status.value),
         "priority": mission.priority,
         "fallback_strategy": mission.fallback_strategy,
-        "parent_mission_id": (
-            str(mission.parent_mission_id) if mission.parent_mission_id else None
-        ),
+        "parent_mission_id": (str(mission.parent_mission_id) if mission.parent_mission_id else None),
     }
 
 
@@ -127,9 +123,7 @@ async def create_version_snapshot(
         ValueError: If entity_type is unknown.
     """
     if entity_type not in _ENTITY_REGISTRY:
-        raise ValueError(
-            f"Unknown entity_type '{entity_type}'. Supported: {list(_ENTITY_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Unknown entity_type '{entity_type}'. Supported: {list(_ENTITY_REGISTRY.keys())}")
 
     snapshot_fn, version_model_path, parent_fk_col = _ENTITY_REGISTRY[entity_type]
 
@@ -261,9 +255,7 @@ async def get_version_snapshot(
     VersionModel = getattr(module, class_name)
 
     fk_col = getattr(VersionModel, parent_fk_col)
-    stmt = select(VersionModel).where(
-        fk_col == entity_id, VersionModel.version == version_number
-    )
+    stmt = select(VersionModel).where(fk_col == entity_id, VersionModel.version == version_number)
     result = await db.execute(stmt)
     row = result.scalars().first()
 

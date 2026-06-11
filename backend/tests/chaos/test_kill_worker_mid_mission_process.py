@@ -36,7 +36,6 @@ from app.models.substrate_models import (
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.replay_engine import ReplayEngine
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -297,9 +296,7 @@ def _build_partial_event_stream(run_id, mission_id, crash_at_seq):
 def _mock_event_log(events):
     el = MagicMock(spec=EventLog)
 
-    async def _get_events(
-        db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000
-    ):
+    async def _get_events(db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000):
         filtered = [e for e in events if e.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [e for e in filtered if e.sequence <= to_sequence]
@@ -495,25 +492,21 @@ class TestTrueSIGKILLRecovery:
         assert proc.is_alive(), "Worker should be running"
 
         # Wait for sync file to reach target_seq, then SIGKILL
-        assert _wait_for_sync_seq(
-            str(sync_file), target_seq
-        ), f"Worker did not reach seq {target_seq} in time"
+        assert _wait_for_sync_seq(str(sync_file), target_seq), f"Worker did not reach seq {target_seq} in time"
         os.kill(proc.pid, signal.SIGKILL)
         proc.join(timeout=5)
         assert not proc.is_alive(), "Worker should be dead after SIGKILL"
         assert proc.exitcode == -signal.SIGKILL, (
-            f"Exit code should be -SIGKILL ({-signal.SIGKILL}), " f"got {proc.exitcode}"
+            f"Exit code should be -SIGKILL ({-signal.SIGKILL}), got {proc.exitcode}"
         )
 
         # Read surviving events — MUST be fewer than total (8)
         surviving = _deserialize_events_from_file(str(event_log))
         assert len(surviving) >= target_seq, (
-            f"At least {target_seq} events should survive SIGKILL, "
-            f"got {len(surviving)}"
+            f"At least {target_seq} events should survive SIGKILL, got {len(surviving)}"
         )
         assert len(surviving) < 8, (
-            f"SIGKILL should interrupt before all 8 events, "
-            f"got {len(surviving)} — worker may have finished"
+            f"SIGKILL should interrupt before all 8 events, got {len(surviving)} — worker may have finished"
         )
 
         run_id = surviving[0].run_id
@@ -584,9 +577,7 @@ class TestTrueSIGKILLRecovery:
             args=(str(event_log), str(sync_file)),
         )
         proc.start()
-        assert _wait_for_sync_seq(
-            str(sync_file), target_seq
-        ), f"Worker did not reach seq {target_seq}"
+        assert _wait_for_sync_seq(str(sync_file), target_seq), f"Worker did not reach seq {target_seq}"
         os.kill(proc.pid, signal.SIGKILL)
         proc.join(timeout=5)
 
@@ -603,12 +594,9 @@ class TestTrueSIGKILLRecovery:
 
         # Task A must be completed (seq 4 was reached before kill)
         assert "sig_a" in rebuilt.completed_tasks, (
-            f"Task A should be completed (seq {target_seq} reached), "
-            f"completed_tasks={rebuilt.completed_tasks}"
+            f"Task A should be completed (seq {target_seq} reached), completed_tasks={rebuilt.completed_tasks}"
         )
-        assert (
-            rebuilt.total_tokens >= 120
-        ), f"Task A should add 120 tokens, got {rebuilt.total_tokens}"
+        assert rebuilt.total_tokens >= 120, f"Task A should add 120 tokens, got {rebuilt.total_tokens}"
         assert rebuilt.total_cost_usd >= 0.06
         assert rebuilt.status == "executing"
 
@@ -640,9 +628,7 @@ class TestTrueSIGKILLRecovery:
 
         # Get checkpoints from surviving events
         checkpoints = asyncio.run(engine.get_checkpoint_sequences(db, run_id))
-        assert (
-            len(checkpoints) >= 1
-        ), f"Should have at least 1 checkpoint, got {checkpoints}"
+        assert len(checkpoints) >= 1, f"Should have at least 1 checkpoint, got {checkpoints}"
 
         # Replay from last checkpoint should produce consistent state
         last_cp = checkpoints[-1]
@@ -672,9 +658,7 @@ class TestTrueSIGKILLRecovery:
 
         # Deserialization must not raise
         surviving = _deserialize_events_from_file(str(event_log))
-        assert (
-            len(surviving) >= 1
-        ), "At least 1 complete event should survive partial-write SIGKILL"
+        assert len(surviving) >= 1, "At least 1 complete event should survive partial-write SIGKILL"
 
         # Every surviving event must be valid
         for e in surviving:

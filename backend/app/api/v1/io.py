@@ -213,14 +213,10 @@ async def document_parse(
         is_csv = mime_type == "text/csv" or ext == ".csv"
         is_json = mime_type == "application/json" or ext == ".json"
         is_pptx = (
-            mime_type
-            == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            or ext == ".pptx"
+            mime_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation" or ext == ".pptx"
         )
         is_docx = (
-            mime_type
-            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            or ext == ".docx"
+            mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or ext == ".docx"
         )
 
         if is_pdf:
@@ -253,13 +249,9 @@ async def document_parse(
                 import csv
                 import io
 
-                reader = csv.DictReader(
-                    io.StringIO(raw_bytes.decode("utf-8", errors="replace"))
-                )
+                reader = csv.DictReader(io.StringIO(raw_bytes.decode("utf-8", errors="replace")))
                 rows = list(reader)
-                text_content = "\n".join(
-                    ", ".join(f"{k}: {v}" for k, v in row.items()) for row in rows[:500]
-                )
+                text_content = "\n".join(", ".join(f"{k}: {v}" for k, v in row.items()) for row in rows[:500])
                 # H5.4: Include actual row data (first 500 rows) + truncation flag
                 structured_data = {
                     "columns": list(rows[0].keys()) if rows else [],
@@ -308,9 +300,7 @@ async def document_parse(
                         if shape.has_table:
                             table = shape.table
                             for row in table.rows:
-                                row_text = " | ".join(
-                                    cell.text.strip() for cell in row.cells
-                                )
+                                row_text = " | ".join(cell.text.strip() for cell in row.cells)
                                 slide_parts.append(row_text)
                     slides_text.append("\n".join(slide_parts))
                 text_content = "\n\n".join(slides_text)

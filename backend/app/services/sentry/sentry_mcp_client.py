@@ -166,9 +166,7 @@ class SentryMCPClient:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def _mcp_request(
-        self, method: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def _mcp_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Make an MCP JSON-RPC request.
 
@@ -192,9 +190,7 @@ class SentryMCPClient:
             async with session.post(self.mcp_url, json=payload) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error(
-                        "MCP request failed: %s - %s", response.status, error_text
-                    )
+                    logger.error("MCP request failed: %s - %s", response.status, error_text)
                     raise Exception(f"MCP request failed: {response.status}")
 
                 data = await response.json()
@@ -450,9 +446,7 @@ class SentryMCPClient:
             logger.error("Failed to resolve issue: %s", e)
             return False
 
-    async def get_project_issues(
-        self, query: str | None = None, limit: int = 100
-    ) -> list[SentryIssue]:
+    async def get_project_issues(self, query: str | None = None, limit: int = 100) -> list[SentryIssue]:
         """Get all issues for the project."""
         return await self.search_similar_issues(query=query, limit=limit)
 

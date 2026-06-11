@@ -78,9 +78,7 @@ class WebSearchService:
                 enabled=bool(os.getenv("EXA_API_KEY")),
                 priority=2,
             ),
-            SearchProvider.DUCKDUCKGO: ProviderConfig(
-                provider=SearchProvider.DUCKDUCKGO, enabled=True, priority=3
-            ),
+            SearchProvider.DUCKDUCKGO: ProviderConfig(provider=SearchProvider.DUCKDUCKGO, enabled=True, priority=3),
         }
 
     def _init_providers(self):
@@ -125,9 +123,7 @@ class WebSearchService:
 
         # Deduplicate results
         if response.results:
-            response.results = self.deduplicator.deduplicate(
-                response.results, request.max_results
-            )
+            response.results = self.deduplicator.deduplicate(response.results, request.max_results)
             response.total_results = len(response.results)
 
         # Score results
@@ -164,9 +160,7 @@ class WebSearchService:
 
         return available[:2]  # Max 2 providers for aggregation
 
-    async def _search_single(
-        self, request: SearchRequest, provider: SearchProvider
-    ) -> SearchResponse:
+    async def _search_single(self, request: SearchRequest, provider: SearchProvider) -> SearchResponse:
         """Execute search with single provider"""
         provider_instance = self.providers.get(provider)
         if not provider_instance:
@@ -180,26 +174,18 @@ class WebSearchService:
                 error=f"Provider {provider.value} not available",
             )
 
-        response = await provider_instance.search(
-            request.query, request.search_type, request.max_results
-        )
+        response = await provider_instance.search(request.query, request.search_type, request.max_results)
 
         self._update_provider_stats(provider, response.latency_ms, bool(response.error))
 
         return response
 
-    async def _search_aggregated(
-        self, request: SearchRequest, providers: list[SearchProvider]
-    ) -> SearchResponse:
+    async def _search_aggregated(self, request: SearchRequest, providers: list[SearchProvider]) -> SearchResponse:
         """Execute parallel search across multiple providers"""
         tasks = []
         for provider in providers:
             if provider in self.providers:
-                tasks.append(
-                    self.providers[provider].search(
-                        request.query, request.search_type, request.max_results
-                    )
-                )
+                tasks.append(self.providers[provider].search(request.query, request.search_type, request.max_results))
 
         if not tasks:
             return SearchResponse(
@@ -235,9 +221,7 @@ class WebSearchService:
 
                 all_results.extend(response.results)
 
-                self._update_provider_stats(
-                    response.provider, response.latency_ms, False
-                )
+                self._update_provider_stats(response.provider, response.latency_ms, False)
 
         return SearchResponse(
             query=request.query,
@@ -269,9 +253,7 @@ class WebSearchService:
             # Normalize
             result.score = min(1.0, max(0.0, score))
 
-    async def _extract_content(
-        self, results: list[SearchResult], depth: ExtractionDepth
-    ):
+    async def _extract_content(self, results: list[SearchResult], depth: ExtractionDepth):
         """Extract content for top results"""
         # Extract for top 3 results
         for result in results[:3]:
@@ -282,13 +264,9 @@ class WebSearchService:
                         result.extracted_content = extracted.content  # type: ignore[attr-defined]
                         result.content = extracted.content  # type: ignore[attr-defined]
                 except Exception as e:
-                    logger.warning(
-                        "Content extraction failed for %s: %s", result.url, e
-                    )
+                    logger.warning("Content extraction failed for %s: %s", result.url, e)
 
-    def _update_provider_stats(
-        self, provider: SearchProvider, latency: float, error: bool
-    ):
+    def _update_provider_stats(self, provider: SearchProvider, latency: float, error: bool):
         """Update provider statistics"""
         if provider in self._provider_stats:
             self._provider_stats[provider]["requests"] += 1
@@ -299,17 +277,11 @@ class WebSearchService:
     @property
     def stats(self) -> dict[str, Any]:
         """Get service statistics"""
-        avg_latency = (
-            self._total_latency / self._search_count if self._search_count > 0 else 0
-        )
+        avg_latency = self._total_latency / self._search_count if self._search_count > 0 else 0
 
         provider_stats = {}
         for provider, stats in self._provider_stats.items():
-            avg = (
-                stats["total_latency"] / stats["requests"]
-                if stats["requests"] > 0
-                else 0
-            )
+            avg = stats["total_latency"] / stats["requests"] if stats["requests"] > 0 else 0
             provider_stats[provider.value] = {
                 "requests": stats["requests"],
                 "errors": stats["errors"],

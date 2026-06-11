@@ -71,9 +71,7 @@ def _negotiate_version(request: Request) -> str:
 class APIVersioningMiddleware(BaseHTTPMiddleware):
     """Middleware for API version negotiation and deprecation headers."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip versioning for non-API paths
         path = str(request.url.path)
         if not path.startswith("/api/"):
@@ -125,13 +123,9 @@ class APIVersioningMiddleware(BaseHTTPMiddleware):
         if version in DEPRECATED_VERSIONS:
             sunset_date = DEPRECATED_VERSIONS[version]
             response.headers[DEPRECATION_HEADER] = "true"
-            response.headers[SUNSET_HEADER] = sunset_date.strftime(
-                "%a, %d %b %Y %H:%M:%S GMT"
-            )
+            response.headers[SUNSET_HEADER] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
             # Add Link header to new version docs
-            response.headers["Link"] = (
-                f'</api/{CURRENT_VERSION}/docs>; rel="successor-version"'
-            )
+            response.headers["Link"] = f'</api/{CURRENT_VERSION}/docs>; rel="successor-version"'
 
         return response
 

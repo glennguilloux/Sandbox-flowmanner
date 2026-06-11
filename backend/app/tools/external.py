@@ -25,9 +25,7 @@ _TIMEOUT_SECONDS = 15
 class WeatherCurrentInput(ToolInput):
     location: str = Field(
         ...,
-        description=(
-            "City name or coordinates. Examples: 'Paris', 'New York', '48.8566,2.3522' (lat,lon)"
-        ),
+        description=("City name or coordinates. Examples: 'Paris', 'New York', '48.8566,2.3522' (lat,lon)"),
     )
     units: str = Field(
         "celsius",
@@ -71,9 +69,7 @@ class WeatherCurrentTool(BaseTool):
         try:
             validated = WeatherCurrentInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             lat, lon, display_name = await _geocode(validated.location)
@@ -81,9 +77,7 @@ class WeatherCurrentTool(BaseTool):
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
             logger.exception("Geocoding failed")
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Geocoding failed: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Geocoding failed: {e}")
 
         try:
             temp_unit = "fahrenheit" if validated.units == "fahrenheit" else "celsius"
@@ -147,9 +141,7 @@ class WeatherCurrentTool(BaseTool):
                     "humidity_percent": current.get("relative_humidity_2m"),
                     "wind_speed_kmh": current.get("wind_speed_10m"),
                     "weather_code": weather_code,
-                    "description": WMO_CODES.get(
-                        weather_code, f"Unknown ({weather_code})"
-                    ),
+                    "description": WMO_CODES.get(weather_code, f"Unknown ({weather_code})"),
                 },
             )
         except Exception as e:
@@ -194,9 +186,7 @@ class CurrencyConvertTool(BaseTool):
         try:
             validated = CurrencyConvertInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         from_ccy = validated.from_currency.upper()
         to_ccy = validated.to_currency.upper()

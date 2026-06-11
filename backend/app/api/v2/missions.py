@@ -147,11 +147,7 @@ async def patch_item(
         return _idem
     if isinstance(_rate, JSONResponse):
         return _rate
-    return ok(
-        MissionResponse.model_validate(
-            await c.update_mission(user, mission_id, payload)
-        ).model_dump()
-    )
+    return ok(MissionResponse.model_validate(await c.update_mission(user, mission_id, payload)).model_dump())
 
 
 @router.delete("/{mission_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -190,11 +186,7 @@ async def create_task(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(
-        MissionTaskResponse.model_validate(
-            await c.create_task(user, mission_id, payload)
-        ).model_dump()
-    )
+    return ok(MissionTaskResponse.model_validate(await c.create_task(user, mission_id, payload)).model_dump())
 
 
 @router.patch("/{mission_id}/tasks/{task_id}")
@@ -205,11 +197,7 @@ async def update_task(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(
-        MissionTaskResponse.model_validate(
-            await c.update_task(user, mission_id, task_id, payload)
-        ).model_dump()
-    )
+    return ok(MissionTaskResponse.model_validate(await c.update_task(user, mission_id, task_id, payload)).model_dump())
 
 
 # ── Logs (CQRS DI) ────────────────────────────────────────────────────────────
@@ -233,11 +221,7 @@ async def create_log(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(
-        MissionLogResponse.model_validate(
-            await c.create_log(user, mission_id, payload)
-        ).model_dump()
-    )
+    return ok(MissionLogResponse.model_validate(await c.create_log(user, mission_id, payload)).model_dump())
 
 
 # ── Planning (CQRS DI) ────────────────────────────────────────────────────────
@@ -371,11 +355,7 @@ async def create_from_template(
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
-    return ok(
-        MissionResponse.model_validate(
-            await c.create_from_template(user, template_id)
-        ).model_dump()
-    )
+    return ok(MissionResponse.model_validate(await c.create_from_template(user, template_id)).model_dump())
 
 
 # ── Improvements (CQRS DI) ────────────────────────────────────────────────────
@@ -451,18 +431,12 @@ async def approve_task(
     # Verify mission exists and belongs to user
     mission = await q.get_mission(user.id, mission_id)
     if not mission:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found")
 
     # Find pending interrupt for this specific task
     hitl = get_hitl_manager()
     pending = await hitl.list_pending(db, str(mission_id))
-    matching = [
-        p
-        for p in pending
-        if (p.get("proposed_action") or {}).get("task_id") == str(task_id)
-    ]
+    matching = [p for p in pending if (p.get("proposed_action") or {}).get("task_id") == str(task_id)]
     if not matching:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -473,19 +447,11 @@ async def approve_task(
     await hitl.resolve_interrupt(db, interrupt_id, "approved", resolved_by=str(user.id))
 
     # Clear approval flag and resume mission
-    task_obj = (
-        (await db.execute(select(MissionTask).where(MissionTask.id == str(task_id))))
-        .scalars()
-        .first()
-    )
+    task_obj = (await db.execute(select(MissionTask).where(MissionTask.id == str(task_id)))).scalars().first()
     if task_obj:
         task_obj.approval_required = False
 
-    mission_obj = (
-        (await db.execute(select(Mission).where(Mission.id == str(mission_id))))
-        .scalars()
-        .first()
-    )
+    mission_obj = (await db.execute(select(Mission).where(Mission.id == str(mission_id)))).scalars().first()
     if mission_obj and mission_obj.status == MissionStatus.PAUSED:
         mission_obj.status = MissionStatus.QUEUED
     await db.commit()
@@ -519,18 +485,12 @@ async def reject_task(
     # Verify mission exists and belongs to user
     mission = await q.get_mission(user.id, mission_id)
     if not mission:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found")
 
     # Find pending interrupt for this specific task
     hitl = get_hitl_manager()
     pending = await hitl.list_pending(db, str(mission_id))
-    matching = [
-        p
-        for p in pending
-        if (p.get("proposed_action") or {}).get("task_id") == str(task_id)
-    ]
+    matching = [p for p in pending if (p.get("proposed_action") or {}).get("task_id") == str(task_id)]
     if not matching:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -541,11 +501,7 @@ async def reject_task(
     await hitl.resolve_interrupt(db, interrupt_id, "rejected", resolved_by=str(user.id))
 
     # Fail the task (transition PENDING → RUNNING → FAILED to respect state machine)
-    task_obj = (
-        (await db.execute(select(MissionTask).where(MissionTask.id == str(task_id))))
-        .scalars()
-        .first()
-    )
+    task_obj = (await db.execute(select(MissionTask).where(MissionTask.id == str(task_id)))).scalars().first()
     if task_obj:
         task_obj.approval_required = False
         task_obj.status = MissionTaskStatus.RUNNING  # valid: PENDING → RUNNING
@@ -553,16 +509,10 @@ async def reject_task(
         task_obj.status = MissionTaskStatus.FAILED  # valid: RUNNING → FAILED
         task_obj.error_message = "Rejected by user"
 
-    mission_obj = (
-        (await db.execute(select(Mission).where(Mission.id == str(mission_id))))
-        .scalars()
-        .first()
-    )
+    mission_obj = (await db.execute(select(Mission).where(Mission.id == str(mission_id)))).scalars().first()
     if mission_obj:
         mission_obj.status = MissionStatus.FAILED
-        mission_obj.error_message = (
-            f"Task '{task_obj.title if task_obj else task_id}' rejected by user"
-        )
+        mission_obj.error_message = f"Task '{task_obj.title if task_obj else task_id}' rejected by user"
         await db.commit()
 
     return ok(

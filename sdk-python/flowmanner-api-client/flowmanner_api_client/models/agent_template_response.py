@@ -185,9 +185,7 @@ class AgentTemplateResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                config_data_type_0 = AgentTemplateResponseConfigDataType0.from_dict(
-                    data
-                )
+                config_data_type_0 = AgentTemplateResponseConfigDataType0.from_dict(data)
 
                 return config_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

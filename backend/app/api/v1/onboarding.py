@@ -55,19 +55,13 @@ async def get_status(user=Depends(get_current_user)):
     """Get current user's onboarding state."""
     state = await _get_or_create_state(user.id)
     step_ids = [s["id"] for s in ONBOARDING_STEPS]
-    current_idx = (
-        step_ids.index(state["current_step"])
-        if state["current_step"] in step_ids
-        else 0
-    )
+    current_idx = step_ids.index(state["current_step"]) if state["current_step"] in step_ids else 0
 
     return {
         "currentStep": state["current_step"],
         "currentStepIndex": current_idx,
         "isCompleted": state["is_completed"],
-        "completedAt": (
-            state["completed_at"].isoformat() if state["completed_at"] else None
-        ),
+        "completedAt": (state["completed_at"].isoformat() if state["completed_at"] else None),
         "milestones": state["milestones"],
         "steps": ONBOARDING_STEPS,
     }
@@ -82,16 +76,12 @@ async def advance_step(update: StepUpdate, user=Depends(get_current_user)):
     """Advance to a specific onboarding step."""
     valid_ids = {s["id"] for s in ONBOARDING_STEPS}
     if update.step not in valid_ids:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid step: {update.step}. Valid: {valid_ids}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid step: {update.step}. Valid: {valid_ids}")
 
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as db:
         await db.execute(
-            text(
-                "UPDATE onboarding_state SET current_step = :step, updated_at = :now WHERE user_id = :uid"
-            ),
+            text("UPDATE onboarding_state SET current_step = :step, updated_at = :now WHERE user_id = :uid"),
             {"step": update.step, "now": now, "uid": user.id},
         )
         await db.commit()

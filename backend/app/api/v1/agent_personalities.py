@@ -18,11 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agent-personalities", tags=["agent-personalities"])
 
 # Resolve the agent_definitions directory relative to this file.
-_DEFINITIONS_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "agent_definitions"
-    / "agent_personalities"
-)
+_DEFINITIONS_DIR = Path(__file__).resolve().parent.parent.parent / "agent_definitions" / "agent_personalities"
 
 
 # ---------------------------------------------------------------------------
@@ -137,9 +133,7 @@ async def get_agent_personality(path: str):
     """
     parts = path.strip("/").split("/", 1)
     if len(parts) != 2:
-        raise HTTPException(
-            status_code=400, detail="Expected path format: <domain>/<slug>"
-        )
+        raise HTTPException(status_code=400, detail="Expected path format: <domain>/<slug>")
 
     domain_key, slug = parts  # domain_key uses hyphens from frontend
 

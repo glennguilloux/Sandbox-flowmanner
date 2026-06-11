@@ -1,7 +1,8 @@
 import os
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 

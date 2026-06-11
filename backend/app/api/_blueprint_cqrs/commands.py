@@ -24,9 +24,7 @@ class BlueprintCommandHandlers(CommandHandlerBase):
         super().__init__(session)
         self._request_id = request_id
 
-    async def create_blueprint(
-        self, user: User, payload: BlueprintCreate, workspace_id: str | None = None
-    ):
+    async def create_blueprint(self, user: User, payload: BlueprintCreate, workspace_id: str | None = None):
         svc = BlueprintService(self.session)
 
         async def _op():
@@ -49,9 +47,7 @@ class BlueprintCommandHandlers(CommandHandlerBase):
 
         return await self.wrap_command(_op)
 
-    async def update_blueprint(
-        self, user: User, blueprint_id: str, payload: BlueprintUpdate
-    ):
+    async def update_blueprint(self, user: User, blueprint_id: str, payload: BlueprintUpdate):
         svc = BlueprintService(self.session)
 
         async def _op():
@@ -94,9 +90,7 @@ class BlueprintCommandHandlers(CommandHandlerBase):
 
         return await self.wrap_command(_op)
 
-    async def run_blueprint(
-        self, user: User, blueprint_id: str, payload: RunCreate | None = None
-    ):
+    async def run_blueprint(self, user: User, blueprint_id: str, payload: RunCreate | None = None):
         svc = RunService(self.session)
 
         async def _op():

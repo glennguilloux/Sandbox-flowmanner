@@ -129,9 +129,7 @@ class NodeExecutor:
         for attempt in range(max_retries + 1):
             # Check abort signal between retries
             if self.executor.is_aborted(run_id):
-                logger.info(
-                    "Abort signal detected for run %s, node %s", run_id, node.id
-                )
+                logger.info("Abort signal detected for run %s, node %s", run_id, node.id)
                 return {"success": False, "error": "Aborted"}
 
             node.status = "running"
@@ -157,9 +155,7 @@ class NodeExecutor:
             )
 
             try:
-                result = await self._dispatch(
-                    db, node, context, budget, run_id, workflow
-                )
+                result = await self._dispatch(db, node, context, budget, run_id, workflow)
             except BudgetExhausted:
                 raise
             except Exception as e:
@@ -265,13 +261,9 @@ class NodeExecutor:
         """Dispatch a node to the appropriate handler based on its type."""
         match node.type:
             case NodeType.LLM_CALL:
-                return await self._handle_llm(
-                    db, node, context, budget, run_id, workflow
-                )
+                return await self._handle_llm(db, node, context, budget, run_id, workflow)
             case NodeType.TOOL_CALL:
-                return await self._handle_tool(
-                    db, node, context, budget, run_id, workflow
-                )
+                return await self._handle_tool(db, node, context, budget, run_id, workflow)
             case NodeType.CODE_EXECUTION:
                 return await self._handle_code(node, context)
             case NodeType.RAG_QUERY:
@@ -309,16 +301,12 @@ class NodeExecutor:
             ):
                 return await self._handle_browser(node, context)
             case NodeType.SUB_WORKFLOW:
-                return await self._handle_sub_workflow(
-                    db, node, context, budget, run_id
-                )
+                return await self._handle_sub_workflow(db, node, context, budget, run_id)
             case NodeType.PHASE_GATE | NodeType.FAN_OUT | NodeType.FAN_IN:
                 # Delegated to strategy — the node executor just passes through
                 return {"success": True, "output": context, "tokens": 0}
             case NodeType.SANDBOX:
-                return await self._handle_sandbox_node(
-                    db, node, context, budget, run_id, workflow
-                )
+                return await self._handle_sandbox_node(db, node, context, budget, run_id, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -337,9 +325,7 @@ class NodeExecutor:
         # Phase 6.4: Circuit breaker check before LLM call
         mission_id = workflow.id if workflow else None
         if mission_id:
-            allowed, reason = await self.executor.check_circuit_breaker(
-                db=db, mission_id=mission_id, call_type="llm"
-            )
+            allowed, reason = await self.executor.check_circuit_breaker(db=db, mission_id=mission_id, call_type="llm")
             if not allowed:
                 return {
                     "success": False,
@@ -380,9 +366,7 @@ class NodeExecutor:
 
         content = response.get("response", "")
         budget_info = response.get("budget", {})
-        tokens = budget_info.get("prompt_tokens", 0) + budget_info.get(
-            "completion_tokens", 0
-        )
+        tokens = budget_info.get("prompt_tokens", 0) + budget_info.get("completion_tokens", 0)
 
         if not content or content.strip() == "":
             return {
@@ -415,9 +399,7 @@ class NodeExecutor:
         # Phase 6.4: Circuit breaker check before tool call
         mission_id = workflow.id if workflow else None
         if mission_id:
-            allowed, reason = await self.executor.check_circuit_breaker(
-                db=db, mission_id=mission_id, call_type="tool"
-            )
+            allowed, reason = await self.executor.check_circuit_breaker(db=db, mission_id=mission_id, call_type="tool")
             if not allowed:
                 return {"success": False, "error": f"Circuit breaker: {reason}"}
 
@@ -437,9 +419,7 @@ class NodeExecutor:
         from uuid import UUID as _UUID
 
         principal_id = (
-            _UUID(workflow.user_id)
-            if workflow and workflow.user_id
-            else _UUID("00000000-0000-0000-0000-000000000000")
+            _UUID(workflow.user_id) if workflow and workflow.user_id else _UUID("00000000-0000-0000-0000-000000000000")
         )
         resource = ResourceRef(kind="tool", name=tool_name)
         token = cap_engine.issue(
@@ -470,9 +450,7 @@ class NodeExecutor:
 
     # ── Code execution ──────────────────────────────────────────────
 
-    async def _handle_code(
-        self, node: WorkflowNode, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_code(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute Python code in a sandboxed subprocess."""
         code = node.config.get("code") or context.get("code")
         if not code:
@@ -561,16 +539,9 @@ class NodeExecutor:
 
     # ── RAG ─────────────────────────────────────────────────────────
 
-    async def _handle_rag(
-        self, node: WorkflowNode, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_rag(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a RAG query."""
-        query = (
-            node.config.get("query")
-            or context.get("query")
-            or node.description
-            or node.title
-        )
+        query = node.config.get("query") or context.get("query") or node.description or node.title
         collection = node.config.get("collection", "default")
 
         try:
@@ -591,9 +562,7 @@ class NodeExecutor:
 
     # ── Web search ──────────────────────────────────────────────────
 
-    async def _handle_web_search(
-        self, node: WorkflowNode, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_web_search(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a web search."""
         query = node.config.get("query") or context.get("query") or node.description
 
@@ -606,23 +575,20 @@ class NodeExecutor:
 
             service = get_search_service()
             request = SearchRequest(
-                query=query, search_type=SearchType.GENERAL, max_results=5  # type: ignore[attr-defined]
+                query=query,
+                search_type=SearchType.GENERAL,
+                max_results=5,  # type: ignore[attr-defined]
             )
             response = await service.search(request)
 
-            results = [
-                {"title": r.title, "url": r.url, "snippet": r.snippet}
-                for r in response.results
-            ]
+            results = [{"title": r.title, "url": r.url, "snippet": r.snippet} for r in response.results]
             return {"success": True, "output": {"query": query, "results": results}}
         except Exception as e:
             return {"success": False, "error": f"Web search failed: {e}"}
 
     # ── File operations ─────────────────────────────────────────────
 
-    async def _handle_file(
-        self, node: WorkflowNode, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_file(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a file operation."""
         operation = node.config.get("operation", "read")
         file_id = node.config.get("file_id")
@@ -639,9 +605,7 @@ class NodeExecutor:
                 return {"success": False, "error": f"File {file_id} not found"}
 
             if operation == "read":
-                with open(
-                    file_info["path"], "r", encoding="utf-8", errors="ignore"
-                ) as f:
+                with open(file_info["path"], "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                 return {
                     "success": True,
@@ -664,9 +628,7 @@ class NodeExecutor:
 
     # ── Browser ─────────────────────────────────────────────────────
 
-    async def _handle_browser(
-        self, node: WorkflowNode, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_browser(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a browser action through the tool registry."""
         try:
             from app.tools.base import ToolRegistry
@@ -726,9 +688,7 @@ class NodeExecutor:
         try:
             # 1 — Create or reuse sandbox
             if shared_workspace and mission_id:
-                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(
-                    mission_id, db=db
-                )
+                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(mission_id, db=db)
             if not sandbox_id:
                 if mission_id:
                     sandbox_id = await self._sandbox_service.ensure_sandbox_for_mission(
@@ -762,9 +722,7 @@ class NodeExecutor:
 
             # 2 — Optional snapshot checkpoint
             if snapshot_before:
-                snap = await self._sandbox_client.create_snapshot(
-                    sandbox_id, f"pre_{node.id}"
-                )
+                snap = await self._sandbox_client.create_snapshot(sandbox_id, f"pre_{node.id}")
                 await event_log.append(
                     db,
                     run_id,
@@ -830,11 +788,7 @@ class NodeExecutor:
                 ev_data_str = sse.get("data", "{}")
 
                 try:
-                    ev_data = (
-                        json.loads(ev_data_str)
-                        if isinstance(ev_data_str, str)
-                        else ev_data_str
-                    )
+                    ev_data = json.loads(ev_data_str) if isinstance(ev_data_str, str) else ev_data_str
                 except (json.JSONDecodeError, TypeError):
                     ev_data = {"raw": ev_data_str}
 
@@ -906,9 +860,7 @@ class NodeExecutor:
                                 "type": SubstrateEventType.SANDBOX_TASK_FAILED,
                                 "payload": {
                                     "task_id": task_id,
-                                    "error": ev_data.get(
-                                        "error", "Unknown sandbox task error"
-                                    ),
+                                    "error": ev_data.get("error", "Unknown sandbox task error"),
                                 },
                                 "actor": "node_executor",
                                 "mission_id": mission_id,
@@ -978,9 +930,7 @@ class NodeExecutor:
             from app.models.graph import GraphWorkflow
 
             # Load the child workflow from the DB (graph_workflows table)
-            result = await db.execute(
-                select(GraphWorkflow).where(GraphWorkflow.id == sub_workflow_id)
-            )
+            result = await db.execute(select(GraphWorkflow).where(GraphWorkflow.id == sub_workflow_id))
             child_graph = result.scalar_one_or_none()
             if child_graph is None:
                 return {
@@ -1003,9 +953,7 @@ class NodeExecutor:
             # Execute recursively via the same unified executor
             from app.services.substrate.workflow_models import StrategyResult
 
-            strategy_result: StrategyResult = await self.executor.execute(
-                db, child_workflow
-            )
+            strategy_result: StrategyResult = await self.executor.execute(db, child_workflow)
 
             return {
                 "success": strategy_result.success,
@@ -1051,25 +999,15 @@ class NodeExecutor:
         from app.services.substrate.event_log import get_event_log
 
         event_log = get_event_log()
-        hitl_type = (
-            HumanInterruptType.APPROVAL
-            if interrupt_type == "approval"
-            else HumanInterruptType.CLARIFICATION
-        )
+        hitl_type = HumanInterruptType.APPROVAL if interrupt_type == "approval" else HumanInterruptType.CLARIFICATION
 
-        title = (
-            node.config.get("approval_prompt")
-            or node.title
-            or f"{interrupt_type.title()} required"
-        )
+        title = node.config.get("approval_prompt") or node.title or f"{interrupt_type.title()} required"
         description = node.description or node.config.get("description")
         proposed_action = {
             "node_id": node.id,
             "node_title": node.title,
             "node_type": node.type.value,
-            "config": {
-                k: v for k, v in node.config.items() if k not in ("approval_prompt",)
-            },
+            "config": {k: v for k, v in node.config.items() if k not in ("approval_prompt",)},
         }
 
         # Determine the user to notify
@@ -1131,9 +1069,7 @@ class NodeExecutor:
 
     # ── Tool helpers ────────────────────────────────────────────────
 
-    async def _tool_web_search(
-        self, params: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_web_search(self, params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Standalone web search tool."""
         query = params.get("query") or context.get("query")
         if not query:
@@ -1145,13 +1081,12 @@ class NodeExecutor:
 
             service = get_search_service()
             request = SearchRequest(
-                query=query, search_type=SearchType.GENERAL, max_results=5  # type: ignore[attr-defined]
+                query=query,
+                search_type=SearchType.GENERAL,
+                max_results=5,  # type: ignore[attr-defined]
             )
             response = await service.search(request)
-            results = [
-                {"title": r.title, "url": r.url, "snippet": r.snippet}
-                for r in response.results
-            ]
+            results = [{"title": r.title, "url": r.url, "snippet": r.snippet} for r in response.results]
             return {"success": True, "output": {"query": query, "results": results}}
         except Exception as e:
             return {
@@ -1159,18 +1094,14 @@ class NodeExecutor:
                 "output": {"query": query, "results": [], "note": str(e)},
             }
 
-    async def _tool_code_executor(
-        self, params: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_code_executor(self, params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Standalone code execution tool."""
         code = params.get("code") or context.get("code")
         if not code:
             return {"success": False, "error": "No code provided"}
         return await self._execute_code_sandboxed(code)
 
-    async def _tool_file_reader(
-        self, params: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_file_reader(self, params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Standalone file reader tool."""
         file_id = params.get("file_id") or context.get("file_id")
         if not file_id:
@@ -1195,9 +1126,7 @@ class NodeExecutor:
         except Exception as e:
             return {"success": False, "error": f"File read failed: {e}"}
 
-    async def _tool_rag_search(
-        self, params: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_rag_search(self, params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Standalone RAG search tool."""
         query = params.get("query") or context.get("query")
         if not query:

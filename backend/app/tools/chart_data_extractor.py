@@ -90,9 +90,7 @@ class ChartDataExtractorTool(BaseTool):
         try:
             validated = ChartDataExtractorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -115,13 +113,9 @@ class ChartDataExtractorTool(BaseTool):
 
     # ── _extract_chart ───────────────────────────────────────────
 
-    async def _extract_chart(
-        self, validated: ChartDataExtractorInput
-    ) -> dict[str, Any]:
+    async def _extract_chart(self, validated: ChartDataExtractorInput) -> dict[str, Any]:
         """Load image and delegate to the appropriate chart extractor."""
-        image_bytes = await resolve_input(
-            validated.data, validated.url, label="chart image", fetch_timeout=30
-        )
+        image_bytes = await resolve_input(validated.data, validated.url, label="chart image", fetch_timeout=30)
 
         pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img_array = np.array(pil_image)
@@ -240,11 +234,7 @@ class ChartDataExtractorTool(BaseTool):
 
         # Normalize to 0-100 scale
         for bar in bars:
-            bar["normalized_value"] = (
-                round((bar["relative_value"] / max_height) * 100, 1)
-                if max_height > 0
-                else 0.0
-            )
+            bar["normalized_value"] = round((bar["relative_value"] / max_height) * 100, 1) if max_height > 0 else 0.0
 
         return {
             "chart_type": "bar",
@@ -321,9 +311,7 @@ class ChartDataExtractorTool(BaseTool):
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Find contours to locate the pie circle
-        contours, _ = cv2.findContours(
-            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if not contours:
             return {

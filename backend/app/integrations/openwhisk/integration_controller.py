@@ -9,7 +9,7 @@ Handles action lifecycle, versioning, and rollback.
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Any
+from typing import Any
 
 from .auth import OpenWhiskAuthManager
 from .client import OpenWhiskClient
@@ -108,9 +108,7 @@ class OpenWhiskIntegrationController:
                 kind = action_file.get("kind", "python:3.11")
 
                 # Read description if available
-                description = action_file.get(
-                    "description", f"Auto-deployed: {action_name}"
-                )
+                description = action_file.get("description", f"Auto-deployed: {action_name}")
 
                 # Deploy action
                 await self.client.create_action(
@@ -136,9 +134,7 @@ class OpenWhiskIntegrationController:
             except Exception as e:
                 status.failed_actions += 1
                 status.errors.append(f"{action_file.get('name', 'unknown')}: {e!s}")
-                logger.error(
-                    "Failed to deploy action %s: %s", action_file.get("name"), e
-                )
+                logger.error("Failed to deploy action %s: %s", action_file.get("name"), e)
 
         status.end_time = datetime.now(UTC)
         duration = (status.end_time - status.start_time).total_seconds()
@@ -152,9 +148,7 @@ class OpenWhiskIntegrationController:
         self.current_deployment = status
         return status
 
-    async def update_action(
-        self, action_name: str, code: str | None = None, description: str | None = None
-    ) -> bool:
+    async def update_action(self, action_name: str, code: str | None = None, description: str | None = None) -> bool:
         """
         Update an existing action
 
@@ -179,9 +173,7 @@ class OpenWhiskIntegrationController:
             deployment.status = "updating"
 
             # Update in OpenWhisk
-            await self.client.update_action(
-                action_name=action_name, code=code, description=description
-            )
+            await self.client.update_action(action_name=action_name, code=code, description=description)
 
             # Update deployment record
             if code is not None:
@@ -200,9 +192,7 @@ class OpenWhiskIntegrationController:
             logger.error("Failed to update action %s: %s", action_name, e)
             return False
 
-    async def rollback_action(
-        self, action_name: str, target_version: str | None = None
-    ) -> bool:
+    async def rollback_action(self, action_name: str, target_version: str | None = None) -> bool:
         """
         Rollback action to previous version
 
@@ -213,9 +203,7 @@ class OpenWhiskIntegrationController:
         Returns:
             True if rollback successful
         """
-        logger.warning(
-            "Rolling back action: %s to %s", action_name, target_version or "previous"
-        )
+        logger.warning("Rolling back action: %s to %s", action_name, target_version or "previous")
 
         if action_name not in self.deployments:
             logger.error("Cannot rollback: action %s not deployed", action_name)
@@ -299,9 +287,7 @@ class OpenWhiskIntegrationController:
 
             except Exception as e:
                 unhealthy_count += 1
-                action_statuses.append(
-                    {"name": action_name, "status": "error", "error": str(e)}
-                )
+                action_statuses.append({"name": action_name, "status": "error", "error": str(e)})
 
         total = len(self.deployments)
 
@@ -411,21 +397,15 @@ class OpenWhiskIntegrationController:
         """
         total_deployments = len(self.deployments)
         healthy = sum(1 for d in self.deployments.values() if d.status == "deployed")
-        failed = sum(
-            1 for d in self.deployments.values() if d.status.startswith("failed")
-        )
+        failed = sum(1 for d in self.deployments.values() if d.status.startswith("failed"))
 
         return {
             "total_deployments": total_deployments,
             "healthy_actions": healthy,
             "failed_actions": failed,
-            "deployment_health": (
-                (healthy / total_deployments * 100) if total_deployments > 0 else 0
-            ),
+            "deployment_health": ((healthy / total_deployments * 100) if total_deployments > 0 else 0),
             "deployment_timestamp": (
-                self.current_deployment.start_time.isoformat()
-                if self.current_deployment
-                else None
+                self.current_deployment.start_time.isoformat() if self.current_deployment else None
             ),
             "errors": self.current_deployment.errors if self.current_deployment else [],
         }
@@ -465,9 +445,7 @@ def create_integration_controller(
             logger.warning("Cannot create controller: missing client or auth")
             return None
 
-        controller = OpenWhiskIntegrationController(
-            client=client, auth_manager=auth_manager
-        )
+        controller = OpenWhiskIntegrationController(client=client, auth_manager=auth_manager)
 
         logger.info("Integration controller created successfully")
         return controller

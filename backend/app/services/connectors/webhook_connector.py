@@ -70,12 +70,8 @@ class WebhookConnector(BaseConnector):
         # Webhook-specific configuration
         self._default_headers = config.headers or {}
         self._signature_secret = config.auth_config.get("signature_secret")
-        self._signature_algorithm = config.auth_config.get(
-            "signature_algorithm", "sha256"
-        )
-        self._signature_header = config.auth_config.get(
-            "signature_header", "X-Webhook-Signature"
-        )
+        self._signature_algorithm = config.auth_config.get("signature_algorithm", "sha256")
+        self._signature_header = config.auth_config.get("signature_header", "X-Webhook-Signature")
         self._timeout = config.timeout or 30.0
 
     @property
@@ -90,9 +86,7 @@ class WebhookConnector(BaseConnector):
         """Webhook doesn't require credential validation"""
         return True
 
-    async def execute_action(
-        self, action: str, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> ConnectorResponse:
         """Execute a webhook action"""
 
         action_handlers = {
@@ -109,15 +103,11 @@ class WebhookConnector(BaseConnector):
 
         handler = action_handlers.get(action)
         if not handler:
-            return ConnectorResponse(
-                success=False, error=f"Unknown action: {action}", status_code=400
-            )
+            return ConnectorResponse(success=False, error=f"Unknown action: {action}", status_code=400)
 
         return await handler(params)
 
-    def _generate_hmac_signature(
-        self, payload: str, secret: str, algorithm: str = "sha256"
-    ) -> str:
+    def _generate_hmac_signature(self, payload: str, secret: str, algorithm: str = "sha256") -> str:
         """Generate HMAC signature for payload"""
         hash_func = getattr(hashlib, algorithm, hashlib.sha256)
         signature = hmac.new(secret.encode(), payload.encode(), hash_func).hexdigest()
@@ -146,9 +136,7 @@ class WebhookConnector(BaseConnector):
 
         # Add signature if secret is configured
         if include_signature and self._signature_secret and payload:
-            signature = self._generate_hmac_signature(
-                payload, self._signature_secret, self._signature_algorithm
-            )
+            signature = self._generate_hmac_signature(payload, self._signature_secret, self._signature_algorithm)
             headers[self._signature_header] = signature
 
         return headers
@@ -162,9 +150,7 @@ class WebhookConnector(BaseConnector):
         timeout = params.get("timeout", self._timeout)
 
         if not url:
-            return ConnectorResponse(
-                success=False, error="Missing required param: url", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: url", status_code=400)
 
         # Prepare payload
         if isinstance(payload, dict):
@@ -198,17 +184,13 @@ class WebhookConnector(BaseConnector):
         method = params.get("method", "POST").upper()
 
         if not url:
-            return ConnectorResponse(
-                success=False, error="Missing required param: url", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: url", status_code=400)
 
         payload_str = json.dumps(data)
         request_headers = self._build_webhook_headers(payload_str, headers)
         request_headers["Content-Type"] = "application/json"
 
-        return await self._execute_with_retry(
-            method, url, json_data=data, headers=request_headers
-        )
+        return await self._execute_with_retry(method, url, json_data=data, headers=request_headers)
 
     async def _send_form_webhook(self, params: dict[str, Any]) -> ConnectorResponse:
         """Send a form-urlencoded webhook"""
@@ -218,9 +200,7 @@ class WebhookConnector(BaseConnector):
         method = params.get("method", "POST").upper()
 
         if not url:
-            return ConnectorResponse(
-                success=False, error="Missing required param: url", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: url", status_code=400)
 
         # Build form data
         from urllib.parse import urlencode
@@ -230,9 +210,7 @@ class WebhookConnector(BaseConnector):
         request_headers = self._build_webhook_headers(form_data, headers)
         request_headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-        return await self._execute_with_retry(
-            method, url, data=form_data, headers=request_headers
-        )
+        return await self._execute_with_retry(method, url, data=form_data, headers=request_headers)
 
     async def _get_webhook(self, params: dict[str, Any]) -> ConnectorResponse:
         """Send a GET webhook request"""
@@ -241,17 +219,11 @@ class WebhookConnector(BaseConnector):
         headers = params.get("headers")
 
         if not url:
-            return ConnectorResponse(
-                success=False, error="Missing required param: url", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: url", status_code=400)
 
-        request_headers = self._build_webhook_headers(
-            "", headers, include_signature=False
-        )
+        request_headers = self._build_webhook_headers("", headers, include_signature=False)
 
-        return await self._execute_with_retry(
-            "GET", url, params=query_params, headers=request_headers
-        )
+        return await self._execute_with_retry("GET", url, params=query_params, headers=request_headers)
 
     async def _put_webhook(self, params: dict[str, Any]) -> ConnectorResponse:
         """Send a PUT webhook request"""
@@ -260,16 +232,12 @@ class WebhookConnector(BaseConnector):
         headers = params.get("headers")
 
         if not url:
-            return ConnectorResponse(
-                success=False, error="Missing required param: url", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: url", status_code=400)
 
         payload_str = json.dumps(data)
         request_headers = self._build_webhook_headers(payload_str, headers)
 
-        return await self._execute_with_retry(
-            "PUT", url, json_data=data, headers=request_headers
-        )
+        return await self._execute_with_retry("PUT", url, json_data=data, headers=request_headers)
 
     async def _delete_webhook(self, params: dict[str, Any]) -> ConnectorResponse:
         """Send a DELETE webhook request"""
@@ -277,13 +245,9 @@ class WebhookConnector(BaseConnector):
         headers = params.get("headers")
 
         if not url:
-            return ConnectorResponse(
-                success=False, error="Missing required param: url", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: url", status_code=400)
 
-        request_headers = self._build_webhook_headers(
-            "", headers, include_signature=False
-        )
+        request_headers = self._build_webhook_headers("", headers, include_signature=False)
 
         return await self._execute_with_retry("DELETE", url, headers=request_headers)
 
@@ -293,9 +257,7 @@ class WebhookConnector(BaseConnector):
         max_concurrent = params.get("max_concurrent", 10)
 
         if not webhooks:
-            return ConnectorResponse(
-                success=False, error="Missing required param: webhooks", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: webhooks", status_code=400)
 
         semaphore = asyncio.Semaphore(max_concurrent)
         results = []

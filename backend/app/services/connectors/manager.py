@@ -7,7 +7,7 @@ Provides a unified interface for all external API integrations.
 
 import asyncio
 import logging
-from typing import Any, Any
+from typing import Any
 
 from .base import (
     BaseConnector,
@@ -184,9 +184,7 @@ class ConnectorManager:
             "stats": connector.get_stats(),
         }
 
-    def list_connectors(
-        self, connector_type: str | None = None
-    ) -> list[dict[str, Any]]:
+    def list_connectors(self, connector_type: str | None = None) -> list[dict[str, Any]]:
         """
         List all registered connectors.
 
@@ -213,9 +211,7 @@ class ConnectorManager:
 
         return result
 
-    async def execute(
-        self, connector_id: str, action: str, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def execute(self, connector_id: str, action: str, params: dict[str, Any]) -> ConnectorResponse:
         """
         Execute an action on a connector.
 
@@ -244,9 +240,7 @@ class ConnectorManager:
 
         return await connector.execute_action(action, params)
 
-    async def execute_batch(
-        self, operations: list[dict[str, Any]]
-    ) -> list[ConnectorResponse]:
+    async def execute_batch(self, operations: list[dict[str, Any]]) -> list[ConnectorResponse]:
         """
         Execute multiple operations in parallel.
 
@@ -258,9 +252,7 @@ class ConnectorManager:
         """
         tasks = []
         for op in operations:
-            task = self.execute(
-                op.get("connector_id"), op.get("action"), op.get("params", {})
-            )
+            task = self.execute(op.get("connector_id"), op.get("action"), op.get("params", {}))
             tasks.append(task)
 
         return await asyncio.gather(*tasks, return_exceptions=False)

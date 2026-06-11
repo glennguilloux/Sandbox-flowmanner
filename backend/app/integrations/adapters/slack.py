@@ -53,9 +53,7 @@ class SlackAdapter(BaseIntegrationAdapter):
 
     # ── Action: send_message ───────────────────────────────────────────────
 
-    async def _send_message(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _send_message(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Post a message to a Slack channel.
 
         Required params: ``channel``, ``text``
@@ -89,9 +87,7 @@ class SlackAdapter(BaseIntegrationAdapter):
 
     # ── Action: search_messages ────────────────────────────────────────────
 
-    async def _search_messages(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _search_messages(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Search messages in the Slack workspace.
 
         Required params: ``query``
@@ -113,9 +109,7 @@ class SlackAdapter(BaseIntegrationAdapter):
 
     # ── Action: list_channels ──────────────────────────────────────────────
 
-    async def _list_channels(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _list_channels(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """List public channels in the workspace.
 
         Optional params: ``limit`` (default 100, max 200),
@@ -138,9 +132,7 @@ class SlackAdapter(BaseIntegrationAdapter):
 
     # ── Action: create_channel ─────────────────────────────────────────────
 
-    async def _create_channel(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _create_channel(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Create a new public or private channel.
 
         Required params: ``name``
@@ -175,9 +167,7 @@ class SlackAdapter(BaseIntegrationAdapter):
         """
         refresh_token = connection.get_refresh_token()
         if not refresh_token:
-            logger.warning(
-                "No refresh token available for Slack connection %s", connection.id
-            )
+            logger.warning("No refresh token available for Slack connection %s", connection.id)
             return None
 
         try:
@@ -226,9 +216,7 @@ class SlackAdapter(BaseIntegrationAdapter):
                         db_conn = await db.merge(connection)
                         db_conn.encrypted_access_token = encrypt_token(new_access)
                         if data.get("refresh_token"):
-                            db_conn.encrypted_refresh_token = encrypt_token(
-                                data["refresh_token"]
-                            )
+                            db_conn.encrypted_refresh_token = encrypt_token(data["refresh_token"])
                         await db.commit()
                         return new_access
 

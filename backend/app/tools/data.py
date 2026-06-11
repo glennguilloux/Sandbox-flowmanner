@@ -132,16 +132,12 @@ class JsonTransformTool(BaseTool):
         try:
             validated = JsonTransformInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             data = json.loads(validated.json_data)
         except json.JSONDecodeError as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid JSON: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid JSON: {e}")
 
         try:
             result = _apply_jq_filter(data, validated.jq_filter)
@@ -152,9 +148,7 @@ class JsonTransformTool(BaseTool):
                 result={"output": result, "output_json": serialised},
             )
         except (KeyError, IndexError, TypeError, ValueError) as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Filter error: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Filter error: {e}")
         except Exception as e:
             logger.exception("json_transform failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -186,9 +180,7 @@ class CsvParseTool(BaseTool):
         try:
             validated = CsvParseInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             reader = csv.DictReader(
@@ -217,9 +209,7 @@ class CsvParseTool(BaseTool):
 
 class RegexExtractInput(ToolInput):
     text: str = Field(..., description="Text to search")
-    pattern: str = Field(
-        ..., description="Regular expression pattern (Python re syntax)"
-    )
+    pattern: str = Field(..., description="Regular expression pattern (Python re syntax)")
 
 
 class RegexExtractTool(BaseTool):
@@ -239,16 +229,12 @@ class RegexExtractTool(BaseTool):
         try:
             validated = RegexExtractInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             pattern = re.compile(validated.pattern)
         except re.error as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid regex: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid regex: {e}")
 
         matches = []
         for m in pattern.finditer(validated.text):

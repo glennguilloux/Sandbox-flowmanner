@@ -61,25 +61,19 @@ class SimpleWorkflowAgent:
                         prompt=intent["details"]["prompt"],
                         style=intent["details"]["style"],
                     )
-                    return AgentResponse(
-                        response=result, tools_used=["generate_hero_background"]
-                    )
+                    return AgentResponse(response=result, tools_used=["generate_hero_background"])
                 elif intent["details"]["type"] == "product-shot":
                     result = generate_product_shot(
                         product=intent["details"]["prompt"],
                         style=intent["details"]["style"],
                     )
-                    return AgentResponse(
-                        response=result, tools_used=["generate_product_shot"]
-                    )
+                    return AgentResponse(response=result, tools_used=["generate_product_shot"])
                 elif intent["details"]["type"] == "3d-model":
                     result = generate_3d_model(
                         description=intent["details"]["prompt"],
                         style=intent["details"]["style"],
                     )
-                    return AgentResponse(
-                        response=result, tools_used=["generate_3d_model"]
-                    )
+                    return AgentResponse(response=result, tools_used=["generate_3d_model"])
 
             elif intent["intent"] == "n8n":
                 workflow_id = intent["details"]["workflow_id"]
@@ -88,35 +82,23 @@ class SimpleWorkflowAgent:
                         workflow_id=workflow_id,
                         parameters=intent["details"]["parameters"],
                     )
-                    return AgentResponse(
-                        response=result, tools_used=["execute_n8n_workflow"]
-                    )
+                    return AgentResponse(response=result, tools_used=["execute_n8n_workflow"])
                 else:
                     result = list_n8n_workflows()
-                    return AgentResponse(
-                        response=result, tools_used=["list_n8n_workflows"]
-                    )
+                    return AgentResponse(response=result, tools_used=["list_n8n_workflows"])
 
             elif intent["intent"] == "catalog":
                 if intent["details"]["type"] == "recommend":
                     result = recommend_workflows(intent=intent["details"]["query"])
-                    return AgentResponse(
-                        response=result, tools_used=["recommend_workflows"]
-                    )
+                    return AgentResponse(response=result, tools_used=["recommend_workflows"])
                 else:
                     result = search_workflows(query=intent["details"]["query"])
-                    return AgentResponse(
-                        response=result, tools_used=["search_workflows"]
-                    )
+                    return AgentResponse(response=result, tools_used=["search_workflows"])
 
             else:
-                logger.info(
-                    "No specific intent found, using LLM for: %s...", message[:50]
-                )
+                logger.info("No specific intent found, using LLM for: %s...", message[:50])
                 response = self.llm.invoke(message)
-                return AgentResponse(
-                    response=str(response), tools_used=[], metadata={"type": "llm_chat"}
-                )
+                return AgentResponse(response=str(response), tools_used=[], metadata={"type": "llm_chat"})
 
         except Exception as e:
             logger.error("Agent invocation error: %s", e, exc_info=True)

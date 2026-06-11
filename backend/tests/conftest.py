@@ -98,19 +98,20 @@ auth_rl_module._rate_limiter = None  # reset singleton so it doesn't try Redis
 # ---------------------------------------------------------------------------
 # 6. Now safe to import FastAPI app and routers
 # ---------------------------------------------------------------------------
+from datetime import UTC
+
 import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRouter
 from fastapi.testclient import TestClient
 
-from app.main_fastapi import (
-    app as _real_app,
-)  # noqa: F401 — side-effect: init app with mocked services
+from app.api.v1.agent import router as agent_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.swarm import router as swarm_router
 from app.api.v1.swarm_protocol import router as protocol_router
-from app.api.v1.agent import router as agent_router
-
+from app.main_fastapi import (
+    app as _real_app,
+)
 
 # ===========================================================================
 # Original fixtures (minimal app for swarm/dashboard tests)
@@ -232,8 +233,8 @@ def sample_user():
         tenant_id=None,
         hashed_password="$2b$...",
         login_count=5,
-        last_login_at=datetime.now(timezone.utc),
-        created_at=datetime.now(timezone.utc),
+        last_login_at=datetime.now(UTC),
+        created_at=datetime.now(UTC),
         onboarding_step=None,
         onboarding_completed=False,
     )

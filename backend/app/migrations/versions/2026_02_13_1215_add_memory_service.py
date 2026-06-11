@@ -73,12 +73,8 @@ def upgrade():
     op.create_index("ix_agent_memories_memory_type", "agent_memories", ["memory_type"])
     op.create_index("ix_agent_memories_status", "agent_memories", ["status"])
     op.create_index("ix_agent_memories_expires_at", "agent_memories", ["expires_at"])
-    op.create_index(
-        "ix_agent_memories_importance", "agent_memories", ["importance_score"]
-    )
-    op.create_index(
-        "ix_agent_memories_source", "agent_memories", ["source_type", "source_id"]
-    )
+    op.create_index("ix_agent_memories_importance", "agent_memories", ["importance_score"])
+    op.create_index("ix_agent_memories_source", "agent_memories", ["source_type", "source_id"])
 
     # Create memory_associations table
     op.create_table(
@@ -101,15 +97,9 @@ def upgrade():
         sa.Column("metadata", postgresql.JSONB, default={}),
         sa.Column("created_at", sa.DateTime, server_default=sa.func.now()),
     )
-    op.create_index(
-        "ix_memory_associations_source", "memory_associations", ["source_memory_id"]
-    )
-    op.create_index(
-        "ix_memory_associations_target", "memory_associations", ["target_memory_id"]
-    )
-    op.create_index(
-        "ix_memory_associations_type", "memory_associations", ["association_type"]
-    )
+    op.create_index("ix_memory_associations_source", "memory_associations", ["source_memory_id"])
+    op.create_index("ix_memory_associations_target", "memory_associations", ["target_memory_id"])
+    op.create_index("ix_memory_associations_type", "memory_associations", ["association_type"])
 
     # Create memory_search_index table for vector search optimization
     op.create_table(

@@ -125,9 +125,7 @@ def test_get_mission_status_success(test_client):
         mock_mission = make_mission(status="completed")
         mock_tasks = [MagicMock(status="completed"), MagicMock(status="completed")]
         with (
-            patch(
-                "app.services.mission_service.get_mission", return_value=mock_mission
-            ),
+            patch("app.services.mission_service.get_mission", return_value=mock_mission),
             patch(
                 "app.services.mission_service.get_mission_tasks",
                 return_value=mock_tasks,

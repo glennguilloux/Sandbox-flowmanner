@@ -107,9 +107,7 @@ class DiscordConnector(BaseConnector):
 
         return False
 
-    async def execute_action(
-        self, action: str, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> ConnectorResponse:
         """Execute a Discord action"""
 
         action_handlers = {
@@ -137,9 +135,7 @@ class DiscordConnector(BaseConnector):
 
         handler = action_handlers.get(action)
         if not handler:
-            return ConnectorResponse(
-                success=False, error=f"Unknown action: {action}", status_code=400
-            )
+            return ConnectorResponse(success=False, error=f"Unknown action: {action}", status_code=400)
 
         return await handler(params)
 
@@ -183,9 +179,7 @@ class DiscordConnector(BaseConnector):
                 status_code=400,
             )
 
-        return await self._execute_with_retry(
-            "POST", f"channels/{channel_id}/messages", json_data=payload
-        )
+        return await self._execute_with_retry("POST", f"channels/{channel_id}/messages", json_data=payload)
 
     async def _edit_message(self, params: dict[str, Any]) -> ConnectorResponse:
         """Edit an existing message"""
@@ -226,9 +220,7 @@ class DiscordConnector(BaseConnector):
                 status_code=400,
             )
 
-        return await self._execute_with_retry(
-            "DELETE", f"channels/{channel_id}/messages/{message_id}"
-        )
+        return await self._execute_with_retry("DELETE", f"channels/{channel_id}/messages/{message_id}")
 
     async def _get_channel_messages(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get messages from a channel"""
@@ -254,9 +246,7 @@ class DiscordConnector(BaseConnector):
         else:
             query_params["limit"] = 50
 
-        return await self._execute_with_retry(
-            "GET", f"channels/{channel_id}/messages", params=query_params
-        )
+        return await self._execute_with_retry("GET", f"channels/{channel_id}/messages", params=query_params)
 
     async def _get_channel(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get channel information"""
@@ -276,9 +266,7 @@ class DiscordConnector(BaseConnector):
         guild_id = params.get("guild_id")
 
         if not guild_id:
-            return ConnectorResponse(
-                success=False, error="Missing required param: guild_id", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: guild_id", status_code=400)
 
         return await self._execute_with_retry("GET", f"guilds/{guild_id}/channels")
 
@@ -293,18 +281,14 @@ class DiscordConnector(BaseConnector):
         if params.get("limit"):
             query_params["limit"] = min(params["limit"], 200)
 
-        return await self._execute_with_retry(
-            "GET", "users/@me/guilds", params=query_params
-        )
+        return await self._execute_with_retry("GET", "users/@me/guilds", params=query_params)
 
     async def _get_guild(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get guild information"""
         guild_id = params.get("guild_id")
 
         if not guild_id:
-            return ConnectorResponse(
-                success=False, error="Missing required param: guild_id", status_code=400
-            )
+            return ConnectorResponse(success=False, error="Missing required param: guild_id", status_code=400)
 
         return await self._execute_with_retry("GET", f"guilds/{guild_id}")
 
@@ -325,9 +309,7 @@ class DiscordConnector(BaseConnector):
                 status_code=400,
             )
 
-        return await self._execute_with_retry(
-            "POST", "users/@me/channels", json_data={"recipient_id": recipient_id}
-        )
+        return await self._execute_with_retry("POST", "users/@me/channels", json_data={"recipient_id": recipient_id})
 
     async def _add_reaction(self, params: dict[str, Any]) -> ConnectorResponse:
         """Add a reaction to a message"""
@@ -437,9 +419,7 @@ class DiscordConnector(BaseConnector):
         if params.get("nsfw"):
             payload["nsfw"] = params["nsfw"]
 
-        return await self._execute_with_retry(
-            "POST", f"guilds/{guild_id}/channels", json_data=payload
-        )
+        return await self._execute_with_retry("POST", f"guilds/{guild_id}/channels", json_data=payload)
 
     async def _delete_channel(self, params: dict[str, Any]) -> ConnectorResponse:
         """Delete a channel"""
@@ -488,9 +468,7 @@ class DiscordConnector(BaseConnector):
         if params.get("parent_id"):
             payload["parent_id"] = params["parent_id"]
 
-        return await self._execute_with_retry(
-            "PATCH", f"channels/{channel_id}", json_data=payload
-        )
+        return await self._execute_with_retry("PATCH", f"channels/{channel_id}", json_data=payload)
 
     async def _create_invite(self, params: dict[str, Any]) -> ConnectorResponse:
         """Create an invite for a channel"""
@@ -520,9 +498,7 @@ class DiscordConnector(BaseConnector):
         if params.get("target_application_id"):
             payload["target_application_id"] = params["target_application_id"]
 
-        return await self._execute_with_retry(
-            "POST", f"channels/{channel_id}/invites", json_data=payload
-        )
+        return await self._execute_with_retry("POST", f"channels/{channel_id}/invites", json_data=payload)
 
     async def _get_invites(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get invites for a channel"""
@@ -562,14 +538,10 @@ class DiscordConnector(BaseConnector):
                 status_code=400,
             )
 
-        return await self._execute_with_retry(
-            "POST", f"channels/{channel_id}/messages/{message_id}/crosspost"
-        )
+        return await self._execute_with_retry("POST", f"channels/{channel_id}/messages/{message_id}/crosspost")
 
     def get_stats(self) -> dict[str, Any]:
         """Get connector statistics including Discord-specific info"""
         stats = super().get_stats()
-        stats.update(
-            {"bot_user_id": self._bot_user_id, "application_id": self._application_id}
-        )
+        stats.update({"bot_user_id": self._bot_user_id, "application_id": self._application_id})
         return stats

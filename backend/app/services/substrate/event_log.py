@@ -167,18 +167,14 @@ class EventLog:
 
     async def get_latest_sequence(self, db: AsyncSession, run_id: str) -> int:
         """Get the highest sequence number for a run (0 if no events)."""
-        stmt = select(func.max(SubstrateEvent.sequence)).where(
-            SubstrateEvent.run_id == run_id
-        )
+        stmt = select(func.max(SubstrateEvent.sequence)).where(SubstrateEvent.run_id == run_id)
         result = await db.execute(stmt)
         max_seq = result.scalar()
         return max_seq if max_seq is not None else 0
 
     async def _count_events(self, db: AsyncSession, run_id: str) -> int:
         """Count events for a run (used for safety limit check)."""
-        stmt = select(func.count(SubstrateEvent.id)).where(
-            SubstrateEvent.run_id == run_id
-        )
+        stmt = select(func.count(SubstrateEvent.id)).where(SubstrateEvent.run_id == run_id)
         result = await db.execute(stmt)
         return result.scalar() or 0
 

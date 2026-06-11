@@ -115,19 +115,13 @@ class ProjectResolver:
             Slug like "write-blog-post-ai-trends-a1b2c3"
         """
         # Normalize unicode
-        goal = (
-            unidecode(goal)
-            if HAS_UNIDECODE
-            else goal.encode("ascii", "ignore").decode("ascii")
-        )
+        goal = unidecode(goal) if HAS_UNIDECODE else goal.encode("ascii", "ignore").decode("ascii")
 
         # Extract words
         words = re.findall(r"\b[a-zA-Z]+\b", goal.lower())
 
         # Filter out stop words and short words
-        meaningful_words = [
-            w for w in words if w not in self.STOP_WORDS and len(w) > 2
-        ][:max_words]
+        meaningful_words = [w for w in words if w not in self.STOP_WORDS and len(w) > 2][:max_words]
 
         if not meaningful_words:
             # Fallback if no meaningful words
@@ -198,11 +192,7 @@ class ProjectResolver:
             List of keywords
         """
         # Normalize
-        goal = (
-            unidecode(goal)
-            if HAS_UNIDECODE
-            else goal.encode("ascii", "ignore").decode("ascii")
-        )
+        goal = unidecode(goal) if HAS_UNIDECODE else goal.encode("ascii", "ignore").decode("ascii")
 
         # Extract words
         words = re.findall(r"\b[a-zA-Z]+\b", goal.lower())

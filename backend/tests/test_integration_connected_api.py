@@ -13,7 +13,7 @@ Covers:
 - Unknown slugs get zero actions
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -80,7 +80,7 @@ def _make_connection(
     conn.account_id = account_id
     conn.scopes = scopes
     conn.is_active = is_active
-    conn.created_at = created_at or datetime(2025, 1, 1, tzinfo=timezone.utc)
+    conn.created_at = created_at or datetime(2025, 1, 1, tzinfo=UTC)
     conn.expires_at = expires_at
     return conn
 
@@ -208,9 +208,7 @@ class TestFiltersInactiveConnections:
 
     def test_active_connection_is_returned(self, auth_client):
         client, mock_db = auth_client
-        active_slack = _make_connection(
-            id="c1", integration_slug="slack", is_active=True
-        )
+        active_slack = _make_connection(id="c1", integration_slug="slack", is_active=True)
         mock_db.execute.return_value = _make_db_result(active_slack)
 
         response = client.get("/api/integrations/connected")

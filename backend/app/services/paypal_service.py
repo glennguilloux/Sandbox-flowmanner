@@ -28,11 +28,7 @@ class PayPalClient:
 
     async def get_access_token(self) -> str:
         """Get OAuth access token from PayPal."""
-        if (
-            self.access_token
-            and self.token_expiry
-            and self.token_expiry > datetime.now()
-        ):
+        if self.access_token and self.token_expiry and self.token_expiry > datetime.now():
             return self.access_token
 
         url = f"{self.base_url}/v1/oauth2/token"
@@ -46,9 +42,7 @@ class PayPalClient:
 
             self.access_token = token_data["access_token"]
             # Token typically valid for 32400 seconds (9 hours)
-            self.token_expiry = datetime.now() + timedelta(
-                seconds=token_data.get("expires_in", 32400)
-            )
+            self.token_expiry = datetime.now() + timedelta(seconds=token_data.get("expires_in", 32400))
 
             return self.access_token
 
@@ -94,9 +88,7 @@ class PayPalClient:
             response.raise_for_status()
             return response.json()
 
-    async def cancel_subscription(
-        self, subscription_id: str, reason: str = "User cancelled"
-    ) -> bool:
+    async def cancel_subscription(self, subscription_id: str, reason: str = "User cancelled") -> bool:
         """Cancel a subscription."""
         token = await self.get_access_token()
         url = f"{self.base_url}/v1/billing/subscriptions/{subscription_id}/cancel"
@@ -132,13 +124,9 @@ class PayPalClient:
                 json={"reason": "Subscription approved by subscriber"},
             )
             response.raise_for_status()
-            return (
-                response.json() if response.status_code != 204 else {"status": "ACTIVE"}
-            )
+            return response.json() if response.status_code != 204 else {"status": "ACTIVE"}
 
-    async def suspend_subscription(
-        self, subscription_id: str, reason: str = "Past due"
-    ) -> bool:
+    async def suspend_subscription(self, subscription_id: str, reason: str = "Past due") -> bool:
         """Suspend a subscription (e.g., on payment failure)."""
         token = await self.get_access_token()
         url = f"{self.base_url}/v1/billing/subscriptions/{subscription_id}/suspend"

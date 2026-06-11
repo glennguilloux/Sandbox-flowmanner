@@ -150,9 +150,7 @@ class StockPriceTrackerTool(BaseTool):
         try:
             validated = StockPriceTrackerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in QUOTE_FUNCTIONS:
             return ToolResult.error_result(
@@ -192,9 +190,7 @@ class StockPriceTrackerTool(BaseTool):
 
     # ── _fetch_with_cache ────────────────────────────────────────
 
-    async def _fetch_with_cache(
-        self, validated: StockPriceTrackerInput
-    ) -> dict[str, Any]:
+    async def _fetch_with_cache(self, validated: StockPriceTrackerInput) -> dict[str, Any]:
         """Try Redis cache first, fall back to API call."""
         cache_key = self._cache_key(validated)
 
@@ -229,9 +225,7 @@ class StockPriceTrackerTool(BaseTool):
 
     # ── _call_alpha_vantage ──────────────────────────────────────
 
-    async def _call_alpha_vantage(
-        self, validated: StockPriceTrackerInput
-    ) -> dict[str, Any]:
+    async def _call_alpha_vantage(self, validated: StockPriceTrackerInput) -> dict[str, Any]:
         """Call Alpha Vantage API."""
         sym = self._primary_symbol(validated)
         params: dict[str, Any] = {
@@ -242,22 +236,14 @@ class StockPriceTrackerTool(BaseTool):
         if validated.action == "SYMBOL_SEARCH":
             params["keywords"] = validated.keywords or sym
         elif validated.action == "CURRENCY_EXCHANGE_RATE":
-            params["from_currency"] = (
-                validated.from_currency or sym.split("/")[0] if "/" in sym else sym
-            )
-            params["to_currency"] = validated.to_currency or (
-                sym.split("/")[1] if "/" in sym else "USD"
-            )
+            params["from_currency"] = validated.from_currency or sym.split("/")[0] if "/" in sym else sym
+            params["to_currency"] = validated.to_currency or (sym.split("/")[1] if "/" in sym else "USD")
         elif validated.action in ("CRYPTO_INTRADAY", "DIGITAL_CURRENCY_DAILY"):
             params["symbol"] = sym
             params["market"] = validated.market or "USD"
         elif validated.action == "FX_DAILY":
-            params["from_symbol"] = (
-                validated.from_currency or sym.split("/")[0] if "/" in sym else sym
-            )
-            params["to_symbol"] = validated.to_currency or (
-                sym.split("/")[1] if "/" in sym else "USD"
-            )
+            params["from_symbol"] = validated.from_currency or sym.split("/")[0] if "/" in sym else sym
+            params["to_symbol"] = validated.to_currency or (sym.split("/")[1] if "/" in sym else "USD")
             params["outputsize"] = validated.outputsize
         elif validated.action == "TIME_SERIES_INTRADAY":
             params["symbol"] = sym
@@ -300,9 +286,7 @@ class StockPriceTrackerTool(BaseTool):
 
     # ── _normalize_response ──────────────────────────────────────
 
-    def _normalize_response(
-        self, action: str, symbol: str, raw: dict
-    ) -> dict[str, Any]:
+    def _normalize_response(self, action: str, symbol: str, raw: dict) -> dict[str, Any]:
         """Extract the meaningful data from Alpha Vantage's verbose response."""
         if action == "GLOBAL_QUOTE":
             quote = raw.get("Global Quote", {})

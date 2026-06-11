@@ -15,9 +15,9 @@ import asyncio
 import importlib
 import json
 import logging
-import sys
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -64,41 +64,43 @@ def _handler_ref(tool) -> str:
 
 
 async def run():
-    from sqlalchemy import select, text as sa_text
+    from sqlalchemy import select
+    from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     # ── 1. Bootstrap the in-memory ToolRegistry ──────────────────────
     from app.tools.base import get_tool_registry, register_tool
+    from app.tools.browser_click import BrowserClickTool
+    from app.tools.browser_close import BrowserCloseTool
+    from app.tools.browser_navigate import BrowserNavigateTool
 
     # Import and register all core tools (same as lifespan._register_core_tools)
     from app.tools.browser_ping import BrowserPingTool
-    from app.tools.browser_navigate import BrowserNavigateTool
     from app.tools.browser_screenshot import BrowserScreenshotTool
-    from app.tools.browser_close import BrowserCloseTool
-    from app.tools.browser_snapshot import BrowserSnapshotTool
-    from app.tools.browser_click import BrowserClickTool
-    from app.tools.browser_type import BrowserTypeTool
     from app.tools.browser_scroll import BrowserScrollTool
-    from app.tools.topology import TopologyTool
-    from app.tools.terminal import TerminalTool
-    from app.tools.integration import ListIntegrationsTool, ExecuteIntegrationTool
-    from app.tools.llm import LLMSummarizeTool, LLMTranslateTool, LLMClassifyTool
-    from app.tools.data import JsonTransformTool, CsvParseTool, RegexExtractTool
-    from app.tools.utility import UUIDGeneratorTool, TimestampConverterTool
-    from app.tools.external import WeatherCurrentTool, CurrencyConvertTool
+    from app.tools.browser_snapshot import BrowserSnapshotTool
+    from app.tools.browser_type import BrowserTypeTool
+    from app.tools.data import CsvParseTool, JsonTransformTool, RegexExtractTool
     from app.tools.differentiators import (
-        PersistentAgentMemoryTool,
-        SemanticMemoryIndexTool,
-        KnowledgeBaseConnectorTool,
         BrandVoiceEnforcerTool,
         CollaborativeTeamSpaceTool,
+        KnowledgeBaseConnectorTool,
+        PersistentAgentMemoryTool,
         PIIRedactorTool,
+        RAGContextBuilderTool,
         SemanticChunkingTool,
+        SemanticMemoryIndexTool,
         SubAgentRouterTool,
         TaskPlannerTool,
-        RAGContextBuilderTool,
     )
+    from app.tools.external import CurrencyConvertTool, WeatherCurrentTool
+    from app.tools.integration import ExecuteIntegrationTool, ListIntegrationsTool
+    from app.tools.llm import LLMClassifyTool, LLMSummarizeTool, LLMTranslateTool
+    from app.tools.terminal import TerminalTool
+    from app.tools.topology import TopologyTool
+    from app.tools.utility import TimestampConverterTool, UUIDGeneratorTool
 
     core_tools = [
         BrowserPingTool(),
@@ -155,7 +157,7 @@ async def run():
 
     # ── 2. Upsert into Postgres ──────────────────────────────────────
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     new_count = 0
     updated_count = 0
@@ -164,14 +166,10 @@ async def run():
     async with engine.begin() as conn:
         # Ensure table exists
         exists = await conn.execute(
-            sa_text(
-                "SELECT 1 FROM information_schema.tables WHERE table_name = 'tools_catalog'"
-            )
+            sa_text("SELECT 1 FROM information_schema.tables WHERE table_name = 'tools_catalog'")
         )
         if not exists.fetchone():
-            logger.error(
-                "tools_catalog table does not exist. Run Alembic migration first."
-            )
+            logger.error("tools_catalog table does not exist. Run Alembic migration first.")
             await engine.dispose()
             return
 
@@ -200,9 +198,7 @@ async def run():
                 "tags": json.dumps(getattr(tool, "tags", []) or []),
                 "tier": getattr(tool, "tier", 1),
                 "timeout_seconds": (
-                    getattr(tool.metadata, "timeout_seconds", 30)
-                    if hasattr(tool, "metadata") and tool.metadata
-                    else 30
+                    getattr(tool.metadata, "timeout_seconds", 30) if hasattr(tool, "metadata") and tool.metadata else 30
                 ),
                 "requires_auth": (
                     getattr(tool.metadata, "requires_auth", True)

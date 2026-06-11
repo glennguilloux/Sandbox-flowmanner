@@ -54,9 +54,7 @@ async def ingest_book(
         vectors=vectors,
     )
 
-    logger.info(
-        "Ingested %d chunks for book '%s' (user %s)", count, book_title, user.id
-    )
+    logger.info("Ingested %d chunks for book '%s' (user %s)", count, book_title, user.id)
     return {
         "status": "accepted",
         "chunk_count": count,

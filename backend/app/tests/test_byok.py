@@ -62,9 +62,7 @@ async def test_create_api_key():
 
         # Call the function
         result = await create_api_key(
-            data=APIKeyCreate(
-                provider="openai", api_key="sk-test123", label="My OpenAI Key"
-            ),
+            data=APIKeyCreate(provider="openai", api_key="sk-test123", label="My OpenAI Key"),
             user=MOCK_USER,
             db=mock_db,
         )

@@ -76,21 +76,13 @@ class WebhookRouter:
 
     def register_default(self, name: str, handler: Callable, source: str) -> None:
         """Register a default handler for a source"""
-        handler_info = HandlerInfo(
-            name=name, handler=handler, source=source, priority=HandlerPriority.LOWEST
-        )
+        handler_info = HandlerInfo(name=name, handler=handler, source=source, priority=HandlerPriority.LOWEST)
         self._default_handlers[source] = handler_info
-        logger.info(
-            "Registered default webhook handler '%s' for source '%s'", name, source
-        )
+        logger.info("Registered default webhook handler '%s' for source '%s'", name, source)
 
-    def register_global(
-        self, name: str, handler: Callable, priority: int = HandlerPriority.LOWEST
-    ) -> None:
+    def register_global(self, name: str, handler: Callable, priority: int = HandlerPriority.LOWEST) -> None:
         """Register a global handler that receives all webhooks"""
-        handler_info = HandlerInfo(
-            name=name, handler=handler, source="*", priority=priority
-        )
+        handler_info = HandlerInfo(name=name, handler=handler, source="*", priority=priority)
         self._global_handlers.append(handler_info)
         self._global_handlers.sort(key=lambda h: h.priority)
         logger.info("Registered global webhook handler '%s'", name)
@@ -117,9 +109,7 @@ class WebhookRouter:
 
         return False
 
-    def get_handlers(
-        self, source: str, event_type: str | None = None
-    ) -> list[HandlerInfo]:
+    def get_handlers(self, source: str, event_type: str | None = None) -> list[HandlerInfo]:
         """Get applicable handlers for a webhook"""
         handlers = []
 
@@ -159,9 +149,7 @@ class WebhookRouter:
         handlers = self.get_handlers(source, event_type)
 
         if not handlers:
-            logger.warning(
-                "No handlers found for source '%s', event '%s'", source, event_type
-            )
+            logger.warning("No handlers found for source '%s', event '%s'", source, event_type)
             return {
                 "success": False,
                 "error": "No handlers registered",
@@ -181,13 +169,9 @@ class WebhookRouter:
                     event_type,
                 )
 
-                result = await self._execute_handler(
-                    handler_info.handler, source, event_type, payload, headers
-                )
+                result = await self._execute_handler(handler_info.handler, source, event_type, payload, headers)
 
-                results.append(
-                    {"handler": handler_info.name, "success": True, "result": result}
-                )
+                results.append({"handler": handler_info.name, "success": True, "result": result})
             except Exception as e:
                 logger.error("Handler '%s' failed: %s", handler_info.name, e)
                 errors.append({"handler": handler_info.name, "error": str(e)})
@@ -216,9 +200,7 @@ class WebhookRouter:
         else:
             return handler(source, event_type, payload, headers)
 
-    def load_handler_module(
-        self, module_path: str, function_name: str
-    ) -> Callable | None:
+    def load_handler_module(self, module_path: str, function_name: str) -> Callable | None:
         """Load a handler function from a module path"""
         try:
             module = importlib.import_module(module_path)

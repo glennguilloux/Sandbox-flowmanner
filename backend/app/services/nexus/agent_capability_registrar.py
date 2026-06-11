@@ -18,7 +18,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -185,16 +185,12 @@ class AgentCapabilityRegistrar:
         logger.info("Registering agent: %s (%s)", agent_name, agent_id)
 
         # Discover tools for this agent
-        discovered_tools = await self._discover_tools_for_agent(
-            agent_type, tool_categories, tool_tags
-        )
+        discovered_tools = await self._discover_tools_for_agent(agent_type, tool_categories, tool_tags)
 
         # Register capabilities
         registered_capabilities = []
         for cap_def in capabilities:
-            cap = await self._register_capability(
-                agent_id=agent_id, cap_def=cap_def, discovered_tools=discovered_tools
-            )
+            cap = await self._register_capability(agent_id=agent_id, cap_def=cap_def, discovered_tools=discovered_tools)
             if cap:
                 registered_capabilities.append(cap.id)
                 self._capabilities[cap.id] = cap
@@ -205,9 +201,7 @@ class AgentCapabilityRegistrar:
             agent_name=agent_name,
             agent_type=agent_type,
             capabilities=registered_capabilities,
-            discovered_tools=[
-                t.get("tool_id") for t in discovered_tools if t.get("tool_id")
-            ],
+            discovered_tools=[t.get("tool_id") for t in discovered_tools if t.get("tool_id")],
             metadata=metadata or {},
         )
 
@@ -246,9 +240,7 @@ class AgentCapabilityRegistrar:
             query = f"tools for {agent_type} agent"
 
             # Search for relevant tools
-            results = self.tool_discovery.search(
-                query=query, top_k=20, category_filter=categories
-            )
+            results = self.tool_discovery.search(query=query, top_k=20, category_filter=categories)
 
             for result in results:
                 tool_data = result.tool.to_dict()
@@ -259,9 +251,7 @@ class AgentCapabilityRegistrar:
             # Also list tools by category if specified
             if categories:
                 for category in categories:
-                    tools = self.tool_discovery.embedding_service.list_tools(
-                        category=category
-                    )
+                    tools = self.tool_discovery.embedding_service.list_tools(category=category)
                     for tool in tools:
                         if tool.tool_id not in [t.get("tool_id") for t in discovered]:
                             discovered.append(tool.to_dict())
@@ -289,9 +279,7 @@ class AgentCapabilityRegistrar:
 
             # If no tools specified, use discovered tools
             if not tool_ids and discovered_tools:
-                tool_ids = [
-                    t.get("tool_id") for t in discovered_tools[:5] if t.get("tool_id")
-                ]
+                tool_ids = [t.get("tool_id") for t in discovered_tools[:5] if t.get("tool_id")]
 
             # Create capability
             capability = AgentCapability(
@@ -322,8 +310,7 @@ class AgentCapabilityRegistrar:
                     name=capability.name,
                     description=capability.description,
                     category=capability.category,
-                    handler=capability.handler
-                    or self._create_default_handler(capability),
+                    handler=capability.handler or self._create_default_handler(capability),
                     input_schema=capability.input_schema,
                     output_schema=capability.output_schema,
                     requires_auth=capability.requires_auth,

@@ -14,9 +14,7 @@ class HttpIntegrationConfigCreate(BaseModel):
     base_url: str = Field(..., min_length=1)
     default_headers: dict[str, str] | None = None
     auth_type: str | None = None  # none, basic, bearer, api_key
-    auth_config: dict[str, str] | None = (
-        None  # {"username": "...", "password": "..."} or {"token": "..."} etc.
-    )
+    auth_config: dict[str, str] | None = None  # {"username": "...", "password": "..."} or {"token": "..."} etc.
     timeout_seconds: int = Field(default=30, ge=1, le=300)
     max_retries: int = Field(default=3, ge=0, le=10)
 

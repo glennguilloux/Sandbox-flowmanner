@@ -225,9 +225,7 @@ class NotificationSettingsUpdate:
                 return data
             return cast(bool | None | Unset, data)
 
-        event_mission_completed = _parse_event_mission_completed(
-            d.pop("event_mission_completed", UNSET)
-        )
+        event_mission_completed = _parse_event_mission_completed(d.pop("event_mission_completed", UNSET))
 
         def _parse_event_mission_failed(data: object) -> bool | None | Unset:
             if data is None:
@@ -236,9 +234,7 @@ class NotificationSettingsUpdate:
                 return data
             return cast(bool | None | Unset, data)
 
-        event_mission_failed = _parse_event_mission_failed(
-            d.pop("event_mission_failed", UNSET)
-        )
+        event_mission_failed = _parse_event_mission_failed(d.pop("event_mission_failed", UNSET))
 
         def _parse_event_mention(data: object) -> bool | None | Unset:
             if data is None:
@@ -283,9 +279,7 @@ class NotificationSettingsUpdate:
                 return data
             return cast(int | None | Unset, data)
 
-        digest_day_of_week = _parse_digest_day_of_week(
-            d.pop("digest_day_of_week", UNSET)
-        )
+        digest_day_of_week = _parse_digest_day_of_week(d.pop("digest_day_of_week", UNSET))
 
         def _parse_email_address(data: object) -> None | str | Unset:
             if data is None:
@@ -303,9 +297,7 @@ class NotificationSettingsUpdate:
                 return data
             return cast(None | str | Unset, data)
 
-        push_enabled_channels = _parse_push_enabled_channels(
-            d.pop("push_enabled_channels", UNSET)
-        )
+        push_enabled_channels = _parse_push_enabled_channels(d.pop("push_enabled_channels", UNSET))
 
         def _parse_mission_completed(data: object) -> bool | None | Unset:
             if data is None:

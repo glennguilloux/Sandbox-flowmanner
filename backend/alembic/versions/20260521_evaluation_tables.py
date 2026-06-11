@@ -6,9 +6,10 @@ Create Date: 2026-05-21
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "eval_001"
 down_revision = None
@@ -24,12 +25,8 @@ def upgrade() -> None:
         sa.Column("category", sa.String(50), nullable=False, index=True),
         sa.Column("version", sa.Integer, nullable=False, server_default="1"),
         sa.Column("description", sa.Text, nullable=False, server_default=""),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -48,12 +45,8 @@ def upgrade() -> None:
         sa.Column("difficulty", sa.String(20), nullable=False, server_default="medium"),
         sa.Column("tags", postgresql.JSONB, nullable=True),
         sa.Column("rubric", postgresql.JSONB, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_table(
@@ -76,12 +69,8 @@ def upgrade() -> None:
         sa.Column("error_message", sa.Text, nullable=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_index("ix_eval_runs_status", "eval_runs", ["status"])

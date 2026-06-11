@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -38,9 +38,7 @@ router = APIRouter(prefix="/regression", tags=["v2-regression"])
 # ── Helpers ─────────────────────────────────────────────────────────
 
 
-async def _get_mission_for_user(
-    db: AsyncSession, user: User, mission_id: uuid.UUID
-) -> Mission:
+async def _get_mission_for_user(db: AsyncSession, user: User, mission_id: uuid.UUID) -> Mission:
     """Get mission or raise 404."""
     result = await db.execute(
         select(Mission).where(
@@ -58,18 +56,14 @@ async def _get_mission_for_user(
     return mission
 
 
-async def _get_template_for_mission(
-    db: AsyncSession, mission: Mission
-) -> MissionTemplate | None:
+async def _get_template_for_mission(db: AsyncSession, mission: Mission) -> MissionTemplate | None:
     """Get the template associated with a mission, if any."""
     template_id = None
     if mission.plan:
         template_id = mission.plan.get("template_id")
     if not template_id:
         return None
-    result = await db.execute(
-        select(MissionTemplate).where(MissionTemplate.id == str(template_id))
-    )
+    result = await db.execute(select(MissionTemplate).where(MissionTemplate.id == str(template_id)))
     return result.scalar_one_or_none()
 
 
@@ -86,9 +80,7 @@ async def _get_run_id(db: AsyncSession, mission: Mission) -> str | None:
 @router.get("/{mission_id}/compare")
 async def compare_mission(
     mission_id: uuid.UUID,
-    run_id: str | None = Query(
-        None, description="Override run_id (defaults to mission's latest)"
-    ),
+    run_id: str | None = Query(None, description="Override run_id (defaults to mission's latest)"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -137,12 +129,8 @@ async def compare_mission(
     summary = {
         "total": len(results),
         "passed": sum(1 for r in results if r.passed),
-        "failed": sum(
-            1 for r in results if not r.passed and r.severity.value == "failure"
-        ),
-        "warnings": sum(
-            1 for r in results if not r.passed and r.severity.value == "warning"
-        ),
+        "failed": sum(1 for r in results if not r.passed and r.severity.value == "failure"),
+        "warnings": sum(1 for r in results if not r.passed and r.severity.value == "warning"),
     }
 
     return ok(
@@ -163,15 +151,9 @@ async def compare_mission(
 @router.post("/{mission_id}/freeze-baseline")
 async def freeze_baseline(
     mission_id: uuid.UUID,
-    run_id: str | None = Query(
-        None, description="Override run_id (defaults to mission's latest)"
-    ),
-    cost_headroom: float = Query(
-        1.5, ge=1.0, le=10.0, description="Cost ceiling headroom multiplier"
-    ),
-    latency_headroom: float = Query(
-        2.0, ge=1.0, le=10.0, description="Latency ceiling headroom multiplier"
-    ),
+    run_id: str | None = Query(None, description="Override run_id (defaults to mission's latest)"),
+    cost_headroom: float = Query(1.5, ge=1.0, le=10.0, description="Cost ceiling headroom multiplier"),
+    latency_headroom: float = Query(2.0, ge=1.0, le=10.0, description="Latency ceiling headroom multiplier"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

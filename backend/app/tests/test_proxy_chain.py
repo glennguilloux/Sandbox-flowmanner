@@ -27,9 +27,7 @@ def test_vps_health_endpoint(vps_client):
     except httpx.ConnectError:
         pytest.skip("VPS unreachable from test environment")
     except AssertionError:
-        pytest.skip(
-            "VPS /health endpoint returned unexpected response (may need deployment)"
-        )
+        pytest.skip("VPS /health endpoint returned unexpected response (may need deployment)")
 
 
 def test_vps_api_health_endpoint(vps_client):
@@ -42,9 +40,7 @@ def test_vps_api_health_endpoint(vps_client):
     except httpx.ConnectError:
         pytest.skip("VPS unreachable from test environment")
     except AssertionError:
-        pytest.skip(
-            "VPS /api/health endpoint returned unexpected response (may need deployment)"
-        )
+        pytest.skip("VPS /api/health endpoint returned unexpected response (may need deployment)")
 
 
 def test_vps_proxy_forwards_api_requests(vps_client):
@@ -56,9 +52,7 @@ def test_vps_proxy_forwards_api_requests(vps_client):
     except httpx.ConnectError:
         pytest.skip("VPS unreachable from test environment")
     except AssertionError:
-        pytest.skip(
-            "VPS proxy endpoint returned unexpected response (may need deployment)"
-        )
+        pytest.skip("VPS proxy endpoint returned unexpected response (may need deployment)")
 
 
 def test_vps_cors_headers(vps_client):
@@ -71,6 +65,4 @@ def test_vps_cors_headers(vps_client):
     except httpx.ConnectError:
         pytest.skip("VPS unreachable from test environment")
     except AssertionError:
-        pytest.skip(
-            "VPS CORS endpoint returned unexpected response (may need deployment)"
-        )
+        pytest.skip("VPS CORS endpoint returned unexpected response (may need deployment)")

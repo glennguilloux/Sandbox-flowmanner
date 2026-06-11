@@ -11,7 +11,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, Any
+from typing import Any
 
 from .a2a_server import A2AMessage, MessageType, get_a2a_server
 
@@ -28,9 +28,7 @@ class AgentResponse:
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     tokens_used: int = 0
 
-    def to_a2a_message(
-        self, sender: str, receiver: str, context_id: str | None = None
-    ) -> A2AMessage:
+    def to_a2a_message(self, sender: str, receiver: str, context_id: str | None = None) -> A2AMessage:
         return A2AMessage(
             type=MessageType.RESPONSE,
             sender=sender,
@@ -143,10 +141,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
 
                     # Extract tool calls if present
                     if hasattr(last_message, "tool_calls"):
-                        tool_calls = [
-                            {"name": tc["name"], "args": tc["args"]}
-                            for tc in last_message.tool_calls
-                        ]
+                        tool_calls = [{"name": tc["name"], "args": tc["args"]} for tc in last_message.tool_calls]
 
                     return AgentResponse(
                         content=content,
@@ -155,9 +150,7 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                         metadata={"agent_type": "langgraph"},
                     )
 
-            return AgentResponse(
-                content=str(result), success=True, metadata={"agent_type": "langgraph"}
-            )
+            return AgentResponse(content=str(result), success=True, metadata={"agent_type": "langgraph"})
 
         except Exception as e:
             logger.error("LangGraph agent error: %s", e)
@@ -262,9 +255,7 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
 
             # Execute MetaLoop cycle
             if hasattr(metaloop, "execute_cycle"):
-                result = await metaloop.execute_cycle(
-                    query=message.content, context=message.metadata
-                )
+                result = await metaloop.execute_cycle(query=message.content, context=message.metadata)
             elif hasattr(metaloop, "process"):
                 result = await metaloop.process(message.content)
             else:
@@ -283,9 +274,7 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
                     },
                 )
 
-            return AgentResponse(
-                content=str(result), success=True, metadata={"agent_type": "metaloop"}
-            )
+            return AgentResponse(content=str(result), success=True, metadata={"agent_type": "metaloop"})
 
         except Exception as e:
             logger.error("MetaLoop agent error: %s", e)
@@ -393,9 +382,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
 
             if intent == "discover":
                 # Discover capabilities
-                capabilities = await orchestrator.discover_capabilities(
-                    query=message.content
-                )
+                capabilities = await orchestrator.discover_capabilities(query=message.content)
                 return AgentResponse(
                     content=f"Discovered {len(capabilities)} capabilities",
                     success=True,
@@ -416,9 +403,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
 
             else:
                 # Execute task
-                result = await orchestrator.execute(
-                    task=message.content, context=message.metadata
-                )
+                result = await orchestrator.execute(task=message.content, context=message.metadata)
 
                 return AgentResponse(
                     content=result.get("output", str(result)),
@@ -484,9 +469,7 @@ def create_agent_wrapper(agent_type: str, **kwargs) -> A2AAgentWrapper:
 
     wrapper_class = wrappers.get(agent_type.lower())
     if not wrapper_class:
-        raise ValueError(
-            f"Unknown agent type: {agent_type}. Available: {list(wrappers.keys())}"
-        )
+        raise ValueError(f"Unknown agent type: {agent_type}. Available: {list(wrappers.keys())}")
 
     return wrapper_class(**kwargs)
 

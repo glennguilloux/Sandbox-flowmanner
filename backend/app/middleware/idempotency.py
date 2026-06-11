@@ -71,9 +71,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         self.ttl_hours = ttl_hours
         self.exclude_paths = exclude_paths or []
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """
         Process request with idempotency handling.
         """
@@ -103,9 +101,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             )
 
         # Process with idempotency handling
-        return await self._handle_idempotent_request(
-            request, idempotency_key, call_next
-        )
+        return await self._handle_idempotent_request(request, idempotency_key, call_next)
 
     async def _handle_idempotent_request(
         self,
@@ -125,11 +121,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             from app.models.idempotency import IdempotencyKey
 
             # Check for existing key
-            existing = (
-                db.query(IdempotencyKey)
-                .filter(IdempotencyKey.idempotency_key == idempotency_key)
-                .first()
-            )
+            existing = db.query(IdempotencyKey).filter(IdempotencyKey.idempotency_key == idempotency_key).first()
 
             now = datetime.now(UTC)
 
@@ -139,9 +131,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     # Key expired, treat as new request
                     db.delete(existing)
                     db.commit()
-                    return await self._process_new_request(
-                        request, idempotency_key, call_next, db
-                    )
+                    return await self._process_new_request(request, idempotency_key, call_next, db)
 
                 # Check if still processing (concurrent duplicate)
                 if existing.is_processing:
@@ -151,9 +141,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                         # Reset processing status and retry
                         existing.is_processing = False
                         db.commit()
-                        return await self._process_new_request(
-                            request, idempotency_key, call_next, db
-                        )
+                        return await self._process_new_request(request, idempotency_key, call_next, db)
 
                     return JSONResponse(
                         status_code=425,
@@ -171,16 +159,12 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 db.commit()
 
                 # Log duplicate request
-                self._log_request(
-                    db, request, idempotency_key, existing, was_cached=True
-                )
+                self._log_request(db, request, idempotency_key, existing, was_cached=True)
 
                 return self._build_cached_response(existing)
 
             # New request - process it
-            return await self._process_new_request(
-                request, idempotency_key, call_next, db
-            )
+            return await self._process_new_request(request, idempotency_key, call_next, db)
 
         except Exception as e:
             logger.error("Idempotency middleware error: %s", e)
@@ -203,9 +187,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         # Create request hash
         request_body = await self._get_request_body(request)
-        request_hash = self._hash_request(
-            request.method, request.url.path, request_body
-        )
+        request_hash = self._hash_request(request.method, request.url.path, request_body)
 
         now = datetime.now(UTC)
         expires_at = now + timedelta(hours=self.ttl_hours)
@@ -213,9 +195,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         # Create idempotency key record
         idempotency_record = IdempotencyKey(
             idempotency_key=idempotency_key,
-            user_id=(
-                request.state.user_id if hasattr(request.state, "user_id") else None
-            ),
+            user_id=(request.state.user_id if hasattr(request.state, "user_id") else None),
             endpoint=request.url.path,
             request_hash=request_hash,
             is_processing=True,
@@ -246,9 +226,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             db.commit()
 
             # Log successful request
-            self._log_request(
-                db, request, idempotency_key, idempotency_record, was_cached=False
-            )
+            self._log_request(db, request, idempotency_key, idempotency_record, was_cached=False)
 
             # Add idempotency headers to response
             response.headers[self.IDEMPOTENCY_REPLAY_HEADER] = "original"
@@ -262,9 +240,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             db.commit()
 
             # Log failed request
-            self._log_request(
-                db, request, idempotency_key, idempotency_record, was_cached=False
-            )
+            self._log_request(db, request, idempotency_key, idempotency_record, was_cached=False)
 
             raise
 

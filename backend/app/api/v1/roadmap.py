@@ -111,10 +111,7 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
         .group_by(RoadmapItem.category)
     )
     rows = result.all()
-    return [
-        RoadmapCategoryOut(id=row.category, name=row.category, count=row.count)
-        for row in rows
-    ]
+    return [RoadmapCategoryOut(id=row.category, name=row.category, count=row.count) for row in rows]
 
 
 # ── GET /api/roadmap/comments ────────────────────────────────────────────

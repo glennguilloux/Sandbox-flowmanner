@@ -67,9 +67,7 @@ class InstallationsResponse:
         installations = []
         _installations = d.pop("installations")
         for installations_item_data in _installations:
-            installations_item = MarketplaceInstallation.from_dict(
-                installations_item_data
-            )
+            installations_item = MarketplaceInstallation.from_dict(installations_item_data)
 
             installations.append(installations_item)
 

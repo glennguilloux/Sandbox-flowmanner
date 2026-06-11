@@ -36,9 +36,7 @@ class ToolHandlerRegistry:
             handler_class: Handler class to register
         """
         if not issubclass(handler_class, BaseToolHandler):
-            raise ValueError(
-                f"Handler must inherit from BaseToolHandler: {handler_class}"
-            )
+            raise ValueError(f"Handler must inherit from BaseToolHandler: {handler_class}")
 
         self._handler_classes[tool_id] = handler_class
         self.logger.info(f"Registered handler for tool: {tool_id}")

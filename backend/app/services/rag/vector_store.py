@@ -93,13 +93,9 @@ class QdrantVectorStore:
         must_conditions: list[FieldCondition] = []
 
         if topics:
-            must_conditions.append(
-                FieldCondition(key="topics", params=MatchAny(any=topics))
-            )
+            must_conditions.append(FieldCondition(key="topics", params=MatchAny(any=topics)))
         if book_title:
-            must_conditions.append(
-                FieldCondition(key="book_title", params=MatchValue(value=book_title))
-            )
+            must_conditions.append(FieldCondition(key="book_title", params=MatchValue(value=book_title)))
 
         return await self.client.search(
             collection_name=collection,

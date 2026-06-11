@@ -19,7 +19,6 @@ DEPLOYMENT ORDER:
 
 from alembic import op
 
-
 revision = "h5_rename_graph_tables"
 down_revision = "h4_6_drop_cancelled_status"
 branch_labels = None

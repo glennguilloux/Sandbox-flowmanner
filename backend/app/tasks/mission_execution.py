@@ -62,9 +62,7 @@ class ExecuteMissionTask(Task):
             # Loop exists — use a separate one for Celery isolation
             new_loop = asyncio.new_event_loop()
             try:
-                return new_loop.run_until_complete(
-                    self._execute_async(mission_id, user_id)
-                )
+                return new_loop.run_until_complete(self._execute_async(mission_id, user_id))
             finally:
                 new_loop.close()
 
@@ -73,25 +71,17 @@ class ExecuteMissionTask(Task):
         async with AsyncSessionLocal() as session:
             try:
                 # Idempotency check: only execute if QUEUED
-                result = await session.execute(
-                    select(Mission).where(Mission.id == mission_id).with_for_update()
-                )
+                result = await session.execute(select(Mission).where(Mission.id == mission_id).with_for_update())
                 mission = result.scalar_one_or_none()
                 if mission is None:
-                    logger.error(
-                        "mission_execute_async_not_found", mission_id=mission_id
-                    )
+                    logger.error("mission_execute_async_not_found", mission_id=mission_id)
                     return
 
                 if mission.status != MissionStatus.QUEUED:
                     logger.info(
                         "mission_execute_async_skipped",
                         mission_id=mission_id,
-                        status=(
-                            mission.status.value
-                            if hasattr(mission.status, "value")
-                            else mission.status
-                        ),
+                        status=(mission.status.value if hasattr(mission.status, "value") else mission.status),
                     )
                     return
 
@@ -121,9 +111,7 @@ class ExecuteMissionTask(Task):
                 # Finalize
                 await session.refresh(mission)
                 tasks = await get_mission_tasks(session, mission_id)
-                completed = sum(
-                    1 for t in tasks if t.status == MissionTaskStatus.COMPLETED
-                )
+                completed = sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED)
                 failed = sum(1 for t in tasks if t.status == MissionTaskStatus.FAILED)
 
                 final_log = MissionLog(
@@ -154,9 +142,7 @@ class ExecuteMissionTask(Task):
                 # Mark as FAILED
                 try:
                     async with AsyncSessionLocal() as fail_session:
-                        fail_result = await fail_session.execute(
-                            select(Mission).where(Mission.id == mission_id)
-                        )
+                        fail_result = await fail_session.execute(select(Mission).where(Mission.id == mission_id))
                         mission = fail_result.scalar_one_or_none()
                         if mission:
                             mission.status = MissionStatus.FAILED
@@ -175,9 +161,7 @@ class ExecuteMissionTask(Task):
                             fail_session.add(fail_log)
                             await fail_session.commit()
                 except Exception as inner:
-                    logger.error(
-                        "mission_execute_async_failure_log_failed", exc_info=True
-                    )
+                    logger.error("mission_execute_async_failure_log_failed", exc_info=True)
 
                 # Retry with backoff
                 countdown = self.default_retry_delay * (2**self.request.retries)

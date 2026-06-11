@@ -17,7 +17,6 @@ Strategy:
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 
 REPO = Path("/opt/flowmanner")
@@ -53,38 +52,38 @@ edits = [
     ),
     # capture_exception()
     (
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n        if sentry_sdk is None:\n            return None\n',
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n        if sentry_sdk is None:\n            return None\n",
     ),
     # capture_message()
     (
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n        if sentry_sdk is None:\n            return None\n',
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n        if sentry_sdk is None:\n            return None\n",
     ),
     # set_user()
     (
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n',
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n",
     ),
     # set_context()
     (
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n',
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n",
     ),
     # add_breadcrumb()
     (
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n',
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n",
     ),
     # start_transaction()
     (
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n        if sentry_sdk is None:\n            return None\n',
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return None\n        if sentry_sdk is None:\n            return None\n",
     ),
     # flush()
     (
-        '        if self._initialized and SENTRY_AVAILABLE:\n            sentry_sdk.flush(timeout=timeout)',
-        '        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n        sentry_sdk.flush(timeout=timeout)',
+        "        if self._initialized and SENTRY_AVAILABLE:\n            sentry_sdk.flush(timeout=timeout)",
+        "        if not self._initialized or not SENTRY_AVAILABLE:\n            return\n        if sentry_sdk is None:\n            return\n        sentry_sdk.flush(timeout=timeout)",
     ),
 ]
 
@@ -100,4 +99,6 @@ for old, new in edits:
 
 TARGET.write_text(stripped)
 print(f"Stripped per-line ignores + applied {applied} explicit None guards")
-print(f"Remaining '# type: ignore[attr-defined]' in file: {stripped.count('# type: ignore[attr-defined]')}")
+print(
+    f"Remaining '# type: ignore[attr-defined]' in file: {stripped.count('# type: ignore[attr-defined]')}"
+)

@@ -26,9 +26,7 @@ class UpdateAgentApiOrchestrationAgentsAgentIdPutData:
         d = dict(src_dict)
         update_agent_api_orchestration_agents_agent_id_put_data = cls()
 
-        update_agent_api_orchestration_agents_agent_id_put_data.additional_properties = (
-            d
-        )
+        update_agent_api_orchestration_agents_agent_id_put_data.additional_properties = d
         return update_agent_api_orchestration_agents_agent_id_put_data
 
     @property

@@ -206,9 +206,7 @@ class PythonSandboxTool(BaseTool):
         try:
             validated = PythonSandboxInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             # Scan for dangerous imports before running

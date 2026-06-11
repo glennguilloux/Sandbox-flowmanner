@@ -151,9 +151,7 @@ class FeedbackReportResponse:
         token_efficiency: dict[str, Any] | None | Unset
         if isinstance(self.token_efficiency, Unset):
             token_efficiency = UNSET
-        elif isinstance(
-            self.token_efficiency, FeedbackReportResponseTokenEfficiencyType0
-        ):
+        elif isinstance(self.token_efficiency, FeedbackReportResponseTokenEfficiencyType0):
             token_efficiency = self.token_efficiency.to_dict()
         else:
             token_efficiency = self.token_efficiency
@@ -279,9 +277,7 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                weaknesses_type_0 = FeedbackReportResponseWeaknessesType0.from_dict(
-                    data
-                )
+                weaknesses_type_0 = FeedbackReportResponseWeaknessesType0.from_dict(data)
 
                 return weaknesses_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -300,9 +296,7 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                suggestions_type_0 = FeedbackReportResponseSuggestionsType0.from_dict(
-                    data
-                )
+                suggestions_type_0 = FeedbackReportResponseSuggestionsType0.from_dict(data)
 
                 return suggestions_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -321,9 +315,7 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                task_analysis_type_0 = (
-                    FeedbackReportResponseTaskAnalysisType0.from_dict(data)
-                )
+                task_analysis_type_0 = FeedbackReportResponseTaskAnalysisType0.from_dict(data)
 
                 return task_analysis_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -342,9 +334,7 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                error_summary_type_0 = (
-                    FeedbackReportResponseErrorSummaryType0.from_dict(data)
-                )
+                error_summary_type_0 = FeedbackReportResponseErrorSummaryType0.from_dict(data)
 
                 return error_summary_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -363,9 +353,7 @@ class FeedbackReportResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                token_efficiency_type_0 = (
-                    FeedbackReportResponseTokenEfficiencyType0.from_dict(data)
-                )
+                token_efficiency_type_0 = FeedbackReportResponseTokenEfficiencyType0.from_dict(data)
 
                 return token_efficiency_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

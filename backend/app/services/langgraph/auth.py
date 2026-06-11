@@ -321,9 +321,7 @@ def extract_user_context_from_request() -> UserContext | None:
         secret_key = os.getenv("JWT_SECRET_KEY", "fallback-secret-key")
         algorithm = os.getenv("JWT_ALGORITHM", "HS256")
 
-        payload = jwt.decode(
-            token, secret_key, algorithms=[algorithm], options={"verify_exp": True}
-        )
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm], options={"verify_exp": True})
 
         return UserContext.from_jwt(payload)
 
@@ -366,14 +364,10 @@ class UserIsolationManager:
             return query.filter(model_class.created_by == user_context.user_id)
 
         # Model doesn't support user isolation
-        self.logger.warning(
-            f"Model {model_class.__name__} doesn't support user isolation"
-        )
+        self.logger.warning(f"Model {model_class.__name__} doesn't support user isolation")
         return query
 
-    def validate_user_access(
-        self, item, user_context: UserContext, field_name: str = "user_id"
-    ) -> bool:
+    def validate_user_access(self, item, user_context: UserContext, field_name: str = "user_id") -> bool:
         """
         Validate that user can access specific item.
 
@@ -398,9 +392,7 @@ class UserIsolationManager:
             return item_user_id == user_context.user_id
 
         # Item doesn't support user isolation
-        self.logger.warning(
-            f"Item of type {type(item).__name__} doesn't support user isolation"
-        )
+        self.logger.warning(f"Item of type {type(item).__name__} doesn't support user isolation")
         return False
 
     def create_user_context_for_tool(self, user_context: UserContext) -> dict[str, Any]:

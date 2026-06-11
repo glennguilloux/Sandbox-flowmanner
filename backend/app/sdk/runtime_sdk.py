@@ -58,9 +58,7 @@ class RuntimeSDK:
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self):
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url, timeout=self.timeout, headers=self._get_headers()
-        )
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, headers=self._get_headers())
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -112,9 +110,7 @@ class RuntimeSDK:
         data = await self._request("GET", "/api/runtime/queue/stats")
         return QueueStats(**data)
 
-    async def get_queue_items(
-        self, status: str | None = None, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_queue_items(self, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         """Get items in the execution queue"""
         params = {"limit": limit}
         if status:
@@ -123,9 +119,7 @@ class RuntimeSDK:
 
     async def cancel_execution(self, execution_id: str) -> bool:
         """Cancel a queued or running execution"""
-        result = await self._request(
-            "POST", f"/api/runtime/queue/{execution_id}/cancel"
-        )
+        result = await self._request("POST", f"/api/runtime/queue/{execution_id}/cancel")
         return result.get("cancelled", False)
 
     async def prioritize_execution(self, execution_id: str, priority: int) -> bool:
@@ -212,15 +206,11 @@ class RuntimeSDK:
 
     async def scale_up(self, count: int = 1) -> dict[str, Any]:
         """Manually scale up workers"""
-        return await self._request(
-            "POST", "/api/runtime/scaling/scale-up", json={"count": count}
-        )
+        return await self._request("POST", "/api/runtime/scaling/scale-up", json={"count": count})
 
     async def scale_down(self, count: int = 1) -> dict[str, Any]:
         """Manually scale down workers"""
-        return await self._request(
-            "POST", "/api/runtime/scaling/scale-down", json={"count": count}
-        )
+        return await self._request("POST", "/api/runtime/scaling/scale-down", json={"count": count})
 
     async def set_scaling_policy(
         self,
@@ -251,9 +241,7 @@ class RuntimeSDK:
 
     async def get_anomalies(self, hours: int = 24) -> list[dict[str, Any]]:
         """Get detected anomalies"""
-        return await self._request(
-            "GET", "/api/runtime/anomalies", params={"hours": hours}
-        )
+        return await self._request("GET", "/api/runtime/anomalies", params={"hours": hours})
 
     async def get_scaling_recommendations(self) -> dict[str, Any]:
         """Get scaling recommendations"""
@@ -269,20 +257,14 @@ class RuntimeSDK:
 
     async def get_recovery_history(self, hours: int = 24) -> list[dict[str, Any]]:
         """Get recovery attempt history"""
-        return await self._request(
-            "GET", "/api/runtime/recovery/history", params={"hours": hours}
-        )
+        return await self._request("GET", "/api/runtime/recovery/history", params={"hours": hours})
 
-    async def trigger_recovery(
-        self, error_id: str, strategy: str | None = None
-    ) -> dict[str, Any]:
+    async def trigger_recovery(self, error_id: str, strategy: str | None = None) -> dict[str, Any]:
         """Manually trigger recovery"""
         payload = {"error_id": error_id}
         if strategy:
             payload["strategy"] = strategy
-        return await self._request(
-            "POST", "/api/runtime/recovery/trigger", json=payload
-        )
+        return await self._request("POST", "/api/runtime/recovery/trigger", json=payload)
 
     # ====================
     # Configuration
@@ -305,9 +287,7 @@ class RuntimeSDK:
 class RuntimeSDKSync:
     """Synchronous wrapper for RuntimeSDK"""
 
-    def __init__(
-        self, base_url: str = "http://localhost:8000", api_key: str | None = None
-    ):
+    def __init__(self, base_url: str = "http://localhost:8000", api_key: str | None = None):
         self._async_sdk = RuntimeSDK(base_url, api_key)
 
     def _run(self, coro):

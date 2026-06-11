@@ -80,8 +80,7 @@ class ExecutionRouter:
                 "username": "flow-service",
                 "is_admin": True,
                 "type": "access",
-                "exp": datetime.datetime.now(datetime.UTC)
-                + datetime.timedelta(days=365),
+                "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365),
             },
             secret,
             algorithm="HS256",
@@ -164,13 +163,9 @@ class ExecutionRouter:
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             if route == "mission":
-                return await self._execute_mission(
-                    client, project, goal, mode, resources
-                )
+                return await self._execute_mission(client, project, goal, mode, resources)
             elif route == "workflow":
-                return await self._execute_workflow(
-                    client, project, goal, mode, resources
-                )
+                return await self._execute_workflow(client, project, goal, mode, resources)
             else:  # ai
                 return await self._execute_ai(client, project, goal, mode, resources)
 
@@ -213,9 +208,7 @@ class ExecutionRouter:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                "Mission route error: %s - %s", e.response.status_code, e.response.text
-            )
+            logger.error("Mission route error: %s - %s", e.response.status_code, e.response.text)
             raise Exception(f"Mission execution failed: {e.response.text}")
         except Exception as e:
             logger.error("Mission route exception: %s", e)
@@ -258,9 +251,7 @@ class ExecutionRouter:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                "Workflow route error: %s - %s", e.response.status_code, e.response.text
-            )
+            logger.error("Workflow route error: %s - %s", e.response.status_code, e.response.text)
             raise Exception(f"Workflow execution failed: {e.response.text}")
         except Exception as e:
             logger.error("Workflow route exception: %s", e)
@@ -310,18 +301,12 @@ class ExecutionRouter:
                     "route": "ai",
                     "model": data.get("model", "unknown"),
                     "tokens_used": data.get("usage", {}).get("total_tokens", 0),
-                    "finish_reason": (
-                        data.get("choices", [{}])[0].get("finish_reason")
-                        if "choices" in data
-                        else None
-                    ),
+                    "finish_reason": (data.get("choices", [{}])[0].get("finish_reason") if "choices" in data else None),
                 },
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                "AI route error: %s - %s", e.response.status_code, e.response.text
-            )
+            logger.error("AI route error: %s - %s", e.response.status_code, e.response.text)
             raise Exception(f"AI execution failed: {e.response.text}")
         except Exception as e:
             logger.error("AI route exception: %s", e)

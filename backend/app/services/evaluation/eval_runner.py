@@ -44,9 +44,7 @@ class EvaluationRunner:
         config_hash = self._compute_config_hash(config)
 
         # Validate dataset exists before creating run
-        ds_result = await self.db.execute(
-            select(GoldenDataset).where(GoldenDataset.id == dataset_id)
-        )
+        ds_result = await self.db.execute(select(GoldenDataset).where(GoldenDataset.id == dataset_id))
         if not ds_result.scalar_one_or_none():
             raise ValueError(f"Dataset {dataset_id} not found")
 
@@ -62,9 +60,7 @@ class EvaluationRunner:
         await self.db.flush()
 
         # Load test cases
-        result = await self.db.execute(
-            select(GoldenTestCase).where(GoldenTestCase.dataset_id == dataset_id)
-        )
+        result = await self.db.execute(select(GoldenTestCase).where(GoldenTestCase.dataset_id == dataset_id))
         test_cases = list(result.scalars().all())
 
         if not test_cases:
@@ -103,12 +99,7 @@ class EvaluationRunner:
         try:
             # Run model against test cases with concurrency limit
             semaphore = asyncio.Semaphore(max_concurrency)
-            tasks = [
-                self._run_single_case(
-                    semaphore, tc, model_name, system_prompt, temperature
-                )
-                for tc in test_cases
-            ]
+            tasks = [self._run_single_case(semaphore, tc, model_name, system_prompt, temperature) for tc in test_cases]
             case_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Score results with LLM judge
@@ -158,15 +149,10 @@ class EvaluationRunner:
                     record_eval_test_case(model_name, tc.task_type, case_score >= 3.0)
 
             # Compute aggregates
-            all_scores = [
-                r["overall_score"] for r in scored_results if "error" not in r
-            ]
+            all_scores = [r["overall_score"] for r in scored_results if "error" not in r]
             aggregate = sum(all_scores) / len(all_scores) if all_scores else 0.0
 
-            avg_by_category = {
-                cat: round(sum(scores) / len(scores), 2)
-                for cat, scores in category_scores.items()
-            }
+            avg_by_category = {cat: round(sum(scores) / len(scores), 2) for cat, scores in category_scores.items()}
 
             eval_run.status = "completed"
             eval_run.aggregate_score = round(aggregate, 2)
@@ -220,12 +206,8 @@ class EvaluationRunner:
         model_b: str,
         system_prompt: str | None = None,
     ) -> dict[str, Any]:
-        run_a = await self.run_evaluation(
-            dataset_id, model_name=model_a, system_prompt=system_prompt
-        )
-        run_b = await self.run_evaluation(
-            dataset_id, model_name=model_b, system_prompt=system_prompt
-        )
+        run_a = await self.run_evaluation(dataset_id, model_name=model_a, system_prompt=system_prompt)
+        run_b = await self.run_evaluation(dataset_id, model_name=model_b, system_prompt=system_prompt)
 
         return {
             "model_a": {
@@ -240,23 +222,15 @@ class EvaluationRunner:
                 "scores_by_category": run_b.scores_by_category,
                 "status": run_b.status,
             },
-            "delta": round(
-                (run_b.aggregate_score or 0) - (run_a.aggregate_score or 0), 2
-            ),
-            "winner": (
-                model_b
-                if (run_b.aggregate_score or 0) > (run_a.aggregate_score or 0)
-                else model_a
-            ),
+            "delta": round((run_b.aggregate_score or 0) - (run_a.aggregate_score or 0), 2),
+            "winner": (model_b if (run_b.aggregate_score or 0) > (run_a.aggregate_score or 0) else model_a),
         }
 
     async def get_run(self, run_id: str) -> EvalRun | None:
         result = await self.db.execute(select(EvalRun).where(EvalRun.id == run_id))
         return result.scalar_one_or_none()
 
-    async def list_runs(
-        self, dataset_id: str | None = None, limit: int = 20
-    ) -> list[EvalRun]:
+    async def list_runs(self, dataset_id: str | None = None, limit: int = 20) -> list[EvalRun]:
         stmt = select(EvalRun).order_by(EvalRun.created_at.desc()).limit(limit)
         if dataset_id:
             stmt = stmt.where(EvalRun.dataset_id == dataset_id)

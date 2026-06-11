@@ -1,6 +1,7 @@
 import os
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
@@ -133,9 +134,7 @@ class TestMissionExecutorErrorPropagation:
 
         executor = MissionExecutor()
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(
-            return_value={"success": False, "error": "No models available"}
-        )
+        mock_router.route_request = AsyncMock(return_value={"success": False, "error": "No models available"})
         executor.model_router = mock_router
 
         mock_task = MagicMock()
@@ -218,21 +217,15 @@ class TestModelRouterUserIdPropagation:
         mock_llm = MagicMock()
         router = _make_router(get_model_return=mock_llm)
 
-        result = router._is_model_available(
-            "ollama-qwen2.5-14b", user_id="user-byok-123", is_admin=False
-        )
+        result = router._is_model_available("ollama-qwen2.5-14b", user_id="user-byok-123", is_admin=False)
 
-        router._test_llm_manager.get_model.assert_called_once_with(
-            "ollama-qwen2.5-14b", user_id="user-byok-123"
-        )
+        router._test_llm_manager.get_model.assert_called_once_with("ollama-qwen2.5-14b", user_id="user-byok-123")
         assert result is True
 
     def test_is_model_available_returns_false_when_get_model_returns_none(self):
         router = _make_router(get_model_return=None)
 
-        result = router._is_model_available(
-            "ollama-qwen2.5-14b", user_id="user-no-key", is_admin=False
-        )
+        result = router._is_model_available("ollama-qwen2.5-14b", user_id="user-no-key", is_admin=False)
 
         assert result is False
 
@@ -258,15 +251,10 @@ class TestModelRouterUserIdPropagation:
             router = ModelRouter()
             router._test_llm_manager = mock_llm_manager
 
-        mock_llm.ainvoke = AsyncMock(
-            return_value=MagicMock(content="Hello", usage_metadata={})
-        )
+        mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="Hello", usage_metadata={}))
 
         await router._select_model(user_id="specific-user-id", is_admin=False)
 
         calls = mock_llm_manager.get_model.call_args_list
-        user_ids_used = [
-            c.kwargs.get("user_id") or (c.args[1] if len(c.args) > 1 else None)
-            for c in calls
-        ]
+        user_ids_used = [c.kwargs.get("user_id") or (c.args[1] if len(c.args) > 1 else None) for c in calls]
         assert any(uid == "specific-user-id" for uid in user_ids_used)

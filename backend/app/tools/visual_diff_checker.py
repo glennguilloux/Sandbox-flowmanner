@@ -100,9 +100,7 @@ class VisualDiffCheckerTool(BaseTool):
         try:
             validated = VisualDiffCheckerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.image1_data and not validated.image1_url:
             return ToolResult.error_result(
@@ -188,9 +186,7 @@ class VisualDiffCheckerTool(BaseTool):
             diff_image = self._generate_diff_overlay(img1, changed_mask)
             buf = io.BytesIO()
             diff_image.save(buf, format="PNG")
-            result_data["diff_image_base64"] = base64.b64encode(buf.getvalue()).decode(
-                "ascii"
-            )
+            result_data["diff_image_base64"] = base64.b64encode(buf.getvalue()).decode("ascii")
             diff_image.close()
 
         img1.close()
@@ -200,9 +196,7 @@ class VisualDiffCheckerTool(BaseTool):
 
     # ── _generate_diff_overlay ───────────────────────────────────
 
-    def _generate_diff_overlay(
-        self, base_image: Image.Image, changed_mask: np.ndarray
-    ) -> Image.Image:
+    def _generate_diff_overlay(self, base_image: Image.Image, changed_mask: np.ndarray) -> Image.Image:
         """Overlay a semi-transparent red highlight on changed regions."""
         result = base_image.copy().convert("RGBA")
 

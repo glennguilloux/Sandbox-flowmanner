@@ -19,7 +19,6 @@ pytestmark = pytest.mark.integration
 
 
 class TestOrchestratorModuleImport:
-
     def test_module_imports_cleanly(self):
         """The orchestrator module imports without NameError."""
         # This import was previously broken due to _nexus_orchestrator
@@ -33,13 +32,12 @@ class TestOrchestratorModuleImport:
 
     def test_get_nexus_orchestrator_returns_singleton(self):
         """get_nexus_orchestrator() returns the same instance."""
-        from app.services.nexus.orchestrator import (
-            get_nexus_orchestrator,
-            NexusOrchestrator,
-        )
-
         # Reset any cached instance for clean test
         import app.services.nexus.orchestrator as orch_module
+        from app.services.nexus.orchestrator import (
+            NexusOrchestrator,
+            get_nexus_orchestrator,
+        )
 
         orch_module._nexus_orchestrator = None
 
@@ -54,9 +52,8 @@ class TestOrchestratorModuleImport:
 
     def test_distributed_mode_caches_singleton(self):
         """get_nexus_orchestrator(distributed_mode=True) returns a singleton."""
-        from app.services.nexus.orchestrator import get_nexus_orchestrator
-
         import app.services.nexus.orchestrator as orch_module
+        from app.services.nexus.orchestrator import get_nexus_orchestrator
 
         orch_module._nexus_orchestrator = None
 
@@ -71,9 +68,8 @@ class TestOrchestratorModuleImport:
 
     def test_singleton_recreation_after_none(self):
         """After resetting to None, next call creates a new singleton."""
-        from app.services.nexus.orchestrator import get_nexus_orchestrator
-
         import app.services.nexus.orchestrator as orch_module
+        from app.services.nexus.orchestrator import get_nexus_orchestrator
 
         orch_module._nexus_orchestrator = None
 

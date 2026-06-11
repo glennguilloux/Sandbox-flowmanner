@@ -35,9 +35,7 @@ class N8nToolHandler(BaseToolHandler):
             self.session = aiohttp.ClientSession(timeout=timeout)
         return self.session
 
-    async def validate_parameters(
-        self, parameters: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    async def validate_parameters(self, parameters: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate n8n workflow parameters"""
         required_fields = ["workflow_id"]
 
@@ -50,9 +48,7 @@ class N8nToolHandler(BaseToolHandler):
 
         return True, None
 
-    async def execute(
-        self, parameters: dict[str, Any], context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def execute(self, parameters: dict[str, Any], context: dict[str, Any] = None) -> dict[str, Any]:
         """Execute n8n workflow with user isolation"""
         workflow_id = parameters["workflow_id"]
 
@@ -89,9 +85,7 @@ class N8nToolHandler(BaseToolHandler):
             payload["user_workflow_id"] = user_workflow_id
 
             # Add user-specific configuration path
-            payload["user_config_path"] = (
-                f"/n8n/users/{user_id}/workflows/{workflow_id}"
-            )
+            payload["user_config_path"] = f"/n8n/users/{user_id}/workflows/{workflow_id}"
 
         # Execute workflow
         session = await self._get_session()

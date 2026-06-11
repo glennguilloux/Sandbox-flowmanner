@@ -17,9 +17,7 @@ from app.models import Base, TimestampMixin
 class MissionSandbox(Base, TimestampMixin):
     __tablename__ = "mission_sandboxes"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
     mission_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("missions.id", ondelete="CASCADE"),
@@ -46,12 +44,8 @@ class MissionSandbox(Base, TimestampMixin):
         server_default="creating",
         index=True,
     )
-    stopped_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    purged_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_: Mapped[dict | None] = mapped_column(
         "metadata", JSONB, nullable=True, comment="arbitrary sandbox config/env"
     )

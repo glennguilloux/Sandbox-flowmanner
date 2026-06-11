@@ -43,11 +43,7 @@ def _media_type_for(header_bytes: bytes) -> str:
         return "image/jpeg"
     if header_bytes[:3] == b"GIF":
         return "image/gif"
-    if (
-        len(header_bytes) >= 12
-        and header_bytes[:4] == b"RIFF"
-        and header_bytes[8:12] == b"WEBP"
-    ):
+    if len(header_bytes) >= 12 and header_bytes[:4] == b"RIFF" and header_bytes[8:12] == b"WEBP":
         return "image/webp"
     return "image/jpeg"  # default
 
@@ -141,15 +137,9 @@ class ExpenseReceiptParserTool(BaseTool):
         try:
             validated = ExpenseReceiptParserInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        if (
-            not validated.image_data
-            and not validated.image_url
-            and not validated.pdf_data
-        ):
+        if not validated.image_data and not validated.image_url and not validated.pdf_data:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="At least one of 'image_data' (base64 image), 'image_url' (image URL), or 'pdf_data' (base64 PDF) must be provided.",
@@ -196,9 +186,7 @@ class ExpenseReceiptParserTool(BaseTool):
 
     # ── _parse_receipt ───────────────────────────────────────────
 
-    async def _parse_receipt(
-        self, validated: ExpenseReceiptParserInput
-    ) -> dict[str, Any]:
+    async def _parse_receipt(self, validated: ExpenseReceiptParserInput) -> dict[str, Any]:
         """Build the vision API payload and call it."""
         # Resolve image to a data URI
         data_uri = await self._resolve_data_uri(validated)

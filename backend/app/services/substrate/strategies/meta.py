@@ -106,9 +106,7 @@ class MetaStrategy(ExecutionStrategy):
                 total_cost += result.get("cost", 0.0)
             else:
                 error = result.get("error", "Unknown")
-                logger.warning(
-                    "Meta node %s failed at depth %d: %s", node.id, current_depth, error
-                )
+                logger.warning("Meta node %s failed at depth %d: %s", node.id, current_depth, error)
 
                 if current_depth + 1 < max_depth:
                     return await self._run_cycle(

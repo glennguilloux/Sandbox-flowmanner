@@ -103,9 +103,7 @@ class ImageDescriberTool(BaseTool):
         try:
             validated = ImageDescriberInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.data and not validated.url:
             return ToolResult.error_result(
@@ -136,9 +134,7 @@ class ImageDescriberTool(BaseTool):
 
     async def _describe_image(self, validated: ImageDescriberInput) -> dict[str, Any]:
         """Fetch image bytes and send to the Vision API."""
-        image_bytes = await resolve_input(
-            validated.data, validated.url, label="image", fetch_timeout=30
-        )
+        image_bytes = await resolve_input(validated.data, validated.url, label="image", fetch_timeout=30)
 
         # Encode as base64 data URI
         media_type = self._detect_media_type(image_bytes)

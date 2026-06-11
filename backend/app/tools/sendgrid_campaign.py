@@ -147,9 +147,7 @@ class SendgridCampaignTool(BaseTool):
         try:
             validated = SendgridCampaignInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in SENDGRID_ACTIONS:
             return ToolResult.error_result(
@@ -207,9 +205,7 @@ class SendgridCampaignTool(BaseTool):
         """Convert list of emails into SendGrid personalization format."""
         return [{"email": addr.strip()} for addr in to_addrs if addr.strip()]
 
-    def _build_personalizations(
-        self, validated: SendgridCampaignInput
-    ) -> list[dict[str, Any]]:
+    def _build_personalizations(self, validated: SendgridCampaignInput) -> list[dict[str, Any]]:
         """Build the personalizations array for SendGrid v3."""
         p: dict[str, Any] = {
             "to": self._parse_recipients(validated.to),

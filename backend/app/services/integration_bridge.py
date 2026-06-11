@@ -456,9 +456,7 @@ class IntegrationBridge:
                     async def make_handler(uid=user_id, s=slug, action=cap_def["id"]):
                         async def handler(params: dict[str, Any]) -> dict[str, Any]:
                             bridge = get_integration_bridge()
-                            result = await bridge.execute_integration_action(
-                                uid, s, action, params
-                            )
+                            result = await bridge.execute_integration_action(uid, s, action, params)
                             if result.success:
                                 return {"success": True, "data": result.data}
                             return {"success": False, "error": result.error}
@@ -616,9 +614,7 @@ class IntegrationBridge:
         connector = cls(config)
         connected = await connector.connect()
         if not connected:
-            logger.warning(
-                "Failed to connect %s connector (check %s)", slug, cfg["label"]
-            )
+            logger.warning("Failed to connect %s connector (check %s)", slug, cfg["label"])
             return None
 
         return connector
@@ -673,32 +669,24 @@ class IntegrationBridge:
         try:
             access_token = decrypt_token(conn.encrypted_access_token)
         except Exception as e:
-            logger.error(
-                "Failed to decrypt token for user %s, %s: %s", user_id, slug, e
-            )
+            logger.error("Failed to decrypt token for user %s, %s: %s", user_id, slug, e)
             return None
 
         # ── Auto-refresh expired Google OAuth tokens ─────────────
         if slug == "google" and conn.encrypted_refresh_token:
             try:
-                new_token = await self._refresh_google_token(
-                    decrypt_token(conn.encrypted_refresh_token)
-                )
+                new_token = await self._refresh_google_token(decrypt_token(conn.encrypted_refresh_token))
                 if new_token:
                     # Encrypt and store the fresh token
-                    conn.encrypted_access_token = encrypt_token(
-                        new_token["access_token"]
-                    )
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
                     if new_token.get("refresh_token"):
-                        conn.encrypted_refresh_token = encrypt_token(
-                            new_token["refresh_token"]
-                        )
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
                     if new_token.get("expires_in"):
                         from datetime import timedelta
 
-                        conn.expires_at = datetime.now(UTC).replace(
-                            tzinfo=None
-                        ) + timedelta(seconds=int(new_token["expires_in"]))
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
                     await db.commit()
                     access_token = new_token["access_token"]
                     logger.info(
@@ -707,9 +695,7 @@ class IntegrationBridge:
                         new_token.get("expires_in", "?"),
                     )
             except Exception as e:
-                logger.warning(
-                    "Failed to refresh Google token for user %s: %s", user_id, e
-                )
+                logger.warning("Failed to refresh Google token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
 
         # Create connector config with the (possibly refreshed) decrypted token
@@ -776,9 +762,7 @@ class IntegrationBridge:
         """
         provider = OAUTH_PROVIDERS.get("google")
         if not provider or not provider.is_configured:
-            logger.warning(
-                "Google OAuth provider not configured — cannot refresh token"
-            )
+            logger.warning("Google OAuth provider not configured — cannot refresh token")
             return None
 
         data = {

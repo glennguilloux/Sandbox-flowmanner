@@ -19,9 +19,7 @@ PATTERNS: dict[str, re.Pattern] = {
     "phone": re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
     "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "credit_card": re.compile(r"\b(?:\d[ \-]*?){13,19}\b"),
-    "api_key": re.compile(
-        r"\b(?:sk-|pk-|ak-|AKIA|ghp_|gho_|glpat-|xoxb-|xoxp-)[A-Za-z0-9]{16,}\b"
-    ),
+    "api_key": re.compile(r"\b(?:sk-|pk-|ak-|AKIA|ghp_|gho_|glpat-|xoxb-|xoxp-)[A-Za-z0-9]{16,}\b"),
 }
 
 _MASK_LABELS: dict[str, str] = {
@@ -130,9 +128,7 @@ def redact_pii(
     hits.sort(key=lambda h: h.start, reverse=True)
     result_text = text
     for hit in hits:
-        result_text = (
-            result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
-        )
+        result_text = result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
 
     standard_count = len(hits)
 
@@ -155,9 +151,7 @@ def redact_pii(
             )
         strict_hits.sort(key=lambda h: h.start, reverse=True)
         for hit in strict_hits:
-            result_text = (
-                result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
-            )
+            result_text = result_text[: hit.start] + hit.masked_value + result_text[hit.end :]
 
     all_hits = sorted(hits + strict_hits, key=lambda h: h.start)
     return RedactionResult(

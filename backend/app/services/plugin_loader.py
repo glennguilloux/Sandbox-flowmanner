@@ -41,8 +41,7 @@ def load_manifest_from_fmp(fmp_path: Path) -> PluginManifest:
         manifest_names = [
             n
             for n in zf.namelist()
-            if n.endswith("flowmanner-plugin.yaml")
-            and "/" not in n.replace("\\", "/").lstrip("/")
+            if n.endswith("flowmanner-plugin.yaml") and "/" not in n.replace("\\", "/").lstrip("/")
         ]
         if not manifest_names:
             raise ManifestError("No flowmanner-plugin.yaml found in .fmp package")
@@ -147,11 +146,7 @@ def import_plugin_entry(
     plugin_instance = None
     for attr_name in dir(module):
         attr = getattr(module, attr_name)
-        if (
-            isinstance(attr, type)
-            and issubclass(attr, BasePlugin)
-            and attr is not BasePlugin
-        ):
+        if isinstance(attr, type) and issubclass(attr, BasePlugin) and attr is not BasePlugin:
             plugin_instance = attr()
             break
 

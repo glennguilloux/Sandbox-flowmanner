@@ -52,32 +52,22 @@ def upgrade():
         sa.Column("validity_decay_factor", sa.Float(), default=0.1),
         sa.Column("validity_last_refreshed", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_valid", sa.Boolean(), default=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.ForeignKeyConstraint(
-            ["message_id"], ["chat_messages.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["message_id"], ["chat_messages.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Create indexes for rag_chat_contexts
-    op.create_index(
-        "idx_rag_contexts_message", "rag_chat_contexts", ["message_id"], unique=False
-    )
-    op.create_index(
-        "idx_rag_contexts_thread", "rag_chat_contexts", ["thread_id"], unique=False
-    )
-    op.create_index(
-        "idx_rag_contexts_user", "rag_chat_contexts", ["user_id"], unique=False
-    )
+    op.create_index("idx_rag_contexts_message", "rag_chat_contexts", ["message_id"], unique=False)
+    op.create_index("idx_rag_contexts_thread", "rag_chat_contexts", ["thread_id"], unique=False)
+    op.create_index("idx_rag_contexts_user", "rag_chat_contexts", ["user_id"], unique=False)
     op.create_index(
         "idx_rag_contexts_validity",
         "rag_chat_contexts",
@@ -100,24 +90,18 @@ def upgrade():
         sa.Column("chunk_content", sa.Text(), nullable=False),
         sa.Column("similarity_score", sa.Float(), default=0.0),
         sa.Column("segment_position", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Create indexes for rag_context_sources
-    op.create_index(
-        "idx_rag_sources_context", "rag_context_sources", ["context_id"], unique=False
-    )
+    op.create_index("idx_rag_sources_context", "rag_context_sources", ["context_id"], unique=False)
     op.create_index(
         "idx_rag_sources_collection",
         "rag_context_sources",
         ["collection_id"],
         unique=False,
     )
-    op.create_index(
-        "idx_rag_sources_chunk", "rag_context_sources", ["chunk_id"], unique=False
-    )
+    op.create_index("idx_rag_sources_chunk", "rag_context_sources", ["chunk_id"], unique=False)
     op.create_index(
         "idx_rag_sources_similarity",
         "rag_context_sources",
@@ -133,27 +117,19 @@ def upgrade():
         sa.Column("version_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("context_id", sa.String(64), nullable=False, index=True),
         sa.Column("source_chunks", sa.JSON(), nullable=True),  # Array of chunk IDs
-        sa.Column(
-            "collection_ids", sa.JSON(), nullable=True
-        ),  # Array of collection IDs
+        sa.Column("collection_ids", sa.JSON(), nullable=True),  # Array of collection IDs
         sa.Column("content_hash", sa.String(64), nullable=True),
         sa.Column(
             "version_timestamp",
             sa.DateTime(timezone=True),
             server_default=sa.func.now(),
         ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["context_id"], ["rag_chat_contexts.context_id"], ondelete="CASCADE"
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["context_id"], ["rag_chat_contexts.context_id"], ondelete="CASCADE"),
     )
 
     # Create indexes for rag_context_versions
-    op.create_index(
-        "idx_rag_versions_context", "rag_context_versions", ["context_id"], unique=False
-    )
+    op.create_index("idx_rag_versions_context", "rag_context_versions", ["context_id"], unique=False)
     op.create_index(
         "idx_rag_versions_timestamp",
         "rag_context_versions",
@@ -170,45 +146,29 @@ def upgrade():
         sa.Column("user_id", sa.Integer(), nullable=True, index=True),
         sa.Column("thread_id", sa.Integer(), nullable=True, index=True),
         sa.Column("query_text", sa.Text(), nullable=False),
-        sa.Column(
-            "retrieved_collections", sa.JSON(), nullable=True
-        ),  # Array of collection IDs
-        sa.Column(
-            "retrieved_documents", sa.JSON(), nullable=True
-        ),  # Array of document IDs
+        sa.Column("retrieved_collections", sa.JSON(), nullable=True),  # Array of collection IDs
+        sa.Column("retrieved_documents", sa.JSON(), nullable=True),  # Array of document IDs
         sa.Column("total_sources_found", sa.Integer(), default=0),
         sa.Column("avg_similarity_score", sa.Float(), default=0.0),
-        sa.Column(
-            "retrieval_strategy", sa.String(100), nullable=True
-        ),  # hierarchical, expansion, etc.
+        sa.Column("retrieval_strategy", sa.String(100), nullable=True),  # hierarchical, expansion, etc.
         sa.Column("response_time_ms", sa.Integer(), nullable=True),
         sa.Column("success", sa.Boolean(), default=True),
         sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(
-            ["thread_id"], ["chat_threads.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="SET NULL"),
     )
 
     # Create indexes for rag_retrieval_sessions
-    op.create_index(
-        "idx_rag_sessions_user", "rag_retrieval_sessions", ["user_id"], unique=False
-    )
-    op.create_index(
-        "idx_rag_sessions_thread", "rag_retrieval_sessions", ["thread_id"], unique=False
-    )
+    op.create_index("idx_rag_sessions_user", "rag_retrieval_sessions", ["user_id"], unique=False)
+    op.create_index("idx_rag_sessions_thread", "rag_retrieval_sessions", ["thread_id"], unique=False)
     op.create_index(
         "idx_rag_sessions_created",
         "rag_retrieval_sessions",
         ["created_at"],
         unique=False,
     )
-    op.create_index(
-        "idx_rag_sessions_success", "rag_retrieval_sessions", ["success"], unique=False
-    )
+    op.create_index("idx_rag_sessions_success", "rag_retrieval_sessions", ["success"], unique=False)
 
     # Create rag_collection_topics table
     # Maps collections to topics for smart collection assignment
@@ -218,12 +178,8 @@ def upgrade():
         sa.Column("collection_id", sa.String(64), nullable=False, index=True),
         sa.Column("topic", sa.String(100), nullable=False),
         sa.Column("confidence", sa.Float(), default=1.0),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["collection_id"], ["rag_collections.collection_id"], ondelete="CASCADE"
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["collection_id"], ["rag_collections.collection_id"], ondelete="CASCADE"),
         sa.UniqueConstraint("collection_id", "topic", name="uq_rag_collection_topic"),
     )
 
@@ -252,9 +208,7 @@ def downgrade():
 
     # Drop rag_collection_topics
     op.drop_index("idx_rag_collection_topics_topic", table_name="rag_collection_topics")
-    op.drop_index(
-        "idx_rag_collection_topics_collection", table_name="rag_collection_topics"
-    )
+    op.drop_index("idx_rag_collection_topics_collection", table_name="rag_collection_topics")
     op.drop_table("rag_collection_topics")
 
     # Drop rag_retrieval_sessions

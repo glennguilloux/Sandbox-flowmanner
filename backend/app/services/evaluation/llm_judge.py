@@ -59,9 +59,7 @@ class LLMJudge:
         if rubric is None:
             rubric = self._default_rubric()
 
-        user_content = self._build_user_message(
-            input_prompt, expected_behavior, actual_output, rubric
-        )
+        user_content = self._build_user_message(input_prompt, expected_behavior, actual_output, rubric)
 
         try:
             raw = await self._call_llm(user_content)

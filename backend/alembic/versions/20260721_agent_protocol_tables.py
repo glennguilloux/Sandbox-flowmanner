@@ -3,9 +3,10 @@
 Phase 26 Week 3: Agent Protocol - inter-agent communication infrastructure.
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers
 revision = "20260721_agent_protocol"
@@ -31,9 +32,7 @@ def upgrade() -> None:
         sa.Column("correlation_id", sa.String(36), nullable=True, index=True),
         sa.Column("parent_message_id", sa.String(36), nullable=True),
         sa.Column("execution_id", sa.String(36), nullable=True, index=True),
-        sa.Column(
-            "status", sa.String(20), default="delivered", nullable=False, index=True
-        ),
+        sa.Column("status", sa.String(20), default="delivered", nullable=False, index=True),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
         sa.Column("tags", postgresql.JSONB, nullable=True),
         sa.Column(
@@ -81,9 +80,7 @@ def upgrade() -> None:
         sa.Column("consensus_synthesis", sa.Text, nullable=True),
         sa.Column("consensus_score", sa.Float, nullable=True),
         sa.Column("tokens_used", sa.Integer, default=0, nullable=False),
-        sa.Column(
-            "status", sa.String(20), default="pending", nullable=False, index=True
-        ),
+        sa.Column("status", sa.String(20), default="pending", nullable=False, index=True),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
         sa.Column(
             "created_at",
@@ -116,9 +113,7 @@ def upgrade() -> None:
         sa.Column("result_metadata", postgresql.JSONB, nullable=True),
         sa.Column("parent_handoff_id", sa.String(36), nullable=True),
         sa.Column("execution_id", sa.String(36), nullable=True, index=True),
-        sa.Column(
-            "status", sa.String(20), default="pending", nullable=False, index=True
-        ),
+        sa.Column("status", sa.String(20), default="pending", nullable=False, index=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
@@ -161,12 +156,8 @@ def upgrade() -> None:
         sa.Column("resolution_agent_id", sa.String(255), nullable=True),
         sa.Column("max_retries_per_level", sa.Integer, default=2, nullable=False),
         sa.Column("retries_at_level", sa.Integer, default=0, nullable=False),
-        sa.Column(
-            "escalation_policy", sa.String(50), default="default", nullable=False
-        ),
-        sa.Column(
-            "status", sa.String(20), default="active", nullable=False, index=True
-        ),
+        sa.Column("escalation_policy", sa.String(50), default="default", nullable=False),
+        sa.Column("status", sa.String(20), default="active", nullable=False, index=True),
         sa.Column("metadata", postgresql.JSONB, nullable=True),
         sa.Column(
             "created_at",

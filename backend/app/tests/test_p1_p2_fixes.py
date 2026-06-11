@@ -52,9 +52,7 @@ class TestAuditRequestId:
         s = MagicMock()
         s.add = MagicMock()
         audit = AuditService(s)
-        audit.record(
-            action="mission.create", actor_id=1, mission_id="x", request_id="req-42"
-        )
+        audit.record(action="mission.create", actor_id=1, mission_id="x", request_id="req-42")
         log = s.add.call_args[0][0]
         assert log.data["request_id"] == "req-42"
 
@@ -89,9 +87,7 @@ class TestSoftDeleteActiveQueries:
 
         handlers = MissionQueryHandlers(s)
         try:
-            result = await handlers.active_missions(
-                user_id=1, user_role="pro", is_pro=True
-            )
+            result = await handlers.active_missions(user_id=1, user_role="pro", is_pro=True)
             assert result.total == 0
         except MissionForbiddenError:
             pass  # pro check may fail in mock context, which is fine
@@ -245,9 +241,7 @@ class TestCommandHandlerRequestId:
         return MagicMock()
 
     @pytest.mark.asyncio
-    async def test_create_mission_passes_request_id_to_audit(
-        self, session, user, mocker
-    ):
+    async def test_create_mission_passes_request_id_to_audit(self, session, user, mocker):
         from app.services.subscription_service import LimitCheckResult
 
         audit_mock = MagicMock()
@@ -256,9 +250,7 @@ class TestCommandHandlerRequestId:
             "app.api._mission_cqrs.commands.create_mission",
             new=AsyncMock(return_value=_mission()),
         )
-        mocker.patch(
-            "app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock()
-        )
+        mocker.patch("app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock())
         mocker.patch(
             "app.services.subscription_service.check_mission_create_allowed",
             new=AsyncMock(return_value=LimitCheckResult(allowed=True)),
@@ -282,9 +274,7 @@ class TestCommandHandlerRequestId:
             "app.api._mission_cqrs.commands.create_mission",
             new=AsyncMock(return_value=_mission()),
         )
-        mocker.patch(
-            "app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock()
-        )
+        mocker.patch("app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock())
         mocker.patch(
             "app.services.subscription_service.check_mission_create_allowed",
             new=AsyncMock(return_value=LimitCheckResult(allowed=True)),

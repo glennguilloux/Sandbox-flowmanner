@@ -6,17 +6,19 @@ Create Date: 2026-05-21 07:51:10.489496
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "2c8ebb094375"
-down_revision: Union[str, Sequence[str], None] = "20260521_orchestration"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "20260521_orchestration"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -31,12 +33,8 @@ def upgrade() -> None:
         sa.Column("is_processing", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("is_completed", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("response_status", sa.Integer(), nullable=True),
-        sa.Column(
-            "response_headers", postgresql.JSON(astext_type=sa.Text()), nullable=True
-        ),
-        sa.Column(
-            "response_body", postgresql.JSON(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("response_headers", postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column("response_body", postgresql.JSON(astext_type=sa.Text()), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("cache_hits", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("last_accessed_at", sa.DateTime(timezone=True), nullable=True),
@@ -51,9 +49,7 @@ def upgrade() -> None:
         ["idempotency_key"],
         unique=True,
     )
-    op.create_index(
-        "ix_idempotency_keys_user_id", "idempotency_keys", ["user_id"], unique=False
-    )
+    op.create_index("ix_idempotency_keys_user_id", "idempotency_keys", ["user_id"], unique=False)
     op.create_index(
         "ix_idempotency_keys_expires_at",
         "idempotency_keys",

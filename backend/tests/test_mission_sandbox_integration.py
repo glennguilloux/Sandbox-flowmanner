@@ -46,9 +46,7 @@ class TestMissionSandboxWiring:
         existing_row.sandbox_id = "sb-abc"
         mock_db.execute = AsyncMock(
             return_value=MagicMock(
-                scalars=MagicMock(
-                    return_value=MagicMock(first=MagicMock(return_value=existing_row))
-                )
+                scalars=MagicMock(return_value=MagicMock(first=MagicMock(return_value=existing_row)))
             )
         )
 
@@ -133,8 +131,8 @@ class TestSandboxdConfigSettings:
 
         # SANDBOXD_API_URL may be overridden by .env (e.g. host.docker.internal)
         # so just verify it's a valid URL with a scheme
-        assert settings.SANDBOXD_API_URL.startswith(
-            "http"
-        ), f"SANDBOXD_API_URL should be an HTTP URL, got: {settings.SANDBOXD_API_URL}"
+        assert settings.SANDBOXD_API_URL.startswith("http"), (
+            f"SANDBOXD_API_URL should be an HTTP URL, got: {settings.SANDBOXD_API_URL}"
+        )
         assert settings.SANDBOXD_ENABLED is True
         assert settings.SANDBOXD_DEFAULT_TEMPLATE == "react-standard"

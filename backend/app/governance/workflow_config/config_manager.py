@@ -28,9 +28,7 @@ class WorkflowConfigManager:
     - Configuration validation
     """
 
-    def __init__(
-        self, redis_client=None, cache_ttl: int = 3600, session_ttl: int = 86400
-    ):
+    def __init__(self, redis_client=None, cache_ttl: int = 3600, session_ttl: int = 86400):
         """
         Initialize config manager.
 
@@ -168,9 +166,7 @@ class WorkflowConfigManager:
                         "description": config.description,
                         "workflow_id": config.workflow_id,
                         "user_id": config.user_id,
-                        "created_at": (
-                            config.created_at.isoformat() if config.created_at else None
-                        ),
+                        "created_at": (config.created_at.isoformat() if config.created_at else None),
                     },
                 }
 
@@ -221,9 +217,7 @@ class WorkflowConfigManager:
                         "name": config.name,
                         "description": config.description,
                         "user_id": config.user_id,
-                        "updated_at": (
-                            config.updated_at.isoformat() if config.updated_at else None
-                        ),
+                        "updated_at": (config.updated_at.isoformat() if config.updated_at else None),
                     },
                 }
 
@@ -256,9 +250,7 @@ class WorkflowConfigManager:
 
             db = SessionLocal()
             try:
-                query = db.query(WorkflowConfig).filter(
-                    WorkflowConfig.is_active == "true"
-                )
+                query = db.query(WorkflowConfig).filter(WorkflowConfig.is_active == "true")
 
                 if workflow_id:
                     query = query.filter(WorkflowConfig.workflow_id == workflow_id)
@@ -266,9 +258,7 @@ class WorkflowConfigManager:
                 if user_id:
                     query = query.filter(WorkflowConfig.user_id == user_id)
 
-                configs = (
-                    query.order_by(WorkflowConfig.updated_at.desc()).limit(limit).all()
-                )
+                configs = query.order_by(WorkflowConfig.updated_at.desc()).limit(limit).all()
 
                 return {
                     "success": True,
@@ -364,11 +354,7 @@ class WorkflowConfigManager:
 
             db = SessionLocal()
             try:
-                config = (
-                    db.query(WorkflowConfig)
-                    .filter(WorkflowConfig.config_id == config_id)
-                    .first()
-                )
+                config = db.query(WorkflowConfig).filter(WorkflowConfig.config_id == config_id).first()
 
                 if not config:
                     return {"success": False, "error": "Configuration not found"}
@@ -422,11 +408,7 @@ class WorkflowConfigManager:
             db = SessionLocal()
             try:
                 # Check if exists
-                session = (
-                    db.query(SessionState)
-                    .filter(SessionState.session_id == session_id)
-                    .first()
-                )
+                session = db.query(SessionState).filter(SessionState.session_id == session_id).first()
 
                 if session:
                     # Update
@@ -509,11 +491,7 @@ class WorkflowConfigManager:
 
             db = SessionLocal()
             try:
-                deleted = (
-                    db.query(SessionState)
-                    .filter(SessionState.session_id == session_id)
-                    .delete()
-                )
+                deleted = db.query(SessionState).filter(SessionState.session_id == session_id).delete()
                 db.commit()
 
                 self.logger.debug(f"Deleted session state {session_id}")

@@ -114,24 +114,14 @@ class TableToCsvExtractorTool(BaseTool):
         try:
             validated = TableToCsvExtractorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
-            soup = BeautifulSoup(
-                validated.html, "lxml", from_encoding=validated.encoding
-            )
-            tables = (
-                soup.find_all("table")
-                if not validated.selector
-                else soup.select(validated.selector)
-            )
+            soup = BeautifulSoup(validated.html, "lxml", from_encoding=validated.encoding)
+            tables = soup.find_all("table") if not validated.selector else soup.select(validated.selector)
 
             if not tables:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id, error="No tables found in HTML"
-                )
+                return ToolResult.error_result(tool_id=self.tool_id, error="No tables found in HTML")
 
             # Extract requested table(s)
             selected_index = validated.table_index
@@ -152,18 +142,12 @@ class TableToCsvExtractorTool(BaseTool):
                     "table_index": actual_idx,
                     "data": formatted,
                     "row_count": len(rows),
-                    "column_count": (
-                        len(headers) if headers else (len(rows[0]) if rows else 0)
-                    ),
+                    "column_count": (len(headers) if headers else (len(rows[0]) if rows else 0)),
                     "headers": headers,
                 }
                 if validated.include_table_metadata:
                     entry["metadata"] = {
-                        "caption": (
-                            table.find("caption").get_text(strip=True)
-                            if table.find("caption")
-                            else None
-                        ),
+                        "caption": (table.find("caption").get_text(strip=True) if table.find("caption") else None),
                         "summary": table.get("summary", ""),
                         "id": table.get("id", ""),
                         "class": table.get("class", []),
@@ -184,9 +168,7 @@ class TableToCsvExtractorTool(BaseTool):
             logger.exception("table_to_csv_extractor failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    def _extract_table(
-        self, table, validated: TableToCsvExtractorInput
-    ) -> tuple[list[str], list[list[str]]]:
+    def _extract_table(self, table, validated: TableToCsvExtractorInput) -> tuple[list[str], list[list[str]]]:
         headers: list[str] = []
         data_rows: list[list[str]] = []
 
@@ -212,9 +194,7 @@ class TableToCsvExtractorTool(BaseTool):
                 break
             cells = row.find_all(["td", "th"])
             if cells:
-                cell_values = [
-                    self._clean_cell(cell.get_text(), validated) for cell in cells
-                ]
+                cell_values = [self._clean_cell(cell.get_text(), validated) for cell in cells]
                 if validated.skip_empty_rows and not any(v for v in cell_values):
                     continue
                 data_rows.append(cell_values)
@@ -255,9 +235,7 @@ class TableToCsvExtractorTool(BaseTool):
     ) -> str | list[dict] | list[list]:
         """Format extracted table data in the requested output format."""
         if validated.output_format == "csv":
-            return self._to_csv(
-                headers, rows, validated.include_headers, validated.delimiter
-            )
+            return self._to_csv(headers, rows, validated.include_headers, validated.delimiter)
         elif validated.output_format == "json":
             if validated.include_headers and headers:
                 return [dict(zip(headers, row, strict=False)) for row in rows]

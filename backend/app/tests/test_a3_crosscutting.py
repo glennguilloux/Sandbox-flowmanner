@@ -34,9 +34,7 @@ def _make_user(id: int = 1) -> SimpleNamespace:
     )
 
 
-def _make_mission(
-    user_id: int = 1, status: MissionStatus = MissionStatus.PENDING
-) -> MagicMock:
+def _make_mission(user_id: int = 1, status: MissionStatus = MissionStatus.PENDING) -> MagicMock:
     m = MagicMock()
     m.user_id = user_id
     m.id = "550e8400-e29b-41d4-a716-446655440000"
@@ -219,9 +217,7 @@ class TestIdempotency:
 
         h = _hash_request("POST", "/api/v2/missions", '{"title":"Test"}')
         assert len(h) == 64  # SHA-256 hex
-        assert (
-            h == hashlib.sha256(b'POST:/api/v2/missions:{"title":"Test"}').hexdigest()
-        )
+        assert h == hashlib.sha256(b'POST:/api/v2/missions:{"title":"Test"}').hexdigest()
 
     @pytest.mark.asyncio
     async def test_existing_key_with_matching_hash_returns_cached(self, session, user):

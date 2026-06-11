@@ -47,9 +47,7 @@ class ImprovementKnob:
     default_value: Any
 
     # Value constraints
-    value_range: dict[str, Any] | None = (
-        None  # {"min": x, "max": y} or ["option1", "option2"]
-    )
+    value_range: dict[str, Any] | None = None  # {"min": x, "max": y} or ["option1", "option2"]
 
     # Auto-tuning configuration
     auto_tune_enabled: bool = True
@@ -80,9 +78,7 @@ class ImprovementKnob:
         }
 
     @classmethod
-    def from_action_params(
-        cls, params: dict[str, Any], rule_id: str = None, agent_id: str = None
-    ) -> "ImprovementKnob":
+    def from_action_params(cls, params: dict[str, Any], rule_id: str = None, agent_id: str = None) -> "ImprovementKnob":
         """Create from action_params dictionary"""
         return cls(
             knob_name=params.get("knob_name", "unknown"),
@@ -94,9 +90,7 @@ class ImprovementKnob:
             tuning_source=params.get("tuning_source", "manual"),
             modification_history=params.get("modification_history", []),
             last_modified=(
-                datetime.fromisoformat(params["last_modified"])
-                if "last_modified" in params
-                else datetime.now(UTC)
+                datetime.fromisoformat(params["last_modified"]) if "last_modified" in params else datetime.now(UTC)
             ),
             agent_id=agent_id,
             rule_id=rule_id,
@@ -198,11 +192,7 @@ class KnobManager:
 
             stmt = select(AdaptationRuleDB).where(
                 AdaptationRuleDB.rule_type == self.RULE_TYPE_KNOB,
-                (
-                    AdaptationRuleDB.agent_id == agent_id
-                    if agent_id
-                    else AdaptationRuleDB.agent_id.is_(None)
-                ),
+                (AdaptationRuleDB.agent_id == agent_id if agent_id else AdaptationRuleDB.agent_id.is_(None)),
             )
 
             result = await self.db_session.execute(stmt)
@@ -292,9 +282,7 @@ class KnobManager:
 
             # Check for oscillation
             if await self._would_cause_oscillation(knob):
-                logger.warning(
-                    "Oscillation detected for knob %s, skipping update", knob.knob_name
-                )
+                logger.warning("Oscillation detected for knob %s, skipping update", knob.knob_name)
                 return False
 
             # Get existing knob to record history
@@ -458,14 +446,8 @@ class KnobManager:
             return False
 
         # Check recent modifications within the window
-        window_start = datetime.now(UTC) - timedelta(
-            hours=self.oscillation_window_hours
-        )
-        recent_mods = [
-            m
-            for m in knob.modification_history
-            if datetime.fromisoformat(m["timestamp"]) > window_start
-        ]
+        window_start = datetime.now(UTC) - timedelta(hours=self.oscillation_window_hours)
+        recent_mods = [m for m in knob.modification_history if datetime.fromisoformat(m["timestamp"]) > window_start]
 
         # Too many recent modifications
         if len(recent_mods) >= self.max_modifications_per_knob:
@@ -482,9 +464,7 @@ class KnobManager:
             values = [m["new_value"] for m in recent_mods[-3:]]
             # If we're going back to a value we just left
             if knob.current_value in values[:-1]:
-                logger.warning(
-                    "Oscillation detected: %s returning to recent value", knob.knob_name
-                )
+                logger.warning("Oscillation detected: %s returning to recent value", knob.knob_name)
                 return True
 
         return False
@@ -573,9 +553,7 @@ DEFAULT_KNOBS: list[dict[str, Any]] = [
 ]
 
 
-async def initialize_default_knobs(
-    db_session: AsyncSession, agent_id: str | None = None
-) -> int:
+async def initialize_default_knobs(db_session: AsyncSession, agent_id: str | None = None) -> int:
     """
     Initialize default knobs for an agent or system-wide.
 

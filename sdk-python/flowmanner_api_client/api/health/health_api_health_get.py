@@ -1,19 +1,15 @@
 from http import HTTPStatus
-from typing import Any, cast
-from urllib.parse import quote
+from typing import Any
 
 import httpx
 
-from ...client import AuthenticatedClient, Client
-from ...types import Response, UNSET
 from ... import errors
-
+from ...client import AuthenticatedClient, Client
 from ...models.health_response import HealthResponse
-from typing import cast
+from ...types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/health",
@@ -22,9 +18,7 @@ def _get_kwargs() -> dict[str, Any]:
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> HealthResponse | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> HealthResponse | None:
     if response.status_code == 200:
         response_200 = HealthResponse.from_dict(response.json())
 
@@ -36,9 +30,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[HealthResponse]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[HealthResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,

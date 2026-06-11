@@ -27,6 +27,4 @@ def get_mission_commands(
     session: AsyncSession = Depends(get_db_session),
 ) -> MissionCommandHandlers:
     request_id = request.headers.get("X-Request-ID")
-    return MissionCommandHandlers(
-        session, audit=AuditService(session), request_id=request_id
-    )
+    return MissionCommandHandlers(session, audit=AuditService(session), request_id=request_id)

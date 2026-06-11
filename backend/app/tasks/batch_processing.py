@@ -148,9 +148,7 @@ def process_batch_task(self, batch_id: str):
 
     # Update final status
     if batch_job.status != BatchStatus.CANCELLED:
-        batch_job.status = (
-            BatchStatus.COMPLETED if batch_job.failed_items == 0 else BatchStatus.FAILED
-        )
+        batch_job.status = BatchStatus.COMPLETED if batch_job.failed_items == 0 else BatchStatus.FAILED
     batch_job.completed_at = datetime.now(UTC).isoformat()
 
     logger.info(
@@ -169,9 +167,7 @@ def process_batch_task(self, batch_id: str):
     }
 
 
-def _process_item(
-    task_type: BatchTaskType, item: BatchItem, metadata: dict[str, Any]
-) -> dict[str, Any]:
+def _process_item(task_type: BatchTaskType, item: BatchItem, metadata: dict[str, Any]) -> dict[str, Any]:
     """Process a single batch item"""
 
     if task_type == BatchTaskType.DOCUMENT_SUMMARIZE:
@@ -188,9 +184,7 @@ def _process_item(
         return {"status": "unsupported_task_type", "task_type": task_type.value}
 
 
-def _process_document_summarize(
-    item: BatchItem, metadata: dict[str, Any]
-) -> dict[str, Any]:
+def _process_document_summarize(item: BatchItem, metadata: dict[str, Any]) -> dict[str, Any]:
     """Summarize a document"""
     from app.services.document_processor import process_document
 
@@ -215,9 +209,7 @@ def _process_document_summarize(
     return {"summary": summary, "source": str(input_path)}
 
 
-def _process_document_extract(
-    item: BatchItem, metadata: dict[str, Any]
-) -> dict[str, Any]:
+def _process_document_extract(item: BatchItem, metadata: dict[str, Any]) -> dict[str, Any]:
     """Extract data from a document"""
     from app.services.document_processor import process_document
 
@@ -285,9 +277,7 @@ def _process_code_review(item: BatchItem, metadata: dict[str, Any]) -> dict[str,
     return review
 
 
-def _process_workflow_execute(
-    item: BatchItem, metadata: dict[str, Any]
-) -> dict[str, Any]:
+def _process_workflow_execute(item: BatchItem, metadata: dict[str, Any]) -> dict[str, Any]:
     """Execute a workflow for the item"""
     workflow_id = metadata.get("workflow_id")
     if not workflow_id:
@@ -336,14 +326,10 @@ def create_batch_job(
             input_name = Path(input_path).stem
             output_path = str(Path(output_dir) / f"{input_name}_output")
 
-        items.append(
-            BatchItem(id=item_id, input_path=input_path, output_path=output_path)
-        )
+        items.append(BatchItem(id=item_id, input_path=input_path, output_path=output_path))
 
     # Create batch job
-    batch_job = BatchJob(
-        id=batch_id, task_type=task_type, items=items, metadata=metadata or {}
-    )
+    batch_job = BatchJob(id=batch_id, task_type=task_type, items=items, metadata=metadata or {})
 
     # Store job
     _batch_jobs[batch_id] = batch_job

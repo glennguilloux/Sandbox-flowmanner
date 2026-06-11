@@ -41,7 +41,9 @@ def parse_baseline(path: Path) -> dict[Path, set[int]]:
     return by_file
 
 
-def build_ignore_comment(existing_codes: set[str], target_code: str = "arg-type") -> str:
+def build_ignore_comment(
+    existing_codes: set[str], target_code: str = "arg-type"
+) -> str:
     """Build a # type: ignore[...] comment, merging with existing codes."""
     codes = existing_codes | {target_code}
     return f"# type: ignore[{', '.join(sorted(codes))}]"
@@ -99,7 +101,9 @@ def process_file(filepath: Path, linenos: set[int]) -> tuple[int, int]:
         try:
             ast.parse(new_text)
         except SyntaxError as e:
-            print(f"  SKIP {filepath}: post-transform parse failed: {e}", file=sys.stderr)
+            print(
+                f"  SKIP {filepath}: post-transform parse failed: {e}", file=sys.stderr
+            )
             return 0, len(linenos)
         filepath.write_text(new_text, encoding="utf-8")
     return applied, skipped

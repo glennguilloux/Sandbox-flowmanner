@@ -1,7 +1,9 @@
 import os
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.services.llm_router import ModelRouter, LLMRouteResult
+
+import pytest
+
+from app.services.llm_router import LLMRouteResult, ModelRouter
 
 pytestmark = pytest.mark.integration
 
@@ -34,9 +36,7 @@ class TestRouteRequest:
                 mock_client = AsyncMock()
                 mock_response = MagicMock()
                 mock_response.choices = [MagicMock(message=MagicMock(content="Hello"))]
-                mock_response.usage = MagicMock(
-                    prompt_tokens=10, completion_tokens=5, total_tokens=15
-                )
+                mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
                 mock_client.chat.completions.create.return_value = mock_response
                 mock_make_client.return_value = mock_client
 
@@ -80,10 +80,14 @@ class TestCheckAllProvidersHealth:
         # check_all_providers_health only processes providers in its
         # test_models dict ("deepseek", "llamacpp"), so we mock one of those.
         fake_key_env = "TEST_DEEPSEEK_KEY"
-        with patch.dict(os.environ, {fake_key_env: "sk-test-deepseek-key"}), patch(
-            "app.services.llm_router.PROVIDER_MAP",
-            {"deepseek": ("https://api.deepseek.com", fake_key_env)},
-        ), patch("app.services.llm_router._make_client") as mock_make_client:
+        with (
+            patch.dict(os.environ, {fake_key_env: "sk-test-deepseek-key"}),
+            patch(
+                "app.services.llm_router.PROVIDER_MAP",
+                {"deepseek": ("https://api.deepseek.com", fake_key_env)},
+            ),
+            patch("app.services.llm_router._make_client") as mock_make_client,
+        ):
             mock_client = AsyncMock()
             mock_client.chat.completions.create.return_value = MagicMock()
             mock_make_client.return_value = mock_client

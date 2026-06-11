@@ -67,9 +67,7 @@ class CostTracker:
             >>> tracker.estimate_cost("unknown-model", 500_000)
             0.25  # 0.50 / 2
         """
-        cost_per_1m = self.COST_PER_1M_TOKENS.get(
-            model_id, self.COST_PER_1M_TOKENS["default"]
-        )
+        cost_per_1m = self.COST_PER_1M_TOKENS.get(model_id, self.COST_PER_1M_TOKENS["default"])
         return (total_tokens / settings.MISSION_COST_DIVISOR) * cost_per_1m
 
     async def record_llm_call(
@@ -135,7 +133,7 @@ class CostTracker:
                     success=success,
                 )
             except Exception as e:
-                logger.debug('cost_tracker_prometheus_record_failed error=%s', str(e))
+                logger.debug("cost_tracker_prometheus_record_failed error=%s", str(e))
         except Exception as e:
             logger.warning("Failed to record LLM call: %s", e)
 

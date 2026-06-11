@@ -68,9 +68,7 @@ class BrowserTaskRunner:
         >>> assert result["success"] is True
     """
 
-    async def execute_browser_tool(
-        self, task, input_data: dict[str, Any], mission=None
-    ) -> dict[str, Any]:
+    async def execute_browser_tool(self, task, input_data: dict[str, Any], mission=None) -> dict[str, Any]:
         """Execute a browser tool for the given task.
 
         The tool is selected by ``task.task_type``, which must be one of the

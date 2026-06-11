@@ -58,8 +58,6 @@ class RateLimitHeadersMiddleware(BaseHTTPMiddleware):
         if response.status_code == 429:
             retry_after = response.headers.get("Retry-After")
             if not retry_after:
-                response.headers["Retry-After"] = str(
-                    max(1, (reset_ts or int(time.time()) + 60) - int(time.time()))
-                )
+                response.headers["Retry-After"] = str(max(1, (reset_ts or int(time.time()) + 60) - int(time.time())))
 
         return response

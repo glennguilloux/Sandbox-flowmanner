@@ -43,9 +43,7 @@ async def export_user_data(
     # 2. Missions
     try:
         missions = await db.execute(
-            text(
-                "SELECT id, title, description, status, created_at, updated_at FROM missions WHERE owner_id = :uid"
-            ),
+            text("SELECT id, title, description, status, created_at, updated_at FROM missions WHERE owner_id = :uid"),
             {"uid": user.id},
         )
         export_data["missions"] = [
@@ -108,9 +106,7 @@ async def export_user_data(
     # 4. Agents created
     try:
         agents = await db.execute(
-            text(
-                "SELECT id, name, description, category, created_at FROM agents WHERE created_by = :uid"
-            ),
+            text("SELECT id, name, description, category, created_at FROM agents WHERE created_by = :uid"),
             {"uid": user.id},
         )
         export_data["agents"] = [
@@ -129,9 +125,7 @@ async def export_user_data(
 
     # 5. Settings
     try:
-        settings_result = await db.execute(
-            text("SELECT * FROM user_settings WHERE user_id = :uid"), {"uid": user.id}
-        )
+        settings_result = await db.execute(text("SELECT * FROM user_settings WHERE user_id = :uid"), {"uid": user.id})
         settings_row = settings_result.fetchone()
         if settings_row:
             export_data["settings"] = dict(settings_row._mapping)
@@ -144,9 +138,7 @@ async def export_user_data(
     # 6. API keys (metadata only, not secrets)
     try:
         api_keys = await db.execute(
-            text(
-                "SELECT id, name, provider, created_at, last_used_at FROM user_api_keys WHERE user_id = :uid"
-            ),
+            text("SELECT id, name, provider, created_at, last_used_at FROM user_api_keys WHERE user_id = :uid"),
             {"uid": user.id},
         )
         export_data["api_keys"] = [
@@ -177,9 +169,7 @@ async def export_user_data(
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="flowmanner_export_{timestamp}.zip"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="flowmanner_export_{timestamp}.zip"'},
     )
 
 
@@ -230,9 +220,7 @@ async def delete_user_data(
     deleted_counts = {}
     for table, where_clause in tables:
         try:
-            result = await db.execute(
-                text(f"DELETE FROM {table} WHERE {where_clause}"), {"uid": user_id}
-            )
+            result = await db.execute(text(f"DELETE FROM {table} WHERE {where_clause}"), {"uid": user_id})
             deleted_counts[table] = result.rowcount
         except Exception as e:
             logger.warning("Delete from %s failed: %s", table, e)

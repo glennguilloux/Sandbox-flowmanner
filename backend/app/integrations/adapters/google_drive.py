@@ -67,9 +67,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
 
     # ── Action: list_files ─────────────────────────────────────────────────
 
-    async def _list_files(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _list_files(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """List files in the user's Drive.
 
         Optional params: ``query`` (Drive query string), ``page_size``
@@ -95,9 +93,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
 
     # ── Action: create_doc ─────────────────────────────────────────────────
 
-    async def _create_doc(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _create_doc(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Create a new Google Doc.
 
         Required params: ``title``
@@ -145,9 +141,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
 
     # ── Action: search_files ───────────────────────────────────────────────
 
-    async def _search_files(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _search_files(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Search files by name or content.
 
         Required params: ``query`` (Drive query string, e.g.
@@ -174,9 +168,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
 
     # ── Action: read_file ──────────────────────────────────────────────────
 
-    async def _read_file(
-        self, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def _read_file(self, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         """Read a file's contents.
 
         Required params: ``file_id``
@@ -212,9 +204,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
                 if file_bytes > _MAX_FILE_BYTES:
                     return {
                         "success": False,
-                        "error": (
-                            f"File is {file_bytes} bytes — exceeds the {_MAX_FILE_BYTES}-byte download limit"
-                        ),
+                        "error": (f"File is {file_bytes} bytes — exceeds the {_MAX_FILE_BYTES}-byte download limit"),
                     }
 
             # 2. Download file content
@@ -309,9 +299,7 @@ class GoogleDriveAdapter(BaseIntegrationAdapter):
                     db_conn.encrypted_access_token = encrypt_token(new_access)
                     # Google may rotate refresh tokens
                     if data.get("refresh_token"):
-                        db_conn.encrypted_refresh_token = encrypt_token(
-                            data["refresh_token"]
-                        )
+                        db_conn.encrypted_refresh_token = encrypt_token(data["refresh_token"])
                     await db.commit()
                     return new_access
 
@@ -343,17 +331,11 @@ def _parse_drive_response(resp: httpx.Response) -> dict[str, Any]:
     # Google error response
     error_info = data.get("error", {})
     if isinstance(error_info, dict):
-        error_msg = error_info.get(
-            "message", f"Drive API error (HTTP {resp.status_code})"
-        )
+        error_msg = error_info.get("message", f"Drive API error (HTTP {resp.status_code})")
         # Extract the error reason from the errors array for better matching
         errors_list = error_info.get("errors")
         if errors_list and isinstance(errors_list, list) and len(errors_list) > 0:
-            reason = (
-                errors_list[0].get("reason")
-                if isinstance(errors_list[0], dict)
-                else None
-            )
+            reason = errors_list[0].get("reason") if isinstance(errors_list[0], dict) else None
             if reason:
                 # Pass the camelCase reason string to _drive_error_code for matching
                 error_code = reason

@@ -116,9 +116,7 @@ async def list_templates(
         conditions.append("category = :cat")
         params["cat"] = int(category)
     where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
-    count_r = await db.execute(
-        text("SELECT COUNT(*) FROM community_templates" + where_clause), params
-    )
+    count_r = await db.execute(text("SELECT COUNT(*) FROM community_templates" + where_clause), params)
     rows_r = await db.execute(
         text(
             "SELECT id, title, description, author_id, author_name, category, tags, content, rating, rating_count, fork_count, use_count, is_featured, created_at, updated_at FROM community_templates"
@@ -281,9 +279,7 @@ async def delete_template(
         raise HTTPException(404, "Template not found")
     if str(row[0]) != str(user.id):
         raise HTTPException(403, "You can only delete your own templates")
-    r = await db.execute(
-        text("DELETE FROM community_templates WHERE id = :id"), {"id": template_id}
-    )
+    r = await db.execute(text("DELETE FROM community_templates WHERE id = :id"), {"id": template_id})
     await db.commit()
     if r.rowcount == 0:
         raise HTTPException(404, "Template not found")
@@ -336,9 +332,7 @@ async def get_comments(
     await _ensure_comments_table(db)
 
     # Verify template exists
-    tpl = await db.execute(
-        text("SELECT id FROM community_templates WHERE id = :id"), {"id": template_id}
-    )
+    tpl = await db.execute(text("SELECT id FROM community_templates WHERE id = :id"), {"id": template_id})
     if not tpl.fetchone():
         raise HTTPException(404, "Template not found")
 
@@ -438,9 +432,7 @@ async def add_comment(
     await _ensure_comments_table(db)
 
     # Verify template exists
-    tpl = await db.execute(
-        text("SELECT id FROM community_templates WHERE id = :id"), {"id": template_id}
-    )
+    tpl = await db.execute(text("SELECT id FROM community_templates WHERE id = :id"), {"id": template_id})
     if not tpl.fetchone():
         raise HTTPException(404, "Template not found")
 
@@ -514,9 +506,7 @@ async def add_comment(
 
 
 @router.get("/featured")
-async def get_featured(
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
-):
+async def get_featured(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     await _ensure_table(db)
     r = await db.execute(
         text(
@@ -548,13 +538,9 @@ async def get_featured(
 
 
 @router.get("/categories")
-async def get_categories(
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
-):
+async def get_categories(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     # Count templates per category
-    r = await db.execute(
-        text("SELECT category, COUNT(*) FROM community_templates GROUP BY category")
-    )
+    r = await db.execute(text("SELECT category, COUNT(*) FROM community_templates GROUP BY category"))
     counts = {row[0]: row[1] for row in r.fetchall()}
     cats = [
         {
@@ -634,9 +620,7 @@ async def get_trending(
 
 
 @router.get("/stats")
-async def get_stats(
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
-):
+async def get_stats(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     await _ensure_table(db)
     # Aggregate template stats
     r = await db.execute(
@@ -646,24 +630,16 @@ async def get_stats(
     )
     row = r.fetchone()
     # Real user count: total workspace members
-    users_r = await db.execute(
-        text("SELECT COUNT(DISTINCT user_id) FROM workspace_members")
-    )
+    users_r = await db.execute(text("SELECT COUNT(DISTINCT user_id) FROM workspace_members"))
     total_users = users_r.scalar() or 0
     # Real ratings count: sum of all rating_count values
-    ratings_r = await db.execute(
-        text("SELECT COALESCE(SUM(rating_count), 0) FROM community_templates")
-    )
+    ratings_r = await db.execute(text("SELECT COALESCE(SUM(rating_count), 0) FROM community_templates"))
     total_ratings = ratings_r.scalar() or 0
     # Top 5 categories by template count
     cats_r = await db.execute(
-        text(
-            "SELECT category, COUNT(*) AS cnt FROM community_templates GROUP BY category ORDER BY cnt DESC LIMIT 5"
-        )
+        text("SELECT category, COUNT(*) AS cnt FROM community_templates GROUP BY category ORDER BY cnt DESC LIMIT 5")
     )
-    top_categories = [
-        {"category": row_c[0], "count": row_c[1]} for row_c in cats_r.fetchall()
-    ]
+    top_categories = [{"category": row_c[0], "count": row_c[1]} for row_c in cats_r.fetchall()]
     return {
         "total_templates": row[0] or 0,
         "total_users": total_users,

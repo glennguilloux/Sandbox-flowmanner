@@ -41,9 +41,7 @@ class BaseTask(Task):
 
         try:
             # Update task status in database
-            task_record = (
-                self.db.query(CeleryTask).filter(CeleryTask.task_id == task_id).first()
-            )
+            task_record = self.db.query(CeleryTask).filter(CeleryTask.task_id == task_id).first()
 
             if task_record:
                 task_record.status = TaskStatus.FAILED
@@ -63,9 +61,7 @@ class BaseTask(Task):
 
         try:
             # Update task status in database
-            task_record = (
-                self.db.query(CeleryTask).filter(CeleryTask.task_id == task_id).first()
-            )
+            task_record = self.db.query(CeleryTask).filter(CeleryTask.task_id == task_id).first()
 
             if task_record:
                 task_record.status = TaskStatus.COMPLETED
@@ -84,15 +80,11 @@ class BaseTask(Task):
 
         try:
             # Update task status in database
-            task_record = (
-                self.db.query(CeleryTask).filter(CeleryTask.task_id == task_id).first()
-            )
+            task_record = self.db.query(CeleryTask).filter(CeleryTask.task_id == task_id).first()
 
             if task_record:
                 task_record.status = TaskStatus.RETRYING
-                task_record.retry_count = (
-                    task_record.retry_count + 1 if task_record.retry_count else 1
-                )
+                task_record.retry_count = task_record.retry_count + 1 if task_record.retry_count else 1
                 task_record.error = str(exc)
                 self.db.commit()
         except Exception as db_error:
@@ -101,9 +93,7 @@ class BaseTask(Task):
 
         super().on_retry(exc, task_id, args, kwargs, einfo)
 
-    def create_task_record(
-        self, task_id: str, task_name: str, args: tuple, kwargs: dict[str, Any]
-    ) -> CeleryTask:
+    def create_task_record(self, task_id: str, task_name: str, args: tuple, kwargs: dict[str, Any]) -> CeleryTask:
         """Create a task record in the database."""
         task_record = CeleryTask(
             task_id=task_id,
@@ -134,11 +124,7 @@ def cleanup_old_tasks():
             cutoff_time = datetime.now(UTC) - timedelta(days=7)
 
             # Delete tasks older than 7 days
-            deleted_count = (
-                self.db.query(CeleryTask)
-                .filter(CeleryTask.created_at < cutoff_time)
-                .delete()
-            )
+            deleted_count = self.db.query(CeleryTask).filter(CeleryTask.created_at < cutoff_time).delete()
 
             self.db.commit()
             logger.info("Cleaned up %s old tasks", deleted_count)

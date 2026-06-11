@@ -63,9 +63,7 @@ class RetryConfig:
     base_delay: float = 1.0
     max_delay: float = 60.0
     exponential_base: float = 2.0
-    retry_on_status_codes: list[int] = field(
-        default_factory=lambda: [429, 500, 502, 503, 504]
-    )
+    retry_on_status_codes: list[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
 
 
 class ConnectorConfig(BaseModel):
@@ -201,9 +199,7 @@ class AuthHandler:
     """Handles authentication for API requests"""
 
     @staticmethod
-    def build_auth_headers(
-        auth_type: AuthType, auth_config: dict[str, Any]
-    ) -> dict[str, str]:
+    def build_auth_headers(auth_type: AuthType, auth_config: dict[str, Any]) -> dict[str, str]:
         """Build authentication headers based on auth type"""
         headers = {}
 
@@ -236,9 +232,7 @@ class AuthHandler:
         return headers
 
     @staticmethod
-    def build_query_params(
-        auth_type: AuthType, auth_config: dict[str, Any]
-    ) -> dict[str, str]:
+    def build_query_params(auth_type: AuthType, auth_config: dict[str, Any]) -> dict[str, str]:
         """Build query parameters for authentication"""
         params = {}
 
@@ -299,9 +293,7 @@ class BaseConnector(ABC):
             if self._session is None or self._session.closed:
                 connector = aiohttp.TCPConnector(ssl=self.config.verify_ssl)
                 timeout = aiohttp.ClientTimeout(total=self.config.timeout)
-                self._session = aiohttp.ClientSession(
-                    connector=connector, timeout=timeout
-                )
+                self._session = aiohttp.ClientSession(connector=connector, timeout=timeout)
 
             # Validate credentials if needed
             if self.config.auth_type != AuthType.NONE:
@@ -338,9 +330,7 @@ class BaseConnector(ABC):
         path = endpoint.lstrip("/")
         return f"{base}/{path}"
 
-    def _build_headers(
-        self, extra_headers: dict[str, str] | None = None
-    ) -> dict[str, str]:
+    def _build_headers(self, extra_headers: dict[str, str] | None = None) -> dict[str, str]:
         """Build request headers including auth"""
         headers = {
             "Content-Type": "application/json",
@@ -348,18 +338,12 @@ class BaseConnector(ABC):
             "User-Agent": "WorkflowsPlatform/1.0",
         }
         headers.update(self.config.headers)
-        headers.update(
-            AuthHandler.build_auth_headers(
-                self.config.auth_type, self.config.auth_config
-            )
-        )
+        headers.update(AuthHandler.build_auth_headers(self.config.auth_type, self.config.auth_config))
         if extra_headers:
             headers.update(extra_headers)
         return headers
 
-    async def _execute_with_retry(
-        self, method: str, endpoint: str, **kwargs
-    ) -> ConnectorResponse:
+    async def _execute_with_retry(self, method: str, endpoint: str, **kwargs) -> ConnectorResponse:
         """Execute request with retry logic"""
         last_error = None
         retry_config = self.config.retry
@@ -369,9 +353,7 @@ class BaseConnector(ABC):
                 # Wait for rate limit
                 acquired = await self._rate_limiter.wait_and_acquire()
                 if not acquired:
-                    raise RateLimitError(
-                        "Rate limit exceeded", self.config.name, retry_after=60.0
-                    )
+                    raise RateLimitError("Rate limit exceeded", self.config.name, retry_after=60.0)
 
                 # Execute request
                 response = await self._execute_request(method, endpoint, **kwargs)
@@ -399,8 +381,7 @@ class BaseConnector(ABC):
                 if response.status_code in retry_config.retry_on_status_codes:
                     if attempt < retry_config.max_retries:
                         delay = min(
-                            retry_config.base_delay
-                            * (retry_config.exponential_base**attempt),
+                            retry_config.base_delay * (retry_config.exponential_base**attempt),
                             retry_config.max_delay,
                         )
                         logger.warning(
@@ -424,18 +405,13 @@ class BaseConnector(ABC):
 
                 if attempt < retry_config.max_retries:
                     delay = min(
-                        retry_config.base_delay
-                        * (retry_config.exponential_base**attempt),
+                        retry_config.base_delay * (retry_config.exponential_base**attempt),
                         retry_config.max_delay,
                     )
-                    logger.warning(
-                        "Retry %s for %s: %s", attempt + 1, self.config.name, e
-                    )
+                    logger.warning("Retry %s for %s: %s", attempt + 1, self.config.name, e)
                     await asyncio.sleep(delay)
                 else:
-                    logger.error(
-                        "All retries exhausted for %s: %s", self.config.name, e
-                    )
+                    logger.error("All retries exhausted for %s: %s", self.config.name, e)
 
         return ConnectorResponse(success=False, error=str(last_error), status_code=0)
 
@@ -456,14 +432,8 @@ class BaseConnector(ABC):
         request_headers = self._build_headers(headers)
 
         # Add auth query params if needed
-        auth_params = AuthHandler.build_query_params(
-            self.config.auth_type, self.config.auth_config
-        )
-        params = (
-            {**params, **auth_params}
-            if params
-            else auth_params if auth_params else None
-        )
+        auth_params = AuthHandler.build_query_params(self.config.auth_type, self.config.auth_config)
+        params = {**params, **auth_params} if params else auth_params if auth_params else None
 
         start_time = time.monotonic()
 
@@ -488,11 +458,7 @@ class BaseConnector(ABC):
                 # Only populate error for non-success status codes
                 error = None
                 if response.status >= 400:
-                    error = (
-                        response_data
-                        if isinstance(response_data, str)
-                        else str(response_data)
-                    )
+                    error = response_data if isinstance(response_data, str) else str(response_data)
 
                 # Extract rate limit info
                 rate_remaining = response.headers.get("X-RateLimit-Remaining")
@@ -505,12 +471,8 @@ class BaseConnector(ABC):
                     status_code=response.status,
                     headers=dict(response.headers),
                     response_time_ms=response_time,
-                    rate_limit_remaining=(
-                        int(rate_remaining) if rate_remaining else None
-                    ),
-                    rate_limit_reset=(
-                        datetime.fromtimestamp(int(rate_reset)) if rate_reset else None
-                    ),
+                    rate_limit_remaining=(int(rate_remaining) if rate_remaining else None),
+                    rate_limit_reset=(datetime.fromtimestamp(int(rate_reset)) if rate_reset else None),
                 )
 
         except TimeoutError:
@@ -548,9 +510,7 @@ class BaseConnector(ABC):
                 return 60.0
 
     @abstractmethod
-    async def execute_action(
-        self, action: str, params: dict[str, Any]
-    ) -> ConnectorResponse:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> ConnectorResponse:
         """Execute a connector-specific action"""
         pass
 

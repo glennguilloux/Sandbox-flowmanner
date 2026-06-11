@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -24,9 +24,7 @@ class BaseNodeHandler(ABC):
     """Abstract base for all node type handlers."""
 
     @abstractmethod
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         """Execute this node and return {"success": True, "output": {...}}."""
 
     async def validate(self, node: dict) -> list[str]:
@@ -100,16 +98,12 @@ class NodeHandlerRegistry:
 
 
 class StartNodeHandler(BaseNodeHandler):
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         return {"success": True, "output": {"started": True}}
 
 
 class EndNodeHandler(BaseNodeHandler):
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         return {"success": True, "output": {"completed": True}}
 
 
@@ -123,13 +117,9 @@ class TaskNodeHandler(BaseNodeHandler):
             errors.append("Task node requires a label")
         return errors
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
-        description = context.resolve_interpolation(
-            data.get("description", data.get("label", ""))
-        )
+        description = context.resolve_interpolation(data.get("description", data.get("label", "")))
         model_pref = data.get("modelPreference")
         timeout = data.get("timeout", 60)
 
@@ -162,9 +152,7 @@ class TaskNodeHandler(BaseNodeHandler):
 class WebhookNodeHandler(BaseNodeHandler):
     """Makes an HTTP request with the node's configured URL/method/headers/body."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         url = context.resolve_interpolation(data.get("url", ""))
         method = (data.get("method") or "GET").upper()
@@ -187,9 +175,7 @@ class WebhookNodeHandler(BaseNodeHandler):
                     method=method,
                     url=url,
                     headers=request_headers,
-                    content=(
-                        body if body and method in ("POST", "PUT", "PATCH") else None
-                    ),
+                    content=(body if body and method in ("POST", "PUT", "PATCH") else None),
                 )
                 try:
                     resp_body = resp.json()
@@ -219,9 +205,7 @@ class ConditionNodeHandler(BaseNodeHandler):
             return ["Condition node requires an expression"]
         return []
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         expr = context.resolve_interpolation(node.get("data", {}).get("expression", ""))
         expr_str = str(expr)
 
@@ -247,9 +231,7 @@ class ConditionNodeHandler(BaseNodeHandler):
 class ParallelNodeHandler(BaseNodeHandler):
     """Executes downstream branches concurrently."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         join_mode = data.get("joinMode", "all")
 
@@ -258,9 +240,7 @@ class ParallelNodeHandler(BaseNodeHandler):
 
         # Find downstream nodes (direct children of this parallel node)
         node_id = node.get("id", "")
-        downstream_ids = [
-            e.get("target") for e in interpreter.edges if e.get("source") == node_id
-        ]
+        downstream_ids = [e.get("target") for e in interpreter.edges if e.get("source") == node_id]
 
         if not downstream_ids:
             return {
@@ -309,9 +289,7 @@ class ParallelNodeHandler(BaseNodeHandler):
 class LoopNodeHandler(BaseNodeHandler):
     """Executes downstream nodes per iteration."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         loop_mode = data.get("loopMode", "count")
         max_iterations = min(data.get("maxIterations", 100), 1000)
@@ -331,16 +309,11 @@ class LoopNodeHandler(BaseNodeHandler):
                     items = json.loads(items)
                 except Exception:
                     items = []
-            iterations = [
-                {"index": i, "item": item}
-                for i, item in enumerate(items[:max_iterations])
-            ]
+            iterations = [{"index": i, "item": item} for i, item in enumerate(items[:max_iterations])]
         elif loop_mode == "while":
             for i in range(max_iterations):
                 context.set_iteration_var("loop_index", i)
-                expr = context.resolve_interpolation(
-                    data.get("loopExpression", "False")
-                )
+                expr = context.resolve_interpolation(data.get("loopExpression", "False"))
                 try:
                     if not eval(str(expr), {"__builtins__": {}}, {"ctx": context}):
                         break
@@ -361,9 +334,7 @@ class LoopNodeHandler(BaseNodeHandler):
 
         # Find downstream nodes to execute per iteration
         node_id = node.get("id", "")
-        downstream_ids = [
-            e.get("target") for e in interpreter.edges if e.get("source") == node_id
-        ]
+        downstream_ids = [e.get("target") for e in interpreter.edges if e.get("source") == node_id]
 
         iteration_outputs: list[dict] = []
         for iteration in iterations:
@@ -394,9 +365,7 @@ class LoopNodeHandler(BaseNodeHandler):
 class ApprovalNodeHandler(BaseNodeHandler):
     """Pauses execution and returns approval request metadata."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
 
         # If interpreter available, signal pause
@@ -420,17 +389,13 @@ class ApprovalNodeHandler(BaseNodeHandler):
 class DelayNodeHandler(BaseNodeHandler):
     """Sleeps for the configured duration."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         delay_type = data.get("delayType", "fixed")
         delay_ms = data.get("delayMs", 1000)
         max_delay_ms = data.get("maxDelayMs", 30000)
 
-        actual_delay = (
-            min(delay_ms * 2, max_delay_ms) if delay_type == "exponential" else delay_ms
-        )
+        actual_delay = min(delay_ms * 2, max_delay_ms) if delay_type == "exponential" else delay_ms
 
         actual_delay = min(actual_delay, 60000)
         await asyncio.sleep(actual_delay / 1000)
@@ -444,9 +409,7 @@ class DelayNodeHandler(BaseNodeHandler):
 class TransformNodeHandler(BaseNodeHandler):
     """Applies a data transformation (jq-like, template, or script)."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         transform_type = data.get("transformType", "template")
         expression = context.resolve_interpolation(data.get("transformExpression", ""))
@@ -492,9 +455,7 @@ class TransformNodeHandler(BaseNodeHandler):
 class LogNodeHandler(BaseNodeHandler):
     """Logs a message with the configured level."""
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         level = data.get("level", "info")
         message = context.resolve_interpolation(data.get("message", ""))
@@ -513,9 +474,7 @@ class SubFlowNodeHandler(BaseNodeHandler):
 
     MAX_DEPTH = 5
 
-    async def execute(
-        self, node: dict, context: Any, interpreter: GraphInterpreter | None = None
-    ) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: GraphInterpreter | None = None) -> dict:
         data = node.get("data", {})
         mission_id = data.get("missionId")
         if not mission_id:
@@ -544,9 +503,7 @@ class SubFlowNodeHandler(BaseNodeHandler):
         # Create nested interpreter
         from app.services.graph_executor import GraphInterpreter
 
-        sub_interpreter = GraphInterpreter(
-            interpreter.db, sub_workflow, interpreter.execution
-        )
+        sub_interpreter = GraphInterpreter(interpreter.db, sub_workflow, interpreter.execution)
         sub_interpreter.context._data["_subflow_depth"] = depth + 1
         sub_interpreter.context._data.update(context._data)
 

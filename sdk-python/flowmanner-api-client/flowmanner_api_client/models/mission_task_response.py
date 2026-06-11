@@ -64,9 +64,7 @@ class MissionTaskResponse:
     status: None | str | Unset = UNSET
     input_data: MissionTaskResponseInputDataType0 | None | Unset = UNSET
     output_data: MissionTaskResponseOutputDataType0 | None | Unset = UNSET
-    dependencies: list[Any] | MissionTaskResponseDependenciesType1 | None | Unset = (
-        UNSET
-    )
+    dependencies: list[Any] | MissionTaskResponseDependenciesType1 | None | Unset = UNSET
     retry_count: int | None | Unset = UNSET
     max_retries: int | None | Unset = UNSET
     timeout_seconds: int | None | Unset = UNSET
@@ -383,16 +381,12 @@ class MissionTaskResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                dependencies_type_1 = MissionTaskResponseDependenciesType1.from_dict(
-                    data
-                )
+                dependencies_type_1 = MissionTaskResponseDependenciesType1.from_dict(data)
 
                 return dependencies_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                list[Any] | MissionTaskResponseDependenciesType1 | None | Unset, data
-            )
+            return cast(list[Any] | MissionTaskResponseDependenciesType1 | None | Unset, data)
 
         dependencies = _parse_dependencies(d.pop("dependencies", UNSET))
 

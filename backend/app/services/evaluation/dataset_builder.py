@@ -62,9 +62,7 @@ class DatasetBuilder:
         await self.db.flush()
         return test_case
 
-    async def add_test_cases_bulk(
-        self, dataset_id: str, cases: list[dict[str, Any]]
-    ) -> list[GoldenTestCase]:
+    async def add_test_cases_bulk(self, dataset_id: str, cases: list[dict[str, Any]]) -> list[GoldenTestCase]:
         results = []
         for case in cases:
             tc = await self.add_test_case(
@@ -80,9 +78,7 @@ class DatasetBuilder:
         return results
 
     async def get_dataset(self, dataset_id: str) -> GoldenDataset | None:
-        result = await self.db.execute(
-            select(GoldenDataset).where(GoldenDataset.id == dataset_id)
-        )
+        result = await self.db.execute(select(GoldenDataset).where(GoldenDataset.id == dataset_id))
         return result.scalar_one_or_none()
 
     async def list_datasets(self, category: str | None = None) -> list[GoldenDataset]:
@@ -94,9 +90,7 @@ class DatasetBuilder:
 
     async def get_test_cases(self, dataset_id: str) -> list[GoldenTestCase]:
         result = await self.db.execute(
-            select(GoldenTestCase)
-            .where(GoldenTestCase.dataset_id == dataset_id)
-            .order_by(GoldenTestCase.created_at)
+            select(GoldenTestCase).where(GoldenTestCase.dataset_id == dataset_id).order_by(GoldenTestCase.created_at)
         )
         return list(result.scalars().all())
 
@@ -105,9 +99,7 @@ class DatasetBuilder:
         test_case_id: str,
         **kwargs: Any,
     ) -> GoldenTestCase | None:
-        result = await self.db.execute(
-            select(GoldenTestCase).where(GoldenTestCase.id == test_case_id)
-        )
+        result = await self.db.execute(select(GoldenTestCase).where(GoldenTestCase.id == test_case_id))
         tc = result.scalar_one_or_none()
         if not tc:
             return None
@@ -118,9 +110,7 @@ class DatasetBuilder:
         return tc
 
     async def delete_test_case(self, test_case_id: str) -> bool:
-        result = await self.db.execute(
-            select(GoldenTestCase).where(GoldenTestCase.id == test_case_id)
-        )
+        result = await self.db.execute(select(GoldenTestCase).where(GoldenTestCase.id == test_case_id))
         tc = result.scalar_one_or_none()
         if not tc:
             return False
@@ -144,9 +134,7 @@ class DatasetBuilder:
             cases.append(
                 {
                     "input_prompt": trace.get("input", ""),
-                    "expected_behavior": trace.get(
-                        "expected_output", trace.get("output", "")
-                    ),
+                    "expected_behavior": trace.get("expected_output", trace.get("output", "")),
                     "task_type": trace.get("task_type", "imported"),
                     "difficulty": trace.get("difficulty", "medium"),
                     "tags": trace.get("tags", []),

@@ -69,9 +69,7 @@ class ToneAdjusterTool(BaseTool):
         try:
             validated = ToneAdjusterInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         target_tone = validated.target_tone.lower().strip()
         if target_tone not in TONES:
@@ -99,13 +97,9 @@ class ToneAdjusterTool(BaseTool):
 
             system_prompt = f"Rewrite the following text in a {target_tone} tone. {tone_description}. "
             if validated.preserve_length:
-                system_prompt += (
-                    "Keep the output approximately the same length as the input. "
-                )
+                system_prompt += "Keep the output approximately the same length as the input. "
             if validated.custom_instructions:
-                system_prompt += (
-                    f"Additional instructions: {validated.custom_instructions}"
-                )
+                system_prompt += f"Additional instructions: {validated.custom_instructions}"
 
             response = await client.chat.completions.create(
                 model=model,

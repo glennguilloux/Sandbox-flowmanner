@@ -29,9 +29,7 @@ DEFAULT_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 DEFAULT_PROVIDER: Literal["openai", "cohere", "local"] = os.getenv("EMBEDDING_PROVIDER", "openai")  # type: ignore[assignment]
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
-LOCAL_EMBED_URL = os.getenv(
-    "EMBEDDING_LOCAL_URL", "http://localhost:11434/api/embeddings"
-)
+LOCAL_EMBED_URL = os.getenv("EMBEDDING_LOCAL_URL", "http://localhost:11434/api/embeddings")
 EMBED_TIMEOUT = int(os.getenv("EMBED_TIMEOUT", "30"))
 CACHE_TTL = int(os.getenv("EMBED_CACHE_TTL", "86400"))  # 24 hours
 MAX_BATCH_SIZE = int(os.getenv("EMBED_MAX_BATCH_SIZE", "100"))
@@ -155,9 +153,7 @@ class TextEmbedderTool(BaseTool):
         except Exception as e:
             logger.debug("Embed cache write failed: %s", e)
 
-    def _cache_key(
-        self, text: str, model: str, provider: str, dimensions: int | None
-    ) -> str:
+    def _cache_key(self, text: str, model: str, provider: str, dimensions: int | None) -> str:
         raw = f"{provider}:{model}:{dimensions}:{text}"
         digest = hashlib.sha256(raw.encode()).hexdigest()
         return f"{_CACHE_PREFIX}{digest}"
@@ -168,9 +164,7 @@ class TextEmbedderTool(BaseTool):
         try:
             validated = TextEmbedderInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         start = time.monotonic()
 
@@ -198,9 +192,7 @@ class TextEmbedderTool(BaseTool):
             logger.exception("text_embedder failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    async def _embed_all(
-        self, validated: TextEmbedderInput
-    ) -> tuple[list[list[float]], int, int]:
+    async def _embed_all(self, validated: TextEmbedderInput) -> tuple[list[list[float]], int, int]:
         embeddings: list[list[float]] = []
         cached_count = 0
         token_count = 0
@@ -209,9 +201,7 @@ class TextEmbedderTool(BaseTool):
 
         # Check cache first
         for i, text in enumerate(validated.texts):
-            key = self._cache_key(
-                text, validated.model, validated.provider, validated.dimensions
-            )
+            key = self._cache_key(text, validated.model, validated.provider, validated.dimensions)
             cached = await self._cache_get(key)
             if cached and "embedding" in cached:
                 embeddings.append(cached["embedding"])
@@ -222,9 +212,7 @@ class TextEmbedderTool(BaseTool):
 
         # Embed uncached texts
         if texts_to_embed:
-            new_embeddings, tok_count = await self._embed_texts(
-                validated, texts_to_embed
-            )
+            new_embeddings, tok_count = await self._embed_texts(validated, texts_to_embed)
             token_count += tok_count
 
             # Insert new embeddings at correct positions and cache them
@@ -260,9 +248,7 @@ class TextEmbedderTool(BaseTool):
 
         return embeddings, cached_count, token_count
 
-    async def _embed_texts(
-        self, validated: TextEmbedderInput, texts: list[str]
-    ) -> tuple[list[list[float]], int]:
+    async def _embed_texts(self, validated: TextEmbedderInput, texts: list[str]) -> tuple[list[list[float]], int]:
         if validated.provider == "openai":
             return await self._embed_openai(validated, texts)
         elif validated.provider == "cohere":
@@ -273,14 +259,10 @@ class TextEmbedderTool(BaseTool):
 
     # ── OpenAI ───────────────────────────────────────────────────
 
-    async def _embed_openai(
-        self, validated: TextEmbedderInput, texts: list[str]
-    ) -> tuple[list[list[float]], int]:
+    async def _embed_openai(self, validated: TextEmbedderInput, texts: list[str]) -> tuple[list[list[float]], int]:
         api_key = validated.api_key or OPENAI_API_KEY
         if not api_key:
-            raise ValueError(
-                "OpenAI API key required. Set OPENAI_API_KEY or pass api_key."
-            )
+            raise ValueError("OpenAI API key required. Set OPENAI_API_KEY or pass api_key.")
 
         body: dict[str, Any] = {
             "model": validated.model,
@@ -297,9 +279,7 @@ class TextEmbedderTool(BaseTool):
 
         for attempt in range(5):
             async with httpx.AsyncClient(timeout=validated.timeout_seconds) as client:
-                resp = await client.post(
-                    "https://api.openai.com/v1/embeddings", json=body, headers=headers
-                )
+                resp = await client.post("https://api.openai.com/v1/embeddings", json=body, headers=headers)
                 if resp.status_code == 429:
                     wait = 2**attempt
                     logger.warning(
@@ -323,14 +303,10 @@ class TextEmbedderTool(BaseTool):
 
     # ── Cohere ───────────────────────────────────────────────────
 
-    async def _embed_cohere(
-        self, validated: TextEmbedderInput, texts: list[str]
-    ) -> tuple[list[list[float]], int]:
+    async def _embed_cohere(self, validated: TextEmbedderInput, texts: list[str]) -> tuple[list[list[float]], int]:
         api_key = validated.api_key or COHERE_API_KEY
         if not api_key:
-            raise ValueError(
-                "Cohere API key required. Set COHERE_API_KEY or pass api_key."
-            )
+            raise ValueError("Cohere API key required. Set COHERE_API_KEY or pass api_key.")
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -345,9 +321,7 @@ class TextEmbedderTool(BaseTool):
 
         for attempt in range(5):
             async with httpx.AsyncClient(timeout=validated.timeout_seconds) as client:
-                resp = await client.post(
-                    "https://api.cohere.com/v2/embed", json=body, headers=headers
-                )
+                resp = await client.post("https://api.cohere.com/v2/embed", json=body, headers=headers)
                 if resp.status_code == 429:
                     await asyncio.sleep(2**attempt)
                     continue
@@ -365,9 +339,7 @@ class TextEmbedderTool(BaseTool):
 
     # ── Local (llama.cpp) ────────────────────────────────────────
 
-    async def _embed_local(
-        self, validated: TextEmbedderInput, texts: list[str]
-    ) -> tuple[list[list[float]], int]:
+    async def _embed_local(self, validated: TextEmbedderInput, texts: list[str]) -> tuple[list[list[float]], int]:
         headers = {"Content-Type": "application/json"}
         embeddings: list[list[float]] = []
         token_count = 0

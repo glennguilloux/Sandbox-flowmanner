@@ -85,17 +85,11 @@ class N8NWorkflowError(N8NError):
 class N8NWorkflowRequest(BaseModel):
     """Request model for n8n workflow operations"""
 
-    action: str = Field(
-        ..., description="Action to perform: list, execute, create, status"
-    )
+    action: str = Field(..., description="Action to perform: list, execute, create, status")
     workflow_id: str | None = Field(None, description="Workflow ID for execute/status")
-    parameters: dict[str, Any] | None = Field(
-        None, description="Parameters for workflow execution"
-    )
+    parameters: dict[str, Any] | None = Field(None, description="Parameters for workflow execution")
     workflow_type: str | None = Field(None, description="Type of workflow to create")
-    search_query: str | None = Field(
-        None, description="Search query for listing workflows"
-    )
+    search_query: str | None = Field(None, description="Search query for listing workflows")
 
 
 # ==================== HTTP CLIENT ====================
@@ -104,9 +98,7 @@ class N8NWorkflowRequest(BaseModel):
 class HTTPClient:
     """HTTP client with connection pooling and retry logic"""
 
-    def __init__(
-        self, base_url: str, api_key: str, timeout: int = 30, max_retries: int = 3
-    ):
+    def __init__(self, base_url: str, api_key: str, timeout: int = 30, max_retries: int = 3):
         self.base_url = base_url
         self.timeout = timeout
         self.headers = {
@@ -123,9 +115,7 @@ class HTTPClient:
             allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"],
         )
 
-        adapter = HTTPAdapter(
-            max_retries=retry_strategy, pool_connections=5, pool_maxsize=5
-        )
+        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=5, pool_maxsize=5)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
@@ -135,9 +125,7 @@ class HTTPClient:
         """GET request with retry logic"""
         url = f"{self.base_url}{endpoint}"
         try:
-            response = self.session.get(
-                url, headers=self.headers, params=params, timeout=self.timeout
-            )
+            response = self.session.get(url, headers=self.headers, params=params, timeout=self.timeout)
             response.raise_for_status()
             return response
         except requests.exceptions.Timeout:
@@ -151,9 +139,7 @@ class HTTPClient:
         """POST request with retry logic"""
         url = f"{self.base_url}{endpoint}"
         try:
-            response = self.session.post(
-                url, headers=self.headers, json=json_data, timeout=self.timeout
-            )
+            response = self.session.post(url, headers=self.headers, json=json_data, timeout=self.timeout)
             response.raise_for_status()
             return response
         except requests.exceptions.Timeout:
@@ -213,9 +199,7 @@ class N8NClient:
             logger.error("Error listing workflows: %s", e)
             raise N8NError(f"Failed to list workflows: {e}")
 
-    def execute_workflow(
-        self, workflow_id: str, parameters: dict | None = None
-    ) -> dict:
+    def execute_workflow(self, workflow_id: str, parameters: dict | None = None) -> dict:
         """Execute a workflow with polling"""
         logger.info("Executing workflow %s with params: %s", workflow_id, parameters)
 
@@ -227,9 +211,7 @@ class N8NClient:
 
             # Execute
             payload = {"workflowId": workflow_id, "parameters": parameters or {}}
-            response = self.http_client.post(
-                f"/api/v1/workflows/{workflow_id}/execute", json_data=payload
-            )
+            response = self.http_client.post(f"/api/v1/workflows/{workflow_id}/execute", json_data=payload)
             result = response.json()
             execution_id = result.get("executionId")
 
@@ -246,9 +228,7 @@ class N8NClient:
             logger.error("Error executing workflow %s: %s", workflow_id, e)
             raise N8NError(f"Failed to execute workflow {workflow_id}: {e}")
 
-    def _wait_for_completion(
-        self, workflow_id: str, execution_id: str, timeout: int = 60
-    ) -> dict:
+    def _wait_for_completion(self, workflow_id: str, execution_id: str, timeout: int = 60) -> dict:
         """Wait for workflow execution to complete"""
         start_time = time.time()
         logger.info(
@@ -259,16 +239,12 @@ class N8NClient:
 
         while time.time() - start_time < timeout:
             try:
-                response = self.http_client.get(
-                    f"/api/v1/workflows/{workflow_id}/executions/{execution_id}"
-                )
+                response = self.http_client.get(f"/api/v1/workflows/{workflow_id}/executions/{execution_id}")
                 execution = response.json()
                 status = execution.get("status")
 
                 if status == "success":
-                    logger.info(
-                        "Workflow completed successfully - execution: %s", execution_id
-                    )
+                    logger.info("Workflow completed successfully - execution: %s", execution_id)
                     return {
                         "success": True,
                         "execution_id": execution_id,
@@ -354,9 +330,7 @@ class N8NClient:
             workflow = response.json()
 
             # Get recent executions
-            exec_response = self.http_client.get(
-                f"/api/v1/workflows/{workflow_id}/executions"
-            )
+            exec_response = self.http_client.get(f"/api/v1/workflows/{workflow_id}/executions")
             executions = exec_response.json().get("data", [])
 
             return {
@@ -431,27 +405,21 @@ def n8n_workflow_manager(
 
         elif action == "execute":
             if not workflow_id:
-                return json.dumps(
-                    {"success": False, "error": "workflow_id required for execute"}
-                )
+                return json.dumps({"success": False, "error": "workflow_id required for execute"})
 
             result = client.execute_workflow(workflow_id, parameters)
             return json.dumps(result, indent=2)
 
         elif action == "create":
             if not workflow_type:
-                return json.dumps(
-                    {"success": False, "error": "workflow_type required for create"}
-                )
+                return json.dumps({"success": False, "error": "workflow_type required for create"})
 
             result = client.create_workflow(workflow_type, parameters)
             return json.dumps(result, indent=2)
 
         elif action == "status":
             if not workflow_id:
-                return json.dumps(
-                    {"success": False, "error": "workflow_id required for status"}
-                )
+                return json.dumps({"success": False, "error": "workflow_id required for status"})
 
             result = client.get_workflow_status(workflow_id)
             return json.dumps(result, indent=2)
@@ -476,9 +444,7 @@ def n8n_workflow_manager(
 
 def execute_n8n_workflow(workflow_id: str, parameters: dict = None) -> str:
     """Execute an n8n workflow by ID"""
-    return n8n_workflow_manager.invoke(
-        {"action": "execute", "workflow_id": workflow_id, "parameters": parameters}
-    )
+    return n8n_workflow_manager.invoke({"action": "execute", "workflow_id": workflow_id, "parameters": parameters})
 
 
 def list_n8n_workflows(search_query: str = None) -> str:
@@ -488,9 +454,7 @@ def list_n8n_workflows(search_query: str = None) -> str:
 
 def create_n8n_workflow(workflow_type: str, config: dict = None) -> str:
     """Create a new n8n workflow from template"""
-    return n8n_workflow_manager.invoke(
-        {"action": "create", "workflow_type": workflow_type, "parameters": config}
-    )
+    return n8n_workflow_manager.invoke({"action": "create", "workflow_type": workflow_type, "parameters": config})
 
 
 def get_workflow_info(workflow_id: str) -> str:

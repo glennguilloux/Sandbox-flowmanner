@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.integration_bridge import (
+    _INTEGRATION_CAPABILITIES,
     IntegrationBridge,
     get_integration_bridge,
-    _INTEGRATION_CAPABILITIES,
 )
 
 # ── Helpers ────────────────────────────────────────────────────────────
@@ -44,9 +44,7 @@ def _mock_db_session(connections=None):
     return session
 
 
-def _make_connection_row(
-    user_id=33, slug="google", is_active=True, token="encrypted-token"
-):
+def _make_connection_row(user_id=33, slug="google", is_active=True, token="encrypted-token"):
     """Create a mock IntegrationConnection row."""
     conn = MagicMock()
     conn.user_id = user_id
@@ -170,9 +168,7 @@ async def test_register_capabilities_success():
     """Register capabilities for a user's integration."""
     bridge = IntegrationBridge()
 
-    with patch(
-        "app.services.nexus.capability_registry.get_capability_registry"
-    ) as mock_get_registry:
+    with patch("app.services.nexus.capability_registry.get_capability_registry") as mock_get_registry:
         mock_registry = MagicMock()
         mock_registry.register = MagicMock()
         mock_get_registry.return_value = mock_registry
@@ -218,9 +214,7 @@ async def test_unregister_capabilities_success():
     bridge = IntegrationBridge()
 
     # First register
-    with patch(
-        "app.services.nexus.capability_registry.get_capability_registry"
-    ) as mock_get_registry:
+    with patch("app.services.nexus.capability_registry.get_capability_registry") as mock_get_registry:
         mock_registry = MagicMock()
         mock_registry.register = MagicMock()
         mock_registry.unregister = MagicMock(return_value=True)
@@ -252,9 +246,7 @@ async def test_unregister_capabilities_registry_unavailable():
     bridge = IntegrationBridge()
 
     # Manually set up a registration without going through the registry
-    bridge._active_registrations["1:github"] = MagicMock(
-        capability_ids=["integration:github:create_issue"]
-    )
+    bridge._active_registrations["1:github"] = MagicMock(capability_ids=["integration:github:create_issue"])
 
     with patch(
         "app.services.nexus.capability_registry.get_capability_registry",
@@ -278,28 +270,28 @@ async def test_execute_integration_action_success():
     mock_connector.connect = AsyncMock(return_value=True)
     mock_connector.disconnect = AsyncMock()
     mock_connector.execute_action = AsyncMock(
-        return_value=_mock_connector_response(
-            success=True, data={"id": "msg-1"}, status_code=200
-        )
+        return_value=_mock_connector_response(success=True, data={"id": "msg-1"}, status_code=200)
     )
 
     mock_connector_class = MagicMock(return_value=mock_connector)
     mock_connector_manager = MagicMock()
-    mock_connector_manager.get_connector_class = MagicMock(
-        return_value=mock_connector_class
-    )
+    mock_connector_manager.get_connector_class = MagicMock(return_value=mock_connector_class)
 
     conn_row = _make_connection_row(slug="google")
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
-    ), patch(
-        "app.services.connectors.ConnectorManager",
-        return_value=mock_connector_manager,
-    ), patch(
-        "app.services.integration_bridge.decrypt_token",
-        return_value="ya29.decrypted-token",
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
+        ),
+        patch(
+            "app.services.connectors.ConnectorManager",
+            return_value=mock_connector_manager,
+        ),
+        patch(
+            "app.services.integration_bridge.decrypt_token",
+            return_value="ya29.decrypted-token",
+        ),
     ):
         result = await bridge.execute_integration_action(
             user_id=33,
@@ -345,28 +337,28 @@ async def test_execute_integration_action_connector_fails():
     mock_connector.connect = AsyncMock(return_value=True)
     mock_connector.disconnect = AsyncMock()
     mock_connector.execute_action = AsyncMock(
-        return_value=_mock_connector_response(
-            success=False, error="API error: rate limited", status_code=429
-        )
+        return_value=_mock_connector_response(success=False, error="API error: rate limited", status_code=429)
     )
 
     mock_connector_class = MagicMock(return_value=mock_connector)
     mock_connector_manager = MagicMock()
-    mock_connector_manager.get_connector_class = MagicMock(
-        return_value=mock_connector_class
-    )
+    mock_connector_manager.get_connector_class = MagicMock(return_value=mock_connector_class)
 
     conn_row = _make_connection_row(slug="github")
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
-    ), patch(
-        "app.services.connectors.ConnectorManager",
-        return_value=mock_connector_manager,
-    ), patch(
-        "app.services.integration_bridge.decrypt_token",
-        return_value="ghp.decrypted",
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
+        ),
+        patch(
+            "app.services.connectors.ConnectorManager",
+            return_value=mock_connector_manager,
+        ),
+        patch(
+            "app.services.integration_bridge.decrypt_token",
+            return_value="ghp.decrypted",
+        ),
     ):
         result = await bridge.execute_integration_action(
             user_id=33,
@@ -391,27 +383,27 @@ async def test_execute_always_disconnects():
     mock_connector.disconnect = AsyncMock()
 
     # Make execute_action raise an unexpected exception
-    mock_connector.execute_action = AsyncMock(
-        side_effect=RuntimeError("Unexpected failure")
-    )
+    mock_connector.execute_action = AsyncMock(side_effect=RuntimeError("Unexpected failure"))
 
     mock_connector_class = MagicMock(return_value=mock_connector)
     mock_connector_manager = MagicMock()
-    mock_connector_manager.get_connector_class = MagicMock(
-        return_value=mock_connector_class
-    )
+    mock_connector_manager.get_connector_class = MagicMock(return_value=mock_connector_class)
 
     conn_row = _make_connection_row(slug="google")
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
-    ), patch(
-        "app.services.connectors.ConnectorManager",
-        return_value=mock_connector_manager,
-    ), patch(
-        "app.services.integration_bridge.decrypt_token",
-        return_value="ya29.token",
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
+        ),
+        patch(
+            "app.services.connectors.ConnectorManager",
+            return_value=mock_connector_manager,
+        ),
+        patch(
+            "app.services.integration_bridge.decrypt_token",
+            return_value="ya29.token",
+        ),
     ):
         try:
             await bridge.execute_integration_action(
@@ -444,15 +436,19 @@ async def test_get_connector_for_user_returns_connector():
     mock_manager = MagicMock()
     mock_manager.get_connector_class = MagicMock(return_value=mock_cls)
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
-    ), patch(
-        "app.services.connectors.ConnectorManager",
-        return_value=mock_manager,
-    ), patch(
-        "app.services.integration_bridge.decrypt_token",
-        return_value="ya29.decrypted",
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
+        ),
+        patch(
+            "app.services.connectors.ConnectorManager",
+            return_value=mock_manager,
+        ),
+        patch(
+            "app.services.integration_bridge.decrypt_token",
+            return_value="ya29.decrypted",
+        ),
     ):
         connector = await bridge.get_connector_for_user(user_id=33, slug="google")
 
@@ -484,12 +480,15 @@ async def test_get_connector_for_user_decrypt_fails():
 
     conn_row = _make_connection_row()
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
-    ), patch(
-        "app.services.integration_bridge.decrypt_token",
-        side_effect=ValueError("Bad encryption"),
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session(conn_row)),
+        ),
+        patch(
+            "app.services.integration_bridge.decrypt_token",
+            side_effect=ValueError("Bad encryption"),
+        ),
     ):
         connector = await bridge.get_connector_for_user(user_id=33, slug="google")
 
@@ -618,12 +617,13 @@ async def test_register_all_active_connections():
         _make_connection_row(user_id=2, slug="github"),
     ]
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session(conns)),
-    ), patch(
-        "app.services.nexus.capability_registry.get_capability_registry"
-    ) as mock_get_registry:
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session(conns)),
+        ),
+        patch("app.services.nexus.capability_registry.get_capability_registry") as mock_get_registry,
+    ):
         mock_registry = MagicMock()
         mock_registry.register = MagicMock()
         mock_get_registry.return_value = mock_registry
@@ -658,14 +658,17 @@ async def test_register_all_handles_errors_per_connection():
     good_conn = _make_connection_row(user_id=1, slug="slack")
     bad_conn = _make_connection_row(user_id=2, slug="github")
 
-    with patch(
-        "app.database.AsyncSessionLocal",
-        return_value=_FakeAsyncSessionLocal(_mock_db_session([good_conn, bad_conn])),
-    ), patch.object(
-        bridge,
-        "register_capabilities_for_user",
-        new_callable=AsyncMock,
-    ) as mock_register:
+    with (
+        patch(
+            "app.database.AsyncSessionLocal",
+            return_value=_FakeAsyncSessionLocal(_mock_db_session([good_conn, bad_conn])),
+        ),
+        patch.object(
+            bridge,
+            "register_capabilities_for_user",
+            new_callable=AsyncMock,
+        ) as mock_register,
+    ):
         # First call succeeds, second fails
         mock_register.side_effect = [
             ["integration:slack:send_message", "integration:slack:list_channels"],

@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ── Mock factories (dicts — Pydantic serializes these cleanly) ──────────────
 
 
@@ -136,9 +135,7 @@ class TestFirefightingMetrics:
             "app.api.v1.dashboard.get_firefighting_metrics",
             new=AsyncMock(return_value=mock_resp),
         ) as mock_fn:
-            resp = test_client.get(
-                "/api/dashboard/firefighting-metrics", params={"hours": 48}
-            )
+            resp = test_client.get("/api/dashboard/firefighting-metrics", params={"hours": 48})
 
         assert resp.status_code == 200
         mock_fn.assert_called_once()
@@ -162,12 +159,8 @@ class TestFirefightingMetrics:
     @pytest.mark.parametrize("hours", [0, 169])
     def test_validation_hours_out_of_range(self, test_client, hours):
         """Hours outside 1-168 returns 422."""
-        resp = test_client.get(
-            "/api/dashboard/firefighting-metrics", params={"hours": hours}
-        )
-        assert (
-            resp.status_code == 422
-        ), f"hours={hours} should return 422, got {resp.status_code}"
+        resp = test_client.get("/api/dashboard/firefighting-metrics", params={"hours": hours})
+        assert resp.status_code == 422, f"hours={hours} should return 422, got {resp.status_code}"
 
     @pytest.mark.parametrize("hours", [1, 168])
     def test_validation_hours_boundaries(self, test_client, hours):
@@ -178,13 +171,9 @@ class TestFirefightingMetrics:
             "app.api.v1.dashboard.get_firefighting_metrics",
             new=AsyncMock(return_value=mock_resp),
         ):
-            resp = test_client.get(
-                "/api/dashboard/firefighting-metrics", params={"hours": hours}
-            )
+            resp = test_client.get("/api/dashboard/firefighting-metrics", params={"hours": hours})
 
-        assert (
-            resp.status_code == 200
-        ), f"hours={hours} should be accepted, got {resp.status_code}"
+        assert resp.status_code == 200, f"hours={hours} should be accepted, got {resp.status_code}"
 
     def test_get_firefighting_metrics_service_failure(self, test_client):
         """Service exception returns 500."""
@@ -290,9 +279,7 @@ class TestStats:
         mock_avg = MagicMock()
         mock_avg.scalar.return_value = 1000.0
 
-        mock_db.execute = AsyncMock(
-            side_effect=[mock_total, RuntimeError("Table locked"), mock_avg]
-        )
+        mock_db.execute = AsyncMock(side_effect=[mock_total, RuntimeError("Table locked"), mock_avg])
 
         resp = test_client.get("/api/dashboard/stats")
 
@@ -321,18 +308,21 @@ class TestRouteRegistration:
     )
     def test_endpoints_registered(self, test_client, mock_db, path, expected_status):
         """Endpoint returns expected status (not 404)."""
-        with patch(
-            "app.api.v1.dashboard.get_dashboard_analytics",
-            new=AsyncMock(return_value=_make_mock_analytics_response()),
-        ), patch(
-            "app.api.v1.dashboard.get_firefighting_metrics",
-            new=AsyncMock(return_value=_make_mock_firefighting_response()),
+        with (
+            patch(
+                "app.api.v1.dashboard.get_dashboard_analytics",
+                new=AsyncMock(return_value=_make_mock_analytics_response()),
+            ),
+            patch(
+                "app.api.v1.dashboard.get_firefighting_metrics",
+                new=AsyncMock(return_value=_make_mock_firefighting_response()),
+            ),
         ):
             mock_total = MagicMock()
             mock_total.scalar.return_value = 0
             mock_db.execute = AsyncMock(return_value=mock_total)
 
             resp = test_client.get(path)
-            assert (
-                resp.status_code == expected_status
-            ), f"Expected {expected_status} for GET {path}, got {resp.status_code}"
+            assert resp.status_code == expected_status, (
+                f"Expected {expected_status} for GET {path}, got {resp.status_code}"
+            )

@@ -22,15 +22,9 @@ class SelfHealing:
     async def get_recovery_history(self, hours: int = 24) -> list[dict[str, Any]]:
         """Get recovery attempt history"""
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
-        return [
-            h
-            for h in self._recovery_history
-            if datetime.fromisoformat(h["started_at"]) > cutoff
-        ]
+        return [h for h in self._recovery_history if datetime.fromisoformat(h["started_at"]) > cutoff]
 
-    async def trigger_recovery(
-        self, error_id: str, strategy: str | None = None
-    ) -> dict[str, Any]:
+    async def trigger_recovery(self, error_id: str, strategy: str | None = None) -> dict[str, Any]:
         """Trigger recovery for an error"""
         attempt_id = str(uuid.uuid4())
 

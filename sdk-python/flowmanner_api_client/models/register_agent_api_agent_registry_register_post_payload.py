@@ -26,9 +26,7 @@ class RegisterAgentApiAgentRegistryRegisterPostPayload:
         d = dict(src_dict)
         register_agent_api_agent_registry_register_post_payload = cls()
 
-        register_agent_api_agent_registry_register_post_payload.additional_properties = (
-            d
-        )
+        register_agent_api_agent_registry_register_post_payload.additional_properties = d
         return register_agent_api_agent_registry_register_post_payload
 
     @property

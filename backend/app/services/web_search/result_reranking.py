@@ -135,13 +135,9 @@ class ResultReranker:
         # Add rerank reasons
         for i, result in enumerate(reranked):
             if i < result.original_rank - 1:
-                result.rerank_reasons.append(
-                    f"Moved up from position {result.original_rank}"
-                )
+                result.rerank_reasons.append(f"Moved up from position {result.original_rank}")
             elif i > result.original_rank - 1:
-                result.rerank_reasons.append(
-                    f"Moved down from position {result.original_rank}"
-                )
+                result.rerank_reasons.append(f"Moved down from position {result.original_rank}")
 
         return reranked
 
@@ -198,9 +194,7 @@ class ResultReranker:
 
         return 0.6  # Default for .com and others
 
-    def _calculate_freshness(
-        self, result: RerankedResult, time_sensitive: bool
-    ) -> float:
+    def _calculate_freshness(self, result: RerankedResult, time_sensitive: bool) -> float:
         """Calculate freshness score based on date indicators"""
         # Look for dates in snippet and title
         text = f"{result.title} {result.snippet}"
@@ -219,9 +213,7 @@ class ResultReranker:
                     elif "2022" in date_str:
                         return 0.5
                 except Exception:
-                    logger.debug(
-                        "Failed to parse date from result text for freshness scoring"
-                    )
+                    logger.debug("Failed to parse date from result text for freshness scoring")
 
         # Check for freshness keywords
         freshness_keywords = [
@@ -252,9 +244,7 @@ class ResultReranker:
                 result.diversity_score = 1.0
                 seen_domains.add(result.domain)
 
-    def _get_intent_weights(
-        self, intent: str, time_sensitive: bool
-    ) -> dict[str, float]:
+    def _get_intent_weights(self, intent: str, time_sensitive: bool) -> dict[str, float]:
         """Get scoring weights based on search intent"""
         base_weights = {
             "relevance": 0.4,

@@ -46,9 +46,7 @@ class LlmExecutor:
         self.cost_tracker = cost_tracker
         self._get_model_router = get_model_router or (lambda: None)
 
-    async def execute_llm(
-        self, task, input_data: dict[str, Any], mission=None, db=None
-    ) -> dict[str, Any]:
+    async def execute_llm(self, task, input_data: dict[str, Any], mission=None, db=None) -> dict[str, Any]:
         """Execute an LLM task and record observability data.
 
         Builds messages (system prompt from assigned agent + user prompt),
@@ -114,14 +112,10 @@ class LlmExecutor:
                     provider=response.get("provider", "unknown"),
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
-                    cost_usd=self.cost_tracker.estimate_cost(
-                        model_id, prompt_tokens + completion_tokens
-                    ),
+                    cost_usd=self.cost_tracker.estimate_cost(model_id, prompt_tokens + completion_tokens),
                     latency_ms=latency_ms,
                     success=response.get("success", False),
-                    error_message=(
-                        response.get("error") if not response.get("success") else None
-                    ),
+                    error_message=(response.get("error") if not response.get("success") else None),
                 )
 
             if not response.get("success"):
@@ -214,9 +208,7 @@ class LlmExecutor:
         try:
             async with AsyncSessionLocal() as db:
                 result = await db.execute(
-                    select(AgentTemplate).where(
-                        AgentTemplate.template_id == str(task.assigned_agent_id)
-                    )
+                    select(AgentTemplate).where(AgentTemplate.template_id == str(task.assigned_agent_id))
                 )
                 template = result.scalars().first()
                 if template and template.system_prompt:
@@ -224,16 +216,13 @@ class LlmExecutor:
 
                 result = await db.execute(
                     select(AgentTemplate).where(
-                        AgentTemplate.model_config["slug"].astext
-                        == str(task.assigned_agent_id)
+                        AgentTemplate.model_config["slug"].astext == str(task.assigned_agent_id)
                     )
                 )
                 template = result.scalars().first()
                 if template and template.system_prompt:
                     return template.system_prompt
         except Exception as e:
-            logger.warning(
-                "Failed to resolve agent system prompt for task %s: %s", task.id, e
-            )
+            logger.warning("Failed to resolve agent system prompt for task %s: %s", task.id, e)
 
         return None

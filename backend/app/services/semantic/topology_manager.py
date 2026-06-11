@@ -7,9 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class TopologyManager:
-    def __init__(
-        self, graph_path: str = "/mnt/workflows/workflows/graphify-out/graph.json"
-    ):
+    def __init__(self, graph_path: str = "/mnt/workflows/workflows/graphify-out/graph.json"):
         self.graph_path = Path(graph_path)
         self.G = None
         self.communities: dict[int, list[str]] | None = None
@@ -53,9 +51,7 @@ class TopologyManager:
 
         from app.models.topology_models import TopologySnapshot
 
-        result = await session.execute(
-            select(TopologySnapshot).order_by(desc(TopologySnapshot.version)).limit(1)
-        )
+        result = await session.execute(select(TopologySnapshot).order_by(desc(TopologySnapshot.version)).limit(1))
         snapshot = result.scalar_one_or_none()
 
         if snapshot is None:
@@ -95,9 +91,7 @@ class TopologyManager:
         edges = topology.get("edges", [])
 
         # Get next version number
-        result = await session.execute(
-            select(func.coalesce(func.max(TopologySnapshot.version), 0))
-        )
+        result = await session.execute(select(func.coalesce(func.max(TopologySnapshot.version), 0)))
         max_version = result.scalar() or 0
 
         snapshot_id = str(uuid4())
@@ -136,9 +130,7 @@ class TopologyManager:
                 "avg_degree": round(avg_deg, 2),
                 "node_count": len(node_ids),
                 "edge_count": (
-                    sum(1 for n in node_ids for _ in self.G.neighbors(n))
-                    if hasattr(self.G, "neighbors")
-                    else 0
+                    sum(1 for n in node_ids for _ in self.G.neighbors(n)) if hasattr(self.G, "neighbors") else 0
                 ),
             }
         return embeddings
@@ -156,9 +148,7 @@ class TopologyManager:
                     "label": ndata.get("label", nid),
                     "stack": ndata.get("stack", "unknown"),
                     "community": cid,
-                    "embedding": (
-                        self.embeddings.get(cid, {}) if cid is not None else {}
-                    ),
+                    "embedding": (self.embeddings.get(cid, {}) if cid is not None else {}),
                 }
             )
         for src, tgt, edata in self.G.edges(data=True):

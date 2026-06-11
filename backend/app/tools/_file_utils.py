@@ -26,9 +26,7 @@ def decode_data(data: str) -> bytes:
     try:
         return base64.b64decode(data)
     except Exception as e:
-        raise ValueError(
-            f"Invalid base64 data (first 50 chars: {data[:50]!r}): {e}"
-        ) from e
+        raise ValueError(f"Invalid base64 data (first 50 chars: {data[:50]!r}): {e}") from e
 
 
 async def fetch_bytes(url: str, timeout: int = 30) -> bytes:

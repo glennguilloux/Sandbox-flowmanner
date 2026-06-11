@@ -249,9 +249,7 @@ class HandoffProtocol:
     async def get_messages(self, handoff_id: str) -> list[AgentMessage]:
         """Get all messages for a handoff."""
         result = await self.db.execute(
-            select(AgentMessage)
-            .where(AgentMessage.correlation_id == handoff_id)
-            .order_by(AgentMessage.created_at)
+            select(AgentMessage).where(AgentMessage.correlation_id == handoff_id).order_by(AgentMessage.created_at)
         )
         return list(result.scalars().all())
 
@@ -284,7 +282,5 @@ class HandoffProtocol:
         return list(result.scalars().all())
 
     async def _get(self, handoff_id: str) -> HandoffRecord | None:
-        result = await self.db.execute(
-            select(HandoffRecord).where(HandoffRecord.id == handoff_id)
-        )
+        result = await self.db.execute(select(HandoffRecord).where(HandoffRecord.id == handoff_id))
         return result.scalar_one_or_none()

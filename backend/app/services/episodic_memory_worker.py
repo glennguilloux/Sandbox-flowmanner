@@ -69,10 +69,7 @@ class EpisodicMemoryWorker:
 
         # 2. Fetch the event log for this run
         stmt = (
-            select(SubstrateEvent)
-            .where(SubstrateEvent.run_id == run_id)
-            .order_by(SubstrateEvent.sequence)
-            .limit(500)
+            select(SubstrateEvent).where(SubstrateEvent.run_id == run_id).order_by(SubstrateEvent.sequence).limit(500)
         )
         events = (await self.db.execute(stmt)).scalars().all()
         if not events:
@@ -163,13 +160,7 @@ class EpisodicMemoryWorker:
             # Build filter
             query_filter = None
             if workspace_id:
-                query_filter = Filter(
-                    must=[
-                        FieldCondition(
-                            key="workspace_id", params=MatchValue(value=workspace_id)
-                        )
-                    ]
-                )
+                query_filter = Filter(must=[FieldCondition(key="workspace_id", params=MatchValue(value=workspace_id))])
 
             results = await client.search(
                 collection_name=EPISODES_COLLECTION,
@@ -277,8 +268,7 @@ class EpisodicMemoryWorker:
                         {
                             "action": "llm_call",
                             "model": payload.get("model_id", "unknown"),
-                            "tokens": payload.get("prompt_tokens", 0)
-                            + payload.get("completion_tokens", 0),
+                            "tokens": payload.get("prompt_tokens", 0) + payload.get("completion_tokens", 0),
                         }
                     )
         return actions
@@ -296,11 +286,7 @@ class EpisodicMemoryWorker:
                 break
 
         return {
-            "status": (
-                mission.status
-                if isinstance(mission.status, str)
-                else mission.status.value
-            ),
+            "status": (mission.status if isinstance(mission.status, str) else mission.status.value),
             "error": terminal.payload.get("error") if terminal else None,
             "total_tokens": getattr(mission, "tokens_used", 0) or 0,
             "actual_cost": getattr(mission, "actual_cost", 0.0) or 0.0,

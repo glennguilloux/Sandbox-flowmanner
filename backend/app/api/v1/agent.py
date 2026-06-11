@@ -48,9 +48,7 @@ async def _list_agents(
     workspace_id: str | None = None,
 ):
     offset = (page - 1) * per_page
-    items, total = await list_agents(
-        db, str(user.id), offset=offset, limit=per_page, workspace_id=workspace_id
-    )
+    items, total = await list_agents(db, str(user.id), offset=offset, limit=per_page, workspace_id=workspace_id)
     pages = (total + per_page - 1) // per_page
     return {
         "items": items,
@@ -114,9 +112,7 @@ async def create_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await create_agent_template(
-        db, payload.name, payload.description, payload.config, payload.is_public
-    )
+    return await create_agent_template(db, payload.name, payload.description, payload.config, payload.is_public)
 
 
 @router.patch("/templates/{template_id}", response_model=AgentTemplateResponse)

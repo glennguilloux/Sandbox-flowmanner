@@ -5,9 +5,10 @@ Revises: roadmap_001
 Create Date: 2026-05-18
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "mission_advanced_001"
 down_revision = "roadmap_001"
@@ -80,9 +81,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index(
-        "ix_mission_versions_mission_id", "mission_versions", ["mission_id"]
-    )
+    op.create_index("ix_mission_versions_mission_id", "mission_versions", ["mission_id"])
 
 
 def downgrade() -> None:

@@ -153,9 +153,7 @@ async def _read_space(redis, space_id: str, *, since: float | None = None) -> Sp
     members = list(await redis.smembers(_members_key(space_id)))
 
     min_score = since if since is not None else "-inf"
-    raw_messages = await redis.zrangebyscore(
-        _msg_key(space_id), min_score, "+inf", withscores=True
-    )
+    raw_messages = await redis.zrangebyscore(_msg_key(space_id), min_score, "+inf", withscores=True)
     messages: list[SpaceMessage] = []
     for raw, score in raw_messages:
         try:

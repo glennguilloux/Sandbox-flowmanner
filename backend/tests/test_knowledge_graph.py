@@ -7,15 +7,15 @@ and can be reloaded into a fresh KnowledgeGraph instance.
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.services.improvement.causal_decomposer import StrategyType
+from app.services.improvement.failure_types import FailureType
 from app.services.improvement.knowledge_graph import (
+    EdgeType,
     KnowledgeGraph,
     NodeType,
-    EdgeType,
 )
-from app.services.improvement.failure_types import FailureType
-from app.services.improvement.causal_decomposer import StrategyType
 
 pytestmark = pytest.mark.integration
 
@@ -28,9 +28,7 @@ async def _make_session():
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    session_factory = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     session = session_factory()
     await session.execute(text("DELETE FROM improvement_knowledge_edges"))
     await session.execute(text("DELETE FROM improvement_knowledge_nodes"))
@@ -204,9 +202,7 @@ async def test_duplicate_edge_averages_weight():
         n1 = await kg.add_node(NodeType.FAILURE, "DUPLICATE_TEST_A")
         n2 = await kg.add_node(NodeType.STRATEGY, "DUPLICATE_TEST_B")
 
-        e1 = await kg.add_edge(
-            n1.id, n2.id, EdgeType.FIXES, weight=4.0, properties={"extra": "yes"}
-        )
+        e1 = await kg.add_edge(n1.id, n2.id, EdgeType.FIXES, weight=4.0, properties={"extra": "yes"})
         assert e1 is not None
 
         e2 = await kg.add_edge(n1.id, n2.id, EdgeType.FIXES, weight=8.0)
@@ -308,9 +304,7 @@ async def test_no_db_session_skips_persistence():
     """Without a db_session, operations work in-memory only and don't crash."""
     kg = KnowledgeGraph(db_session=None)
 
-    node = await kg.add_node(
-        NodeType.FAILURE, "IN_MEMORY_ONLY", properties={"note": "should not persist"}
-    )
+    node = await kg.add_node(NodeType.FAILURE, "IN_MEMORY_ONLY", properties={"note": "should not persist"})
     await kg.add_edge(node.id, node.id, EdgeType.SIMILAR_TO, weight=0.5)
 
     assert len(kg._nodes) == 1

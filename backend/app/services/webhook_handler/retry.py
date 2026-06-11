@@ -70,9 +70,7 @@ class RetryManager:
             )
 
         elif self.config.strategy == RetryStrategy.EXPONENTIAL_JITTER:
-            base_delay = self.config.initial_delay_seconds * (
-                self.config.backoff_factor ** (retry_count - 1)
-            )
+            base_delay = self.config.initial_delay_seconds * (self.config.backoff_factor ** (retry_count - 1))
             jitter = base_delay * self.config.jitter_factor * random.random()
             delay = base_delay + jitter  # type: ignore[assignment]
 
@@ -89,10 +87,7 @@ class RetryManager:
             return False
 
         error_lower = error.lower()
-        return any(
-            retryable.lower() in error_lower
-            for retryable in self.config.retryable_errors
-        )
+        return any(retryable.lower() in error_lower for retryable in self.config.retryable_errors)
 
     def schedule_retry(self, webhook_log_id: int, retry_count: int) -> datetime:
         """Schedule a retry for a webhook"""
@@ -124,11 +119,7 @@ class RetryManager:
     def get_due_retries(self) -> list[int]:
         """Get webhook IDs that are due for retry"""
         now = datetime.now(UTC)
-        return [
-            webhook_id
-            for webhook_id, retry_time in self._pending_retries.items()
-            if retry_time <= now
-        ]
+        return [webhook_id for webhook_id, retry_time in self._pending_retries.items() if retry_time <= now]
 
     def register_retry_handler(self, source: str, handler: Callable) -> None:
         """Register a handler for retrying webhooks from a specific source"""

@@ -105,9 +105,7 @@ class CssSelectorQueryTool(BaseTool):
         try:
             validated = CssSelectorQueryInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.extract == "attribute" and not validated.attribute_name:
             return ToolResult.error_result(
@@ -158,9 +156,7 @@ class CssSelectorQueryTool(BaseTool):
             logger.exception("css_selector_query failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
-    def _extract_results(
-        self, elements: list, validated: CssSelectorQueryInput
-    ) -> list[Any]:
+    def _extract_results(self, elements: list, validated: CssSelectorQueryInput) -> list[Any]:
         results: list[Any] = []
 
         for el in elements:
@@ -172,9 +168,7 @@ class CssSelectorQueryTool(BaseTool):
                     continue
                 results.append(text)
             elif validated.extract == "html":
-                results.append(
-                    el.decode_contents() if hasattr(el, "decode_contents") else str(el)
-                )
+                results.append(el.decode_contents() if hasattr(el, "decode_contents") else str(el))
             elif validated.extract == "outer_html":
                 results.append(str(el))
             elif validated.extract == "attribute":
@@ -197,11 +191,7 @@ class CssSelectorQueryTool(BaseTool):
                     from urllib.parse import urljoin
 
                     for attr in ("href", "src"):
-                        if (
-                            attr in attrs
-                            and attrs[attr]
-                            and not attrs[attr].startswith(("http", "data:", "#"))
-                        ):
+                        if attr in attrs and attrs[attr] and not attrs[attr].startswith(("http", "data:", "#")):
                             attrs[attr] = urljoin(validated.base_url, attrs[attr])
                 attrs["text"] = el.get_text(strip=validated.normalize_text)
                 results.append(attrs)

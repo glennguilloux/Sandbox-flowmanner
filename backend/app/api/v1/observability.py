@@ -135,9 +135,7 @@ async def metrics_summary():
             elif metric_name == "circuit_breaker_state":
                 dep = line.split('dependency="')[1].split('"')[0]
                 state_val = int(value)
-                state_name = {0: "closed", 1: "open", 2: "half_open"}.get(
-                    state_val, "unknown"
-                )
+                state_name = {0: "closed", 1: "open", 2: "half_open"}.get(state_val, "unknown")
                 summary["circuit_breakers"][dep] = state_name
 
         except (ValueError, IndexError):
@@ -182,9 +180,7 @@ async def health_check():
     # Circuit breaker states
     try:
         breakers = get_all_breakers()
-        circuit_states = {
-            name: breaker.get_status() for name, breaker in breakers.items()
-        }
+        circuit_states = {name: breaker.get_status() for name, breaker in breakers.items()}
         health["circuit_breakers"] = circuit_states
     except Exception:
         health["circuit_breakers"] = {}

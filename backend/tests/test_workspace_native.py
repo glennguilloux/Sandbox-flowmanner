@@ -9,8 +9,9 @@ Usage (inside container):
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestWorkspaceIdColumns:
@@ -144,15 +145,10 @@ class TestMigrationStructure:
     """Verify migration file is importable and correct."""
 
     def test_migration_importable(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
-        migration_path = (
-            Path(__file__).parent.parent
-            / "alembic"
-            / "versions"
-            / "20260606_workspace_native.py"
-        )
+        migration_path = Path(__file__).parent.parent / "alembic" / "versions" / "20260606_workspace_native.py"
         spec = importlib.util.spec_from_file_location(
             "20260606_workspace_native",
             str(migration_path),

@@ -126,9 +126,7 @@ class ChunkingService:
         book_title: str,
         llm_router: ModelRouter | None = None,
     ) -> list[Chunk]:
-        raw_chunks = (
-            self.splitter.split_text(text) if self.splitter is not None else [text]
-        )
+        raw_chunks = self.splitter.split_text(text) if self.splitter is not None else [text]
 
         result: list[Chunk] = []
         total = len(raw_chunks)

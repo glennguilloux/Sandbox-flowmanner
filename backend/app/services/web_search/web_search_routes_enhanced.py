@@ -142,8 +142,7 @@ async def understand_query(query: str = Query(..., description="Query to analyze
             "location_sensitive": understanding.location_sensitive,
             "keywords": understanding.keywords,
             "entities": [
-                {"text": e.text, "type": e.entity_type, "confidence": e.confidence}
-                for e in understanding.entities
+                {"text": e.text, "type": e.entity_type, "confidence": e.confidence} for e in understanding.entities
             ],
             "expanded_queries": understanding.expanded_queries,
             "suggested_providers": understanding.suggested_providers,

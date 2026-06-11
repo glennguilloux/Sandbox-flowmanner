@@ -142,9 +142,7 @@ class TestClassifyError:
         executor = MissionExecutor()
         mock_response = MagicMock()
         mock_response.status_code = 429
-        exc = httpx.HTTPStatusError(
-            "rate limited", request=MagicMock(), response=mock_response
-        )
+        exc = httpx.HTTPStatusError("rate limited", request=MagicMock(), response=mock_response)
         result = executor._classify_error(exc)
         assert isinstance(result, RetryableMissionError)
 
@@ -157,9 +155,7 @@ class TestClassifyError:
         executor = MissionExecutor()
         mock_response = MagicMock()
         mock_response.status_code = 401
-        exc = httpx.HTTPStatusError(
-            "unauthorized", request=MagicMock(), response=mock_response
-        )
+        exc = httpx.HTTPStatusError("unauthorized", request=MagicMock(), response=mock_response)
         result = executor._classify_error(exc)
         assert isinstance(result, PermanentMissionError)
 
@@ -206,9 +202,7 @@ class TestTransitionStatus:
 
         mock_log_fn = AsyncMock()
         with patch.object(executor, "_log", mock_log_fn):
-            await executor._transition_status(
-                mock_db, mock_mission, MissionStatus.RUNNING, cause="test"
-            )
+            await executor._transition_status(mock_db, mock_mission, MissionStatus.RUNNING, cause="test")
 
         assert mock_mission.status == MissionStatus.RUNNING
         mock_db.commit.assert_called()
@@ -231,9 +225,7 @@ class TestTransitionStatus:
         mock_mission.completed_at = None
 
         with patch.object(executor, "_log", AsyncMock()):
-            await executor._transition_status(
-                mock_db, mock_mission, MissionStatus.COMPLETED, cause="done"
-            )
+            await executor._transition_status(mock_db, mock_mission, MissionStatus.COMPLETED, cause="done")
 
         assert mock_mission.completed_at is not None
 

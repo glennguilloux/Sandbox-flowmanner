@@ -15,7 +15,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -256,11 +256,11 @@ class StrategyEvolver:
 
         # Check if we should evolve
         if best_variant.generation >= self.MAX_GENERATIONS:
-            logger.debug('Max generations reached for %s', base_strategy_type.value)
+            logger.debug("Max generations reached for %s", base_strategy_type.value)
             return None
 
         if best_variant.applications < self.PROMOTE_MIN_APPLICATIONS:
-            logger.debug('Not enough applications to evolve %s', base_strategy_type.value)
+            logger.debug("Not enough applications to evolve %s", base_strategy_type.value)
             return None
 
         # Decide mutation type based on performance
@@ -297,7 +297,13 @@ class StrategyEvolver:
         self._variants[variant_id] = new_variant
         self._strategy_variants[base_strategy_type].add(variant_id)
 
-        logger.info('Created new variant %s from %s (generation %s, mutation: %s)', variant_id, best_variant.variant_id, new_variant.generation, mutation_type)
+        logger.info(
+            "Created new variant %s from %s (generation %s, mutation: %s)",
+            variant_id,
+            best_variant.variant_id,
+            new_variant.generation,
+            mutation_type,
+        )
 
         return new_variant
 
@@ -333,7 +339,7 @@ class StrategyEvolver:
 
         self._evolution_history.append(result)
 
-        logger.info('Deprecated variant %s: %s', variant_id, reason)
+        logger.info("Deprecated variant %s: %s", variant_id, reason)
 
         return result
 
@@ -376,7 +382,7 @@ class StrategyEvolver:
 
         self._evolution_history.append(result)
 
-        logger.info('Promoted variant %s from %s to %s', variant_id, old_status.value, new_status.value)
+        logger.info("Promoted variant %s from %s to %s", variant_id, old_status.value, new_status.value)
 
         return result
 
@@ -412,7 +418,7 @@ class StrategyEvolver:
 
         self._evolution_history.append(result)
 
-        logger.info('Retired variant %s: %s', variant_id, reason)
+        logger.info("Retired variant %s: %s", variant_id, reason)
 
         return result
 
@@ -525,8 +531,7 @@ class StrategyEvolver:
         candidates = [
             self._variants[vid]
             for vid in variant_ids
-            if vid in self._variants
-            and status_order.get(self._variants[vid].status, 0) >= min_status_level
+            if vid in self._variants and status_order.get(self._variants[vid].status, 0) >= min_status_level
         ]
 
         if not candidates:

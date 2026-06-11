@@ -62,43 +62,25 @@ def upgrade():
         sa.Column("total_cost", sa.Float(), default=0.0),
         # Metadata
         sa.Column("metadata", sa.JSON(), nullable=True),
-        sa.Column(
-            "recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         # Foreign keys
-        sa.ForeignKeyConstraint(
-            ["thread_id"], ["chat_threads.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["session_id"], ["chat_model_sessions.session_id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["thread_id"], ["chat_threads.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["session_id"], ["chat_model_sessions.session_id"], ondelete="SET NULL"),
     )
 
     # Create indexes for model_metrics
-    op.create_index(
-        "idx_model_metrics_metric_id", "model_metrics", ["metric_id"], unique=True
-    )
-    op.create_index(
-        "idx_model_metrics_model", "model_metrics", ["model_name"], unique=False
-    )
-    op.create_index(
-        "idx_model_metrics_thread", "model_metrics", ["thread_id"], unique=False
-    )
-    op.create_index(
-        "idx_model_metrics_session", "model_metrics", ["session_id"], unique=False
-    )
-    op.create_index(
-        "idx_model_metrics_recorded", "model_metrics", ["recorded_at"], unique=False
-    )
+    op.create_index("idx_model_metrics_metric_id", "model_metrics", ["metric_id"], unique=True)
+    op.create_index("idx_model_metrics_model", "model_metrics", ["model_name"], unique=False)
+    op.create_index("idx_model_metrics_thread", "model_metrics", ["thread_id"], unique=False)
+    op.create_index("idx_model_metrics_session", "model_metrics", ["session_id"], unique=False)
+    op.create_index("idx_model_metrics_recorded", "model_metrics", ["recorded_at"], unique=False)
 
     # Create user_model_preferences table
     # Stores user preferences for model selection
     op.create_table(
         "user_model_preferences",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "preference_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("preference_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("user_id", sa.Integer(), nullable=False, index=True),
         sa.Column("thread_id", sa.Integer(), nullable=True, index=True),
         # Model preferences
@@ -109,18 +91,14 @@ def upgrade():
         sa.Column("model_settings", sa.JSON(), nullable=True),  # Per-model settings
         # Usage preferences
         sa.Column("auto_switch_enabled", sa.Boolean(), default=False),
-        sa.Column(
-            "cost_warning_threshold", sa.Float(), default=10.0
-        ),  # USD warning threshold
+        sa.Column("cost_warning_threshold", sa.Float(), default=10.0),  # USD warning threshold
         sa.Column("max_daily_cost", sa.Float(), nullable=True),
         # Performance preferences
         sa.Column("prefer_speed", sa.Boolean(), default=False),
         sa.Column("prefer_quality", sa.Boolean(), default=False),
         sa.Column("prefer_cost_efficiency", sa.Boolean(), default=True),
         # Timestamps
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -139,12 +117,8 @@ def upgrade():
         ["preference_id"],
         unique=True,
     )
-    op.create_index(
-        "idx_user_prefs_user", "user_model_preferences", ["user_id"], unique=False
-    )
-    op.create_index(
-        "idx_user_prefs_thread", "user_model_preferences", ["thread_id"], unique=False
-    )
+    op.create_index("idx_user_prefs_user", "user_model_preferences", ["user_id"], unique=False)
+    op.create_index("idx_user_prefs_thread", "user_model_preferences", ["thread_id"], unique=False)
 
     # Create model_pricing table
     # Stores pricing information for different models
@@ -152,9 +126,7 @@ def upgrade():
         "model_pricing",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("pricing_id", sa.String(64), unique=True, nullable=False, index=True),
-        sa.Column(
-            "model_name", sa.String(100), nullable=False, unique=True, index=True
-        ),
+        sa.Column("model_name", sa.String(100), nullable=False, unique=True, index=True),
         sa.Column("provider", sa.String(50), nullable=False, index=True),
         # Pricing (per 1K tokens)
         sa.Column("input_cost_per_1k", sa.Float(), default=0.0),
@@ -168,16 +140,12 @@ def upgrade():
         sa.Column("supports_thinking", sa.Boolean(), default=False),
         # Performance characteristics
         sa.Column("typical_response_time_ms", sa.Float(), nullable=True),
-        sa.Column(
-            "performance_tier", sa.String(20), default="standard"
-        ),  # fast, standard, slow
+        sa.Column("performance_tier", sa.String(20), default="standard"),  # fast, standard, slow
         # Status
         sa.Column("is_active", sa.Boolean(), default=True, index=True),
         sa.Column("is_verified", sa.Boolean(), default=False),
         # Timestamps
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -187,47 +155,31 @@ def upgrade():
     )
 
     # Create indexes for model_pricing
-    op.create_index(
-        "idx_model_pricing_pricing_id", "model_pricing", ["pricing_id"], unique=True
-    )
-    op.create_index(
-        "idx_model_pricing_model", "model_pricing", ["model_name"], unique=True
-    )
-    op.create_index(
-        "idx_model_pricing_provider", "model_pricing", ["provider"], unique=False
-    )
-    op.create_index(
-        "idx_model_pricing_active", "model_pricing", ["is_active"], unique=False
-    )
+    op.create_index("idx_model_pricing_pricing_id", "model_pricing", ["pricing_id"], unique=True)
+    op.create_index("idx_model_pricing_model", "model_pricing", ["model_name"], unique=True)
+    op.create_index("idx_model_pricing_provider", "model_pricing", ["provider"], unique=False)
+    op.create_index("idx_model_pricing_active", "model_pricing", ["is_active"], unique=False)
 
     # Add model_name column to chat_messages table to track which model generated each message
     op.add_column(
         "chat_messages",
         sa.Column("model_name", sa.String(100), nullable=True, index=True),
     )
-    op.add_column(
-        "chat_messages", sa.Column("model_provider", sa.String(50), nullable=True)
-    )
+    op.add_column("chat_messages", sa.Column("model_provider", sa.String(50), nullable=True))
     op.add_column("chat_messages", sa.Column("message_cost", sa.Float(), default=0.0))
 
     # Create index for model_name on chat_messages
-    op.create_index(
-        "idx_chat_messages_model", "chat_messages", ["model_name"], unique=False
-    )
+    op.create_index("idx_chat_messages_model", "chat_messages", ["model_name"], unique=False)
 
     # Add model_name column to chat_threads table for current active model
     op.add_column(
         "chat_threads",
         sa.Column("current_model", sa.String(100), nullable=True, index=True),
     )
-    op.add_column(
-        "chat_threads", sa.Column("current_provider", sa.String(50), nullable=True)
-    )
+    op.add_column("chat_threads", sa.Column("current_provider", sa.String(50), nullable=True))
 
     # Create index for current_model on chat_threads
-    op.create_index(
-        "idx_chat_threads_model", "chat_threads", ["current_model"], unique=False
-    )
+    op.create_index("idx_chat_threads_model", "chat_threads", ["current_model"], unique=False)
 
     # Seed default model pricing data
     seed_model_pricing(op)

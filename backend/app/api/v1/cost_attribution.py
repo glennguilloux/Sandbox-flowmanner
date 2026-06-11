@@ -29,9 +29,7 @@ router = APIRouter(prefix="/costs", tags=["cost-attribution"])
 
 @router.get("/summary")
 async def cost_summary(
-    group_by: str = Query(
-        "day", description="Group by: day, agent, mission, model, provider, workspace"
-    ),
+    group_by: str = Query("day", description="Group by: day, agent, mission, model, provider, workspace"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     agent_id: str | None = Query(None),
     mission_id: str | None = Query(None),

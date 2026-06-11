@@ -19,9 +19,7 @@ router = APIRouter(prefix="/search", tags=["search"])
 @router.get("")
 async def search(
     q: str = Query(..., min_length=2, max_length=200),
-    type: str = Query(
-        "", description="Comma-separated entity types: missions,agents,knowledge"
-    ),
+    type: str = Query("", description="Comma-separated entity types: missions,agents,knowledge"),
     limit: int = Query(20, ge=1, le=50),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

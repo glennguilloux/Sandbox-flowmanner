@@ -45,15 +45,9 @@ def _get_limits_from_settings():
             "mission:execute": getattr(settings, "MISSION_RATE_LIMIT_EXECUTE", 20),
             "mission:abort": getattr(settings, "MISSION_RATE_LIMIT_ABORT", 15),
             "mission:plan": getattr(settings, "MISSION_RATE_LIMIT_PLAN", 20),
-            "_DEFAULT": getattr(
-                settings, "MISSION_RATE_LIMIT_DEFAULT", _FALLBACK_LIMIT
-            ),
-            "_WINDOW": getattr(
-                settings, "MISSION_RATE_LIMIT_WINDOW_SECONDS", _FALLBACK_WINDOW
-            ),
-            "_BURST": getattr(
-                settings, "MISSION_RATE_LIMIT_BURST_MULTIPLIER", _FALLBACK_BURST
-            ),
+            "_DEFAULT": getattr(settings, "MISSION_RATE_LIMIT_DEFAULT", _FALLBACK_LIMIT),
+            "_WINDOW": getattr(settings, "MISSION_RATE_LIMIT_WINDOW_SECONDS", _FALLBACK_WINDOW),
+            "_BURST": getattr(settings, "MISSION_RATE_LIMIT_BURST_MULTIPLIER", _FALLBACK_BURST),
         }
     except Exception:
         return {}
@@ -76,9 +70,7 @@ async def _get_redis():
         return None
 
 
-async def _redis_allowed(
-    key: str, max_tokens: int, window_s: int, burst: int
-) -> tuple[bool, int, int]:
+async def _redis_allowed(key: str, max_tokens: int, window_s: int, burst: int) -> tuple[bool, int, int]:
     """Redis sorted-set sliding window. Returns (allowed, remaining, retry_after)."""
     r = await _get_redis()
     if r is None:
@@ -156,17 +148,13 @@ def _build_429(limit: int, window_s: int, retry: int) -> JSONResponse:
 # ── FastAPI dependency factory ────────────────────────────────────────────────
 
 
-def rate_limit(
-    endpoint_key: str, *, limit: int | None = None, window_seconds: int | None = None
-):
+def rate_limit(endpoint_key: str, *, limit: int | None = None, window_seconds: int | None = None):
     """FastAPI dependency factory for per-user rate limiting.
 
     Checks Redis first, then in-memory.  Either one can deny the request.
     """
     cfg = _get_limits_from_settings()
-    effective_limit = limit or cfg.get(
-        endpoint_key, cfg.get("_DEFAULT", _FALLBACK_LIMIT)
-    )
+    effective_limit = limit or cfg.get(endpoint_key, cfg.get("_DEFAULT", _FALLBACK_LIMIT))
     effective_window = window_seconds or cfg.get("_WINDOW", _FALLBACK_WINDOW)
     effective_burst = cfg.get("_BURST", _FALLBACK_BURST)
     inmem: dict[str, list[float]] = {}

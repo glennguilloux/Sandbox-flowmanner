@@ -124,9 +124,7 @@ class ToolRegistry:
 
         # Remove from category tracking
         if tool.category in self._categories:
-            self._categories[tool.category] = [
-                t for t in self._categories[tool.category] if t != tool_id
-            ]
+            self._categories[tool.category] = [t for t in self._categories[tool.category] if t != tool_id]
 
         # Remove from tag tracking
         for tag in tool.tags:

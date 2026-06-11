@@ -3,8 +3,10 @@
 import asyncio
 import json
 import uuid
-from app.database import AsyncSessionLocal
+
 from sqlalchemy import text
+
+from app.database import AsyncSessionLocal
 
 AGENTS = [
     {
@@ -135,9 +137,7 @@ async def seed():
             aid = str(uuid.uuid4())
             agent_ids.append(aid)
             exists = await db.execute(
-                text(
-                    "SELECT COUNT(*) FROM orchestration_agents WHERE name=:n AND user_id=:u"
-                ),
+                text("SELECT COUNT(*) FROM orchestration_agents WHERE name=:n AND user_id=:u"),
                 {"n": a["name"], "u": uid},
             )
             if exists.scalar() > 0:
@@ -161,9 +161,7 @@ async def seed():
 
         # Get DB agent IDs
         r = await db.execute(
-            text(
-                "SELECT id FROM orchestration_agents WHERE user_id=:u ORDER BY created_at DESC"
-            ),
+            text("SELECT id FROM orchestration_agents WHERE user_id=:u ORDER BY created_at DESC"),
             {"u": uid},
         )
         db_ids = [str(row[0]) for row in r.fetchall()]
@@ -174,9 +172,7 @@ async def seed():
             member_ids = [db_ids[i] for i in t["members"] if i < len(db_ids)]
             members_json = json.dumps([{"id": m, "role": "member"} for m in member_ids])
             exists = await db.execute(
-                text(
-                    "SELECT COUNT(*) FROM orchestration_teams WHERE name=:n AND user_id=:u"
-                ),
+                text("SELECT COUNT(*) FROM orchestration_teams WHERE name=:n AND user_id=:u"),
                 {"n": t["name"], "u": uid},
             )
             if exists.scalar() > 0:
@@ -202,9 +198,7 @@ async def seed():
             agent_id = db_ids[i % len(db_ids)] if db_ids else None
             inp = json.dumps({"query": f"Input for {name}"})
             exists = await db.execute(
-                text(
-                    "SELECT COUNT(*) FROM orchestration_tasks WHERE name=:n AND user_id=:u"
-                ),
+                text("SELECT COUNT(*) FROM orchestration_tasks WHERE name=:n AND user_id=:u"),
                 {"n": name, "u": uid},
             )
             if exists.scalar() > 0:

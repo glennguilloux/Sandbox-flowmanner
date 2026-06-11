@@ -16,22 +16,21 @@ import sys
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
+from app.models.blueprint_models import Blueprint, BlueprintVersion, Run
+from app.models.graph import Workflow as GraphWorkflow
+from app.models.graph import WorkflowExecution
 from app.models.mission_models import Mission, MissionTask
-from app.models.graph import Workflow as GraphWorkflow, WorkflowExecution
 from app.models.swarm_models import OrchestratorExecution
-from app.models.blueprint_models import Blueprint, Run, BlueprintVersion
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 
-async def backfill_blueprints(
-    db: AsyncSession, batch_size: int = 100, dry_run: bool = False
-) -> int:
+async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: bool = False) -> int:
     """Create blueprints from existing missions."""
     # Find missions that don't have a corresponding blueprint yet
     existing_bp_ids = select(Blueprint.id)
@@ -53,9 +52,7 @@ async def backfill_blueprints(
 
     for mission in missions:
         # Fetch tasks for this mission
-        tasks_result = await db.execute(
-            select(MissionTask).where(MissionTask.mission_id == str(mission.id))
-        )
+        tasks_result = await db.execute(select(MissionTask).where(MissionTask.mission_id == str(mission.id)))
         tasks = list(tasks_result.scalars().all())
 
         # Build definition from mission plan + tasks
@@ -68,13 +65,9 @@ async def backfill_blueprints(
                     "title": task.title or "",
                     "description": task.description or "",
                     "config": task.input_data or {},
-                    "dependencies": (
-                        task.dependencies if isinstance(task.dependencies, list) else []
-                    ),
+                    "dependencies": (task.dependencies if isinstance(task.dependencies, list) else []),
                     "assigned_model": task.assigned_model,
-                    "assigned_agent_id": (
-                        str(task.assigned_agent_id) if task.assigned_agent_id else None
-                    ),
+                    "assigned_agent_id": (str(task.assigned_agent_id) if task.assigned_agent_id else None),
                     "max_retries": task.max_retries or 3,
                     "fallback_strategy": "human_escalate",
                 }
@@ -100,9 +93,7 @@ async def backfill_blueprints(
             description=mission.description or "",
             blueprint_type=mission.mission_type or "solo",
             definition=definition,
-            status=(
-                "published" if mission.status in ("completed", "approved") else "draft"
-            ),
+            status=("published" if mission.status in ("completed", "approved") else "draft"),
             version=1,
             workspace_id=mission.workspace_id,
             run_count=1 if mission.status in ("completed", "failed", "aborted") else 0,
@@ -134,18 +125,12 @@ async def backfill_blueprints(
     return len(missions)
 
 
-async def backfill_runs(
-    db: AsyncSession, batch_size: int = 100, dry_run: bool = False
-) -> int:
+async def backfill_runs(db: AsyncSession, batch_size: int = 100, dry_run: bool = False) -> int:
     """Create runs from existing workflow executions and orchestrator executions."""
     count = 0
 
     # Backfill from workflow_executions
-    stmt = (
-        select(WorkflowExecution)
-        .order_by(WorkflowExecution.created_at)
-        .limit(batch_size)
-    )
+    stmt = select(WorkflowExecution).order_by(WorkflowExecution.created_at).limit(batch_size)
     result = await db.execute(stmt)
     executions = list(result.scalars().all())
 
@@ -170,11 +155,7 @@ async def backfill_runs(
         count += 1
 
     # Backfill from orchestrator_executions
-    stmt = (
-        select(OrchestratorExecution)
-        .order_by(OrchestratorExecution.created_at)
-        .limit(batch_size)
-    )
+    stmt = select(OrchestratorExecution).order_by(OrchestratorExecution.created_at).limit(batch_size)
     result = await db.execute(stmt)
     orch_execs = list(result.scalars().all())
 

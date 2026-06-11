@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ── Import tests ──────────────────────────────────────────────────────
 
 
@@ -35,9 +34,9 @@ class TestTopologyModelImports:
 
     def test_import_direct(self):
         from app.models.topology_models import (
-            TopologySnapshot,
-            TopologyNode,
             TopologyEdge,
+            TopologyNode,
+            TopologySnapshot,
         )
 
         assert TopologySnapshot.__tablename__ == "topology_snapshots"
@@ -83,8 +82,9 @@ class TestTopologySnapshotSchema:
             assert col.default.arg == 0, f"{col_name} default should be 0"
 
     def test_snapshot_data_is_jsonb(self):
-        from app.models.topology_models import TopologySnapshot
         from sqlalchemy.dialects.postgresql import JSONB
+
+        from app.models.topology_models import TopologySnapshot
 
         col = TopologySnapshot.__table__.columns["snapshot_data"]
         assert isinstance(col.type, JSONB)
@@ -134,11 +134,7 @@ class TestTopologyNodeSchema:
 
         indexes = TopologyNode.__table__.indexes
         idx = next(
-            (
-                ix
-                for ix in indexes
-                if set(c.name for c in ix.columns) == {"snapshot_id"}
-            ),
+            (ix for ix in indexes if set(c.name for c in ix.columns) == {"snapshot_id"}),
             None,
         )
         assert idx is not None, "Missing index on snapshot_id"
@@ -186,8 +182,9 @@ class TestTopologyNodeSchema:
         assert "updated_at" not in columns
 
     def test_evidence_is_jsonb(self):
-        from app.models.topology_models import TopologyNode
         from sqlalchemy.dialects.postgresql import JSONB
+
+        from app.models.topology_models import TopologyNode
 
         col = TopologyNode.__table__.columns["evidence"]
         assert isinstance(col.type, JSONB)
@@ -219,11 +216,7 @@ class TestTopologyEdgeSchema:
 
         indexes = TopologyEdge.__table__.indexes
         idx = next(
-            (
-                ix
-                for ix in indexes
-                if set(c.name for c in ix.columns) == {"snapshot_id"}
-            ),
+            (ix for ix in indexes if set(c.name for c in ix.columns) == {"snapshot_id"}),
             None,
         )
         assert idx is not None, "Missing index on snapshot_id"
@@ -265,24 +258,14 @@ class TestTopologyMigration:
     def test_migration_file_exists(self):
         from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_topology.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_topology.py"
         assert rev_path.exists(), f"Migration file not found at {rev_path}"
 
     def test_migration_has_upgrade_and_downgrade(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_topology.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_topology.py"
         if not rev_path.exists():
             pytest.skip("Migration file not found")
 
@@ -296,15 +279,10 @@ class TestTopologyMigration:
         assert callable(mod.downgrade)
 
     def test_migration_revision_chain(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_topology.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_topology.py"
         if not rev_path.exists():
             pytest.skip("Migration file not found")
 
@@ -317,15 +295,10 @@ class TestTopologyMigration:
 
     def test_three_tables_in_upgrade(self):
         """Verify upgrade() creates exactly 3 tables."""
-        from pathlib import Path
         import ast
+        from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_topology.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_topology.py"
         if not rev_path.exists():
             pytest.skip("Migration file not found")
 

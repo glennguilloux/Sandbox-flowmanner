@@ -205,17 +205,13 @@ class ApprovalWorkflow:
                         "timeout_seconds": request.timeout_seconds,
                     }
                 )
-                self.redis_client.setex(
-                    redis_key, self.default_timeout + 60, redis_value
-                )
+                self.redis_client.setex(redis_key, self.default_timeout + 60, redis_value)
                 logger.info(
                     "[APPROVAL] Successfully saved approval request %s to Redis",
                     request_id,
                 )
             except Exception as e:
-                logger.warning(
-                    "[APPROVAL] Failed to save approval request to Redis: %s", e
-                )
+                logger.warning("[APPROVAL] Failed to save approval request to Redis: %s", e)
         else:
             logger.warning(
                 "[APPROVAL] Redis not available, approval request %s only in memory",
@@ -393,9 +389,7 @@ class ApprovalWorkflow:
         # Remove from pending
         self._remove_request(request_id)
 
-        logger.info(
-            "Rejected tool execution %s by user %s: %s", request_id, user_id, reason
-        )
+        logger.info("Rejected tool execution %s by user %s: %s", request_id, user_id, reason)
 
         return {
             "success": True,

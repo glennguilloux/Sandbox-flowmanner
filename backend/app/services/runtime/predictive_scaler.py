@@ -41,9 +41,7 @@ class PredictiveScaler:
                 "current": round(cpu_current, 2),
                 "predicted": round(cpu_predicted, 2),
                 "confidence": round(random.uniform(0.7, 0.95), 2),
-                "recommendation": self._get_recommendation(
-                    "cpu", cpu_current, cpu_predicted
-                ),
+                "recommendation": self._get_recommendation("cpu", cpu_current, cpu_predicted),
                 "horizon": horizon,
             },
             "memory": {
@@ -51,18 +49,14 @@ class PredictiveScaler:
                 "current": round(memory_current, 2),
                 "predicted": round(memory_predicted, 2),
                 "confidence": round(random.uniform(0.7, 0.95), 2),
-                "recommendation": self._get_recommendation(
-                    "memory", memory_current, memory_predicted
-                ),
+                "recommendation": self._get_recommendation("memory", memory_current, memory_predicted),
                 "horizon": horizon,
             },
         }
 
         return self._predictions
 
-    def _get_recommendation(
-        self, resource: str, current: float, predicted: float
-    ) -> str:
+    def _get_recommendation(self, resource: str, current: float, predicted: float) -> str:
         """Generate scaling recommendation"""
         if predicted > 85:
             return f"SCALE UP: {resource} predicted to exceed threshold"
@@ -117,9 +111,7 @@ class PredictiveScaler:
         actual_added = new_count - self.current_workers
         self.current_workers = new_count
 
-        logger.info(
-            "Scaled up by %s workers. Total: %s", actual_added, self.current_workers
-        )
+        logger.info("Scaled up by %s workers. Total: %s", actual_added, self.current_workers)
 
         return {
             "action": "scale_up",
@@ -134,9 +126,7 @@ class PredictiveScaler:
         actual_removed = self.current_workers - new_count
         self.current_workers = new_count
 
-        logger.info(
-            "Scaled down by %s workers. Total: %s", actual_removed, self.current_workers
-        )
+        logger.info("Scaled down by %s workers. Total: %s", actual_removed, self.current_workers)
 
         return {
             "action": "scale_down",

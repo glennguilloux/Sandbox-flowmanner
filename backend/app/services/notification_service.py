@@ -178,11 +178,7 @@ async def list_notifications(
     # Optimized total count using count() instead of fetching all rows
     from sqlalchemy import func as sa_func
 
-    count_query = (
-        select(sa_func.count())
-        .select_from(Notification)
-        .where(Notification.user_id == user.id)
-    )
+    count_query = select(sa_func.count()).select_from(Notification).where(Notification.user_id == user.id)
     if unread_only:
         count_query = count_query.where(Notification.is_read == False)
     count_result = await db.execute(count_query)
@@ -317,9 +313,7 @@ def _get_vapid_keys():
                 PublicFormat,
             )
 
-            raw = v.public_key.public_bytes(
-                Encoding.X962, PublicFormat.UncompressedPoint
-            )
+            raw = v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
             pub = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
             import logging
 
@@ -483,17 +477,9 @@ async def get_notification_settings(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        result = await db.execute(
-            select(DBNotificationSettings).where(
-                DBNotificationSettings.user_id == user.id
-            )
-        )
+        result = await db.execute(select(DBNotificationSettings).where(DBNotificationSettings.user_id == user.id))
         settings = result.scalar_one_or_none()
-        s = (
-            NotificationSettings()
-            if not settings
-            else NotificationSettings.model_validate(settings)
-        )
+        s = NotificationSettings() if not settings else NotificationSettings.model_validate(settings)
         # Map backend event_ fields to frontend aliases
         return {
             "mission_completed": s.event_mission_completed,
@@ -519,11 +505,7 @@ async def update_notification_settings(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        result = await db.execute(
-            select(DBNotificationSettings).where(
-                DBNotificationSettings.user_id == user.id
-            )
-        )
+        result = await db.execute(select(DBNotificationSettings).where(DBNotificationSettings.user_id == user.id))
         settings = result.scalar_one_or_none()
 
         if not settings:
@@ -579,16 +561,12 @@ async def update_notification_settings(
         )
 
 
-async def send_notification(
-    user_id: int, notification_type: str, data: dict, db: AsyncSession
-) -> None:
+async def send_notification(user_id: int, notification_type: str, data: dict, db: AsyncSession) -> None:
     """
     Send notification to user based on their settings.
     Called when mission status changes.
     """
-    result = await db.execute(
-        select(DBNotificationSettings).where(DBNotificationSettings.user_id == user_id)
-    )
+    result = await db.execute(select(DBNotificationSettings).where(DBNotificationSettings.user_id == user_id))
     settings = result.scalar_one_or_none()
     if not settings:
         settings = NotificationSettings()  # defaults
@@ -596,10 +574,7 @@ async def send_notification(
         settings = NotificationSettings.model_validate(settings)
 
     # Check if this notification type is enabled
-    if (
-        notification_type == "mission_completed"
-        and not settings.event_mission_completed
-    ):
+    if notification_type == "mission_completed" and not settings.event_mission_completed:
         return
     if notification_type == "mission_failed" and not settings.event_mission_failed:
         return
@@ -612,9 +587,7 @@ async def send_notification(
             title=data.get("title", notification_type),
             body=data.get("message", str(data)),
             notification_type=notification_type,
-            severity=(
-                notification_type.split("_")[-1] if "_" in notification_type else "info"
-            ),
+            severity=(notification_type.split("_")[-1] if "_" in notification_type else "info"),
         )
         await publish_user_notification(
             user_id,
@@ -664,9 +637,7 @@ async def send_notification(
                         except Exception as push_err:
                             # Subscription may be expired — deactivate
                             sub.is_active = False
-                            logger.warning(
-                                "Web push failed for user %s: %s", user_id, push_err
-                            )
+                            logger.warning("Web push failed for user %s: %s", user_id, push_err)
                 await db.flush()
         except Exception as e:
             import logging
@@ -678,9 +649,7 @@ async def send_notification(
         await send_email_notification(settings.email_address, notification_type, data)
 
 
-async def send_email_notification(
-    email: str, notification_type: str, data: dict
-) -> None:
+async def send_email_notification(email: str, notification_type: str, data: dict) -> None:
     """Send email notification using the email service."""
     try:
         from app.services.email_service import get_email_service
@@ -726,9 +695,7 @@ async def send_email_notification(
         logger.warning("Email notification failed: %s", e)
 
 
-async def send_slack_notification(
-    webhook_url: str, notification_type: str, data: dict
-) -> None:
+async def send_slack_notification(webhook_url: str, notification_type: str, data: dict) -> None:
     """Send Slack webhook notification (Story 1.3)."""
     try:
         mission_id = data.get("mission_id", "unknown")
@@ -736,9 +703,7 @@ async def send_slack_notification(
         if notification_type == "mission_completed":
             text = f"✅ Mission {mission_id} completed successfully!"
         else:
-            text = (
-                f"❌ Mission {mission_id} failed! Error: {data.get('error', 'Unknown')}"
-            )
+            text = f"❌ Mission {mission_id} failed! Error: {data.get('error', 'Unknown')}"
 
         payload = {"text": text}
 

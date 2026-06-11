@@ -83,28 +83,20 @@ class CookieManagerTool(BaseTool):
         try:
             validated = CookieManagerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         context = input_data.get("context")
         if not context:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No context provided"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 
         user_id = context.get("user_id")
         if not user_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No user_id in context"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No user_id in context")
 
         manager = get_browser_manager()
         session = manager.get_user_session(str(user_id))
         if not session or not session.is_active():
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="No active browser session"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="No active browser session")
 
         # Resolve URLs — default to current page URL(s)
         urls = validated.urls
@@ -128,9 +120,7 @@ class CookieManagerTool(BaseTool):
             else:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=(
-                        f"Unknown action: '{action}'. Use 'get', 'set', 'delete', or 'clear'."
-                    ),
+                    error=(f"Unknown action: '{action}'. Use 'get', 'set', 'delete', or 'clear'."),
                 )
         except Exception as e:
             logger.exception("cookie_manager failed")
@@ -167,30 +157,21 @@ class CookieManagerTool(BaseTool):
                 cookie_info = {
                     "name": cookie["name"],
                     "value": (
-                        cookie["value"][:20] + "..."
-                        if len(cookie.get("value", "")) > 20
-                        else cookie.get("value", "")
+                        cookie["value"][:20] + "..." if len(cookie.get("value", "")) > 20 else cookie.get("value", "")
                     ),
                     "domain": cookie.get("domain", ""),
                     "path": cookie.get("path", "/"),
                     "httpOnly": cookie.get("httpOnly", False),
                     "secure": cookie.get("secure", False),
                     "sameSite": cookie.get("sameSite", "Lax"),
-                    "expires": (
-                        cookie.get("expires", -1)
-                        if cookie.get("expires", -1) != -1
-                        else None
-                    ),
+                    "expires": (cookie.get("expires", -1) if cookie.get("expires", -1) != -1 else None),
                 }
                 name_lower = cookie["name"].lower()
                 if any(auth in name_lower for auth in auth_names):
                     auth_cookies.append(cookie_info)
                 elif "session" in name_lower or "sid" in name_lower:
                     session_cookies.append(cookie_info)
-                elif any(
-                    g in name_lower
-                    for g in ("ga", "gtm", "analytics", "pixel", "track")
-                ):
+                elif any(g in name_lower for g in ("ga", "gtm", "analytics", "pixel", "track")):
                     analytics_cookies.append(cookie_info)
                 else:
                     session_cookies.append(cookie_info)

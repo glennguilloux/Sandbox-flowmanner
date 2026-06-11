@@ -18,7 +18,6 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.notion_connector import NotionConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -146,9 +145,7 @@ async def test_validate_credentials_no_token():
 
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                401, {"message": "Invalid token"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(401, {"message": "Invalid token"}),
         }
     )
     with patch("aiohttp.ClientSession", return_value=fake):
@@ -172,9 +169,7 @@ async def test_search():
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
             "POST:https://api.notion.com/v1/search": _make_mock_response(200, results),
         }
     )
@@ -193,9 +188,7 @@ async def test_search_missing_query():
     """Search with missing query returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 
@@ -223,12 +216,8 @@ async def test_list_databases():
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
-            "GET:https://api.notion.com/v1/databases": _make_mock_response(
-                200, databases
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
+            "GET:https://api.notion.com/v1/databases": _make_mock_response(200, databases),
         }
     )
 
@@ -252,30 +241,22 @@ async def test_query_database():
             },
             {
                 "id": "r2",
-                "properties": {
-                    "Name": {"title": [{"text": {"content": "Write docs"}}]}
-                },
+                "properties": {"Name": {"title": [{"text": {"content": "Write docs"}}]}},
             },
         ],
         "has_more": False,
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
-            "POST:https://api.notion.com/v1/databases/db1/query": _make_mock_response(
-                200, rows
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
+            "POST:https://api.notion.com/v1/databases/db1/query": _make_mock_response(200, rows),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = NotionConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "query_database", {"database_id": "db1"}
-        )
+        result = await connector.execute_action("query_database", {"database_id": "db1"})
 
     assert result.success is True
     assert len(result.data["results"]) == 2
@@ -286,9 +267,7 @@ async def test_query_database_missing_id():
     """Query database missing database_id returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 
@@ -315,9 +294,7 @@ async def test_get_page():
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
             "GET:https://api.notion.com/v1/pages/page1": _make_mock_response(200, page),
         }
     )
@@ -336,9 +313,7 @@ async def test_get_page_missing_id():
     """Get page missing page_id returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 
@@ -361,9 +336,7 @@ async def test_create_page():
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
             "POST:https://api.notion.com/v1/pages": _make_mock_response(200, created),
         }
     )
@@ -388,18 +361,14 @@ async def test_create_page_missing_parent():
     """Create page missing parent param returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = NotionConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "create_page", {"properties": {"Name": {}}}
-        )
+        result = await connector.execute_action("create_page", {"properties": {"Name": {}}})
 
     assert result.success is False
     assert result.status_code == 400
@@ -411,12 +380,8 @@ async def test_update_page():
     updated = {"id": "page1", "object": "page", "archived": False}
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
-            "PATCH:https://api.notion.com/v1/pages/page1": _make_mock_response(
-                200, updated
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
+            "PATCH:https://api.notion.com/v1/pages/page1": _make_mock_response(200, updated),
         }
     )
 
@@ -439,9 +404,7 @@ async def test_update_page_missing_id():
     """Update page missing page_id returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 
@@ -477,21 +440,15 @@ async def test_get_block_children():
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
-            "GET:https://api.notion.com/v1/blocks/page1/children": _make_mock_response(
-                200, children
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
+            "GET:https://api.notion.com/v1/blocks/page1/children": _make_mock_response(200, children),
         }
     )
 
     with patch("aiohttp.ClientSession", return_value=fake):
         connector = NotionConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "get_block_children", {"block_id": "page1"}
-        )
+        result = await connector.execute_action("get_block_children", {"block_id": "page1"})
 
     assert result.success is True
     assert len(result.data["results"]) == 2
@@ -503,9 +460,7 @@ async def test_get_block_children_missing_id():
     """Get block children missing block_id returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 
@@ -532,12 +487,8 @@ async def test_append_block_children():
     }
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
-            "PATCH:https://api.notion.com/v1/blocks/page1/children": _make_mock_response(
-                200, appended
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
+            "PATCH:https://api.notion.com/v1/blocks/page1/children": _make_mock_response(200, appended),
         }
     )
 
@@ -552,9 +503,7 @@ async def test_append_block_children():
                     {
                         "object": "block",
                         "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [{"text": {"content": "New block"}}]
-                        },
+                        "paragraph": {"rich_text": [{"text": {"content": "New block"}}]},
                     }
                 ],
             },
@@ -569,9 +518,7 @@ async def test_append_block_children_missing_params():
     """Append blocks missing required params returns 400."""
     fake = _FakeSession(
         {
-            "GET:https://api.notion.com/v1/users/me": _make_mock_response(
-                200, {"name": "Bot", "type": "bot"}
-            ),
+            "GET:https://api.notion.com/v1/users/me": _make_mock_response(200, {"name": "Bot", "type": "bot"}),
         }
     )
 

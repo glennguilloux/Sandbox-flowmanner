@@ -83,9 +83,7 @@ async def list_files(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    count_result = await db.execute(
-        select(func.count(UserFile.id)).where(UserFile.user_id == user.id)
-    )
+    count_result = await db.execute(select(func.count(UserFile.id)).where(UserFile.user_id == user.id))
     total = count_result.scalar() or 0
 
     result = await db.execute(
@@ -180,13 +178,9 @@ async def get_file_content(
 # ── Register on both routers (with trailing slash variants) ──────────────────
 
 for _r in (router, files_router):
-    _r.add_api_route(
-        "/upload", upload_file, methods=["POST"], response_model=FileResponse
-    )
+    _r.add_api_route("/upload", upload_file, methods=["POST"], response_model=FileResponse)
     _r.add_api_route("", list_files, methods=["GET"], response_model=FileListResponse)
     _r.add_api_route("/", list_files, methods=["GET"], response_model=FileListResponse)
-    _r.add_api_route(
-        "/{file_id}", get_file, methods=["GET"], response_model=FileResponse
-    )
+    _r.add_api_route("/{file_id}", get_file, methods=["GET"], response_model=FileResponse)
     _r.add_api_route("/{file_id}", delete_file, methods=["DELETE"])
     _r.add_api_route("/{file_id}/content", get_file_content, methods=["GET"])

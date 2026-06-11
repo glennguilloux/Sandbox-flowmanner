@@ -597,12 +597,9 @@ async def seed_missions(session, user_ids: dict[str, int]) -> list[str]:
                     "status": "completed",
                     "started_at": created_at + timedelta(seconds=5 + j * 10),
                     "completed_at": created_at + timedelta(seconds=15 + j * 10),
-                    "tokens_used": (tmpl["tokens_used"] or 0)
-                    // max(len(tmpl["plan"]["steps"]), 1),
+                    "tokens_used": (tmpl["tokens_used"] or 0) // max(len(tmpl["plan"]["steps"]), 1),
                 }
-                task_stmt = (
-                    pg_insert(MissionTask).values(**task_data).on_conflict_do_nothing()
-                )
+                task_stmt = pg_insert(MissionTask).values(**task_data).on_conflict_do_nothing()
                 await session.execute(task_stmt)
 
         # Add a mission log
@@ -684,9 +681,7 @@ async def seed_chats(session, user_ids: dict[str, int]) -> None:
             thread_id = thread.id
 
         # Insert messages (skip if thread already has messages)
-        msg_count = await session.execute(
-            select(ChatMessage.id).where(ChatMessage.thread_id == thread_id).limit(1)
-        )
+        msg_count = await session.execute(select(ChatMessage.id).where(ChatMessage.thread_id == thread_id).limit(1))
         if msg_count.scalar_one_or_none() is not None:
             continue
 
@@ -723,9 +718,7 @@ async def main() -> None:
         try:
             print("\n[1/5] Seeding users...")
             user_ids = await seed_users(session)
-            print(
-                f"      Created/updated {len(user_ids)} users: {list(user_ids.keys())}"
-            )
+            print(f"      Created/updated {len(user_ids)} users: {list(user_ids.keys())}")
 
             print("\n[2/5] Seeding workspace...")
             ws_id = await seed_workspace(session, user_ids)

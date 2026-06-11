@@ -5,9 +5,10 @@ Revises: 20260518_add_mission_advanced_tables
 Create Date: 2026-05-19
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "phase3_new_tables_001"
@@ -28,12 +29,8 @@ def upgrade() -> None:
         sa.Column("action_params", postgresql.JSON(), nullable=True),
         sa.Column("priority", sa.Integer(), server_default="0"),
         sa.Column("enabled", sa.Boolean(), server_default="true"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_adaptation_rules_agent_id", "adaptation_rules", ["agent_id"])
@@ -46,17 +43,11 @@ def upgrade() -> None:
         sa.Column("content", postgresql.JSON(), nullable=True),
         sa.Column("agent_id", sa.String(36), nullable=True),
         sa.Column("mission_id", sa.String(36), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_learning_feedback_feedback_type", "learning_feedback", ["feedback_type"]
-    )
+    op.create_index("ix_learning_feedback_feedback_type", "learning_feedback", ["feedback_type"])
     op.create_index("ix_learning_feedback_agent_id", "learning_feedback", ["agent_id"])
 
     # --- webhook_models ---
@@ -78,12 +69,8 @@ def upgrade() -> None:
         sa.Column("timeout_seconds", sa.Integer(), server_default="30"),
         sa.Column("is_active", sa.Boolean(), server_default="true"),
         sa.Column("created_by", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
 
@@ -106,12 +93,8 @@ def upgrade() -> None:
         sa.Column("processing_time_ms", sa.Integer(), nullable=True),
         sa.Column("max_retries", sa.Integer(), server_default="3"),
         sa.Column("retry_count", sa.Integer(), server_default="0"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_webhook_logs_endpoint_id", "webhook_logs", ["endpoint_id"])
@@ -127,17 +110,11 @@ def upgrade() -> None:
         sa.Column("discovered_tools", postgresql.JSON(), nullable=True),
         sa.Column("status", sa.String(50), server_default="active"),
         sa.Column("metadata", postgresql.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_agent_registrations_agent_id", "agent_registrations", ["agent_id"]
-    )
+    op.create_index("ix_agent_registrations_agent_id", "agent_registrations", ["agent_id"])
 
     # --- tool_models ---
     op.create_table(
@@ -148,12 +125,8 @@ def upgrade() -> None:
         sa.Column("owner_id", sa.String(36), nullable=False),
         sa.Column("steps", postgresql.JSON(), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default="true"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_tool_chains_owner_id", "tool_chains", ["owner_id"])
@@ -167,17 +140,11 @@ def upgrade() -> None:
         sa.Column("output_data", postgresql.JSON(), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("duration_ms", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_tool_chain_executions_chain_id", "tool_chain_executions", ["chain_id"]
-    )
+    op.create_index("ix_tool_chain_executions_chain_id", "tool_chain_executions", ["chain_id"])
 
     op.create_table(
         "custom_tools",
@@ -192,12 +159,8 @@ def upgrade() -> None:
         sa.Column("output_schema", postgresql.JSON(), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default="true"),
         sa.Column("is_public", sa.Boolean(), server_default="false"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_custom_tools_name", "custom_tools", ["name"])
@@ -209,12 +172,8 @@ def upgrade() -> None:
         sa.Column("tool_id", sa.String(36), nullable=False),
         sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("permission", sa.String(50), server_default="use"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_tool_permissions_tool_id", "tool_permissions", ["tool_id"])
@@ -229,12 +188,8 @@ def upgrade() -> None:
         sa.Column("latency_ms", sa.Float(), nullable=True),
         sa.Column("success", sa.Boolean(), server_default="true"),
         sa.Column("metadata_json", postgresql.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_tool_analytics_tool_id", "tool_analytics", ["tool_id"])
@@ -247,12 +202,8 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="true"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_flows_user_id", "flows", ["user_id"])
@@ -265,12 +216,8 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("status", sa.String(50), server_default="pending"),
         sa.Column("user_id", sa.String(36), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_workflow_runs_flow_id", "workflow_runs", ["flow_id"])
@@ -285,12 +232,8 @@ def upgrade() -> None:
         sa.Column("creator_email", sa.String(255), nullable=True),
         sa.Column("status", sa.String(50), server_default="active"),
         sa.Column("config", postgresql.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_projects_slug", "projects", ["slug"])
@@ -310,12 +253,8 @@ def upgrade() -> None:
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("duration_ms", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_runs_project_id", "runs", ["project_id"])

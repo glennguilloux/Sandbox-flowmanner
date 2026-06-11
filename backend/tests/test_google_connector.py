@@ -18,7 +18,6 @@ from app.services.connectors.base import (
 )
 from app.services.connectors.google_connector import GoogleConnector
 
-
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -146,9 +145,7 @@ async def test_validate_credentials_success():
         connector = GoogleConnector(config)
 
         # Patch aiohttp.ClientSession to prevent BaseConnector.connect from failing
-        fake_session = _FakeSession(
-            {"default": _make_mock_response(200, {"status": "ok"})}
-        )
+        fake_session = _FakeSession({"default": _make_mock_response(200, {"status": "ok"})})
         with patch("aiohttp.ClientSession", return_value=fake_session):
             ok = await connector.connect()
 
@@ -198,9 +195,7 @@ async def test_validate_credentials_invalid_token():
         )
         connector = GoogleConnector(config)
 
-        fake_session = _FakeSession(
-            {"default": _make_mock_response(200, {"status": "ok"})}
-        )
+        fake_session = _FakeSession({"default": _make_mock_response(200, {"status": "ok"})})
         with patch("aiohttp.ClientSession", return_value=fake_session):
             ok = await connector.connect()
 
@@ -226,14 +221,13 @@ async def test_drive_list_files():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://www.googleapis.com/drive/v3/files": _make_mock_response(
-                200, files
-            ),
+            "GET:https://www.googleapis.com/drive/v3/files": _make_mock_response(200, files),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -256,14 +250,13 @@ async def test_drive_search_files():
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "drive_search_files", {"query": "budget"}
-        )
+        result = await connector.execute_action("drive_search_files", {"query": "budget"})
 
     assert result.success is True
     assert result.data["files"][0]["name"] == "budget.xlsx"
@@ -272,12 +265,11 @@ async def test_drive_search_files():
 @pytest.mark.asyncio
 async def test_drive_search_files_missing_query():
     """Search files with missing query returns 400."""
-    fake = _FakeSession(
-        {"default": _make_mock_response(200, {"email": "test@gmail.com"})}
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"email": "test@gmail.com"})})
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -294,14 +286,13 @@ async def test_drive_get_file():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://www.googleapis.com/drive/v3/files/f1": _make_mock_response(
-                200, file_meta
-            ),
+            "GET:https://www.googleapis.com/drive/v3/files/f1": _make_mock_response(200, file_meta),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -322,20 +313,17 @@ async def test_drive_create_folder():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "POST:https://www.googleapis.com/drive/v3/files": _make_mock_response(
-                200, folder
-            ),
+            "POST:https://www.googleapis.com/drive/v3/files": _make_mock_response(200, folder),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "drive_create_folder", {"name": "New Folder"}
-        )
+        result = await connector.execute_action("drive_create_folder", {"name": "New Folder"})
 
     assert result.success is True
     assert result.data["name"] == "New Folder"
@@ -348,14 +336,13 @@ async def test_drive_upload_file():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "POST:https://www.googleapis.com/drive/v3/files": _make_mock_response(
-                200, uploaded
-            ),
+            "POST:https://www.googleapis.com/drive/v3/files": _make_mock_response(200, uploaded),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -378,14 +365,13 @@ async def test_gmail_send():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "POST:https://gmail.googleapis.com/gmail/v1/users/me/messages/send": _make_mock_response(
-                200, sent
-            ),
+            "POST:https://gmail.googleapis.com/gmail/v1/users/me/messages/send": _make_mock_response(200, sent),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -401,12 +387,11 @@ async def test_gmail_send():
 @pytest.mark.asyncio
 async def test_gmail_send_missing_params():
     """Send email missing required params returns 400."""
-    fake = _FakeSession(
-        {"default": _make_mock_response(200, {"email": "test@gmail.com"})}
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"email": "test@gmail.com"})})
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -424,20 +409,17 @@ async def test_gmail_list():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages": _make_mock_response(
-                200, msg_list
-            ),
-            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages/m1": _make_mock_response(
-                200, msg_detail
-            ),
+            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages": _make_mock_response(200, msg_list),
+            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages/m1": _make_mock_response(200, msg_detail),
             "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages/m2": _make_mock_response(
                 200, {"id": "m2", "snippet": "World"}
             ),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -454,17 +436,16 @@ async def test_gmail_search():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages": _make_mock_response(
-                200, msg_list
-            ),
+            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages": _make_mock_response(200, msg_list),
             "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages/m3": _make_mock_response(
                 200, {"id": "m3", "snippet": "Found it"}
             ),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -481,14 +462,13 @@ async def test_gmail_get():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages/m99": _make_mock_response(
-                200, msg
-            ),
+            "GET:https://gmail.googleapis.com/gmail/v1/users/me/messages/m99": _make_mock_response(200, msg),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -521,14 +501,13 @@ async def test_calendar_list_events():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://www.googleapis.com/calendar/v3/calendars/primary/events": _make_mock_response(
-                200, events
-            ),
+            "GET:https://www.googleapis.com/calendar/v3/calendars/primary/events": _make_mock_response(200, events),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -549,20 +528,17 @@ async def test_calendar_get_event():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "GET:https://www.googleapis.com/calendar/v3/calendars/primary/events/e42": _make_mock_response(
-                200, event
-            ),
+            "GET:https://www.googleapis.com/calendar/v3/calendars/primary/events/e42": _make_mock_response(200, event),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "calendar_get_event", {"event_id": "e42"}
-        )
+        result = await connector.execute_action("calendar_get_event", {"event_id": "e42"})
 
     assert result.success is True
     assert result.data["summary"] == "Important"
@@ -575,14 +551,13 @@ async def test_calendar_create_event():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "POST:https://www.googleapis.com/calendar/v3/calendars/primary/events": _make_mock_response(
-                200, created
-            ),
+            "POST:https://www.googleapis.com/calendar/v3/calendars/primary/events": _make_mock_response(200, created),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -602,12 +577,11 @@ async def test_calendar_create_event():
 @pytest.mark.asyncio
 async def test_calendar_create_event_missing_summary():
     """Create calendar event missing summary returns 400."""
-    fake = _FakeSession(
-        {"default": _make_mock_response(200, {"email": "test@gmail.com"})}
-    )
+    fake = _FakeSession({"default": _make_mock_response(200, {"email": "test@gmail.com"})})
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -630,8 +604,9 @@ async def test_calendar_update_event():
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
@@ -650,20 +625,17 @@ async def test_calendar_delete_event():
     fake = _FakeSession(
         {
             "default": _make_mock_response(200, {"email": "test@gmail.com"}),
-            "DELETE:https://www.googleapis.com/calendar/v3/calendars/primary/events/e42": _make_mock_response(
-                200, {}
-            ),
+            "DELETE:https://www.googleapis.com/calendar/v3/calendars/primary/events/e42": _make_mock_response(200, {}),
         }
     )
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()
-        result = await connector.execute_action(
-            "calendar_delete_event", {"event_id": "e42"}
-        )
+        result = await connector.execute_action("calendar_delete_event", {"event_id": "e42"})
 
     assert result.success is True
 
@@ -689,8 +661,9 @@ async def test_disconnect():
     """Disconnect closes the session."""
     fake = _FakeSession({"default": _make_mock_response(200, {"login": "test"})})
 
-    with patch("aiohttp.ClientSession", return_value=fake), patch.object(
-        GoogleConnector, "_validate_credentials", return_value=True
+    with (
+        patch("aiohttp.ClientSession", return_value=fake),
+        patch.object(GoogleConnector, "_validate_credentials", return_value=True),
     ):
         connector = GoogleConnector(_make_config())
         await connector.connect()

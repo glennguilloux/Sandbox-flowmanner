@@ -91,18 +91,14 @@ class SandboxdServeTool(BaseTool):
         try:
             validated = SandboxdServeInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
             if not sandbox_id:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=(
-                        "No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."
-                    ),
+                    error=("No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."),
                 )
 
             client = self._get_client()
@@ -114,16 +110,12 @@ class SandboxdServeTool(BaseTool):
             if not ready:
                 # ── Step 2: Start a fallback server ───────────────────
                 serve_dir = validated.directory or DEFAULT_SANDBOX_WORKSPACE
-                server_pid, start_error = await start_static_http_server(
-                    client, sandbox_id, port, serve_dir
-                )
+                server_pid, start_error = await start_static_http_server(client, sandbox_id, port, serve_dir)
 
                 if start_error:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"Failed to start server in sandbox {sandbox_id}: {start_error}"
-                        ),
+                        error=(f"Failed to start server in sandbox {sandbox_id}: {start_error}"),
                     )
 
                 # Poll until the server is accepting connections (up to 10s)

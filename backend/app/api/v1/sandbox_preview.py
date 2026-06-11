@@ -236,9 +236,7 @@ async def _authenticate_preview_request(req: Request) -> str | None:
                 if record is None:
                     return None
                 # get_refresh_token already filters is_revoked == False
-                if record.expires_at and record.expires_at < datetime.now(UTC).replace(
-                    tzinfo=None
-                ):
+                if record.expires_at and record.expires_at < datetime.now(UTC).replace(tzinfo=None):
                     return None
                 user = await get_user_by_id(db, record.user_id)
                 if user and user.is_active:

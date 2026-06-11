@@ -109,9 +109,7 @@ class ArxivPaperFinderTool(BaseTool):
         try:
             validated = ArxivPaperFinderInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in ARXIV_ACTIONS:
             return ToolResult.error_result(
@@ -185,9 +183,7 @@ class ArxivPaperFinderTool(BaseTool):
 
         # ArXiv-specific
         primary_cat = entry.find("arxiv:primary_category", _ARXIV_NS)
-        primary_category = (
-            primary_cat.get("term", "") if primary_cat is not None else ""
-        )
+        primary_category = primary_cat.get("term", "") if primary_cat is not None else ""
 
         return {
             "paper_id": paper_id,

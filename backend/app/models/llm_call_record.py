@@ -20,12 +20,8 @@ from app.models import Base
 class LLMCallRecord(Base):
     __tablename__ = "llm_call_records"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
-    mission_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
+    mission_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     task_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     model_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     provider: Mapped[str] = mapped_column(String(50), nullable=False, default="unknown")
@@ -33,9 +29,7 @@ class LLMCallRecord(Base):
     completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    success: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, index=True
-    )
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Phase 6.3: Cost attribution columns
     agent_id: Mapped[str | None] = mapped_column(

@@ -10,12 +10,12 @@ Tests cover:
 - Tool metadata and registration
 """
 
-import io
-import os
 import base64
-import struct
+import io
 import math
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+import os
+import struct
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
@@ -288,9 +288,7 @@ class TestTextSentiment:
     """Test optional text sentiment analysis path."""
 
     @pytest.mark.asyncio
-    async def test_include_transcript_false_no_text_sentiment(
-        self, analyzer, chirp_b64
-    ):
+    async def test_include_transcript_false_no_text_sentiment(self, analyzer, chirp_b64):
         r = await analyzer.execute(
             {
                 "data": chirp_b64,
@@ -412,11 +410,12 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_very_short_audio(self, analyzer):
         """Very short audio should not crash."""
-        from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
-
         # Test the internal method directly with a tiny signal
         import tempfile
+
         import numpy as np
+
+        from app.tools.audio_sentiment_analyzer import AudioSentimentAnalyzerTool
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             try:
@@ -424,9 +423,7 @@ class TestEdgeCases:
 
                 y = np.sin(2 * np.pi * 440 * np.arange(0, 0.05, 1 / 16000))
                 sf.write(tmp.name, y, 16000)
-                features = AudioSentimentAnalyzerTool()._extract_acoustic_features(
-                    tmp.name
-                )
+                features = AudioSentimentAnalyzerTool()._extract_acoustic_features(tmp.name)
                 assert "error" in features or "duration_seconds" in features
             except ImportError:
                 pass  # soundfile not available

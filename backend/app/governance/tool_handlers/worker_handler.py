@@ -66,9 +66,7 @@ class WorkerHandler:
         max_retries = int(os.getenv("WORKER_MAX_RETRIES", "3"))
         concurrency = int(os.getenv("WORKER_CONCURRENCY", "4"))
 
-        return WorkerConfig(
-            timeout=timeout, max_retries=max_retries, concurrency=concurrency
-        )
+        return WorkerConfig(timeout=timeout, max_retries=max_retries, concurrency=concurrency)
 
     def execute(
         self,
@@ -83,9 +81,7 @@ class WorkerHandler:
         # Get task name from registry
         task_name = self._task_registry.get(action)
         if not task_name:
-            raise ValueError(
-                f"Unknown action: {action}. Available actions: {list(self._task_registry.keys())}"
-            )
+            raise ValueError(f"Unknown action: {action}. Available actions: {list(self._task_registry.keys())}")
 
         # Prepare task request
         task_request = self._prepare_request(action, params)
@@ -93,9 +89,7 @@ class WorkerHandler:
 
         # Execute task
         logger.info("Executing task: %s", task_name)
-        result = celery_app.send_task(
-            task_name, args=[task_request], expires=task_timeout
-        )
+        result = celery_app.send_task(task_name, args=[task_request], expires=task_timeout)
 
         if blocking:
             try:
@@ -126,9 +120,7 @@ class WorkerHandler:
     ) -> dict[str, Any]:
         """Execute a chain of worker tasks"""
         if len(actions) != len(params_list):
-            raise ValueError(
-                f"Actions count ({len(actions)}) must match params count ({len(params_list)})"
-            )
+            raise ValueError(f"Actions count ({len(actions)}) must match params count ({len(params_list)})")
 
         from app.tasks.celery_app import celery_app
 
@@ -156,11 +148,7 @@ class WorkerHandler:
                 chain_result = result.get(timeout=task_timeout)
                 return {
                     "success": True,
-                    "results": (
-                        chain_result
-                        if isinstance(chain_result, list)
-                        else [chain_result]
-                    ),
+                    "results": (chain_result if isinstance(chain_result, list) else [chain_result]),
                     "chain_length": len(tasks),
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
@@ -219,12 +207,8 @@ class WorkerHandler:
     def _prepare_request(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
         """Prepare task request in standard format"""
         request = {
-            "workflow_id": params.get(
-                "workflow_id", f"wf_{datetime.now(UTC).timestamp()}"
-            ),
-            "execution_id": params.get(
-                "execution_id", f"ex_{datetime.now(UTC).timestamp()}"
-            ),
+            "workflow_id": params.get("workflow_id", f"wf_{datetime.now(UTC).timestamp()}"),
+            "execution_id": params.get("execution_id", f"ex_{datetime.now(UTC).timestamp()}"),
             "step_name": action,
             "params": params,
             "metadata": params.get("metadata", {}),

@@ -168,9 +168,7 @@ async def create_session(
     refresh_token = AuthSession.generate_refresh_token()
     token_hash = AuthSession.make_refresh_token_hash(refresh_token)
     family_id = str(uuid.uuid4())
-    expires_at = datetime.now(UTC) + timedelta(
-        seconds=settings.JWT_REFRESH_TOKEN_EXPIRES
-    )
+    expires_at = datetime.now(UTC) + timedelta(seconds=settings.JWT_REFRESH_TOKEN_EXPIRES)
 
     session = AuthSession(
         user_id=user.id,
@@ -205,9 +203,7 @@ async def refresh_session(
     """
     token_hash = hash_refresh_token(refresh_token)
 
-    result = await db.execute(
-        select(AuthSession).where(AuthSession.refresh_token_hash == token_hash)
-    )
+    result = await db.execute(select(AuthSession).where(AuthSession.refresh_token_hash == token_hash))
     session = result.scalar_one_or_none()
 
     if session is None:
@@ -233,9 +229,7 @@ async def refresh_session(
     # Create new session in the same family with incremented generation
     new_refresh_token = AuthSession.generate_refresh_token()
     new_token_hash = AuthSession.make_refresh_token_hash(new_refresh_token)
-    new_expires_at = datetime.now(UTC) + timedelta(
-        seconds=settings.JWT_REFRESH_TOKEN_EXPIRES
-    )
+    new_expires_at = datetime.now(UTC) + timedelta(seconds=settings.JWT_REFRESH_TOKEN_EXPIRES)
 
     new_session = AuthSession(
         user_id=session.user_id,
@@ -390,19 +384,13 @@ async def create_api_key(
 
 async def get_user_api_keys(db: AsyncSession, user_id: int) -> list[ApiKey]:
     """List all API keys for a user (active or inactive)."""
-    result = await db.execute(
-        select(ApiKey)
-        .where(ApiKey.user_id == user_id)
-        .order_by(ApiKey.created_at.desc())
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.user_id == user_id).order_by(ApiKey.created_at.desc()))
     return list(result.scalars().all())
 
 
 async def revoke_api_key(db: AsyncSession, key_id: str, user_id: int) -> bool:
     """Revoke an API key. Returns True if found and revoked."""
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == user_id)
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == user_id))
     api_key = result.scalar_one_or_none()
     if api_key is None:
         return False
@@ -419,11 +407,7 @@ async def revoke_api_key(db: AsyncSession, key_id: str, user_id: int) -> bool:
 
 async def is_auth_v3_enabled(db: AsyncSession) -> bool:
     """Check if the master Auth v3 endpoints flag is globally enabled."""
-    result = await db.execute(
-        text(
-            "SELECT enabled_globally FROM feature_flags WHERE key = 'AUTH_V3_ENDPOINTS'"
-        )
-    )
+    result = await db.execute(text("SELECT enabled_globally FROM feature_flags WHERE key = 'AUTH_V3_ENDPOINTS'"))
     flag = result.scalar()
     return bool(flag)
 

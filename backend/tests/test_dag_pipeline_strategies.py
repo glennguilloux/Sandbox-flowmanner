@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
+
 from app.services.substrate.strategies.dag import DAGStrategy
-from app.services.substrate.strategies.pipeline import PipelineStrategy, PHASES
+from app.services.substrate.strategies.pipeline import PHASES, PipelineStrategy
 from app.services.substrate.workflow_models import (
-    Workflow,
-    WorkflowNode,
-    WorkflowEdge,
-    WorkflowType,
     NodeType,
     StrategyResult,
+    Workflow,
+    WorkflowEdge,
+    WorkflowNode,
+    WorkflowType,
 )
 
 

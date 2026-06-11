@@ -19,8 +19,6 @@ the structural guards can be a follow-up.
 from __future__ import annotations
 
 import re
-import subprocess
-import sys
 from pathlib import Path
 
 REPO = Path("/opt/flowmanner")
@@ -38,7 +36,9 @@ for line in BASELINE.read_text().splitlines():
     errors_by_file.setdefault(path, set()).add(lineno)
     attr_defined_total += 1
 
-print(f"Parsed {attr_defined_total} [attr-defined] errors across {len(errors_by_file)} files")
+print(
+    f"Parsed {attr_defined_total} [attr-defined] errors across {len(errors_by_file)} files"
+)
 
 # --- (2) Apply per-line ignores for the big files --------------------------
 PER_LINE_IGNORES = {

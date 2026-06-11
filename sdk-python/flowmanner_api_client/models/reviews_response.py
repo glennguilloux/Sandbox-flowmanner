@@ -100,9 +100,7 @@ class ReviewsResponse:
         if isinstance(_rating_breakdown, Unset):
             rating_breakdown = UNSET
         else:
-            rating_breakdown = ReviewsResponseRatingBreakdown.from_dict(
-                _rating_breakdown
-            )
+            rating_breakdown = ReviewsResponseRatingBreakdown.from_dict(_rating_breakdown)
 
         reviews_response = cls(
             reviews=reviews,

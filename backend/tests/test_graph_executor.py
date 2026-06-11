@@ -1,11 +1,13 @@
 """Tests for graph execution engine: interpreter, context, and handlers."""
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.services.graph_executor import ExecutionContext, GraphInterpreter
 from app.services.graph_node_handlers import (
+    ApprovalNodeHandler,
     BaseNodeHandler,
     ConditionNodeHandler,
     DelayNodeHandler,
@@ -19,9 +21,7 @@ from app.services.graph_node_handlers import (
     TaskNodeHandler,
     TransformNodeHandler,
     WebhookNodeHandler,
-    ApprovalNodeHandler,
 )
-
 
 # ── ExecutionContext Tests ──
 
@@ -119,9 +119,7 @@ class TestStartNodeHandler:
     @pytest.mark.asyncio
     async def test_execute(self):
         handler = StartNodeHandler()
-        result = await handler.execute(
-            {"data": {"nodeType": "start"}}, ExecutionContext()
-        )
+        result = await handler.execute({"data": {"nodeType": "start"}}, ExecutionContext())
         assert result["success"] is True
         assert result["output"]["started"] is True
 
@@ -130,9 +128,7 @@ class TestEndNodeHandler:
     @pytest.mark.asyncio
     async def test_execute(self):
         handler = EndNodeHandler()
-        result = await handler.execute(
-            {"data": {"nodeType": "end"}}, ExecutionContext()
-        )
+        result = await handler.execute({"data": {"nodeType": "end"}}, ExecutionContext())
         assert result["success"] is True
         assert result["output"]["completed"] is True
 
@@ -148,9 +144,7 @@ class TestTaskNodeHandler:
     @pytest.mark.asyncio
     async def test_validate_with_label(self):
         handler = TaskNodeHandler()
-        errors = await handler.validate(
-            {"data": {"nodeType": "task", "label": "My Task"}}
-        )
+        errors = await handler.validate({"data": {"nodeType": "task", "label": "My Task"}})
         assert errors == []
 
     @pytest.mark.asyncio
@@ -287,9 +281,7 @@ class TestLoopNodeHandler:
         handler = LoopNodeHandler()
         mock_interp = MagicMock()
         mock_interp.edges = [{"source": "loop1", "target": "task1"}]
-        mock_interp._execute_node = AsyncMock(
-            return_value={"success": True, "output": {"done": True}}
-        )
+        mock_interp._execute_node = AsyncMock(return_value={"success": True, "output": {"done": True}})
 
         result = await handler.execute(
             {
@@ -421,9 +413,7 @@ class TestParallelNodeHandler:
             {"source": "p1", "target": "t1"},
             {"source": "p1", "target": "t2"},
         ]
-        mock_interp._execute_node = AsyncMock(
-            return_value={"success": True, "output": {"done": True}}
-        )
+        mock_interp._execute_node = AsyncMock(return_value={"success": True, "output": {"done": True}})
 
         result = await handler.execute(
             {"id": "p1", "data": {"nodeType": "parallel", "joinMode": "all"}},
@@ -455,9 +445,7 @@ class TestApprovalNodeHandler:
         mock_interp.execution = MagicMock()
         mock_interp.execution.id = "exec-1"
 
-        with patch(
-            "app.services.graph_service.pause_execution", new_callable=AsyncMock
-        ) as mock_pause:
+        with patch("app.services.graph_service.pause_execution", new_callable=AsyncMock) as mock_pause:
             result = await handler.execute(
                 {"data": {"nodeType": "approval", "approverRole": "admin"}},
                 ExecutionContext(),
@@ -572,9 +560,7 @@ class TestGraphInterpreter:
         edges = [{"source": "s", "target": "a"}, {"source": "a", "target": "e"}]
         interp = self._make_interpreter(nodes, edges)
 
-        with patch(
-            "app.services.graph_service.pause_execution", new_callable=AsyncMock
-        ):
+        with patch("app.services.graph_service.pause_execution", new_callable=AsyncMock):
             result = await interp.execute()
             assert result["status"] == "paused"
             assert result["paused_at"] == "a"

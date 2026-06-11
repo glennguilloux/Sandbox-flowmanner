@@ -20,11 +20,11 @@ def _auth_response(access_token: str, refresh_token: str) -> "JSONResponse":
     """Return a TokenResponse with httpOnly refresh cookie for preview auth."""
     from fastapi.responses import JSONResponse
 
-    response = JSONResponse(
-        content={"access_token": access_token, "refresh_token": refresh_token}
-    )
+    response = JSONResponse(content={"access_token": access_token, "refresh_token": refresh_token})
     set_refresh_cookie(response, refresh_token)
     return response
+
+
 from app.models.user import User
 from app.schemas.auth import (
     RefreshTokenRequest,
@@ -75,12 +75,8 @@ def _get_device_name(request: Request) -> str:
     return ua[:100]
 
 
-@router.post(
-    "/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
-)
-async def register(
-    payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)
-):
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)):
     # Rate limiting
     ip = _get_client_ip(request)
     allowed, remaining, retry_after = check_rate_limit(
@@ -107,24 +103,18 @@ async def register(
     existing = await get_user_by_email(db, payload.email)
     if existing:
         logger.warning("[REGISTER] Email already registered: %s", payload.email)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     # Check username uniqueness if provided
     if payload.username:
         existing_username = await get_user_by_username(db, payload.username)
         if existing_username:
             logger.warning("[REGISTER] Username already taken: %s", payload.username)
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="Username already taken"
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
 
     from app.services.auth_service import create_user as create_user_service
 
-    user = await create_user_service(
-        db, payload.email, payload.password, payload.full_name, payload.username
-    )
+    user = await create_user_service(db, payload.email, payload.password, payload.full_name, payload.username)
 
     # Auto-create a default workspace for the new user
     try:
@@ -140,9 +130,7 @@ async def register(
         db.add(WorkspaceMember(workspace_id=ws_id, user_id=user.id, role="owner"))
         await db.flush()
     except Exception:
-        logger.exception(
-            "[REGISTER] Failed to auto-create workspace for user %s", user.id
-        )
+        logger.exception("[REGISTER] Failed to auto-create workspace for user %s", user.id)
 
     access = create_access_token(user.id, role=user.role)
     refresh = create_refresh_token_value()
@@ -194,22 +182,14 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
         if "application/json" in content_type:
             try:
                 body = await request.json()
-                login_field = (
-                    body.get("username_or_email")
-                    or body.get("username")
-                    or body.get("email")
-                )
+                login_field = body.get("username_or_email") or body.get("username") or body.get("email")
                 password = body.get("password")
             except Exception:
                 logger.debug("login_json_parse_failed", exc_info=True)
         else:
             try:
                 form = await request.form()
-                login_field = (
-                    form.get("username_or_email")
-                    or form.get("username")
-                    or form.get("email")
-                )
+                login_field = form.get("username_or_email") or form.get("username") or form.get("email")
                 password = form.get("password")
             except Exception:
                 raise HTTPException(
@@ -234,26 +214,14 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
             )
 
         # Find user
-        result = await db.execute(
-            select(User).where(
-                or_(User.email == login_field, User.username == login_field)
-            )
-        )
+        result = await db.execute(select(User).where(or_(User.email == login_field, User.username == login_field)))
         user = result.scalar_one_or_none()
 
-        if (
-            not user
-            or not user.hashed_password
-            or not verify_password(password, user.hashed_password)
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
-            )
+        if not user or not user.hashed_password or not verify_password(password, user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
         if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
         # Check if 2FA is enabled
         if user.totp_enabled:
@@ -274,9 +242,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
                 "type": "2fa_temp",
                 "role": user.role,
             }
-            temp_token = _jwt.encode(
-                temp_payload, _settings.JWT_SECRET_KEY, algorithm="HS256"
-            )
+            temp_token = _jwt.encode(temp_payload, _settings.JWT_SECRET_KEY, algorithm="HS256")
 
             return {
                 "requires_2fa": True,
@@ -335,9 +301,7 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
         temp_token = body.get("temp_token")
         code = body.get("code")
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")
 
     if not temp_token or not code:
         raise HTTPException(
@@ -359,17 +323,11 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
 
         from app.config import settings as _settings
 
-        payload = _jwt.decode(
-            temp_token, _settings.JWT_SECRET_KEY, algorithms=["HS256"]
-        )
+        payload = _jwt.decode(temp_token, _settings.JWT_SECRET_KEY, algorithms=["HS256"])
         if payload.get("type") != "2fa_temp":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
     except _jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     user = await get_user_by_id(db, user_id)
     if not user or not user.totp_enabled:
@@ -390,9 +348,7 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
             user.totp_backup_codes = new_codes
 
     if not code_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code")
 
     # Complete login
     access = create_access_token(user.id, role=user.role)
@@ -415,43 +371,30 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(
-    payload: RefreshTokenRequest, request: Request, db: AsyncSession = Depends(get_db)
-):
+async def refresh(payload: RefreshTokenRequest, request: Request, db: AsyncSession = Depends(get_db)):
     # First check if token exists (active or revoked)
     from app.services.auth_service import RefreshToken as RTModel
 
-    result = await db.execute(
-        select(RTModel).where(RTModel.token == payload.refresh_token)
-    )
+    result = await db.execute(select(RTModel).where(RTModel.token == payload.refresh_token))
     token_record = result.scalar_one_or_none()
 
     if token_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     # Token exists but is revoked — potential theft/reuse!
     if token_record.is_revoked:
         # Grace period: if token was revoked within the last REUSE_GRACE_SECONDS,
         # treat as a race condition (parallel refresh), not theft
         REUSE_GRACE_SECONDS = 5
-        grace_cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(
-            seconds=REUSE_GRACE_SECONDS
-        )
-        recently_revoked = (
-            token_record.last_used_at is not None
-            and token_record.last_used_at > grace_cutoff
-        )
+        grace_cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=REUSE_GRACE_SECONDS)
+        recently_revoked = token_record.last_used_at is not None and token_record.last_used_at > grace_cutoff
         if recently_revoked:
             logger.warning(
                 "Refresh token reuse within %ss grace period for user %s — treating as race condition, not theft",
                 REUSE_GRACE_SECONDS,
                 token_record.user_id,
             )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token already used"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token already used")
         # Outside grace period — potential theft: revoke ALL tokens
         await revoke_all_user_tokens(db, token_record.user_id)
         logger.warning(
@@ -469,15 +412,11 @@ async def refresh(
         expires_at = expires_at.replace(tzinfo=UTC)
     if expires_at < datetime.now(UTC):
         await revoke_refresh_token(db, token_record.token)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
 
     # Get user for tenant claims
     user = await get_user_by_id(db, token_record.user_id)
-    access = create_access_token(
-        token_record.user_id, role=user.role if user else "user"
-    )
+    access = create_access_token(token_record.user_id, role=user.role if user else "user")
     new_refresh = create_refresh_token_value()
 
     # Revoke old token
@@ -580,9 +519,7 @@ async def update_settings(
 
     from app.models.phase4_models import UserSettings
 
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == user.id))
     settings = result.scalar_one_or_none()
     if not settings:
         settings = UserSettings(user_id=user.id)
@@ -597,11 +534,7 @@ async def update_settings(
     # Store any extra fields as JSON
     import json
 
-    extra = {
-        k: v
-        for k, v in data.items()
-        if k not in ("theme", "language", "email_notifications")
-    }
+    extra = {k: v for k, v in data.items() if k not in ("theme", "language", "email_notifications")}
     if extra:
         existing = {}
         if settings.settings_json:
@@ -632,9 +565,7 @@ async def get_settings(
 
     from app.models.phase4_models import UserSettings
 
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == user.id))
     settings = result.scalar_one_or_none()
     if not settings:
         return {"theme": "dark", "language": "en", "email_notifications": True}
@@ -716,9 +647,7 @@ async def social_token_exchange(
     # Ensure an OIDCProvider row exists (or create it lazily)
     from app.models.auth_models import UserOIDCAccount
 
-    provider_id = await _ensure_oidc_provider(
-        db, payload.provider, social["display_name"], social["issuer_url"]
-    )
+    provider_id = await _ensure_oidc_provider(db, payload.provider, social["display_name"], social["issuer_url"])
 
     # Find user by OIDC account link (scoped to provider + subject)
     result = await db.execute(
@@ -730,9 +659,7 @@ async def social_token_exchange(
     oidc_account = result.scalar_one_or_none()
 
     if oidc_account:
-        user_result = await db.execute(
-            select(User).where(User.id == oidc_account.user_id)
-        )
+        user_result = await db.execute(select(User).where(User.id == oidc_account.user_id))
         user = user_result.scalar_one_or_none()
         if user:
             if social["avatar"] and user.avatar_url != social["avatar"]:
@@ -865,9 +792,7 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
                         break
         if not primary_email:
             primary_email = f"{gh_login}@github.local"
-            logger.warning(
-                "No public email for GitHub user %s, using synthetic", gh_login
-            )
+            logger.warning("No public email for GitHub user %s, using synthetic", gh_login)
 
         return {
             "id": gh_id,
@@ -919,9 +844,7 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
     )
 
 
-async def _ensure_oidc_provider(
-    db: AsyncSession, name: str, display_name: str, issuer_url: str
-) -> int:
+async def _ensure_oidc_provider(db: AsyncSession, name: str, display_name: str, issuer_url: str) -> int:
     """Look up or lazily create an OIDCProvider row, returning its id."""
     from app.models.auth_models import OIDCProvider
 
@@ -1004,18 +927,12 @@ async def upload_avatar(
         )
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="File too large. Max 5MB."
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large. Max 5MB.")
 
     import os
     import uuid as _uuid
 
-    ext = (
-        file.filename.rsplit(".", 1)[-1]
-        if file.filename and "." in file.filename
-        else "png"
-    )
+    ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "png"
     filename = f"avatar_{user.id}_{_uuid.uuid4().hex[:8]}.{ext}"
     static_dir = os.getenv("STATIC_FILES_DIR", "/opt/flowmanner/static/avatars")
     os.makedirs(static_dir, exist_ok=True)

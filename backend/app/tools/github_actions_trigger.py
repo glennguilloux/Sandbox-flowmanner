@@ -139,9 +139,7 @@ class GithubActionsTriggerTool(BaseTool):
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-    def _workflow_url(
-        self, owner: str, repo: str, workflow_id: str | None = None
-    ) -> str:
+    def _workflow_url(self, owner: str, repo: str, workflow_id: str | None = None) -> str:
         base = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/actions"
         if workflow_id:
             return f"{base}/workflows/{workflow_id}"
@@ -363,9 +361,7 @@ class GithubActionsTriggerTool(BaseTool):
 
         url = f"{self._runs_url(v.owner, v.repo, v.run_id)}/logs"
 
-        async with httpx.AsyncClient(
-            timeout=DEFAULT_TIMEOUT, follow_redirects=False
-        ) as client:
+        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT, follow_redirects=False) as client:
             resp = await client.get(url, headers=self._auth_headers())
             if resp.status_code in (302, 307):
                 # Logs are available as a zip download URL

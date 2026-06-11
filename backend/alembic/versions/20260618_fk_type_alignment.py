@@ -61,15 +61,10 @@ def _alter_varchar_to_integer(table: str, column: str) -> None:
 
     # Drop the default before altering (e.g. audit_logs has default=NULL::character varying)
     if col_default is not None:
-        op.execute(
-            f"ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT"
-        )
+        op.execute(f"ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT")
 
     # NULL out non-numeric values
-    op.execute(
-        f"UPDATE {table} SET {column} = NULL "
-        f"WHERE {column} IS NOT NULL AND {column} !~ '^[0-9]+$'"
-    )
+    op.execute(f"UPDATE {table} SET {column} = NULL WHERE {column} IS NOT NULL AND {column} !~ '^[0-9]+$'")
 
     op.alter_column(
         table,
@@ -81,9 +76,7 @@ def _alter_varchar_to_integer(table: str, column: str) -> None:
 
     # Restore NOT NULL if it was originally set (only if no NULLs remain)
     if not nullable:
-        remaining = bind.execute(
-            sa.text(f"SELECT COUNT(*) FROM {table} WHERE {column} IS NULL")
-        ).scalar()
+        remaining = bind.execute(sa.text(f"SELECT COUNT(*) FROM {table} WHERE {column} IS NULL")).scalar()
         if remaining == 0:
             op.alter_column(table, column, nullable=False)
 
@@ -136,12 +129,8 @@ def upgrade() -> None:
             ),
             sa.Column("model_id", sa.String(150), nullable=False),
             sa.Column("provider", sa.String(50), nullable=False),
-            sa.Column(
-                "prompt_tokens", sa.Integer(), nullable=False, server_default="0"
-            ),
-            sa.Column(
-                "completion_tokens", sa.Integer(), nullable=False, server_default="0"
-            ),
+            sa.Column("prompt_tokens", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column("completion_tokens", sa.Integer(), nullable=False, server_default="0"),
             sa.Column("cost_usd", sa.Float(), nullable=False, server_default="0.0"),
             sa.Column(
                 "timestamp",

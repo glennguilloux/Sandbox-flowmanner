@@ -101,7 +101,7 @@ def record_sse_token_latency(latency_ms: float) -> None:
 
         _rec(latency_ms / 1000.0)  # convert ms to seconds for Histogram
     except Exception as e:
-        logger.debug('slo_record_sse_latency_failed error=%s', str(e))
+        logger.debug("slo_record_sse_latency_failed error=%s", str(e))
 
 
 def record_model_fallback(success: bool, provider: str = "unknown") -> None:
@@ -111,7 +111,7 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
 
         _rec(provider=provider, success=success)
     except Exception as e:
-        logger.debug('slo_record_fallback_failed error=%s', str(e))
+        logger.debug("slo_record_fallback_failed error=%s", str(e))
 
 
 def record_deploy(success: bool) -> None:
@@ -128,7 +128,7 @@ def record_deploy(success: bool) -> None:
         if success:
             deploy_success_total.inc()
     except Exception as e:
-        logger.debug('slo_record_deploy_failed error=%s', str(e))
+        logger.debug("slo_record_deploy_failed error=%s", str(e))
 
 
 # ── SLO calculation helpers ─────────────────────────────────────────────────
@@ -191,14 +191,12 @@ def _read_counter_total(counter, label_filter: dict | None = None) -> float:
             for s in sample.samples:
                 if s.name.endswith("_total"):
                     if label_filter:
-                        match = all(
-                            s.labels.get(k) == v for k, v in label_filter.items()
-                        )
+                        match = all(s.labels.get(k) == v for k, v in label_filter.items())
                         if not match:
                             continue
                     return s.value
     except Exception as e:
-        logger.debug('slo_read_counter_failed error=%s', str(e))
+        logger.debug("slo_read_counter_failed error=%s", str(e))
     return 0.0
 
 
@@ -210,7 +208,7 @@ def _read_gauge_value(gauge: Gauge) -> float:
                 if s.name == gauge._name:
                     return s.value
     except Exception as e:
-        logger.debug('slo_read_gauge_failed error=%s', str(e))
+        logger.debug("slo_read_gauge_failed error=%s", str(e))
     return 0.0
 
 
@@ -314,9 +312,7 @@ def get_slo_status() -> dict:
         try:
             compliance = _read_gauge_value(slo_compliance.labels(slo_name=slo_name))
             burn_rate = _read_gauge_value(slo_burn_rate.labels(slo_name=slo_name))
-            budget = _read_gauge_value(
-                slo_error_budget_remaining.labels(slo_name=slo_name)
-            )
+            budget = _read_gauge_value(slo_error_budget_remaining.labels(slo_name=slo_name))
         except Exception:
             compliance = 1.0
             burn_rate = 0.0
@@ -344,9 +340,7 @@ def get_overall_health() -> dict:
         "total_slos": total,
         "health_score": round(healthy_count / max(total, 1), 2),
         "status": (
-            "healthy"
-            if healthy_count == total
-            else ("degraded" if healthy_count >= total / 2 else "unhealthy")
+            "healthy" if healthy_count == total else ("degraded" if healthy_count >= total / 2 else "unhealthy")
         ),
         "slos": slo_status,
     }
@@ -402,9 +396,7 @@ def start_slo_refresh() -> None:
     if _refresh_task is not None and not _refresh_task.done():
         return
 
-    _refresh_task = asyncio.ensure_future(
-        _periodic_slo_refresh(SLO_REFRESH_INTERVAL_SECONDS)
-    )
+    _refresh_task = asyncio.ensure_future(_periodic_slo_refresh(SLO_REFRESH_INTERVAL_SECONDS))
     logger.info("SLO background refresh task created")
 
 

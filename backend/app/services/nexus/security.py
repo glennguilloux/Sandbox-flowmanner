@@ -158,9 +158,7 @@ class PermissionSet:
     inherited_from: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def has_permission(
-        self, permission: Permission, resource: str | None = None
-    ) -> bool:
+    def has_permission(self, permission: Permission, resource: str | None = None) -> bool:
         if permission in self.permissions:
             return True
         if resource and resource in self.resource_permissions:
@@ -238,12 +236,8 @@ class SecurityService:
             burst_allowance=100,
         )
 
-        self._compiled_injection_patterns = [
-            re.compile(p) for p in self.INJECTION_PATTERNS
-        ]
-        self._compiled_sensitive_patterns = [
-            re.compile(p) for p in self.SENSITIVE_PATTERNS
-        ]
+        self._compiled_injection_patterns = [re.compile(p) for p in self.INJECTION_PATTERNS]
+        self._compiled_sensitive_patterns = [re.compile(p) for p in self.SENSITIVE_PATTERNS]
 
         self._audit_handlers: list[Callable[[AuditEvent], Awaitable[None]]] = []
 
@@ -290,9 +284,7 @@ class SecurityService:
 
                 if strict:
                     errors.append(f"{field_name}: Blocked suspicious pattern")
-                    logger.warning(
-                        "Input blocked for field %s: matched pattern", field_name
-                    )
+                    logger.warning("Input blocked for field %s: matched pattern", field_name)
                 else:
                     warnings.append(f"{field_name}: Contains suspicious pattern")
                     sanitized = pattern.sub("[BLOCKED]", sanitized)
@@ -387,9 +379,7 @@ class SecurityService:
             self._rate_limit_rules[rule.entity_id] = rule
             logger.info("Set rate limit for %s %s", rule.entity_type, rule.entity_id)
 
-    async def check_rate_limit(
-        self, entity_id: str, entity_type: str = "user"
-    ) -> tuple[bool, int | None]:
+    async def check_rate_limit(self, entity_id: str, entity_type: str = "user") -> tuple[bool, int | None]:
         now = time.time()
 
         if entity_id in self._blocked_entities:
@@ -397,11 +387,7 @@ class SecurityService:
 
         rule = self._rate_limit_rules.get(entity_id)
         if rule is None:
-            rule = (
-                self._default_user_limit
-                if entity_type == "user"
-                else self._default_agent_limit
-            )
+            rule = self._default_user_limit if entity_type == "user" else self._default_agent_limit
 
         state = self._rate_limit_states[entity_id]
 
@@ -449,9 +435,7 @@ class SecurityService:
             "requests_in_window": len(recent_requests),
             "limit": rule.max_requests,
             "burst_allowance": rule.burst_allowance,
-            "remaining": max(
-                0, rule.max_requests + rule.burst_allowance - len(recent_requests)
-            ),
+            "remaining": max(0, rule.max_requests + rule.burst_allowance - len(recent_requests)),
             "is_blocked": state.blocked_until is not None and state.blocked_until > now,
             "blocked_until": state.blocked_until,
             "total_blocked": state.total_blocked,
@@ -493,9 +477,7 @@ class SecurityService:
             if len(self._audit_log) > 10000:
                 self._audit_log = self._audit_log[-10000:]
 
-        log_msg = (
-            f"Audit: {event_type.value} by {user_id or agent_id or 'system'} - {action}"
-        )
+        log_msg = f"Audit: {event_type.value} by {user_id or agent_id or 'system'} - {action}"
         if severity == Severity.CRITICAL:
             logger.critical(log_msg)
         elif severity == Severity.ERROR:
@@ -573,9 +555,7 @@ class SecurityService:
         logger.info("Stored secret: %s", name)
         return secret
 
-    async def get_secret(
-        self, name: str, requester_id: str | None = None
-    ) -> str | None:
+    async def get_secret(self, name: str, requester_id: str | None = None) -> str | None:
         secret = self._secrets.get(name)
 
         if secret is None:
@@ -629,9 +609,7 @@ class SecurityService:
                 {
                     "name": secret.name,
                     "created_at": secret.created_at.isoformat(),
-                    "expires_at": (
-                        secret.expires_at.isoformat() if secret.expires_at else None
-                    ),
+                    "expires_at": (secret.expires_at.isoformat() if secret.expires_at else None),
                     "access_count": secret.access_count,
                     "tags": secret.tags,
                     "is_expired": secret.is_expired(),
@@ -661,9 +639,7 @@ class SecurityService:
             permission_set.entity_id,
         )
 
-    async def check_permission(
-        self, entity_id: str, permission: Permission, resource: str | None = None
-    ) -> bool:
+    async def check_permission(self, entity_id: str, permission: Permission, resource: str | None = None) -> bool:
         perm_set = self._permission_sets.get(entity_id)
 
         if perm_set is None:
@@ -671,15 +647,11 @@ class SecurityService:
 
         return perm_set.has_permission(permission, resource)
 
-    async def check_tool_permission(
-        self, agent_id: str, tool_name: str
-    ) -> tuple[bool, str | None]:
+    async def check_tool_permission(self, agent_id: str, tool_name: str) -> tuple[bool, str | None]:
         if agent_id in self._blocked_entities:
             return False, "Agent is blocked"
 
-        has_perm = await self.check_permission(
-            agent_id, Permission.EXECUTE, resource=f"tool:{tool_name}"
-        )
+        has_perm = await self.check_permission(agent_id, Permission.EXECUTE, resource=f"tool:{tool_name}")
 
         if not has_perm:
             return False, f"No execute permission for tool: {tool_name}"
@@ -754,12 +726,8 @@ class SecurityService:
 
         recent_events = [e for e in self._audit_log if e.timestamp >= hour_ago]
         failed_events = [e for e in recent_events if not e.success]
-        rate_limit_hits = [
-            e for e in recent_events if e.event_type == AuditEventType.RATE_LIMIT_HIT
-        ]
-        blocked_inputs = [
-            e for e in recent_events if e.event_type == AuditEventType.INPUT_BLOCKED
-        ]
+        rate_limit_hits = [e for e in recent_events if e.event_type == AuditEventType.RATE_LIMIT_HIT]
+        blocked_inputs = [e for e in recent_events if e.event_type == AuditEventType.INPUT_BLOCKED]
 
         return {
             "status": "secure" if len(failed_events) < 10 else "degraded",

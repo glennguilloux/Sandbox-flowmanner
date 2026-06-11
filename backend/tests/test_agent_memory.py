@@ -1,13 +1,14 @@
 """Unit tests for PersistentAgentMemoryTool — the first P0 differentiator."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.tools.differentiators import (
-    PersistentAgentMemoryTool,
-    PersistentAgentMemoryInput,
-)
+import pytest
+
 from app.tools.base import ToolResult
+from app.tools.differentiators import (
+    PersistentAgentMemoryInput,
+    PersistentAgentMemoryTool,
+)
 
 
 class TestPersistentAgentMemoryInput:

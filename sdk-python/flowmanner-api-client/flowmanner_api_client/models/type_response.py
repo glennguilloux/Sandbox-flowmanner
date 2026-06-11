@@ -112,9 +112,7 @@ class TypeResponse:
                 return data
             return cast(bool | None | Unset, data)
 
-        suggest_resnapshot = _parse_suggest_resnapshot(
-            d.pop("suggest_resnapshot", UNSET)
-        )
+        suggest_resnapshot = _parse_suggest_resnapshot(d.pop("suggest_resnapshot", UNSET))
 
         def _parse_error(data: object) -> None | str | Unset:
             if data is None:

@@ -59,9 +59,7 @@ class FactCheckValidatorInput(ToolInput):
         "en",
         description="Language code for the claim (e.g., 'en', 'fr', 'de')",
     )
-    max_results: int = Field(
-        10, ge=1, le=50, description="Maximum fact-check reviews to return"
-    )
+    max_results: int = Field(10, ge=1, le=50, description="Maximum fact-check reviews to return")
 
     @property
     def resolved_query(self) -> str:
@@ -109,9 +107,7 @@ class FactCheckValidatorTool(BaseTool):
         try:
             validated = FactCheckValidatorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in FACT_CHECK_ACTIONS:
             return ToolResult.error_result(
@@ -151,9 +147,7 @@ class FactCheckValidatorTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: FactCheckValidatorInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: FactCheckValidatorInput) -> dict[str, Any]:
         if validated.action == "check_claim":
             return await self._check_claim(validated)
         elif validated.action == "search_claims":
@@ -223,9 +217,7 @@ class FactCheckValidatorTool(BaseTool):
             confidence = "unknown"
         else:
             true_signal = sum(
-                v
-                for k, v in ratings_summary.items()
-                if k in ("true", "mostly true", "correct", "accurate")
+                v for k, v in ratings_summary.items() if k in ("true", "mostly true", "correct", "accurate")
             )
             false_signal = sum(
                 v
@@ -267,9 +259,7 @@ class FactCheckValidatorTool(BaseTool):
             "reviews": reviews,
         }
 
-    async def _search_claims(
-        self, validated: FactCheckValidatorInput
-    ) -> dict[str, Any]:
+    async def _search_claims(self, validated: FactCheckValidatorInput) -> dict[str, Any]:
         """Search for recent fact-checks on a broad topic."""
         params: dict[str, Any] = {
             "key": FACT_CHECK_API_KEY,

@@ -9,7 +9,7 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any, Any
+from typing import Any
 
 import httpx
 from sqlalchemy import select
@@ -103,9 +103,7 @@ class SwarmOrchestrator:
                 from app.models.byok_models import UserAPIKey
 
                 result = await self.db.execute(
-                    select(UserAPIKey).where(
-                        UserAPIKey.id == self.byok_key_id, UserAPIKey.is_active == True
-                    )
+                    select(UserAPIKey).where(UserAPIKey.id == self.byok_key_id, UserAPIKey.is_active == True)
                 )
                 key_row = result.scalar_one_or_none()
                 if key_row:
@@ -150,25 +148,19 @@ class SwarmOrchestrator:
                     item["record"].status = "assigned"
 
             # Step 4: Execute tasks (respecting dependencies)
-            await self._transition_execution_status(
-                execution, "running", cause="Agents dispatched"
-            )
+            await self._transition_execution_status(execution, "running", cause="Agents dispatched")
 
             await self._execute_tasks(task_records, strategy)
 
             # Step 5: Synthesize results
-            await self._transition_execution_status(
-                execution, "synthesizing", cause="All tasks completed"
-            )
+            await self._transition_execution_status(execution, "synthesizing", cause="All tasks completed")
 
             synthesis, conflicts = await self._synthesize(goal, task_records)
             execution.synthesis = synthesis
             execution.conflict_markers = conflicts
 
             # Update counts
-            completed = sum(
-                1 for t in task_records if t["record"].status == "completed"
-            )
+            completed = sum(1 for t in task_records if t["record"].status == "completed")
             execution.completed_count = completed
             execution.total_tokens = sum(t["record"].tokens_used for t in task_records)
             await self._transition_execution_status(
@@ -180,9 +172,7 @@ class SwarmOrchestrator:
 
         except Exception as e:
             logger.error("Swarm execution failed: %s", e, exc_info=True)
-            await self._transition_execution_status(
-                execution, "failed", cause=f"Error: {e}"
-            )
+            await self._transition_execution_status(execution, "failed", cause=f"Error: {e}")
             execution.error_message = str(e)
             execution.completed_at = datetime.now(UTC)
 
@@ -237,27 +227,19 @@ class SwarmOrchestrator:
             while remaining:
                 # Find tasks with all dependencies met
                 ready = [
-                    item
-                    for item in remaining
-                    if all(
-                        dep in completed_ids for dep in (item.get("depends_on") or [])
-                    )
+                    item for item in remaining if all(dep in completed_ids for dep in (item.get("depends_on") or []))
                 ]
 
                 if not ready:
                     # Deadlock protection: execute remaining sequentially
-                    logger.warning(
-                        "Dependency deadlock detected, executing remaining sequentially"
-                    )
+                    logger.warning("Dependency deadlock detected, executing remaining sequentially")
                     for item in remaining:
                         await self._execute_single_task(item)
                         completed_ids.add(item["id"])
                     break
 
                 # Execute ready tasks in parallel
-                await asyncio.gather(
-                    *[self._execute_single_task(item) for item in ready]
-                )
+                await asyncio.gather(*[self._execute_single_task(item) for item in ready])
 
                 for item in ready:
                     completed_ids.add(item["id"])
@@ -275,11 +257,9 @@ class SwarmOrchestrator:
                 dep_outputs: list[Any] = []
                 for _dep_id in item["depends_on"]:
                     # Find the dependency task record                            for _other in []:  # type: list[Any]
-                        pass  # Would need access to all task records
+                    pass  # Would need access to all task records
                 if dep_outputs:
-                    dep_context = "\n\nContext from prior tasks:\n" + "\n---\n".join(
-                        dep_outputs
-                    )
+                    dep_context = "\n\nContext from prior tasks:\n" + "\n---\n".join(dep_outputs)
 
             agent_prompt = f"You are {task.agent_name or 'a specialist agent'}. Complete this task:\n\n{task.task_description}{dep_context}"
 
@@ -297,9 +277,7 @@ class SwarmOrchestrator:
             task.status = "failed"
             task.error_message = str(e)
 
-    async def _synthesize(
-        self, goal: str, task_records: list[dict]
-    ) -> tuple[str, list[dict]]:
+    async def _synthesize(self, goal: str, task_records: list[dict]) -> tuple[str, list[dict]]:
         """Synthesize all task outputs into a unified result."""
         completed_outputs = []
         conflicts = []
@@ -314,17 +292,13 @@ class SwarmOrchestrator:
         if not completed_outputs:
             return "No completed tasks to synthesize.", []
 
-        prompt = f"Original goal: {goal}\n\nAgent outputs:\n\n" + "\n\n---\n\n".join(
-            completed_outputs
-        )
+        prompt = f"Original goal: {goal}\n\nAgent outputs:\n\n" + "\n\n---\n\n".join(completed_outputs)
 
         synthesis = await self._call_llm(SYNTHESIZE_SYSTEM_PROMPT, prompt)
 
         # Check for conflict markers
         if "[CONFLICT]" in synthesis:
-            conflicts.append(
-                {"type": "unresolved", "count": synthesis.count("[CONFLICT]")}
-            )
+            conflicts.append({"type": "unresolved", "count": synthesis.count("[CONFLICT]")})
 
         return synthesis, conflicts
 
@@ -424,18 +398,12 @@ class SwarmOrchestrator:
             logger.debug("swarm_llm_metrics_failed", exc_info=True)
 
     async def get_execution(self, execution_id: str) -> OrchestratorExecution | None:
-        result = await self.db.execute(
-            select(OrchestratorExecution).where(
-                OrchestratorExecution.id == execution_id
-            )
-        )
+        result = await self.db.execute(select(OrchestratorExecution).where(OrchestratorExecution.id == execution_id))
         return result.scalar_one_or_none()
 
     async def list_executions(self, limit: int = 20) -> list[OrchestratorExecution]:
         result = await self.db.execute(
-            select(OrchestratorExecution)
-            .order_by(OrchestratorExecution.created_at.desc())
-            .limit(limit)
+            select(OrchestratorExecution).order_by(OrchestratorExecution.created_at.desc()).limit(limit)
         )
         return list(result.scalars().all())
 

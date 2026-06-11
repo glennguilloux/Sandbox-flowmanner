@@ -117,9 +117,7 @@ class HubspotCrmLinkTool(BaseTool):
         try:
             validated = HubspotCrmLinkInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in HUBSPOT_ACTIONS:
             return ToolResult.error_result(
@@ -176,13 +174,9 @@ class HubspotCrmLinkTool(BaseTool):
             base_url="https://api.hubapi.com",
         ) as client:
             if validated.action.startswith("create_contact"):
-                return await self._create_record(
-                    client, "contacts", validated.properties
-                )
+                return await self._create_record(client, "contacts", validated.properties)
             elif validated.action == "update_contact":
-                return await self._update_record(
-                    client, "contacts", validated.object_id, validated.properties
-                )
+                return await self._update_record(client, "contacts", validated.object_id, validated.properties)
             elif validated.action == "get_contact":
                 return await self._get_record(client, "contacts", validated.object_id)
             elif validated.action == "list_contacts":
@@ -197,17 +191,13 @@ class HubspotCrmLinkTool(BaseTool):
             elif validated.action == "create_deal":
                 return await self._create_record(client, "deals", validated.properties)
             elif validated.action == "update_deal":
-                return await self._update_record(
-                    client, "deals", validated.object_id, validated.properties
-                )
+                return await self._update_record(client, "deals", validated.object_id, validated.properties)
             elif validated.action == "get_deal":
                 return await self._get_record(client, "deals", validated.object_id)
             elif validated.action == "list_deals":
                 return await self._list_records(client, "deals", validated.limit)
             elif validated.action == "create_company":
-                return await self._create_record(
-                    client, "companies", validated.properties
-                )
+                return await self._create_record(client, "companies", validated.properties)
             elif validated.action == "search_companies":
                 return await self._search_records(
                     client,
@@ -275,9 +265,7 @@ class HubspotCrmLinkTool(BaseTool):
             return {"error": "object_id is required for get"}
         resp = await client.get(
             f"/crm/v3/objects/{object_type}/{object_id}",
-            params={
-                "properties": "email,firstname,lastname,phone,company,dealname,amount,dealstage,hs_pipeline"
-            },
+            params={"properties": "email,firstname,lastname,phone,company,dealname,amount,dealstage,hs_pipeline"},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -303,9 +291,7 @@ class HubspotCrmLinkTool(BaseTool):
         return {
             "action": f"list_{object_type}",
             "count": len(results),
-            "records": [
-                {"id": r["id"], "properties": r.get("properties", {})} for r in results
-            ],
+            "records": [{"id": r["id"], "properties": r.get("properties", {})} for r in results],
         }
 
     async def _search_records(
@@ -341,9 +327,7 @@ class HubspotCrmLinkTool(BaseTool):
             "property": property_name,
             "query": query,
             "count": len(results),
-            "records": [
-                {"id": r["id"], "properties": r.get("properties", {})} for r in results
-            ],
+            "records": [{"id": r["id"], "properties": r.get("properties", {})} for r in results],
         }
 
 

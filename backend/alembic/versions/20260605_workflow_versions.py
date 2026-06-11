@@ -5,17 +5,18 @@ Revises: 20260604_bindings
 Create Date: 2026-06-05 10:00:00.000000
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 revision: str = "20260605_workflow_versions"
-down_revision: Union[str, Sequence[str], None] = "20260604_bindings"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "20260604_bindings"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -32,12 +33,8 @@ def upgrade() -> None:
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("snapshot", postgresql.JSONB(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_wf_versions_workflow_id", "workflow_versions", ["workflow_id"])
     op.create_index(
@@ -63,12 +60,8 @@ def upgrade() -> None:
         sa.Column("payload", postgresql.JSONB(), nullable=True),
         sa.Column("level", sa.String(20), nullable=False, server_default="info"),
         sa.Column("sequence", sa.Integer(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_exec_events_execution_id", "execution_events", ["execution_id"])
     op.create_index("ix_exec_events_event_type", "execution_events", ["event_type"])

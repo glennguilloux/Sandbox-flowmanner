@@ -45,9 +45,7 @@ class FlowmannerClient:
     def __init__(self, base_url: str, api_key: str | None = None) -> None:
         api_key = api_key or os.environ.get("FLOWMANNER_API_KEY", "")
         if not api_key:
-            raise FlowmannerError(
-                "No API key provided. Pass api_key or set FLOWMANNER_API_KEY env var."
-            )
+            raise FlowmannerError("No API key provided. Pass api_key or set FLOWMANNER_API_KEY env var.")
         self._client = AuthenticatedClient(
             base_url=base_url.rstrip("/"),
             token=api_key,
@@ -113,9 +111,7 @@ class FlowmannerClient:
         """
         from .api.missions import get_item_api_missions_mission_id_get
 
-        result = get_item_api_missions_mission_id_get.sync(
-            mission_id=UUID(mission_id), client=self._client
-        )
+        result = get_item_api_missions_mission_id_get.sync(mission_id=UUID(mission_id), client=self._client)
         if result is None:
             raise FlowmannerError(f"Mission {mission_id} not found")
         return result
@@ -132,9 +128,7 @@ class FlowmannerClient:
         """
         from .api.missions import list_items_api_missions_get
 
-        result = list_items_api_missions_get.sync(
-            client=self._client, page=page, per_page=per_page
-        )
+        result = list_items_api_missions_get.sync(client=self._client, page=page, per_page=per_page)
         return result
 
     def delete_mission(self, mission_id: str) -> None:
@@ -145,9 +139,7 @@ class FlowmannerClient:
         """
         from .api.missions import delete_item_api_missions_mission_id_delete
 
-        delete_item_api_missions_mission_id_delete.sync(
-            mission_id=UUID(mission_id), client=self._client
-        )
+        delete_item_api_missions_mission_id_delete.sync(mission_id=UUID(mission_id), client=self._client)
 
     # ── Execution ──────────────────────────────────────────────────
 
@@ -196,9 +188,7 @@ class FlowmannerClient:
             mission_id=UUID(mission_id), client=self._client, body=body
         )
         if result is None:
-            raise FlowmannerError(
-                f"Failed to execute mission {mission_id} asynchronously"
-            )
+            raise FlowmannerError(f"Failed to execute mission {mission_id} asynchronously")
         return result
 
     def get_mission_status(self, mission_id: str) -> str:
@@ -255,8 +245,7 @@ class FlowmannerClient:
             elapsed = time.monotonic() - start
             if elapsed >= timeout:
                 raise FlowmannerError(
-                    f"Timeout waiting for mission {mission_id} "
-                    f"(status={status}, elapsed={elapsed:.0f}s)"
+                    f"Timeout waiting for mission {mission_id} (status={status}, elapsed={elapsed:.0f}s)"
                 )
             time.sleep(poll_interval)
 
@@ -275,9 +264,7 @@ class FlowmannerClient:
             list_tasks_api_missions_mission_id_tasks_get,
         )
 
-        result = list_tasks_api_missions_mission_id_tasks_get.sync(
-            mission_id=UUID(mission_id), client=self._client
-        )
+        result = list_tasks_api_missions_mission_id_tasks_get.sync(mission_id=UUID(mission_id), client=self._client)
         return result
 
     # ── Analytics ──────────────────────────────────────────────────
@@ -293,9 +280,7 @@ class FlowmannerClient:
         """
         from .api.usage import get_usage_summary_api_v1_usage_summary_get
 
-        result = get_usage_summary_api_v1_usage_summary_get.sync(
-            client=self._client, period=period
-        )
+        result = get_usage_summary_api_v1_usage_summary_get.sync(client=self._client, period=period)
         if result is None:
             raise FlowmannerError("Failed to get usage summary")
         return result
@@ -311,9 +296,7 @@ class FlowmannerClient:
         """
         from .api.usage import get_usage_summary_api_v1_usage_summary_get
 
-        result = get_usage_summary_api_v1_usage_summary_get.sync(
-            client=self._client, period=period
-        )
+        result = get_usage_summary_api_v1_usage_summary_get.sync(client=self._client, period=period)
         if result is None:
             raise FlowmannerError("Failed to get cost analytics")
         return result

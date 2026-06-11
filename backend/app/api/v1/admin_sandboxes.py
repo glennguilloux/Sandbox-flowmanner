@@ -49,9 +49,7 @@ async def purge_sandboxes_by_user(
         try:
             await client.delete(pg.sandbox_id)
         except Exception as e:
-            logger.warning(
-                "Failed to delete sandboxd container %s: %s", pg.sandbox_id, e
-            )
+            logger.warning("Failed to delete sandboxd container %s: %s", pg.sandbox_id, e)
         pg.status = PlaygroundSandboxStatus.PURGED.value
         count += 1
 
@@ -66,9 +64,7 @@ async def purge_sandboxes_by_user(
             try:
                 await client.delete(ms.sandbox_id)
             except Exception as e:
-                logger.warning(
-                    "Failed to delete sandboxd container %s: %s", ms.sandbox_id, e
-                )
+                logger.warning("Failed to delete sandboxd container %s: %s", ms.sandbox_id, e)
             ms.status = "purged"
             count += 1
 

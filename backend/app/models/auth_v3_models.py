@@ -59,12 +59,8 @@ class AuthSession(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         comment="Updated ONLY on token refresh, NOT on every access-token validation",
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    revoked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoke_reason: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
@@ -115,22 +111,14 @@ class ApiKey(Base, UUIDMixin):
         nullable=False,
         comment="First 8 chars of the full key — visible to user",
     )
-    key_hash: Mapped[str] = mapped_column(
-        String(64), nullable=False, unique=True, comment="SHA-256 of full API key"
-    )
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, comment="SHA-256 of full API key")
     scopes: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment='JSON array: ["missions:read", "missions:write"]'
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
-    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     __table_args__ = (Index("ix_api_keys_user", "user_id", "is_active"),)
 
@@ -178,24 +166,16 @@ class AuthWebhookSubscription(Base, UUIDMixin):
         index=True,
     )
     url: Mapped[str] = mapped_column(String(2000), nullable=False)
-    secret: Mapped[str] = mapped_column(
-        String(64), nullable=False, comment="HMAC-SHA256 signing secret (64 hex chars)"
-    )
+    secret: Mapped[str] = mapped_column(String(64), nullable=False, comment="HMAC-SHA256 signing secret (64 hex chars)")
     events: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         comment='JSON array of event types: ["session.created", "session.revoked"]',
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
-    )
-    last_delivery_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_failure_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    last_delivery_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failure_count: Mapped[int] = mapped_column(Integer, default=0)
 
     __table_args__ = (Index("ix_webhook_sub_workspace", "workspace_id", "is_active"),)
@@ -237,6 +217,4 @@ class OIDCProviderConfig(Base, UUIDMixin):
     )
     scopes: Mapped[str] = mapped_column(String(500), default="openid email profile")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

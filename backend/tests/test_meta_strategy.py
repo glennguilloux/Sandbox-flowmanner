@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-import pytest
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
+import pytest
 
 from app.models.capability_models import Budget
 from app.services.substrate.strategies.meta import MetaStrategy
 from app.services.substrate.workflow_models import (
+    NodeType,
+    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
-    NodeType,
-    StrategyResult,
 )
-from decimal import Decimal
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -26,10 +26,7 @@ def _make_meta_workflow(
     max_depth=5,
     metadata=None,
 ):
-    nodes = [
-        WorkflowNode(id=f"sw{i}", type=NodeType.SUB_WORKFLOW, title=f"Sub {i}")
-        for i in range(node_count)
-    ]
+    nodes = [WorkflowNode(id=f"sw{i}", type=NodeType.SUB_WORKFLOW, title=f"Sub {i}") for i in range(node_count)]
     budget = Budget(
         max_cost_usd=Decimal("10.00"),
         max_wall_time_seconds=300,
@@ -343,9 +340,7 @@ class TestMetaExecute:
     @pytest.mark.asyncio
     async def test_execute_with_substrate_run_id(self):
         s = MetaStrategy()
-        wf = _make_meta_workflow(
-            node_count=1, metadata={"substrate_run_id": "meta-run-1"}
-        )
+        wf = _make_meta_workflow(node_count=1, metadata={"substrate_run_id": "meta-run-1"})
         db = AsyncMock()
         executor = _make_executor()
 

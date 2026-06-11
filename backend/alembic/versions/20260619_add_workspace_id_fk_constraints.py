@@ -77,9 +77,7 @@ def upgrade() -> None:
             continue
         constraint_name = f"fk_{table}_workspace_id"
         op.execute(
-            f"ALTER TABLE {table} "
-            f"ADD CONSTRAINT {constraint_name} "
-            f"FOREIGN KEY (workspace_id) REFERENCES workspaces(id)"
+            f"ALTER TABLE {table} ADD CONSTRAINT {constraint_name} FOREIGN KEY (workspace_id) REFERENCES workspaces(id)"
         )
 
 
@@ -103,6 +101,4 @@ def downgrade() -> None:
     ]
     for table in all_tables:
         constraint_name = f"fk_{table}_workspace_id"
-        op.execute(
-            f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}"
-        )
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")

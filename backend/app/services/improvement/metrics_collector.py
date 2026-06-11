@@ -258,9 +258,7 @@ class MetricsCollector:
         # Query spans/metrics from observability
         if self.observability:
             try:
-                await self._populate_agent_metrics_from_observability(
-                    metrics, start_time, end_time
-                )
+                await self._populate_agent_metrics_from_observability(metrics, start_time, end_time)
             except Exception as e:
                 logger.warning("Failed to populate from observability: %s", e)
                 self._populate_agent_metrics_from_memory(metrics, start_time, end_time)
@@ -429,9 +427,7 @@ class MetricsCollector:
             metrics.successful_requests = obs_metrics.get("successful_requests", 0)
             metrics.failed_requests = obs_metrics.get("failed_requests", 0)
             metrics.latencies = obs_metrics.get("latencies", [])
-            metrics.errors_by_type = defaultdict(
-                int, obs_metrics.get("errors_by_type", {})
-            )
+            metrics.errors_by_type = defaultdict(int, obs_metrics.get("errors_by_type", {}))
             metrics.tool_calls = defaultdict(int, obs_metrics.get("tool_calls", {}))
             metrics.tool_errors = defaultdict(int, obs_metrics.get("tool_errors", {}))
 
@@ -532,9 +528,7 @@ class MetricsCollector:
         cutoff = datetime.now(UTC) - timedelta(hours=24)  # Keep 24 hours
 
         for metric_name in list(self._metrics_store.keys()):
-            self._metrics_store[metric_name] = [
-                p for p in self._metrics_store[metric_name] if p.timestamp > cutoff
-            ]
+            self._metrics_store[metric_name] = [p for p in self._metrics_store[metric_name] if p.timestamp > cutoff]
 
         self._last_cache_clear = datetime.now(UTC)
         logger.debug("Cleaned up old metrics from memory")

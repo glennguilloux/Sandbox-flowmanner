@@ -28,9 +28,7 @@ class TOTPVerifySetupResponse(BaseModel):
     """Response after successful 2FA setup."""
 
     backup_codes: list[str]
-    message: str = (
-        "2FA enabled successfully. Save your backup codes — they won't be shown again."
-    )
+    message: str = "2FA enabled successfully. Save your backup codes — they won't be shown again."
 
 
 class TOTPDisableRequest(BaseModel):

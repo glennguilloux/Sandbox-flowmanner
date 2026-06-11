@@ -147,11 +147,7 @@ class PluginRuntime:
         Called during application startup.  Returns the count of
         successfully loaded plugins.
         """
-        result = await db.execute(
-            select(InstalledPlugin).where(
-                InstalledPlugin.status == PluginStatus.ENABLED
-            )
-        )
+        result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.status == PluginStatus.ENABLED))
         plugins = result.scalars().all()
 
         loaded = 0
@@ -171,9 +167,7 @@ class PluginRuntime:
                 plugin_row.last_error = str(e)
 
         await db.commit()
-        logger.info(
-            "Plugin runtime: loaded %d/%d enabled plugins", loaded, len(plugins)
-        )
+        logger.info("Plugin runtime: loaded %d/%d enabled plugins", loaded, len(plugins))
         return loaded
 
     async def install(
@@ -237,10 +231,7 @@ class PluginRuntime:
             status=PluginStatus.ENABLED,
             permissions_json=json.dumps(manifest.permissions),
             node_types_json=json.dumps(
-                [
-                    {"id": nt.id, "label": nt.label, "category": nt.category}
-                    for nt in manifest.node_types
-                ]
+                [{"id": nt.id, "label": nt.label, "category": nt.category} for nt in manifest.node_types]
             ),
             review_status=review_status,
             scan_risk_score=scan_result.risk_score if scan_result else 0,
@@ -262,9 +253,7 @@ class PluginRuntime:
 
     async def uninstall(self, db: AsyncSession, plugin_id: str) -> bool:
         """Uninstall a plugin — unload from registry and mark as uninstalled."""
-        result = await db.execute(
-            select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-        )
+        result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
         plugin_row = result.scalar_one_or_none()
         if plugin_row is None:
             return False
@@ -279,9 +268,7 @@ class PluginRuntime:
 
     async def enable(self, db: AsyncSession, plugin_id: str) -> bool:
         """Enable a disabled plugin — re-register its handlers."""
-        result = await db.execute(
-            select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-        )
+        result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
         plugin_row = result.scalar_one_or_none()
         if plugin_row is None:
             return False
@@ -299,9 +286,7 @@ class PluginRuntime:
 
     async def disable(self, db: AsyncSession, plugin_id: str) -> bool:
         """Disable a plugin — remove handlers from registry, keep DB record."""
-        result = await db.execute(
-            select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-        )
+        result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
         plugin_row = result.scalar_one_or_none()
         if plugin_row is None:
             return False
@@ -345,9 +330,7 @@ class PluginRuntime:
     ) -> None:
         """Persist execution stats to the installed_plugins table."""
         try:
-            result = await db.execute(
-                select(InstalledPlugin).where(InstalledPlugin.name == plugin_name)
-            )
+            result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.name == plugin_name))
             plugin_row = result.scalar_one_or_none()
             if plugin_row is None:
                 return
@@ -440,9 +423,7 @@ class PluginRuntime:
             return
 
         # Find and remove all handlers belonging to this plugin
-        to_remove = [
-            nid for nid, h in self._handlers.items() if h._plugin_name == plugin_name
-        ]
+        to_remove = [nid for nid, h in self._handlers.items() if h._plugin_name == plugin_name]
         for nid in to_remove:
             del self._handlers[nid]
             logger.info("Unregistered plugin node type '%s'", nid)

@@ -32,11 +32,7 @@ def encode_cursor(item_id: str, created_at: datetime | str | None = None) -> str
     """Encode a cursor token from an item's ID and timestamp."""
     ts = None
     if created_at is not None:
-        ts = (
-            created_at.isoformat()
-            if isinstance(created_at, datetime)
-            else str(created_at)
-        )
+        ts = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at)
     payload = {"id": str(item_id), "ts": ts}
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
@@ -105,9 +101,7 @@ def cursor_pagination(
     """
 
     def _dependency(
-        cursor: str | None = Query(
-            None, description="Opaque cursor token from a previous response"
-        ),
+        cursor: str | None = Query(None, description="Opaque cursor token from a previous response"),
         direction: str = Query(
             "after",
             description="Pagination direction: 'after' (next page) or 'before' (previous page)",

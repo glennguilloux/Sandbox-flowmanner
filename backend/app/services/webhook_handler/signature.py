@@ -40,9 +40,7 @@ class HMACSHA256Verifier(SignatureVerifier):
     def verify(self, payload: bytes, signature: str, secret: str) -> bool:
         """Verify HMAC SHA256 signature"""
         try:
-            expected_sig = hmac.new(
-                secret.encode("utf-8"), payload, hashlib.sha256
-            ).hexdigest()
+            expected_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
             # Remove prefix if present
             sig = signature
@@ -72,9 +70,7 @@ class HMACSHA1Verifier(SignatureVerifier):
     def verify(self, payload: bytes, signature: str, secret: str) -> bool:
         """Verify HMAC SHA1 signature"""
         try:
-            expected_sig = hmac.new(
-                secret.encode("utf-8"), payload, hashlib.sha1
-            ).hexdigest()
+            expected_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha1).hexdigest()
 
             sig = signature
             if self.prefix and sig.startswith(self.prefix):
@@ -122,16 +118,12 @@ class StripeVerifier(SignatureVerifier):
             # Check timestamp tolerance
             current_time = int(time.time())
             if abs(current_time - timestamp) > self.tolerance_seconds:
-                logger.warning(
-                    "Stripe webhook timestamp outside tolerance: %s", timestamp
-                )
+                logger.warning("Stripe webhook timestamp outside tolerance: %s", timestamp)
                 return False
 
             # Compute expected signature
             signed_payload = f"{timestamp}.{payload.decode('utf-8')}"
-            expected_sig = hmac.new(
-                secret.encode("utf-8"), signed_payload.encode("utf-8"), hashlib.sha256
-            ).hexdigest()
+            expected_sig = hmac.new(secret.encode("utf-8"), signed_payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
             return hmac.compare_digest(v1_signature.lower(), expected_sig.lower())
         except Exception as e:
@@ -148,9 +140,7 @@ class SlackVerifier(SignatureVerifier):
     def __init__(self, tolerance_seconds: int = 300):
         self.tolerance_seconds = tolerance_seconds
 
-    def verify(
-        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
-    ) -> bool:
+    def verify(self, payload: bytes, signature: str, secret: str, timestamp: str | None = None) -> bool:
         """Verify Slack signature"""
         try:
             if not timestamp:
@@ -172,10 +162,7 @@ class SlackVerifier(SignatureVerifier):
             # Slack uses: "v0:" + timestamp + ":" + body
             basestring = f"v0:{timestamp}:{payload.decode('utf-8')}"
             expected_sig = (
-                "v0="
-                + hmac.new(
-                    secret.encode("utf-8"), basestring.encode("utf-8"), hashlib.sha256
-                ).hexdigest()
+                "v0=" + hmac.new(secret.encode("utf-8"), basestring.encode("utf-8"), hashlib.sha256).hexdigest()
             )
 
             return hmac.compare_digest(signature, expected_sig)
@@ -207,9 +194,7 @@ class TwilioVerifier(SignatureVerifier):
 
             # Compute signature
             url_with_params = self.url + param_str
-            expected_sig = hmac.new(
-                secret.encode("utf-8"), url_with_params.encode("utf-8"), hashlib.sha1
-            ).digest()
+            expected_sig = hmac.new(secret.encode("utf-8"), url_with_params.encode("utf-8"), hashlib.sha1).digest()
 
             import base64
 
@@ -230,9 +215,7 @@ class ShopifyVerifier(SignatureVerifier):
     def verify(self, payload: bytes, signature: str, secret: str) -> bool:
         """Verify Shopify HMAC SHA256 signature"""
         try:
-            expected_sig = hmac.new(
-                secret.encode("utf-8"), payload, hashlib.sha256
-            ).hexdigest()
+            expected_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
             return hmac.compare_digest(signature.lower(), expected_sig.lower())
         except Exception as e:

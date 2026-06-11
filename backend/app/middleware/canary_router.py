@@ -7,9 +7,7 @@ from typing import Any
 
 from flask import g, request
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 try:
@@ -66,9 +64,7 @@ class CanaryMetrics:
         return 0.0
 
     def get_p99_latency(self, backend: str) -> float:
-        latencies = (
-            self.latencies_n8n if backend == "n8n" else self.latencies_governance
-        )
+        latencies = self.latencies_n8n if backend == "n8n" else self.latencies_governance
         if not latencies:
             return 0.0
         sorted_latencies = sorted(latencies)
@@ -81,11 +77,7 @@ class CanaryMetrics:
                 "errors": self.errors_n8n,
                 "error_rate": self.get_error_rate("n8n"),
                 "p99_latency_ms": self.get_p99_latency("n8n"),
-                "avg_latency_ms": (
-                    sum(self.latencies_n8n) / len(self.latencies_n8n)
-                    if self.latencies_n8n
-                    else 0
-                ),
+                "avg_latency_ms": (sum(self.latencies_n8n) / len(self.latencies_n8n) if self.latencies_n8n else 0),
             },
             "governance": {
                 "requests": self.requests_governance,
@@ -93,9 +85,7 @@ class CanaryMetrics:
                 "error_rate": self.get_error_rate("governance"),
                 "p99_latency_ms": self.get_p99_latency("governance"),
                 "avg_latency_ms": (
-                    sum(self.latencies_governance) / len(self.latencies_governance)
-                    if self.latencies_governance
-                    else 0
+                    sum(self.latencies_governance) / len(self.latencies_governance) if self.latencies_governance else 0
                 ),
             },
         }
@@ -175,9 +165,7 @@ def canary_routing_middleware(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         workflow_id = (
-            request.view_args.get("workflow_id") or request.json.get("workflow_id")
-            if request.is_json
-            else None
+            request.view_args.get("workflow_id") or request.json.get("workflow_id") if request.is_json else None
         )
         backend = get_routing_backend(workflow_id)
 

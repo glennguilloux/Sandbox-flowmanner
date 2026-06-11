@@ -92,9 +92,7 @@ def _not_found() -> HTTPException:
 
 
 async def _get_user_workspaces(db: AsyncSession, user_id: int):
-    result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.user_id == user_id)
-    )
+    result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.user_id == user_id))
     memberships = result.scalars().all()
     workspace_ids = [m.workspace_id for m in memberships]
     if not workspace_ids:
@@ -122,9 +120,7 @@ async def list_workspaces(
     workspaces = await _get_user_workspaces(db, user.id)
     items = []
     for ws in workspaces:
-        member_count_result = await db.execute(
-            select(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id)
-        )
+        member_count_result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id))
         member_count = len(member_count_result.scalars().all())
         items.append(
             WorkspaceResponse(
@@ -148,17 +144,11 @@ async def create_workspace(
     user: User = Depends(get_current_user),
 ):
     ws_id = str(uuid4())
-    slug = (
-        payload.slug
-        or re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-")
-        or f"workspace-{ws_id[:8]}"
-    )
+    slug = payload.slug or re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-") or f"workspace-{ws_id[:8]}"
 
     existing = await db.execute(select(Workspace).where(Workspace.slug == slug))
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already taken"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already taken")
 
     ws = Workspace(id=ws_id, name=payload.name, slug=slug, owner_id=user.id)
     db.add(ws)
@@ -194,9 +184,7 @@ async def get_workspace(
     if not ws:
         raise _not_found()
 
-    member_count_result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id)
-    )
+    member_count_result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id))
     member_count = len(member_count_result.scalars().all())
 
     return ok(
@@ -275,9 +263,7 @@ async def list_members(
     if not membership:
         raise _not_found()
 
-    result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id)
-    )
+    result = await db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id))
     members = result.scalars().all()
 
     items = []
@@ -314,9 +300,7 @@ async def list_teams(
 
     items = []
     for t in teams:
-        member_count_result = await db.execute(
-            select(TeamMember).where(TeamMember.team_id == t.id)
-        )
+        member_count_result = await db.execute(select(TeamMember).where(TeamMember.team_id == t.id))
         member_count = len(member_count_result.scalars().all())
         items.append(
             TeamResponse(

@@ -55,9 +55,7 @@ class SchemaInferenceEngineTool(BaseTool):
         try:
             validated = SchemaInferenceEngineInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         conn_str = validated.connection_string or os.getenv("DATABASE_URL", "")
         if not conn_str:
@@ -69,14 +67,8 @@ class SchemaInferenceEngineTool(BaseTool):
         # Ensure async driver
         if conn_str.startswith("postgresql://"):
             conn_str = conn_str.replace("postgresql://", "postgresql+asyncpg://", 1)
-        elif not any(
-            conn_str.startswith(p) for p in ("postgresql+", "mysql+", "sqlite+")
-        ):
-            conn_str = (
-                conn_str.replace("://", "+asyncpg://", 1)
-                if "://" in conn_str
-                else conn_str
-            )
+        elif not any(conn_str.startswith(p) for p in ("postgresql+", "mysql+", "sqlite+")):
+            conn_str = conn_str.replace("://", "+asyncpg://", 1) if "://" in conn_str else conn_str
 
         try:
             engine = create_async_engine(conn_str, echo=False)
@@ -87,28 +79,18 @@ class SchemaInferenceEngineTool(BaseTool):
                 schema_name = validated.schema_name or "public"
                 tables = []
 
-                for table_name in await conn.run_sync(
-                    lambda sync_conn: inspector.get_table_names(schema=schema_name)
-                ):
+                for table_name in await conn.run_sync(lambda sync_conn: inspector.get_table_names(schema=schema_name)):
                     columns_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_columns(
-                            table_name, schema=schema_name
-                        )
+                        lambda sync_conn: inspector.get_columns(table_name, schema=schema_name)
                     )
                     pk_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_pk_constraint(
-                            table_name, schema=schema_name
-                        )
+                        lambda sync_conn: inspector.get_pk_constraint(table_name, schema=schema_name)
                     )
                     fk_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_foreign_keys(
-                            table_name, schema=schema_name
-                        )
+                        lambda sync_conn: inspector.get_foreign_keys(table_name, schema=schema_name)
                     )
                     indexes_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_indexes(
-                            table_name, schema=schema_name
-                        )
+                        lambda sync_conn: inspector.get_indexes(table_name, schema=schema_name)
                     )
 
                     primary_keys = pk_info.get("constrained_columns", [])
@@ -119,11 +101,7 @@ class SchemaInferenceEngineTool(BaseTool):
                             "name": col["name"],
                             "type": str(col["type"]),
                             "nullable": col.get("nullable", True),
-                            "default": (
-                                str(col.get("default"))
-                                if col.get("default") is not None
-                                else None
-                            ),
+                            "default": (str(col.get("default")) if col.get("default") is not None else None),
                             "is_primary_key": col["name"] in primary_keys,
                         }
                         # Check if it's a foreign key
@@ -132,9 +110,7 @@ class SchemaInferenceEngineTool(BaseTool):
                                 col_data["foreign_key"] = {
                                     "table": fk.get("referred_table", ""),
                                     "column": (
-                                        fk.get("referred_columns", [""])[0]
-                                        if fk.get("referred_columns")
-                                        else ""
+                                        fk.get("referred_columns", [""])[0] if fk.get("referred_columns") else ""
                                     ),
                                 }
                         columns.append(col_data)
@@ -143,9 +119,7 @@ class SchemaInferenceEngineTool(BaseTool):
                     sample_row = None
                     if validated.include_sample_data:
                         try:
-                            result = await conn.execute(
-                                text(f'SELECT * FROM "{table_name}" LIMIT 1')
-                            )
+                            result = await conn.execute(text(f'SELECT * FROM "{table_name}" LIMIT 1'))
                             row = result.fetchone()
                             if row:
                                 sample_row = dict(zip(result.keys(), row, strict=False))
@@ -153,9 +127,7 @@ class SchemaInferenceEngineTool(BaseTool):
                                 for k, v in sample_row.items():
                                     if hasattr(v, "isoformat"):
                                         sample_row[k] = v.isoformat()
-                                    elif not isinstance(
-                                        v, (str, int, float, bool, type(None))
-                                    ):
+                                    elif not isinstance(v, (str, int, float, bool, type(None))):
                                         sample_row[k] = str(v)
                         except Exception:
                             sample_row = None
@@ -236,10 +208,7 @@ class SchemaInferenceEngineTool(BaseTool):
                 lines.append("")
                 lines.append(
                     "**Indexes:** "
-                    + ", ".join(
-                        f"`{idx['name']}` ({', '.join(idx['columns'])})"
-                        for idx in table["indexes"]
-                    )
+                    + ", ".join(f"`{idx['name']}` ({', '.join(idx['columns'])})" for idx in table["indexes"])
                 )
 
             lines.append("")
@@ -262,9 +231,7 @@ class SchemaInferenceEngineTool(BaseTool):
                     ref = fk["references"].replace(".", "(") + ")"
                     cols.append(f"  FOREIGN KEY ({col_name}) REFERENCES {ref}")
 
-            lines.append(
-                f"CREATE TABLE {table['name']} (\n" + ",\n".join(cols) + "\n);\n"
-            )
+            lines.append(f"CREATE TABLE {table['name']} (\n" + ",\n".join(cols) + "\n);\n")
 
         return "\n".join(lines)
 

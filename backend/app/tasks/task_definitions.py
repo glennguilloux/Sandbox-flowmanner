@@ -19,11 +19,7 @@ def sync_workflow_status(self):
     db = SessionLocal()
     try:
         # Get all running/pending workflow runs
-        running_workflows = (
-            db.query(WorkflowRuns)
-            .filter(WorkflowRuns.status.in_(["running", "pending"]))
-            .all()
-        )
+        running_workflows = db.query(WorkflowRuns).filter(WorkflowRuns.status.in_(["running", "pending"])).all()
 
         updated_count = 0
         for workflow in running_workflows:
@@ -40,9 +36,7 @@ def sync_workflow_status(self):
                     updated_count += 1
 
         db.commit()
-        logger.info(
-            "Synced %s workflows, %s timed out", len(running_workflows), updated_count
-        )
+        logger.info("Synced %s workflows, %s timed out", len(running_workflows), updated_count)
         return {"synced": len(running_workflows), "timed_out": updated_count}
 
     except Exception as e:

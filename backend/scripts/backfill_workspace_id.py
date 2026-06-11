@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
@@ -32,9 +33,7 @@ async def run():
         # ── 1. Build user_id → workspace_id map ────────────────────
         # Primary: workspace.owner_id (each user owns exactly one workspace)
         owner_rows = await conn.execute(
-            sa_text(
-                "SELECT id, owner_id FROM workspaces WHERE is_active = true ORDER BY created_at"
-            )
+            sa_text("SELECT id, owner_id FROM workspaces WHERE is_active = true ORDER BY created_at")
         )
         all_workspaces = owner_rows.fetchall()
 
@@ -52,9 +51,7 @@ async def run():
 
         # Also pull from workspace_members for completeness
         member_rows = await conn.execute(
-            sa_text(
-                "SELECT user_id, workspace_id FROM workspace_members WHERE is_active = true"
-            )
+            sa_text("SELECT user_id, workspace_id FROM workspace_members WHERE is_active = true")
         )
         for row in member_rows.fetchall():
             if row.user_id not in user_ws_map:
@@ -90,9 +87,7 @@ async def run():
         # 2a. User-scoped tables
         for table, uid_col in user_scoped_tables:
             # Count NULLs first
-            r = await conn.execute(
-                sa_text(f"SELECT count(*) FROM {table} WHERE workspace_id IS NULL")
-            )
+            r = await conn.execute(sa_text(f"SELECT count(*) FROM {table} WHERE workspace_id IS NULL"))
             null_count = r.scalar()
             if null_count == 0:
                 logger.info("%s: no NULLs — skipped", table)
@@ -159,9 +154,7 @@ async def run():
             )
             if result.rowcount > 0:
                 total_updated += result.rowcount
-                logger.info(
-                    "%s: %d rows assigned to default workspace", table, result.rowcount
-                )
+                logger.info("%s: %d rows assigned to default workspace", table, result.rowcount)
             else:
                 logger.info("%s: no NULLs — skipped", table)
 

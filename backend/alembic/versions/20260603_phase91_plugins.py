@@ -5,8 +5,9 @@ Revises: 20260603_phase82_workspace_api_keys
 Create Date: 2026-06-03
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers
 revision = "20260603_phase91_plugins"
@@ -42,12 +43,8 @@ def upgrade() -> None:
         sa.Column("permissions_json", sa.Text, nullable=True),
         sa.Column("node_types_json", sa.Text, nullable=True),
         sa.Column("config_json", sa.Text, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index(
         "ix_installed_plugins_workspace_name",

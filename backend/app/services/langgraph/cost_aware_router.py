@@ -46,9 +46,7 @@ class ModelCosts:
         """Calculate total cost for given token counts"""
         if self.is_local:
             return 0.0
-        return (input_tokens / 1_000_000) * self.input_cost + (
-            output_tokens / 1_000_000
-        ) * self.output_cost
+        return (input_tokens / 1_000_000) * self.input_cost + (output_tokens / 1_000_000) * self.output_cost
 
 
 @dataclass
@@ -218,9 +216,7 @@ class TaskClassifier:
         self._simple_re = [re.compile(p, re.IGNORECASE) for p in self.SIMPLE_PATTERNS]
         self._medium_re = [re.compile(p, re.IGNORECASE) for p in self.MEDIUM_PATTERNS]
         self._complex_re = [re.compile(p, re.IGNORECASE) for p in self.COMPLEX_PATTERNS]
-        self._critical_re = [
-            re.compile(p, re.IGNORECASE) for p in self.CRITICAL_PATTERNS
-        ]
+        self._critical_re = [re.compile(p, re.IGNORECASE) for p in self.CRITICAL_PATTERNS]
 
     def classify(
         self,
@@ -297,15 +293,9 @@ class CostAwareRouter:
     # Default model costs (per 1M tokens)
     DEFAULT_MODEL_COSTS = {
         # Local models (free)
-        "local-qwen3.5": ModelCosts(
-            0, 0, is_local=True, quality_score=0.85, speed_score=0.7, max_context=262144
-        ),
-        "vllm-qwen3-14b-chat": ModelCosts(
-            0, 0, is_local=True, quality_score=0.80, speed_score=0.8, max_context=32768
-        ),
-        "llamacpp-qwen3.6-27b": ModelCosts(
-            0, 0, is_local=True, quality_score=0.90, speed_score=0.7, max_context=32768
-        ),
+        "local-qwen3.5": ModelCosts(0, 0, is_local=True, quality_score=0.85, speed_score=0.7, max_context=262144),
+        "vllm-qwen3-14b-chat": ModelCosts(0, 0, is_local=True, quality_score=0.80, speed_score=0.8, max_context=32768),
+        "llamacpp-qwen3.6-27b": ModelCosts(0, 0, is_local=True, quality_score=0.90, speed_score=0.7, max_context=32768),
         "llamacpp-qwen2.5-coder-7b": ModelCosts(
             0, 0, is_local=True, quality_score=0.75, speed_score=0.9, max_context=8192
         ),
@@ -473,9 +463,7 @@ class CostAwareRouter:
         """Set a manual model override"""
         self._manual_override = model_id
         self._override_expiry = datetime.now(UTC) + timedelta(minutes=duration_minutes)
-        logger.info(
-            "Manual override set to %s for %s minutes", model_id, duration_minutes
-        )
+        logger.info("Manual override set to %s for %s minutes", model_id, duration_minutes)
 
     def clear_manual_override(self):
         """Clear manual override"""
@@ -506,9 +494,7 @@ class CostAwareRouter:
         output_tokens = estimated_output_tokens
 
         costs = self.model_costs.get(model_id)
-        estimated_cost = (
-            costs.calculate_cost(input_tokens, output_tokens) if costs else 0.0
-        )
+        estimated_cost = costs.calculate_cost(input_tokens, output_tokens) if costs else 0.0
 
         return input_tokens, output_tokens, estimated_cost
 
@@ -533,12 +519,8 @@ class CostAwareRouter:
         """
         # Check for forced model first
         if force_model:
-            complexity = force_complexity or self.task_classifier.classify(
-                prompt, context
-            )
-            input_tokens, output_tokens, cost = self.estimate_request_cost(
-                prompt, force_model
-            )
+            complexity = force_complexity or self.task_classifier.classify(prompt, context)
+            input_tokens, output_tokens, cost = self.estimate_request_cost(prompt, force_model)
             return RoutingDecision(
                 selected_model=force_model,
                 complexity=complexity,
@@ -552,12 +534,8 @@ class CostAwareRouter:
 
         # Check for manual override
         if self._is_override_active():
-            complexity = force_complexity or self.task_classifier.classify(
-                prompt, context
-            )
-            input_tokens, output_tokens, cost = self.estimate_request_cost(
-                prompt, self._manual_override
-            )
+            complexity = force_complexity or self.task_classifier.classify(prompt, context)
+            input_tokens, output_tokens, cost = self.estimate_request_cost(prompt, self._manual_override)
             return RoutingDecision(
                 selected_model=self._manual_override,
                 complexity=complexity,
@@ -573,9 +551,7 @@ class CostAwareRouter:
         complexity = force_complexity or self.task_classifier.classify(prompt, context)
 
         # Get routing config for this complexity
-        config = self.routing_config.get(
-            complexity, self.routing_config[TaskComplexity.MEDIUM]
-        )
+        config = self.routing_config.get(complexity, self.routing_config[TaskComplexity.MEDIUM])
         preferred_models = config.get("preferred_models", [])
         fallback_chain = config.get("fallback_chain", [])
         min_quality = config.get("min_quality_score", 0.7)
@@ -596,14 +572,10 @@ class CostAwareRouter:
             raise RuntimeError("No models available for routing")
 
         # Select best model based on cost-quality tradeoff
-        selected_model = self._select_optimal_model(
-            available_models, prompt, complexity
-        )
+        selected_model = self._select_optimal_model(available_models, prompt, complexity)
 
         # Estimate cost
-        input_tokens, output_tokens, cost = self.estimate_request_cost(
-            prompt, selected_model
-        )
+        input_tokens, output_tokens, cost = self.estimate_request_cost(prompt, selected_model)
 
         return RoutingDecision(
             selected_model=selected_model,
@@ -614,9 +586,7 @@ class CostAwareRouter:
             reason=f"Selected based on {complexity.value} complexity and cost-quality tradeoff={self.cost_quality_tradeoff:.2f}",
         )
 
-    def _get_available_models(
-        self, model_ids: list[str], min_quality: float
-    ) -> list[str]:
+    def _get_available_models(self, model_ids: list[str], min_quality: float) -> list[str]:
         """Get list of available models meeting quality threshold"""
         available = []
         for model_id in model_ids:
@@ -641,9 +611,7 @@ class CostAwareRouter:
 
         return available
 
-    def _select_optimal_model(
-        self, available_models: list[str], prompt: str, complexity: TaskComplexity
-    ) -> str:
+    def _select_optimal_model(self, available_models: list[str], prompt: str, complexity: TaskComplexity) -> str:
         """Select optimal model based on cost-quality tradeoff"""
         if len(available_models) == 1:
             return available_models[0]
@@ -668,10 +636,7 @@ class CostAwareRouter:
                 cost_score = 1.0 - (avg_cost / max_cost)
 
             # Combine scores based on tradeoff
-            combined_score = (
-                self.cost_quality_tradeoff * quality_score
-                + (1 - self.cost_quality_tradeoff) * cost_score
-            )
+            combined_score = self.cost_quality_tradeoff * quality_score + (1 - self.cost_quality_tradeoff) * cost_score
 
             scores[model_id] = combined_score
 
@@ -693,9 +658,7 @@ class CostAwareRouter:
     ):
         """Record actual usage for cost tracking"""
         costs = self.model_costs.get(model_id)
-        actual_cost = (
-            costs.calculate_cost(input_tokens, output_tokens) if costs else 0.0
-        )
+        actual_cost = costs.calculate_cost(input_tokens, output_tokens) if costs else 0.0
 
         self.cost_tracker.record_usage(
             model_id=model_id,
@@ -712,15 +675,12 @@ class CostAwareRouter:
         return {
             "total_cost": self.cost_tracker.get_total_cost(),
             "cost_by_model": {
-                model_id: stats["total_cost"]
-                for model_id, stats in self.cost_tracker.get_all_stats().items()
+                model_id: stats["total_cost"] for model_id, stats in self.cost_tracker.get_all_stats().items()
             },
             "cost_by_complexity": self.cost_tracker.get_cost_by_complexity(),
             "model_stats": self.cost_tracker.get_all_stats(),
             "current_tradeoff": self.cost_quality_tradeoff,
-            "manual_override": (
-                self._manual_override if self._is_override_active() else None
-            ),
+            "manual_override": (self._manual_override if self._is_override_active() else None),
             "allow_paid_models": self.allow_paid_models,
         }
 
@@ -736,9 +696,7 @@ class CostAwareRouter:
         for model_id in preferred:
             costs = self.model_costs.get(model_id)
             if costs:
-                input_tokens, output_tokens, cost = self.estimate_request_cost(
-                    prompt, model_id
-                )
+                input_tokens, output_tokens, cost = self.estimate_request_cost(prompt, model_id)
                 recommendations.append(
                     {
                         "model_id": model_id,

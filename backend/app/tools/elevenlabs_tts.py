@@ -65,18 +65,10 @@ SSML_PATTERNS = [
 class VoiceSettings(BaseModel):
     """Voice settings for ElevenLabs TTS generation."""
 
-    stability: float = Field(
-        0.5, ge=0.0, le=1.0, description="Voice stability (0.0-1.0)"
-    )
-    similarity_boost: float = Field(
-        0.75, ge=0.0, le=1.0, description="Similarity to original voice (0.0-1.0)"
-    )
-    style: float = Field(
-        0.0, ge=0.0, le=1.0, description="Speaking style exaggeration (0.0-1.0)"
-    )
-    use_speaker_boost: bool = Field(
-        True, description="Enable speaker boost for clarity"
-    )
+    stability: float = Field(0.5, ge=0.0, le=1.0, description="Voice stability (0.0-1.0)")
+    similarity_boost: float = Field(0.75, ge=0.0, le=1.0, description="Similarity to original voice (0.0-1.0)")
+    style: float = Field(0.0, ge=0.0, le=1.0, description="Speaking style exaggeration (0.0-1.0)")
+    use_speaker_boost: bool = Field(True, description="Enable speaker boost for clarity")
 
 
 class ElevenLabsTTSInput(ToolInput):
@@ -184,22 +176,16 @@ class ElevenLabsTTSTool(BaseTool):
         try:
             validated = ElevenLabsTTSInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         api_key = validated.api_key or ELEVENLABS_API_KEY
         if not api_key:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="ElevenLabs API key required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="ElevenLabs API key required")
 
         text = validated.text
 
         # SSML validation
-        if validated.enable_ssml and not any(
-            pattern in text for pattern in SSML_PATTERNS
-        ):
+        if validated.enable_ssml and not any(pattern in text for pattern in SSML_PATTERNS):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error="SSML mode enabled but no SSML tags found in text",
@@ -233,9 +219,7 @@ class ElevenLabsTTSTool(BaseTool):
             if validated.optimize_streaming_latency > 0:
                 params = {
                     "output_format": validated.output_format,
-                    "optimize_streaming_latency": str(
-                        validated.optimize_streaming_latency
-                    ),
+                    "optimize_streaming_latency": str(validated.optimize_streaming_latency),
                 }
                 query_string = "&".join(f"{k}={v}" for k, v in params.items())
                 url += f"/stream?{query_string}"
@@ -268,9 +252,7 @@ class ElevenLabsTTSTool(BaseTool):
                 logger.debug("Could not fetch voice name", exc_info=True)
 
             file_size = len(audio_data)
-            duration_estimate = self._estimate_duration(
-                text, 150
-            )  # ~150 chars per second
+            duration_estimate = self._estimate_duration(text, 150)  # ~150 chars per second
 
             # Storage
             audio_path = ""
@@ -313,9 +295,7 @@ class ElevenLabsTTSTool(BaseTool):
                 detail = str(e.response.json())
             except Exception:
                 detail = e.response.text[:500]
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"ElevenLabs API error: {detail}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"ElevenLabs API error: {detail}")
         except Exception as e:
             logger.exception("elevenlabs_tts failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -337,9 +317,7 @@ class ElevenLabsTTSTool(BaseTool):
         return max(len(text) / chars_per_second, 0.5)
 
     @staticmethod
-    def _save_audio(
-        audio_data: bytes, voice_id: str, fmt: str, prefix: str | None = None
-    ) -> str:
+    def _save_audio(audio_data: bytes, voice_id: str, fmt: str, prefix: str | None = None) -> str:
         """Save audio bytes to local storage with metadata sidecar."""
         os.makedirs(ELEVENLABS_STORAGE_DIR, exist_ok=True)
         digest = hashlib.sha256(audio_data).hexdigest()[:16]

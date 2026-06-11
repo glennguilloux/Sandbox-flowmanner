@@ -135,24 +135,18 @@ async def resolve_user_tier(
     if workspace_id:
         from app.models.workspace_models import Workspace
 
-        ws_result = await db.execute(
-            select(Workspace).where(Workspace.id == workspace_id)
-        )
+        ws_result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
         ws = ws_result.scalar_one_or_none()
         if ws and ws.subscription_tier_id:
             tier_result = await db.execute(
-                select(SubscriptionTier).where(
-                    SubscriptionTier.id == ws.subscription_tier_id
-                )
+                select(SubscriptionTier).where(SubscriptionTier.id == ws.subscription_tier_id)
             )
             tier = tier_result.scalar_one_or_none()
             if tier:
                 return _tier_to_limits(tier, is_active=True)
 
     # 3. Free fallback
-    free_result = await db.execute(
-        select(SubscriptionTier).where(SubscriptionTier.name == "free")
-    )
+    free_result = await db.execute(select(SubscriptionTier).where(SubscriptionTier.name == "free"))
     free_tier = free_result.scalar_one_or_none()
     if free_tier:
         return _tier_to_limits(free_tier, is_active=False)

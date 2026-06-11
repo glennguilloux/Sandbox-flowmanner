@@ -49,24 +49,16 @@ def upgrade():
         sa.Column("source_branch_id", sa.String(64), nullable=False, index=True),
         sa.Column("destination_branch_id", sa.String(64), nullable=False, index=True),
         sa.Column("merged_by", sa.Integer(), nullable=True, index=True),
-        sa.Column(
-            "merge_strategy", sa.String(20), default="linear", index=True
-        ),  # linear, interleaved, newest
-        sa.Column(
-            "conflict_resolution", sa.JSON(), nullable=True
-        ),  # Conflict resolution data
+        sa.Column("merge_strategy", sa.String(20), default="linear", index=True),  # linear, interleaved, newest
+        sa.Column("conflict_resolution", sa.JSON(), nullable=True),  # Conflict resolution data
         sa.Column(
             "merge_status", sa.String(20), default="pending", index=True
         ),  # pending, in_progress, completed, failed
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("merged_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("merge_metadata", sa.JSON(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["source_branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["source_branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["destination_branch_id"],
             ["chat_thread_branches.branch_id"],
@@ -76,9 +68,7 @@ def upgrade():
     )
 
     # Create indexes for chat_branch_merges
-    op.create_index(
-        "idx_branch_merges_merge_id", "chat_branch_merges", ["merge_id"], unique=True
-    )
+    op.create_index("idx_branch_merges_merge_id", "chat_branch_merges", ["merge_id"], unique=True)
     op.create_index(
         "idx_branch_merges_source",
         "chat_branch_merges",
@@ -91,42 +81,24 @@ def upgrade():
         ["destination_branch_id"],
         unique=False,
     )
-    op.create_index(
-        "idx_branch_merges_status", "chat_branch_merges", ["merge_status"], unique=False
-    )
+    op.create_index("idx_branch_merges_status", "chat_branch_merges", ["merge_status"], unique=False)
 
     # Create chat_branch_comparisons table
     # Stores branch comparison snapshots for analysis
     op.create_table(
         "chat_branch_comparisons",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "comparison_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("comparison_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("branch_a_id", sa.String(64), nullable=False, index=True),
         sa.Column("branch_b_id", sa.String(64), nullable=False, index=True),
         sa.Column("compared_by", sa.Integer(), nullable=True, index=True),
-        sa.Column(
-            "comparison_type", sa.String(30), default="full", index=True
-        ),  # full, messages, metrics
-        sa.Column(
-            "comparison_result", sa.JSON(), nullable=False
-        ),  # Detailed comparison data
-        sa.Column(
-            "similarity_score", sa.Float(), nullable=True
-        ),  # 0-1 similarity score
-        sa.Column(
-            "divergence_point", sa.Integer(), nullable=True
-        ),  # Message ID where branches diverged
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["branch_a_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["branch_b_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
+        sa.Column("comparison_type", sa.String(30), default="full", index=True),  # full, messages, metrics
+        sa.Column("comparison_result", sa.JSON(), nullable=False),  # Detailed comparison data
+        sa.Column("similarity_score", sa.Float(), nullable=True),  # 0-1 similarity score
+        sa.Column("divergence_point", sa.Integer(), nullable=True),  # Message ID where branches diverged
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["branch_a_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["branch_b_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["compared_by"], ["users.id"], ondelete="SET NULL"),
     )
 
@@ -161,25 +133,15 @@ def upgrade():
     op.create_table(
         "chat_branch_hierarchy",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "hierarchy_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("hierarchy_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("parent_branch_id", sa.String(64), nullable=False, index=True),
         sa.Column("child_branch_id", sa.String(64), nullable=False, index=True),
         sa.Column("hierarchy_level", sa.Integer(), default=1),  # Depth in the tree
         sa.Column("branch_order", sa.Integer(), default=0),  # Order among siblings
-        sa.Column(
-            "relationship_type", sa.String(20), default="direct", index=True
-        ),  # direct, merged, copied
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.ForeignKeyConstraint(
-            ["parent_branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["child_branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
+        sa.Column("relationship_type", sa.String(20), default="direct", index=True),  # direct, merged, copied
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["parent_branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["child_branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
     )
 
     # Create indexes for chat_branch_hierarchy
@@ -213,21 +175,13 @@ def upgrade():
     op.create_table(
         "chat_branch_analytics",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "analytics_id", sa.String(64), unique=True, nullable=False, index=True
-        ),
+        sa.Column("analytics_id", sa.String(64), unique=True, nullable=False, index=True),
         sa.Column("branch_id", sa.String(64), nullable=False, index=True),
-        sa.Column(
-            "metric_type", sa.String(30), nullable=False, index=True
-        ),  # views, messages, duration, cost
+        sa.Column("metric_type", sa.String(30), nullable=False, index=True),  # views, messages, duration, cost
         sa.Column("metric_value", sa.Float(), nullable=False),
-        sa.Column(
-            "recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("metadata", sa.JSON(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["branch_id"], ["chat_thread_branches.branch_id"], ondelete="CASCADE"),
     )
 
     # Create indexes for chat_branch_analytics
@@ -265,15 +219,11 @@ def upgrade():
         "chat_thread_branches",
         sa.Column("merge_destination_id", sa.String(64), nullable=True, index=True),
     )
-    op.add_column(
-        "chat_thread_branches", sa.Column("branch_order", sa.Integer(), default=0)
-    )
+    op.add_column("chat_thread_branches", sa.Column("branch_order", sa.Integer(), default=0))
     op.add_column(
         "chat_thread_branches", sa.Column("branch_color", sa.String(7), nullable=True)
     )  # Hex color for visualization
-    op.add_column(
-        "chat_thread_branches", sa.Column("message_count", sa.Integer(), default=0)
-    )
+    op.add_column("chat_thread_branches", sa.Column("message_count", sa.Integer(), default=0))
     op.add_column(
         "chat_thread_branches",
         sa.Column("last_accessed", sa.DateTime(timezone=True), nullable=True),
@@ -292,9 +242,7 @@ def upgrade():
         "chat_messages",
         sa.Column("branch_id", sa.String(64), nullable=True, index=True),
     )
-    op.create_index(
-        "idx_chat_messages_branch", "chat_messages", ["branch_id"], unique=False
-    )
+    op.create_index("idx_chat_messages_branch", "chat_messages", ["branch_id"], unique=False)
 
 
 def downgrade():
@@ -320,31 +268,21 @@ def downgrade():
     op.drop_index("idx_branch_analytics_recorded", table_name="chat_branch_analytics")
     op.drop_index("idx_branch_analytics_type", table_name="chat_branch_analytics")
     op.drop_index("idx_branch_analytics_branch", table_name="chat_branch_analytics")
-    op.drop_index(
-        "idx_branch_analytics_analytics_id", table_name="chat_branch_analytics"
-    )
+    op.drop_index("idx_branch_analytics_analytics_id", table_name="chat_branch_analytics")
     op.drop_table("chat_branch_analytics")
 
     # Drop chat_branch_hierarchy table
     op.drop_index("idx_branch_hierarchy_level", table_name="chat_branch_hierarchy")
     op.drop_index("idx_branch_hierarchy_child", table_name="chat_branch_hierarchy")
     op.drop_index("idx_branch_hierarchy_parent", table_name="chat_branch_hierarchy")
-    op.drop_index(
-        "idx_branch_hierarchy_hierarchy_id", table_name="chat_branch_hierarchy"
-    )
+    op.drop_index("idx_branch_hierarchy_hierarchy_id", table_name="chat_branch_hierarchy")
     op.drop_table("chat_branch_hierarchy")
 
     # Drop chat_branch_comparisons table
     op.drop_index("idx_branch_comparisons_type", table_name="chat_branch_comparisons")
-    op.drop_index(
-        "idx_branch_comparisons_branch_b", table_name="chat_branch_comparisons"
-    )
-    op.drop_index(
-        "idx_branch_comparisons_branch_a", table_name="chat_branch_comparisons"
-    )
-    op.drop_index(
-        "idx_branch_comparisons_comparison_id", table_name="chat_branch_comparisons"
-    )
+    op.drop_index("idx_branch_comparisons_branch_b", table_name="chat_branch_comparisons")
+    op.drop_index("idx_branch_comparisons_branch_a", table_name="chat_branch_comparisons")
+    op.drop_index("idx_branch_comparisons_comparison_id", table_name="chat_branch_comparisons")
     op.drop_table("chat_branch_comparisons")
 
     # Drop chat_branch_merges table

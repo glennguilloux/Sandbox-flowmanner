@@ -86,11 +86,7 @@ def upgrade() -> None:
         if _fk_exists(table, "user_id", "users"):
             continue
         constraint_name = f"fk_{table}_user_id"
-        op.execute(
-            f"ALTER TABLE {table} "
-            f"ADD CONSTRAINT {constraint_name} "
-            f"FOREIGN KEY (user_id) REFERENCES users(id)"
-        )
+        op.execute(f"ALTER TABLE {table} ADD CONSTRAINT {constraint_name} FOREIGN KEY (user_id) REFERENCES users(id)")
 
     # idempotency tables (nullable user_id, added after initial migration)
     idempotency_tables = ["idempotency_keys", "idempotency_request_logs"]
@@ -125,6 +121,4 @@ def downgrade() -> None:
     ]
     for table in all_tables:
         constraint_name = f"fk_{table}_user_id"
-        op.execute(
-            f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}"
-        )
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")

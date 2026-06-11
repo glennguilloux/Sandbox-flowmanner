@@ -4,9 +4,10 @@ success=False with a typed error, NOT success=True with empty output.
 """
 
 import os
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
@@ -84,16 +85,13 @@ class TestMissionExecutorNoSilentSuccess:
 
         # The critical assertion: must NOT be a silent success
         assert result["success"] is False, (
-            "H1.1 FAIL: Bogus model returned success=True — silent success bug!\n"
-            f"Result: {result}"
+            f"H1.1 FAIL: Bogus model returned success=True — silent success bug!\nResult: {result}"
         )
 
         # Must contain a meaningful error message
         assert "error" in result
         assert result["error"] is not None
-        assert (
-            len(str(result["error"])) > 0
-        ), "H1.1 FAIL: Error message is empty — user has no way to debug"
+        assert len(str(result["error"])) > 0, "H1.1 FAIL: Error message is empty — user has no way to debug"
 
         # Must NOT have content (no tokens, no output)
         assert result.get("output", {}).get("text", "") == ""
@@ -138,9 +136,7 @@ class TestMissionExecutorNoSilentSuccess:
         assert "api key" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_mission_executor_surfaces_error_to_mission_log(
-        self, mock_mission_and_task
-    ):
+    async def test_mission_executor_surfaces_error_to_mission_log(self, mock_mission_and_task):
         """When _execute_llm returns success=False, the mission executor must
         propagate the error so it appears in the mission log / API response."""
         from app.services.mission_executor import MissionExecutor
@@ -175,10 +171,7 @@ class TestMissionExecutorNoSilentSuccess:
         # The task-level result must report failure
         assert result["success"] is False
         assert "error" in result
-        assert (
-            "not available" in result["error"].lower()
-            or "bogus" in result["error"].lower()
-        )
+        assert "not available" in result["error"].lower() or "bogus" in result["error"].lower()
 
         # The error must be descriptive enough for the user to act on
         assert len(str(result["error"])) > 5
@@ -217,8 +210,7 @@ class TestMissionExecutorNoSilentSuccess:
         )
 
         assert result["success"] is False, (
-            "H1.1 FAIL: Empty response with success=True was NOT treated as failure!\n"
-            f"Result: {result}"
+            f"H1.1 FAIL: Empty response with success=True was NOT treated as failure!\nResult: {result}"
         )
         assert "empty" in str(result.get("error", "")).lower()
 
@@ -245,9 +237,7 @@ class TestMissionExecutorNoSilentSuccess:
             )
 
         assert result["success"] is False
-        assert "ModelRouter" in result.get(
-            "error", ""
-        ), f"Error should mention ModelRouter, got: {result.get('error')}"
+        assert "ModelRouter" in result.get("error", ""), f"Error should mention ModelRouter, got: {result.get('error')}"
 
 
 class TestLlmRouterNoSilentSuccess:
@@ -275,9 +265,7 @@ class TestLlmRouterNoSilentSuccess:
 
         assert result["success"] is False
         assert "error" in result
-        assert (
-            "api key" in result["error"].lower() or "api key" in result["error"].lower()
-        )
+        assert "api key" in result["error"].lower() or "api key" in result["error"].lower()
 
     @pytest.mark.asyncio
     async def test_route_request_not_needed_key_is_valid_for_local_providers(self):
@@ -306,9 +294,9 @@ class TestLlmRouterNoSilentSuccess:
         # since there's no real llamacpp, but it should NOT be rejected at validation)
         # If success=False, the error should be about connectivity, not about API key
         if not result.get("success"):
-            assert "API key" not in result.get(
-                "error", ""
-            ), f"'not-needed' key was wrongly rejected: {result.get('error')}"
+            assert "API key" not in result.get("error", ""), (
+                f"'not-needed' key was wrongly rejected: {result.get('error')}"
+            )
 
 
 class TestModelRouterIsModelAvailable:
@@ -337,13 +325,9 @@ class TestModelRouterIsModelAvailable:
 
             # Check that get_model was called with user_id on the platform fallback path
             calls = mock_llm_manager.get_model.call_args_list
-            user_ids_used = [
-                c.kwargs.get("user_id") or (c.args[1] if len(c.args) > 1 else None)
-                for c in calls
-            ]
+            user_ids_used = [c.kwargs.get("user_id") or (c.args[1] if len(c.args) > 1 else None) for c in calls]
             assert 42 in user_ids_used, (
-                f"H1.1 FAIL: user_id=42 was not passed to get_model. "
-                f"User IDs in calls: {user_ids_used}"
+                f"H1.1 FAIL: user_id=42 was not passed to get_model. User IDs in calls: {user_ids_used}"
             )
 
     @pytest.mark.asyncio
@@ -374,7 +358,7 @@ class TestModelRouterIsModelAvailable:
         from app.services.llm_router import ModelRouter
 
         router = ModelRouter()
-        assert hasattr(
-            router, "_is_model_available"
-        ), "H1.1 FAIL: llm_router.ModelRouter is missing _is_model_available"
+        assert hasattr(router, "_is_model_available"), (
+            "H1.1 FAIL: llm_router.ModelRouter is missing _is_model_available"
+        )
         assert callable(router._is_model_available)

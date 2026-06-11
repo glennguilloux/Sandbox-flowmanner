@@ -30,9 +30,7 @@ class FlowService:
         self.execution_router = ExecutionRouter()
         self.project_resolver = ProjectResolver()
 
-    async def resolve_project(
-        self, project_slug: str | None, goal: str, creator_email: str | None = None
-    ) -> dict:
+    async def resolve_project(self, project_slug: str | None, goal: str, creator_email: str | None = None) -> dict:
         """
         Resolve existing project or create new one.
 
@@ -41,9 +39,7 @@ class FlowService:
 
         if project_slug:
             # Look up existing project
-            result = await self.db.execute(
-                select(Workflow).where(Workflow.name == project_slug)
-            )
+            result = await self.db.execute(select(Workflow).where(Workflow.name == project_slug))
             project = result.scalar_one_or_none()
 
             if not project:
@@ -126,9 +122,7 @@ class FlowService:
 
             # Store result
             output = result.get("content", "")
-            await self._update_run_result(
-                run_id, "completed", output, result.get("metadata", {})
-            )
+            await self._update_run_result(run_id, "completed", output, result.get("metadata", {}))
 
             duration_ms = int((datetime.now(UTC) - now).total_seconds() * 1000)
 
@@ -161,9 +155,7 @@ class FlowService:
 
     async def get_run(self, run_id: str) -> dict | None:
         """Get run by ID."""
-        result = await self.db.execute(
-            select(WorkflowExecution).where(WorkflowExecution.id == uuid.UUID(run_id))
-        )
+        result = await self.db.execute(select(WorkflowExecution).where(WorkflowExecution.id == uuid.UUID(run_id)))
         run = result.scalar_one_or_none()
 
         if not run:
@@ -185,15 +177,11 @@ class FlowService:
             updates["started_at"] = datetime.now(UTC)
 
         await self.db.execute(
-            update(WorkflowExecution)
-            .where(WorkflowExecution.id == uuid.UUID(run_id))
-            .values(**updates)
+            update(WorkflowExecution).where(WorkflowExecution.id == uuid.UUID(run_id)).values(**updates)
         )
         await self.db.commit()
 
-    async def _update_run_result(
-        self, run_id: str, status: str, output: str, metadata: dict
-    ):
+    async def _update_run_result(self, run_id: str, status: str, output: str, metadata: dict):
         """Update run with result."""
         now = datetime.now(UTC)
 

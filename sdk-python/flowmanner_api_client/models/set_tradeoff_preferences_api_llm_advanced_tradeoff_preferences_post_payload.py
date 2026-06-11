@@ -6,9 +6,7 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar(
-    "T", bound="SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload"
-)
+T = TypeVar("T", bound="SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload")
 
 
 @_attrs_define
@@ -26,16 +24,10 @@ class SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload = (
-            cls()
-        )
+        set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload = cls()
 
-        set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload.additional_properties = (
-            d
-        )
-        return (
-            set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload
-        )
+        set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload.additional_properties = d
+        return set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload
 
     @property
     def additional_keys(self) -> list[str]:

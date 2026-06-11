@@ -66,9 +66,7 @@ class TaskOptimizerOptions:
             "immediate",
         ]
     )
-    medium_priority_patterns: list = field(
-        default_factory=lambda: ["email", "report", "analytics", "dashboard", "api"]
-    )
+    medium_priority_patterns: list = field(default_factory=lambda: ["email", "report", "analytics", "dashboard", "api"])
     low_priority_patterns: list = field(
         default_factory=lambda: [
             "backup",
@@ -139,12 +137,7 @@ class TaskPriorityRouter:
         return self._determine_priority(task)
 
     def route_task(
-        self,
-        task: Any,
-        args: tuple = None,
-        kwargs: dict = None,
-        options: dict = None,
-        **extra
+        self, task: Any, args: tuple = None, kwargs: dict = None, options: dict = None, **extra
     ) -> dict[str, Any]:
         """
         Route a task to the appropriate queue based on priority.
@@ -170,9 +163,7 @@ class TaskPriorityRouter:
 
         # Handle None priority edge case
         if priority is None:
-            logger.warning(
-                "Priority was None for task %s, falling back to MEDIUM_PRIORITY", task
-            )
+            logger.warning("Priority was None for task %s, falling back to MEDIUM_PRIORITY", task)
             priority = TaskOptimizerConfig.MEDIUM_PRIORITY
 
         # Map priority to queue settings based on value ranges

@@ -59,9 +59,7 @@ class LangGraphAgent:
         try:
             if hasattr(self.llm, "ainvoke"):
                 response = await self.llm.ainvoke(messages, **kwargs)
-                content = (
-                    response.content if hasattr(response, "content") else str(response)
-                )
+                content = response.content if hasattr(response, "content") else str(response)
                 return {
                     "messages": [*messages, {"role": "assistant", "content": content}],
                     "status": "completed",
@@ -75,9 +73,7 @@ class LangGraphAgent:
                 "error": str(e),
             }
 
-        logger.warning(
-            "LLM instance lacks ainvoke method, falling back to model router"
-        )
+        logger.warning("LLM instance lacks ainvoke method, falling back to model router")
         return await self._run_with_config(messages, **kwargs)
 
     async def _run_with_config(self, messages: list[dict[str, Any]], **kwargs):
@@ -111,9 +107,7 @@ class LangGraphAgent:
                 }
 
         except ImportError:
-            logger.warning(
-                "Model router not available for LangGraph agent, sending graceful error to user"
-            )
+            logger.warning("Model router not available for LangGraph agent, sending graceful error to user")
             graceful_error = "I'm sorry, but the AI service is currently unavailable. The model router could not be loaded. Please try again later."
         except Exception as e:
             logger.error("LangGraph agent config run failed: %s", e)

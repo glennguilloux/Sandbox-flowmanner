@@ -26,9 +26,7 @@ class ActivateMaintenanceApiAdminMaintenanceActivatePostData:
         d = dict(src_dict)
         activate_maintenance_api_admin_maintenance_activate_post_data = cls()
 
-        activate_maintenance_api_admin_maintenance_activate_post_data.additional_properties = (
-            d
-        )
+        activate_maintenance_api_admin_maintenance_activate_post_data.additional_properties = d
         return activate_maintenance_api_admin_maintenance_activate_post_data
 
     @property

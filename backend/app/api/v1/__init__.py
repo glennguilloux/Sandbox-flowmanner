@@ -123,9 +123,7 @@ circuit_breaker_router = _import_router("circuit_breaker")
 cost_attribution_router = _import_router("cost_attribution")
 plugins_router = _import_router("plugins")
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
-agent_personalities_router = _import_router(
-    "agent_personalities", tier=RouterTier.OPTIONAL
-)
+agent_personalities_router = _import_router("agent_personalities", tier=RouterTier.OPTIONAL)
 
 community_router = _import_router("community", tier=RouterTier.OPTIONAL)
 integrations_router = _import_router("integrations", tier=RouterTier.OPTIONAL)

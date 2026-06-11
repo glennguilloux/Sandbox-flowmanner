@@ -14,7 +14,7 @@ Usage (containerized):
 from __future__ import annotations
 
 import asyncio
-from typing import Generator
+from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
@@ -63,7 +63,6 @@ pytestmark = [
 
 
 class TestAppendOnlyTriggerIntegration:
-
     @pytest.mark.asyncio
     async def test_insert_succeeds(self):
         """A normal INSERT into substrate_events succeeds."""
@@ -86,9 +85,7 @@ class TestAppendOnlyTriggerIntegration:
                 # Verify it was inserted
                 from sqlalchemy import select
 
-                result = await db.execute(
-                    select(SubstrateEvent).where(SubstrateEvent.id == event_id)
-                )
+                result = await db.execute(select(SubstrateEvent).where(SubstrateEvent.id == event_id))
                 found = result.scalars().first()
                 assert found is not None
                 assert str(found.run_id) == run_id
@@ -96,11 +93,7 @@ class TestAppendOnlyTriggerIntegration:
 
             finally:
                 # Cleanup: temporarily drop trigger to allow DELETE for cleanup
-                await db.execute(
-                    text(
-                        "DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"
-                    )
-                )
+                await db.execute(text("DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"))
                 await db.execute(
                     text("DELETE FROM substrate_events WHERE id = :eid"),
                     {"eid": event_id},
@@ -140,10 +133,7 @@ class TestAppendOnlyTriggerIntegration:
             update_rejected = False
             try:
                 await db.execute(
-                    text(
-                        "UPDATE substrate_events SET type = 'test.modified' "
-                        "WHERE id = :eid"
-                    ),
+                    text("UPDATE substrate_events SET type = 'test.modified' WHERE id = :eid"),
                     {"eid": event_id},
                 )
                 await db.commit()
@@ -151,22 +141,14 @@ class TestAppendOnlyTriggerIntegration:
                 update_rejected = True
                 await db.rollback()
                 error_msg = str(exc).lower()
-                assert (
-                    "append-only" in error_msg
-                    or "forbidden" in error_msg
-                    or "update" in error_msg
-                ), f"Unexpected error: {exc}"
+                assert "append-only" in error_msg or "forbidden" in error_msg or "update" in error_msg, (
+                    f"Unexpected error: {exc}"
+                )
 
-            assert (
-                update_rejected
-            ), "UPDATE should have been rejected by append-only trigger"
+            assert update_rejected, "UPDATE should have been rejected by append-only trigger"
 
             # Cleanup: drop trigger, delete row, recreate trigger
-            await db.execute(
-                text(
-                    "DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"
-                )
-            )
+            await db.execute(text("DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"))
             await db.execute(
                 text("DELETE FROM substrate_events WHERE id = :eid"),
                 {"eid": event_id},
@@ -213,19 +195,13 @@ class TestAppendOnlyTriggerIntegration:
             except Exception as exc:
                 await db.rollback()
                 error_msg = str(exc).lower()
-                assert (
-                    "append-only" in error_msg
-                    or "forbidden" in error_msg
-                    or "delete" in error_msg
-                ), f"Unexpected error: {exc}"
+                assert "append-only" in error_msg or "forbidden" in error_msg or "delete" in error_msg, (
+                    f"Unexpected error: {exc}"
+                )
 
             finally:
                 # Cleanup
-                await db.execute(
-                    text(
-                        "DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"
-                    )
-                )
+                await db.execute(text("DROP TRIGGER IF EXISTS trg_substrate_events_append_only ON substrate_events"))
                 await db.execute(
                     text("DELETE FROM substrate_events WHERE id = :eid"),
                     {"eid": event_id},
@@ -255,10 +231,7 @@ class TestAppendOnlyTriggerIntegration:
                 )
             )
             rows = result.fetchall()
-            assert len(rows) > 0, (
-                "Append-only trigger not found in database. "
-                "Run the H2 substrate migration first."
-            )
+            assert len(rows) > 0, "Append-only trigger not found in database. Run the H2 substrate migration first."
 
     @pytest.mark.asyncio
     async def test_trigger_catalog_matches_migration(self):
@@ -289,21 +262,16 @@ class TestAppendOnlyTriggerIntegration:
             rows = result.fetchall()
 
             assert len(rows) == 1, (
-                f"Expected exactly 1 trigger row, got {len(rows)}. "
-                "Run the H2 substrate migration first."
+                f"Expected exactly 1 trigger row, got {len(rows)}. Run the H2 substrate migration first."
             )
 
             trigger_name, table_name, function_name, tgtype = rows[0]
 
-            assert (
-                trigger_name == "trg_substrate_events_append_only"
-            ), f"Trigger name mismatch: {trigger_name}"
-            assert (
-                table_name == "substrate_events"
-            ), f"Table name mismatch: expected 'substrate_events', got '{table_name}'"
-            assert (
-                function_name == "enforce_substrate_events_append_only"
-            ), f"Function name mismatch: {function_name}"
+            assert trigger_name == "trg_substrate_events_append_only", f"Trigger name mismatch: {trigger_name}"
+            assert table_name == "substrate_events", (
+                f"Table name mismatch: expected 'substrate_events', got '{table_name}'"
+            )
+            assert function_name == "enforce_substrate_events_append_only", f"Function name mismatch: {function_name}"
 
             # tgtype bits (from pg_trigger.h):
             #   BEFORE  = 1 << 1  = 2
@@ -316,19 +284,10 @@ class TestAppendOnlyTriggerIntegration:
             INSERT_BIT = 4
             ROW_BIT = 1
 
-            assert (
-                tgtype & BEFORE_BIT
-            ), f"Trigger fires BEFORE: bit 1 not set (tgtype={tgtype})"
-            assert (
-                tgtype & UPDATE_BIT
-            ), f"Trigger fires on UPDATE: bit 3 not set (tgtype={tgtype})"
-            assert (
-                tgtype & DELETE_BIT
-            ), f"Trigger fires on DELETE: bit 4 not set (tgtype={tgtype})"
-            assert not (tgtype & INSERT_BIT), (
-                f"Trigger should NOT fire on INSERT (bit 2 is set), " f"tgtype={tgtype}"
-            )
+            assert tgtype & BEFORE_BIT, f"Trigger fires BEFORE: bit 1 not set (tgtype={tgtype})"
+            assert tgtype & UPDATE_BIT, f"Trigger fires on UPDATE: bit 3 not set (tgtype={tgtype})"
+            assert tgtype & DELETE_BIT, f"Trigger fires on DELETE: bit 4 not set (tgtype={tgtype})"
+            assert not (tgtype & INSERT_BIT), f"Trigger should NOT fire on INSERT (bit 2 is set), tgtype={tgtype}"
             assert not (tgtype & ROW_BIT), (
-                f"Trigger is STATEMENT-level (row bit 0 should be absent), "
-                f"got tgtype={tgtype}"
+                f"Trigger is STATEMENT-level (row bit 0 should be absent), got tgtype={tgtype}"
             )

@@ -114,9 +114,7 @@ class PromptTemplateRendererTool(BaseTool):
         try:
             validated = PromptTemplateRendererInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         variables = validated.variables or {}
 
@@ -180,8 +178,7 @@ class PromptTemplateRendererTool(BaseTool):
             template = "\n".join(
                 (
                     f"{{{{ {'assistant' if m.get('role') == 'assistant' else m.get('role', 'user')}_message }}}}"
-                    if m.get("role") in ("user", "assistant", "system")
-                    and m.get("content", "").startswith("{{")
+                    if m.get("role") in ("user", "assistant", "system") and m.get("content", "").startswith("{{")
                     else m.get("content", "")
                 )
                 for m in template
@@ -212,9 +209,7 @@ class PromptTemplateRendererTool(BaseTool):
             env.filters["trim"] = lambda v: v.strip() if isinstance(v, str) else v
             env.filters["upper"] = lambda v: v.upper() if isinstance(v, str) else v
             env.filters["lower"] = lambda v: v.lower() if isinstance(v, str) else v
-            env.filters["code_block"] = lambda v, lang="": (
-                f"```{lang}\n{v}\n```" if v else ""
-            )
+            env.filters["code_block"] = lambda v, lang="": (f"```{lang}\n{v}\n```" if v else "")
             env.filters["length"] = len
             env.filters["first_sentence"] = lambda v: (
                 (v.split(".")[0].strip() + ".") if isinstance(v, str) and v else v
@@ -225,13 +220,9 @@ class PromptTemplateRendererTool(BaseTool):
                 for name, expr in custom_filters.items():
                     try:
                         compiled = compile(expr, "<custom_filter>", "eval")
-                        env.filters[name] = lambda v, _c=compiled: eval(
-                            _c, {"v": v, "__builtins__": {}}, {}
-                        )
+                        env.filters[name] = lambda v, _c=compiled: eval(_c, {"v": v, "__builtins__": {}}, {})
                     except Exception as e:
-                        logger.warning(
-                            "Failed to register custom filter '%s': %s", name, e
-                        )
+                        logger.warning("Failed to register custom filter '%s': %s", name, e)
 
             tmpl = env.from_string(template)
             return tmpl.render(**variables)
@@ -239,9 +230,7 @@ class PromptTemplateRendererTool(BaseTool):
         except ImportError:
             logger.debug("Jinja2 not installed, using simple variable substitution")
             return (
-                self._simple_substitute(template, variables)
-                if strict
-                else self._simple_substitute(template, variables)
+                self._simple_substitute(template, variables) if strict else self._simple_substitute(template, variables)
             )
 
         except TemplateSyntaxError as e:
@@ -306,9 +295,7 @@ class PromptTemplateRendererTool(BaseTool):
     def _strict_undefined(*args, **kwargs):
         from jinja2 import UndefinedError
 
-        raise UndefinedError(
-            f"Variable '{args[0] if args else 'unknown'}' is undefined"
-        )
+        raise UndefinedError(f"Variable '{args[0] if args else 'unknown'}' is undefined")
 
     def _fstring_render(self, template: str, variables: dict) -> str:
         """Simple Python f-string-style {variable} substitution."""

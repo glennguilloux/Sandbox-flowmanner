@@ -33,21 +33,15 @@ class OpenRouterService:
         # Use provided API key (user key) or fall back to platform key from environment
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        self.site_url = os.getenv(
-            "OPENROUTER_SITE_URL", "https://workflows.glennguilloux.com"
-        )
-        self.referer = os.getenv(
-            "OPENROUTER_REFERER", "https://workflows.glennguilloux.com"
-        )
+        self.site_url = os.getenv("OPENROUTER_SITE_URL", "https://workflows.glennguilloux.com")
+        self.referer = os.getenv("OPENROUTER_REFERER", "https://workflows.glennguilloux.com")
 
         # Rate limiting
         self.max_retries = int(os.getenv("OPENROUTER_MAX_RETRIES", "3"))
         self.retry_delay = float(os.getenv("OPENROUTER_RETRY_DELAY", "1.0"))
 
         # Caching
-        self.cache_enabled = (
-            os.getenv("OPENROUTER_CACHE_ENABLED", "true").lower() == "true"
-        )
+        self.cache_enabled = os.getenv("OPENROUTER_CACHE_ENABLED", "true").lower() == "true"
         self.cache_ttl = int(os.getenv("OPENROUTER_CACHE_TTL", "3600"))
 
         # HTTP client
@@ -67,9 +61,7 @@ class OpenRouterService:
     def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                timeout=self.timeout, headers=self._get_headers()
-            )
+            self._client = httpx.AsyncClient(timeout=self.timeout, headers=self._get_headers())
         return self._client
 
     def _get_headers(self) -> dict[str, str]:
@@ -176,9 +168,7 @@ class OpenRouterService:
 
             except httpx.HTTPStatusError as e:
                 last_error = e
-                logger.warning(
-                    "OpenRouter request failed (attempt %s): %s", attempt + 1, e
-                )
+                logger.warning("OpenRouter request failed (attempt %s): %s", attempt + 1, e)
 
                 if e.response.status_code == 429:
                     # Rate limited - wait longer
@@ -205,9 +195,7 @@ class OpenRouterService:
             "duration": time.time() - start_time,
         }
 
-    async def _make_request(
-        self, payload: dict[str, Any], request_id: str
-    ) -> dict[str, Any]:
+    async def _make_request(self, payload: dict[str, Any], request_id: str) -> dict[str, Any]:
         """Make the actual HTTP request."""
         client = self._get_client()
 
@@ -282,9 +270,7 @@ class OpenRouterService:
                                 "request_id": request_id,
                             }
                         except json.JSONDecodeError:
-                            logger.warning(
-                                "Failed to parse streaming response: %s", data
-                            )
+                            logger.warning("Failed to parse streaming response: %s", data)
 
         except Exception as e:
             logger.error("Streaming error: %s", e)
@@ -296,9 +282,7 @@ class OpenRouterService:
                 "request_id": request_id,
             }
 
-    async def _calculate_cost(
-        self, response: dict[str, Any], model: str
-    ) -> dict[str, float]:
+    async def _calculate_cost(self, response: dict[str, Any], model: str) -> dict[str, float]:
         """Calculate cost for OpenRouter response."""
         # OpenRouter provides usage info in response
         usage = response.get("usage", {})
@@ -345,9 +329,7 @@ class OpenRouterService:
         try:
             import redis
 
-            redis_client = redis.Redis.from_url(
-                os.getenv("REDIS_URL", "redis://redis:6379/2"), decode_responses=True
-            )
+            redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/2"), decode_responses=True)
             cached = redis_client.get(key)
             if cached:
                 return json.loads(cached)
@@ -360,9 +342,7 @@ class OpenRouterService:
         try:
             import redis
 
-            redis_client = redis.Redis.from_url(
-                os.getenv("REDIS_URL", "redis://redis:6379/2"), decode_responses=True
-            )
+            redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/2"), decode_responses=True)
             redis_client.setex(key, ttl, json.dumps(value))
         except Exception as e:
             logger.warning("Cache write error: %s", e)
@@ -371,9 +351,7 @@ class OpenRouterService:
         """List available models from OpenRouter."""
         try:
             client = self._get_client()
-            response = await client.get(
-                f"{self.base_url}/models", headers=self._get_headers()
-            )
+            response = await client.get(f"{self.base_url}/models", headers=self._get_headers())
             response.raise_for_status()
             data = response.json()
             return data.get("data", [])

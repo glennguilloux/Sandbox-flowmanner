@@ -354,9 +354,7 @@ class QueryUnderstandingService:
 
         return [w for w, _ in word_counts.most_common(10)]
 
-    async def _expand_query(
-        self, query: str, intent: SearchIntent, entities: list[ExtractedEntity]
-    ) -> list[str]:
+    async def _expand_query(self, query: str, intent: SearchIntent, entities: list[ExtractedEntity]) -> list[str]:
         """Generate expanded/related queries"""
         expanded = []
 
@@ -398,9 +396,7 @@ class QueryUnderstandingService:
 
         return providers
 
-    def _check_time_sensitivity(
-        self, query: str, entities: list[ExtractedEntity]
-    ) -> bool:
+    def _check_time_sensitivity(self, query: str, entities: list[ExtractedEntity]) -> bool:
         """Check if query is time-sensitive"""
         time_keywords = [
             "latest",
@@ -421,9 +417,7 @@ class QueryUnderstandingService:
 
         return bool(any(e.entity_type == "date" for e in entities))
 
-    def _check_location_sensitivity(
-        self, query: str, entities: list[ExtractedEntity]
-    ) -> bool:
+    def _check_location_sensitivity(self, query: str, entities: list[ExtractedEntity]) -> bool:
         """Check if query is location-sensitive"""
         location_keywords = [
             "near",
@@ -440,9 +434,7 @@ class QueryUnderstandingService:
 
         return bool(any(e.entity_type == "location" for e in entities))
 
-    def _calculate_complexity(
-        self, query: str, entities: list[ExtractedEntity], intent: SearchIntent
-    ) -> float:
+    def _calculate_complexity(self, query: str, entities: list[ExtractedEntity], intent: SearchIntent) -> float:
         """Calculate query complexity score"""
         score = 0.0
 

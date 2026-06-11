@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.services.substrate.strategies.langgraph import LangGraphStrategy
 from app.services.substrate.workflow_models import (
+    StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
-    StrategyResult,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -115,9 +115,7 @@ class TestLangGraphValidate:
             id=str(uuid4()),
             type=WorkflowType.LANGGRAPH,
             title="Bad",
-            nodes=[
-                WorkflowNode(id="n1", type="llm_call", title="No graph name", config={})
-            ],
+            nodes=[WorkflowNode(id="n1", type="llm_call", title="No graph name", config={})],
             user_id="1",
         )
         errors = await s.validate(wf)
@@ -134,9 +132,7 @@ class TestLangGraphValidate:
     async def test_one_node_missing_graph_name(self):
         s = LangGraphStrategy()
         nodes = [
-            WorkflowNode(
-                id="good", type="llm_call", title="Good", config={"graph_name": "g"}
-            ),
+            WorkflowNode(id="good", type="llm_call", title="Good", config={"graph_name": "g"}),
             WorkflowNode(id="bad", type="llm_call", title="Bad", config={}),
         ]
         wf = Workflow(
@@ -385,7 +381,4 @@ class TestExecuteLangGraphNode:
             )
 
         assert result["success"] is False
-        assert (
-            "not yet wired" in result["error"].lower()
-            or "shared executor" in result["error"].lower()
-        )
+        assert "not yet wired" in result["error"].lower() or "shared executor" in result["error"].lower()

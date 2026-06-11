@@ -74,9 +74,7 @@ class GoalStep:
             "error": self.error,
             "requires_approval": self.requires_approval,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
         }
 
 
@@ -111,9 +109,7 @@ class AgentGoal:
             "context": self.context,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
             "result_summary": self.result_summary,
         }
 
@@ -141,9 +137,7 @@ class GoalPlanner:
         self.tool_registry = tool_registry
         self.logger = logging.getLogger(__name__)
 
-    async def plan_goal(
-        self, goal: AgentGoal, available_tools: list[dict[str, Any]] = None
-    ) -> list[GoalStep]:
+    async def plan_goal(self, goal: AgentGoal, available_tools: list[dict[str, Any]] = None) -> list[GoalStep]:
         """
         Generate a plan of steps to achieve the goal
 
@@ -201,9 +195,7 @@ Respond in JSON format:
                 response = self.llm.invoke(planning_prompt)
 
             # Parse response
-            response_text = (
-                response.content if hasattr(response, "content") else str(response)
-            )
+            response_text = response.content if hasattr(response, "content") else str(response)
 
             # Extract JSON from response
             plan_data = self._extract_json(response_text)
@@ -222,9 +214,7 @@ Respond in JSON format:
                     )
                     steps.append(step)
 
-                self.logger.info(
-                    f"Generated {len(steps)} steps for goal {goal.goal_id}"
-                )
+                self.logger.info(f"Generated {len(steps)} steps for goal {goal.goal_id}")
                 return steps
 
         except Exception as e:
@@ -317,9 +307,7 @@ class GoalExecutor:
 
         return step.result
 
-    async def _execute_tool(
-        self, step: GoalStep, user_context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def _execute_tool(self, step: GoalStep, user_context: dict[str, Any] = None) -> dict[str, Any]:
         """Execute tool for a step"""
         if not self.tool_registry:
             return {"success": False, "error": "No tool registry available"}
@@ -329,17 +317,13 @@ class GoalExecutor:
             return {"success": False, "error": f"No handler for tool: {step.tool_id}"}
 
         try:
-            result = await handler.safe_execute(
-                step.parameters, {"user_context": user_context}
-            )
+            result = await handler.safe_execute(step.parameters, {"user_context": user_context})
             return result
         except Exception as e:
             self.logger.error(f"Tool execution error: {e}")
             return {"success": False, "error": str(e)}
 
-    async def approve_step(
-        self, goal: AgentGoal, step: GoalStep, user_id: int
-    ) -> dict[str, Any]:
+    async def approve_step(self, goal: AgentGoal, step: GoalStep, user_id: int) -> dict[str, Any]:
         """Approve and execute a waiting step"""
         if step.status != StepStatus.WAITING_APPROVAL:
             return {"success": False, "error": "Step is not waiting for approval"}
@@ -457,9 +441,7 @@ class AgentGoalsManager:
         self.logger.info(f"Planned {len(steps)} steps for goal {goal.goal_id}")
         return steps
 
-    async def execute_goal(
-        self, goal_id: str, user_context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    async def execute_goal(self, goal_id: str, user_context: dict[str, Any] = None) -> dict[str, Any]:
         """
         Execute a goal step by step
 
@@ -521,9 +503,7 @@ class AgentGoalsManager:
             "goal": goal.to_dict(),
         }
 
-    async def approve_step(
-        self, goal_id: str, step_index: int, user_id: int
-    ) -> dict[str, Any]:
+    async def approve_step(self, goal_id: str, step_index: int, user_id: int) -> dict[str, Any]:
         """
         Approve a step and continue execution
 
@@ -555,9 +535,7 @@ class AgentGoalsManager:
             # Continue with remaining steps
             for i in range(step_index + 1, len(goal.steps)):
                 next_step = goal.steps[i]
-                next_result = await self.executor.execute_step(
-                    goal, next_step, {"user_id": user_id}
-                )
+                next_result = await self.executor.execute_step(goal, next_step, {"user_id": user_id})
 
                 if next_result.get("requires_approval"):
                     return {

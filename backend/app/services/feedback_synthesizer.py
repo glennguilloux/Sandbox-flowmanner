@@ -35,9 +35,7 @@ async def synthesize_feedback(
         raise ValueError("Mission not found")
 
     tasks = await db.execute(
-        select(MissionTask)
-        .where(MissionTask.mission_id == mission_id)
-        .order_by(MissionTask.order_index)
+        select(MissionTask).where(MissionTask.mission_id == mission_id).order_by(MissionTask.order_index)
     )
     tasks = list(tasks.scalars().all())
 
@@ -87,12 +85,8 @@ async def synthesize_feedback(
     total_tasks = len(tasks)
     completion_rate = completed_count / total_tasks if total_tasks > 0 else 0.0
 
-    overall_score = _calculate_overall_score(
-        completion_rate, failed_count, total_tasks, mission
-    )
-    efficiency_score = _calculate_efficiency_score(
-        total_tokens, total_cost, completed_count, total_tasks
-    )
+    overall_score = _calculate_overall_score(completion_rate, failed_count, total_tasks, mission)
+    efficiency_score = _calculate_efficiency_score(total_tokens, total_cost, completed_count, total_tasks)
     quality_score = _calculate_quality_score(mission, tasks)
 
     # Generate strengths and weaknesses
@@ -140,12 +134,8 @@ async def synthesize_feedback(
     return report
 
 
-async def get_feedback_report(
-    db: AsyncSession, report_id: str
-) -> FeedbackReport | None:
-    result = await db.execute(
-        select(FeedbackReport).where(FeedbackReport.id == report_id)
-    )
+async def get_feedback_report(db: AsyncSession, report_id: str) -> FeedbackReport | None:
+    result = await db.execute(select(FeedbackReport).where(FeedbackReport.id == report_id))
     return result.scalar_one_or_none()
 
 
@@ -153,9 +143,7 @@ async def list_feedback_reports(
     db: AsyncSession, mission_id: str, offset: int = 0, limit: int = 20
 ) -> tuple[list[FeedbackReport], int]:
     total = await db.execute(
-        select(func.count())
-        .select_from(FeedbackReport)
-        .where(FeedbackReport.mission_id == mission_id)
+        select(func.count()).select_from(FeedbackReport).where(FeedbackReport.mission_id == mission_id)
     )
     total = total.scalar() or 0
 
@@ -186,18 +174,12 @@ async def list_feedback_patterns(
     total = await db.execute(select(func.count()).select_from(query.subquery()))
     total = total.scalar() or 0
 
-    result = await db.execute(
-        query.order_by(desc(FeedbackPattern.frequency)).offset(offset).limit(limit)
-    )
+    result = await db.execute(query.order_by(desc(FeedbackPattern.frequency)).offset(offset).limit(limit))
     return list(result.scalars().all()), total
 
 
-async def update_feedback_pattern(
-    db: AsyncSession, pattern_id: str, **kwargs
-) -> FeedbackPattern | None:
-    result = await db.execute(
-        select(FeedbackPattern).where(FeedbackPattern.id == pattern_id)
-    )
+async def update_feedback_pattern(db: AsyncSession, pattern_id: str, **kwargs) -> FeedbackPattern | None:
+    result = await db.execute(select(FeedbackPattern).where(FeedbackPattern.id == pattern_id))
     pattern = result.scalar_one_or_none()
     if not pattern:
         return None
@@ -211,9 +193,7 @@ async def update_feedback_pattern(
 
 async def get_feedback_analytics(db: AsyncSession, user_id: int) -> dict:
     """Aggregate feedback analytics for a user."""
-    reports = await db.execute(
-        select(FeedbackReport).where(FeedbackReport.user_id == user_id)
-    )
+    reports = await db.execute(select(FeedbackReport).where(FeedbackReport.user_id == user_id))
     reports = list(reports.scalars().all())
 
     if not reports:
@@ -261,12 +241,8 @@ async def get_feedback_analytics(db: AsyncSession, user_id: int) -> dict:
     return {
         "total_reports": len(reports),
         "avg_overall_score": round(sum(scores) / len(scores), 2),
-        "avg_efficiency_score": (
-            round(sum(eff_scores) / len(eff_scores), 2) if eff_scores else None
-        ),
-        "avg_quality_score": (
-            round(sum(qual_scores) / len(qual_scores), 2) if qual_scores else None
-        ),
+        "avg_efficiency_score": (round(sum(eff_scores) / len(eff_scores), 2) if eff_scores else None),
+        "avg_quality_score": (round(sum(qual_scores) / len(qual_scores), 2) if qual_scores else None),
         "top_patterns": top_patterns,
         "score_trend": score_trend,
     }
@@ -307,9 +283,7 @@ async def compare_feedback(db: AsyncSession, mission_ids: list[str]) -> dict:
     first, last = reports[0], reports[-1]
     score_delta = {
         "overall": round(last.overall_score - first.overall_score, 2),
-        "efficiency": round(
-            (last.efficiency_score or 0) - (first.efficiency_score or 0), 2
-        ),
+        "efficiency": round((last.efficiency_score or 0) - (first.efficiency_score or 0), 2),
         "quality": round((last.quality_score or 0) - (first.quality_score or 0), 2),
     }
 
@@ -335,18 +309,14 @@ async def synthesize_bulk(
     reports = []
     for mid in mission_ids:
         try:
-            report = await synthesize_feedback(
-                db, mid, user_id, mode=mode, include_patterns=False
-            )
+            report = await synthesize_feedback(db, mid, user_id, mode=mode, include_patterns=False)
             reports.append(report)
         except ValueError:
             continue
     return reports
 
 
-def _calculate_overall_score(
-    completion_rate: float, failed_count: int, total_tasks: int, mission: Mission
-) -> float:
+def _calculate_overall_score(completion_rate: float, failed_count: int, total_tasks: int, mission: Mission) -> float:
     """Score 0.0-1.0 based on completion, failure rate, and timing."""
     base = completion_rate * 0.6
     failure_penalty = (failed_count / total_tasks * 0.3) if total_tasks > 0 else 0
@@ -362,9 +332,7 @@ def _calculate_overall_score(
     return max(0.0, min(1.0, base - failure_penalty + timing_bonus))
 
 
-def _calculate_efficiency_score(
-    total_tokens: int, total_cost: float, completed: int, total: int
-) -> float:
+def _calculate_efficiency_score(total_tokens: int, total_cost: float, completed: int, total: int) -> float:
     """Score based on token/cost efficiency."""
     if total == 0:
         return 0.0
@@ -424,14 +392,10 @@ def _generate_suggestions(mission, tasks, errors, completion_rate) -> list[str]:
     if completion_rate < 0.5:
         suggestions.append("Consider breaking mission into smaller, more focused tasks")
     if len(errors) > 2:
-        suggestions.append(
-            "Multiple failures detected — review error patterns and add retry logic"
-        )
+        suggestions.append("Multiple failures detected — review error patterns and add retry logic")
     for error in errors[:3]:
         if "timeout" in (error.get("error") or "").lower():
-            suggestions.append(
-                f"Task '{error['title']}' timed out — increase timeout or simplify"
-            )
+            suggestions.append(f"Task '{error['title']}' timed out — increase timeout or simplify")
         elif "rate limit" in (error.get("error") or "").lower():
             suggestions.append("Rate limiting detected — add delays between API calls")
     if not suggestions:

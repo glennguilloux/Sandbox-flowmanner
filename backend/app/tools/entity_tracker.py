@@ -151,17 +151,11 @@ class EntityTrackerTool(BaseTool):
         try:
             validated = EntityTrackerInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Resolve user_id from auth context if not explicitly provided
         context = input_data.get("context", {}) or {}
-        user_id = (
-            validated.user_id
-            if validated.user_id is not None
-            else context.get("user_id")
-        )
+        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -187,9 +181,7 @@ class EntityTrackerTool(BaseTool):
             else:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=(
-                        f"Unknown action: {action}. Use 'extract', 'track', 'list', 'lookup', or 'delete'."
-                    ),
+                    error=(f"Unknown action: {action}. Use 'extract', 'track', 'list', 'lookup', or 'delete'."),
                 )
         except Exception as e:
             logger.exception("entity_tracker failed")
@@ -274,10 +266,7 @@ class EntityTrackerTool(BaseTool):
         stats = {
             "text_length": len(text),
             "total_entities": len(entities),
-            "by_type": {
-                etype: len([e for e in entities if e["type"] == etype])
-                for etype in ENTITY_TYPES
-            },
+            "by_type": {etype: len([e for e in entities if e["type"] == etype]) for etype in ENTITY_TYPES},
         }
 
         # Persist extracted entities
@@ -325,9 +314,7 @@ class EntityTrackerTool(BaseTool):
         if entity_type not in ENTITY_TYPES:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=(
-                    f"Unknown entity_type: '{entity_type}'. Use one of: {', '.join(ENTITY_TYPES)}"
-                ),
+                error=(f"Unknown entity_type: '{entity_type}'. Use one of: {', '.join(ENTITY_TYPES)}"),
             )
 
         # Use provided value as context/description, or create a stub
@@ -387,11 +374,7 @@ class EntityTrackerTool(BaseTool):
 
                 entities = []
                 for r in rows:
-                    entity_name = (
-                        r.agent_id.split(":entity:", 1)[1]
-                        if ":entity:" in r.agent_id
-                        else r.agent_id
-                    )
+                    entity_name = r.agent_id.split(":entity:", 1)[1] if ":entity:" in r.agent_id else r.agent_id
                     meta = r.metadata_json or {}
                     entities.append(
                         {
@@ -399,12 +382,8 @@ class EntityTrackerTool(BaseTool):
                             "type": meta.get("entity_type", "concept"),
                             "context": r.content,
                             "mention_count": meta.get("mention_count", 1),
-                            "first_seen": (
-                                r.created_at.isoformat() if r.created_at else None
-                            ),
-                            "last_seen": (
-                                r.updated_at.isoformat() if r.updated_at else None
-                            ),
+                            "first_seen": (r.created_at.isoformat() if r.created_at else None),
+                            "last_seen": (r.updated_at.isoformat() if r.updated_at else None),
                         }
                     )
 
@@ -457,9 +436,7 @@ class EntityTrackerTool(BaseTool):
                 if entity_row is None:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"No entity '{entity_name}' found in namespace='{namespace}'"
-                        ),
+                        error=(f"No entity '{entity_name}' found in namespace='{namespace}'"),
                     )
 
                 # Find all stored contexts that mention this entity
@@ -468,9 +445,7 @@ class EntityTrackerTool(BaseTool):
                     .where(
                         AgentMemory.user_id == (user_id or 0),
                         AgentMemory.content.ilike(f"%{entity_lower}%"),
-                        AgentMemory.content_type.in_(
-                            ["context_window", "cross_agent_memory", "memory_summary"]
-                        ),
+                        AgentMemory.content_type.in_(["context_window", "cross_agent_memory", "memory_summary"]),
                     )
                     .order_by(AgentMemory.created_at.desc())
                     .limit(validated.limit)
@@ -483,9 +458,7 @@ class EntityTrackerTool(BaseTool):
                         "id": r.id,
                         "content_type": r.content_type,
                         "snippet": _extract_snippet(r.content, entity_lower),
-                        "created_at": (
-                            r.created_at.isoformat() if r.created_at else None
-                        ),
+                        "created_at": (r.created_at.isoformat() if r.created_at else None),
                     }
                     for r in mention_rows
                 ]
@@ -499,11 +472,7 @@ class EntityTrackerTool(BaseTool):
                         "entity_name": entity_name,
                         "entity_type": meta.get("entity_type", "concept"),
                         "namespace": namespace,
-                        "first_seen": (
-                            entity_row.created_at.isoformat()
-                            if entity_row.created_at
-                            else None
-                        ),
+                        "first_seen": (entity_row.created_at.isoformat() if entity_row.created_at else None),
                         "mention_count": len(mentions),
                         "mentions": mentions,
                     },
@@ -603,9 +572,7 @@ class EntityTrackerTool(BaseTool):
                     # Update: increment mention count, merge metadata
                     existing.content = context or existing.content
                     existing_meta = existing.metadata_json or {}
-                    existing_meta["mention_count"] = (
-                        existing_meta.get("mention_count", 1) + 1
-                    )
+                    existing_meta["mention_count"] = existing_meta.get("mention_count", 1) + 1
                     existing_meta.update(metadata)
                     existing.metadata_json = existing_meta
                 else:
@@ -697,9 +664,7 @@ class EntityTrackerTool(BaseTool):
 
         # ── People (after projects/orgs — only unmatched capitalized pairs)
         # ── People: capitalized two-word names (Mr./Ms./Dr. prefix or typical patterns)
-        person_pattern = re.compile(
-            r"\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b"
-        )
+        person_pattern = re.compile(r"\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b")
         for match in person_pattern.finditer(text):
             name = match.group(0).strip()
             if name.lower() not in seen:
@@ -776,9 +741,7 @@ class EntityTrackerTool(BaseTool):
                 )
 
         # ── Locations: "in City", "at Place", "based in X", "located in X"
-        loc_pattern = re.compile(
-            r"\b(?:in|at|from|based\sin|located\sin)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b"
-        )
+        loc_pattern = re.compile(r"\b(?:in|at|from|based\sin|located\sin)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b")
         for match in loc_pattern.finditer(text):
             loc = match.group(1).strip()
             if loc.lower() not in seen and loc.lower() not in _FALSE_POSITIVES:

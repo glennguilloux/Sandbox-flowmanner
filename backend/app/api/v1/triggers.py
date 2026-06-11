@@ -233,9 +233,7 @@ async def webhook_fire(
     try:
         from app.services.auth_rate_limiter import check_rate_limit
 
-        is_allowed, remaining, retry_after = check_rate_limit(
-            _rate_key, max_requests=30, window_seconds=60
-        )
+        is_allowed, remaining, retry_after = check_rate_limit(_rate_key, max_requests=30, window_seconds=60)
         if not is_allowed:
             raise HTTPException(
                 status_code=429,
@@ -255,17 +253,13 @@ async def webhook_fire(
 
     # Read body for signature verification
     body = await request.body()
-    signature = request.headers.get("X-Signature") or request.headers.get(
-        "X-Hub-Signature-256", ""
-    )
+    signature = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature-256", "")
 
     sig_valid = None
     if trigger.webhook_secret:
         if not signature:
             raise HTTPException(status_code=401, detail="Missing X-Signature header")
-        sig_valid = svc.verify_webhook_signature(
-            body, trigger.webhook_secret, signature
-        )
+        sig_valid = svc.verify_webhook_signature(body, trigger.webhook_secret, signature)
         if not sig_valid:
             raise HTTPException(status_code=401, detail="Invalid signature")
 

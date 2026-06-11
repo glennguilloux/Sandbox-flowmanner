@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,32 +28,27 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # ── 1. Load slug→id maps from catalog tables ────────────────────
     async with engine.begin() as conn:
         # tools_catalog slug → id
-        tool_rows = await conn.execute(
-            sa_text("SELECT id, slug FROM tools_catalog WHERE enabled = true")
-        )
+        tool_rows = await conn.execute(sa_text("SELECT id, slug FROM tools_catalog WHERE enabled = true"))
         tool_map = {row.slug: row.id for row in tool_rows.fetchall()}
         logger.info("tools_catalog: %d enabled tools", len(tool_map))
 
         # capabilities_catalog slug → id
-        cap_rows = await conn.execute(
-            sa_text("SELECT id, slug FROM capabilities_catalog WHERE enabled = true")
-        )
+        cap_rows = await conn.execute(sa_text("SELECT id, slug FROM capabilities_catalog WHERE enabled = true"))
         cap_map = {row.slug: row.id for row in cap_rows.fetchall()}
         logger.info("capabilities_catalog: %d enabled capabilities", len(cap_map))
 
         # agent_templates
         agent_rows = await conn.execute(
-            sa_text(
-                "SELECT template_id, slug, name, definition FROM agent_templates WHERE is_active = true"
-            )
+            sa_text("SELECT template_id, slug, name, definition FROM agent_templates WHERE is_active = true")
         )
         agents = agent_rows.fetchall()
         logger.info("agent_templates: %d active templates", len(agents))
@@ -187,9 +182,7 @@ async def run():
 
     await engine.dispose()
     logger.info(
-        "Binding import complete: "
-        "tool_bindings=%d inserted / %d skipped, "
-        "capability_bindings=%d inserted / %d skipped",
+        "Binding import complete: tool_bindings=%d inserted / %d skipped, capability_bindings=%d inserted / %d skipped",
         tool_bindings_inserted,
         tool_bindings_skipped,
         cap_bindings_inserted,

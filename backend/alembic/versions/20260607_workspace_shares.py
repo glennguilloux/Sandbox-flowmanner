@@ -5,9 +5,10 @@ Revises: 20260606_workspace_native
 Create Date: 2026-06-07
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 # revision identifiers
 revision = "ws_shares_001"
@@ -64,12 +65,8 @@ def upgrade() -> None:
             name="uq_workspace_share",
         ),
     )
-    op.create_index(
-        "ix_ws_share_target", "workspace_shares", ["target_workspace_id", "is_active"]
-    )
-    op.create_index(
-        "ix_ws_share_entity", "workspace_shares", ["entity_type", "entity_id"]
-    )
+    op.create_index("ix_ws_share_target", "workspace_shares", ["target_workspace_id", "is_active"])
+    op.create_index("ix_ws_share_entity", "workspace_shares", ["entity_type", "entity_id"])
 
 
 def downgrade() -> None:

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.models.substrate_models import SubstrateEventType
 
@@ -26,10 +27,8 @@ def _make_state(
     """Create a mock replay state."""
     state = MagicMock()
     state.total_cost_usd = total_cost_usd
-    state.started_at = started_at or datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    state.last_event_at = last_event_at or datetime(
-        2026, 1, 1, 0, 0, 30, tzinfo=timezone.utc
-    )
+    state.started_at = started_at or datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
+    state.last_event_at = last_event_at or datetime(2026, 1, 1, 0, 0, 30, tzinfo=UTC)
     state.completed_tasks = set(completed_tasks or ["task_1", "task_2"])
     state.failed_tasks = set()
     return state
@@ -39,11 +38,10 @@ class TestBaselineExtractorInit:
     def test_init_uses_defaults(self):
         from app.services.substrate.baseline_extractor import BaselineExtractor
 
-        with patch(
-            "app.services.substrate.baseline_extractor.get_event_log"
-        ) as mock_el, patch(
-            "app.services.substrate.baseline_extractor.get_replay_engine"
-        ) as mock_re:
+        with (
+            patch("app.services.substrate.baseline_extractor.get_event_log") as mock_el,
+            patch("app.services.substrate.baseline_extractor.get_replay_engine") as mock_re,
+        ):
             mock_el.return_value = MagicMock()
             mock_re.return_value = MagicMock()
             extractor = BaselineExtractor()
@@ -84,9 +82,7 @@ class TestExtractFromRun:
         extractor._event_log.get_events = AsyncMock(
             return_value=[
                 _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "web_search"}),
-                _make_event(
-                    SubstrateEventType.TOOL_CALL, {"tool_name": "code_executor"}
-                ),
+                _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "code_executor"}),
                 _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "web_search"}),
             ]
         )
@@ -130,9 +126,7 @@ class TestExtractFromRun:
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
 
-        extractor._replay_engine.rebuild_state = AsyncMock(
-            return_value=_make_state(total_cost_usd=0.10)
-        )
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state(total_cost_usd=0.10))
         extractor._event_log.get_events = AsyncMock(return_value=[])
 
         db = AsyncMock()
@@ -144,6 +138,7 @@ class TestExtractFromRun:
     @pytest.mark.asyncio
     async def test_latency_ceiling_uses_headroom_multiplier(self):
         from datetime import timedelta
+
         from app.services.substrate.baseline_extractor import BaselineExtractor
 
         extractor = BaselineExtractor()
@@ -151,7 +146,7 @@ class TestExtractFromRun:
         extractor._event_log = MagicMock()
 
         state = _make_state()
-        state.started_at = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        state.started_at = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
         state.last_event_at = state.started_at + timedelta(seconds=60)
         extractor._replay_engine.rebuild_state = AsyncMock(return_value=state)
         extractor._event_log.get_events = AsyncMock(return_value=[])
@@ -190,9 +185,7 @@ class TestExtractFromRun:
         extractor._replay_engine = MagicMock()
         extractor._event_log = MagicMock()
 
-        extractor._replay_engine.rebuild_state = AsyncMock(
-            return_value=_make_state(completed_tasks=["a", "b", "c"])
-        )
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state(completed_tasks=["a", "b", "c"]))
         extractor._event_log.get_events = AsyncMock(return_value=[])
 
         db = AsyncMock()
@@ -228,9 +221,10 @@ class TestGetBaselineExtractor:
         original = mod._extractor
         try:
             mod._extractor = None  # reset singleton
-            with patch(
-                "app.services.substrate.baseline_extractor.get_event_log"
-            ), patch("app.services.substrate.baseline_extractor.get_replay_engine"):
+            with (
+                patch("app.services.substrate.baseline_extractor.get_event_log"),
+                patch("app.services.substrate.baseline_extractor.get_replay_engine"),
+            ):
                 e1 = get_baseline_extractor()
                 e2 = get_baseline_extractor()
                 assert e1 is e2

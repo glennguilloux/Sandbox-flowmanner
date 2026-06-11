@@ -85,9 +85,7 @@ def get_fernet() -> Fernet:
     """Get a Fernet instance from the configured AES_ENCRYPTION_KEY."""
     key = settings.AES_ENCRYPTION_KEY
     if key == "change-me-in-production":
-        raise RuntimeError(
-            "AES_ENCRYPTION_KEY must be set to a valid Fernet key in production"
-        )
+        raise RuntimeError("AES_ENCRYPTION_KEY must be set to a valid Fernet key in production")
     return Fernet(key.encode() if isinstance(key, str) else key)
 
 

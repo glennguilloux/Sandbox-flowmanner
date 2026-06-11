@@ -87,17 +87,11 @@ async def list_agents(
     limit: int = 20,
     workspace_id: str | None = None,
 ) -> tuple[list[Agent], int]:
-    base_filter = (
-        Agent.workspace_id == workspace_id
-        if workspace_id is not None
-        else Agent.owner_id == owner_id
-    )
+    base_filter = Agent.workspace_id == workspace_id if workspace_id is not None else Agent.owner_id == owner_id
     count_query = select(func.count()).select_from(Agent).where(base_filter)
     total = (await db.execute(count_query)).scalar() or 0
     query = select(Agent).where(base_filter)
-    result = await db.execute(
-        query.offset(offset).limit(limit).order_by(Agent.created_at.desc())
-    )
+    result = await db.execute(query.offset(offset).limit(limit).order_by(Agent.created_at.desc()))
     return list(result.scalars().all()), total
 
 
@@ -136,15 +130,11 @@ async def delete_agent(db: AsyncSession, agent_id: uuid.UUID) -> bool:
     return True
 
 
-async def get_agent_templates(
-    db: AsyncSession, template_id: uuid.UUID
-) -> AgentTemplate | None:
+async def get_agent_templates(db: AsyncSession, template_id: uuid.UUID) -> AgentTemplate | None:
     return await db.get(AgentTemplate, str(template_id))
 
 
-def _build_model_config(
-    emoji: str, color: str, vibe: str, slug: str, division: str
-) -> dict:
+def _build_model_config(emoji: str, color: str, vibe: str, slug: str, division: str) -> dict:
     return {
         "emoji": emoji,
         "color": color,
@@ -182,18 +172,12 @@ async def create_agent_template(
     return template
 
 
-async def get_agent_template(
-    db: AsyncSession, template_id: int
-) -> AgentTemplate | None:
+async def get_agent_template(db: AsyncSession, template_id: int) -> AgentTemplate | None:
     return await db.get(AgentTemplate, template_id)
 
 
-async def get_agent_template_by_slug(
-    db: AsyncSession, slug: str
-) -> AgentTemplate | None:
-    result = await db.execute(
-        select(AgentTemplate).where(AgentTemplate.model_config["slug"].astext == slug)
-    )
+async def get_agent_template_by_slug(db: AsyncSession, slug: str) -> AgentTemplate | None:
+    result = await db.execute(select(AgentTemplate).where(AgentTemplate.model_config["slug"].astext == slug))
     return result.scalar_one_or_none()
 
 
@@ -205,39 +189,25 @@ async def list_agent_templates(
     limit: int = 100,
 ) -> tuple[list[AgentTemplate], int]:
     query = select(AgentTemplate).where(AgentTemplate.is_active.is_(True))
-    count_query = (
-        select(func.count())
-        .select_from(AgentTemplate)
-        .where(AgentTemplate.is_active.is_(True))
-    )
+    count_query = select(func.count()).select_from(AgentTemplate).where(AgentTemplate.is_active.is_(True))
 
     if division:
         query = query.where(AgentTemplate.model_config["division"].astext == division)
-        count_query = count_query.where(
-            AgentTemplate.model_config["division"].astext == division
-        )
+        count_query = count_query.where(AgentTemplate.model_config["division"].astext == division)
 
     if search:
         pattern = f"%{search}%"
-        query = query.where(
-            (AgentTemplate.name.ilike(pattern))
-            | (AgentTemplate.description.ilike(pattern))
-        )
+        query = query.where((AgentTemplate.name.ilike(pattern)) | (AgentTemplate.description.ilike(pattern)))
         count_query = count_query.where(
-            (AgentTemplate.name.ilike(pattern))
-            | (AgentTemplate.description.ilike(pattern))
+            (AgentTemplate.name.ilike(pattern)) | (AgentTemplate.description.ilike(pattern))
         )
 
     total = (await db.execute(count_query)).scalar() or 0
-    result = await db.execute(
-        query.offset(offset).limit(limit).order_by(AgentTemplate.name)
-    )
+    result = await db.execute(query.offset(offset).limit(limit).order_by(AgentTemplate.name))
     return list(result.scalars().all()), total
 
 
-async def update_agent_template(
-    db: AsyncSession, template_id: int, **kwargs: Any
-) -> AgentTemplate | None:
+async def update_agent_template(db: AsyncSession, template_id: int, **kwargs: Any) -> AgentTemplate | None:
     template = await db.get(AgentTemplate, template_id)
     if template is None:
         return None
@@ -262,9 +232,7 @@ async def delete_agent_template(db: AsyncSession, template_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-async def seed_agent_templates(
-    db: AsyncSession, definitions_dir: Path | None = None
-) -> dict:
+async def seed_agent_templates(db: AsyncSession, definitions_dir: Path | None = None) -> dict:
     agents = load_all_agents(definitions_dir)
     new_count = 0
     updated_count = 0

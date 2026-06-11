@@ -24,18 +24,13 @@ async def list_templates(
     query = (
         select(MissionTemplate, User.email, User.full_name, User.username)
         .outerjoin(User, MissionTemplate.user_id == User.id)
-        .where(
-            (MissionTemplate.is_public == True) | (MissionTemplate.is_builtin == True)
-        )
+        .where((MissionTemplate.is_public == True) | (MissionTemplate.is_builtin == True))
     )
     if category:
         query = query.where(MissionTemplate.category == category)
     if q:
         like = f"%{q}%"
-        query = query.where(
-            (MissionTemplate.name.ilike(like))
-            | (MissionTemplate.description.ilike(like))
-        )
+        query = query.where((MissionTemplate.name.ilike(like)) | (MissionTemplate.description.ilike(like)))
     query = query.order_by(MissionTemplate.usage_count.desc()).limit(50)
     result = await db.execute(query)
     rows = result.all()

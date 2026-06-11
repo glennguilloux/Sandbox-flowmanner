@@ -66,11 +66,7 @@ class PromptSynthesizer:
         if not chunks:
             return GeneratedPrompt(
                 system_prompt="",
-                rationale={
-                    "error": [
-                        "No relevant book notes found. Ingest notes first via /ingest."
-                    ]
-                },
+                rationale={"error": ["No relevant book notes found. Ingest notes first via /ingest."]},
                 recommended_model="deepseek/deepseek-v4-flash",
                 temperature=0.7,
             )
@@ -107,9 +103,7 @@ class PromptSynthesizer:
         return "\n\n".join(parts) if parts else "No relevant excerpts found."
 
     @staticmethod
-    def _build_synthesis_prompt(
-        goal: str, role_description: str | None, grouped_chunks: str
-    ) -> str:
+    def _build_synthesis_prompt(goal: str, role_description: str | None, grouped_chunks: str) -> str:
         lines = [
             "You are an expert prompt engineer. Given these book excerpts:",
             "",
@@ -150,13 +144,9 @@ class PromptSynthesizer:
         for section in sections:
             section = section.strip()
             if section.lower().startswith("system prompt"):
-                system_prompt = (
-                    section.split("\n", 1)[1].strip() if "\n" in section else ""
-                )
+                system_prompt = section.split("\n", 1)[1].strip() if "\n" in section else ""
             elif section.lower().startswith("rationale"):
-                rationale_text = (
-                    section.split("\n", 1)[1].strip() if "\n" in section else ""
-                )
+                rationale_text = section.split("\n", 1)[1].strip() if "\n" in section else ""
                 current_key = "general"
                 for line in rationale_text.split("\n"):
                     line = line.strip().strip("- ").strip()

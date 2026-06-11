@@ -26,9 +26,7 @@ class UpdateListingApiMarketplaceListingsSlugPatchData:
         d = dict(src_dict)
         update_listing_api_marketplace_listings_slug_patch_data = cls()
 
-        update_listing_api_marketplace_listings_slug_patch_data.additional_properties = (
-            d
-        )
+        update_listing_api_marketplace_listings_slug_patch_data.additional_properties = d
         return update_listing_api_marketplace_listings_slug_patch_data
 
     @property

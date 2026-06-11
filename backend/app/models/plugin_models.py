@@ -36,9 +36,7 @@ class InstalledPlugin(Base, TimestampMixin):
 
     __tablename__ = "installed_plugins"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -51,24 +49,18 @@ class InstalledPlugin(Base, TimestampMixin):
     # Plugin source: "marketplace", "upload", "git"
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="upload")
     # Marketplace listing ID if installed from marketplace
-    listing_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True
-    )
+    listing_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     # Filesystem path where the plugin was unpacked
     install_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Lifecycle state
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=PluginStatus.INSTALLED, index=True
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=PluginStatus.INSTALLED, index=True)
 
     # Runtime health tracking
     execution_count: Mapped[int] = mapped_column(Integer, default=0)
     error_count: Mapped[int] = mapped_column(Integer, default=0)
-    last_executed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Permissions declared by the plugin (JSON array)
@@ -87,17 +79,13 @@ class InstalledPlugin(Base, TimestampMixin):
     scan_risk_score: Mapped[int] = mapped_column(Integer, default=0)
     scan_result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    reviewed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Phase 9.6: Runtime monitoring
     p99_latency_ms: Mapped[float] = mapped_column(default=0.0, server_default="0")
     crash_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    last_health_check_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_health_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     @property
     def is_enabled(self) -> bool:

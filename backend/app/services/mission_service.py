@@ -42,9 +42,7 @@ async def create_mission(
     return mission
 
 
-async def get_mission(
-    db: AsyncSession, mission_id, *, include_deleted: bool = False
-) -> Mission | None:
+async def get_mission(db: AsyncSession, mission_id, *, include_deleted: bool = False) -> Mission | None:
     stmt = select(Mission).where(Mission.id == str(mission_id))
     if not include_deleted:
         stmt = stmt.where(Mission.deleted_at.is_(None))
@@ -242,9 +240,7 @@ async def update_mission(
     return mission
 
 
-async def delete_mission(
-    db: AsyncSession, mission_id, deleted_by: int | None = None
-) -> bool:
+async def delete_mission(db: AsyncSession, mission_id, deleted_by: int | None = None) -> bool:
     """Soft-delete a mission — sets deleted_at, preserves referential integrity for tasks/logs."""
     from datetime import datetime
 
@@ -365,9 +361,7 @@ async def create_mission_log(
     return log
 
 
-async def get_mission_logs(
-    db: AsyncSession, mission_id, limit: int = 100
-) -> list[MissionLog]:
+async def get_mission_logs(db: AsyncSession, mission_id, limit: int = 100) -> list[MissionLog]:
     result = await db.execute(
         select(MissionLog)
         .where(MissionLog.mission_id == str(mission_id))

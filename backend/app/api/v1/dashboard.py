@@ -30,9 +30,7 @@ async def read_dashboard_analytics(
     try:
         return await get_dashboard_analytics(db)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/firefighting-metrics", response_model=FirefightingMetricsResponse)
@@ -44,9 +42,7 @@ async def read_firefighting_metrics(
     try:
         return await get_firefighting_metrics(db, hours)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/stats")
@@ -63,18 +59,14 @@ async def read_dashboard_stats(
     uptime = 99.9
 
     try:
-        row = await db.execute(
-            text("SELECT COUNT(*) FROM missions WHERE user_id=:uid"), {"uid": user.id}
-        )
+        row = await db.execute(text("SELECT COUNT(*) FROM missions WHERE user_id=:uid"), {"uid": user.id})
         total_requests = row.scalar() or 0
     except Exception:
         logger.debug("dashboard_stats_count_failed", exc_info=True)
 
     try:
         row = await db.execute(
-            text(
-                "SELECT COUNT(*) FROM missions WHERE user_id=:uid AND status='completed'"
-            ),
+            text("SELECT COUNT(*) FROM missions WHERE user_id=:uid AND status='completed'"),
             {"uid": user.id},
         )
         missions_completed = row.scalar() or 0
@@ -83,9 +75,7 @@ async def read_dashboard_stats(
 
     try:
         row = await db.execute(
-            text(
-                "SELECT AVG(tokens_used) FROM missions WHERE user_id=:uid AND tokens_used IS NOT NULL"
-            ),
+            text("SELECT AVG(tokens_used) FROM missions WHERE user_id=:uid AND tokens_used IS NOT NULL"),
             {"uid": user.id},
         )
         avg = row.scalar()

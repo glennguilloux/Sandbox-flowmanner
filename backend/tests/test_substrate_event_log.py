@@ -21,7 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.substrate.event_log import EventLog, get_event_log
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -68,7 +67,6 @@ def _make_db_mock(existing_count=0, max_seq=0):
 
 
 class TestEventLogAppend:
-
     def test_append_empty_events_raises(self):
         el = EventLog()
         db = AsyncMock(spec=AsyncSession)
@@ -99,9 +97,7 @@ class TestEventLogAppend:
 
         events = [
             _make_event_dict(type=SubstrateEventType.MISSION_STARTED),
-            _make_event_dict(
-                type=SubstrateEventType.TASK_STARTED, payload={"task_id": "t1"}
-            ),
+            _make_event_dict(type=SubstrateEventType.TASK_STARTED, payload={"task_id": "t1"}),
             _make_event_dict(
                 type=SubstrateEventType.TASK_COMPLETED,
                 payload={"task_id": "t1", "tokens": 42},
@@ -166,7 +162,6 @@ class TestEventLogAppend:
 
 
 class TestEventLogGetLatestSequence:
-
     def test_returns_zero_for_new_run(self):
         el = EventLog()
         db = AsyncMock(spec=AsyncSession)
@@ -194,7 +189,6 @@ class TestEventLogGetLatestSequence:
 
 
 class TestEventLogRunExists:
-
     def test_returns_false_for_no_events(self):
         el = EventLog()
         db = AsyncMock(spec=AsyncSession)
@@ -222,21 +216,14 @@ class TestEventLogRunExists:
 
 
 class TestEventLogGetEvents:
-
     def test_get_events_returns_all_by_default(self):
         el = EventLog()
         run_id = str(uuid4())
         db = AsyncMock(spec=AsyncSession)
 
-        e1 = SubstrateEvent(
-            id=str(uuid4()), sequence=1, run_id=run_id, type="test.a", actor="test"
-        )
-        e2 = SubstrateEvent(
-            id=str(uuid4()), sequence=2, run_id=run_id, type="test.b", actor="test"
-        )
-        e3 = SubstrateEvent(
-            id=str(uuid4()), sequence=3, run_id=run_id, type="test.a", actor="test"
-        )
+        e1 = SubstrateEvent(id=str(uuid4()), sequence=1, run_id=run_id, type="test.a", actor="test")
+        e2 = SubstrateEvent(id=str(uuid4()), sequence=2, run_id=run_id, type="test.b", actor="test")
+        e3 = SubstrateEvent(id=str(uuid4()), sequence=3, run_id=run_id, type="test.a", actor="test")
 
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [e1, e2, e3]
@@ -253,15 +240,9 @@ class TestEventLogGetEvents:
         run_id = str(uuid4())
         db = AsyncMock(spec=AsyncSession)
 
-        e1 = SubstrateEvent(
-            id=str(uuid4()), sequence=1, run_id=run_id, type="test.a", actor="test"
-        )
-        e2 = SubstrateEvent(
-            id=str(uuid4()), sequence=2, run_id=run_id, type="test.b", actor="test"
-        )
-        e3 = SubstrateEvent(
-            id=str(uuid4()), sequence=3, run_id=run_id, type="test.a", actor="test"
-        )
+        e1 = SubstrateEvent(id=str(uuid4()), sequence=1, run_id=run_id, type="test.a", actor="test")
+        e2 = SubstrateEvent(id=str(uuid4()), sequence=2, run_id=run_id, type="test.b", actor="test")
+        e3 = SubstrateEvent(id=str(uuid4()), sequence=3, run_id=run_id, type="test.a", actor="test")
 
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [e2, e3]
@@ -280,15 +261,9 @@ class TestEventLogGetEvents:
         run_id = str(uuid4())
         db = AsyncMock(spec=AsyncSession)
 
-        e1 = SubstrateEvent(
-            id=str(uuid4()), sequence=1, run_id=run_id, type="test.a", actor="test"
-        )
-        e2 = SubstrateEvent(
-            id=str(uuid4()), sequence=2, run_id=run_id, type="test.b", actor="test"
-        )
-        e3 = SubstrateEvent(
-            id=str(uuid4()), sequence=3, run_id=run_id, type="test.c", actor="test"
-        )
+        e1 = SubstrateEvent(id=str(uuid4()), sequence=1, run_id=run_id, type="test.a", actor="test")
+        e2 = SubstrateEvent(id=str(uuid4()), sequence=2, run_id=run_id, type="test.b", actor="test")
+        e3 = SubstrateEvent(id=str(uuid4()), sequence=3, run_id=run_id, type="test.c", actor="test")
 
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [e1, e2]
@@ -316,9 +291,7 @@ class TestEventLogGetEvents:
         result_mock.scalars.return_value.all.return_value = [e1]
         db.execute = AsyncMock(return_value=result_mock)
 
-        events = asyncio.run(
-            el.get_events(db, run_id, event_type=SubstrateEventType.TASK_STARTED)
-        )
+        events = asyncio.run(el.get_events(db, run_id, event_type=SubstrateEventType.TASK_STARTED))
         assert len(events) == 1
         assert events[0].type == SubstrateEventType.TASK_STARTED
 
@@ -467,7 +440,6 @@ class TestEventLogGetEvents:
 
 
 class TestEventLogSafetyLimit:
-
     def test_append_within_limit_succeeds(self):
         el = EventLog()
         run_id = str(uuid4())
@@ -493,7 +465,6 @@ class TestEventLogSafetyLimit:
 
 
 class TestAppendOnlySemantics:
-
     def test_migration_defines_append_only_trigger(self):
         # Resolve migration path relative to this test file so it works
         # both on the host (/opt/flowmanner/backend/...) and inside
@@ -502,9 +473,7 @@ class TestAppendOnlySemantics:
 
         tests_dir = os.path.dirname(os.path.abspath(__file__))
         backend_dir = os.path.dirname(tests_dir)
-        migration_path = os.path.join(
-            backend_dir, "alembic", "versions", "h2_substrate_init.py"
-        )
+        migration_path = os.path.join(backend_dir, "alembic", "versions", "h2_substrate_init.py")
         with open(migration_path) as f:
             content = f.read()
 
@@ -515,9 +484,7 @@ class TestAppendOnlySemantics:
 
     def test_event_log_has_no_update_or_delete_methods(self):
         el = EventLog()
-        public_methods = [
-            m for m in dir(el) if not m.startswith("_") and callable(getattr(el, m))
-        ]
+        public_methods = [m for m in dir(el) if not m.startswith("_") and callable(getattr(el, m))]
         assert "update" not in public_methods
         assert "delete" not in public_methods
         assert "remove" not in public_methods
@@ -535,7 +502,6 @@ class TestAppendOnlySemantics:
 
 
 class TestEventLogSingleton:
-
     def test_get_event_log_returns_same_instance(self):
         el1 = get_event_log()
         el2 = get_event_log()

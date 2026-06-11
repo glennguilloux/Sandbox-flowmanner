@@ -57,9 +57,7 @@ async def test_active_missions_success(db_session, pro_user):
         eta=datetime.now(UTC) + timedelta(minutes=5),
     )
     q = MissionQueryHandlers(db_session)
-    q.active_missions = AsyncMock(
-        return_value=MissionListResult(missions=[response_item], total=1)
-    )
+    q.active_missions = AsyncMock(return_value=MissionListResult(missions=[response_item], total=1))
     response = await list_active_missions(user=pro_user, q=q)
     assert len(response) == 1
     assert response[0].progress == 50
@@ -117,9 +115,7 @@ async def test_active_missions_progress_calculation(db_session, pro_user):
         progress=66,
     )
     q = MissionQueryHandlers(db_session)
-    q.active_missions = AsyncMock(
-        return_value=MissionListResult(missions=[response_item], total=1)
-    )
+    q.active_missions = AsyncMock(return_value=MissionListResult(missions=[response_item], total=1))
     response = await list_active_missions(user=pro_user, q=q)
     assert response[0].progress == 66
 
@@ -139,8 +135,6 @@ async def test_active_missions_eta_calculation(db_session, pro_user):
         eta=datetime.now(UTC) + timedelta(minutes=10),
     )
     q = MissionQueryHandlers(db_session)
-    q.active_missions = AsyncMock(
-        return_value=MissionListResult(missions=[response_item], total=1)
-    )
+    q.active_missions = AsyncMock(return_value=MissionListResult(missions=[response_item], total=1))
     response = await list_active_missions(user=pro_user, q=q)
     assert response[0].eta is not None

@@ -378,27 +378,21 @@ class TestNoEnsureFutureInCqrs:
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "queries.py"
         content = path.read_text()
-        assert (
-            "asyncio.ensure_future" not in content
-        ), "queries.py still contains asyncio.ensure_future"
+        assert "asyncio.ensure_future" not in content, "queries.py still contains asyncio.ensure_future"
 
     def test_no_ensure_future_in_commands_py(self):
         from pathlib import Path
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "commands.py"
         content = path.read_text()
-        assert (
-            "asyncio.ensure_future" not in content
-        ), "commands.py still contains asyncio.ensure_future"
+        assert "asyncio.ensure_future" not in content, "commands.py still contains asyncio.ensure_future"
 
     def test_schedule_helper_exists_and_used(self):
         from pathlib import Path
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "base.py"
         content = path.read_text()
-        assert (
-            "_schedule_fire_and_forget" in content
-        ), "base.py should define _schedule_fire_and_forget"
+        assert "_schedule_fire_and_forget" in content, "base.py should define _schedule_fire_and_forget"
         assert "def _schedule_fire_and_forget" in content
 
     def test_queries_py_uses_schedule_helper(self):
@@ -406,18 +400,18 @@ class TestNoEnsureFutureInCqrs:
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "queries.py"
         content = path.read_text()
-        assert (
-            "_schedule_fire_and_forget" in content
-        ), "queries.py should use _schedule_fire_and_forget instead of ensure_future"
+        assert "_schedule_fire_and_forget" in content, (
+            "queries.py should use _schedule_fire_and_forget instead of ensure_future"
+        )
 
     def test_commands_py_uses_schedule_helper(self):
         from pathlib import Path
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "commands.py"
         content = path.read_text()
-        assert (
-            "_schedule_fire_and_forget" in content
-        ), "commands.py should use _schedule_fire_and_forget instead of ensure_future"
+        assert "_schedule_fire_and_forget" in content, (
+            "commands.py should use _schedule_fire_and_forget instead of ensure_future"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

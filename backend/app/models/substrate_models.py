@@ -35,14 +35,10 @@ class SubstrateEvent(Base):
 
     __tablename__ = "substrate_events"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
     sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     run_id: Mapped[str] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    mission_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True
-    )
+    mission_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     task_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -232,9 +228,7 @@ class SubstrateRunState:
 
             case SubstrateEventType.BUDGET_EXHAUSTED:
                 self.status = "failed"
-                self.error_message = (
-                    f"Budget exhausted: {payload.get('budget_type', 'unknown')}"
-                )
+                self.error_message = f"Budget exhausted: {payload.get('budget_type', 'unknown')}"
 
             # Phase 3: Sandbox events are informational — no state change needed
             case _ if event.type.startswith("sandbox."):
@@ -255,7 +249,5 @@ class SubstrateRunState:
             "total_cost_usd": self.total_cost_usd,
             "error_message": self.error_message,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "last_event_at": (
-                self.last_event_at.isoformat() if self.last_event_at else None
-            ),
+            "last_event_at": (self.last_event_at.isoformat() if self.last_event_at else None),
         }

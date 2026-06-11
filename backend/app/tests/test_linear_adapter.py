@@ -51,9 +51,7 @@ class TestParseLinearResponse:
         assert result["error_code"] == "not_found"
 
     def test_auth_error(self):
-        resp = _json_response(
-            200, {"errors": [{"message": "Authentication required", "extensions": {}}]}
-        )
+        resp = _json_response(200, {"errors": [{"message": "Authentication required", "extensions": {}}]})
         result = _parse_linear_response(resp)
         assert result["success"] is False
         assert result["error"] == "token_expired"

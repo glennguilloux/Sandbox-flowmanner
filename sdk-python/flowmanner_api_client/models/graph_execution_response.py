@@ -172,9 +172,7 @@ class GraphExecutionResponse:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                output_data_type_0 = GraphExecutionResponseOutputDataType0.from_dict(
-                    data
-                )
+                output_data_type_0 = GraphExecutionResponseOutputDataType0.from_dict(data)
 
                 return output_data_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

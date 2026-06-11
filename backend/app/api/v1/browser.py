@@ -322,13 +322,9 @@ async def resize_viewport(
     from app.services.browser_service import get_browser_service
 
     service = get_browser_service()
-    result = await service.resize_viewport(
-        str(current_user.id), request.width, request.height
-    )
+    result = await service.resize_viewport(str(current_user.id), request.width, request.height)
     if result.get("success"):
-        return ViewportResponse(
-            success=True, width=result["width"], height=result["height"]
-        )
+        return ViewportResponse(success=True, width=result["width"], height=result["height"])
     return ViewportResponse(success=False, error=result.get("error"))
 
 
@@ -508,10 +504,7 @@ async def browser_agent_chat(
         )
 
         # Build actions list
-        actions = [
-            BrowserChatAction(tool=a["tool"], result=a["result"])
-            for a in result.get("actions", [])
-        ]
+        actions = [BrowserChatAction(tool=a["tool"], result=a["result"]) for a in result.get("actions", [])]
 
         # Get screenshot for final state
         screenshot = result.get("screenshot")
@@ -530,9 +523,7 @@ async def browser_agent_chat(
                             if not final_url:
                                 final_url = ss.get("url")
                 except Exception:
-                    logger.debug(
-                        "browser_agent_screenshot_fallback_failed", exc_info=True
-                    )
+                    logger.debug("browser_agent_screenshot_fallback_failed", exc_info=True)
 
         logger.info(
             "Browser agent completed for user %s: %s",

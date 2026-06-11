@@ -9,12 +9,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.llm_call_record import LLMCallRecord
 from app.observability.cost_engine import (
     CostAttributionEngine,
     CostEvent,
     get_cost_engine,
 )
-from app.models.llm_call_record import LLMCallRecord
 
 pytestmark = pytest.mark.integration
 
@@ -42,12 +42,9 @@ def _make_record(**overrides) -> LLMCallRecord:
 
 
 class TestCostEvent:
-
     def test_from_record_normalizes_all_fields(self):
         rec = _make_record()
-        event = CostEvent.from_record(
-            rec, agent_id="agent-1", user_id=42, workspace_id="ws-1"
-        )
+        event = CostEvent.from_record(rec, agent_id="agent-1", user_id=42, workspace_id="ws-1")
         assert event.provider == "deepseek"
         assert event.model == "deepseek-chat"
         assert event.cost_usd == 0.21
@@ -68,7 +65,6 @@ class TestCostEvent:
 
 
 class TestAgentCost:
-
     @pytest.mark.asyncio
     async def test_computes_sum_for_agent_in_month(self):
         engine = CostAttributionEngine()
@@ -109,7 +105,6 @@ class TestAgentCost:
 
 
 class TestAgentCostByPeriod:
-
     @pytest.mark.asyncio
     async def test_returns_per_agent_dict(self):
         engine = CostAttributionEngine()
@@ -129,9 +124,7 @@ class TestAgentCostByPeriod:
         result_mock.all.return_value = [("agent-a", 0.50)]
         db.execute = AsyncMock(return_value=result_mock)
 
-        costs = await engine.agent_cost_by_period(
-            db, agent_ids=["agent-a"], year=2026, month=6
-        )
+        costs = await engine.agent_cost_by_period(db, agent_ids=["agent-a"], year=2026, month=6)
         assert costs == {"agent-a": 0.50}
 
 
@@ -141,7 +134,6 @@ class TestAgentCostByPeriod:
 
 
 class TestMissionCost:
-
     @pytest.mark.asyncio
     async def test_returns_sum_for_mission(self):
         engine = CostAttributionEngine()
@@ -161,7 +153,6 @@ class TestMissionCost:
 
 
 class TestUserCost:
-
     @pytest.mark.asyncio
     async def test_returns_per_user_dict(self):
         engine = CostAttributionEngine()
@@ -186,7 +177,6 @@ class TestUserCost:
 
 
 class TestWorkspaceCost:
-
     @pytest.mark.asyncio
     async def test_returns_empty_not_implemented(self):
         engine = CostAttributionEngine()
@@ -201,7 +191,6 @@ class TestWorkspaceCost:
 
 
 class TestSingleton:
-
     def test_get_cost_engine_returns_same_instance(self):
         e1 = get_cost_engine()
         e2 = get_cost_engine()

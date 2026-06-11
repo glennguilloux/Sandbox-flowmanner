@@ -193,10 +193,7 @@ class LangGraphTraceEmitter:
         self._token_buffer.append(token)
 
         # Emit batch if interval elapsed or buffer is large
-        if (
-            current_time - self._last_token_emit > self._token_emit_interval
-            or len(self._token_buffer) >= 10
-        ):
+        if current_time - self._last_token_emit > self._token_emit_interval or len(self._token_buffer) >= 10:
             event = TraceEvent(
                 event_id=str(uuid.uuid4()),
                 trace_id=self.trace_id,
@@ -253,17 +250,11 @@ class LangGraphTraceEmitter:
                 span = self.start_span(
                     operation_name=node_name,
                     node_id=node_name,
-                    input_snapshot={
-                        "state_keys": (
-                            list(state.keys()) if isinstance(state, dict) else None
-                        )
-                    },
+                    input_snapshot={"state_keys": (list(state.keys()) if isinstance(state, dict) else None)},
                 )
                 try:
                     result = await func(state)
-                    self.end_span(
-                        span, output_snapshot={"result_type": type(result).__name__}
-                    )
+                    self.end_span(span, output_snapshot={"result_type": type(result).__name__})
                     return result
                 except Exception as e:
                     self.end_span(span, error=e)
@@ -326,6 +317,4 @@ def create_trace_emitter(
     agent_id: str | None = None,
 ) -> LangGraphTraceEmitter:
     """Factory function to create a trace emitter."""
-    return LangGraphTraceEmitter(
-        thread_id=thread_id, workflow_id=workflow_id, agent_id=agent_id
-    )
+    return LangGraphTraceEmitter(thread_id=thread_id, workflow_id=workflow_id, agent_id=agent_id)

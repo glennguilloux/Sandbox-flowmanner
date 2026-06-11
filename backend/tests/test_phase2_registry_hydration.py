@@ -9,9 +9,10 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -89,9 +90,7 @@ class TestToolRegistryHydrateFromDB:
         mock_tool_instance.category = "general"
         mock_tool_instance.tags = []
 
-        with patch.object(
-            ToolRegistry, "_resolve_handler", return_value=lambda: mock_tool_instance
-        ):
+        with patch.object(ToolRegistry, "_resolve_handler", return_value=lambda: mock_tool_instance):
             count = await registry.hydrate_from_db(session)
 
         assert count == 1
@@ -151,9 +150,7 @@ class TestCapabilityRegistryHydrateFromDB:
         async def fake_handler(params):
             return {"ok": True}
 
-        with patch.object(
-            CapabilityRegistry, "_resolve_handler", return_value=fake_handler
-        ):
+        with patch.object(CapabilityRegistry, "_resolve_handler", return_value=fake_handler):
             count = await registry.hydrate_from_db(session)
 
         assert count == 1
@@ -173,9 +170,7 @@ class TestCapabilityRegistryHydrateFromDB:
         assert count == 0
 
     @pytest.mark.asyncio
-    async def test_hydrate_from_db_creates_passthrough_on_unresolvable(
-        self, mock_capability_row
-    ):
+    async def test_hydrate_from_db_creates_passthrough_on_unresolvable(self, mock_capability_row):
         """When handler_ref can't be resolved, a passthrough handler is created."""
         from app.services.nexus.capability_registry import CapabilityRegistry
 
@@ -221,8 +216,8 @@ class TestBindingModelsExist:
     def test_binding_models_registered_with_base(self):
         from app.models import Base
         from app.models.binding_models import (
-            AgentToolBinding,
             AgentCapabilityBinding,
+            AgentToolBinding,
             CapabilityDependency,
         )
 

@@ -12,11 +12,10 @@ Verifies:
 from __future__ import annotations
 
 from datetime import datetime
-
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
 
 # ── Model-level tests (no DB required) ─────────────────────────────
 
@@ -28,9 +27,7 @@ class TestModelSchema:
         from app.models.agent import Agent
 
         cols = {c.name for c in Agent.__table__.columns}
-        assert (
-            "version" in cols
-        ), f"Agent missing 'version' column. Columns: {sorted(cols)}"
+        assert "version" in cols, f"Agent missing 'version' column. Columns: {sorted(cols)}"
 
     def test_agent_version_table_exists(self):
         from app.models.agent import AgentVersion
@@ -46,9 +43,7 @@ class TestModelSchema:
         from app.models.workspace_models import Workspace
 
         cols = {c.name for c in Workspace.__table__.columns}
-        assert (
-            "version" in cols
-        ), f"Workspace missing 'version' column. Columns: {sorted(cols)}"
+        assert "version" in cols, f"Workspace missing 'version' column. Columns: {sorted(cols)}"
 
     def test_workspace_version_table_exists(self):
         from app.models.workspace_models import WorkspaceVersion
@@ -64,9 +59,7 @@ class TestModelSchema:
         from app.models.mission_models import Mission
 
         cols = {c.name for c in Mission.__table__.columns}
-        assert (
-            "version" in cols
-        ), f"Mission missing 'version' column. Columns: {sorted(cols)}"
+        assert "version" in cols, f"Mission missing 'version' column. Columns: {sorted(cols)}"
 
     def test_mission_version_table_normalized(self):
         from app.models.mission_advanced_models import MissionVersion
@@ -74,12 +67,8 @@ class TestModelSchema:
         assert MissionVersion.__tablename__ == "mission_versions"
         cols = {c.name for c in MissionVersion.__table__.columns}
         # Should use 'version' not 'version_number'
-        assert (
-            "version" in cols
-        ), f"MissionVersion should have 'version' column, has: {sorted(cols)}"
-        assert (
-            "version_number" not in cols
-        ), "MissionVersion should not have legacy 'version_number'"
+        assert "version" in cols, f"MissionVersion should have 'version' column, has: {sorted(cols)}"
+        assert "version_number" not in cols, "MissionVersion should not have legacy 'version_number'"
         assert "mission_id" in cols
         assert "title" in cols  # individual columns, not snapshot JSONB
         assert "plan" in cols
@@ -89,7 +78,7 @@ class TestModelSchema:
 
     def test_version_models_registered_with_base(self):
         """Verify all version models are importable via __init__.py."""
-        from app.models import AgentVersion, WorkspaceVersion, MissionVersion
+        from app.models import AgentVersion, MissionVersion, WorkspaceVersion
 
         assert AgentVersion.__tablename__ == "agent_versions"
         assert WorkspaceVersion.__tablename__ == "workspace_versions"
@@ -278,8 +267,8 @@ class TestVersionRetrieval:
 
     @pytest.mark.asyncio
     async def test_get_version_history_returns_list(self):
-        from app.services.versioning import get_version_history
         from app.models.agent import AgentVersion
+        from app.services.versioning import get_version_history
 
         # Mock the DB to return AgentVersion rows
         mock_row = MagicMock()
@@ -346,15 +335,10 @@ class TestMigrationStructure:
 
     def test_migration_file_imports(self):
         """Verify the migration module is importable."""
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
-        migration_path = (
-            Path(__file__).parent.parent
-            / "alembic"
-            / "versions"
-            / "20260605_entity_versioning.py"
-        )
+        migration_path = Path(__file__).parent.parent / "alembic" / "versions" / "20260605_entity_versioning.py"
         spec = importlib.util.spec_from_file_location(
             "20260605_entity_versioning",
             str(migration_path),

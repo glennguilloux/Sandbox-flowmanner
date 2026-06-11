@@ -60,9 +60,7 @@ class DeepSeekService:
     def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                timeout=self.timeout, headers=self._get_headers()
-            )
+            self._client = httpx.AsyncClient(timeout=self.timeout, headers=self._get_headers())
         return self._client
 
     def _get_headers(self) -> dict[str, str]:
@@ -164,9 +162,7 @@ class DeepSeekService:
 
             except httpx.HTTPStatusError as e:
                 last_error = e
-                logger.warning(
-                    "DeepSeek request failed (attempt %s): %s", attempt + 1, e
-                )
+                logger.warning("DeepSeek request failed (attempt %s): %s", attempt + 1, e)
 
                 if e.response.status_code == 429:
                     # Rate limited - wait longer
@@ -193,9 +189,7 @@ class DeepSeekService:
             "duration": time.time() - start_time,
         }
 
-    async def _make_request(
-        self, payload: dict[str, Any], request_id: str
-    ) -> dict[str, Any]:
+    async def _make_request(self, payload: dict[str, Any], request_id: str) -> dict[str, Any]:
         """Make the actual HTTP request."""
         client = self._get_client()
 
@@ -272,28 +266,20 @@ class DeepSeekService:
                                     reasoning_buffer += delta["reasoning_content"]
                                     is_reasoning = True
 
-                            content = (
-                                chunk.get("choices", [{}])[0]
-                                .get("delta", {})
-                                .get("content", "")
-                            )
+                            content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
 
                             yield {
                                 "success": True,
                                 "chunk": chunk,
                                 "content": content,
-                                "reasoning_content": (
-                                    reasoning_buffer if is_reasoning else None
-                                ),
+                                "reasoning_content": (reasoning_buffer if is_reasoning else None),
                                 "model": model,
                                 "provider": "deepseek",
                                 "request_id": request_id,
                                 "is_reasoning": is_reasoning,
                             }
                         except json.JSONDecodeError:
-                            logger.warning(
-                                "Failed to parse streaming response: %s", data
-                            )
+                            logger.warning("Failed to parse streaming response: %s", data)
 
         except Exception as e:
             logger.error("Streaming error: %s", e)
@@ -332,9 +318,7 @@ class DeepSeekService:
         usage = response.get("usage", {})
         input_tokens = usage.get("prompt_tokens", 0)
         output_tokens = usage.get("completion_tokens", 0)
-        reasoning_tokens = usage.get("completion_tokens_details", {}).get(
-            "reasoning_tokens", 0
-        )
+        reasoning_tokens = usage.get("completion_tokens_details", {}).get("reasoning_tokens", 0)
 
         # DeepSeek pricing (USD per token)
         # https://api.deepseek.com/docs/pricing

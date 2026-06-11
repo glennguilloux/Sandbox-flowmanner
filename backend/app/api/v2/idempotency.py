@@ -140,9 +140,7 @@ def _is_204_no_content(status: int) -> bool:
     return status == 204
 
 
-def _make_error_response(
-    status: int, code: str, msg: str, details: dict | None = None
-) -> JSONResponse:
+def _make_error_response(status: int, code: str, msg: str, details: dict | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=status,
         content={
@@ -207,18 +205,14 @@ class IdempotencyFinalizationMiddleware:
                 b"".join(response_body_chunks),
             )
 
-    async def _finalize(
-        self, record: IdempotencyKey, status: int, headers: list, body_bytes: bytes
-    ):
+    async def _finalize(self, record: IdempotencyKey, status: int, headers: list, body_bytes: bytes):
         try:
             from app.database import AsyncSessionLocal
 
             async with AsyncSessionLocal() as session:
                 from sqlalchemy import select as sa_select
 
-                result = await session.execute(
-                    sa_select(IdempotencyKey).where(IdempotencyKey.id == record.id)
-                )
+                result = await session.execute(sa_select(IdempotencyKey).where(IdempotencyKey.id == record.id))
                 fresh = result.scalar_one_or_none()
                 if fresh is None:
                     return
@@ -235,9 +229,7 @@ class IdempotencyFinalizationMiddleware:
                 fresh.last_accessed_at = datetime.now(UTC)
                 await session.commit()
         except Exception:
-            logger.warning(
-                "idempotency_finalize_failed", record_id=record.id, exc_info=True
-            )
+            logger.warning("idempotency_finalize_failed", record_id=record.id, exc_info=True)
 
 
 def _safe_headers(headers: list) -> dict[str, str]:

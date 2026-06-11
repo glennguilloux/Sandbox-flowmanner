@@ -121,17 +121,13 @@ class ReplayEngine:
 
         return same
 
-    async def get_checkpoint_sequences(
-        self, db: AsyncSession, run_id: str
-    ) -> list[int]:
+    async def get_checkpoint_sequences(self, db: AsyncSession, run_id: str) -> list[int]:
         """Get all checkpoint event sequence numbers for a run.
 
         Checkpoints are events of type 'substrate.checkpoint' and represent
         safe points from which replay can resume.
         """
-        checkpoint_events = await self._event_log.get_events(
-            db, run_id, event_type="substrate.checkpoint"
-        )
+        checkpoint_events = await self._event_log.get_events(db, run_id, event_type="substrate.checkpoint")
         return [e.sequence for e in checkpoint_events]
 
 

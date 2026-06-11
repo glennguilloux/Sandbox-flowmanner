@@ -143,9 +143,7 @@ async def test_create_sandbox_calls_sandboxd(mock_db_session, mock_sandboxd_clie
 
 
 @pytest.mark.asyncio
-async def test_claim_sandbox(
-    sample_playground_sandbox, mock_db_session, mock_sandboxd_client
-):
+async def test_claim_sandbox(sample_playground_sandbox, mock_db_session, mock_sandboxd_client):
     """Claiming transfers ownership and extends TTL to 24 hours."""
     from app.services.playground_service import PlaygroundService
 
@@ -203,9 +201,7 @@ async def test_claim_already_claimed_raises(mock_db_session, mock_sandboxd_clien
     mock_db_session.execute.return_value = execute_result
 
     with pytest.raises(ValueError, match="already claimed"):
-        await service.claim_sandbox(
-            "test-session-token-claimed", 456, db=mock_db_session
-        )
+        await service.claim_sandbox("test-session-token-claimed", 456, db=mock_db_session)
 
 
 @pytest.mark.asyncio
@@ -281,9 +277,7 @@ async def test_count_recent_by_ip(mock_db_session, mock_sandboxd_client):
 
 
 @pytest.mark.asyncio
-async def test_list_files(
-    mock_db_session, mock_sandboxd_client, sample_playground_sandbox
-):
+async def test_list_files(mock_db_session, mock_sandboxd_client, sample_playground_sandbox):
     """File listing delegates to sandboxd client."""
     from app.services.playground_service import PlaygroundService
 
@@ -300,9 +294,7 @@ async def test_list_files(
 
 
 @pytest.mark.asyncio
-async def test_read_file(
-    mock_db_session, mock_sandboxd_client, sample_playground_sandbox
-):
+async def test_read_file(mock_db_session, mock_sandboxd_client, sample_playground_sandbox):
     """File reading delegates to sandboxd client."""
     from app.services.playground_service import PlaygroundService
 
@@ -312,13 +304,9 @@ async def test_read_file(
     execute_result.scalar_one_or_none.return_value = sample_playground_sandbox
     mock_db_session.execute.return_value = execute_result
 
-    content = await service.read_file(
-        "sandbox-test-001", "src/App.tsx", db=mock_db_session
-    )
+    content = await service.read_file("sandbox-test-001", "src/App.tsx", db=mock_db_session)
     assert content == "console.log('hello');"
-    mock_sandboxd_client.read_file.assert_called_once_with(
-        "sandbox-test-001", path="src/App.tsx"
-    )
+    mock_sandboxd_client.read_file.assert_called_once_with("sandbox-test-001", path="src/App.tsx")
 
 
 @pytest.mark.asyncio

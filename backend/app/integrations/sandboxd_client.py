@@ -110,9 +110,7 @@ class SandboxdClient:
         client = await self._get_client()
 
         # Resolve template: explicit arg > settings default > empty (no template)
-        effective_template = (
-            template if template is not None else settings.SANDBOXD_DEFAULT_TEMPLATE
-        )
+        effective_template = template if template is not None else settings.SANDBOXD_DEFAULT_TEMPLATE
 
         # Try v1 public API first
         payload: dict[str, Any] = {
@@ -293,9 +291,7 @@ class SandboxdClient:
         resp.raise_for_status()
         return resp.text
 
-    async def write_file(
-        self, sandbox_id: str, path: str, content: str | bytes
-    ) -> dict[str, Any]:
+    async def write_file(self, sandbox_id: str, path: str, content: str | bytes) -> dict[str, Any]:
         """PUT /v1/sandboxes/{id}/files?path= — write file (≤25 MiB).
 
         Atomic: tmp file + rename. No symlink following.

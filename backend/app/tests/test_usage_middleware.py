@@ -61,9 +61,7 @@ async def test_sse_stream_basic():
 
     async def fake_generator():
         yield json.dumps({"type": "token", "content": "Hello"})
-        yield json.dumps(
-            {"type": "complete", "usage": {"prompt_tokens": 10, "completion_tokens": 5}}
-        )
+        yield json.dumps({"type": "complete", "usage": {"prompt_tokens": 10, "completion_tokens": 5}})
 
     events = []
     async for event in _sse_stream(fake_generator()):

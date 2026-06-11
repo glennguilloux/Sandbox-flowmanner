@@ -41,9 +41,7 @@ def _add_deprecation_headers(response: Response):
     response.headers["Link"] = '</api/v2/blueprints>; rel="successor-version"'
 
 
-router = APIRouter(
-    prefix="/graphs", tags=["graphs"], dependencies=[Depends(_add_deprecation_headers)]
-)
+router = APIRouter(prefix="/graphs", tags=["graphs"], dependencies=[Depends(_add_deprecation_headers)])
 
 
 def _not_found() -> HTTPException:
@@ -51,9 +49,7 @@ def _not_found() -> HTTPException:
 
 
 def _graph_not_found() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Graph workflow not found"
-    )
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Graph workflow not found")
 
 
 @router.get("")
@@ -66,9 +62,7 @@ async def list_items(
     workspace_id: str | None = Depends(get_workspace_id),
 ):
     offset = (page - 1) * per_page
-    items, total = await list_graph_workflows(
-        db, user.id, offset=offset, limit=per_page, workspace_id=workspace_id
-    )
+    items, total = await list_graph_workflows(db, user.id, offset=offset, limit=per_page, workspace_id=workspace_id)
     pages = (total + per_page - 1) // per_page
     return {
         "items": items,
@@ -168,9 +162,7 @@ async def run_graph(
     return await execute_graph_workflow(db, workflow_id, user.id, payload.input_data)
 
 
-@router.post(
-    "/{workflow_id}/resume/{execution_id}", response_model=GraphExecutionResponse
-)
+@router.post("/{workflow_id}/resume/{execution_id}", response_model=GraphExecutionResponse)
 async def resume_graph(
     workflow_id: uuid.UUID,
     execution_id: uuid.UUID,
@@ -200,9 +192,7 @@ async def list_executions(
     except GraphNotFoundError:
         raise _graph_not_found()
     offset = (page - 1) * per_page
-    items, total = await list_graph_executions(
-        db, workflow_id, user.id, offset=offset, limit=per_page
-    )
+    items, total = await list_graph_executions(db, workflow_id, user.id, offset=offset, limit=per_page)
     pages = (total + per_page - 1) // per_page
     return {
         "items": items,
@@ -296,16 +286,12 @@ async def compare_executions(
     from app.models.graph import GraphExecution, WorkflowState
 
     # Fetch both executions
-    result_a = await db.execute(
-        select(GraphExecution).where(GraphExecution.id == execution_a_id)
-    )
+    result_a = await db.execute(select(GraphExecution).where(GraphExecution.id == execution_a_id))
     exec_a = result_a.scalar_one_or_none()
     if not exec_a:
         raise HTTPException(404, "Execution A not found")
 
-    result_b = await db.execute(
-        select(GraphExecution).where(GraphExecution.id == execution_b_id)
-    )
+    result_b = await db.execute(select(GraphExecution).where(GraphExecution.id == execution_b_id))
     exec_b = result_b.scalar_one_or_none()
     if not exec_b:
         raise HTTPException(404, "Execution B not found")
@@ -322,9 +308,7 @@ async def compare_executions(
 
     async def _get_nodes(execution_id: str):
         result = await db.execute(
-            select(WorkflowState)
-            .where(WorkflowState.execution_id == execution_id)
-            .order_by(WorkflowState.created_at)
+            select(WorkflowState).where(WorkflowState.execution_id == execution_id).order_by(WorkflowState.created_at)
         )
         states = []
         for ws in result.scalars().all():
@@ -361,10 +345,7 @@ async def compare_executions(
 
     def _totals(nodes):
         tc = sum(float(n.get("cost", 0) or 0) for n in nodes)
-        tt = sum(
-            int(n.get("tokensIn", 0) or 0) + int(n.get("tokensOut", 0) or 0)
-            for n in nodes
-        )
+        tt = sum(int(n.get("tokensIn", 0) or 0) + int(n.get("tokensOut", 0) or 0) for n in nodes)
         tl = sum(int(n.get("latencyMs", 0) or 0) for n in nodes)
         return tc, tt, tl
 
@@ -375,9 +356,7 @@ async def compare_executions(
         "runA": {
             "runId": exec_a.id,
             "startedAt": exec_a.started_at.isoformat() if exec_a.started_at else None,
-            "completedAt": (
-                exec_a.completed_at.isoformat() if exec_a.completed_at else None
-            ),
+            "completedAt": (exec_a.completed_at.isoformat() if exec_a.completed_at else None),
             "totalCost": c_a,
             "totalTokens": tk_a,
             "totalLatencyMs": l_a,
@@ -386,9 +365,7 @@ async def compare_executions(
         "runB": {
             "runId": exec_b.id,
             "startedAt": exec_b.started_at.isoformat() if exec_b.started_at else None,
-            "completedAt": (
-                exec_b.completed_at.isoformat() if exec_b.completed_at else None
-            ),
+            "completedAt": (exec_b.completed_at.isoformat() if exec_b.completed_at else None),
             "totalCost": c_b,
             "totalTokens": tk_b,
             "totalLatencyMs": l_b,

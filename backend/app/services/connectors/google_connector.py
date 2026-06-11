@@ -11,7 +11,7 @@ import base64
 import json
 import logging
 from email.mime.text import MIMEText
-from typing import Any, Any
+from typing import Any
 
 from .base import (
     AuthType,
@@ -460,9 +460,7 @@ class GoogleConnector(BaseConnector):
                 data={
                     "messages": detailed,
                     "next_page_token": list_response.data.get("nextPageToken"),
-                    "result_size_estimate": list_response.data.get(
-                        "resultSizeEstimate"
-                    ),
+                    "result_size_estimate": list_response.data.get("resultSizeEstimate"),
                 },
                 status_code=200,
             )

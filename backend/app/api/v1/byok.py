@@ -58,18 +58,12 @@ async def create_api_key(
     )
 
     if not validate_provider(data.provider):
-        logger.warning(
-            "BYOK create: unsupported provider=%s user=%s", data.provider, user.id
-        )
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported provider: {data.provider}"
-        )
+        logger.warning("BYOK create: unsupported provider=%s user=%s", data.provider, user.id)
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {data.provider}")
 
     logger.debug("BYOK create: provider validated, encrypting key...")
     encrypted = encrypt_api_key(data.api_key)
-    logger.debug(
-        "BYOK create: key encrypted (len=%d), inserting to DB...", len(encrypted)
-    )
+    logger.debug("BYOK create: key encrypted (len=%d), inserting to DB...", len(encrypted))
 
     import json
 
@@ -90,9 +84,7 @@ async def create_api_key(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        logger.warning(
-            "BYOK create: DUPLICATE user=%s provider=%s", uid, provider_lower
-        )
+        logger.warning("BYOK create: DUPLICATE user=%s provider=%s", uid, provider_lower)
         raise HTTPException(
             status_code=409,
             detail=f"You already have an active {provider_lower} key. Delete the existing one first.",
@@ -109,9 +101,7 @@ async def create_api_key(
     # Audit log
     from app.api.middleware.audit import log_event
 
-    await log_event(
-        uid, "byok_key_created", {"provider": provider_lower, "key_id": key.id}
-    )
+    await log_event(uid, "byok_key_created", {"provider": provider_lower, "key_id": key.id})
 
     return _envelope(
         {
@@ -134,11 +124,7 @@ async def list_api_keys(
 ):
     try:
         logger.debug("BYOK list: user=%s", user.id)
-        result = await db.execute(
-            select(UserAPIKey).where(
-                UserAPIKey.user_id == user.id, UserAPIKey.is_active == True
-            )
-        )
+        result = await db.execute(select(UserAPIKey).where(UserAPIKey.user_id == user.id, UserAPIKey.is_active == True))
         keys = result.scalars().all()
         logger.debug("BYOK list: user=%s returned %d keys", user.id, len(keys))
         return [
@@ -169,27 +155,19 @@ async def delete_api_key(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        result = await db.execute(
-            select(UserAPIKey).where(
-                UserAPIKey.id == key_id, UserAPIKey.user_id == user.id
-            )
-        )
+        result = await db.execute(select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id))
         key = result.scalar_one_or_none()
         if not key:
             raise HTTPException(status_code=404, detail="API key not found")
 
         key.is_active = False
         await db.commit()
-        logger.info(
-            "BYOK deleted: user=%s provider=%s key_id=%s", user.id, key.provider, key_id
-        )
+        logger.info("BYOK deleted: user=%s provider=%s key_id=%s", user.id, key.provider, key_id)
 
         # Audit log
         from app.api.middleware.audit import log_event
 
-        await log_event(
-            user.id, "byok_key_deleted", {"provider": key.provider, "key_id": key.id}
-        )
+        await log_event(user.id, "byok_key_deleted", {"provider": key.provider, "key_id": key.id})
 
         return None
     except HTTPException:
@@ -221,11 +199,7 @@ async def list_available_models(
 
     from app.models.byok_models import UserAPIKey
 
-    result = await db.execute(
-        select(UserAPIKey).where(
-            UserAPIKey.user_id == user.id, UserAPIKey.is_active == True
-        )
-    )
+    result = await db.execute(select(UserAPIKey).where(UserAPIKey.user_id == user.id, UserAPIKey.is_active == True))
     keys = result.scalars().all()
 
     models = []
@@ -245,9 +219,7 @@ async def list_available_models(
     return models
 
 
-async def get_decrypted_key(
-    db: AsyncSession, user_id: int, provider: str
-) -> str | None:
+async def get_decrypted_key(db: AsyncSession, user_id: int, provider: str) -> str | None:
     """Retrieve and decrypt an API key for internal use."""
     result = await db.execute(
         select(UserAPIKey).where(

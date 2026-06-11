@@ -79,9 +79,7 @@ class AudioChunkingTool(BaseTool):
         try:
             validated = AudioChunkingInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.chunk_duration_seconds < 1:
             return ToolResult.error_result(
@@ -118,9 +116,7 @@ class AudioChunkingTool(BaseTool):
             except ValueError as e:
                 return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
             except Exception as e:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id, error=f"Failed to read audio: {e}"
-                )
+                return ToolResult.error_result(tool_id=self.tool_id, error=f"Failed to read audio: {e}")
 
             # Write to temp file so pydub + ffmpeg can read it
             with tempfile.NamedTemporaryFile(suffix=".audio", delete=False) as tmp:

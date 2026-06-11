@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ── Mock factories (cannot live in conftest — not importable in pytest) ────
 
 
@@ -102,9 +101,7 @@ class TestDebate:
         assert data["judge_score_a"] == 8.5
         assert data["judge_score_b"] == 6.0
         assert data["consensus_reached"] is True
-        assert (
-            data["consensus_synthesis"] == "Synthesized position combining both views"
-        )
+        assert data["consensus_synthesis"] == "Synthesized position combining both views"
         assert data["status"] == "completed"
 
     def test_start_debate_with_max_rounds(self, test_client):
@@ -332,9 +329,7 @@ class TestHandoff:
                 "from_agent_name": "Agent A",
                 "task_description": "Analyze Q3 reports",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -359,18 +354,14 @@ class TestHandoff:
         """ValueError from service (no agent match) returns 400."""
         with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
-            mock_proto.delegate = AsyncMock(
-                side_effect=ValueError("No agent found for task")
-            )
+            mock_proto.delegate = AsyncMock(side_effect=ValueError("No agent found for task"))
 
             payload = {
                 "from_agent_id": "agent-a",
                 "from_agent_name": "Agent A",
                 "task_description": "Unmatchable task",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
         assert resp.status_code == 400
         assert "No agent found" in resp.json()["detail"]
@@ -379,18 +370,14 @@ class TestHandoff:
         """Generic service exception returns 500."""
         with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
-            mock_proto.delegate = AsyncMock(
-                side_effect=RuntimeError("Database connection lost")
-            )
+            mock_proto.delegate = AsyncMock(side_effect=RuntimeError("Database connection lost"))
 
             payload = {
                 "from_agent_id": "agent-a",
                 "from_agent_name": "Agent A",
                 "task_description": "Test task",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
         assert resp.status_code == 500
         assert "Database connection lost" in resp.json()["detail"]
@@ -410,9 +397,7 @@ class TestHandoff:
                 "to_agent_id": "agent-c",
                 "priority": 2,
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
         assert resp.status_code == 200
         mock_proto.delegate.assert_called_once()
@@ -512,9 +497,7 @@ class TestHandoff:
             mock_proto = mock_proto_cls.return_value
             mock_proto.reject = AsyncMock(return_value=mock_h)
 
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/handoff-001/reject", json={}
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/handoff-001/reject", json={})
 
         assert resp.status_code == 200
         mock_proto.reject.assert_called_once()
@@ -526,9 +509,7 @@ class TestHandoff:
     def test_list_handoffs_success(self, test_client):
         """List handoffs returns correct envelope."""
         mock_h1 = _make_mock_handoff(id="h1")
-        mock_h2 = _make_mock_handoff(
-            id="h2", from_agent_name="Agent C", status="completed"
-        )
+        mock_h2 = _make_mock_handoff(id="h2", from_agent_name="Agent C", status="completed")
 
         with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_proto_cls:
             mock_proto = mock_proto_cls.return_value
@@ -624,9 +605,7 @@ class TestHandoff:
                 "from_agent_name": "X",
                 "task_description": "Test",
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -658,9 +637,7 @@ class TestHandoff:
                 "from_agent_name": "Agent A",
                 "task_description": "x" * 5000,
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
         assert resp.status_code == 200
 
@@ -686,9 +663,7 @@ class TestHandoff:
             "priority": priority,
         }
         resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
-        assert (
-            resp.status_code == 422
-        ), f"priority={priority} should return 422, got {resp.status_code}"
+        assert resp.status_code == 422, f"priority={priority} should return 422, got {resp.status_code}"
 
     @pytest.mark.parametrize("priority", [-1, 2])
     def test_delegate_validation_priority_boundaries(self, test_client, priority):
@@ -705,13 +680,9 @@ class TestHandoff:
                 "task_description": "Test",
                 "priority": priority,
             }
-            resp = test_client.post(
-                "/api/swarm/protocol/handoff/delegate", json=payload
-            )
+            resp = test_client.post("/api/swarm/protocol/handoff/delegate", json=payload)
 
-        assert (
-            resp.status_code == 200
-        ), f"priority={priority} should be accepted, got {resp.status_code}"
+        assert resp.status_code == 200, f"priority={priority} should be accepted, got {resp.status_code}"
         call_kwargs = mock_proto.delegate.call_args.kwargs
         assert call_kwargs["priority"] == priority
 
@@ -721,9 +692,7 @@ class TestHandoff:
     def test_list_handoffs_limit_out_of_range(self, test_client, limit):
         """Limit outside 1-100 returns 422."""
         resp = test_client.get("/api/swarm/protocol/handoffs", params={"limit": limit})
-        assert (
-            resp.status_code == 422
-        ), f"limit={limit} should return 422, got {resp.status_code}"
+        assert resp.status_code == 422, f"limit={limit} should return 422, got {resp.status_code}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -807,9 +776,7 @@ class TestEscalation:
         """Generic service exception returns 500."""
         with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
-            mock_chain.escalate = AsyncMock(
-                side_effect=RuntimeError("Dead-letter queue full")
-            )
+            mock_chain.escalate = AsyncMock(side_effect=RuntimeError("Dead-letter queue full"))
 
             payload = {
                 "task_id": "task-001",
@@ -863,9 +830,7 @@ class TestEscalation:
     def test_list_escalations_success(self, test_client):
         """List escalations returns correct envelope."""
         mock_e1 = _make_mock_escalation(id="e1")
-        mock_e2 = _make_mock_escalation(
-            id="e2", resolved=True, status="resolved", level=3
-        )
+        mock_e2 = _make_mock_escalation(id="e2", resolved=True, status="resolved", level=3)
 
         with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
@@ -927,9 +892,7 @@ class TestEscalation:
 
     def test_list_dead_letters_success(self, test_client):
         """List dead letters returns correct envelope."""
-        mock_dl = _make_mock_escalation(
-            id="dl-001", status="dead_letter", level=3, resolved=True
-        )
+        mock_dl = _make_mock_escalation(id="dl-001", status="dead_letter", level=3, resolved=True)
 
         with patch("app.api.v1.swarm_protocol.EscalationChain") as mock_chain_cls:
             mock_chain = mock_chain_cls.return_value
@@ -950,9 +913,7 @@ class TestEscalation:
             mock_chain = mock_chain_cls.return_value
             mock_chain.list_dead_letters = AsyncMock(return_value=[])
 
-            resp = test_client.get(
-                "/api/swarm/protocol/dead-letters", params={"limit": 5}
-            )
+            resp = test_client.get("/api/swarm/protocol/dead-letters", params={"limit": 5})
 
         assert resp.status_code == 200
         mock_chain.list_dead_letters.assert_called_once()
@@ -1038,22 +999,14 @@ class TestEscalation:
     @pytest.mark.parametrize("limit", [0, 101])
     def test_list_escalations_limit_out_of_range(self, test_client, limit):
         """Limit outside 1-100 returns 422."""
-        resp = test_client.get(
-            "/api/swarm/protocol/escalations", params={"limit": limit}
-        )
-        assert (
-            resp.status_code == 422
-        ), f"limit={limit} should return 422, got {resp.status_code}"
+        resp = test_client.get("/api/swarm/protocol/escalations", params={"limit": limit})
+        assert resp.status_code == 422, f"limit={limit} should return 422, got {resp.status_code}"
 
     @pytest.mark.parametrize("limit", [0, 101])
     def test_list_dead_letters_limit_out_of_range(self, test_client, limit):
         """Dead-letters limit outside 1-100 returns 422."""
-        resp = test_client.get(
-            "/api/swarm/protocol/dead-letters", params={"limit": limit}
-        )
-        assert (
-            resp.status_code == 422
-        ), f"limit={limit} should return 422, got {resp.status_code}"
+        resp = test_client.get("/api/swarm/protocol/dead-letters", params={"limit": limit})
+        assert resp.status_code == 422, f"limit={limit} should return 422, got {resp.status_code}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1080,9 +1033,10 @@ class TestRouteRegistration:
     def test_endpoint_registered(self, test_client, method, path, expected_status):
         """Endpoint returns expected status (not 404)."""
         # Patch services so GET endpoints don't error trying to use real DB
-        with patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_hp, patch(
-            "app.api.v1.swarm_protocol.EscalationChain"
-        ) as mock_ec:
+        with (
+            patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_hp,
+            patch("app.api.v1.swarm_protocol.EscalationChain") as mock_ec,
+        ):
             mock_hp.return_value.list_handoffs = AsyncMock(return_value=[])
             mock_ec.return_value.list_escalations = AsyncMock(return_value=[])
             mock_ec.return_value.list_dead_letters = AsyncMock(return_value=[])
@@ -1092,8 +1046,7 @@ class TestRouteRegistration:
             else:
                 resp = test_client.post(path, json={})
             assert resp.status_code == expected_status, (
-                f"Expected {expected_status} for {method} {path}, "
-                f"got {resp.status_code}"
+                f"Expected {expected_status} for {method} {path}, got {resp.status_code}"
             )
 
     def test_parameterized_routes_exist(self, test_client):

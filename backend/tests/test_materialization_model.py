@@ -14,7 +14,6 @@ import uuid
 
 import pytest
 
-
 # ── Import tests ──────────────────────────────────────────────────────
 
 
@@ -58,17 +57,10 @@ class TestMaterializationModelImport:
         indexes = MaterializationState.__table__.indexes
         unique_indexes = [ix for ix in indexes if ix.unique]
         target_idx = next(
-            (
-                ix
-                for ix in unique_indexes
-                if set(c.name for c in ix.columns)
-                == {"object_type", "object_id", "target"}
-            ),
+            (ix for ix in unique_indexes if set(c.name for c in ix.columns) == {"object_type", "object_id", "target"}),
             None,
         )
-        assert (
-            target_idx is not None
-        ), "Missing unique index on (object_type, object_id, target)"
+        assert target_idx is not None, "Missing unique index on (object_type, object_id, target)"
 
 
 # ── Schema validation tests ───────────────────────────────────────────
@@ -138,24 +130,14 @@ class TestMaterializationMigration:
     def test_migration_revision_chain(self):
         from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_materialization_state.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_materialization_state.py"
         assert rev_path.exists(), f"Migration file not found at {rev_path}"
 
     def test_migration_has_upgrade_and_downgrade(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_materialization_state.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_materialization_state.py"
         if not rev_path.exists():
             pytest.skip("Migration file not found")
 
@@ -169,15 +151,10 @@ class TestMaterializationMigration:
         assert callable(mod.downgrade)
 
     def test_migration_down_revision(self):
-        from pathlib import Path
         import importlib.util
+        from pathlib import Path
 
-        rev_path = (
-            Path(__file__).resolve().parent.parent
-            / "alembic"
-            / "versions"
-            / "20260603_materialization_state.py"
-        )
+        rev_path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "20260603_materialization_state.py"
         if not rev_path.exists():
             pytest.skip("Migration file not found")
 

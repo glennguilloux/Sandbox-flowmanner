@@ -12,9 +12,10 @@ Tests:
 """
 
 import os
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 from uuid import uuid4
+
+import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
@@ -92,9 +93,7 @@ class TestTransitionStatus:
         assert "Test failure" in log.data["cause"]
 
     @pytest.mark.asyncio
-    async def test_transition_status_sets_completed_at_for_terminal_states(
-        self, mock_db, mock_mission
-    ):
+    async def test_transition_status_sets_completed_at_for_terminal_states(self, mock_db, mock_mission):
         """Terminal states (completed, failed, aborted) must set completed_at."""
         from app.services.mission_executor import MissionExecutor
 
@@ -102,17 +101,11 @@ class TestTransitionStatus:
 
         for terminal_state in ("completed", "failed", "aborted"):
             mock_mission.completed_at = None
-            await executor._transition_status(
-                mock_db, mock_mission, terminal_state, cause=f"Test {terminal_state}"
-            )
-            assert (
-                mock_mission.completed_at is not None
-            ), f"Terminal state '{terminal_state}' must set completed_at"
+            await executor._transition_status(mock_db, mock_mission, terminal_state, cause=f"Test {terminal_state}")
+            assert mock_mission.completed_at is not None, f"Terminal state '{terminal_state}' must set completed_at"
 
     @pytest.mark.asyncio
-    async def test_transition_status_does_not_set_completed_at_for_non_terminal(
-        self, mock_db, mock_mission
-    ):
+    async def test_transition_status_does_not_set_completed_at_for_non_terminal(self, mock_db, mock_mission):
         """Non-terminal states should NOT set completed_at."""
         from app.services.mission_executor import MissionExecutor
 
@@ -120,12 +113,8 @@ class TestTransitionStatus:
 
         for non_terminal in ("executing", "planning", "paused"):
             mock_mission.completed_at = None
-            await executor._transition_status(
-                mock_db, mock_mission, non_terminal, cause=f"Test {non_terminal}"
-            )
-            assert (
-                mock_mission.completed_at is None
-            ), f"Non-terminal state '{non_terminal}' must NOT set completed_at"
+            await executor._transition_status(mock_db, mock_mission, non_terminal, cause=f"Test {non_terminal}")
+            assert mock_mission.completed_at is None, f"Non-terminal state '{non_terminal}' must NOT set completed_at"
 
 
 class TestMissionStatusTransitionsAreLogged:
@@ -139,9 +128,7 @@ class TestMissionStatusTransitionsAreLogged:
         executor = MissionExecutor()
 
         # Simulate plan_mission's PermanentMissionError path
-        with patch.object(
-            executor, "_transition_status", new_callable=AsyncMock
-        ) as mock_transition:
+        with patch.object(executor, "_transition_status", new_callable=AsyncMock) as mock_transition:
             mock_transition.side_effect = None  # successful transition
 
             # The plan_mission method catches PermanentMissionError and calls
@@ -170,9 +157,7 @@ class TestMissionStatusTransitionsAreLogged:
 
         executor = MissionExecutor()
 
-        with patch.object(
-            executor, "_transition_status", new_callable=AsyncMock
-        ) as mock_transition:
+        with patch.object(executor, "_transition_status", new_callable=AsyncMock) as mock_transition:
             executor._transition_status = mock_transition
 
             await executor._transition_status(
@@ -210,9 +195,7 @@ class TestLlmCallRecording:
         )
         executor.model_router = mock_router
 
-        with patch.object(
-            executor, "_record_llm_call", new_callable=AsyncMock
-        ) as mock_record:
+        with patch.object(executor, "_record_llm_call", new_callable=AsyncMock) as mock_record:
             executor._record_llm_call = mock_record
 
             mock_mission = MagicMock()
@@ -292,9 +275,9 @@ class TestSwarmOrchestratorObservability:
         """SwarmOrchestrator must have _transition_execution_status."""
         from app.services.swarm.orchestrator import SwarmOrchestrator
 
-        assert hasattr(
-            SwarmOrchestrator, "_transition_execution_status"
-        ), "SwarmOrchestrator is missing _transition_execution_status"
+        assert hasattr(SwarmOrchestrator, "_transition_execution_status"), (
+            "SwarmOrchestrator is missing _transition_execution_status"
+        )
 
     @pytest.mark.asyncio
     async def test_transition_execution_status_logs(self):
@@ -311,9 +294,7 @@ class TestSwarmOrchestratorObservability:
         orchestrator = SwarmOrchestrator(mock_db)
 
         with patch("app.services.swarm.orchestrator.logger") as mock_logger:
-            await orchestrator._transition_execution_status(
-                mock_execution, "running", cause="Test transition"
-            )
+            await orchestrator._transition_execution_status(mock_execution, "running", cause="Test transition")
 
         assert mock_execution.status == "running"
         mock_logger.info.assert_called()

@@ -26,9 +26,7 @@ class UpdateTemplateApiCommunityTemplatesTemplateIdPutData:
         d = dict(src_dict)
         update_template_api_community_templates_template_id_put_data = cls()
 
-        update_template_api_community_templates_template_id_put_data.additional_properties = (
-            d
-        )
+        update_template_api_community_templates_template_id_put_data.additional_properties = d
         return update_template_api_community_templates_template_id_put_data
 
     @property

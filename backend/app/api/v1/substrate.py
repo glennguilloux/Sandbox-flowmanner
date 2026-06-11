@@ -170,18 +170,14 @@ async def get_mission_replay_state(
     template_id = (mission.plan or {}).get("template_id")
     if template_id:
         try:
-            tpl_result = await db.execute(
-                sa_select(MissionTemplate).where(MissionTemplate.id == str(template_id))
-            )
+            tpl_result = await db.execute(sa_select(MissionTemplate).where(MissionTemplate.id == str(template_id)))
             template = tpl_result.scalar_one_or_none()
             if template and template.expected_behaviors:
                 engine = get_assertion_engine()
                 results = await engine.evaluate(db, run_id, template.expected_behaviors)
                 response["assertion_results"] = [r.to_dict() for r in results]
         except Exception as exc:
-            logger.warning(
-                "Could not evaluate assertions for mission %s: %s", mission_id, exc
-            )
+            logger.warning("Could not evaluate assertions for mission %s: %s", mission_id, exc)
 
     return response
 

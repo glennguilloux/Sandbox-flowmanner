@@ -14,32 +14,17 @@ import pytest
 
 class TestAlembicSingleHead:
     def test_merge_migration_exists(self):
-        path = (
-            Path(__file__).parent.parent.parent
-            / "alembic"
-            / "versions"
-            / "a3bc0003_merge_h4_6_and_a3bc0002.py"
-        )
+        path = Path(__file__).parent.parent.parent / "alembic" / "versions" / "a3bc0003_merge_h4_6_and_a3bc0002.py"
         assert path.exists()
 
     def test_merge_migration_references_both_parents(self):
-        path = (
-            Path(__file__).parent.parent.parent
-            / "alembic"
-            / "versions"
-            / "a3bc0003_merge_h4_6_and_a3bc0002.py"
-        )
+        path = Path(__file__).parent.parent.parent / "alembic" / "versions" / "a3bc0003_merge_h4_6_and_a3bc0002.py"
         content = path.read_text()
         assert "h4_6_drop_cancelled_status" in content
         assert "a3bc0002" in content
 
     def test_merge_migration_has_no_schema_ops(self):
-        path = (
-            Path(__file__).parent.parent.parent
-            / "alembic"
-            / "versions"
-            / "a3bc0003_merge_h4_6_and_a3bc0002.py"
-        )
+        path = Path(__file__).parent.parent.parent / "alembic" / "versions" / "a3bc0003_merge_h4_6_and_a3bc0002.py"
         content = path.read_text()
         assert "op.create_table" not in content
         assert "op.add_column" not in content
@@ -56,14 +41,8 @@ class TestAlembicSingleHead:
             text=True,
         )
         # Count non-empty lines that look like revision lines (end with '(head)')
-        head_lines = [
-            line.strip()
-            for line in result.stdout.strip().splitlines()
-            if line.strip().endswith("(head)")
-        ]
-        assert (
-            len(head_lines) == 1
-        ), f"Expected 1 alembic head, got {len(head_lines)}:\n{result.stdout}"
+        head_lines = [line.strip() for line in result.stdout.strip().splitlines() if line.strip().endswith("(head)")]
+        assert len(head_lines) == 1, f"Expected 1 alembic head, got {len(head_lines)}:\n{result.stdout}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

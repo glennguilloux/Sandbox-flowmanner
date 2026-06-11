@@ -17,8 +17,8 @@ Usage:
 """
 
 import asyncio
-import uuid
 import time
+import uuid
 
 import pytest
 import pytest_asyncio
@@ -40,9 +40,7 @@ pytestmark = pytest.mark.integration
 _TEST_DATABASE_URL = settings.DATABASE_URL.replace("workflow-postgres", "localhost")
 
 _test_engine = create_async_engine(_TEST_DATABASE_URL, echo=False, poolclass=NullPool)
-TestSessionLocal = sessionmaker(
-    _test_engine, class_=AsyncSession, expire_on_commit=False
-)
+TestSessionLocal = sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 # ── Engine lifecycle ───────────────────────────────────────────────────────
@@ -239,9 +237,7 @@ def _linear_workflow_payload(name: str = "Integration Test — Linear") -> dict:
     }
 
 
-def _wait_for_execution(
-    client, workflow_id: str, execution_id: str, timeout: float = 30.0
-) -> dict:
+def _wait_for_execution(client, workflow_id: str, execution_id: str, timeout: float = 30.0) -> dict:
     """Poll GET /api/graphs/{wid}/executions/{eid} until terminal status."""
     deadline = time.monotonic() + timeout
     terminal = {"completed", "failed", "paused"}
@@ -262,15 +258,11 @@ def _wait_for_execution(
             status = data.get("status", "unknown")
             error = data.get("error_message", "")
             pytest.fail(
-                f"Execution did not reach terminal state within {timeout}s. "
-                f"Current status: {status}. Error: {error}"
+                f"Execution did not reach terminal state within {timeout}s. Current status: {status}. Error: {error}"
             )
     except Exception:
         pass
-    pytest.fail(
-        f"Execution did not reach terminal state within {timeout}s. "
-        f"Could not determine current status."
-    )
+    pytest.fail(f"Execution did not reach terminal state within {timeout}s. Could not determine current status.")
 
 
 # ── Tests ──────────────────────────────────────────────────────────────────
@@ -313,13 +305,9 @@ class TestFullGraphExecution:
         output_data = result.get("output_data") or {}
         outputs = output_data.get("outputs", {})
         for nid in ("start-1", "transform-1", "log-1", "end-1"):
-            assert (
-                nid in outputs
-            ), f"Missing output for node {nid}. Got: {list(outputs.keys())}"
+            assert nid in outputs, f"Missing output for node {nid}. Got: {list(outputs.keys())}"
             node_output = outputs[nid]
-            assert (
-                node_output.get("success") is not False
-            ), f"Node {nid} failed: {node_output.get('error')}"
+            assert node_output.get("success") is not False, f"Node {nid} failed: {node_output.get('error')}"
 
     def test_execution_detail_has_node_states(self, real_db_client):
         """Verify GET /executions/{eid} returns per-node states."""
@@ -342,9 +330,7 @@ class TestFullGraphExecution:
         assert detail.status_code == 200
         detail_data = detail.json()
         node_states = detail_data.get("node_states", [])
-        assert (
-            len(node_states) >= 4
-        ), f"Expected >=4 node states, got {len(node_states)}"
+        assert len(node_states) >= 4, f"Expected >=4 node states, got {len(node_states)}"
 
         node_ids = {ns.get("node_id") for ns in node_states}
         assert "start-1" in node_ids
@@ -373,26 +359,19 @@ class TestSubGraphExecution:
 
         result = _wait_for_execution(client, workflow_id, execution_id)
         assert result["status"] == "completed", (
-            f"Expected completed, got {result['status']}. "
-            f"Error: {result.get('error_message', 'none')}"
+            f"Expected completed, got {result['status']}. Error: {result.get('error_message', 'none')}"
         )
 
         # Verify: task-1, log-1, end-1 should have outputs
         output_data = result.get("output_data") or {}
         outputs = output_data.get("outputs", {})
         for nid in ("transform-1", "log-1", "end-1"):
-            assert nid in outputs, (
-                f"Missing output for downstream node {nid}. "
-                f"Got: {list(outputs.keys())}"
-            )
-            assert (
-                outputs[nid].get("success") is not False
-            ), f"Node {nid} failed: {outputs[nid].get('error')}"
+            assert nid in outputs, f"Missing output for downstream node {nid}. Got: {list(outputs.keys())}"
+            assert outputs[nid].get("success") is not False, f"Node {nid} failed: {outputs[nid].get('error')}"
 
         # start-1 should NOT be in outputs
         assert "start-1" not in outputs, (
-            f"start-1 should not have executed in subgraph mode, "
-            f"but it appears in outputs: {list(outputs.keys())}"
+            f"start-1 should not have executed in subgraph mode, but it appears in outputs: {list(outputs.keys())}"
         )
 
     def test_subgraph_from_log_only_log_and_end_execute(self, real_db_client):
@@ -472,16 +451,12 @@ class TestEdgeCases:
         result = _wait_for_execution(client, workflow_id, execution_id)
         # The execution completes but the nonexistent node produces an error output
         outputs = (result.get("output_data") or {}).get("outputs", {})
-        assert (
-            len(outputs) == 1
-        ), f"Expected 1 output with error for nonexistent start node, got {len(outputs)}"
+        assert len(outputs) == 1, f"Expected 1 output with error for nonexistent start node, got {len(outputs)}"
         node_output = list(outputs.values())[0]
-        assert (
-            node_output.get("success") is False
-        ), f"Expected node failure, got: {node_output}"
-        assert (
-            "not found" in node_output.get("error", "").lower()
-        ), f"Expected 'not found' error, got: {node_output.get('error')}"
+        assert node_output.get("success") is False, f"Expected node failure, got: {node_output}"
+        assert "not found" in node_output.get("error", "").lower(), (
+            f"Expected 'not found' error, got: {node_output.get('error')}"
+        )
 
     def test_create_workflow_without_nodes(self, real_db_client):
         """Workflow with empty graph_definition should still be creatable."""

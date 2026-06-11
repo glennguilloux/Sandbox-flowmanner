@@ -14,9 +14,9 @@ This script:
 import asyncio
 import json
 import logging
-import sys
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,41 +28,39 @@ logger = logging.getLogger(__name__)
 async def run():
     from sqlalchemy import text as sa_text
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import settings
 
     # ── 1. Bootstrap CapabilityRegistry ──────────────────────────────
     from app.services.nexus.capability_registry import (
-        get_capability_registry,
         Capability,
+        get_capability_registry,
     )
 
     registry = get_capability_registry()
 
     # Register agent templates as capabilities (same as lifespan._register_agent_capabilities)
     try:
-        from app.database import AsyncSessionLocal
         from sqlalchemy import select
+
+        from app.database import AsyncSessionLocal
         from app.models.agent import AgentTemplate
         from app.services.nexus.agent_templates import AGENT_TEMPLATES
 
         # DB templates
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
-                select(AgentTemplate).where(AgentTemplate.is_active.is_(True))
-            )
+            result = await session.execute(select(AgentTemplate).where(AgentTemplate.is_active.is_(True)))
             db_templates = result.scalars().all()
 
             for tpl in db_templates:
-                slug = (
-                    tpl.model_config.get("slug") if tpl.model_config else None
-                ) or tpl.name.lower().replace(" ", "-")
+                slug = (tpl.model_config.get("slug") if tpl.model_config else None) or tpl.name.lower().replace(
+                    " ", "-"
+                )
                 cap_id = f"agent:{slug}"
 
                 async def make_handler(template=tpl):
                     async def handler(params: dict):
-                        return {
-                            "agent": {"id": template.template_id, "name": template.name}
-                        }
+                        return {"agent": {"id": template.template_id, "name": template.name}}
 
                     return handler
 
@@ -125,21 +123,17 @@ async def run():
 
     # ── 2. Upsert into Postgres ──────────────────────────────────────
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     new_count = 0
     updated_count = 0
 
     async with engine.begin() as conn:
         exists = await conn.execute(
-            sa_text(
-                "SELECT 1 FROM information_schema.tables WHERE table_name = 'capabilities_catalog'"
-            )
+            sa_text("SELECT 1 FROM information_schema.tables WHERE table_name = 'capabilities_catalog'")
         )
         if not exists.fetchone():
-            logger.error(
-                "capabilities_catalog table does not exist. Run Alembic migration first."
-            )
+            logger.error("capabilities_catalog table does not exist. Run Alembic migration first.")
             await engine.dispose()
             return
 
@@ -147,7 +141,9 @@ async def run():
             slug = cap.id.replace(":", "__").replace("/", "__")
             handler_ref = None
             if cap.metadata.get("source") == "python":
-                handler_ref = f"app.services.nexus.agent_templates:get_template_by_id('{cap.metadata.get('template_id', '')}')"
+                handler_ref = (
+                    f"app.services.nexus.agent_templates:get_template_by_id('{cap.metadata.get('template_id', '')}')"
+                )
 
             row_data = {
                 "slug": slug,
@@ -155,12 +151,8 @@ async def run():
                 "description": cap.description,
                 "category": cap.category,
                 "handler_ref": handler_ref,
-                "input_schema": (
-                    json.dumps(cap.input_schema) if cap.input_schema else None
-                ),
-                "output_schema": (
-                    json.dumps(cap.output_schema) if cap.output_schema else None
-                ),
+                "input_schema": (json.dumps(cap.input_schema) if cap.input_schema else None),
+                "output_schema": (json.dumps(cap.output_schema) if cap.output_schema else None),
                 "timeout_seconds": cap.timeout_seconds,
                 "rate_limit": cap.rate_limit,
                 "source": cap.metadata.get("source", "builtin_imported"),
@@ -169,9 +161,7 @@ async def run():
             }
 
             result = await conn.execute(
-                sa_text(
-                    "SELECT id, version FROM capabilities_catalog WHERE slug = :slug"
-                ),
+                sa_text("SELECT id, version FROM capabilities_catalog WHERE slug = :slug"),
                 {"slug": slug},
             )
             existing = result.fetchone()

@@ -93,9 +93,7 @@ async def health():
         from app.services.langfuse_service import get_langfuse_service
 
         lf = get_langfuse_service()
-        circuit_state = (
-            lf.circuit_breaker.state.value if lf.circuit_breaker else "CLOSED"
-        )
+        circuit_state = lf.circuit_breaker.state.value if lf.circuit_breaker else "CLOSED"
     except Exception:
         logger.debug("circuit_breaker_state_failed", exc_info=True)
 
@@ -120,11 +118,7 @@ async def health():
                 "status": "healthy" if settings.LANGFUSE_ENABLED else "unhealthy",
                 "latency_ms": 0,
                 "circuit_state": circuit_state,
-                "detail": (
-                    "Langfuse observability"
-                    if settings.LANGFUSE_ENABLED
-                    else "Langfuse disabled"
-                ),
+                "detail": ("Langfuse observability" if settings.LANGFUSE_ENABLED else "Langfuse disabled"),
             },
             "reliability": {
                 "llm_success_rate": llm_success_rate,
@@ -240,15 +234,11 @@ async def ready():
 
     deps_ok = db_status == "ok" and redis_status == "ok"
     status = "ok" if deps_ok else "degraded"
-    return ReadyResponse(
-        status=status, database=db_status, redis=redis_status, qdrant=qdrant_status
-    )
+    return ReadyResponse(status=status, database=db_status, redis=redis_status, qdrant=qdrant_status)
 
 
 @router.get("/metrics")
 async def metrics():
     from prometheus_client import generate_latest
 
-    return Response(
-        content=generate_latest(), media_type="text/plain; version=0.0.4; charset=utf-8"
-    )
+    return Response(content=generate_latest(), media_type="text/plain; version=0.0.4; charset=utf-8")

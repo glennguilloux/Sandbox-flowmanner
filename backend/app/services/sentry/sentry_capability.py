@@ -185,9 +185,7 @@ def _create_search_issues_capability():
         limit = params.get("limit", 10)
 
         client = get_sentry_mcp_client()
-        issues = await client.search_similar_issues(
-            fingerprint=fingerprint, query=query, limit=limit
-        )
+        issues = await client.search_similar_issues(fingerprint=fingerprint, query=query, limit=limit)
 
         return {"issues": [issue.to_dict() for issue in issues], "count": len(issues)}
 

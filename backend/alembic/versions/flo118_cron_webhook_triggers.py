@@ -5,9 +5,10 @@ Revises: flo108_feedback
 Create Date: 2026-05-16
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from alembic import op
 
 # revision identifiers
 revision = "flo118_triggers"
@@ -25,9 +26,7 @@ def upgrade() -> None:
             primary_key=True,
             server_default=sa.text("gen_random_uuid()"),
         ),
-        sa.Column(
-            "user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True
-        ),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False, index=True),
         sa.Column(
             "mission_id",
             UUID(as_uuid=True),
@@ -60,9 +59,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_mission_triggers_status", "mission_triggers", ["status"])
-    op.create_index(
-        "ix_mission_triggers_next_fire_at", "mission_triggers", ["next_fire_at"]
-    )
+    op.create_index("ix_mission_triggers_next_fire_at", "mission_triggers", ["next_fire_at"])
 
     op.create_table(
         "trigger_logs",

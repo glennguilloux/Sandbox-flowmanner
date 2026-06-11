@@ -7,8 +7,8 @@ import pytest
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
+from app.api._mission_cqrs.deps import get_mission_commands, get_mission_queries
 from app.api.deps import get_current_user, get_db
-from app.api._mission_cqrs.deps import get_mission_queries, get_mission_commands
 from app.main_fastapi import app
 
 pytestmark = pytest.mark.integration
@@ -58,12 +58,12 @@ def make_user():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_user():
     return make_user()
 
 
-@pytest.fixture()
+@pytest.fixture
 def mission_service_mocks():
     """Mock CQRS handlers at the DI boundary.
 
@@ -154,7 +154,7 @@ def mission_service_mocks():
     app.dependency_overrides.pop(get_mission_commands, None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_client(mock_db_session, mock_user, mission_service_mocks):
     async def override_get_db():
         yield mock_db_session
@@ -172,7 +172,7 @@ def auth_client(mock_db_session, mock_user, mission_service_mocks):
     app.dependency_overrides.pop(get_current_user, None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def unauth_client(mock_db_session):
     async def override_get_db():
         yield mock_db_session
@@ -248,9 +248,7 @@ class TestMissionSlashCompatibility:
             ),
         ],
     )
-    def test_dual_routes_return_200(
-        self, auth_client, mission_service_mocks, path_a, path_b
-    ):
+    def test_dual_routes_return_200(self, auth_client, mission_service_mocks, path_a, path_b):
         if "/stream" in path_a:
             mission_service_mocks.queries.get_mission.side_effect = [
                 make_mission("pending"),

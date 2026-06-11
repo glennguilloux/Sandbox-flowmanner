@@ -148,9 +148,7 @@ async def get_tradeoff(
     best_quality = (
         max(
             models,
-            key=lambda m: {"excellent": 3, "good": 2, "moderate": 1}.get(
-                m["quality"], 0
-            ),
+            key=lambda m: {"excellent": 3, "good": 2, "moderate": 1}.get(m["quality"], 0),
         )
         if models
         else None
@@ -257,13 +255,8 @@ async def get_health(user: User = Depends(get_current_user)):
     try:
         providers = await router.check_all_providers_health()
         return {
-            "status": (
-                "healthy" if any(p.healthy for p in providers.values()) else "degraded"
-            ),
-            "providers": {
-                name: {"healthy": p.healthy, "error_count": p.error_count}
-                for name, p in providers.items()
-            },
+            "status": ("healthy" if any(p.healthy for p in providers.values()) else "degraded"),
+            "providers": {name: {"healthy": p.healthy, "error_count": p.error_count} for name, p in providers.items()},
         }
     except Exception as e:
         logger.error("LLM health check failed: %s", e)

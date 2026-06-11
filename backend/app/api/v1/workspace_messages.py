@@ -60,13 +60,9 @@ async def _verify_membership(db: AsyncSession, workspace_id: str, user_id: int) 
 @router.get("/{workspace_id}/messages")
 async def list_messages(
     workspace_id: str,
-    recipient_id: int = Query(
-        ..., description="The other participant in the DM conversation"
-    ),
+    recipient_id: int = Query(..., description="The other participant in the DM conversation"),
     limit: int = Query(50, ge=1, le=200),
-    before_id: int | None = Query(
-        None, description="Pagination: get messages older than this ID"
-    ),
+    before_id: int | None = Query(None, description="Pagination: get messages older than this ID"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -96,12 +92,7 @@ async def list_messages(
     if before_id:
         clause = and_(clause, WorkspaceMessage.id < before_id)
 
-    result = await db.execute(
-        select(WorkspaceMessage)
-        .where(clause)
-        .order_by(desc(WorkspaceMessage.id))
-        .limit(limit)
-    )
+    result = await db.execute(select(WorkspaceMessage).where(clause).order_by(desc(WorkspaceMessage.id)).limit(limit))
     messages = result.scalars().all()
 
     return [

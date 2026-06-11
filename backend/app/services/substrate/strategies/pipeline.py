@@ -11,7 +11,7 @@ Missing phase nodes are caught at validation time, not silently skipped.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from app.services.substrate.strategies.base import ExecutionStrategy
@@ -54,9 +54,7 @@ class PipelineStrategy(ExecutionStrategy):
 
         for node in workflow.nodes:
             if node.type != NodeType.PHASE_GATE:
-                errors.append(
-                    f"Pipeline node '{node.id}' must be PHASE_GATE, got {node.type.value}"
-                )
+                errors.append(f"Pipeline node '{node.id}' must be PHASE_GATE, got {node.type.value}")
 
         # Validate that all required phases have nodes
         phase_configs = {n.config.get("phase") for n in workflow.nodes}
@@ -95,9 +93,7 @@ class PipelineStrategy(ExecutionStrategy):
                         total_cost_usd=total_cost,
                     )
 
-                phase_node = next(
-                    (n for n in workflow.nodes if n.config.get("phase") == phase), None
-                )
+                phase_node = next((n for n in workflow.nodes if n.config.get("phase") == phase), None)
 
                 if phase_node is None:
                     # Should not happen — validate() catches this
@@ -127,9 +123,7 @@ class PipelineStrategy(ExecutionStrategy):
                     completed.append(phase_node.id)
                     total_tokens += result.get("tokens", 0)
                     total_cost += result.get("cost", 0.0)
-                    await executor.ws_manager.broadcast_phase(
-                        run_id, phase, "completed"
-                    )
+                    await executor.ws_manager.broadcast_phase(run_id, phase, "completed")
                 else:
                     logger.error("Phase %s failed: %s", phase, result.get("error"))
                     return StrategyResult(
@@ -163,9 +157,7 @@ class PipelineStrategy(ExecutionStrategy):
                                 total_tokens=total_tokens,
                                 total_cost_usd=total_cost,
                             )
-                        review_feedback = (
-                            output.get("feedback") if isinstance(output, dict) else None
-                        )
+                        review_feedback = output.get("feedback") if isinstance(output, dict) else None
                         current_phases = ["debate", "consensus", "synthesis", "review"]
                         break
             else:

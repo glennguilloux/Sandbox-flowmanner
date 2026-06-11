@@ -328,9 +328,7 @@ class MemoryService:
                     "content": entry.content,
                     "memory_type": entry.memory_type,
                     "importance": entry.importance,
-                    "created_at": (
-                        entry.created_at.isoformat() if entry.created_at else ""
-                    ),
+                    "created_at": (entry.created_at.isoformat() if entry.created_at else ""),
                     "metadata": entry.meta or {},
                 }
                 memories.append(mem)
@@ -341,22 +339,16 @@ class MemoryService:
                 scored: list[tuple[int, dict]] = []
                 for m in memories:
                     score = sum(
-                        1
-                        for word in query_lower.split()
-                        if len(word) > 2 and word in m.get("content", "").lower()
+                        1 for word in query_lower.split() if len(word) > 2 and word in m.get("content", "").lower()
                     )
                     if score > 0:
                         scored.append((score, m))
-                scored.sort(
-                    key=lambda x: (x[1].get("importance", 0), x[0]), reverse=True
-                )
+                scored.sort(key=lambda x: (x[1].get("importance", 0), x[0]), reverse=True)
                 memories = [m for _, m in scored]
 
             return memories[:limit]
         except Exception as e:
-            logger.warning(
-                "Memory retrieve_by_query failed for agent %s: %s", agent_id, e
-            )
+            logger.warning("Memory retrieve_by_query failed for agent %s: %s", agent_id, e)
             return []
         finally:
             if owns:
@@ -370,9 +362,7 @@ class MemoryService:
 
             from app.models.memory_models import MemoryEntry
 
-            result = await session.execute(
-                sa_delete(MemoryEntry).where(MemoryEntry.id == memory_id)
-            )
+            result = await session.execute(sa_delete(MemoryEntry).where(MemoryEntry.id == memory_id))
             if owns:
                 await session.commit()
 

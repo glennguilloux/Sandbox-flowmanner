@@ -30,9 +30,7 @@ class GoogleWorkspaceHubInput(ToolInput):
     subject: str | None = Field(None, description="Email subject")
     body: str | None = Field(None, description="Email body text")
     email_id: str | None = Field(None, description="Gmail message ID")
-    query: str | None = Field(
-        None, description="Gmail search query or Drive search query"
-    )
+    query: str | None = Field(None, description="Gmail search query or Drive search query")
     # Calendar fields
     calendar_id: str = Field("primary", description="Calendar ID (default: 'primary')")
     event_summary: str | None = Field(None, description="Event title/summary")
@@ -70,9 +68,7 @@ class GoogleWorkspaceHubTool(BaseTool):
         # Try service account
         creds_str = credentials_json or os.getenv("GOOGLE_CREDENTIALS", "")
         if not creds_str:
-            raise ValueError(
-                "No Google credentials. Set GOOGLE_CREDENTIALS or pass credentials_json."
-            )
+            raise ValueError("No Google credentials. Set GOOGLE_CREDENTIALS or pass credentials_json.")
 
         creds = json.loads(creds_str)
 
@@ -108,12 +104,8 @@ class GoogleWorkspaceHubTool(BaseTool):
                 r = await client.post(
                     "https://oauth2.googleapis.com/token",
                     data={
-                        "client_id": creds.get(
-                            "client_id", os.getenv("GOOGLE_CLIENT_ID", "")
-                        ),
-                        "client_secret": creds.get(
-                            "client_secret", os.getenv("GOOGLE_CLIENT_SECRET", "")
-                        ),
+                        "client_id": creds.get("client_id", os.getenv("GOOGLE_CLIENT_ID", "")),
+                        "client_secret": creds.get("client_secret", os.getenv("GOOGLE_CLIENT_SECRET", "")),
                         "refresh_token": creds["refresh_token"],
                         "grant_type": "refresh_token",
                     },
@@ -122,24 +114,18 @@ class GoogleWorkspaceHubTool(BaseTool):
                     raise ValueError(f"Failed to refresh token: {r.text}")
                 return r.json()["access_token"]
 
-        raise ValueError(
-            "Invalid credentials format. Need service account JSON or OAuth refresh_token."
-        )
+        raise ValueError("Invalid credentials format. Need service account JSON or OAuth refresh_token.")
 
     async def execute(self, input_data: dict) -> ToolResult:
         try:
             validated = GoogleWorkspaceHubInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             access_token = await self._get_access_token(validated.credentials_json)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Auth failed: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Auth failed: {e}")
 
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -164,9 +150,7 @@ class GoogleWorkspaceHubTool(BaseTool):
                 elif action == "search_drive":
                     return await self._search_drive(client, validated)
                 else:
-                    return ToolResult.error_result(
-                        tool_id=self.tool_id, error=f"Unknown action: {action}"
-                    )
+                    return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}")
         except Exception as e:
             logger.exception("google_workspace_hub failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -175,27 +159,18 @@ class GoogleWorkspaceHubTool(BaseTool):
         params: dict = {"maxResults": v.max_results}
         if v.query:
             params["q"] = v.query
-        r = await client.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages", params=params
-        )
+        r = await client.get("https://gmail.googleapis.com/gmail/v1/users/me/messages", params=params)
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Gmail API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Gmail API error: {r.status_code}")
         data = r.json()
         messages = data.get("messages", [])
         # Get details for each
         emails = []
         for msg in messages[: min(v.max_results, 10)]:
-            detail = await client.get(
-                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg['id']}"
-            )
+            detail = await client.get(f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg['id']}")
             if detail.status_code == 200:
                 d = detail.json()
-                headers = {
-                    h["name"]: h["value"]
-                    for h in d.get("payload", {}).get("headers", [])
-                }
+                headers = {h["name"]: h["value"] for h in d.get("payload", {}).get("headers", [])}
                 snippet = d.get("snippet", "")
                 emails.append(
                     {
@@ -218,21 +193,15 @@ class GoogleWorkspaceHubTool(BaseTool):
 
     async def _get_email(self, client: httpx.AsyncClient, v) -> ToolResult:
         if not v.email_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="email_id required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="email_id required")
         r = await client.get(
             f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{v.email_id}",
             params={"format": "full"},
         )
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Gmail API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Gmail API error: {r.status_code}")
         d = r.json()
-        headers = {
-            h["name"]: h["value"] for h in d.get("payload", {}).get("headers", [])
-        }
+        headers = {h["name"]: h["value"] for h in d.get("payload", {}).get("headers", [])}
         # Extract body
         body = ""
         parts = d.get("payload", {}).get("parts", [])
@@ -241,13 +210,9 @@ class GoogleWorkspaceHubTool(BaseTool):
                 if part.get("mimeType") == "text/plain":
                     body_data = part.get("body", {}).get("data", "")
                     if body_data:
-                        body = base64.urlsafe_b64decode(body_data + "==").decode(
-                            "utf-8", errors="replace"
-                        )
+                        body = base64.urlsafe_b64decode(body_data + "==").decode("utf-8", errors="replace")
         elif d.get("payload", {}).get("body", {}).get("data"):
-            body = base64.urlsafe_b64decode(d["payload"]["body"]["data"] + "==").decode(
-                "utf-8", errors="replace"
-            )
+            body = base64.urlsafe_b64decode(d["payload"]["body"]["data"] + "==").decode("utf-8", errors="replace")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={
@@ -262,9 +227,7 @@ class GoogleWorkspaceHubTool(BaseTool):
 
     async def _send_email(self, client: httpx.AsyncClient, v) -> ToolResult:
         if not v.to or not v.subject or not v.body:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="to, subject, and body required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="to, subject, and body required")
         msg = MIMEText(v.body)
         msg["to"] = v.to
         msg["subject"] = v.subject
@@ -294,17 +257,13 @@ class GoogleWorkspaceHubTool(BaseTool):
             },
         )
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Calendar API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Calendar API error: {r.status_code}")
         data = r.json()
         events = [
             {
                 "id": e["id"],
                 "summary": e.get("summary"),
-                "start": e.get("start", {}).get(
-                    "dateTime", e.get("start", {}).get("date")
-                ),
+                "start": e.get("start", {}).get("dateTime", e.get("start", {}).get("date")),
                 "end": e.get("end", {}).get("dateTime", e.get("end", {}).get("date")),
                 "location": e.get("location"),
             }
@@ -349,9 +308,7 @@ class GoogleWorkspaceHubTool(BaseTool):
         }
         r = await client.get("https://www.googleapis.com/drive/v3/files", params=params)
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Drive API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Drive API error: {r.status_code}")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={"action": "list_files", "files": r.json().get("files", [])},
@@ -370,9 +327,7 @@ class GoogleWorkspaceHubTool(BaseTool):
         }
         r = await client.get("https://www.googleapis.com/drive/v3/files", params=params)
         if r.status_code != 200:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Drive API error: {r.status_code}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Drive API error: {r.status_code}")
         return ToolResult.success_result(
             tool_id=self.tool_id,
             result={

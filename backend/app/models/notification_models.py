@@ -84,14 +84,10 @@ class Notification(Base, TimestampMixin):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    notification_type: Mapped[str] = mapped_column(
-        String(50), default="info", nullable=False
-    )
+    notification_type: Mapped[str] = mapped_column(String(50), default="info", nullable=False)
     severity: Mapped[str] = mapped_column(String(20), default="info", nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    read_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     entity_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     meta: Mapped[str | None] = mapped_column(Text, nullable=True)

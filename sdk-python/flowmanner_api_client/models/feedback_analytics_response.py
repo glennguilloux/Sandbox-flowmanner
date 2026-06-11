@@ -111,9 +111,7 @@ class FeedbackAnalyticsResponse:
                 return data
             return cast(float | None | Unset, data)
 
-        avg_efficiency_score = _parse_avg_efficiency_score(
-            d.pop("avg_efficiency_score", UNSET)
-        )
+        avg_efficiency_score = _parse_avg_efficiency_score(d.pop("avg_efficiency_score", UNSET))
 
         def _parse_avg_quality_score(data: object) -> float | None | Unset:
             if data is None:
@@ -129,9 +127,7 @@ class FeedbackAnalyticsResponse:
         if _top_patterns is not UNSET:
             top_patterns = []
             for top_patterns_item_data in _top_patterns:
-                top_patterns_item = FeedbackAnalyticsResponseTopPatternsItem.from_dict(
-                    top_patterns_item_data
-                )
+                top_patterns_item = FeedbackAnalyticsResponseTopPatternsItem.from_dict(top_patterns_item_data)
 
                 top_patterns.append(top_patterns_item)
 
@@ -140,9 +136,7 @@ class FeedbackAnalyticsResponse:
         if _score_trend is not UNSET:
             score_trend = []
             for score_trend_item_data in _score_trend:
-                score_trend_item = FeedbackAnalyticsResponseScoreTrendItem.from_dict(
-                    score_trend_item_data
-                )
+                score_trend_item = FeedbackAnalyticsResponseScoreTrendItem.from_dict(score_trend_item_data)
 
                 score_trend.append(score_trend_item)
 

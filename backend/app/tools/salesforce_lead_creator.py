@@ -113,9 +113,7 @@ class SalesforceLeadCreatorTool(BaseTool):
         try:
             validated = SalesforceLeadCreatorInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if validated.action not in SALESFORCE_ACTIONS:
             return ToolResult.error_result(
@@ -126,14 +124,10 @@ class SalesforceLeadCreatorTool(BaseTool):
         if not SALESFORCE_INSTANCE_URL or not SALESFORCE_ACCESS_TOKEN:
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error=(
-                    "Salesforce not configured. Set SALESFORCE_INSTANCE_URL and SALESFORCE_ACCESS_TOKEN."
-                ),
+                error=("Salesforce not configured. Set SALESFORCE_INSTANCE_URL and SALESFORCE_ACCESS_TOKEN."),
             )
 
-        if is_placeholder(SALESFORCE_INSTANCE_URL) or is_placeholder(
-            SALESFORCE_ACCESS_TOKEN
-        ):
+        if is_placeholder(SALESFORCE_INSTANCE_URL) or is_placeholder(SALESFORCE_ACCESS_TOKEN):
             return ToolResult.error_result(
                 tool_id=self.tool_id,
                 error=(
@@ -159,9 +153,7 @@ class SalesforceLeadCreatorTool(BaseTool):
 
     # ── _execute_action ──────────────────────────────────────────
 
-    async def _execute_action(
-        self, validated: SalesforceLeadCreatorInput
-    ) -> dict[str, Any]:
+    async def _execute_action(self, validated: SalesforceLeadCreatorInput) -> dict[str, Any]:
         """Route to the appropriate Salesforce API handler."""
         headers = {
             "Authorization": f"Bearer {SALESFORCE_ACCESS_TOKEN}",
@@ -177,17 +169,13 @@ class SalesforceLeadCreatorTool(BaseTool):
             if validated.action == "create_lead":
                 return await self._create_lead(client, base, validated.lead_data)
             elif validated.action == "update_lead":
-                return await self._update_lead(
-                    client, base, validated.lead_id, validated.lead_data
-                )
+                return await self._update_lead(client, base, validated.lead_id, validated.lead_data)
             elif validated.action == "get_lead":
                 return await self._get_lead(client, base, validated.lead_id)
             elif validated.action == "search_leads":
                 return await self._search_leads(client, base, validated.search_term)
             elif validated.action == "convert_lead":
-                return await self._convert_lead(
-                    client, base, validated.lead_id, validated.converted_status
-                )
+                return await self._convert_lead(client, base, validated.lead_id, validated.converted_status)
             elif validated.action == "soql_query":
                 return await self._soql_query(client, base, validated.soql_query)
             else:
@@ -342,9 +330,7 @@ class SalesforceLeadCreatorTool(BaseTool):
             "total_size": data.get("totalSize", 0),
             "done": data.get("done", True),
             "count": len(records),
-            "records": [
-                {k: v for k, v in r.items() if k != "attributes"} for r in records
-            ],
+            "records": [{k: v for k, v in r.items() if k != "attributes"} for r in records],
         }
 
     # ── Helpers ──────────────────────────────────────────────────

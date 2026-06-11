@@ -70,15 +70,11 @@ async def list_agents_registry(
             "pages": pages,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/agents")
-@router.post(
-    "/agents/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/agents/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 async def create_agent_registry(
     payload: AgentCreate,
     db: AsyncSession = Depends(get_db),
@@ -96,9 +92,7 @@ async def create_agent_registry(
             payload.config,
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ---- /api/agent-registry/register ----
@@ -121,9 +115,7 @@ async def register_agent(
         name = payload.get("name", "Unnamed Agent")
         description = payload.get("description")
         system_prompt = payload.get("system_prompt")
-        model_reference = payload.get(
-            "model_reference", payload.get("model_preference")
-        )
+        model_reference = payload.get("model_reference", payload.get("model_preference"))
         config = payload.get("config")
         agent = await create_agent(
             db,
@@ -136,9 +128,7 @@ async def register_agent(
         )
         return {"status": "registered", "agent": agent}
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ---- /api/agent-registry/agents/{agent_id} ----
@@ -156,9 +146,7 @@ async def get_agent_registry(
         _require_owner(agent, user)
         return agent
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.put("/agents/{agent_id}")
@@ -185,9 +173,7 @@ async def update_agent_registry(
             raise _not_found()
         return updated
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/agents/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -203,9 +189,7 @@ async def delete_agent_registry(
         if not await delete_agent(db, agent_id):
             raise _not_found()
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ---- /api/agent-registry/agents/{agent_id}/start ----
@@ -235,6 +219,4 @@ async def start_agent(
             "system_prompt": agent.system_prompt or "You are a helpful assistant.",
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

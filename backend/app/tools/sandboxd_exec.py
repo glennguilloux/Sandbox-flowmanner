@@ -57,9 +57,7 @@ class SandboxdExecInput(ToolInput):
         default="python",
         description="Runtime: python | node | bash | go (only used when `code` is set, ignored when `command` is set)",
     )
-    timeout_seconds: int = Field(
-        default=60, ge=5, le=300, description="Execution timeout (5-300s)"
-    )
+    timeout_seconds: int = Field(default=60, ge=5, le=300, description="Execution timeout (5-300s)")
 
 
 # ── Tool ──────────────────────────────────────────────────────────────
@@ -107,9 +105,7 @@ class SandboxdExecTool(BaseTool):
         try:
             validated = SandboxdExecInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Validate: at least one of `command` or `code` must be provided
         if not validated.command and not validated.code:
@@ -152,9 +148,7 @@ class SandboxdExecTool(BaseTool):
             else:
                 cmd = [*(_LANG_CMDS[lang]), validated.code]
 
-            result = await client.exec_command(
-                sandbox_id, cmd, timeout=float(validated.timeout_seconds)
-            )
+            result = await client.exec_command(sandbox_id, cmd, timeout=float(validated.timeout_seconds))
 
             exit_code = result.get("exit_code", 0)
             stderr = result.get("stderr", "")

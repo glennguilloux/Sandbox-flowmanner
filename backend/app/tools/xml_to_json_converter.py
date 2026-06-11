@@ -105,18 +105,14 @@ class XmlToJsonConverterTool(BaseTool):
         try:
             validated = XmlToJsonInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         try:
             xml_bytes = await resolve_input(validated.data, validated.url, label="XML")
         except ValueError as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Failed to read XML: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Failed to read XML: {e}")
 
         try:
             xml_str = xml_bytes.decode("utf-8")
@@ -140,9 +136,7 @@ class XmlToJsonConverterTool(BaseTool):
                 },
             )
         except ET.ParseError as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"XML parse error: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"XML parse error: {e}")
         except Exception as e:
             logger.exception("xml_to_json_converter failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))

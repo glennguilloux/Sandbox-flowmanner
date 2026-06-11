@@ -48,10 +48,7 @@ def _column_type_name(table_name: str, column_name: str) -> str | None:
     """Return the DB type name of a column, or None if the column doesn't exist."""
     bind = op.get_bind()
     try:
-        cols = {
-            c["name"]: str(c["type"])
-            for c in sa.inspect(bind).get_columns(table_name)
-        }
+        cols = {c["name"]: str(c["type"]) for c in sa.inspect(bind).get_columns(table_name)}
         return cols.get(column_name)
     except Exception:
         return None
@@ -60,9 +57,7 @@ def _column_type_name(table_name: str, column_name: str) -> str | None:
 def upgrade() -> None:
     # ── Clean up orphaned mission_id values ──
     # mission_runs has NOT NULL + 6 orphans: drop constraint, clean up, restore
-    op.execute(
-        "ALTER TABLE mission_runs ALTER COLUMN mission_id DROP NOT NULL"
-    )
+    op.execute("ALTER TABLE mission_runs ALTER COLUMN mission_id DROP NOT NULL")
     op.execute(
         "UPDATE mission_runs SET mission_id = NULL "
         "WHERE mission_id IS NOT NULL "
@@ -72,18 +67,14 @@ def upgrade() -> None:
     for table in ["learning_feedback", "substrate_events"]:
         # substrate_events has an append-only trigger — disable temporarily for orphan cleanup
         if table == "substrate_events":
-            op.execute(
-                "ALTER TABLE substrate_events DISABLE TRIGGER trg_substrate_events_append_only"
-            )
+            op.execute("ALTER TABLE substrate_events DISABLE TRIGGER trg_substrate_events_append_only")
         op.execute(
             f"UPDATE {table} SET mission_id = NULL "
             f"WHERE mission_id IS NOT NULL "
             f"AND NOT EXISTS (SELECT 1 FROM missions m WHERE m.id = {table}.mission_id)"
         )
         if table == "substrate_events":
-            op.execute(
-                "ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only"
-            )
+            op.execute("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
 
     # ── Clean up orphaned agent_id values ──
     for table in ["learning_feedback"]:
@@ -141,9 +132,7 @@ def upgrade() -> None:
             continue
         constraint_name = f"fk_{table}_mission_id"
         op.execute(
-            f"ALTER TABLE {table} "
-            f"ADD CONSTRAINT {constraint_name} "
-            f"FOREIGN KEY (mission_id) REFERENCES missions(id)"
+            f"ALTER TABLE {table} ADD CONSTRAINT {constraint_name} FOREIGN KEY (mission_id) REFERENCES missions(id)"
         )
 
     # ── Add agent_id FK constraints ──
@@ -177,11 +166,7 @@ def upgrade() -> None:
         if _fk_exists(table, "agent_id", "agents"):
             continue
         constraint_name = f"fk_{table}_agent_id"
-        op.execute(
-            f"ALTER TABLE {table} "
-            f"ADD CONSTRAINT {constraint_name} "
-            f"FOREIGN KEY (agent_id) REFERENCES agents(id)"
-        )
+        op.execute(f"ALTER TABLE {table} ADD CONSTRAINT {constraint_name} FOREIGN KEY (agent_id) REFERENCES agents(id)")
 
 
 def downgrade() -> None:
@@ -198,9 +183,7 @@ def downgrade() -> None:
     ]
     for table in agent_tables:
         constraint_name = f"fk_{table}_agent_id"
-        op.execute(
-            f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}"
-        )
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
 
     # Revert llm_call_records.agent_id varchar → uuid
     col_type = _column_type_name("llm_call_records", "agent_id")
@@ -229,6 +212,4 @@ def downgrade() -> None:
     ]
     for table in mission_tables:
         constraint_name = f"fk_{table}_mission_id"
-        op.execute(
-            f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}"
-        )
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")

@@ -20,12 +20,8 @@ class ExecuteRequest(BaseModel):
     strategy: str = Field("parallel", pattern="^(parallel|sequential|debate)$")
     max_agents: int = Field(5, ge=1, le=10)
     metadata: dict[str, Any] | None = None
-    byok_key_id: int | None = Field(
-        None, description="User API key ID to use instead of default LLM provider"
-    )
-    model_override: str | None = Field(
-        None, description="Override the model used by agents"
-    )
+    byok_key_id: int | None = Field(None, description="User API key ID to use instead of default LLM provider")
+    model_override: str | None = Field(None, description="Override the model used by agents")
 
 
 @router.post("/execute")
@@ -62,12 +58,8 @@ async def execute_swarm(
         "synthesis": execution.synthesis,
         "conflict_markers": execution.conflict_markers,
         "error_message": execution.error_message,
-        "started_at": (
-            execution.started_at.isoformat() if execution.started_at else None
-        ),
-        "completed_at": (
-            execution.completed_at.isoformat() if execution.completed_at else None
-        ),
+        "started_at": (execution.started_at.isoformat() if execution.started_at else None),
+        "completed_at": (execution.completed_at.isoformat() if execution.completed_at else None),
         "tasks": [
             {
                 "id": t.id,
@@ -148,12 +140,8 @@ async def get_execution(
         "total_tokens": execution.total_tokens,
         "total_cost_usd": execution.total_cost_usd,
         "error_message": execution.error_message,
-        "started_at": (
-            execution.started_at.isoformat() if execution.started_at else None
-        ),
-        "completed_at": (
-            execution.completed_at.isoformat() if execution.completed_at else None
-        ),
+        "started_at": (execution.started_at.isoformat() if execution.started_at else None),
+        "completed_at": (execution.completed_at.isoformat() if execution.completed_at else None),
         "tasks": [
             {
                 "id": t.id,

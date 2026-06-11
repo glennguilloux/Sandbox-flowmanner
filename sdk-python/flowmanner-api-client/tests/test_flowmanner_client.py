@@ -6,12 +6,11 @@ Tests use httpx.MockTransport to intercept HTTP requests without hitting a real 
 from __future__ import annotations
 
 import json
-import os
-import pytest
+
 import httpx
+import pytest
 
 from flowmanner_api_client.high_level import FlowmannerClient
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -78,9 +77,7 @@ class TestConstructor:
         assert client._api_key == "sk-explicit"
 
     def test_custom_timeout(self):
-        client = FlowmannerClient(
-            base_url="https://example.com", api_key="sk-test", timeout=60
-        )
+        client = FlowmannerClient(base_url="https://example.com", api_key="sk-test", timeout=60)
         # Verify the client was created (timeout is passed to httpx)
         assert client._client is not None
 
@@ -121,18 +118,14 @@ class TestMissions:
     def _make_client(self, handler):
         client = FlowmannerClient(base_url="https://example.com", api_key="sk-test")
         client._client.set_httpx_client(
-            httpx.Client(
-                transport=_mock_transport(handler), base_url="https://example.com"
-            )
+            httpx.Client(transport=_mock_transport(handler), base_url="https://example.com")
         )
         return client
 
     def test_create_mission(self):
         calls = []
         client = self._make_client(_ok_handler(calls))
-        result = client.create_mission(
-            title="Test", description="Desc", mission_type="research", priority="high"
-        )
+        result = client.create_mission(title="Test", description="Desc", mission_type="research", priority="high")
         assert result == {"ok": True}
         assert len(calls) == 1
         assert calls[0]["method"] == "POST"
@@ -224,9 +217,7 @@ class TestTasksAndLogs:
     def _make_client(self, handler):
         client = FlowmannerClient(base_url="https://example.com", api_key="sk-test")
         client._client.set_httpx_client(
-            httpx.Client(
-                transport=_mock_transport(handler), base_url="https://example.com"
-            )
+            httpx.Client(transport=_mock_transport(handler), base_url="https://example.com")
         )
         return client
 
@@ -258,9 +249,7 @@ class TestAnalytics:
     def _make_client(self, handler):
         client = FlowmannerClient(base_url="https://example.com", api_key="sk-test")
         client._client.set_httpx_client(
-            httpx.Client(
-                transport=_mock_transport(handler), base_url="https://example.com"
-            )
+            httpx.Client(transport=_mock_transport(handler), base_url="https://example.com")
         )
         return client
 
@@ -299,9 +288,7 @@ class TestSystem:
     def _make_client(self, handler):
         client = FlowmannerClient(base_url="https://example.com", api_key="sk-test")
         client._client.set_httpx_client(
-            httpx.Client(
-                transport=_mock_transport(handler), base_url="https://example.com"
-            )
+            httpx.Client(transport=_mock_transport(handler), base_url="https://example.com")
         )
         return client
 
@@ -340,9 +327,7 @@ class TestErrorHandling:
     def _make_client(self, handler):
         client = FlowmannerClient(base_url="https://example.com", api_key="sk-test")
         client._client.set_httpx_client(
-            httpx.Client(
-                transport=_mock_transport(handler), base_url="https://example.com"
-            )
+            httpx.Client(transport=_mock_transport(handler), base_url="https://example.com")
         )
         return client
 
@@ -411,9 +396,7 @@ class TestAuthHeader:
 
         client = FlowmannerClient(base_url="https://example.com", api_key="sk-test")
         client._client.set_httpx_client(
-            httpx.Client(
-                transport=_mock_transport(handler), base_url="https://example.com"
-            )
+            httpx.Client(transport=_mock_transport(handler), base_url="https://example.com")
         )
         result = client.health_check()
         assert result == {"status": "healthy"}

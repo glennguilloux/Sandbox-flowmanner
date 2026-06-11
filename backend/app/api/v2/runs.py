@@ -31,9 +31,7 @@ async def list_runs(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     blueprint_id: str | None = Query(None, description="Filter by blueprint ID"),
-    status_filter: str | None = Query(
-        None, alias="status", description="Filter by status"
-    ),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status"),
     user: User = Depends(get_current_user),
     workspace_id: str | None = Depends(get_workspace_id),
     q: RunQueryHandlers = Depends(get_run_queries),
@@ -112,9 +110,7 @@ async def get_run_events(
     q: RunQueryHandlers = Depends(get_run_queries),
 ):
     """Get substrate event stream for this run."""
-    events = await q.get_events(
-        user.id, run_id, from_sequence=from_sequence, limit=limit
-    )
+    events = await q.get_events(user.id, run_id, from_sequence=from_sequence, limit=limit)
     return ok(
         {
             "run_id": run_id,
@@ -131,9 +127,7 @@ async def get_run_events(
 @router.get("/{run_id}/replay/")
 async def replay_run(
     run_id: str,
-    at_sequence: int | None = Query(
-        None, ge=0, description="Replay up to this sequence (time-travel)"
-    ),
+    at_sequence: int | None = Query(None, ge=0, description="Replay up to this sequence (time-travel)"),
     user: User = Depends(get_current_user),
     q: RunQueryHandlers = Depends(get_run_queries),
 ):

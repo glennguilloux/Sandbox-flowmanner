@@ -12,17 +12,13 @@ class ServiceAuthManager:
     def __init__(self, secret_key: str):
         self.secret_key = secret_key
 
-    def generate_token(
-        self, service_name: str, allowed_endpoints: list[str], expires_hours: int = 24
-    ) -> str:
+    def generate_token(self, service_name: str, allowed_endpoints: list[str], expires_hours: int = 24) -> str:
         """Generate JWT token for service authentication"""
         payload = {
             "service": service_name,
             "endpoints": allowed_endpoints,
             "exp": jwt.utils.get_int_from_datetime(
-                jwt.utils.datetime_from_timestamp(
-                    jwt.utils.time.time() + expires_hours * 3600
-                )
+                jwt.utils.datetime_from_timestamp(jwt.utils.time.time() + expires_hours * 3600)
             ),
             "iat": jwt.utils.time.time(),
         }
@@ -40,9 +36,7 @@ class ServiceAuthManager:
             logger.warning("Invalid service token: %s", e)
             return None
 
-    def is_service_allowed(
-        self, service_name: str, endpoint: str, allowed_endpoints: list[str]
-    ) -> bool:
+    def is_service_allowed(self, service_name: str, endpoint: str, allowed_endpoints: list[str]) -> bool:
         """Check if service is allowed to access endpoint"""
         # Check exact match
         if endpoint in allowed_endpoints:
@@ -54,9 +48,7 @@ class ServiceAuthManager:
                 # Convert pattern to regex-like matching
                 pattern_parts = pattern.split("*")
                 if len(pattern_parts) == 2:
-                    if endpoint.startswith(pattern_parts[0]) and endpoint.endswith(
-                        pattern_parts[1]
-                    ):
+                    if endpoint.startswith(pattern_parts[0]) and endpoint.endswith(pattern_parts[1]):
                         return True
 
         return False
@@ -107,12 +99,8 @@ def require_service_auth(f):
             service_name = payload.get("service")
             allowed_endpoints = payload.get("endpoints", [])
 
-            if not auth_manager.is_service_allowed(
-                service_name, request.path, allowed_endpoints
-            ):
-                logger.warning(
-                    "Service %s not authorized for %s", service_name, request.path
-                )
+            if not auth_manager.is_service_allowed(service_name, request.path, allowed_endpoints):
+                logger.warning("Service %s not authorized for %s", service_name, request.path)
                 return (
                     jsonify(
                         {
@@ -170,9 +158,7 @@ class ServiceRegistry:
     def __init__(self):
         self.services = {}
 
-    def register_service(
-        self, name: str, description: str, allowed_endpoints: list[str]
-    ):
+    def register_service(self, name: str, description: str, allowed_endpoints: list[str]):
         """Register a service with its permissions"""
         self.services[name] = {
             "description": description,

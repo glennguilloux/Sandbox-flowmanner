@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.services.substrate.strategies.graph import GraphStrategy
 from app.services.substrate.workflow_models import (
-    Workflow,
-    WorkflowNode,
-    WorkflowEdge,
-    WorkflowType,
     StrategyResult,
+    Workflow,
+    WorkflowEdge,
+    WorkflowNode,
+    WorkflowType,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -496,9 +496,7 @@ class TestEvaluateCondition:
         s = GraphStrategy()
         for val in ("true", "success", "completed", "True", "SUCCESS"):
             edge = WorkflowEdge(source="a", target="b", condition="{{a.output.s}}")
-            assert (
-                s._evaluate_condition(edge, {"a": {"output": {"s": val}}}) is True
-            ), f"Failed for {val}"
+            assert s._evaluate_condition(edge, {"a": {"output": {"s": val}}}) is True, f"Failed for {val}"
 
     def test_string_false(self):
         s = GraphStrategy()
@@ -515,9 +513,7 @@ class TestEvaluateCondition:
         """If condition resolution raises, default to True."""
         s = GraphStrategy()
         edge = WorkflowEdge(source="a", target="b", condition="always")
-        with patch.object(
-            s, "_resolve_interpolation", side_effect=RuntimeError("boom")
-        ):
+        with patch.object(s, "_resolve_interpolation", side_effect=RuntimeError("boom")):
             assert s._evaluate_condition(edge, {}) is True
 
 
@@ -568,9 +564,7 @@ class TestResolveRef:
 
     def test_nested_ref(self):
         s = GraphStrategy()
-        assert (
-            s._resolve_ref("n1.output.text", {"n1": {"output": {"text": "hi"}}}) == "hi"
-        )
+        assert s._resolve_ref("n1.output.text", {"n1": {"output": {"text": "hi"}}}) == "hi"
 
     def test_missing_node(self):
         s = GraphStrategy()
@@ -578,9 +572,7 @@ class TestResolveRef:
 
     def test_traversal_through_non_dict(self):
         s = GraphStrategy()
-        assert (
-            s._resolve_ref("n1.output.text.deep", {"n1": {"output": "scalar"}}) is None
-        )
+        assert s._resolve_ref("n1.output.text.deep", {"n1": {"output": "scalar"}}) is None
 
 
 # ── _topological_sort_for_ids ────────────────────────────────────────
@@ -648,8 +640,6 @@ class TestGraphTopologicalSort:
         ]
         wf = _make_graph_workflow(nodes=nodes, edges=edges)
         # Only sort {b, c}
-        layers = s._topological_sort_for_ids(
-            wf, {"b", "c"}, [WorkflowEdge(source="b", target="c")]
-        )
+        layers = s._topological_sort_for_ids(wf, {"b", "c"}, [WorkflowEdge(source="b", target="c")])
         assert layers[0] == ["b"]
         assert layers[1] == ["c"]

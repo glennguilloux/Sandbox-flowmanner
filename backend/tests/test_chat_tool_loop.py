@@ -139,9 +139,7 @@ class TestExecuteToolCall:
         mock_registry.get.return_value = mock_tool
 
         with patch("app.tools.base.get_tool_registry", return_value=mock_registry):
-            result = await _execute_tool_call(
-                "sandboxd_preview", '{"sandbox_id": "sb-123"}'
-            )
+            result = await _execute_tool_call("sandboxd_preview", '{"sandbox_id": "sb-123"}')
 
         parsed = json.loads(result)
         assert parsed["sandbox_id"] == "sb-123"
@@ -265,9 +263,7 @@ class TestStreamingToolLoop:
         mock_msg.id = 42
 
         with (
-            patch(
-                "app.services.chat_service._get_chat_openai_tools", return_value=None
-            ),
+            patch("app.services.chat_service._get_chat_openai_tools", return_value=None),
             patch("app.services.chat_service._client", mock_client),
             patch("app.services.chat_service._LLM_API_BASE", "http://test/v1"),
             patch("app.services.chat_service._LLM_API_KEY", "test-key"),
@@ -290,9 +286,7 @@ class TestStreamingToolLoop:
             patch("app.services.chat_service.AsyncOpenAI", return_value=mock_client),
         ):
             events = []
-            async for event in stream_message_to_llm(
-                mock_db, thread_id=1, content="Hi", user_id=1
-            ):
+            async for event in stream_message_to_llm(mock_db, thread_id=1, content="Hi", user_id=1):
                 events.append(json.loads(event))
 
         token_events = [e for e in events if e["type"] == "token"]
@@ -317,9 +311,7 @@ class TestStreamingToolLoop:
             name="sandboxd_preview",
             arguments="{}",
         )
-        tool_chunk = _make_stream_chunk(
-            tool_calls=[tc_delta], finish_reason="tool_calls"
-        )
+        tool_chunk = _make_stream_chunk(tool_calls=[tc_delta], finish_reason="tool_calls")
 
         # Round 2: LLM returns final text
         text_chunk = _make_stream_chunk(content="Preview ready!", finish_reason="stop")
@@ -389,9 +381,7 @@ class TestStreamingToolLoop:
             patch("app.tools.base.get_tool_registry", return_value=mock_registry),
         ):
             events = []
-            async for event in stream_message_to_llm(
-                mock_db, thread_id=1, content="Build a landing page", user_id=1
-            ):
+            async for event in stream_message_to_llm(mock_db, thread_id=1, content="Build a landing page", user_id=1):
                 events.append(json.loads(event))
 
         # Verify tool call events
@@ -421,18 +411,14 @@ class TestStreamingToolLoop:
         mock_db = AsyncMock()
 
         # Round 1: LLM returns 2 tool calls
-        tc0 = _make_tool_call_delta(
-            index=0, tc_id="call_a", name="sandboxd_preview", arguments="{}"
-        )
+        tc0 = _make_tool_call_delta(index=0, tc_id="call_a", name="sandboxd_preview", arguments="{}")
         tc1 = _make_tool_call_delta(
             index=1,
             tc_id="call_b",
             name="sandboxd_file_write",
             arguments='{"path":"index.html","content":"<h1>Hi</h1>"}',
         )
-        tool_chunk = _make_stream_chunk(
-            tool_calls=[tc0, tc1], finish_reason="tool_calls"
-        )
+        tool_chunk = _make_stream_chunk(tool_calls=[tc0, tc1], finish_reason="tool_calls")
 
         text_chunk = _make_stream_chunk(content="Done!", finish_reason="stop")
 
@@ -475,9 +461,7 @@ class TestStreamingToolLoop:
         mock_msg.id = 77
 
         with (
-            patch(
-                "app.services.chat_service._get_chat_openai_tools", return_value=_TOOLS
-            ),
+            patch("app.services.chat_service._get_chat_openai_tools", return_value=_TOOLS),
             patch("app.services.chat_service._client", mock_client),
             patch("app.services.chat_service._LLM_API_BASE", "http://test/v1"),
             patch("app.services.chat_service._LLM_API_KEY", "k"),
@@ -528,17 +512,13 @@ class TestNonStreamingToolLoop:
 
         mock_response = MagicMock()
         mock_response.choices = [MagicMock(message=mock_message)]
-        mock_response.usage = MagicMock(
-            total_tokens=10, prompt_tokens=5, completion_tokens=5
-        )
+        mock_response.usage = MagicMock(total_tokens=10, prompt_tokens=5, completion_tokens=5)
 
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         with (
-            patch(
-                "app.services.chat_service._get_chat_openai_tools", return_value=None
-            ),
+            patch("app.services.chat_service._get_chat_openai_tools", return_value=None),
             patch("app.services.chat_service._client", mock_client),
             patch("app.services.chat_service._LLM_API_BASE", "http://test/v1"),
             patch("app.services.chat_service._LLM_API_KEY", "test-key"),
@@ -553,14 +533,10 @@ class TestNonStreamingToolLoop:
                 new_callable=AsyncMock,
                 return_value=[{"role": "user", "content": "Hi"}],
             ),
-            patch(
-                "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-            ),
+            patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock),
             patch("app.services.chat_service.AsyncOpenAI", return_value=mock_client),
         ):
-            result = await send_message_to_llm(
-                mock_db, thread_id=1, content="Hi", user_id=1
-            )
+            result = await send_message_to_llm(mock_db, thread_id=1, content="Hi", user_id=1)
 
         assert result["success"] is True
         assert result["content"] == "Hello!"
@@ -582,9 +558,7 @@ class TestNonStreamingToolLoop:
 
         tool_response = MagicMock()
         tool_response.choices = [MagicMock(message=tool_response_msg)]
-        tool_response.usage = MagicMock(
-            total_tokens=10, prompt_tokens=5, completion_tokens=5
-        )
+        tool_response.usage = MagicMock(total_tokens=10, prompt_tokens=5, completion_tokens=5)
 
         # Round 2 response: final text
         final_msg = MagicMock()
@@ -593,9 +567,7 @@ class TestNonStreamingToolLoop:
 
         final_response = MagicMock()
         final_response.choices = [MagicMock(message=final_msg)]
-        final_response.usage = MagicMock(
-            total_tokens=20, prompt_tokens=10, completion_tokens=10
-        )
+        final_response.usage = MagicMock(total_tokens=20, prompt_tokens=10, completion_tokens=10)
 
         call_count = 0
 
@@ -644,15 +616,11 @@ class TestNonStreamingToolLoop:
                 new_callable=AsyncMock,
                 return_value=[{"role": "user", "content": "Build a page"}],
             ),
-            patch(
-                "app.services.chat_service.create_chat_message", new_callable=AsyncMock
-            ),
+            patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock),
             patch("app.services.chat_service.AsyncOpenAI", return_value=mock_client),
             patch("app.tools.base.get_tool_registry", return_value=mock_registry),
         ):
-            result = await send_message_to_llm(
-                mock_db, thread_id=1, content="Build a page", user_id=1
-            )
+            result = await send_message_to_llm(mock_db, thread_id=1, content="Build a page", user_id=1)
 
         assert result["success"] is True
         assert result["content"] == "Done! Preview URL shared."

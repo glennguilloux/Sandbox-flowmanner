@@ -128,9 +128,7 @@ class TestCreatePage:
                 "create_page",
                 {
                     "parent_page_id": "abc",
-                    "properties": {
-                        "title": {"title": [{"text": {"content": "New Page"}}]}
-                    },
+                    "properties": {"title": {"title": [{"text": {"content": "New Page"}}]}},
                 },
                 connection,
             )
@@ -140,17 +138,13 @@ class TestCreatePage:
 
     @pytest.mark.asyncio
     async def test_missing_parent_page_id(self, adapter, connection):
-        result = await adapter.execute(
-            "create_page", {"properties": {"title": {}}}, connection
-        )
+        result = await adapter.execute("create_page", {"properties": {"title": {}}}, connection)
         assert result["success"] is False
         assert "parent_page_id" in result["error"]
 
     @pytest.mark.asyncio
     async def test_missing_properties(self, adapter, connection):
-        result = await adapter.execute(
-            "create_page", {"parent_page_id": "abc"}, connection
-        )
+        result = await adapter.execute("create_page", {"parent_page_id": "abc"}, connection)
         assert result["success"] is False
         assert "properties" in result["error"]
 
@@ -229,9 +223,7 @@ class TestQueryDatabase:
 
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_resp
-            result = await adapter.execute(
-                "query_database", {"database_id": "db-123"}, connection
-            )
+            result = await adapter.execute("query_database", {"database_id": "db-123"}, connection)
 
         assert result["success"] is True
         assert len(result["response"]["results"]) == 1
@@ -338,9 +330,7 @@ class TestAppendBlock:
 
     @pytest.mark.asyncio
     async def test_empty_children_rejected(self, adapter, connection):
-        result = await adapter.execute(
-            "append_block", {"block_id": "abc", "children": []}, connection
-        )
+        result = await adapter.execute("append_block", {"block_id": "abc", "children": []}, connection)
         assert result["success"] is False
         assert "children" in result["error"]
 

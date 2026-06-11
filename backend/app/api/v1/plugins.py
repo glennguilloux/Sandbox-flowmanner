@@ -202,7 +202,9 @@ async def list_plugin_node_types(
             manifest_dict = (
                 manifest_data.model_dump()
                 if hasattr(manifest_data, "model_dump")
-                else manifest_data if isinstance(manifest_data, dict) else {}
+                else manifest_data
+                if isinstance(manifest_data, dict)
+                else {}
             )
             node_types_list = manifest_dict.get("node_types", [])
             # Find the matching node type in the manifest
@@ -313,9 +315,7 @@ async def get_plugin(
     user: User = Depends(get_current_user),
 ):
     """Get a single plugin by ID."""
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -329,9 +329,7 @@ async def get_plugin_status(
     user: User = Depends(get_current_user),
 ):
     """Get plugin health and execution statistics."""
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -353,9 +351,7 @@ async def get_plugin_status(
 
     runtime = get_plugin_runtime()
     registered_types = [
-        nt["node_type_id"]
-        for nt in runtime.get_registered_node_types()
-        if nt["plugin_name"] == plugin.name
+        nt["node_type_id"] for nt in runtime.get_registered_node_types() if nt["plugin_name"] == plugin.name
     ]
 
     return PluginStatusResponse(
@@ -367,9 +363,7 @@ async def get_plugin_status(
         execution_count=exec_count,
         error_count=err_count,
         error_rate=round(error_rate, 2),
-        last_executed_at=(
-            plugin.last_executed_at.isoformat() if plugin.last_executed_at else None
-        ),
+        last_executed_at=(plugin.last_executed_at.isoformat() if plugin.last_executed_at else None),
         last_error=plugin.last_error,
         registered_node_types=registered_types,
     )
@@ -397,9 +391,7 @@ async def toggle_plugin(
     if not success:
         raise HTTPException(400, f"Failed to {action.rstrip('d')} plugin")
 
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -443,9 +435,7 @@ async def execute_plugin(
 
     Useful for testing plugin nodes without a full workflow execution.
     """
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -500,9 +490,7 @@ async def execute_plugin(
             plugin=handler_result.get("plugin", plugin.name),
         )
     except Exception as e:
-        await runtime.record_execution(
-            db, plugin.name, success=False, error=str(e), elapsed_ms=0.0
-        )
+        await runtime.record_execution(db, plugin.name, success=False, error=str(e), elapsed_ms=0.0)
         await db.commit()
         return PluginExecuteResponse(
             success=False,
@@ -523,9 +511,7 @@ async def upgrade_plugin(
 
     Uninstalls the current version and installs the new one.
     """
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     old_plugin = result.scalar_one_or_none()
     if not old_plugin:
         raise HTTPException(404, "Plugin not found")
@@ -640,9 +626,7 @@ async def approve_plugin(
     if not user.is_admin:
         raise HTTPException(403, "Admin access required")
 
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -654,9 +638,7 @@ async def approve_plugin(
     await db.commit()
     await db.refresh(plugin)
 
-    logger.info(
-        "Plugin approved: %s v%s by admin %s", plugin.name, plugin.version, user.id
-    )
+    logger.info("Plugin approved: %s v%s by admin %s", plugin.name, plugin.version, user.id)
     return _to_plugin_response(plugin)
 
 
@@ -671,9 +653,7 @@ async def reject_plugin(
     if not user.is_admin:
         raise HTTPException(403, "Admin access required")
 
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -716,9 +696,7 @@ async def kill_switch_plugin(
     if not user.is_admin:
         raise HTTPException(403, "Admin access required")
 
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")
@@ -772,9 +750,7 @@ async def scan_plugin(
     if not user.is_admin:
         raise HTTPException(403, "Admin access required")
 
-    result = await db.execute(
-        select(InstalledPlugin).where(InstalledPlugin.id == plugin_id)
-    )
+    result = await db.execute(select(InstalledPlugin).where(InstalledPlugin.id == plugin_id))
     plugin = result.scalar_one_or_none()
     if not plugin:
         raise HTTPException(404, "Plugin not found")

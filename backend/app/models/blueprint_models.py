@@ -67,38 +67,28 @@ class Blueprint(Base, TimestampMixin):
 
     __tablename__ = "blueprints"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
     workspace_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     # Identity
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     # Definition — THE key column
-    blueprint_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="solo", index=True
-    )
+    blueprint_type: Mapped[str] = mapped_column(String(50), nullable=False, default="solo", index=True)
     definition: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     input_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     output_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Lifecycle
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="draft", index=True
-    )
-    version: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, server_default="1"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     # Metadata
     tags: Mapped[list | None] = mapped_column(JSONB, nullable=True)
@@ -106,17 +96,11 @@ class Blueprint(Base, TimestampMixin):
     icon: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Usage stats (denormalized)
-    run_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
-    last_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    run_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Soft delete
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     deleted_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
@@ -130,9 +114,7 @@ class Run(Base, TimestampMixin):
 
     __tablename__ = "runs"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
     blueprint_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("blueprints.id", ondelete="SET NULL"),
@@ -145,14 +127,10 @@ class Run(Base, TimestampMixin):
         nullable=True,
         index=True,
     )
-    user_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=True
-    )
+    user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Execution state
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", index=True
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
 
     # Immutable snapshot of Blueprint.definition at run time
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -162,21 +140,13 @@ class Run(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Budget tracking
-    total_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
-    total_cost_usd: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0, server_default="0.0"
-    )
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    total_cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     budget_limit_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Timing
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Parent/child for sub-workflows (SUB_WORKFLOW NodeType)
     parent_run_id: Mapped[str | None] = mapped_column(
@@ -202,9 +172,7 @@ class BlueprintVersion(Base, TimestampMixin):
 
     __tablename__ = "blueprint_versions"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=lambda: uuid4()
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
     blueprint_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("blueprints.id", ondelete="CASCADE"),
@@ -214,6 +182,4 @@ class BlueprintVersion(Base, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_by: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=True
-    )
+    created_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)

@@ -104,9 +104,7 @@ def verify_token(token: str) -> dict[str, Any]:
 
         algorithm = os.getenv("JWT_ALGORITHM", "HS256")
 
-        payload = jwt.decode(
-            token, secret_key, algorithms=[algorithm], options={"verify_exp": True}
-        )
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm], options={"verify_exp": True})
 
         return payload
     except jwt.ExpiredSignatureError:
@@ -223,9 +221,7 @@ def require_permission(permission: str):
         user_context: UserContext = Depends(get_current_user_context),
     ) -> UserContext:
         if not user_context.has_permission(permission):
-            raise HTTPException(
-                status_code=403, detail=f"Permission '{permission}' required"
-            )
+            raise HTTPException(status_code=403, detail=f"Permission '{permission}' required")
         return user_context
 
     return check_permission
@@ -246,9 +242,7 @@ def require_tool_access(tool_id: str):
         user_context: UserContext = Depends(get_current_user_context),
     ) -> UserContext:
         if not user_context.can_access_tool(tool_id):
-            raise HTTPException(
-                status_code=403, detail=f"Access to tool '{tool_id}' not allowed"
-            )
+            raise HTTPException(status_code=403, detail=f"Access to tool '{tool_id}' not allowed")
         return user_context
 
     return check_tool_access
@@ -288,9 +282,7 @@ def auth_required(f: Callable) -> Callable:
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        logger.warning(
-            "auth_required decorator is deprecated. Use FastAPI dependencies."
-        )
+        logger.warning("auth_required decorator is deprecated. Use FastAPI dependencies.")
         # This is a stub - the actual auth should be done via FastAPI dependencies
         return f(*args, **kwargs)
 
@@ -306,9 +298,7 @@ def admin_required(f: Callable) -> Callable:
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        logger.warning(
-            "admin_required decorator is deprecated. Use FastAPI dependencies."
-        )
+        logger.warning("admin_required decorator is deprecated. Use FastAPI dependencies.")
         return f(*args, **kwargs)
 
     return decorated_function
@@ -370,14 +360,10 @@ class UserIsolationManager:
             return query.filter(model_class.created_by == user_context.user_id)
 
         # Model doesn't support user isolation
-        self.logger.warning(
-            f"Model {model_class.__name__} doesn't support user isolation"
-        )
+        self.logger.warning(f"Model {model_class.__name__} doesn't support user isolation")
         return query
 
-    def validate_user_access(
-        self, item, user_context: UserContext, field_name: str = "user_id"
-    ) -> bool:
+    def validate_user_access(self, item, user_context: UserContext, field_name: str = "user_id") -> bool:
         """
         Validate that user can access specific item.
 
@@ -402,9 +388,7 @@ class UserIsolationManager:
             return item_user_id == user_context.user_id
 
         # Item doesn't support user isolation
-        self.logger.warning(
-            f"Item of type {type(item).__name__} doesn't support user isolation"
-        )
+        self.logger.warning(f"Item of type {type(item).__name__} doesn't support user isolation")
         return False
 
     def create_user_context_for_tool(self, user_context: UserContext) -> dict[str, Any]:

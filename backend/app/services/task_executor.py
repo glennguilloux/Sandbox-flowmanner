@@ -78,9 +78,7 @@ class TaskExecutor:
 
     # ── Main dispatch ──────────────────────────────────────────────────────
 
-    async def execute_task(
-        self, db, mission, task, task_map: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def execute_task(self, db, mission, task, task_map: dict[str, Any]) -> dict[str, Any]:
         """Execute a single task, routing to the appropriate handler.
 
         Sets ``task.status`` to ``RUNNING``, resolves dependency outputs,
@@ -125,17 +123,13 @@ class TaskExecutor:
 
             match task.task_type:
                 case "llm" | "llm_call":
-                    result = await self.llm_executor.execute_llm(
-                        task, input_data, mission, db
-                    )
+                    result = await self.llm_executor.execute_llm(task, input_data, mission, db)
                 case "tool" | "tool_execution":
                     result = await self._execute_tool(task, input_data, mission, db)
                 case "rag" | "rag_query":
                     result = await self._execute_rag(task, input_data)
                 case "web_search":
-                    result = await self._execute_web_search(
-                        task, input_data, mission, db
-                    )
+                    result = await self._execute_web_search(task, input_data, mission, db)
                 case "code" | "code_execution":
                     result = await self._execute_code(task, input_data, mission, db)
                 case "file_operation":
@@ -143,17 +137,11 @@ class TaskExecutor:
                 case "review" | "human_review":
                     result = await self._request_human_input(db, mission, task)
                 case "http_integration" | "http_request":
-                    result = await self._execute_http_integration(
-                        task, input_data, mission, db
-                    )
+                    result = await self._execute_http_integration(task, input_data, mission, db)
                 case "integration_action":
-                    result = await self._execute_integration_action(
-                        task, input_data, mission, db
-                    )
+                    result = await self._execute_integration_action(task, input_data, mission, db)
                 case _ if task.task_type in BROWSER_TASK_TYPES:
-                    result = await self.browser_runner.execute_browser_tool(
-                        task, input_data, mission
-                    )
+                    result = await self.browser_runner.execute_browser_tool(task, input_data, mission)
                 case _:
                     result = {
                         "success": False,
@@ -173,9 +161,7 @@ class TaskExecutor:
 
     # ── Tool execution ─────────────────────────────────────────────────────
 
-    async def _execute_tool(
-        self, task, input_data: dict[str, Any], mission=None, db=None
-    ) -> dict[str, Any]:
+    async def _execute_tool(self, task, input_data: dict[str, Any], mission=None, db=None) -> dict[str, Any]:
         """Route to a named tool handler or fall back to LLM.
 
         Args:
@@ -226,33 +212,25 @@ class TaskExecutor:
 
     # ── Individual tool handlers ───────────────────────────────────────────
 
-    async def _tool_web_search(
-        self, params: dict[str, Any], input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_web_search(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Run a web search via mission_tools."""
         from app.services.mission_tools import tool_web_search
 
         return await tool_web_search(params, input_data)
 
-    async def _tool_code_executor(
-        self, params: dict[str, Any], input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_code_executor(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Execute code via mission_tools."""
         from app.services.mission_tools import tool_code_executor
 
         return await tool_code_executor(params, input_data)
 
-    async def _tool_file_reader(
-        self, params: dict[str, Any], input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_file_reader(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Read files via mission_tools."""
         from app.services.mission_tools import tool_file_reader
 
         return await tool_file_reader(params, input_data)
 
-    async def _tool_rag_search(
-        self, params: dict[str, Any], input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_rag_search(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Run a RAG query with query validation.
 
         Args:
@@ -268,17 +246,13 @@ class TaskExecutor:
 
         return await self._execute_rag_query(query, params.get("collection", "default"))
 
-    async def _tool_api_caller(
-        self, params: dict[str, Any], input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_api_caller(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Call an external API via mission_tools."""
         from app.services.mission_tools import tool_api_caller
 
         return await tool_api_caller(params, input_data)
 
-    async def _tool_data_analyzer(
-        self, params: dict[str, Any], input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tool_data_analyzer(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Analyze data via mission_tools."""
         from app.services.mission_tools import tool_data_analyzer
 
@@ -306,9 +280,7 @@ class TaskExecutor:
         data = params.get("data", input_data)
         format_type = params.get("format", "markdown")
 
-        model_router = (
-            self.llm_executor._get_model_router() if self.llm_executor else None
-        )
+        model_router = self.llm_executor._get_model_router() if self.llm_executor else None
         if not model_router:
             return {"success": False, "error": "ModelRouter not available"}
 
@@ -370,9 +342,7 @@ class TaskExecutor:
                     provider=provider,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
-                    cost_usd=self.cost_tracker.estimate_cost(
-                        model_id, prompt_tokens + completion_tokens
-                    ),
+                    cost_usd=self.cost_tracker.estimate_cost(model_id, prompt_tokens + completion_tokens),
                     latency_ms=latency_ms,
                     success=success,
                     error_message=error_msg,
@@ -396,9 +366,7 @@ class TaskExecutor:
 
         return await self._execute_rag_query(query, collection)
 
-    async def _execute_rag_query(
-        self, query: str, collection: str = "default"
-    ) -> dict[str, Any]:
+    async def _execute_rag_query(self, query: str, collection: str = "default") -> dict[str, Any]:
         """Query the RAG service for relevant documents.
 
         Args:
@@ -430,9 +398,7 @@ class TaskExecutor:
 
     # ── Web execution ──────────────────────────────────────────────────────
 
-    async def _execute_web_search(
-        self, task, input_data: dict[str, Any], mission=None, db=None
-    ) -> dict[str, Any]:
+    async def _execute_web_search(self, task, input_data: dict[str, Any], mission=None, db=None) -> dict[str, Any]:
         """Execute a web search or scrape task.
 
         If ``input_data`` contains a ``url`` key, performs a web scrape.
@@ -476,9 +442,7 @@ class TaskExecutor:
 
     # ── Code execution ─────────────────────────────────────────────────────
 
-    async def _execute_code(
-        self, task, input_data: dict[str, Any], mission=None, db=None
-    ) -> dict[str, Any]:
+    async def _execute_code(self, task, input_data: dict[str, Any], mission=None, db=None) -> dict[str, Any]:
         """Execute Python code in a sandbox.
 
         Falls back to LLM if no code is provided in ``input_data``.
@@ -515,9 +479,7 @@ class TaskExecutor:
 
     # ── File execution ─────────────────────────────────────────────────────
 
-    async def _execute_file(
-        self, task, input_data: dict[str, Any], mission=None, db=None
-    ) -> dict[str, Any]:
+    async def _execute_file(self, task, input_data: dict[str, Any], mission=None, db=None) -> dict[str, Any]:
         """Execute a file operation (read, write, list) in the workspace.
 
         Falls back to LLM if no ``path`` is provided in ``input_data``.
@@ -663,9 +625,7 @@ class TaskExecutor:
                 task_id=str(task.id) if task and hasattr(task, "id") else None,
             )
         except Exception as e:
-            logger.exception(
-                "HTTP integration execution failed for task %s: %s", task.id, e
-            )
+            logger.exception("HTTP integration execution failed for task %s: %s", task.id, e)
             return {"success": False, "error": f"HTTP integration error: {e!s}"}
 
     # ── Human input / fallback ─────────────────────────────────────────────
@@ -723,9 +683,7 @@ class TaskExecutor:
         match strategy:
             case "human_escalate":
                 mission.status = MissionStatus.PAUSED
-                mission.error_message = (
-                    f"Task '{task.title}' requires human attention: {error}"
-                )
+                mission.error_message = f"Task '{task.title}' requires human attention: {error}"
             case "abort":
                 mission.status = MissionStatus.FAILED
                 mission.error_message = f"Task '{task.title}' failed: {error}"
@@ -756,9 +714,7 @@ class TaskExecutor:
         input_data = task.input_data or {}
 
         for dep_idx in task.dependencies or []:
-            dep_task = next(
-                (t for t in task_map.values() if t.order_index == dep_idx), None
-            )
+            dep_task = next((t for t in task_map.values() if t.order_index == dep_idx), None)
             if dep_task and dep_task.output_data:
                 input_data[f"dep_{dep_idx}"] = dep_task.output_data
 
@@ -783,9 +739,7 @@ class TaskExecutor:
             "summary": {
                 "total_tasks": len(tasks),
                 "completed": len(completed_tasks),
-                "failed": len(
-                    [t for t in tasks if t.status == MissionTaskStatus.FAILED]
-                ),
+                "failed": len([t for t in tasks if t.status == MissionTaskStatus.FAILED]),
             },
             "tasks": [
                 {

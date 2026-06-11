@@ -18,18 +18,14 @@ class CommunityComment(Base, TimestampMixin):
 
     __tablename__ = "community_comments"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     template_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("community_templates.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     author_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     parent_id: Mapped[str | None] = mapped_column(
         String(36),
@@ -38,6 +34,4 @@ class CommunityComment(Base, TimestampMixin):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    is_deleted: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, server_default="false"
-    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")

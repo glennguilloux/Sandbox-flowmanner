@@ -59,9 +59,7 @@ async def log_auth_event(
                 {
                     "id": str(__import__("uuid").uuid4()),
                     "action": action,
-                    "action_details": json.dumps(
-                        {**(details or {}), "success": success}
-                    ),
+                    "action_details": json.dumps({**(details or {}), "success": success}),
                     "ip_address": ip_address,
                     "user_id": str(user_id) if user_id else None,
                     "user_email": user_email,

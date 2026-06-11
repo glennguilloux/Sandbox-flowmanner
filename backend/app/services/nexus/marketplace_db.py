@@ -85,22 +85,14 @@ class MarketplaceListing:
             "name": self.name,
             "description": self.description,
             "listing_type": (
-                self.listing_type.value
-                if isinstance(self.listing_type, ListingType)
-                else self.listing_type
+                self.listing_type.value if isinstance(self.listing_type, ListingType) else self.listing_type
             ),
             "item_id": self.item_id,
             "author_id": self.author_id,
             "version": self.version,
-            "status": (
-                self.status.value
-                if isinstance(self.status, ListingStatus)
-                else self.status
-            ),
+            "status": (self.status.value if isinstance(self.status, ListingStatus) else self.status),
             "pricing_model": (
-                self.pricing_model.value
-                if isinstance(self.pricing_model, PricingModel)
-                else self.pricing_model
+                self.pricing_model.value if isinstance(self.pricing_model, PricingModel) else self.pricing_model
             ),
             "price": self.price,
             "currency": self.currency,
@@ -114,9 +106,7 @@ class MarketplaceListing:
             "metadata": self.metadata or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "published_at": (
-                self.published_at.isoformat() if self.published_at else None
-            ),
+            "published_at": (self.published_at.isoformat() if self.published_at else None),
             "install_count": self.install_count,
             "view_count": self.view_count,
             "average_rating": self.average_rating,
@@ -160,9 +150,7 @@ class MarketplaceReview:
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "response": self.response,
-            "response_date": (
-                self.response_date.isoformat() if self.response_date else None
-            ),
+            "response_date": (self.response_date.isoformat() if self.response_date else None),
         }
 
 
@@ -275,12 +263,8 @@ class MarketplaceService:
 
             from app.config import settings
 
-            sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace(
-                "postgresql+asyncpg", "postgresql"
-            )
-            self._sync_engine = create_engine(
-                sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5
-            )
+            sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace("postgresql+asyncpg", "postgresql")
+            self._sync_engine = create_engine(sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
         sync_session_factory = sessionmaker(bind=self._sync_engine)
         return sync_session_factory()
 
@@ -327,15 +311,9 @@ class MarketplaceService:
             ]
 
             for cat_id, name, desc, icon in default_categories:
-                existing = (
-                    db.query(MarketplaceCategoryModel)
-                    .filter(MarketplaceCategoryModel.id == cat_id)
-                    .first()
-                )
+                existing = db.query(MarketplaceCategoryModel).filter(MarketplaceCategoryModel.id == cat_id).first()
                 if not existing:
-                    category = MarketplaceCategoryModel(
-                        id=cat_id, name=name, description=desc, icon=icon
-                    )
+                    category = MarketplaceCategoryModel(id=cat_id, name=name, description=desc, icon=icon)
                     db.add(category)
 
             db.commit()
@@ -460,9 +438,7 @@ class MarketplaceService:
 
             self._update_category_count(listing.category, 1, db)
 
-            logger.info(
-                "Listed capability in marketplace: %s (%s)", listing_id, capability_id
-            )
+            logger.info("Listed capability in marketplace: %s (%s)", listing_id, capability_id)
             return _model_to_listing(listing)
 
         except Exception as e:
@@ -477,11 +453,7 @@ class MarketplaceService:
         """Update category listing count"""
         from app.models.models import MarketplaceCategoryModel
 
-        cat = (
-            db.query(MarketplaceCategoryModel)
-            .filter(MarketplaceCategoryModel.id == category_id)
-            .first()
-        )
+        cat = db.query(MarketplaceCategoryModel).filter(MarketplaceCategoryModel.id == category_id).first()
         if cat:
             cat.listing_count = max(0, cat.listing_count + delta)
             db.commit()
@@ -538,24 +510,16 @@ class MarketplaceService:
         from app.models.models import MarketplaceListingModel
 
         if "category" in filters:
-            query = query.filter(
-                MarketplaceListingModel.category == filters["category"]
-            )
+            query = query.filter(MarketplaceListingModel.category == filters["category"])
 
         if "listing_type" in filters:
-            query = query.filter(
-                MarketplaceListingModel.listing_type == filters["listing_type"]
-            )
+            query = query.filter(MarketplaceListingModel.listing_type == filters["listing_type"])
 
         if "pricing_model" in filters:
-            query = query.filter(
-                MarketplaceListingModel.pricing_model == filters["pricing_model"]
-            )
+            query = query.filter(MarketplaceListingModel.pricing_model == filters["pricing_model"])
 
         if "author_id" in filters:
-            query = query.filter(
-                MarketplaceListingModel.author_id == filters["author_id"]
-            )
+            query = query.filter(MarketplaceListingModel.author_id == filters["author_id"])
 
         if "price_min" in filters:
             query = query.filter(MarketplaceListingModel.price >= filters["price_min"])
@@ -564,14 +528,10 @@ class MarketplaceService:
             query = query.filter(MarketplaceListingModel.price <= filters["price_max"])
 
         if "verified" in filters:
-            query = query.filter(
-                MarketplaceListingModel.verified == filters["verified"]
-            )
+            query = query.filter(MarketplaceListingModel.verified == filters["verified"])
 
         if "featured" in filters:
-            query = query.filter(
-                MarketplaceListingModel.featured == filters["featured"]
-            )
+            query = query.filter(MarketplaceListingModel.featured == filters["featured"])
 
         return query
 
@@ -616,11 +576,7 @@ class MarketplaceService:
         try:
             from app.models.models import MarketplaceListingModel, UserInstallationModel
 
-            listing = (
-                db.query(MarketplaceListingModel)
-                .filter(MarketplaceListingModel.id == listing_id)
-                .first()
-            )
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
 
             if not listing:
                 return {"success": False, "error": f"Listing not found: {listing_id}"}
@@ -643,9 +599,7 @@ class MarketplaceService:
 
             if not existing:
                 # Track installation
-                installation = UserInstallationModel(
-                    user_id=user_id, listing_id=listing_id
-                )
+                installation = UserInstallationModel(user_id=user_id, listing_id=listing_id)
                 db.add(installation)
                 listing.install_count += 1
                 db.commit()
@@ -735,11 +689,7 @@ class MarketplaceService:
                 UserInstallationModel,
             )
 
-            listing = (
-                db.query(MarketplaceListingModel)
-                .filter(MarketplaceListingModel.id == listing_id)
-                .first()
-            )
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
 
             if not listing:
                 raise ValueError(f"Listing not found: {listing_id}")
@@ -826,20 +776,14 @@ class MarketplaceService:
             .first()
         )
 
-        listing = (
-            db.query(MarketplaceListingModel)
-            .filter(MarketplaceListingModel.id == listing_id)
-            .first()
-        )
+        listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
 
         if listing and result:
             listing.average_rating = round(result.avg_rating or 0, 2)
             listing.review_count = result.count
             db.commit()
 
-    def get_popular(
-        self, category: str = None, limit: int = 10
-    ) -> list[MarketplaceListing]:
+    def get_popular(self, category: str = None, limit: int = 10) -> list[MarketplaceListing]:
         """Get popular listings."""
         db = self._get_db()
         try:
@@ -873,11 +817,7 @@ class MarketplaceService:
         try:
             from app.models.models import MarketplaceListingModel
 
-            results = (
-                db.query(MarketplaceListingModel)
-                .filter(MarketplaceListingModel.author_id == author_id)
-                .all()
-            )
+            results = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.author_id == author_id).all()
 
             return [_model_to_listing(r) for r in results]
 
@@ -891,11 +831,7 @@ class MarketplaceService:
         try:
             from app.models.models import MarketplaceListingModel
 
-            listing = (
-                db.query(MarketplaceListingModel)
-                .filter(MarketplaceListingModel.id == listing_id)
-                .first()
-            )
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
 
             return _model_to_listing(listing) if listing else None
 
@@ -928,11 +864,7 @@ class MarketplaceService:
         try:
             from app.models.models import MarketplaceCategoryModel
 
-            results = (
-                db.query(MarketplaceCategoryModel)
-                .order_by(MarketplaceCategoryModel.sort_order)
-                .all()
-            )
+            results = db.query(MarketplaceCategoryModel).order_by(MarketplaceCategoryModel.sort_order).all()
 
             return [_model_to_category(r) for r in results]
 
@@ -965,19 +897,13 @@ class MarketplaceService:
             if not self._db:
                 db.close()
 
-    async def update_listing(
-        self, listing_id: str, updates: dict[str, Any]
-    ) -> MarketplaceListing | None:
+    async def update_listing(self, listing_id: str, updates: dict[str, Any]) -> MarketplaceListing | None:
         """Update a listing"""
         db = self._get_db()
         try:
             from app.models.models import MarketplaceListingModel
 
-            listing = (
-                db.query(MarketplaceListingModel)
-                .filter(MarketplaceListingModel.id == listing_id)
-                .first()
-            )
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
 
             if not listing:
                 return None
@@ -1020,11 +946,7 @@ class MarketplaceService:
         try:
             from app.models.models import MarketplaceListingModel
 
-            listing = (
-                db.query(MarketplaceListingModel)
-                .filter(MarketplaceListingModel.id == listing_id)
-                .first()
-            )
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
 
             if listing:
                 category = listing.category
@@ -1078,12 +1000,7 @@ class MarketplaceService:
             results = (
                 db.query(MarketplaceListingModel)
                 .filter(MarketplaceListingModel.status == ListingStatus.PUBLISHED.value)
-                .order_by(
-                    desc(
-                        MarketplaceListingModel.view_count
-                        + MarketplaceListingModel.install_count * 10
-                    )
-                )
+                .order_by(desc(MarketplaceListingModel.view_count + MarketplaceListingModel.install_count * 10))
                 .limit(limit)
                 .all()
             )
@@ -1107,15 +1024,9 @@ class MarketplaceService:
                 UserInstallationModel,
             )
 
-            total_listings = (
-                db.query(func.count(MarketplaceListingModel.id)).scalar() or 0
-            )
-            total_reviews = (
-                db.query(func.count(MarketplaceReviewModel.id)).scalar() or 0
-            )
-            total_installations = (
-                db.query(func.count(UserInstallationModel.id)).scalar() or 0
-            )
+            total_listings = db.query(func.count(MarketplaceListingModel.id)).scalar() or 0
+            total_reviews = db.query(func.count(MarketplaceReviewModel.id)).scalar() or 0
+            total_installations = db.query(func.count(UserInstallationModel.id)).scalar() or 0
 
             listings = db.query(MarketplaceListingModel).limit(100).all()
             categories = db.query(MarketplaceCategoryModel).all()

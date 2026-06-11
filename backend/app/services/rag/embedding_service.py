@@ -51,17 +51,12 @@ class EmbeddingService:
         if redis is None:
             return
         try:
-            await redis.setex(
-                await self._cache_key(text), _EMBEDDING_CACHE_TTL, json.dumps(vector)
-            )
+            await redis.setex(await self._cache_key(text), _EMBEDDING_CACHE_TTL, json.dumps(vector))
         except Exception:
             logger.debug("embedding_cache_set_failed", exc_info=True)
 
     def _is_openai_model(self) -> bool:
-        return (
-            self.model_name.startswith("text-embedding")
-            or "openai" in self.model_name.lower()
-        )
+        return self.model_name.startswith("text-embedding") or "openai" in self.model_name.lower()
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -125,9 +120,7 @@ class EmbeddingService:
         if self._local_model is None:
             from sentence_transformers import SentenceTransformer
 
-            self._local_model = SentenceTransformer(
-                "sentence-transformers/all-MiniLM-L6-v2"
-            )
+            self._local_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
         embeddings = self._local_model.encode(texts, show_progress_bar=False)
         return embeddings.tolist()

@@ -87,9 +87,7 @@ class RevenueResponse:
         revenue_trend = []
         _revenue_trend = d.pop("revenue_trend")
         for revenue_trend_item_data in _revenue_trend:
-            revenue_trend_item = RevenueResponseRevenueTrendItem.from_dict(
-                revenue_trend_item_data
-            )
+            revenue_trend_item = RevenueResponseRevenueTrendItem.from_dict(revenue_trend_item_data)
 
             revenue_trend.append(revenue_trend_item)
 

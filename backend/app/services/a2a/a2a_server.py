@@ -109,9 +109,7 @@ class A2ASessionManager:
         self._agent_sessions: dict[str, set[str]] = {}  # agent_url -> session_ids
         self._lock = asyncio.Lock()
 
-    async def create_session(
-        self, agent_url: str, context_id: str | None = None
-    ) -> A2ASession:
+    async def create_session(self, agent_url: str, context_id: str | None = None) -> A2ASession:
         """Create a new session"""
         async with self._lock:
             session = A2ASession(
@@ -252,9 +250,7 @@ class A2AServer:
         except Exception as e:
             logger.error("Error sending message: %s", e)
 
-    async def receive_message(
-        self, session_id: str, data: dict[str, Any]
-    ) -> A2AMessage | None:
+    async def receive_message(self, session_id: str, data: dict[str, Any]) -> A2AMessage | None:
         """Process received message"""
         try:
             message = A2AMessage.from_dict(data)
@@ -279,9 +275,7 @@ class A2AServer:
         # Task handling logic - route to appropriate agent
         return message
 
-    async def _handle_response(
-        self, message: A2AMessage, session_id: str
-    ) -> A2AMessage:
+    async def _handle_response(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle response message"""
         logger.info("Response received: %s", message.id)
         return message
@@ -296,13 +290,9 @@ class A2AServer:
         logger.error("Error from %s: %s", message.sender, message.content)
         return message
 
-    async def _handle_heartbeat(
-        self, message: A2AMessage, session_id: str
-    ) -> A2AMessage:
+    async def _handle_heartbeat(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle heartbeat - respond with pong"""
-        return A2AMessage(
-            type=MessageType.HEARTBEAT, content="pong", context_id=message.context_id
-        )
+        return A2AMessage(type=MessageType.HEARTBEAT, content="pong", context_id=message.context_id)
 
     async def _handle_file(self, message: A2AMessage, session_id: str) -> A2AMessage:
         """Handle file attachment message"""

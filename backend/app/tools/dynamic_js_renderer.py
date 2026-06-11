@@ -62,9 +62,7 @@ class DynamicJsRendererTool(BaseTool):
         try:
             validated = DynamicJsRendererInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         if not validated.url.strip():
             return ToolResult.error_result(tool_id=self.tool_id, error="URL is empty")
@@ -134,9 +132,7 @@ class DynamicJsRendererTool(BaseTool):
                         import base64
 
                         screenshot_bytes = await page.screenshot(full_page=True)
-                        result["screenshot_base64"] = base64.b64encode(
-                            screenshot_bytes
-                        ).decode()
+                        result["screenshot_base64"] = base64.b64encode(screenshot_bytes).decode()
 
                 finally:
                     await browser.close()

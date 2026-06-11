@@ -28,21 +28,13 @@ class NotionSyncInput(ToolInput):
     database_id: str | None = Field(None, description="Notion database ID")
     page_id: str | None = Field(None, description="Notion page ID")
     block_id: str | None = Field(None, description="Notion block ID")
-    filter_query: dict | None = Field(
-        None, description="Notion filter object for database queries"
-    )
+    filter_query: dict | None = Field(None, description="Notion filter object for database queries")
     sorts: list[dict] | None = Field(None, description="Notion sort array")
-    properties: dict | None = Field(
-        None, description="Page properties (for create/update)"
-    )
-    children: list[dict] | None = Field(
-        None, description="Block children (for create/append)"
-    )
+    properties: dict | None = Field(None, description="Page properties (for create/update)")
+    children: list[dict] | None = Field(None, description="Block children (for create/append)")
     query: str | None = Field(None, description="Search query text")
     limit: int = Field(50, ge=1, le=100)
-    token: str | None = Field(
-        None, description="Notion API token (uses NOTION_TOKEN env var if omitted)"
-    )
+    token: str | None = Field(None, description="Notion API token (uses NOTION_TOKEN env var if omitted)")
 
 
 class NotionSyncTool(BaseTool):
@@ -62,9 +54,7 @@ class NotionSyncTool(BaseTool):
         try:
             validated = NotionSyncInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         token = validated.token or os.getenv("NOTION_TOKEN", "")
         if not token:
@@ -98,9 +88,7 @@ class NotionSyncTool(BaseTool):
                 elif action == "search":
                     return await self._search(client, base_url, validated)
                 else:
-                    return ToolResult.error_result(
-                        tool_id=self.tool_id, error=f"Unknown action: {action}"
-                    )
+                    return ToolResult.error_result(tool_id=self.tool_id, error=f"Unknown action: {action}")
         except Exception as e:
             logger.exception("notion_sync failed")
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
@@ -115,17 +103,13 @@ class NotionSyncTool(BaseTool):
 
     async def _query_database(self, client, base_url, v) -> ToolResult:
         if not v.database_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="database_id required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="database_id required")
         payload: dict = {"page_size": v.limit}
         if v.filter_query:
             payload["filter"] = v.filter_query
         if v.sorts:
             payload["sorts"] = v.sorts
-        r = await client.post(
-            f"{base_url}/databases/{v.database_id}/query", json=payload
-        )
+        r = await client.post(f"{base_url}/databases/{v.database_id}/query", json=payload)
         if err := await self._check_error(r):
             return err
         data = r.json()
@@ -150,9 +134,7 @@ class NotionSyncTool(BaseTool):
 
     async def _get_page(self, client, base_url, v) -> ToolResult:
         if not v.page_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="page_id required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="page_id required")
         r = await client.get(f"{base_url}/pages/{v.page_id}")
         if err := await self._check_error(r):
             return err
@@ -172,9 +154,7 @@ class NotionSyncTool(BaseTool):
 
     async def _create_page(self, client, base_url, v) -> ToolResult:
         if not v.database_id or not v.properties:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="database_id and properties required"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error="database_id and properties required")
         payload: dict = {
             "parent": {"database_id": v.database_id},
             "properties": v.properties,
@@ -195,26 +175,16 @@ class NotionSyncTool(BaseTool):
 
     async def _update_page(self, client, base_url, v) -> ToolResult:
         if not v.page_id or not v.properties:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="page_id and properties required"
-            )
-        r = await client.patch(
-            f"{base_url}/pages/{v.page_id}", json={"properties": v.properties}
-        )
+            return ToolResult.error_result(tool_id=self.tool_id, error="page_id and properties required")
+        r = await client.patch(f"{base_url}/pages/{v.page_id}", json={"properties": v.properties})
         if err := await self._check_error(r):
             return err
-        return ToolResult.success_result(
-            tool_id=self.tool_id, result={"action": "update_page", "ok": True}
-        )
+        return ToolResult.success_result(tool_id=self.tool_id, result={"action": "update_page", "ok": True})
 
     async def _get_block_children(self, client, base_url, v) -> ToolResult:
         if not v.block_id:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="block_id required"
-            )
-        r = await client.get(
-            f"{base_url}/blocks/{v.block_id}/children", params={"page_size": v.limit}
-        )
+            return ToolResult.error_result(tool_id=self.tool_id, error="block_id required")
+        r = await client.get(f"{base_url}/blocks/{v.block_id}/children", params={"page_size": v.limit})
         if err := await self._check_error(r):
             return err
         data = r.json()
@@ -229,24 +199,16 @@ class NotionSyncTool(BaseTool):
 
     async def _append_blocks(self, client, base_url, v) -> ToolResult:
         if not v.block_id or not v.children:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error="block_id and children required"
-            )
-        r = await client.patch(
-            f"{base_url}/blocks/{v.block_id}/children", json={"children": v.children}
-        )
+            return ToolResult.error_result(tool_id=self.tool_id, error="block_id and children required")
+        r = await client.patch(f"{base_url}/blocks/{v.block_id}/children", json={"children": v.children})
         if err := await self._check_error(r):
             return err
-        return ToolResult.success_result(
-            tool_id=self.tool_id, result={"action": "append_blocks", "ok": True}
-        )
+        return ToolResult.success_result(tool_id=self.tool_id, result={"action": "append_blocks", "ok": True})
 
     async def _search(self, client, base_url, v) -> ToolResult:
         if not v.query:
             return ToolResult.error_result(tool_id=self.tool_id, error="query required")
-        r = await client.post(
-            f"{base_url}/search", json={"query": v.query, "page_size": v.limit}
-        )
+        r = await client.post(f"{base_url}/search", json={"query": v.query, "page_size": v.limit})
         if err := await self._check_error(r):
             return err
         data = r.json()

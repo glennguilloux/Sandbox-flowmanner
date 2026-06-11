@@ -62,17 +62,13 @@ class ToolExecutor:
     def __init__(self, registry=None):
         self.registry = registry or get_tool_registry()
         self._rate_limits: dict[str, RateLimitInfo] = defaultdict(RateLimitInfo)
-        self._user_rate_limits: dict[str, dict[str, RateLimitInfo]] = defaultdict(
-            lambda: defaultdict(RateLimitInfo)
-        )
+        self._user_rate_limits: dict[str, dict[str, RateLimitInfo]] = defaultdict(lambda: defaultdict(RateLimitInfo))
         self._execution_history: list[ExecutionResult] = []
         self._auth_checker: Callable | None = None
         self._pre_hooks: list[Callable] = []
         self._post_hooks: list[Callable] = []
 
-    def set_auth_checker(
-        self, checker: Callable[[str, str, dict], Awaitable[bool]]
-    ) -> None:
+    def set_auth_checker(self, checker: Callable[[str, str, dict], Awaitable[bool]]) -> None:
         """Set a function to check authorization for tool execution"""
         self._auth_checker = checker
 
@@ -112,29 +108,21 @@ class ToolExecutor:
         # Get the tool
         tool = self.registry.get(tool_id)
         if not tool:
-            return ExecutionResult(
-                tool_id=tool_id, success=False, error=f"Tool not found: {tool_id}"
-            )
+            return ExecutionResult(tool_id=tool_id, success=False, error=f"Tool not found: {tool_id}")
 
         # Check authorization
         if tool.requires_auth and self._auth_checker:
             try:
                 authorized = await self._auth_checker(tool_id, user_id, params)
                 if not authorized:
-                    return ExecutionResult(
-                        tool_id=tool_id, success=False, error="Unauthorized"
-                    )
+                    return ExecutionResult(tool_id=tool_id, success=False, error="Unauthorized")
             except Exception as e:
                 logger.error("Auth check failed: %s", e)
-                return ExecutionResult(
-                    tool_id=tool_id, success=False, error=f"Auth check failed: {e}"
-                )
+                return ExecutionResult(tool_id=tool_id, success=False, error=f"Auth check failed: {e}")
 
         # Check rate limits
         if not self._check_rate_limit(tool_id, user_id, tool.rate_limit):
-            return ExecutionResult(
-                tool_id=tool_id, success=False, error="Rate limit exceeded"
-            )
+            return ExecutionResult(tool_id=tool_id, success=False, error="Rate limit exceeded")
 
         # Run pre-hooks
         for hook in self._pre_hooks:
@@ -210,9 +198,7 @@ class ToolExecutor:
 
         return exec_result
 
-    async def execute_batch(
-        self, executions: list[dict[str, Any]], parallel: bool = True
-    ) -> list[ExecutionResult]:
+    async def execute_batch(self, executions: list[dict[str, Any]], parallel: bool = True) -> list[ExecutionResult]:
         """
         Execute multiple tools in batch.
 
@@ -246,9 +232,7 @@ class ToolExecutor:
                 results.append(result)
             return results
 
-    def _check_rate_limit(
-        self, tool_id: str, user_id: str | None, rate_limit: int | None
-    ) -> bool:
+    def _check_rate_limit(self, tool_id: str, user_id: str | None, rate_limit: int | None) -> bool:
         """Check if request is within rate limits"""
         if not rate_limit:
             return True
@@ -257,9 +241,7 @@ class ToolExecutor:
 
         # Check tool-level rate limit
         tool_info = self._rate_limits[tool_id]
-        tool_info.requests = [
-            t for t in tool_info.requests if now - t < tool_info.window_seconds
-        ]
+        tool_info.requests = [t for t in tool_info.requests if now - t < tool_info.window_seconds]
 
         if len(tool_info.requests) >= rate_limit:
             return False
@@ -267,9 +249,7 @@ class ToolExecutor:
         # Check user-level rate limit if user specified
         if user_id:
             user_info = self._user_rate_limits[user_id][tool_id]
-            user_info.requests = [
-                t for t in user_info.requests if now - t < user_info.window_seconds
-            ]
+            user_info.requests = [t for t in user_info.requests if now - t < user_info.window_seconds]
 
             if len(user_info.requests) >= rate_limit:
                 return False
@@ -284,9 +264,7 @@ class ToolExecutor:
         if user_id:
             self._user_rate_limits[user_id][tool_id].requests.append(now)
 
-    def _calculate_cost(
-        self, tool: Tool, result: Any, execution_time_ms: float
-    ) -> float:
+    def _calculate_cost(self, tool: Tool, result: Any, execution_time_ms: float) -> float:
         """Calculate execution cost"""
         base_cost = tool.cost_estimate.get("usd", 0)
 

@@ -5,9 +5,10 @@ Revises: 20260525_add_oauth_token_fields
 Create Date: 2026-05-26
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "20260526_knowledge_graph"
 down_revision = "20260525_add_oauth_token_fields"
@@ -22,9 +23,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("node_type", sa.String(50), nullable=False),
         sa.Column("node_key", sa.String(255), nullable=False),
-        sa.Column(
-            "properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-        ),
+        sa.Column("properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -65,9 +64,7 @@ def upgrade() -> None:
         ),
         sa.Column("edge_type", sa.String(50), nullable=False),
         sa.Column("weight", sa.Float, nullable=False, server_default="1.0"),
-        sa.Column(
-            "properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-        ),
+        sa.Column("properties", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

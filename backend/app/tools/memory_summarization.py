@@ -137,17 +137,11 @@ class MemorySummarizationTool(BaseTool):
         try:
             validated = MemorySummarizationInput(**input_data)
         except Exception as e:
-            return ToolResult.error_result(
-                tool_id=self.tool_id, error=f"Invalid input: {e}"
-            )
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         # Resolve user_id from auth context if not explicitly provided
         context = input_data.get("context", {}) or {}
-        user_id = (
-            validated.user_id
-            if validated.user_id is not None
-            else context.get("user_id")
-        )
+        user_id = validated.user_id if validated.user_id is not None else context.get("user_id")
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -346,9 +340,7 @@ class MemorySummarizationTool(BaseTool):
             "compression_ratio": round(len(summary) / max(len(text), 1), 4),
         }
 
-        persist_info = await self._persist_summary(
-            validated, user_id, summary, "summarize", stats
-        )
+        persist_info = await self._persist_summary(validated, user_id, summary, "summarize", stats)
 
         return ToolResult.success_result(
             tool_id=self.tool_id,
@@ -389,9 +381,7 @@ class MemorySummarizationTool(BaseTool):
             "compression_ratio": round(len(compressed) / max(len(text), 1), 4),
         }
 
-        persist_info = await self._persist_summary(
-            validated, user_id, compressed, "compress", stats
-        )
+        persist_info = await self._persist_summary(validated, user_id, compressed, "compress", stats)
 
         return ToolResult.success_result(
             tool_id=self.tool_id,
@@ -547,9 +537,7 @@ class MemorySummarizationTool(BaseTool):
                 if row is None:
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=(
-                            f"No summary found for key='{key}' in namespace='{namespace}'"
-                        ),
+                        error=(f"No summary found for key='{key}' in namespace='{namespace}'"),
                     )
 
                 return ToolResult.success_result(
@@ -562,9 +550,7 @@ class MemorySummarizationTool(BaseTool):
                         "source": "postgresql",
                         "id": row.id,
                         "metadata": row.metadata_json,
-                        "created_at": (
-                            row.created_at.isoformat() if row.created_at else None
-                        ),
+                        "created_at": (row.created_at.isoformat() if row.created_at else None),
                     },
                 )
         except Exception as e:
