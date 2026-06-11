@@ -221,4 +221,76 @@ docker exec s-01KTTPX1TD7PYKQVP3HJX4JE0P sh -c 'ps -ef; ss -ltn'  # confirm the 
 
 ---
 
+## UNTRACKED FILES — COMMIT DECISION MATRIX (Session 5 review)
+
+The user asked for a commit recommendation on the 12+ untracked files. After reading each, here is the recommended action for each. **Glenn must approve before any commit.**
+
+### Category A — COMMIT NOW (needed for the entrypoint fix the audit recommends)
+
+These are exactly the files the audit's "File pointer — start here" section points to. The next session needs them under version control to make the entrypoint fix:
+
+| File | Lines | Why commit | Suggested commit msg |
+|------|------:|------------|----------------------|
+| `sandboxd/Dockerfile.sandboxd-base` | 37 | Patches the upstream `sandboxd-base:1.0.0` image with the entrypoint wrapper that the audit's fix (A) modifies. **The entrypoint the audit says "modify" is right here.** | `feat(sandboxd): add base image patch with entrypoint wrapper + node/npm + RUNTIMED_DEV_CMD fallback` |
+| `sandboxd/rebuild-sandboxd-base.sh` | 44 | Rebuild script referenced by the audit's "Orientation commands" and "Rollback plan" sections. | `chore(sandboxd): add rebuild script for base image` |
+
+### Category B — COMMIT (test infrastructure, no risk)
+
+Well-documented, no security issues, ready to use:
+
+| File | Lines | Why commit | Suggested commit msg |
+|------|------:|------------|----------------------|
+| `backend/app/testing/__init__.py` | 27 | Public API: re-exports `pop_config_overrides` from `_env_guard`. | `feat(testing): add app.testing subpackage for test-only helpers` |
+| `backend/app/testing/_env_guard.py` | 66 | `pop_config_overrides()` — strips shell env vars that would silently override config defaults. Used by conftest.py. | `feat(testing): add env-guard helper to pop config-overridable env vars` |
+| `backend/tests/test_env_guard.py` | 93 | 4 contract tests: named vars, wildcard prefixes, unrelated-vars-stay-untouched, idempotency. | `test(testing): contract tests for pop_config_overrides (4 cases)` |
+
+These three can be one commit: `feat(testing): add env-guard helper + conftest re-export + contract tests`.
+
+### Category C — ⚠️ SECURITY ISSUE: redact before commit, then COMMIT
+
+| File | Lines | Issue | Action |
+|------|------:|-------|--------|
+| `docs/HOMELAB-SERVICES-REFERENCE.md` | 309 | **Contains a live `SANDBOXD_API_TOKENS=flowmanner=37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046` token at the bottom of the file (apparently pasted from a `cat` of the sandboxd .env).** The token is a real secret. | **Redact to `SANDBOXD_API_TOKENS=<redacted — see /mnt/apps/Softwares2/sandboxd/.env>` first, then commit.** Treat the token as compromised: rotate it via the sandboxd control plane API or by regenerating the .env. |
+
+After redaction, the rest of the file is useful operational reference (API endpoints, common workflows, PREVIEW_DOMAIN gotcha). Commit: `docs: add homelab services reference (with token redacted)`.
+
+### Category D — COMMIT (operational reference docs, no risk)
+
+| File | Lines | Why commit |
+|------|------:|------------|
+| `docs/HOMELAB-REBOOT.md` | 105 | Recovery runbook for post-reboot: container table, llama-server systemd unit, startup order, post-reboot verification, troubleshooting. Clean, no security issues. |
+
+### Category E — Personal/business planning docs — DEFER to Glenn
+
+These are Glenn's personal strategy and marketing material, not project code. They reference Glenn-machine paths (`/home/glenn/FlowmannerV2-frontend`, `/mnt/apps/BACKUP-RAG/clickandbuilds/glennguilloux/`) and have already been "checked off" in the professionalization-plan's progress tracker. **Glenn's call** — either commit under `docs/` (they're useful project context) or move to a separate location:
+
+- `docs/PORTFOLIO-BRAINSTORM-IDEAS.md` (295 lines) — strategic options for glennguilloux.com
+- `docs/PORTFOLIO-PROMOTION-PLAN.md` (292 lines) — Flowmanner × Portfolio promotion
+- `docs/PROFESSIONALIZATION-PLAN.md` (501 lines) — frontend professionalization (mostly checked off as of June 2026)
+- `docs/blog-how-to-run-ai-agents-without-going-bankrupt.md` (178 lines) — published blog post draft
+
+### Category F — DEFER (one-shot scripts, served their purpose)
+
+The `apply_*.py` scripts have already mutated the source code; running them again is idempotent but pointless. The `debug_converter_splice.py` is a one-off debugging helper. **Move to `scripts/archived/2026-06-10-mypy-baseline-fixes/` or delete.** Glenn's call:
+
+- `backend/validate_constraints.py` (315 lines) — DB FK validation. Could be useful as a recurring diagnostic; could also be deleted.
+- `scripts/apply_attr_defined_fixes.py` (90 lines) — already applied
+- `scripts/apply_sentry_none_guards.py` (104 lines) — already applied
+- `scripts/apply_arg_type_ignores.py` (154 lines) — already applied
+- `scripts/debug_converter_splice.py` (61 lines) — debug helper for a specific bug, likely fixed by now
+
+### Summary table
+
+| Decision | Count | Action |
+|----------|------:|--------|
+| Commit (Category A) | 2 | sandboxd/ — needed for the audit's fix |
+| Commit (Category B) | 3 | backend test infrastructure |
+| Commit after redaction (Category C) | 1 | HOMELAB-SERVICES-REFERENCE.md — **redact token first** |
+| Commit (Category D) | 1 | HOMELAB-REBOOT.md |
+| Defer to Glenn (Category E) | 4 | planning/marketing docs |
+| Defer / archive (Category F) | 5 | one-shot mypy/debug scripts |
+| **TOTAL untracked** | **16** | — |
+
+---
+
 ## END
