@@ -231,7 +231,7 @@ These are exactly the files the audit's "File pointer — start here" section po
 
 | File | Lines | Why commit | Suggested commit msg |
 |------|------:|------------|----------------------|
-| `sandboxd/Dockerfile.sandboxd-base` | 37 | Patches the upstream `sandboxd-base:1.0.0` image with the entrypoint wrapper that the audit's fix (A) modifies. **The entrypoint the audit says "modify" is right here.** | `feat(sandboxd): add base image patch with entrypoint wrapper + node/npm + RUNTIMED_DEV_CMD fallback` |
+| `sandboxd/Dockerfile.sandboxd-base` | 37 | Patches the upstream `sandboxd-base:1.0.0` image with the entrypoint wrapper that the audit's fix (A) modifies. **The entrypoint the audit says "modify" is right here.** Note: the wrapper script is currently **inline** in the Dockerfile via a `printf` heredoc — the next session should consider extracting it to a separate `sandboxd/entrypoint-wrapper.sh` file for easier diffs and review. | `feat(sandboxd): add base image patch with entrypoint wrapper + node/npm + RUNTIMED_DEV_CMD fallback` |
 | `sandboxd/rebuild-sandboxd-base.sh` | 44 | Rebuild script referenced by the audit's "Orientation commands" and "Rollback plan" sections. | `chore(sandboxd): add rebuild script for base image` |
 
 ### Category B — COMMIT (test infrastructure, no risk)
@@ -250,7 +250,7 @@ These three can be one commit: `feat(testing): add env-guard helper + conftest r
 
 | File | Lines | Issue | Action |
 |------|------:|-------|--------|
-| `docs/HOMELAB-SERVICES-REFERENCE.md` | 309 | **Contains a live `SANDBOXD_API_TOKENS=flowmanner=37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046` token at the bottom of the file (apparently pasted from a `cat` of the sandboxd .env).** The token is a real secret. | **Redact to `SANDBOXD_API_TOKENS=<redacted — see /mnt/apps/Softwares2/sandboxd/.env>` first, then commit.** Treat the token as compromised: rotate it via the sandboxd control plane API or by regenerating the .env. |
+| `docs/HOMELAB-SERVICES-REFERENCE.md` | 309 | **Contains a live `SANDBOXD_API_TOKENS=flowmanner=37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046` token at the bottom of the file (apparently pasted from a `cat` of the sandboxd .env).** The token is a real production-shaped secret (64 hex chars = 32 bytes = 256 bits). | **Treat the token as compromised REGARDLESS of whether the file is committed** — it's now in agent conversation context. **Redact** to `SANDBOXD_API_TOKENS=<redacted — see /mnt/apps/Softwares2/sandboxd/.env>` first, **check git history** with `git log -p --all -S 'SANDBOXD_API_TOKENS'` (and reflog) in case it was ever committed previously, **then commit**. **Rotate the token** at `/mnt/apps/Softwares2/sandboxd/.env` (regenerate per the sandboxd control plane's auth docs) — rotating fixes the leak going forward; past commits need BFG or `git filter-repo` to clean. |
 
 After redaction, the rest of the file is useful operational reference (API endpoints, common workflows, PREVIEW_DOMAIN gotcha). Commit: `docs: add homelab services reference (with token redacted)`.
 
@@ -262,22 +262,23 @@ After redaction, the rest of the file is useful operational reference (API endpo
 
 ### Category E — Personal/business planning docs — DEFER to Glenn
 
-These are Glenn's personal strategy and marketing material, not project code. They reference Glenn-machine paths (`/home/glenn/FlowmannerV2-frontend`, `/mnt/apps/BACKUP-RAG/clickandbuilds/glennguilloux/`) and have already been "checked off" in the professionalization-plan's progress tracker. **Glenn's call** — either commit under `docs/` (they're useful project context) or move to a separate location:
+These are Glenn's personal strategy and marketing material, not project code. They reference Glenn-machine paths (`/home/glenn/FlowmannerV2-frontend`, `/mnt/apps/BACKUP-RAG/clickandbuilds/glennguilloux/`) and have already been "checked off" in the professionalization-plan's progress tracker. **Glenn's call** — the audit doesn't recommend one. Options:
+- (a) **Commit under `docs/`** as project context (keeps everything in one repo, accepts the personal-machine paths as historical reference)
+- (b) **Move to a separate `glenn-planning/` repo** (cleaner separation; uses git history per topic)
+- (c) **Move to a top-level `notes/` dir in this repo** (visible in the repo tree but segregated from `docs/`)
 
 - `docs/PORTFOLIO-BRAINSTORM-IDEAS.md` (295 lines) — strategic options for glennguilloux.com
 - `docs/PORTFOLIO-PROMOTION-PLAN.md` (292 lines) — Flowmanner × Portfolio promotion
 - `docs/PROFESSIONALIZATION-PLAN.md` (501 lines) — frontend professionalization (mostly checked off as of June 2026)
 - `docs/blog-how-to-run-ai-agents-without-going-bankrupt.md` (178 lines) — published blog post draft
 
-### Category F — DEFER (one-shot scripts, served their purpose)
+### Category F — DEFER (one-shot scripts, served their purpose) — split recommendation
 
-The `apply_*.py` scripts have already mutated the source code; running them again is idempotent but pointless. The `debug_converter_splice.py` is a one-off debugging helper. **Move to `scripts/archived/2026-06-10-mypy-baseline-fixes/` or delete.** Glenn's call:
-
-- `backend/validate_constraints.py` (315 lines) — DB FK validation. Could be useful as a recurring diagnostic; could also be deleted.
-- `scripts/apply_attr_defined_fixes.py` (90 lines) — already applied
-- `scripts/apply_sentry_none_guards.py` (104 lines) — already applied
-- `scripts/apply_arg_type_ignores.py` (154 lines) — already applied
-- `scripts/debug_converter_splice.py` (61 lines) — debug helper for a specific bug, likely fixed by now
+- `backend/validate_constraints.py` (315 lines) — **commit** as `backend/validate_constraints.py`. It's a useful recurring diagnostic, not a one-shot.
+- `scripts/apply_attr_defined_fixes.py` (90 lines) — **archive** to `scripts/archived/2026-06-mypy-baseline-fixes/`. Documents how the mypy baseline was reduced from 871 → ~700.
+- `scripts/apply_sentry_none_guards.py` (104 lines) — **archive** to the same dir.
+- `scripts/apply_arg_type_ignores.py` (154 lines) — **archive** to the same dir.
+- `scripts/debug_converter_splice.py` (61 lines) — **delete**. One-off debug helper for a bug that's presumably fixed; no historical value beyond a code archeology dive.
 
 ### Summary table
 
@@ -285,11 +286,22 @@ The `apply_*.py` scripts have already mutated the source code; running them agai
 |----------|------:|--------|
 | Commit (Category A) | 2 | sandboxd/ — needed for the audit's fix |
 | Commit (Category B) | 3 | backend test infrastructure |
-| Commit after redaction (Category C) | 1 | HOMELAB-SERVICES-REFERENCE.md — **redact token first** |
+| Commit after redaction (Category C) | 1 | HOMELAB-SERVICES-REFERENCE.md — **redact + rotate token first** |
 | Commit (Category D) | 1 | HOMELAB-REBOOT.md |
+| Commit (Category F, partial) | 1 | `backend/validate_constraints.py` — recurring diagnostic, not one-shot |
 | Defer to Glenn (Category E) | 4 | planning/marketing docs |
-| Defer / archive (Category F) | 5 | one-shot mypy/debug scripts |
+| Archive (Category F, partial) | 3 | `scripts/apply_*.py` → `scripts/archived/2026-06-mypy-baseline-fixes/` |
+| Delete (Category F, partial) | 1 | `scripts/debug_converter_splice.py` |
 | **TOTAL untracked** | **16** | — |
+
+### Recommended commit order (if Glenn approves)
+
+1. **Category C (security redaction) FIRST** — prevents accidental commit of the live token if anything else gets approved before the redaction lands. Do this commit and stop, verify the token is gone from the diff, then continue.
+2. **Categories A & B next** — clear infrastructure wins, lowest controversy. Sandboxd is needed for the entrypoint fix; testing module is clean and ready.
+3. **Category D** — operational doc, low risk.
+4. **Category F (partial: validate_constraints.py)** — recurring diagnostic, low risk.
+5. **Category E last** — planning/marketing docs, requires Glenn's judgment about whether to commit or relocate.
+6. **Category F archive/delete** — can be done at any time; the archive move (`git mv scripts/apply_*.py scripts/archived/...`) is a clean operation that doesn't break anything.
 
 ---
 
