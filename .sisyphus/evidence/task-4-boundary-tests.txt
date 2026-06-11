@@ -1,0 +1,10 @@
+command=/usr/bin/python - <<'PY' # targeted 03-domain-boundaries checks
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T14:03:03.896833+00:00
+
+domain names=pass (9 checks)
+anti-corruption layers=pass (4 checks)
+boundary-test expectations=pass (5 checks)
+package layout migration note=pass (3 checks)
+targeted_checks=pass

@@ -1,0 +1,8 @@
+command=/usr/bin/python - <<'PY' # dash-style check for 03-domain-boundaries.md
+working_directory=/opt/flowmanner
+exit_code=0
+timestamp=2026-06-11T14:03:26.895688+00:00
+
+dash_style_check=pass
+em_dash=absent
+en_dash=absent
