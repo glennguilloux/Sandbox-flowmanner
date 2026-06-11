@@ -93,9 +93,23 @@ jobs:
         # Non-blocking: 30 legacy undefined-name errors to fix
         # Remove "|| true" once F821 errors are resolved
 
-      - name: Mypy type check
-        run: mypy app/ --ignore-missing-imports --no-error-summary || true
-        # Non-blocking: codebase is not fully typed yet
+      - name: Mypy type check (baseline-enforced)
+        # 277 pre-existing errors (after filtering deterministic 'note:' lines)
+        # are tracked in backend/mypy-baseline.txt. CI fails on NEW mypy errors
+        # but allows the existing set. The team fixes errors incrementally;
+        # each fix shrinks the baseline.
+        # Refreshing the baseline: regenerate via
+        #   cd backend && mypy app/ --ignore-missing-imports --no-error-summary \
+        #     2>&1 | grep -v 'note:' | sort -u > mypy-baseline.txt
+        run: |
+          mypy app/ --ignore-missing-imports --no-error-summary 2>&1 \
+            | grep -v 'note:' \
+            | sort -u \
+            | diff mypy-baseline.txt -
+        # Replaces the previous `|| true` (no enforcement) and the brief
+        # full-enforcement attempt (would have frozen the repo on 301 errors).
+        # Added 2026-06-10 — see docs/EXIT-AUDIT-2026-06-10-session3.md
+        # (handoff item).
 
       - name: Run tests
         env:
