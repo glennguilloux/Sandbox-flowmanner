@@ -23,3 +23,21 @@
 - Saved validation evidence in `.sisyphus/evidence/task-2-decision-record-valid.txt` and stop-gate evidence in `.sisyphus/evidence/task-2-stop-gates.txt`.
 - Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-2-decision-record-valid.txt`; output reported `01-paradigm-evaluation.md: valid`.
 - Markdown LSP diagnostics were unavailable because no `.md` language server is configured in this environment.
+
+## 2026-06-11 Task 3 diagram alignment
+- Updated `docs/future-architecture/02-architecture-diagrams.md` with a Current/Future legend near the top.
+- Labeled the main diagram with current, future, future Phase 4, and future SaaS packaging markers.
+- Kept RabbitMQ as the current compatibility layer and NATS JetStream as a future Phase 4 dependency only.
+- Added an explicit note that the diagram is not a microservice diagram and that domain boxes are modules inside one modular monolith backend.
+- Added deployment labels for the self-hosted Docker Compose baseline and Kubernetes-ready SaaS packaging later.
+- Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-3-diagram-validation.txt`; output reported `02-architecture-diagrams.md: valid`.
+- Saved forbidden topology and dash evidence to `.sisyphus/evidence/task-3-forbidden-topology.txt`.
+
+
+## 2026-06-11 Task 4 domain boundaries
+- Expanded `docs/future-architecture/03-domain-boundaries.md` with a domain ownership matrix that includes public APIs, emitted events, invariants, and required tests for User, Workspace, Agent, Workflow, Execution, Tool, Knowledge, Billing, and Observability.
+- Made anti-corruption layers explicit for legacy v1 mission APIs, Celery/RabbitMQ compatibility, external AI provider SDKs, and sandbox/tool boundaries.
+- Corrected module dependency direction so domain services depend on ports only and infrastructure adapters depend on ports, never the reverse.
+- Added boundary-test expectations and a package layout migration roadmap that requires incremental, test-backed moves rather than a one-shot restructure.
+- Verified with `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md --evidence .sisyphus/evidence/task-4-domain-boundaries-valid.txt`; output reported `03-domain-boundaries.md: valid`.
+- Saved targeted boundary evidence in `.sisyphus/evidence/task-4-boundary-tests.txt` and dash-style evidence in `.sisyphus/evidence/task-4-dash-style.txt`.
