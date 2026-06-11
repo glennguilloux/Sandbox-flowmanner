@@ -34,6 +34,22 @@ def remove_stop_gate_section(doc: Path) -> None:
     doc.write_text(modified, encoding="utf-8")
 
 
+def replace_nats_line(doc: Path, replacement: str) -> None:
+    text = doc.read_text(encoding="utf-8")
+    target = "- No NATS before outbox and event-schema stability.\n"
+    if target not in text:
+        raise AssertionError(f"expected NATS stop-gate line not found in {doc}")
+    doc.write_text(text.replace(target, f"- {replacement}\n"), encoding="utf-8")
+
+
+def remove_nats_line(doc: Path) -> None:
+    text = doc.read_text(encoding="utf-8")
+    target = "- No NATS before outbox and event-schema stability.\n"
+    if target not in text:
+        raise AssertionError(f"expected NATS stop-gate line not found in {doc}")
+    doc.write_text(text.replace(target, ""), encoding="utf-8")
+
+
 def test_current_pack_validation_passes() -> None:
     proc = run_validator(DOCS_ROOT, ROADMAP)
 
@@ -41,6 +57,17 @@ def test_current_pack_validation_passes() -> None:
     assert "docs_validated=9" in proc.stdout
     assert "stop_gates=6" in proc.stdout
     assert "validation=pass" in proc.stdout
+
+
+def test_current_pack_accepts_nats_slash_variant(tmp_path: Path) -> None:
+    tmp_docs = tmp_path / "future-architecture"
+    shutil.copytree(DOCS_ROOT, tmp_docs)
+    replace_nats_line(tmp_docs / "01-paradigm-evaluation.md", "No NATS before outbox/event-schema stability.")
+
+    proc = run_validator(tmp_docs, ROADMAP)
+    output = proc.stdout + proc.stderr
+
+    assert proc.returncode == 0, output
 
 
 def test_missing_required_non_goal_section_fails_with_name(tmp_path: Path) -> None:
@@ -56,5 +83,24 @@ def test_missing_required_non_goal_section_fails_with_name(tmp_path: Path) -> No
     assert "missing non-goal/stop gate" in output
     assert "no microservices default" in output
     assert "No microservices default." in output
+    assert "no NATS before outbox and event-schema stability" in output
+    assert "No NATS before outbox and event-schema stability." in output
+    assert "No NATS before outbox/event-schema stability." in output
     assert "no Kubernetes-only self-hosting" in output
     assert "No Kubernetes-only self-hosting." in output
+
+
+def test_missing_single_nats_stop_gate_fails_with_name(tmp_path: Path) -> None:
+    tmp_docs = tmp_path / "future-architecture"
+    shutil.copytree(DOCS_ROOT, tmp_docs)
+    remove_nats_line(tmp_docs / "01-paradigm-evaluation.md")
+
+    proc = run_validator(tmp_docs, ROADMAP)
+    output = proc.stdout + proc.stderr
+
+    assert proc.returncode != 0
+    assert "01-paradigm-evaluation.md" in output
+    assert "missing non-goal/stop gate: no NATS before outbox and event-schema stability" in output
+    assert "No NATS before outbox and event-schema stability." in output
+    assert "No NATS before outbox/event-schema stability." in output
+    assert "no microservices default" not in output

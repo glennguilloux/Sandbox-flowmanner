@@ -116,13 +116,16 @@ REQUIRED_DOC_SNIPPETS: dict[str, list[str]] = {
     ],
 }
 
-REQUIRED_NON_GOALS: dict[str, str] = {
-    "no microservices default": "No microservices default.",
-    "no service mesh for homelab": "No service mesh for homelab deployments.",
-    "no full event sourcing everywhere": "No full event sourcing everywhere.",
-    "no actor-framework lock-in": "No actor-framework lock-in.",
-    "no NATS before outbox and event-schema stability": "No NATS before outbox and event-schema stability.",
-    "no Kubernetes-only self-hosting": "No Kubernetes-only self-hosting.",
+REQUIRED_NON_GOALS: dict[str, tuple[str, ...]] = {
+    "no microservices default": ("No microservices default.",),
+    "no service mesh for homelab": ("No service mesh for homelab deployments.",),
+    "no full event sourcing everywhere": ("No full event sourcing everywhere.",),
+    "no actor-framework lock-in": ("No actor-framework lock-in.",),
+    "no NATS before outbox and event-schema stability": (
+        "No NATS before outbox and event-schema stability.",
+        "No NATS before outbox/event-schema stability.",
+    ),
+    "no Kubernetes-only self-hosting": ("No Kubernetes-only self-hosting.",),
 }
 
 TDD_CONTRACTS = [
@@ -242,9 +245,10 @@ def check_non_goals(root: Path) -> list[str]:
         return []
     text = strip_markdown_fences(read_text(doc))
     errors: list[str] = []
-    for label, phrase in REQUIRED_NON_GOALS.items():
-        if phrase not in text:
-            errors.append(f"01-paradigm-evaluation.md: missing non-goal/stop gate: {label} ({phrase})")
+    for label, phrases in REQUIRED_NON_GOALS.items():
+        if not any(phrase in text for phrase in phrases):
+            accepted = "; ".join(phrases)
+            errors.append(f"01-paradigm-evaluation.md: missing non-goal/stop gate: {label} ({accepted})")
     return errors
 
 
