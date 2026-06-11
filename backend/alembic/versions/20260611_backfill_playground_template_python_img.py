@@ -1,7 +1,7 @@
-"""Backfill playground_sandboxes.template: react-standard -> python.img.
+"""Backfill playground_sandboxes.template: react-standard -> python-img.
 
-After commit 4f88743 flipped SANDBOXD_DEFAULT_TEMPLATE to python.img, the
-column's default + server_default on new rows are python.img, but existing
+After commit 4f88743 flipped SANDBOXD_DEFAULT_TEMPLATE to python-img, the
+column's default + server_default on new rows are python-img, but existing
 rows keep the old value. This migration backfills any remaining
 'react-standard' rows so the entire playground_sandboxes table is
 consistent with the new default.
@@ -43,13 +43,13 @@ def upgrade() -> None:
     result = conn.execute(
         sa_text(
             "UPDATE playground_sandboxes "
-            "SET template = 'python.img' "
+            "SET template = 'python-img' "
             "WHERE template = 'react-standard'"
         )
     )
     # Result is logged for the migration record. The rowcount is not
     # asserted; 0 rows is a valid outcome (no legacy rows left).
-    print(f"[backfill_playground_template_001] Updated {result.rowcount} rows to python.img")
+    print(f"[backfill_playground_template_001] Updated {result.rowcount} rows to python-img")
 
 
 def downgrade() -> None:
@@ -57,9 +57,9 @@ def downgrade() -> None:
 
     We cannot reliably reverse this migration because we do not retain
     a record of which rows were originally 'react-standard' versus
-    those that were already 'python.img' (or some other value) before
+    those that were already 'python-img' (or some other value) before
     the upgrade. Restoring all rows to 'react-standard' would
-    incorrectly downgrade rows that were explicitly set to 'python.img'
+    incorrectly downgrade rows that were explicitly set to 'python-img'
     by a caller. Operators wanting to revert should restore from a
     pre-migration database backup.
     """

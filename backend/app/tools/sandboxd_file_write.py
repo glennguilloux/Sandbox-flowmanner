@@ -115,7 +115,7 @@ class SandboxdFileWriteTool(BaseTool):
             # ── Best-effort auto-serve on port 8081 ───────────────────
             # The LLM may forget to call sandboxd_serve.  Auto-start a
             # server on port 8081 (port 8080 is reserved defensively — the default
-            # python.img template does not use it, but some legacy templates like
+            # python-img template does not use it, but some legacy templates like
             # react-standard may) so files
             # are immediately accessible after the first write.
             # Fire-and-forget — must not block the file write response.

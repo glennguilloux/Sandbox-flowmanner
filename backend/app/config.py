@@ -152,7 +152,7 @@ class Settings(BaseSettings):
     SANDBOXD_AUTH_TOKEN: str = ""
     SANDBOXD_PREVIEW_DOMAIN: str = "preview.flowmanner.com"
     SANDBOXD_ENABLED: bool = True
-    SANDBOXD_DEFAULT_TEMPLATE: str = "python.img"
+    SANDBOXD_DEFAULT_TEMPLATE: str = "python-img"
 
     # Chat tool-calling limits
     CHAT_MAX_TOOL_ROUNDS: int = 15

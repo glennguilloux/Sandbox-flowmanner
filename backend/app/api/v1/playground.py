@@ -87,7 +87,7 @@ def _rewrite_preview_url(raw_url: str | None) -> str | None:
 @router.post("/sandboxes", response_model=PlaygroundSandboxResponse)
 async def create_playground_sandbox(
     request: Request,
-    template: str = Query("python.img"),
+    template: str = Query("python-img"),
     db=Depends(get_db),
 ):
     """Create an anonymous playground sandbox. No auth required. Rate-limited."""

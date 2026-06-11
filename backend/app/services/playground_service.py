@@ -33,7 +33,7 @@ class PlaygroundService:
         self,
         *,
         db,
-        template: str = "python.img",
+        template: str = "python-img",
         client_ip: str | None = None,
     ) -> PlaygroundSandbox:
         """Create an anonymous sandbox with a 30-minute TTL."""

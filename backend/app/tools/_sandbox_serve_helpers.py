@@ -13,7 +13,7 @@ and makes the "fire-and-forget" vs. "wait-for-PID" contract explicit.
 GOTCHA: ``fuser`` and ``ss`` are NOT available in the sandbox container,
 and legacy templates (e.g., react-standard) use port 8080 for their built-in
 dev server which may be the container entrypoint — **never kill anything on
-port 8080**.  Port 8081 is the safe port.  The default python.img template
+port 8080**.  Port 8081 is the safe port.  The default python-img template
 does not use 8080, but the defensive behavior is kept for legacy templates.
 """
 
@@ -36,7 +36,7 @@ DEFAULT_SANDBOX_WORKSPACE = "/home/sandbox"
 # Default port for the python3 fallback server.  Port 8080 may be used by
 # legacy sandbox templates (e.g., react-standard's Vite dev server, which
 # can be the container entrypoint) — never serve on 8080, and never kill
-# anything on 8080.  The default python.img template does not use 8080,
+# anything on 8080.  The default python-img template does not use 8080,
 # but the defensive behavior is kept for legacy templates.
 DEFAULT_SERVE_PORT = 8081
 

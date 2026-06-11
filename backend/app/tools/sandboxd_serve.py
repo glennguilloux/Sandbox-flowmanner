@@ -1,7 +1,7 @@
 """sandboxd_serve — start a dev server inside the sandbox.
 
 Starts a ``python3 -m http.server`` on port 8081 (port 8080 is
-reserved defensively — the default python.img template does not use it,
+reserved defensively — the default python-img template does not use it,
 but some legacy templates like react-standard may).  Serves files
 from the sandbox workspace root (``/home/sandbox/``).  Polls until the server is accepting
 connections, then returns the preview URL.
@@ -43,7 +43,7 @@ class SandboxdServeInput(ToolInput):
         ge=1,
         le=65535,
         description=(
-            "Port to serve on (default 8081). Port 8080 is reserved defensively — the default python.img template does not use it, but some legacy templates (e.g., react-standard) may."
+            "Port to serve on (default 8081). Port 8080 is reserved defensively — the default python-img template does not use it, but some legacy templates (e.g., react-standard) may."
         ),
     )
     directory: str | None = Field(
@@ -63,7 +63,7 @@ class SandboxdServeTool(BaseTool):
             name="Sandboxd Serve",
             description=(
                 "Start a static file server inside the sandbox on port 8081 "
-                "(port 8080 is reserved defensively — the default python.img template does not use it, "
+                "(port 8080 is reserved defensively — the default python-img template does not use it, "
                 "but some legacy templates like react-standard may). The server serves "
                 "files from /home/sandbox/ so files written with sandboxd_file_write "
                 "are accessible at the preview URL. Returns the preview URL directly. "
