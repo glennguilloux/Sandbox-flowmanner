@@ -18,14 +18,14 @@ from typing import Any
 from pydantic import Field
 
 from app.integrations.sandboxd_client import rewrite_sandboxd_url
+from app.tools._sandbox_serve_helpers import (
+    DEFAULT_SANDBOX_WORKSPACE,
+    is_port_serving,
+    start_static_http_server,
+)
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
-
-# The sandbox workspace root inside the container.  The PUT /files API
-# writes paths relative to this directory (e.g. path="index.html" puts
-# the file at /home/sandbox/index.html).
-_WORKSPACE_DIR = "/home/sandbox"
 
 # Number of poll attempts × interval after starting the fallback server.
 _SERVE_POLL_ATTEMPTS = 20  # 20 × 0.5 s = 10 s max
@@ -109,12 +109,12 @@ class SandboxdServeTool(BaseTool):
             port = validated.port
 
             # ── Step 1: Check if port is already serving ──────────────
-            ready = await self._check_port(client, sandbox_id, port)
+            ready = await is_port_serving(client, sandbox_id, port)
 
             if not ready:
                 # ── Step 2: Start a fallback server ───────────────────
-                serve_dir = validated.directory or _WORKSPACE_DIR
-                server_pid, start_error = await self._start_fallback_server(
+                serve_dir = validated.directory or DEFAULT_SANDBOX_WORKSPACE
+                server_pid, start_error = await start_static_http_server(
                     client, sandbox_id, port, serve_dir
                 )
 
@@ -129,7 +129,7 @@ class SandboxdServeTool(BaseTool):
                 # Poll until the server is accepting connections (up to 10s)
                 for _attempt in range(_SERVE_POLL_ATTEMPTS):
                     await asyncio.sleep(_SERVE_POLL_INTERVAL)
-                    ready = await self._check_port(client, sandbox_id, port)
+                    ready = await is_port_serving(client, sandbox_id, port)
                     if ready:
                         break
             else:
@@ -168,73 +168,6 @@ class SandboxdServeTool(BaseTool):
             return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
 
     # ── Helpers ────────────────────────────────────────────────────────
-
-    @staticmethod
-    async def _check_port(client, sandbox_id: str, port: int) -> bool:
-        """Return True if the port is accepting HTTP connections."""
-        # NOTE: ``bash -c`` (not ``bash -lc``) — login shells treat ``%``
-        # as a job-control specifier, which silently mangles the
-        # ``%{http_code}`` curl format string.
-        check_cmd = [
-            "bash",
-            "-c",
-            f"curl -sf -o /dev/null -w '%{{http_code}}' http://localhost:{port}/ 2>/dev/null || echo '000'",
-        ]
-        result = await client.exec_command(sandbox_id, check_cmd, timeout=5.0)
-        output = result.get("stdout", "").strip().strip("'")
-        return output in ("200", "301", "302", "304")
-
-    @staticmethod
-    async def _start_fallback_server(
-        client, sandbox_id: str, port: int, serve_dir: str
-    ) -> tuple[int, str | None]:
-        """Start a python3 http.server as a fallback.
-
-        Returns ``(pid, error)`` where ``error`` is ``None`` on success
-        and a human-readable message if the start command failed.
-        """
-        # Write a serve script to /tmp/serve.py to avoid quoting issues.
-        # Uses SO_REUSEADDR so it can bind even if the port is in TIME_WAIT.
-        # Uses SimpleHTTPRequestHandler(directory=...) instead of os.chdir
-        # to avoid path quoting issues.
-        lines = [
-            "import http.server, socketserver",
-            "class H(http.server.SimpleHTTPRequestHandler):",
-            "    def __init__(self, *a, **kw):",
-            f"        super().__init__(*a, directory='{serve_dir}', **kw)",
-            "socketserver.TCPServer.allow_reuse_address = True",
-            f"s = socketserver.TCPServer(('0.0.0.0', {port}), H)",
-            f"print('Serving on :{port} from {serve_dir}')",
-            "s.serve_forever()",
-        ]
-        script_content = "\n".join(lines) + "\n"
-
-        # Escape for single-quoted shell string
-        escaped = script_content.replace("'", "'\\''")
-
-        start_cmd = [
-            "bash",
-            "-c",
-            f"echo '{escaped}' > /tmp/serve.py && nohup python3 /tmp/serve.py > /tmp/serve.log 2>&1 & echo $! > /tmp/serve.pid && cat /tmp/serve.pid",
-        ]
-
-        result = await client.exec_command(sandbox_id, start_cmd, timeout=10.0)
-
-        # Check exit code — the echo+nohup pipeline should exit 0.
-        exit_code = result.get("exit_code", 1)
-        if exit_code != 0:
-            stderr = result.get("stderr", "").strip()
-            error_msg = f"Start command exited with code {exit_code}"
-            if stderr:
-                error_msg += f": {stderr[:200]}"
-            return 0, error_msg
-
-        pid_str = result.get("stdout", "").strip().split("\n")[-1]
-        try:
-            pid = int(pid_str)
-        except (ValueError, TypeError):
-            return 0, f"Could not parse PID from output: {pid_str!r}"
-        return pid, None
 
     @staticmethod
     def _resolve_sandbox_id() -> str | None:
