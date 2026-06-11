@@ -312,6 +312,29 @@ class NodeExecutor:
 
     # ── LLM handler ─────────────────────────────────────────────────
 
+    @staticmethod
+    def _tool_result_to_dict(result: Any) -> dict[str, Any]:
+        if isinstance(result, dict):
+            normalized = {
+                "success": bool(result.get("success", False)),
+                "output": result.get("output"),
+                "tokens": int(result.get("tokens", result.get("tokens_used", 0)) or 0),
+                "cost": float(result.get("cost", result.get("cost_usd", 0.0)) or 0.0),
+                "error": result.get("error"),
+            }
+            for key, value in result.items():
+                if key not in normalized:
+                    normalized[key] = value
+            return normalized
+
+        return {
+            "success": bool(getattr(result, "success", False)),
+            "output": getattr(result, "result", getattr(result, "data", None)),
+            "tokens": int(getattr(result, "tokens_used", 0) or 0),
+            "cost": float(getattr(result, "cost_usd", 0.0) or 0.0),
+            "error": getattr(result, "error", None),
+        }
+
     async def _handle_llm(
         self,
         db: AsyncSession,
@@ -365,8 +388,11 @@ class NodeExecutor:
             }
 
         content = response.get("response", "")
+        cost_info = response.get("cost", {})
         budget_info = response.get("budget", {})
-        tokens = budget_info.get("prompt_tokens", 0) + budget_info.get("completion_tokens", 0)
+        prompt_tokens = cost_info.get("input_tokens", budget_info.get("prompt_tokens", 0))
+        completion_tokens = cost_info.get("output_tokens", budget_info.get("completion_tokens", 0))
+        tokens = int(prompt_tokens or 0) + int(completion_tokens or 0)
 
         if not content or content.strip() == "":
             return {
@@ -379,7 +405,7 @@ class NodeExecutor:
             "success": True,
             "output": {"text": content},
             "tokens": tokens,
-            "cost": budget_info.get("spent_usd", 0.0),
+            "cost": float(cost_info.get("usd", budget_info.get("spent_usd", 0.0)) or 0.0),
             "model": response.get("model", model_id),
             "provider": response.get("provider", "unknown"),
         }
@@ -446,7 +472,8 @@ class NodeExecutor:
             return {"success": False, "error": f"Unknown tool: {tool_name}"}
 
         params = node.config.get("params", {})
-        return await handler(params, context)
+        tool_result = await handler(params, context)
+        return self._tool_result_to_dict(tool_result)
 
     # ── Code execution ──────────────────────────────────────────────
 

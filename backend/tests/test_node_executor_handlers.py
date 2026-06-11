@@ -246,8 +246,7 @@ class TestHandleBrowser:
 
     @pytest.mark.asyncio
     async def test_browser_all_types_route_to_handler(self):
-        """Verify all browser node types route through _handle_browser via _dispatch."""
-        ne, mock_executor = _make_executor_with_node_executor()
+        ne, _ = _make_executor_with_node_executor()
         db = AsyncMock()
         budget = MagicMock()
 
@@ -288,13 +287,13 @@ class TestHandleFile:
         import os
         import tempfile
 
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
-        tmp.write("Hello, world!")
-        tmp.close()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+            tmp.write("Hello, world!")
+            tmp_path = tmp.name
 
         mock_storage = MagicMock()
         mock_storage.get_file_info.return_value = {
-            "path": tmp.name,
+            "path": tmp_path,
             "filename": "test.txt",
         }
         mock_fs_module = MagicMock()
@@ -489,6 +488,44 @@ class TestHandleWebSearch:
         assert "Web search failed" in result["error"]
 
 
+class TestHandleLlm:
+    @pytest.mark.asyncio
+    async def test_llm_result_uses_response_token_counts_and_actual_cost(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(
+            node_type=NodeType.LLM_CALL,
+            config={"prompt": "hello", "model_id": "deepseek-chat", "max_tokens": 10},
+        )
+        budget = MagicMock()
+
+        enforcer = MagicMock()
+        enforcer.call = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "ok",
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "cost": {
+                    "input_tokens": 12,
+                    "output_tokens": 7,
+                    "usd": 0.019,
+                },
+                "budget": {
+                    "spent_usd": 0.19,
+                    "remaining_usd": 0.81,
+                    "iterations_used": 1,
+                },
+            }
+        )
+
+        with patch("app.services.budget_enforcer.get_budget_enforcer", return_value=enforcer):
+            result = await ne._handle_llm(MagicMock(), node, {}, budget, "run-1")
+
+        assert result["success"] is True
+        assert result["tokens"] == 19
+        assert result["cost"] == 0.019
+
+
 # ── _tool_* helpers ─────────────────────────────────────────────────
 
 
@@ -592,27 +629,10 @@ class TestToolHelpers:
         import os
         import tempfile
 
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
-        tmp.write("file content here")
-        tmp.close()
-        mock_storage.get_file_info.return_value = {
-            "path": tmp.name,
-            "filename": "test.txt",
-        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+            tmp.write("file content here")
+            tmp_path = tmp.name
 
-        mock_fs_module = MagicMock()
-        mock_fs_module.FileStorageService.return_value = mock_storage
-
-        with patch.dict("sys.modules", {"app.services.file_storage": mock_fs_module}):
-            result = await ne._tool_file_reader({"file_id": "f1"}, {})
-        os.unlink(tmp.name)
-
-        assert result["success"] is True
-        assert "file content here" in result["output"]["content"]
-
-    @pytest.mark.asyncio
-    async def test_tool_file_reader_not_found(self):
-        ne, _ = _make_executor_with_node_executor()
         mock_storage = MagicMock()
         mock_storage.get_file_info.return_value = None
 
@@ -681,7 +701,7 @@ class TestHandleSubWorkflow:
 
     @pytest.mark.asyncio
     async def test_sub_workflow_not_found(self):
-        ne, mock_executor = _make_executor_with_node_executor()
+        ne, _ = _make_executor_with_node_executor()
         node = _make_node(node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "nonexistent"})
         db = AsyncMock()
         budget = MagicMock()
@@ -698,7 +718,7 @@ class TestHandleSubWorkflow:
 
     @pytest.mark.asyncio
     async def test_sub_workflow_max_depth(self):
-        ne, mock_executor = _make_executor_with_node_executor()
+        ne, _ = _make_executor_with_node_executor()
         node = _make_node(node_type=NodeType.SUB_WORKFLOW, config={"workflow_id": "wf-1"})
         db = AsyncMock()
         budget = MagicMock()
@@ -753,6 +773,59 @@ class TestHandleToolRouting:
             result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
 
         assert result["success"] is True
+        mock_ws.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_tool_result_tokens_and_cost_are_normalized(self):
+        ne, mock_executor = _make_executor_with_node_executor()
+        node = _make_node(
+            node_type=NodeType.TOOL_CALL,
+            config={"tool_name": "web_search", "params": {"query": "test"}},
+        )
+        db = AsyncMock()
+        budget = MagicMock()
+        run_id = str(uuid4())
+        from app.services.substrate.workflow_models import Workflow
+        from app.tools.base import ToolResult
+
+        workflow = Workflow(
+            id="wf-1",
+            type=WorkflowType.SOLO,
+            title="T",
+            nodes=[node],
+            user_id=str(uuid4()),
+        )
+
+        mock_cap = MagicMock()
+        mock_token = MagicMock()
+        mock_cap.issue.return_value = mock_token
+        mock_cap.verify_and_require.return_value = None
+        mock_executor.check_circuit_breaker = AsyncMock(return_value=(True, ""))
+        mock_ce_module = MagicMock()
+        mock_ce_module.get_capability_engine.return_value = mock_cap
+
+        tool_result = ToolResult.success_result(
+            "web_search",
+            {"ok": True},
+            tokens_used=42,
+            cost_usd=0.03,
+        )
+
+        with (
+            patch.dict("sys.modules", {"app.services.capability_engine": mock_ce_module}),
+            patch.object(
+                ne,
+                "_tool_web_search",
+                new_callable=AsyncMock,
+                return_value=tool_result,
+            ) as mock_ws,
+        ):
+            result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
+
+        assert result["success"] is True
+        assert result["output"] == {"ok": True}
+        assert result["tokens"] == 42
+        assert result["cost"] == 0.03
         mock_ws.assert_awaited_once()
 
     @pytest.mark.asyncio

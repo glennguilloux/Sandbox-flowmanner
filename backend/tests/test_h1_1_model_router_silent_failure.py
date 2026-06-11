@@ -44,18 +44,12 @@ def mock_mission_and_task():
     return mission, task
 
 
-class TestMissionExecutorNoSilentSuccess:
-    """H1.1 acceptance criteria: mission with bogus model_id returns success=False
-    with a typed error, NEVER success=True with empty output."""
-
+class TestLlmExecutorNoSilentSuccess:
     @pytest.mark.asyncio
     async def test_bogus_model_id_returns_success_false(self):
         """A task with a nonexistent model must fail, not silently succeed."""
-        from app.services.mission_executor import MissionExecutor
+        from app.services.llm_executor import LlmExecutor
 
-        executor = MissionExecutor()
-
-        # Mock the route_request to simulate what happens with a bogus model
         mock_router = MagicMock()
         mock_router.route_request = AsyncMock(
             return_value={
@@ -68,7 +62,7 @@ class TestMissionExecutorNoSilentSuccess:
                 "duration": 0,
             }
         )
-        executor.model_router = mock_router
+        executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
         mock_task.description = "Test task"
@@ -76,34 +70,26 @@ class TestMissionExecutorNoSilentSuccess:
         mock_task.assigned_model = "bogus/nonexistent-model"
         mock_task.id = str(uuid4())
 
-        result = await executor._execute_llm(
+        result = await executor.execute_llm(
             mock_task,
             {"prompt": "Hello"},
             mission=None,
             db=None,
         )
 
-        # The critical assertion: must NOT be a silent success
         assert result["success"] is False, (
             f"H1.1 FAIL: Bogus model returned success=True — silent success bug!\nResult: {result}"
         )
-
-        # Must contain a meaningful error message
         assert "error" in result
         assert result["error"] is not None
         assert len(str(result["error"])) > 0, "H1.1 FAIL: Error message is empty — user has no way to debug"
-
-        # Must NOT have content (no tokens, no output)
         assert result.get("output", {}).get("text", "") == ""
 
     @pytest.mark.asyncio
     async def test_empty_api_key_rejected_before_network_call(self):
         """The route_request must reject empty API keys without making a network call."""
-        from app.services.mission_executor import MissionExecutor
+        from app.services.llm_executor import LlmExecutor
 
-        executor = MissionExecutor()
-
-        # Simulate what llm_router does when _resolve_provider gives no key
         mock_router = MagicMock()
         mock_router.route_request = AsyncMock(
             return_value={
@@ -116,7 +102,7 @@ class TestMissionExecutorNoSilentSuccess:
                 "duration": 0,
             }
         )
-        executor.model_router = mock_router
+        executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
         mock_task.description = "Test"
@@ -124,7 +110,7 @@ class TestMissionExecutorNoSilentSuccess:
         mock_task.assigned_model = None
         mock_task.id = str(uuid4())
 
-        result = await executor._execute_llm(
+        result = await executor.execute_llm(
             mock_task,
             {"prompt": "Hello"},
             mission=None,
@@ -136,18 +122,13 @@ class TestMissionExecutorNoSilentSuccess:
         assert "api key" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_mission_executor_surfaces_error_to_mission_log(self, mock_mission_and_task):
-        """When _execute_llm returns success=False, the mission executor must
-        propagate the error so it appears in the mission log / API response."""
-        from app.services.mission_executor import MissionExecutor
+    async def test_llm_executor_surfaces_error_to_caller(self, mock_mission_and_task):
+        from app.services.llm_executor import LlmExecutor
 
         mission, task = mock_mission_and_task
         task.status = "running"
         task.assigned_model = "bogus/nonexistent-model"
 
-        executor = MissionExecutor()
-
-        # Mock the model router to fail
         mock_router = MagicMock()
         mock_router.route_request = AsyncMock(
             return_value={
@@ -159,34 +140,29 @@ class TestMissionExecutorNoSilentSuccess:
                 "duration": 0,
             }
         )
-        executor.model_router = mock_router
+        executor = LlmExecutor(get_model_router=lambda: mock_router)
 
-        result = await executor._execute_llm(
+        result = await executor.execute_llm(
             task,
             {"prompt": f"Execute: {task.title}"},
             mission=mission,
             db=None,
         )
 
-        # The task-level result must report failure
         assert result["success"] is False
         assert "error" in result
         assert "not available" in result["error"].lower() or "bogus" in result["error"].lower()
-
-        # The error must be descriptive enough for the user to act on
         assert len(str(result["error"])) > 5
 
     @pytest.mark.asyncio
     async def test_empty_llm_response_treated_as_failure(self):
         """LLM returning success=True but empty content must be treated as failure."""
-        from app.services.mission_executor import MissionExecutor
-
-        executor = MissionExecutor()
+        from app.services.llm_executor import LlmExecutor
 
         mock_router = MagicMock()
         mock_router.route_request = AsyncMock(
             return_value={
-                "success": True,  # LLM "succeeded" but returned nothing
+                "success": True,
                 "response": "",
                 "content": "",
                 "model": "deepseek/deepseek-v4-flash",
@@ -194,7 +170,7 @@ class TestMissionExecutorNoSilentSuccess:
                 "duration": 150,
             }
         )
-        executor.model_router = mock_router
+        executor = LlmExecutor(get_model_router=lambda: mock_router)
 
         mock_task = MagicMock()
         mock_task.description = "Test"
@@ -202,7 +178,7 @@ class TestMissionExecutorNoSilentSuccess:
         mock_task.assigned_model = "deepseek/deepseek-v4-flash"
         mock_task.id = str(uuid4())
 
-        result = await executor._execute_llm(
+        result = await executor.execute_llm(
             mock_task,
             {"prompt": "Hello"},
             mission=None,
@@ -217,24 +193,21 @@ class TestMissionExecutorNoSilentSuccess:
     @pytest.mark.asyncio
     async def test_model_router_unavailable_produces_clear_error(self):
         """When ModelRouter can't be loaded, the error must be clear."""
-        from app.services.mission_executor import MissionExecutor
+        from app.services.llm_executor import LlmExecutor
 
-        executor = MissionExecutor()
-        executor.model_router = None
+        executor = LlmExecutor(get_model_router=lambda: None)
+        mock_task = MagicMock()
+        mock_task.description = "Test"
+        mock_task.title = "Test"
+        mock_task.assigned_model = "any-model"
+        mock_task.id = str(uuid4())
 
-        with patch.object(executor, "_get_model_router", return_value=None):
-            mock_task = MagicMock()
-            mock_task.description = "Test"
-            mock_task.title = "Test"
-            mock_task.assigned_model = "any-model"
-            mock_task.id = str(uuid4())
-
-            result = await executor._execute_llm(
-                mock_task,
-                {"prompt": "Hello"},
-                mission=None,
-                db=None,
-            )
+        result = await executor.execute_llm(
+            mock_task,
+            {"prompt": "Hello"},
+            mission=None,
+            db=None,
+        )
 
         assert result["success"] is False
         assert "ModelRouter" in result.get("error", ""), f"Error should mention ModelRouter, got: {result.get('error')}"

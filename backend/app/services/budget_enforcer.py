@@ -324,7 +324,11 @@ class BudgetEnforcer:
 
             # Calculate actual cost
             actual_cost = self.pricing.estimate(actual_model, prompt_tokens, completion_tokens)
+            cost_usd = float(actual_cost)
             provider = response.get("provider", self.pricing.get_provider(actual_model))
+            cost_info = dict(response.get("cost") or {})
+            cost_info["usd"] = cost_usd
+            response["cost"] = cost_info
 
             # Update budget
             budget.spent_usd += actual_cost
@@ -350,7 +354,7 @@ class BudgetEnforcer:
                 provider=provider,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
-                cost_usd=float(actual_cost),
+                cost_usd=cost_usd,
                 latency_ms=latency_ms,
                 success=response.get("success", False),
                 error=response.get("error"),
@@ -360,7 +364,7 @@ class BudgetEnforcer:
 
             # Phase 6.4: Record in circuit breaker
             if mission_id:
-                await self._record_circuit_breaker(mission_id, float(actual_cost), db_session)
+                await self._record_circuit_breaker(mission_id, cost_usd, db_session)
 
             # Enrich response with budget info
             response["budget"] = {
