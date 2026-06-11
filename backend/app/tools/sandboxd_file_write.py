@@ -3,23 +3,20 @@
 Maps to ``PUT /v1/sandboxes/{id}/files?path=<rel>`` with raw body.
 Max 25 MiB. Atomic (tmp + rename). Rejects symlinks and ``..``.
 
-After a successful write, best-effort auto-starts a python3 http.server
-on port 8081 from /home/sandbox/ so files are immediately accessible.
+Note: Auto-serve on port 8081 is handled by the sandboxd base image's
+entrypoint (see ``sandboxd/entrypoint-wrapper.sh``), not by this tool.
+The preview URL works as soon as the container starts, with no LLM
+action required. The previous session-3 band-aid that auto-started a
+server on every successful write has been removed.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
 from pydantic import Field
 
-from app.tools._sandbox_serve_helpers import (
-    DEFAULT_SANDBOX_WORKSPACE,
-    DEFAULT_SERVE_PORT,
-    ensure_serving_on_port,
-)
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
@@ -112,27 +109,12 @@ class SandboxdFileWriteTool(BaseTool):
                 validated.content,
             )
 
-            # ── Best-effort auto-serve on port 8081 ───────────────────
-            # The LLM may forget to call sandboxd_serve.  Auto-start a
-            # server on port 8081 (port 8080 is reserved defensively — the default
-            # python-img template does not use it, but some legacy templates like
-            # react-standard may) so files
-            # are immediately accessible after the first write.
-            # Fire-and-forget — must not block the file write response.
-            try:
-                asyncio.create_task(
-                    ensure_serving_on_port(
-                        client,
-                        sandbox_id,
-                        DEFAULT_SERVE_PORT,
-                        DEFAULT_SANDBOX_WORKSPACE,
-                    )
-                )
-            except Exception:
-                logger.debug(
-                    "sandboxd_file_write: auto-serve skipped (non-fatal)",
-                    exc_info=True,
-                )
+            # Note: no auto-serve here. The python http.server on port 8081
+            # is started by the sandboxd base image's entrypoint, so the
+            # preview URL works as soon as the container is up — no LLM
+            # action required. Previously this tool auto-started a server
+            # on every successful write (the session-3 band-aid); that has
+            # been removed since it's now redundant.
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,
