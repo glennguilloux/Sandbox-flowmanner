@@ -23,10 +23,12 @@
 - Tool descriptions updated to reference port 8081.
 
 ### `backend/app/tools/sandboxd_file_write.py` (+50)
-- **Added `_ensure_server_8081`** — auto-starts python3 http.server on port 8081 from `/home/sandbox/` after each successful file write.
+- **Added auto-serve band-aid** — calls `ensure_serving_on_port` (in `backend/app/tools/_sandbox_serve_helpers.py`) via `asyncio.create_task()` after each successful file write, auto-starting `python3 -m http.server` on port 8081 from `/home/sandbox/`.
 - **Fire-and-forget**: uses `asyncio.create_task()` to avoid blocking the file write response (non-blocking curl check + nohup start).
 - **Idempotent**: checks if port 8081 is already serving before starting.
 - This is the key fix — the LLM consistently skips calling `sandboxd_serve`, but now `sandboxd_file_write` starts the server automatically.
+
+> **Correction (added in session 4 audit):** this entry originally claimed the function was named `_ensure_server_8081` and lived inline in `sandboxd_file_write.py`. The actual implementation was extracted to a shared helper module — `ensure_serving_on_port` in `backend/app/tools/_sandbox_serve_helpers.py` — and is called from `sandboxd_file_write.py` rather than being defined there. The shared helper also provides `is_port_serving` and `start_static_http_server`, used by `sandboxd_serve` for explicit serving. The "remove the band-aid" followup in the session-4 audit covers the deletion checklist.
 
 ### `backend/app/services/chat_service.py` (+10 / -2)
 - **Strengthened `_SANDBOXD_SYSTEM_GUIDANCE`** with ⚠️ CRITICAL warnings:
