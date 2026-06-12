@@ -65,10 +65,10 @@ Update and align FlowManner's future-architecture documentation so it is impleme
 - Final validation report.
 
 ### Definition of Done
-- [ ] `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md` exits 0.
-- [ ] `cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_meta_loop_orchestrator_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/chaos/test_kill_worker_mid_mission.py tests/chaos/test_kill_worker_mid_mission_process.py -v --tb=short` passes.
-- [ ] `cd /home/glenn/FlowmannerV2-frontend && npx tsc --noEmit && npx vitest run && npx playwright test` passes.
-- [ ] Final docs-pack validation report shows zero unresolved critical gaps.
+- [x] `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md` exits 0.
+- [x] `cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_meta_loop_orchestrator_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/chaos/test_kill_worker_mid_mission.py tests/chaos/test_kill_worker_mid_mission_process.py -v --tb=short` passes.
+- [x] `cd /home/glenn/FlowmannerV2-frontend && npx tsc --noEmit && npx vitest run && npx playwright test` passes.
+- [x] Final docs-pack validation report shows zero unresolved critical gaps.
 
 ### Must Have
 - Evidence-backed claims with code/test/doc references.
@@ -760,7 +760,7 @@ Wave FINAL (After ALL tasks):
   - Files: `docs/future-architecture/06-observability-deployment.md`
   - Pre-commit: `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md`
 
-- [ ] 8. Align `07-roadmap-risks-not-build.md` with the active rebuild roadmap
+- [x] 8. Align `07-roadmap-risks-not-build.md` with the active rebuild roadmap
 
   **What to do**:
   - Update `07` to map each active `REBUILD-ROADMAP.md` item to future-architecture impact.
@@ -836,7 +836,7 @@ Wave FINAL (After ALL tasks):
   - Files: `docs/future-architecture/07-roadmap-risks-not-build.md`
   - Pre-commit: `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md`
 
-- [ ] 9. Align `08-final-recommendation.md` and `09-current-state-gaps.md`
+- [x] 9. Align `08-final-recommendation.md` and `09-current-state-gaps.md`
 
   **What to do**:
   - Update `08` to reflect the final architecture pack, non-negotiable principles, and phased implementation stance.
@@ -925,7 +925,7 @@ Wave FINAL (After ALL tasks):
   - Files: `docs/future-architecture/08-final-recommendation.md`, `docs/future-architecture/09-current-state-gaps.md`
   - Pre-commit: `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md`
 
-- [ ] 10. Run final docs-pack QA and drift report
+- [x] 10. Run final docs-pack QA and drift report
 
   **What to do**:
   - Run the full validation harness across `docs/future-architecture`.
@@ -1027,11 +1027,11 @@ Wave FINAL (After ALL tasks):
 
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in `.sisyphus/evidence/`. Compare deliverables against plan.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
   Run the exact verification commands from the plan:
   - `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md`
   - `cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_meta_loop_orchestrator_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/chaos/test_kill_worker_mid_mission.py tests/chaos/test_kill_worker_mid_mission_process.py -v --tb=short`
@@ -1039,11 +1039,11 @@ Wave FINAL (After ALL tasks):
   Review all changed files for: `as any`/`@ts-ignore`, empty catches, console.log in prod, commented-out code, unused imports, unsupported provider claims, and roadmap contradictions. Check AI slop: excessive comments, over-abstraction, generic names (data/result/item/temp).
   Output: `Docs validation [PASS/FAIL] | Backend tests [N pass/N fail] | Frontend checks [PASS/FAIL] | Files [N clean/N issues] | VERDICT`
 
-- [ ] F3. **Real Manual QA** — `unspecified-high` (+ `playwright` skill if UI)
+- [x] F3. **Real Manual QA** — `unspecified-high` (+ `playwright` skill if UI)
   Start from clean state. Execute EVERY QA scenario from EVERY task — follow exact steps, capture evidence. Test cross-task integration (features working together, not isolation). Test edge cases: empty state, invalid input, rapid actions. Save to `.sisyphus/evidence/final-qa/`.
   Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
 
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F4. **Scope Fidelity Check** — `deep`
   For each task: read "What to do", read actual diff (git log/diff). Verify 1:1 — everything in spec was built (no missing), nothing beyond spec was built (no creep). Check "Must NOT do" compliance. Detect cross-task contamination: Task N touching Task M's files. Flag unaccounted changes.
   Output: `Tasks [N/N compliant] | Contamination [CLEAN/N issues] | Unaccounted [CLEAN/N files] | VERDICT`
 
