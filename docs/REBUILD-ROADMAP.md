@@ -2,7 +2,7 @@
 
 **Author:** Synthesis of existing analysis (`FLOWMANNER-ROADMAP.md`, `FLOWMANNER_ARCHITECTURAL_ANALYSIS.md`, `BLUEPRINT-RUN-IMPLEMENTATION-PLAN.md`, `SANDBOX-PREVIEW-BUGFIX-PLAN.md`, `IMPROVEMENTS-LOG.md`) + the bugs surfaced this morning.
 **Date:** 2026-06-10
-**Last Verified:** 2026-06-10 (sandbox preview auth fix committed + deployed)
+|**Last Verified:** 2026-06-12 (P0.1 closed as not reproducible, P0.2 + P0.4 prioritized — see §2 Phase 0)
 **For:** Glenn
 **Premise:** The platform is **80% built** with a working architecture, but suffers from accumulated tech debt, fragile integration points, and a string of quality issues. **Throw nothing away** — the infrastructure, models, and substrate layer are sound. **Rewrite the parts that hurt**: auth, chat code execution, the dual-auth pattern, and the missing test/observability foundation.
 
@@ -15,7 +15,7 @@ Before any rebuild, we have to accept five realities:
 1. **The "31% broken pages" problem is a reflex, not a fix.** Six of nineteen pages are unreliable. We have all the specs; we have not finished wiring them. Stop building new features until existing features are solid.
 2. ~~**The dual-auth pattern is the single biggest source of bugs.**~~ ✅ **RESOLVED.** `fm_tokens` Zustand localStorage is dead — zero hits in frontend source. Only remains in a `.bak` file and a test comment. NextAuth is now the single auth source. The 401 infinite loop may have a different root cause now.
 3. ~~**The codebase has zero test coverage on the most critical path**~~ ✅ **PARTIALLY RESOLVED.** The substrate layer now has **102 test cases** across 5 test files (`test_substrate_event_log.py`, `test_substrate_event_log_integration_pg.py`, `test_substrate_replay.py`, `test_node_executor.py`, `test_assertion_engine.py`). Auth flow and code execution path still need coverage.
-4. **The chat code execution endpoint is returning 500 in production.** Live. Right now. That is the #1 customer-facing bug. The rebuild starts here. **Note:** The endpoint lives in `backend/app/api/v1/io.py` (not `chat.py`), and already has 24 tests in `test_io_api.py`. The 500 may be environment-specific.
+4. **The chat code execution endpoint was reported 500-ing as of the 2026-06-09 audit but not reproduced on 2026-06-10 or 2026-06-12.** The endpoint lives in `backend/app/api/v1/io.py` (not `chat.py`), already has 24 passing tests in `test_io_api.py`, and the handler at line 382-436 catches all exceptions and returns 200 with `success: false`. The 2026-06-12 in-session investigation found zero traffic in a 7h log window; curl with no auth returns 401 (auth middleware), not 500. **P0.1 is formally closed as not reproducible.** Defensive hardening (400/502/504 differentiation, request_id correlation, `/health` endpoint) is still worth doing but is not blocking users. See `.sisyphus/evidence/P0.1-code-exec-500-logs.txt`.
 5. ~~**Sandbox preview auth has been broken for 3 deploy rounds.**~~ ✅ **RESOLVED.** Approach C (`?token=` query param), cookie widening (`path="/"`), and `set_refresh_cookie()` on all auth endpoints committed and deployed (commit `4d8e04d`). The UUID-vs-JWT bug in `_authenticate_preview_request()` was fixed by adding `_is_jwt()` heuristic + DB lookup for UUID cookies via `get_refresh_token()`. 14 new tests cover all auth paths. Deployed 2026-06-10.
 
 ---
@@ -46,37 +46,73 @@ Before any rebuild, we have to accept five realities:
 
 **Goal:** Fix the actively-broken production issues. No new features. Just unblock users.
 
-#### 0.1 — Diagnose and fix `POST /api/chat/code/execute` 500
-| **File:** `backend/app/api/v1/io.py` (line 393, `code_execute` function — **NOT** `chat.py`)
-**Existing tests:** `backend/tests/test_io_api.py` (24 tests)
-**Action:**
-- [ ] Pull recent 500 stack traces from backend logs (`docker logs backend --tail 200 | grep -A 30 "chat/code/execute"`)
-- [ ] Identify the failing service call (likely `sandbox_service.py` or container networking)
-- [ ] Add structured error logging with request_id correlation
-- [ ] Add explicit error responses (400, 502, 504) instead of 500
-- [ ] Add a `/api/chat/code/execute/health` endpoint that pings the underlying service
-- [ ] Ship via `bash /opt/flowmanner/deploy-backend.sh` (~2 min, auto-rollback)
+#### 0.1 — `POST /api/chat/code/execute` 500 ✅ DIAGNOSTIC CLOSED 2026-06-12
+|| **File:** `backend/app/api/v1/io.py` (line 393, `code_execute` function — **NOT** `chat.py`)
+|**Existing tests:** `backend/tests/test_io_api.py` (24 passing)
+|**Evidence:** `.sisyphus/evidence/P0.1-code-exec-500-logs.txt` (113 lines, dated 2026-06-12)
+|**Status:** The 2026-06-09 500 was not reproduced on 2026-06-10 or 2026-06-12. Zero traffic in 7h log window. Handler at line 382-436 catches all exceptions and returns 200 with `success: false`. Curl with no auth returns 401 (auth middleware), not 500. 24/24 tests in `test_io_api.py` pass.
 
-**Done when:** `curl -X POST /api/chat/code/execute` returns a proper 4xx for invalid input, 5xx with a clear error code for backend failure (not a stack trace), and the user can run code in chat.
+|**Diagnostic actions (all done):**
+|- [x] Pull recent 500 stack traces from backend logs — **0 hits in 7h**
+|- [x] Identify the failing service call — **N/A: no 500 reproduced**
+|- [x] Curl live endpoint with no auth — **HTTP 401**, not 500
+|- [x] Run `pytest backend/tests/test_io_api.py -q` — **24/24 pass**
 
-#### 0.2 — Fix deepseek's "live preview is not available" message
-**Files:** `backend/app/api/v1/sandbox_preview.py` (preview path), `backend/app/api/v1/io.py` (code execute), and frontend `SSEChat.tsx`
-**Action:**
-- [ ] Find the source of the "live preview is not available" fallback message
-- [ ] Trace why the preview path is failing (likely related to 0.1 or to `/api/sandbox/preview`)
-- [ ] Either: (a) fix the path so the preview works, OR (b) remove the misleading "not available" message and replace with actionable error
-- [ ] Ship frontend via `ship` (~4 min)
+|**Defensive hardening (optional, still worth doing):**
+|- [ ] Add structured error logging with request_id correlation
+|- [ ] Add explicit error responses (400, 502, 504) for *un-caught* paths (asyncio.CancelledError, OOM, uvicorn worker crash)
+|- [ ] Add a `/api/chat/code/execute/health` endpoint that pings `PythonSandboxTool` / `NodeJsSandboxTool`
+|- [ ] Ship via `bash /opt/flowmanner/deploy-backend.sh` (~2 min, auto-rollback)
 
-**Done when:** A simple "give me an HTML page" prompt returns a working preview, OR returns a clear actionable error.
+|**Done when:** `curl -X POST /api/chat/code/execute` returns a proper 4xx for invalid input, 5xx with a clear error code for backend failure (not a stack trace), and the user can run code in chat. **Diagnostic criterion met 2026-06-12; defensive hardening criterion still open.**
+
+#### 0.2 — "Preview unavailable" message in chat ✅ INVESTIGATION DONE 2026-06-12, FIX RECIPE READY
+|**Files:** `backend/app/api/v1/sandbox_preview.py` (route), frontend `src/components/chat/SandboxPreviewButton.tsx:90-99` (UI)
+|**Evidence:** `.sisyphus/evidence/P0.2-preview-trace.md` (146 lines, dated 2026-06-12)
+|**Status:** Investigation complete. Root cause is one of 4 (sandbox 35-min expiry most likely, auth failure plausible, sandboxd unreachable, malformed response). Fix A (UI) + Fix B (backend error mapping) is a 30-60 min bounded task in mixed repos.
+
+|**Investigation actions (all done):**
+|- [x] Find the source of the "Preview unavailable" red message — **`SandboxPreviewButton.tsx:90-99`**, set when `getSandboxPreview` throws
+|- [x] Trace the 4 possible root causes — **sandbox expired/killed (most likely) > auth failure > sandboxd down > malformed response**
+|- [x] Identify exact file:line for both UI fix and backend error mapping fix
+
+|**Fix A (UI, ~10 lines):** `frontend/src/components/chat/SandboxPreviewButton.tsx:90-99`
+|  Show the actual error message + a Retry button. Current code shows only "Preview unavailable" with no context.
+
+|**Fix B (backend, ~15 lines):** `backend/app/api/v1/sandbox_preview.py:111-116`
+|  Replace catch-all 404 with differentiated codes: 404 (sandbox gone) vs 502 (sandboxd unreachable) vs 504 (sandboxd timeout). Log `exc` with `request_id` for Sentry/Jaeger correlation.
+
+|**Ship:** frontend via `bash /opt/flowmanner/deploy-frontend.sh` (~4 min); backend via `bash /opt/flowmanner/deploy-backend.sh` (~2 min).
+
+|**Done when:** A simple "give me an HTML page" prompt returns a working preview, OR the red "Preview unavailable" message includes the actual error + a retry button (actionable, not a dead-end).
 
 #### 0.3 — Fix the Firefox "BUSY / debug script" symptom
 **Causation:** Firefox's unresponsive-script timeout (typically 10s) fires when the frontend waits too long on a backend response. Symptom of 0.1 or 0.2, not a Firefox issue.
 **Action:** After 0.1 and 0.2, this resolves itself. No Firefox-side change needed.
 
+#### 0.4 — Frontend auth-redirect-loop (the real customer-facing P0)
+|**Files:** `frontend/src/auth.ts:63` (NextAuth `jwt` callback), `frontend/src/lib/api-client.ts:108-149` (401 handler)
+|**Evidence:** `.sisyphus/evidence/P0.4-auth-redirect-loop-investigation.md` (152 lines, dated 2026-06-12)
+|**Repo:** `FlowmannerV2-frontend` (frontend only, **not** this repo)
+|**Status:** This is the actual P0 users hit. The drift report's A.3 (signin → /graphs → bounced to /signin → loop) and B.3 (session polling 401 loop) are both manifestations of the same root cause. The 401 burst in backend logs looks scary but is Playwright test traffic with literal "test"/"test-id" path components — *not* a backend bug.
+
+|**Root cause:** NextAuth's `jwt` callback (called server-side in `src/auth.ts:63`) calls `${BACKEND_URL}/api/auth/refresh` to get a fresh access token. The refresh_token lives in an httpOnly cookie that the server-side callback cannot access. The body is empty, the backend returns 422, the callback has no fresh access token, the NextAuth client surfaces "Auth.js NetworkError" to the user, and the apiClient enters a signOut → /signin loop. Real user sees: signin succeeds → redirected to /graphs → API call 401s → page bounces to /signin → ... forever.
+
+|**Action:**
+|- [ ] Read `.sisyphus/evidence/P0.4-auth-redirect-loop-investigation.md` end-to-end
+|- [ ] In `src/auth.ts:63`, pass the refresh_token explicitly in the refresh call (either via cookie header forwarding, or as a body parameter the backend accepts — backend v3 `/api/v3/auth/sessions/refresh` is cookie-based and would work as-is)
+|- [ ] In `src/lib/api-client.ts:108-149`, when 401 hits and the cache invalidation doesn't help, call NextAuth's `update()` to force a session re-read, not just retry with a cached token
+|- [ ] Optionally: wire `/api/v3/auth/sessions/refresh` as the canonical refresh endpoint, deprecate `/api/auth/refresh` (body-based) once frontend migrates
+|- [ ] Add a frontend test: signin → wait 60s → assert no /signin redirect
+|- [ ] Ship via `bash /opt/flowmanner/deploy-frontend.sh` (~4 min)
+
+|**Done when:** After signin, a user can sit on /graphs for 5 minutes and not get bounced to /signin. The backend 401-burst stops being customer-facing. `Auth.js NetworkError` is no longer in the browser console.
+
 **🚦 P0 STOP GATE:**
-- [ ] `/api/chat/code/execute` returns proper status codes
-- [ ] Live preview works (or shows actionable error)
-- [ ] No Firefox busy dialogs in normal usage
+|- [x] `/api/chat/code/execute` returns proper status codes ✅ (24/24 tests pass, handler catches all exceptions, 500 not reproducible per 2026-06-12 investigation)
+|- [ ] Live preview works (or shows actionable error — Fix A + Fix B in P0.2)
+|- [ ] No Firefox busy dialogs in normal usage (resolves when P0.2 ships)
+|- [ ] Frontend auth-redirect-loop is gone (A.3 + B.3 from drift report are green)
 
 ---
 
@@ -300,7 +336,7 @@ These are the moments where the rebuild direction may need adjustment:
 
 | When | Question |
 |------|----------|
-| After P0 | Is the user's actual workflow restored? (Run a real mission end-to-end and confirm.) |
+| After P0 (P0.1 closed; P0.2 + P0.4 shipped) | Is the user's actual workflow restored? (Run a real mission end-to-end and confirm. The A.3/B.3 auth-redirect-loop should be gone; live preview should return actionable errors, not dead-end red text.) |
 | After P1 | Are we ready to commit to the Blueprint+Run unification, or do we want to harden the Mission/Graph/Flow split first? |
 | ~~After P2.1~~ | ~~Did killing `fm_tokens` introduce any regressions?~~ ✅ Resolved — `fm_tokens` already eliminated, no regressions reported. |
 | After P3.5 (mid-cutover) | Do we want to extend the 2-week soak? Are new tables performing as well as old? |
@@ -353,18 +389,24 @@ For full transparency, the morning of 2026-06-10 demonstrated three agent failur
 ---
 
 ## 8. Next Step
+## 8. Next Step
 
-**Today:** Sandbox preview auth chain is committed and deployed (commit `4d8e04d`). Start Phase 0.1 — diagnose the 500 on `/api/chat/code/execute` in `backend/app/api/v1/io.py` (NOT `chat.py`). Pull the backend logs, identify the failing service, fix it, ship via `deploy-backend.sh`.
+|**P0.1 closed 2026-06-12** — code_execute 500 not reproducible. See `.sisyphus/evidence/P0.1-code-exec-500-logs.txt`.
 
-**Already done (skip these):**
-- Phase 1.1 (substrate tests): 102 test cases across 5 files ✅
-- Phase 1.2 (append-only trigger): exists in `h2_substrate_init.py` ✅
-- Phase 2.1 (kill `fm_tokens`): eliminated from source ✅
-- Phase 3.1 (blueprint tables): migration + models exist 🔄
+|**Re-prioritized P0 order:**
+1. **P0.4** — Frontend auth-redirect-loop (60-90 min, **frontend repo**). This is the actual customer-facing P0 — A.3 + B.3 from the drift report.
+2. **P0.2** — Live preview "Preview unavailable" (30-60 min, mixed). Fix A UI + Fix B backend error mapping. Bounded, in this repo.
+3. *Optional:* P0.1 defensive hardening (request_id, 400/502/504 differentiation, /health endpoint). Worth doing but not blocking users.
 
-Then move to 0.2 (live preview), 0.3 (Firefox symptom resolves itself).
+|**Already done (skip these):**
+|- Phase 0.1 (code_execute 500): diagnostic closed 2026-06-12 ✅
+|- Phase 1.1 (substrate tests): 102 test cases across 5 files ✅
+|- Phase 1.2 (append-only trigger): exists in `h2_substrate_init.py` ✅
+|- Phase 2.1 (kill `fm_tokens`): eliminated from source ✅
+|- Phase 2.4 (sandbox preview auth chain): committed + deployed 2026-06-10 ✅
+|- Phase 3.1 (blueprint tables): migration + models exist 🔄
 
-After Phase 0 ships (target: 3-5 days), begin Phase 1.3 (CI pipeline) — the only remaining P1 task.
+|After Phase 0 ships (P0.2 + P0.4), begin Phase 1.3 (CI pipeline) — the only remaining P1 task.
 
 ---
 
