@@ -1,0 +1,156 @@
+Chunk 3 — Pydantic forward-ref fix + deploy-script migration bug (orchestrator fix)
+====================================================================================
+
+Bug 1: POST endpoint skipped from OpenAPI due to Pydantic forward refs
+----------------------------------------------------------------------
+**Discovered:** 2026-06-12 22:05 during orchestrator verification of Chunk 3
+**Severity:** Medium — endpoint technically callable but not in OpenAPI docs; Pydantic
+response validation may also fail at request time
+
+### Symptom (from `docker compose logs backend --tail=20`):
+```
+WARNING [app.main_fastapi] OpenAPI: 1 routes skipped due to unresolved forward refs: /api/tool-routing/route
+```
+
+### Verification (before fix):
+```bash
+$ curl -s http://localhost:8000/openapi.json | python3 -c \
+    "import sys, json; d=json.load(sys.stdin); \
+     print([p for p in d['paths'] if 'tool' in p.lower() and 'rout' in p.lower()])"
+['/api/missions/{mission_id}/tool-routing-events']   # POST is missing!
+```
+
+### Root cause:
+`backend/app/models/tool_routing_models.py` had:
+```python
+from __future__ import annotations  # makes all type hints strings (PEP 563)
+
+class ToolScore(BaseModel):
+    tool_id: str
+
+class ToolRouteResult(BaseModel):
+    scores: list[ToolScore] = Field(...)  # 'list[ToolScore]' is a STRING, not resolved
+```
+
+With PEP 563, Pydantic v2 cannot resolve `list[ToolScore]` without an explicit
+`model_rebuild()` call. FastAPI's OpenAPI generator detects the unresolved ref
+and SILENTLY SKIPS the route. The endpoint may also fail at request time when
+Pydantic validates the response against the unresolved schema.
+
+### Fix:
+Removed `from __future__ import annotations` from `tool_routing_models.py`.
+With the import removed, type hints are evaluated at class definition time, and
+`ToolScore` is already defined when `ToolRouteResult` references it.
+
+### Verification (after fix):
+```python
+# Direct instantiation test
+>>> from app.models.tool_routing_models import ToolRouteResult, ToolScore
+>>> r = ToolRouteResult(
+...     tools=[], mode='sparse', top_score=0.8,
+...     candidates_considered=10, candidates_returned=5,
+...     task_text_hash='abc',
+...     scores=[ToolScore(tool_id='test', score=0.8)],
+... )
+>>> print('OK: scores count:', len(r.scores))
+OK: scores count: 1
+```
+
+```bash
+$ .venv/bin/python -m pytest tests/test_tool_router.py -q
+19 passed, 1 warning in 0.05s   # all 19 unit tests still pass
+```
+
+### Deployment status:
+- Local edit applied: `tool_routing_models.py` (no `__future__` import)
+- Container NOT yet rebuilt — running backend still has the bug
+- Requires: `bash /opt/flowmanner/deploy-backend.sh` to pick up the fix
+- Per AGENTS.md: "Source edits never take effect without rebuild. Docker images have no volume mounts."
+
+
+Bug 2: `alembic upgrade head` did NOT apply migration during deploy
+-------------------------------------------------------------------
+**Discovered:** 2026-06-12 22:00 during orchestrator verification of Chunk 3
+**Severity:** High — silent data-integrity risk; deploy appears successful but
+DB schema is out of date
+
+### Symptom:
+Deploy output said: `[SUCCESS] Migrations applied successfully`
+But immediately after deploy:
+```bash
+$ docker compose exec -T backend alembic current
+episodic_memory_001   # <-- NOT tool_routing_001!
+```
+
+The new `tool_routing_001` migration was NOT applied. The migration code IS
+valid (single-statement `op.execute()` for the partial index, per the Chunk 2
+asyncpg lesson). Manual `alembic upgrade head` worked perfectly.
+
+### Root cause:
+`deploy-backend.sh` line 213-214:
+```bash
+docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head
+log_success "Migrations applied successfully"   # ALWAYS prints, no exit code check
+```
+
+The script does not capture stderr or check the exit code of `alembic upgrade head`.
+It always prints "Migrations applied successfully" regardless of whether the
+migration actually applied. This is the SAME deploy-script bug pattern as Chunk 2
+(where the asyncpg multi-statement migration failed silently).
+
+### Fix (orchestrator-applied):
+```bash
+$ docker compose exec -T backend alembic upgrade head
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade episodic_memory_001 -> tool_routing_001, Add tool_routing_decisions audit table.
+# No "completed" message but no error either; alembic exit code 0
+
+$ docker compose exec -T backend alembic current
+tool_routing_001 (head)   # <-- now correct
+```
+
+### Verification (table + indexes exist):
+```python
+>>> from app.database import AsyncSessionLocal
+>>> from sqlalchemy import text
+>>> async with AsyncSessionLocal() as s:
+...     r = await s.execute(text("SELECT to_regclass('public.tool_routing_decisions')"))
+...     print('table:', r.scalar())
+...     r2 = await s.execute(text("SELECT indexname FROM pg_indexes WHERE tablename='tool_routing_decisions' ORDER BY indexname"))
+...     for row in r2: print('idx:', row[0])
+table: tool_routing_decisions
+idx: ix_tool_routing_mission
+idx: ix_tool_routing_ws_user_created
+idx: tool_routing_decisions_pkey
+```
+
+### Recommended deploy-script fix (not applied — out of Chunk 3 scope):
+Add `set -e` at the top of the migration section, OR check the exit code:
+```bash
+if ! docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head; then
+    log_error "Migration failed — aborting deploy"
+    exit 1
+fi
+
+# Better: verify the head actually moved
+EXPECTED_HEAD="tool_routing_001"
+ACTUAL_HEAD=$(docker compose exec -T "$BACKEND_CONTAINER" alembic current 2>/dev/null | tail -1 | awk '{print $1}')
+if [ "$ACTUAL_HEAD" != "$EXPECTED_HEAD" ]; then
+    log_error "Head is at $ACTUAL_HEAD, expected $EXPECTED_HEAD — aborting"
+    exit 1
+fi
+```
+
+This is the SECOND time this deploy-script bug has caused a silent failure
+(Chunk 2 + Chunk 3). Recommend filing as a separate infra ticket.
+
+
+Summary
+-------
+- **Files fixed by orchestrator:** 1 (`backend/app/models/tool_routing_models.py`)
+- **Migrations manually applied:** 1 (`tool_routing_001`)
+- **New tests passing:** 19/19
+- **Baseline:** 151 passed, 10 failed (unchanged)
+- **OpenAPI:** POST endpoint will appear in docs after next container rebuild
+- **Blockers for Chunk 4:** none — Chunk 3 is functionally complete

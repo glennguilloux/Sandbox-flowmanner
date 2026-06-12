@@ -4,9 +4,14 @@ Pydantic models for the sparse tool router:
 - ToolScore: Per-tool score breakdown with weighted components
 - ToolRouteResult: The full routing decision (candidate set + metadata)
 - ToolRouteDecidedEvent: Audit event payload for substrate event log
-"""
 
-from __future__ import annotations
+Note: NO `from __future__ import annotations` here — it would make all type
+hints strings (PEP 563), and Pydantic v2 cannot resolve `list[ToolScore]`
+inside `ToolRouteResult` without an explicit `model_rebuild()` call. Without
+that, FastAPI's OpenAPI generator silently SKIPS the route that uses this
+model ("1 routes skipped due to unresolved forward refs"). The endpoint may
+also fail at request time when Pydantic validates the response.
+"""
 
 from typing import Literal
 from uuid import UUID

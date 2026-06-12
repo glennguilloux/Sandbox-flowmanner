@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "project": "flowmanner-q2-q3-agentic-workflow",
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
-  "current_chunk": 3,
-  "current_chunk_name": "Sparse Tool Routing",
-  "current_chunk_status": "complete",
+  "current_chunk": 4,
+  "current_chunk_name": "Adaptive Reasoning Depth with HITL Escalation",
+  "current_chunk_status": "not-started",
   "last_completed_chunk": 3,
   "chunks": [
     {
@@ -72,7 +72,7 @@
     {
       "id": 3,
       "name": "Sparse Tool Routing",
-      "status": "complete",
+      "status": "complete-with-bugfix-by-orchestrator",
       "estimate_w": 2,
       "prompt": ".hermes/plans/q2-q3-chunk3-sparse-tool-routing-prompt.md",
       "prompt_written_at": "2026-06-12T21:41:00Z",
@@ -80,27 +80,44 @@
       "prompt_size_bytes": 30983,
       "prompt_size_lines": 289,
       "stop_gates": [
-        "19 new unit tests pass — VERIFIED: `19 passed in 0.07s`",
-        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 3) — VERIFIED",
-        "ToolRouter returns bounded top-k candidate set with scores and reasons — VERIFIED via tests",
-        "Fallback path preserves full registry on low confidence — VERIFIED via tests",
-        "High-risk tools (requires_approval=True) always included — VERIFIED via tests",
-        "Audit event uses task_text_hash (SHA-256), never raw text — VERIFIED via tests",
-        "enable_routing parameter preserves backward compatibility — VERIFIED via code inspection",
-        "TOOL_ROUTE_DECIDED added to SubstrateEventType (additive, no wire format change) — VERIFIED",
-        "Alembic migration uses single-statement op.execute() calls — VERIFIED",
-        "git diff --check clean — VERIFIED"
+        "19/19 new unit tests pass — VERIFIED: `19 passed, 1 warning in 0.05s`",
+        "3 integration tests properly marked @pytest.mark.integration (skipped in dev env, expected) — VERIFIED",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 3) — VERIFIED: `10 failed, 151 passed`",
+        "Migration `tool_routing_001` applied to live DB — VERIFIED: `alembic current` -> `tool_routing_001 (head)`, table `tool_routing_decisions` exists with 3 indexes",
+        "Router registered, GET endpoint live at /api/missions/{id}/tool-routing-events — VERIFIED via OpenAPI",
+        "Tool router wired into convert_to_tools via enable_routing param (default True, backward-compatible) — VERIFIED by signature inspection",
+        "TOOL_ROUTE_DECIDED event type added to substrate_models.py (additive, not a wire format change) — VERIFIED: `TOOL_ROUTE_DECIDED = 'tool_route.decided'`",
+        "Audit event uses task_text_hash (SHA-256) NOT raw text — VERIFIED by test_audit_event_uses_hash_not_raw_text passing",
+        "High-risk tools (requires_approval=True) always included in sparse mode — VERIFIED by test_high_risk_tool_always_included passing",
+        "Cost-savings evidence documented (estimates for 10-tool registry, methodology present) — partial credit; file present, numbers are estimates not measured"
       ],
       "evidence_files": [
         ".sisyphus/evidence/chunk-3-routing-valid.txt",
         ".sisyphus/evidence/chunk-3-baseline-green.txt",
         ".sisyphus/evidence/chunk-3-fallback-valid.txt",
-        ".sisyphus/evidence/chunk-3-cost-savings.txt"
+        ".sisyphus/evidence/chunk-3-cost-savings.txt",
+        ".sisyphus/evidence/chunk-3-forwardref-fix.txt"
       ],
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 10,
       "commits": {
-        "backend_main": ["f12090f"]
+        "backend_main": ["f12090f", "8bf2f22"]
+      },
+      "bugfix_by_orchestrator": {
+        "bugs": [
+          {
+            "bug": "POST endpoint `/api/tool-routing/route` was registered but SKIPPED by FastAPI's OpenAPI generator with `WARNING OpenAPI: 1 routes skipped due to unresolved forward refs: /api/tool-routing/route`. Root cause: `from __future__ import annotations` in `tool_routing_models.py` made all type hints strings (PEP 563), and Pydantic v2 could not resolve `list[ToolScore]` inside `ToolRouteResult` without an explicit `model_rebuild()` call. The endpoint may also fail at request time when Pydantic validates the response against the unresolved schema.",
+            "fix": "Removed `from __future__ import annotations` from `tool_routing_models.py`. With the import removed, type hints are evaluated at class definition time, and `ToolScore` is already defined when `ToolRouteResult` references it. Verified by re-instantiating the model and re-running all 19 unit tests.",
+            "root_cause": "PEP 563 + Pydantic v2: with `from __future__ import annotations`, all annotations are stored as strings. Pydantic v2 needs `model_rebuild()` to resolve forward refs in the same module. The `list[ToolScore]` reference inside `ToolRouteResult` qualifies as a forward ref under PEP 563 even though `ToolScore` is defined first in the file.",
+            "deployed_via": "Local edit only. Container restart + `bash /opt/flowmanner/deploy-backend.sh` required to pick up the fix in the running backend (Docker images have no volume mounts, per AGENTS.md)."
+          },
+          {
+            "bug": "`alembic upgrade head` did NOT apply the new `tool_routing_001` migration during the deploy. The deploy script said 'Migrations applied successfully' but `alembic current` was still at `episodic_memory_001` after the deploy. The migration code IS valid (single-statement `op.execute()` for the partial index) — verified by manual `alembic upgrade head` working perfectly.",
+            "fix": "Orchestrator manually ran `docker compose exec -T backend alembic upgrade head` to apply the migration. Head is now at `tool_routing_001 (head)`. The `tool_routing_decisions` table exists with all 3 indexes (composite, partial mission, pkey).",
+            "root_cause": "`deploy-backend.sh` line 213-214 always prints 'Migrations applied successfully' via `log_success` regardless of whether `alembic upgrade head` actually moved the head. The script does not capture stderr or check the exit code. This is the same deploy-script bug as Chunk 2 (caught there with the asyncpg multi-statement migration).",
+            "deploy_script_fix_recommended": "Add `set -e` at the top of the migration section, OR check the exit code of `alembic upgrade head` and fail the deploy if non-zero, OR verify `alembic current` matches `alembic heads` after the upgrade. Filed as a follow-up — does not block Chunk 3 completion."
+          }
+        ]
       }
     },
     {
@@ -130,5 +147,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-12T22:00:00Z"
+  "last_updated": "2026-06-12T22:10:00Z"
 }
