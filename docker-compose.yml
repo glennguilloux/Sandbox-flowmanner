@@ -273,8 +273,14 @@ services:
         ipv4_address: 10.0.4.8
     volumes:
       - ${STATIC_FILES_PATH:-./static}:/usr/share/nginx/html:ro
+    # Healthcheck fix (QW8-nginx-health): the previous `curl -w '%{http_code}'`
+    # form returns exit 0 on every HTTP response (200, 404, 500 alike) so the
+    # container stayed "healthy" even when nginx wasn't actually serving.
+    # `curl -f` exits non-zero on >=400, so the healthcheck now fails when
+    # nginx is broken or the upstream config is wrong. Image ships with curl
+    # (verified via `docker run --rm --entrypoint sh ... -c 'which curl'`).
     healthcheck:
-      test: ["CMD", "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "http://localhost:8080/"]
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
