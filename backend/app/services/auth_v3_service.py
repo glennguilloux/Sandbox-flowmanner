@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 import bcrypt as _bcrypt
 import jwt
@@ -188,6 +191,75 @@ async def create_session(
     return session, refresh_token
 
 
+async def _try_migrate_v1_token(
+    db: AsyncSession,
+    refresh_token: str,
+    ip_address: str | None = None,
+    device_name: str | None = None,
+) -> tuple[AuthSession, str] | None:
+    """Try to validate a v1 refresh token and migrate it to v3 AuthSession format.
+
+    v1 stores plaintext tokens in the ``refresh_tokens`` table.  v3 stores
+    SHA-256 hashes in ``auth_sessions``.  When a v1 token is presented to the
+    v3 refresh endpoint, this function looks it up, validates it, and creates
+    a new ``AuthSession`` entry so subsequent refreshes use the v3 path.
+
+    Returns ``(new_session, new_refresh_token)`` on success, ``None`` on failure.
+    The caller (``refresh_session``) returns this tuple directly — it does NOT
+    fall through to the revoke-and-recreate path.
+    """
+    from app.services.auth_service import RefreshToken
+
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token == refresh_token)
+    )
+    v1_token = result.scalar_one_or_none()
+
+    if v1_token is None:
+        return None
+
+    if v1_token.is_revoked:
+        return None
+
+    if v1_token.expires_at and v1_token.expires_at < datetime.now(UTC):
+        v1_token.is_revoked = True
+        await db.flush()
+        return None
+
+    # Migrate: create an AuthSession from the v1 token
+    family_id = v1_token.family_id or str(uuid.uuid4())
+    new_refresh_token = AuthSession.generate_refresh_token()
+    new_token_hash = AuthSession.make_refresh_token_hash(new_refresh_token)
+    new_expires_at = datetime.now(UTC) + timedelta(seconds=settings.JWT_REFRESH_TOKEN_EXPIRES)
+
+    new_session = AuthSession(
+        user_id=v1_token.user_id,
+        refresh_token_hash=new_token_hash,
+        device_name=device_name or v1_token.device_name,
+        ip_address=ip_address or v1_token.ip_address,
+        is_active=True,
+        expires_at=new_expires_at,
+        family_id=family_id,
+        family_generation=0,
+    )
+    db.add(new_session)
+
+    # Revoke the v1 token so it cannot be reused
+    v1_token.is_revoked = True
+    v1_token.last_used_at = datetime.now(UTC)
+
+    await db.flush()
+    await db.refresh(new_session)
+    new_session.last_used_at = datetime.now(UTC)
+    await db.flush()
+
+    logger.info(
+        "migrated v1 refresh token to v3 auth session for user_id=%s",
+        v1_token.user_id,
+    )
+    return new_session, new_refresh_token
+
+
 async def refresh_session(
     db: AsyncSession,
     refresh_token: str,
@@ -207,7 +279,11 @@ async def refresh_session(
     session = result.scalar_one_or_none()
 
     if session is None:
-        return None
+        # v1 backward compat: check legacy refresh_tokens table for plaintext match.
+        # If found, migrate the token to v3 AuthSession format transparently.
+        # Returns (session, token) directly — does NOT fall through to the
+        # revoke-and-recreate path below.
+        return await _try_migrate_v1_token(db, refresh_token, ip_address, device_name)
 
     # Token reuse detection — if the token was already revoked, revoke the whole family
     if not session.is_active:
