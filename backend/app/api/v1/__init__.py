@@ -124,6 +124,7 @@ cost_attribution_router = _import_router("cost_attribution")
 plugins_router = _import_router("plugins")
 episodic_memory_router = _import_router("episodic_memory")
 tool_routing_router = _import_router("tool_routing")
+depth_router = _import_router("depth")
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
 agent_personalities_router = _import_router("agent_personalities", tier=RouterTier.OPTIONAL)
 
@@ -234,6 +235,7 @@ for _name, _router in [
     ("agent-personalities", agent_personalities_router),
     ("episodes", episodic_memory_router),
     ("tool-routing", tool_routing_router),
+    ("depth", depth_router),
 ]:
     if _router:
         _prefix = None

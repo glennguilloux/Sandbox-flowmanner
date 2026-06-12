@@ -120,6 +120,9 @@ class SubstrateEventType:
     # Q2-Q3 Chunk 3: Tool routing events
     TOOL_ROUTE_DECIDED = "tool_route.decided"
 
+    # Q2-Q3 Chunk 4: Adaptive reasoning depth events
+    DEPTH_DECIDED = "depth.decided"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"
