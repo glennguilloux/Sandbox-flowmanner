@@ -1,8 +1,8 @@
 # Q2-Q3 2026 — Agentic Workflow Plan for FlowManner
 
-**Status:** REVISED — executable Q2-Q3 planning pass.
-**Created:** 2026-06-12 by hermes-agent
-**Revised:** 2026-06-12 after source-prompt/evidence review
+**Status:** REVISED — strategic Opus-facing Q2-Q3 roadmap.
+**Created:** 2026-06-12 by Prometheus planner from the user-selected consolidated plan.
+**Revised:** 2026-06-12 after reading the Hermes Opus prompt, REBUILD-ROADMAP, AGENTS.md, P0 evidence, and substrate evidence.
 **Owner:** Glenn (decisions), coding agents (execution)
 **Supersedes:** `docs/REBUILD-ROADMAP.md` for agentic workflow sequencing only; archived roadmap remains evidence at `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md`.
 
@@ -68,7 +68,7 @@ These use cases need long-horizon state, selective context, human escalation, an
 **Dependencies:** Chunk 1 stop gates; existing substrate event log and mission status semantics.
 **Success criteria:**
 - Completed missions produce compact memory entries with mission_id, step_type, outcome, cost bucket, HITL outcome, and retrieval text.
-- Retrieval returns top-k relevant episodes per query with a hard cap and redaction policy.
+- Retrieval uses hybrid BM25+vector search over redacted retrieval text, returns max 5 episodes per query, and records the episode IDs used.
 - Tests prove sensitive raw step content is not blindly stored.
 - Replay can show which memory entries influenced a run.
 **Risk:** Memory becomes a privacy leak. Mitigation: redaction at write time, workspace/user scoping, and retrieval audit fields.
@@ -136,7 +136,7 @@ These use cases need long-horizon state, selective context, human escalation, an
 
 ### Decision 1: Retrieve episodes, not whole missions
 
-For episodic memory, the default is **top-k sparse retrieval over compact episode records**, not full mission replay. The retrieval key should include mission_id, step_type, outcome, cost bucket, HITL outcome, and a redacted text embedding. The agent receives only the selected episode IDs plus short summaries; full events are available through replay if explicitly requested. This uses FlowManner’s substrate advantage: event logs are already append-only and replayable, so memory can be a selective index rather than a second source of truth.
+For episodic memory, the default is **hybrid BM25+vector retrieval over compact episode records**, not full mission replay. The retrieval key should include mission_id, step_type, outcome, cost bucket, HITL outcome, and a redacted text embedding. The agent receives only the selected episode IDs plus short summaries; full events are available through replay if explicitly requested. Default to a hard cap of 5 episodes per query. This uses FlowManner’s substrate advantage: event logs are already append-only and replayable, so memory can be a selective index rather than a second source of truth.
 
 ### Decision 2: Route tools before expanding definitions
 
