@@ -72,8 +72,13 @@
     {
       "id": 3,
       "name": "Sparse Tool Routing",
-      "status": "not-started",
-      "estimate_w": 2
+      "status": "prompt-written-awaiting-deepseek",
+      "estimate_w": 2,
+      "prompt": ".hermes/plans/q2-q3-chunk3-sparse-tool-routing-prompt.md",
+      "prompt_written_at": "2026-06-12T21:41:00Z",
+      "prompt_written_by": "orchestrator",
+      "prompt_size_bytes": 30983,
+      "prompt_size_lines": 289
     },
     {
       "id": 4,
