@@ -4,8 +4,8 @@
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
   "current_chunk": 3,
   "current_chunk_name": "Sparse Tool Routing",
-  "current_chunk_status": "not-started",
-  "last_completed_chunk": 2,
+  "current_chunk_status": "complete",
+  "last_completed_chunk": 3,
   "chunks": [
     {
       "id": 1,
@@ -72,13 +72,36 @@
     {
       "id": 3,
       "name": "Sparse Tool Routing",
-      "status": "prompt-written-awaiting-deepseek",
+      "status": "complete",
       "estimate_w": 2,
       "prompt": ".hermes/plans/q2-q3-chunk3-sparse-tool-routing-prompt.md",
       "prompt_written_at": "2026-06-12T21:41:00Z",
       "prompt_written_by": "orchestrator",
       "prompt_size_bytes": 30983,
-      "prompt_size_lines": 289
+      "prompt_size_lines": 289,
+      "stop_gates": [
+        "19 new unit tests pass — VERIFIED: `19 passed in 0.07s`",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 3) — VERIFIED",
+        "ToolRouter returns bounded top-k candidate set with scores and reasons — VERIFIED via tests",
+        "Fallback path preserves full registry on low confidence — VERIFIED via tests",
+        "High-risk tools (requires_approval=True) always included — VERIFIED via tests",
+        "Audit event uses task_text_hash (SHA-256), never raw text — VERIFIED via tests",
+        "enable_routing parameter preserves backward compatibility — VERIFIED via code inspection",
+        "TOOL_ROUTE_DECIDED added to SubstrateEventType (additive, no wire format change) — VERIFIED",
+        "Alembic migration uses single-statement op.execute() calls — VERIFIED",
+        "git diff --check clean — VERIFIED"
+      ],
+      "evidence_files": [
+        ".sisyphus/evidence/chunk-3-routing-valid.txt",
+        ".sisyphus/evidence/chunk-3-baseline-green.txt",
+        ".sisyphus/evidence/chunk-3-fallback-valid.txt",
+        ".sisyphus/evidence/chunk-3-cost-savings.txt"
+      ],
+      "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
+      "pre_existing_failures": 10,
+      "commits": {
+        "backend_main": ["f12090f"]
+      }
     },
     {
       "id": 4,
@@ -107,5 +130,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-12T21:25:00Z"
+  "last_updated": "2026-06-12T22:00:00Z"
 }
