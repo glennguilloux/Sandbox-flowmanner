@@ -203,17 +203,67 @@ run_migrations() {
   log_step "Running Alembic migrations"
 
   if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose exec backend alembic upgrade head"
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose exec ${BACKEND_CONTAINER} alembic upgrade head"
+    echo -e "${YELLOW}[DRY-RUN]${NC} (post-upgrade head verification also runs in real mode)"
     return 0
   fi
 
-  # Run migrations against the CURRENT container (before rebuild)
-  # This ensures migrations are applied to the persistent volume
-  if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
-    cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head
-    log_success "Migrations applied successfully"
+  # CRITICAL: this function MUST run after build_and_deploy so the running
+  # container has the latest migration files baked into its image. Otherwise
+  # alembic will silently return 0 ("already at head") without applying the
+  # new migration — the container's alembic/versions/ is from the OLD image.
+  # Bug caught twice (chunks 2 & 3 of Q2-Q3 plan, 2026-06-12/13).
+
+  if ! docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+    log_error "Backend container not running — cannot run migrations safely"
+    return 1
+  fi
+
+  # Extract the alembic revision from an exec'd command. Alembic prints lines
+  # like "<rev> (head)" or "<rev>" on its own line, with INFO/DEBUG prefixes
+  # on other lines. We take the first word of the first line that looks like
+  # a revision and is not a log prefix.
+  _alembic_rev() {
+    cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" "$@" 2>/dev/null \
+      | awk '/^[A-Za-z0-9_]/ && !/^(INFO|DEBUG|WARNING)/{print $1; exit}'
+  }
+
+  local before_head after_head expected_head
+  before_head=$(_alembic_rev alembic current)
+  if [ -z "$before_head" ]; then
+    log_warn "Could not parse current alembic head (continuing anyway)"
+    before_head="(unknown)"
   else
-    log_warn "Backend container not running — migrations will run on first startup"
+    log_info "Current alembic head: ${before_head}"
+  fi
+
+  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head; then
+    log_error "alembic upgrade head FAILED"
+    return 1
+  fi
+
+  after_head=$(_alembic_rev alembic current)
+  expected_head=$(_alembic_rev alembic heads)
+
+  if [ -z "$expected_head" ] || [ -z "$after_head" ]; then
+    log_error "Could not determine alembic head after migration"
+    log_error "  after='${after_head}', expected='${expected_head}'"
+    return 1
+  fi
+
+  if [ "$after_head" != "$expected_head" ]; then
+    log_error "MIGRATION VERIFICATION FAILED"
+    log_error "  Expected head: ${expected_head}"
+    log_error "  Actual head:   ${after_head}"
+    log_error "  Was:           ${before_head}"
+    log_error "The new migration was NOT applied. Aborting deploy."
+    return 1
+  fi
+
+  if [ "$before_head" = "$after_head" ]; then
+    log_info "Database already at head ${after_head} — no migration needed"
+  else
+    log_success "Migrated from ${before_head} to ${after_head}"
   fi
 }
 
@@ -283,8 +333,22 @@ main() {
   # -- Normal deploy --
   pre_deploy_health
   save_current_image
-  run_migrations
+
+  # CRITICAL: build_and_deploy MUST run before run_migrations so the running
+  # container has the latest migration files baked into its image. See
+  # run_migrations() for the full explanation.
   build_and_deploy
+
+  if [ "$MIGRATE" = true ]; then
+    if ! run_migrations; then
+      log_error "Migrations failed — rolling back to previous image"
+      perform_rollback
+      exit 1
+    fi
+  else
+    # No --migrate flag: just check for uncommitted migration files
+    run_migrations
+  fi
 
   if ! post_deploy_health; then
     log_error "Post-deploy health check failed — initiating automatic rollback"

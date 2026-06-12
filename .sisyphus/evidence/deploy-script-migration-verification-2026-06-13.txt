@@ -1,0 +1,238 @@
+Deploy script fix — silent migration failure (recurrence #2)
+==============================================================
+
+Captured: 2026-06-13 by orchestrator (after DeepSeek's chunk 3 work)
+Scope:    /opt/flowmanner/deploy-backend.sh
+Related:  .sisyphus/evidence/chunk-2-migration-fix.txt (same bug, different cause)
+
+────────────────────────────────────────────────────────
+1) The bug (recurrence)
+────────────────────────────────────────────────────────
+
+BUG: `deploy-backend.sh` was running `alembic upgrade head` against the
+**OLD** backend container (BEFORE `build_and_deploy`). The OLD container
+has its `alembic/versions/` directory baked into the OLD image, so it does
+not know about the new migration file. `alembic upgrade head` returned
+exit 0 ("already at head"), `set -euo pipefail` did NOT trigger, and the
+script cheerfully logged "Migrations applied successfully" — but the new
+migration was never applied. The new image was then built and the
+container restarted, but the database was still at the old head.
+
+EVIDENCE (chunk 3, 2026-06-13): "alembic upgrade head did NOT apply the
+new tool_routing_001 migration during the deploy. The deploy script said
+'Migrations applied successfully' but alembic current was still at
+episodic_memory_001 after the deploy."
+
+This is the SAME class of bug as the chunk 2 silent migration failure
+(2026-06-12) — but the chunk 2 cause was asyncpg multi-statement SQL in
+the migration file itself. This time the migration file was correctly
+written (single-statement `op.execute()` for the partial index), so the
+bug is purely in the deploy script.
+
+────────────────────────────────────────────────────────
+2) Root cause
+────────────────────────────────────────────────────────
+
+`main()` flow before fix:
+
+    pre_deploy_health
+    save_current_image
+    run_migrations      ← runs against OLD container
+    build_and_deploy    ← builds NEW image, restarts
+
+The old `run_migrations()` logic:
+
+    if docker ps --format ... | grep -q backend; then
+      docker compose exec -T backend alembic upgrade head
+      log_success "Migrations applied successfully"
+    fi
+
+This runs against the OLD container (line 213 in the old file). The OLD
+container's alembic/versions/ is from the OLD image. New migration files
+committed to git but not yet baked into the running image are INVISIBLE
+to alembic. The check is correct (exit 0 = no-op) but the LOG is wrong
+(no migration was applied because there was nothing to apply from the
+old container's perspective).
+
+────────────────────────────────────────────────────────
+3) The fix
+────────────────────────────────────────────────────────
+
+Two changes:
+
+A) REORDER: `build_and_deploy` now runs BEFORE `run_migrations`. The
+   container is restarted with the new image first, so its alembic sees
+   the new migration files.
+
+B) VERIFY: after `alembic upgrade head`, capture `alembic current` and
+   `alembic heads` from the container and compare them. If they don't
+   match, the deploy aborts with a loud error. Also added a
+   post-migration-failure auto-rollback so the new image doesn't keep
+   running with un-applied migrations.
+
+PATCH (key hunks from `deploy-backend.sh`):
+
+@@ main() @@
+   # -- Normal deploy --
+   pre_deploy_health
+   save_current_image
+-  run_migrations
++
++  # CRITICAL: build_and_deploy MUST run before run_migrations so the running
++  # container has the latest migration files baked into its image. See
++  # run_migrations() for the full explanation.
+   build_and_deploy
++
++  if [ "$MIGRATE" = true ]; then
++    if ! run_migrations; then
++      log_error "Migrations failed — rolling back to previous image"
++      perform_rollback
++      exit 1
++    fi
++  else
++    # No --migrate flag: just check for uncommitted migration files
++    run_migrations
++  fi
+
+@@ run_migrations() @@
+-  # Run migrations against the CURRENT container (before rebuild)
+-  # This ensures migrations are applied to the persistent volume
+-  if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+-    cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head
+-    log_success "Migrations applied successfully"
+-  else
+-    log_warn "Backend container not running — migrations will run on first startup"
+-  fi
++  # CRITICAL: this function MUST run after build_and_deploy so the running
++  # container has the latest migration files baked into its image. Otherwise
++  # alembic will silently return 0 ("already at head") without applying the
++  # new migration — the container's alembic/versions/ is from the OLD image.
++  # Bug caught twice (chunks 2 & 3 of Q2-Q3 plan, 2026-06-12/13).
++
++  if ! docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
++    log_error "Backend container not running — cannot run migrations safely"
++    return 1
++  fi
++
++  # Extract the alembic revision from an exec'd command.
++  _alembic_rev() {
++    cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" "$@" 2>/dev/null \
++      | awk '/^[A-Za-z0-9_]/ && !/^(INFO|DEBUG|WARNING)/{print $1; exit}'
++  }
++
++  local before_head after_head expected_head
++  before_head=$(_alembic_rev alembic current)
++  if [ -z "$before_head" ]; then
++    log_warn "Could not parse current alembic head (continuing anyway)"
++    before_head="(unknown)"
++  else
++    log_info "Current alembic head: ${before_head}"
++  fi
++
++  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head; then
++    log_error "alembic upgrade head FAILED"
++    return 1
++  fi
++
++  after_head=$(_alembic_rev alembic current)
++  expected_head=$(_alembic_rev alembic heads)
++
++  if [ -z "$expected_head" ] || [ -z "$after_head" ]; then
++    log_error "Could not determine alembic head after migration"
++    log_error "  after='${after_head}', expected='${expected_head}'"
++    return 1
++  fi
++
++  if [ "$after_head" != "$expected_head" ]; then
++    log_error "MIGRATION VERIFICATION FAILED"
++    log_error "  Expected head: ${expected_head}"
++    log_error "  Actual head:   ${after_head}"
++    log_error "  Was:           ${before_head}"
++    log_error "The new migration was NOT applied. Aborting deploy."
++    return 1
++  fi
++
++  if [ "$before_head" = "$after_head" ]; then
++    log_info "Database already at head ${after_head} — no migration needed"
++  else
++    log_success "Migrated from ${before_head} to ${after_head}"
++  fi
+
+────────────────────────────────────────────────────────
+4) Verification
+────────────────────────────────────────────────────────
+
+A) Syntax check:
+
+    $ bash -n /opt/flowmanner/deploy-backend.sh && echo "SYNTAX OK"
+    SYNTAX OK
+
+B) Dry-run (no-migrate case — new order visible):
+
+    $ bash /opt/flowmanner/deploy-backend.sh --dry-run
+    >>> Pre-Deploy Health Check
+    [SUCCESS] Current backend is healthy — good baseline
+    >>> Saving current backend image for rollback
+    [SUCCESS] Current image tagged as workflows-backend:backup-current
+    >>> Building backend image
+    [DRY-RUN] docker build -t workflows-backend:restored /opt/flowmanner/backend/
+    [DRY-RUN] cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend
+    [INFO]    Skipping migrations (--migrate not specified)
+    >>> Post-Deploy Health Check
+    [SUCCESS] Post-deploy health check passed
+
+C) Dry-run (migrate case — verification message visible):
+
+    $ bash /opt/flowmanner/deploy-backend.sh --migrate --dry-run
+    >>> Building backend image
+    [DRY-RUN] docker build -t workflows-backend:restored /opt/flowmanner/backend/
+    [DRY-RUN] cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend
+    >>> Running Alembic migrations
+    [DRY-RUN] docker compose exec backend alembic upgrade head
+    [DRY-RUN] (post-upgrade head verification also runs in real mode)
+
+D) Live verification logic test (against the live DB at tool_routing_001):
+
+    $ bash /tmp/test_migration_verify.sh
+    before: 'tool_routing_001'
+    expected: 'tool_routing_001'
+    VERIFICATION: would log 'Database already at head tool_routing_001 — no migration needed'
+
+E) awk regex test against actual alembic output:
+
+    $ docker compose exec -T backend alembic current 2>&1
+    INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+    INFO  [alembic.runtime.migration] Will assume transactional DDL.
+    tool_routing_001 (head)
+
+    $ ... | awk '/^[A-Za-z0-9_]/ && !/^(INFO|DEBUG|WARNING)/{print $1; exit}'
+    tool_routing_001
+
+    The regex correctly extracts the revision from the noisy alembic output,
+    skipping the INFO-prefixed log lines.
+
+────────────────────────────────────────────────────────
+5) Files modified
+────────────────────────────────────────────────────────
+
+- /opt/flowmanner/deploy-backend.sh  (reorder + verification + auto-rollback)
+- /opt/flowmanner/.sisyphus/evidence/deploy-script-migration-verification-2026-06-13.txt  (this file)
+
+────────────────────────────────────────────────────────
+6) Post-fix deploy: verified by next chunk
+────────────────────────────────────────────────────────
+
+The next deploy (with --migrate) will:
+1. Save current image as backup
+2. Build new image, restart container
+3. Run alembic upgrade head against NEW container (now has new migration file)
+4. Verify alembic current == alembic heads (new file's revision)
+5. Post-deploy health check
+6. If anything fails: auto-rollback to backup image
+
+If the migration is a no-op (DB already at expected head), logs
+"Database already at head <rev> — no migration needed" and continues.
+If the verification fails, deploy aborts with a loud error and rolls back.
+
+This is the minimum fix that prevents silent migration failures going
+forward, with full evidence in the deploy log.
