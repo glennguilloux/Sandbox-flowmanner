@@ -108,6 +108,68 @@ async def mission_sse_stream(mission_id: str) -> AsyncGenerator[str, None]:
         raise
 
 
+async def publish_hitl_inbox_event(
+    user_id: int,
+    event_type: str,
+    item_data: dict,
+) -> None:
+    """Publish a HITL inbox event with explicit event type for frontend filtering.
+
+    Wraps publish_user_notification with event: hitl_inbox so the frontend
+    can distinguish inbox events from other notifications.
+    """
+    redis = await get_redis_client()
+    try:
+        channel = f"user:{user_id}:notifications"
+        message = json.dumps({
+            "event": "hitl_inbox",
+            "data": {
+                **item_data,
+                "kind": "hitl_inbox",
+                "sub_event": event_type,
+            },
+        })
+        await redis.publish(channel, message)
+    finally:
+        await redis.aclose()
+
+
+async def hitl_inbox_sse_stream(user_id: int) -> AsyncGenerator[str, None]:
+    """SSE event stream for HITL inbox updates.
+
+    Subscribes to the same user notification channel but yields events
+    with the hitl_inbox event name for dedicated inbox page consumers.
+    """
+    redis = await get_redis_client()
+    pubsub = redis.pubsub()
+    channel = f"user:{user_id}:notifications"
+
+    await pubsub.subscribe(channel)
+
+    try:
+        while True:
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
+            if message:
+                data = json.loads(message["data"])
+                event_type = data.get("event", "notification")
+                # Only forward hitl_inbox events to this stream
+                if event_type == "hitl_inbox":
+                    event_data = data.get("data", data)
+                    yield f"event: hitl_inbox\ndata: {json.dumps(event_data)}\n\n"
+                elif event_type in ("interrupt_raised", "interrupt_resolved"):
+                    # Legacy format — wrap and forward
+                    event_data = data.get("data", data)
+                    yield f"event: hitl_inbox\ndata: {json.dumps(event_data)}\n\n"
+            else:
+                # Heartbeat
+                yield ": keep-alive\n\n"
+            await asyncio.sleep(0.01)
+    except asyncio.CancelledError:
+        await pubsub.unsubscribe(channel)
+        await pubsub.aclose()
+        raise
+
+
 async def mission_events_endpoint(mission_id: str):
     """FastAPI endpoint handler for SSE mission events."""
     return StreamingResponse(mission_sse_stream(mission_id), media_type="text/event-stream")

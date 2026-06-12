@@ -2,20 +2,22 @@
 
 Endpoints:
 - GET  /inbox/           — List pending inbox items
+- GET  /inbox/counts     — Count of pending items for current user
+- POST /inbox/bulk-resolve — Bulk resolve multiple inbox items
+- GET  /inbox/by-mission/{mission_id} — Get inbox items for a mission
 - GET  /inbox/{id}       — Get a specific inbox item
 - POST /inbox/{id}/approve  — Approve an approval request
 - POST /inbox/{id}/reject   — Reject an approval request
 - POST /inbox/{id}/clarify  — Respond to a clarification request
-- GET  /inbox/counts     — Count of pending items for current user
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user, get_workspace_id
 from app.database import get_db
@@ -32,6 +34,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 
 
+# ── Error helper ───────────────────────────────────────────────────
+
+
+def _error_response(status_code: int, code: str, error: str, details: dict | None = None) -> HTTPException:
+    """Return a structured error response matching project conventions."""
+    return HTTPException(
+        status_code=status_code,
+        detail={"error": error, "code": code, "details": details},
+    )
+
+
 # ── Request/response schemas ───────────────────────────────────────
 
 
@@ -43,6 +56,26 @@ class ResolveRequest(BaseModel):
 class ClarifyRequest(BaseModel):
     response_text: str
     resolution_payload: dict | None = None
+
+
+class BulkResolveRequest(BaseModel):
+    """Request body for bulk inbox item resolution."""
+
+    item_ids: list[str] = Field(..., min_length=1, max_length=100)
+    action: Literal["approve", "reject"]
+    resolution_note: str | None = Field(None, max_length=2000)
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "item_ids": ["uuid-1", "uuid-2"],
+                    "action": "approve",
+                    "resolution_note": "LGTM — bulk-approved after code review",
+                }
+            ]
+        }
+    }
 
 
 # ── Endpoints ──────────────────────────────────────────────────────
@@ -59,7 +92,23 @@ async def list_inbox(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List pending inbox items for the current user."""
+    """List pending inbox items for the current user.
+
+    Hardened (Q1-B chunk 3):
+    - Validates interrupt_type against HumanInterruptType enum (422 on invalid)
+    - Optional workspace_id filter for defense-in-depth
+    """
+    # Validate interrupt_type
+    if interrupt_type is not None:
+        valid_types = {t.value for t in HumanInterruptType}
+        if interrupt_type not in valid_types:
+            raise _error_response(
+                422,
+                "VALIDATION_ERROR",
+                f"Invalid interrupt_type: {interrupt_type}",
+                details={"valid_types": sorted(valid_types)},
+            )
+
     service = HITLService(db)
 
     # For listing, we show pending items by default
@@ -109,45 +158,110 @@ async def inbox_counts(
     workspace_id: str | None = Depends(get_workspace_id),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """Count of pending items for the current user."""
+) -> dict[str, int]:
+    """Count of pending items for the current user.
+
+    Hardened (Q1-B chunk 3): when workspace_id is supplied, counts only
+    items in that workspace.
+    """
     service = HITLService(db)
     count = await service.count_pending(user_id=user.id, workspace_id=workspace_id)
     return {"pending_count": count}
+
+
+@router.post("/bulk-resolve")
+async def bulk_resolve_items(
+    body: BulkResolveRequest,
+    user: User = Depends(get_current_user),
+    workspace_id: str | None = Depends(get_workspace_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Bulk resolve multiple inbox items.
+
+    Approve or reject up to 100 items in one request. Items that cannot be
+    resolved (not found, wrong status, forbidden) are skipped rather than
+    failing the entire batch.
+    """
+    service = HITLService(db)
+
+    status = InboxItemStatus.APPROVED if body.action == "approve" else InboxItemStatus.REJECTED
+
+    result = await service.bulk_resolve(
+        item_ids=body.item_ids,
+        resolved_by=user.id,
+        status=status,
+        workspace_id=workspace_id,
+        resolution_note=body.resolution_note,
+    )
+
+    return result
+
+
+@router.get("/by-mission/{mission_id}")
+async def list_by_mission(
+    mission_id: str,
+    user: User = Depends(get_current_user),
+    workspace_id: str | None = Depends(get_workspace_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Get all inbox items for a mission, scoped to the current user."""
+    service = HITLService(db)
+
+    items = await service.get_by_mission(
+        mission_id=mission_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+    )
+
+    return [HITLService._item_to_dict(item) for item in items]
 
 
 @router.get("/{item_id}")
 async def get_inbox_item(
     item_id: str,
     user: User = Depends(get_current_user),
+    workspace_id: str | None = Depends(get_workspace_id),
     db: AsyncSession = Depends(get_db),
-):
-    """Get a specific inbox item."""
+) -> dict:
+    """Get a specific inbox item.
+
+    Hardened (Q1-B chunk 3): workspace-scoped — if item exists but
+    workspace_id does not match, returns 404 (not 403) to prevent
+    cross-workspace existence leaks.
+    """
     service = HITLService(db)
     item = await service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Inbox item not found")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not your inbox item")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
+    if workspace_id and item.workspace_id != workspace_id:
+        # 404, not 403 — don't leak existence across workspaces
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     return HITLService._item_to_dict(item)
 
 
-@router.post("/{item_id}/approve")
+@router.post("/{item_id}/approve", response_model=dict)
 async def approve_item(
     item_id: str,
     body: ResolveRequest | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict:
     """Approve an approval request. Resumes the paused mission."""
     service = HITLService(db)
     item = await service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Inbox item not found")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not your inbox item")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.status != InboxItemStatus.PENDING.value:
-        raise HTTPException(status_code=409, detail=f"Item already {item.status}")
+        raise _error_response(
+            409,
+            "INBOX_ITEM_WRONG_STATUS",
+            f"Item already {item.status}",
+            details={"current_status": item.status},
+        )
 
     resolved = await service.resolve_interrupt(
         item_id,
@@ -163,22 +277,27 @@ async def approve_item(
     return HITLService._item_to_dict(resolved)
 
 
-@router.post("/{item_id}/reject")
+@router.post("/{item_id}/reject", response_model=dict)
 async def reject_item(
     item_id: str,
     body: ResolveRequest | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict:
     """Reject an approval request. The mission will be aborted."""
     service = HITLService(db)
     item = await service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Inbox item not found")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not your inbox item")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.status != InboxItemStatus.PENDING.value:
-        raise HTTPException(status_code=409, detail=f"Item already {item.status}")
+        raise _error_response(
+            409,
+            "INBOX_ITEM_WRONG_STATUS",
+            f"Item already {item.status}",
+            details={"current_status": item.status},
+        )
 
     resolved = await service.resolve_interrupt(
         item_id,
@@ -194,24 +313,34 @@ async def reject_item(
     return HITLService._item_to_dict(resolved)
 
 
-@router.post("/{item_id}/clarify")
+@router.post("/{item_id}/clarify", response_model=dict)
 async def clarify_item(
     item_id: str,
     body: ClarifyRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict:
     """Respond to a clarification request. Resumes the paused mission with the response."""
     service = HITLService(db)
     item = await service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Inbox item not found")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not your inbox item")
+        raise _error_response(404, "INBOX_ITEM_NOT_FOUND", "Inbox item not found")
     if item.status != InboxItemStatus.PENDING.value:
-        raise HTTPException(status_code=409, detail=f"Item already {item.status}")
+        raise _error_response(
+            409,
+            "INBOX_ITEM_WRONG_STATUS",
+            f"Item already {item.status}",
+            details={"current_status": item.status},
+        )
     if item.interrupt_type != HumanInterruptType.CLARIFICATION.value:
-        raise HTTPException(status_code=400, detail="Item is not a clarification request")
+        raise _error_response(
+            400,
+            "INBOX_ITEM_WRONG_TYPE",
+            "Item is not a clarification request",
+            details={"actual_type": item.interrupt_type},
+        )
 
     payload = body.resolution_payload or {}
     payload["response_text"] = body.response_text

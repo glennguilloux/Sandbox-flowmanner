@@ -360,6 +360,107 @@ class HITLService:
         except Exception as e:
             logger.warning("HITL expiry: failed to dispatch resume for item=%s: %s", item.id, e)
 
+    async def bulk_resolve(
+        self,
+        *,
+        item_ids: list[str],
+        resolved_by: int,
+        status: InboxItemStatus,
+        workspace_id: str | None = None,
+        resolution_note: str | None = None,
+    ) -> dict[str, Any]:
+        """Resolve multiple inbox items atomically-per-item (not all-or-nothing).
+
+        Returns: {"resolved": [id, ...], "skipped": [{"id": str, "reason": str}, ...], "failed": [...]}
+        """
+        resolved: list[str] = []
+        skipped: list[dict[str, str]] = []
+        failed: list[dict[str, str]] = []
+
+        for item_id in item_ids:
+            try:
+                item = await self.get_item(item_id)
+                if item is None:
+                    skipped.append({"id": item_id, "reason": "not_found"})
+                    continue
+                if item.user_id != resolved_by:
+                    skipped.append({"id": item_id, "reason": "forbidden"})
+                    continue
+                if workspace_id and item.workspace_id != workspace_id:
+                    skipped.append({"id": item_id, "reason": "wrong_workspace"})
+                    continue
+                if item.status != InboxItemStatus.PENDING.value:
+                    skipped.append({"id": item_id, "reason": f"already_{item.status}"})
+                    continue
+
+                item.status = status.value
+                item.resolved_at = datetime.now(UTC)
+                item.resolved_by = resolved_by
+                item.resolution_note = resolution_note
+                await self.db.flush()
+
+                # Push SSE notification
+                await self._push_inbox_event(item.user_id, "interrupt_resolved", item)
+
+                # Emit substrate event
+                await self._emit_resolved_event(item, status.value)
+
+                # Dispatch resume/abort
+                resolution_str = status.value
+                if resolution_str in ("approved", "clarified"):
+                    await self._dispatch_resume(item, resolution_str)
+                elif resolution_str == "rejected" and item.run_id:
+                    try:
+                        from app.tasks.hitl_resume import dispatch_hitl_resume
+
+                        dispatch_hitl_resume(
+                            mission_id=item.mission_id,
+                            run_id=item.run_id,
+                            inbox_item_id=item.id,
+                            resolution="rejected",
+                        )
+                    except Exception as e:
+                        logger.warning("bulk_resolve: dispatch_abort failed for item=%s: %s", item_id, e)
+
+                resolved.append(item_id)
+            except Exception as e:
+                logger.error("bulk_resolve: unexpected error for item=%s: %s", item_id, e)
+                failed.append({"id": item_id, "reason": str(e)})
+
+        await self.db.flush()
+        logger.info(
+            "bulk_resolve: resolved=%d skipped=%d failed=%d",
+            len(resolved), len(skipped), len(failed),
+        )
+        return {"resolved": resolved, "skipped": skipped, "failed": failed}
+
+    async def get_by_mission(
+        self,
+        *,
+        mission_id: str,
+        user_id: int,
+        workspace_id: str | None = None,
+    ) -> list[InboxItem]:
+        """All inbox items for a mission, scoped to the requesting user.
+
+        Returns ordered by created_at DESC. Used by the frontend to render
+        per-mission HITL history.
+        """
+        conditions = [
+            InboxItem.mission_id == mission_id,
+            InboxItem.user_id == user_id,
+        ]
+        if workspace_id:
+            conditions.append(InboxItem.workspace_id == workspace_id)
+
+        stmt = (
+            select(InboxItem)
+            .where(and_(*conditions))
+            .order_by(InboxItem.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def count_pending(self, user_id: int, workspace_id: str | None = None) -> int:
         """Count pending inbox items for a user."""
         conditions = [
@@ -374,14 +475,12 @@ class HITLService:
     async def _push_inbox_event(self, user_id: int, event: str, item: InboxItem) -> None:
         """Push inbox event to user's SSE channel via Redis pub/sub."""
         try:
-            from app.services.sse_service import publish_user_notification
+            from app.services.sse_service import publish_hitl_inbox_event
 
-            await publish_user_notification(
+            await publish_hitl_inbox_event(
                 user_id,
-                {
-                    "event": event,
-                    "data": self._item_to_dict(item),
-                },
+                event,
+                self._item_to_dict(item),
             )
         except Exception as e:
             logger.debug("Failed to push inbox SSE event: %s", e)
