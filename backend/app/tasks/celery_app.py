@@ -12,6 +12,15 @@ imports below, every @celery_app.task / @shared_task decorator in
 app.tasks.* is never executed and the worker silently drops every custom
 task ("unregistered task of type X").  Includes a defensive register of
 the class-based ExecuteMissionTask.
+
+Q1-B cleanup (2026-06-12): Six task modules were previously disabled
+in-place via try/except — they still got imported at worker boot, every
+one failed its top-level import, and the worker logged six warnings on
+every startup.  Cleanup moved all six to ``app.tasks._disabled/`` with
+revival checklists at the original paths, and removed them from the
+registry below.  See commit <sha> for the diagnosis (which targets
+existed, which were real bugs vs. missing features) and per-module
+revival instructions.
 """
 
 import logging
@@ -113,13 +122,16 @@ def _register_custom_tasks() -> None:
     than the previous behaviour (worker boots, registry is empty, every
     custom task is dropped with "Received unregistered task of type X").
 
-    Known broken modules (pre-existing bugs, separate work to fix):
-    - base_task:      tries to import `CeleryTask` model that doesn't exist
-    - deepagents_tasks: missing `app.services.deepagents_integration`
-    - langgraph_tasks:  missing `app.core.llm_config`
-    - task_definitions: tries to import `WorkflowRuns` model that doesn't exist
-    - webhook_dispatcher: missing `app.models.webhook_subscription`
-    - webhook_tasks:     tries to import `SyncSessionLocal` that doesn't exist
+    Disabled modules (moved to ``app.tasks._disabled/`` on 2026-06-12,
+    revival instructions in each stub):
+    - base_task:         CeleryTask model never built
+    - deepagents_tasks:  app.services.deepagents_integration never built
+    - langgraph_tasks:   agent.get_llm() never added to llm_config
+    - task_definitions:  WorkflowRuns model + MonitoringService never built
+    - webhook_dispatcher: webhook_subscription/delivery/event models
+                         never built (different shape from existing
+                         webhook_models.py)
+    - webhook_tasks:     SyncSessionLocal never added to app/database.py
     """
     # Each entry: (module_name, comment)  - imported for decorator side effects.
     task_modules = [
@@ -130,12 +142,6 @@ def _register_custom_tasks() -> None:
         ("n8n_callback",      "5 n8n integration tasks"),
         ("swarm_tasks",       "swarm.{execute_task, consensus_timeout, agent_heartbeat_check, cost_budget_check}"),
         ("training_tasks",    "training.* (7 tasks)"),
-        # The following are broken (pre-existing import errors, see docstring):
-        ("base_task",         "cleanup_old_tasks, health_check (BROKEN)"),
-        ("langgraph_tasks",   "langgraph.* (BROKEN)"),
-        ("task_definitions",  "sync_workflow_status, update_system_metrics (BROKEN)"),
-        ("webhook_dispatcher", "dispatch_webhook_event, retry_failed_webhooks (BROKEN)"),
-        ("webhook_tasks",     "deliver_webhook, process_due_retries (BROKEN)"),
     ]
 
     registered_modules: list[str] = []

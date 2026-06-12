@@ -21,7 +21,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from app.core.llm_config import LLMManager, get_llm_manager
+from app.services.langgraph.llm_config import LLMManager, get_llm_manager  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

@@ -46,10 +46,22 @@ async def _resume_async(
     """Resume mission execution after HITL resolution.
 
     Exceptions propagate to the Celery task-level retry handler.
+
+    Q1-B chunk 1 follow-up (2026-06-12): disposes the global async engine
+    at task start to avoid the "got Future ... attached to a different
+    loop" RuntimeError that fired on the first attempt of every Celery
+    invocation that touches the engine.  See commit 7b4646e for the same
+    fix applied to hitl_expiry.py and the full root-cause writeup.
     """
-    from app.database import AsyncSessionLocal
+    from app.database import AsyncSessionLocal, engine
     from app.models.mission_models import Mission, MissionStatus
     from sqlalchemy import select
+
+    # Drop any cached asyncpg connections left over from a previous task's
+    # event loop.  Each Celery task gets a fresh loop, but the pool is global
+    # and reuses connections; without this, asyncpg raises
+    # "got Future ... attached to a different loop" on the first await.
+    await engine.dispose()
 
     async with AsyncSessionLocal() as db:
         # Load the mission
