@@ -139,7 +139,7 @@ async def test_preview_sandbox_not_found(client):
 
 @pytest.mark.anyio
 async def test_preview_sandboxd_unavailable(client):
-    """sandboxd unreachable returns 404."""
+    """sandboxd unreachable returns 502."""
     with patch("app.api.v1.sandbox_preview.get_sandboxd_client") as mock_get_client:
         mock_client = AsyncMock()
         mock_client.get.side_effect = ConnectionError("Connection refused")
@@ -147,7 +147,10 @@ async def test_preview_sandboxd_unavailable(client):
 
         resp = await client.get("/api/v1/sandbox/sb-abc/preview")
 
-    assert resp.status_code == 404
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert detail["error"] == "sandboxd_unreachable"
+    assert "request_id" in detail
 
 
 # ── URL rewriting ─────────────────────────────────────────────────────

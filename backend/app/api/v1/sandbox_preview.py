@@ -12,8 +12,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+import uuid
 from datetime import UTC, datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request  # noqa: TC002 — needed at runtime for FastAPI DI
@@ -91,6 +93,7 @@ class SandboxPreviewResponse(BaseModel):
     response_model=SandboxPreviewResponse,
 )
 async def get_preview_url(
+    request: Request,
     sandbox_id: str,
     _current_user=Depends(get_current_user),
 ) -> SandboxPreviewResponse:
@@ -106,10 +109,73 @@ async def get_preview_url(
     """
     client = get_sandboxd_client()
 
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+
     try:
         info = await client.get(sandbox_id)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            logger.warning(
+                "sandboxd get(%s) returned 404 — sandbox gone [request_id=%s]",
+                sandbox_id,
+                request_id,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "sandbox_not_found",
+                    "sandbox_id": sandbox_id,
+                    "request_id": request_id,
+                },
+            ) from exc
+        logger.warning(
+            "sandboxd get(%s) returned %d [request_id=%s]",
+            sandbox_id,
+            exc.response.status_code,
+            request_id,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "sandboxd_unreachable",
+                "request_id": request_id,
+            },
+        ) from exc
+    except (httpx.TimeoutException, TimeoutError) as exc:
+        logger.warning(
+            "sandboxd get(%s) timed out [request_id=%s]: %s",
+            sandbox_id,
+            request_id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=504,
+            detail={
+                "error": "sandboxd_timeout",
+                "request_id": request_id,
+            },
+        ) from exc
+    except (httpx.ConnectError, OSError) as exc:
+        logger.warning(
+            "sandboxd get(%s) connection failed [request_id=%s]: %s",
+            sandbox_id,
+            request_id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "sandboxd_unreachable",
+                "request_id": request_id,
+            },
+        ) from exc
     except Exception as exc:
-        logger.warning("sandboxd get(%s) failed: %s", sandbox_id, exc)
+        logger.warning(
+            "sandboxd get(%s) unexpected error [request_id=%s]: %s",
+            sandbox_id,
+            request_id,
+            exc,
+        )
         raise HTTPException(
             status_code=404,
             detail=f"Sandbox not found: {exc}",
