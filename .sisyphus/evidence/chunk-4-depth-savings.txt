@@ -1,0 +1,26 @@
+=== Depth Policy Decision Examples ===
+
+Shallow: level=shallow, iterations=0
+  Reason: risk=low; uncertainty=0.20 < 0.3; prior_failures=0; budget=$5.00 (adequate)
+  HITL: False
+
+Normal: level=normal, iterations=1
+  Reason: risk=medium → normal; uncertainty=0.40 ≥ 0.3 → normal; prior_failures=0; budget=$2.00 (adequate)
+
+Deep: level=deep, iterations=3
+  Reason: risk=high → deep; uncertainty=0.80 > 0.7 → deep; prior_failures=2 ≥ 2 → deep; budget=$2.00 (adequate)
+
+HITL: level=deep, escalate=True, reason=tool_requires_approval
+
+=== Token Cost Projection ===
+
+All-normal mission (10 steps): 15000 tokens
+Mixed-realistic (6 shallow + 3 normal + 1 deep): 12000 tokens
+Savings: 20.0%
+
+Per-step token profiles:
+  Shallow: ~500 tokens (0 reflection iterations)
+  Normal:  ~1500 tokens (1 reflection iteration)
+  Deep:    ~4500 tokens (3 reflection iterations)
+
+Policy version: v1.0.0
