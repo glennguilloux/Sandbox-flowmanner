@@ -25,6 +25,7 @@ from opentelemetry import trace
 from app.config import settings
 from app.models.capability_models import Budget, BudgetExhausted
 from app.models.substrate_models import SubstrateEventType
+from app.services.substrate.hitl_pause import HITLPaused
 from app.services.substrate.event_log import EventLog, get_event_log
 from app.services.substrate.replay_engine import ReplayEngine, get_replay_engine
 from app.services.substrate.strategies.base import (
@@ -424,6 +425,25 @@ class UnifiedExecutor:
                 error=str(e),
                 execution_time_ms=(time.monotonic() - start_time) * 1000,
             )
+        except HITLPaused as e:
+            # Q1-B chunk 1: HITL pause — release lease, emit RUN_PAUSED, return paused status
+            logger.info(
+                "HITL paused for run %s: node=%s inbox_item=%s",
+                run_id, e.node_id, e.inbox_item_id,
+            )
+            await self._handle_hitl_pause(db, workflow, run_id, e)
+            return StrategyResult(
+                success=False,
+                status="paused",
+                error=f"Waiting for human {e.interrupt_type}: {e.title}",
+                data={
+                    "hitl_paused": True,
+                    "inbox_item_id": e.inbox_item_id,
+                    "node_id": e.node_id,
+                    "interrupt_type": e.interrupt_type,
+                },
+                execution_time_ms=(time.monotonic() - start_time) * 1000,
+            )
         except LeaseLostError as e:
             logger.warning("Lease lost for run %s: %s", run_id, e)
             await self._finalize_run(db, workflow, run_id, "aborted", str(e))
@@ -713,6 +733,42 @@ class UnifiedExecutor:
                     await service.record_call(breaker, call_type=call_type, cost_usd=cost_usd)
         except Exception as e:
             logger.debug("Circuit breaker record skipped: %s", e)
+
+    # ── Q1-B: HITL pause handler ────────────────────────────────────
+
+    async def _handle_hitl_pause(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        run_id: str,
+        hitl: HITLPaused,
+    ) -> None:
+        """Handle a HITL pause: emit RUN_PAUSED event.
+
+        The lease is released by the _lease_context manager on exit.
+        We just need to emit the event so the run can be resumed later.
+        """
+        await self.event_log.append(
+            db,
+            run_id,
+            [{
+                "type": SubstrateEventType.MISSION_PAUSED,
+                "payload": {
+                    "reason": f"hitl_{hitl.interrupt_type}",
+                    "inbox_item_id": hitl.inbox_item_id,
+                    "node_id": hitl.node_id,
+                    "interrupt_type": hitl.interrupt_type,
+                    "title": hitl.title,
+                },
+                "actor": "hitl_pause",
+                "mission_id": workflow.id,
+                "task_id": hitl.node_id,
+            }],
+        )
+        logger.info(
+            "RUN_PAUSED emitted for run %s: HITL %s node=%s",
+            run_id, hitl.interrupt_type, hitl.node_id,
+        )
 
     async def _run_post_hooks(
         self,

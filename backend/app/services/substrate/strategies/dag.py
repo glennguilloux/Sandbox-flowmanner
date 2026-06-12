@@ -96,8 +96,13 @@ class DAGStrategy(ExecutionStrategy):
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
+            from app.services.substrate.hitl_pause import HITLPaused
+
             for nid, result in zip(layer, results, strict=False):
                 if isinstance(result, Exception):
+                    # Q1-B chunk 1: Propagate HITLPaused — don't treat as failure
+                    if isinstance(result, HITLPaused):
+                        raise result
                     failed_nodes.append(nid)
                     node_outputs[nid] = {"error": str(result)}
                 elif result.get("success"):

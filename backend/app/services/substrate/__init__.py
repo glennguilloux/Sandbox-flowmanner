@@ -20,6 +20,7 @@ from .leases import (
     try_claim_lease,
 )
 from .replay_engine import ReplayEngine, get_replay_engine
+from .hitl_pause import HITLPaused, HITLResolution, check_hitl_resolution
 from .circuit_breaker import (
     CircuitBreakerCheck,
     CircuitBreakerOpen,
@@ -82,4 +83,8 @@ __all__ = [
     "record_failure",
     "record_success",
     "resolve_provider",
+    # Q1-B chunk 1 — HITL pause/resume
+    "HITLPaused",
+    "HITLResolution",
+    "check_hitl_resolution",
 ]

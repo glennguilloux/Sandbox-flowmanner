@@ -241,30 +241,27 @@ async def _signal_executor_resume(
 ) -> None:
     """Signal the executor to resume after HITL resolution.
 
-    Uses Redis pub/sub to notify the executor that the interrupt
-    has been resolved and execution can continue.
+    Q1-B chunk 1: Dispatches a durable Celery task that re-enters the
+    UnifiedExecutor with the existing run_id.  The executor uses crash
+    recovery to rebuild state and re-enter the HITL node, which checks
+    the inbox item status and continues.
     """
+    if not run_id:
+        logger.warning("No run_id for HITL resume — mission %s", mission_id)
+        return
+
     try:
-        import json
+        from app.tasks.hitl_resume import dispatch_hitl_resume
 
-        from app.services.sse_service import get_redis_client
-
-        redis = await get_redis_client()
-        try:
-            channel = f"hitl:resolved:{mission_id}"
-            message = json.dumps(
-                {
-                    "mission_id": mission_id,
-                    "run_id": run_id,
-                    "resolution": resolution,
-                    "inbox_item_id": item.id if hasattr(item, "id") else None,
-                }
-            )
-            await redis.publish(channel, message)
-        finally:
-            await redis.aclose()
+        inbox_item_id = item.id if hasattr(item, "id") else "unknown"
+        dispatch_hitl_resume(
+            mission_id=mission_id,
+            run_id=run_id,
+            inbox_item_id=inbox_item_id,
+            resolution=resolution,
+        )
     except Exception as e:
-        logger.debug("Failed to signal executor resume: %s", e)
+        logger.warning("Failed to dispatch HITL resume task: %s", e)
 
 
 async def _signal_executor_abort(

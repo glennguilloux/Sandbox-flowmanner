@@ -111,11 +111,22 @@ class NodeExecutor:
     ) -> dict[str, Any]:
         """Execute a single node.
 
+        Q1-B chunk 1: Before executing a HITL node (APPROVAL / HUMAN_REVIEW),
+        check if this is a resume — if the inbox item was already resolved,
+        return the resolution result without re-creating the interrupt.
+
         Returns:
             Dict with success, output, tokens, cost, etc.
         """
         event_log = get_event_log()
         result: dict[str, Any] = {"success": False, "error": "Unknown error"}
+
+        # Q1-B chunk 1: HITL resume check — if this is a HITL node and the
+        # inbox item was already resolved, return the resolution directly.
+        if node.type in (NodeType.APPROVAL, NodeType.HUMAN_REVIEW):
+            resume_result = await self._check_hitl_resume(db, node, context, run_id)
+            if resume_result is not None:
+                return resume_result
 
         # Pre-execution budget check
         is_exhausted, reason = budget.is_exhausted()
@@ -1003,6 +1014,65 @@ class NodeExecutor:
                 "tokens": 0,
             }
 
+    # ── Q1-B: HITL resume check ─────────────────────────────────────
+
+    async def _check_hitl_resume(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str,
+    ) -> dict[str, Any] | None:
+        """Check if this HITL node has already been resolved (resume path).
+
+        On resume after HITL pause, the executor re-enters the HITL node.
+        This method checks the inbox item status:
+        - approved/clarified → return success with resolution payload
+        - rejected/expired → return failure
+        - pending → return None (will raise HITLPaused again)
+        - no inbox item found → return None (first execution)
+        """
+        from sqlalchemy import select
+
+        from app.models.hitl_models import InboxItem
+        from app.services.substrate.hitl_pause import check_hitl_resolution
+
+        # Find the inbox item for this node in this run
+        result = await db.execute(
+            select(InboxItem).where(
+                InboxItem.run_id == run_id,
+                InboxItem.node_id == node.id,
+            ).order_by(InboxItem.created_at.desc()).limit(1)
+        )
+        item = result.scalar_one_or_none()
+        if item is None:
+            return None  # First execution — no inbox item yet
+
+        resolution = await check_hitl_resolution(db, item.id)
+        if not resolution.resolved:
+            return None  # Still pending — will raise HITLPaused again
+
+        if resolution.status in ("approved", "clarified"):
+            return {
+                "success": True,
+                "output": {
+                    "hitl_resolution": resolution.status,
+                    "resolution_payload": resolution.resolution_payload,
+                    "resolution_note": resolution.resolution_note,
+                    "inbox_item_id": item.id,
+                },
+                "tokens": 0,
+                "cost": 0.0,
+            }
+
+        # rejected, expired, cancelled
+        return {
+            "success": False,
+            "error": f"HITL {resolution.status}: {resolution.resolution_note or 'no details'}",
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
     # ── HITL interrupt handler (Phase 6.2) ──────────────────────────
 
     async def _handle_hitl_interrupt(
@@ -1021,7 +1091,7 @@ class NodeExecutor:
         human_interrupt.raised event. The mission will pause until
         the interrupt is resolved via the HITL Inbox API.
         """
-        from app.models.hitl_models import HumanInterruptType
+        from app.models.hitl_models import HumanInterruptType, InboxItem
         from app.services.hitl_service import HITLService
         from app.services.substrate.event_log import get_event_log
 
@@ -1042,8 +1112,33 @@ class NodeExecutor:
         workspace_id = getattr(workflow, "workspace_id", None) if workflow else None
         mission_id = workflow.id if workflow else None
 
+        # Q1-B chunk 1: Check for existing pending inbox item before creating
+        # a new one.  On resume, _check_hitl_resume returns None for pending
+        # items, causing re-entry here.  We must NOT create duplicates.
         service = HITLService(db)
-        item = await service.create_interrupt(
+        item = None
+        try:
+            from sqlalchemy import select as select_
+
+            existing_result = await db.execute(
+                select_(InboxItem).where(
+                    InboxItem.run_id == run_id,
+                    InboxItem.node_id == node.id,
+                    InboxItem.status == "pending",
+                ).order_by(InboxItem.created_at.desc()).limit(1)
+            )
+            existing_item = existing_result.scalar_one_or_none()
+            if existing_item is not None:
+                logger.info(
+                    "HITL interrupt already pending: node=%s inbox_item=%s",
+                    node.id, existing_item.id,
+                )
+                item = existing_item
+        except Exception as dup_err:
+            logger.debug("Duplicate inbox check skipped: %s", dup_err)
+
+        if item is None:
+            item = await service.create_interrupt(
             mission_id=mission_id or "unknown",
             user_id=user_id,
             interrupt_type=hitl_type,
@@ -1084,15 +1179,20 @@ class NodeExecutor:
             item.id,
         )
 
-        return {
-            "success": False,
-            "error": f"Waiting for human {interrupt_type}",
-            "requires_human_input": True,
-            "requires_approval": interrupt_type == "approval",
-            "requires_clarification": interrupt_type == "clarification",
-            "inbox_item_id": item.id,
-            "hitl_type": hitl_type.value,
-        }
+        # Q1-B chunk 1: Raise HITLPaused to actually pause execution.
+        # The exception propagates through the strategy to UnifiedExecutor,
+        # which releases the lease and emits RUN_PAUSED.
+        from app.services.substrate.hitl_pause import HITLPaused
+
+        raise HITLPaused(
+            inbox_item_id=item.id,
+            run_id=run_id,
+            node_id=node.id,
+            mission_id=mission_id,
+            interrupt_type=hitl_type.value,
+            title=title,
+            context={"current_context": context},
+        )
 
     # ── Tool helpers ────────────────────────────────────────────────
 

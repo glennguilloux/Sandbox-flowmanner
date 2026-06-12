@@ -475,20 +475,23 @@ class TestHandleHITL:
             user_id="1",
         )
 
-        # HITLService and get_event_log are imported locally in _handle_hitl_interrupt
+        # Q1-B chunk 1: _handle_hitl_interrupt now raises HITLPaused
+        # instead of returning a dict
+        from app.services.substrate.hitl_pause import HITLPaused
+
         with (
             patch("app.services.hitl_service.HITLService", return_value=mock_hitl),
             patch(
                 "app.services.substrate.event_log.get_event_log",
                 return_value=mock_event_log,
             ),
+            pytest.raises(HITLPaused) as exc_info,
         ):
-            result = await ne._handle_hitl_interrupt(db, node, context, run_id, workflow, interrupt_type="approval")
+            await ne._handle_hitl_interrupt(db, node, context, run_id, workflow, interrupt_type="approval")
 
-        assert result["success"] is False
-        assert result["requires_human_input"] is True
-        assert result["requires_approval"] is True
-        assert result["inbox_item_id"] == "inbox-123"
+        assert exc_info.value.interrupt_type == "approval"
+        assert exc_info.value.inbox_item_id == "inbox-123"
+        assert exc_info.value.run_id == run_id
 
     @pytest.mark.asyncio
     async def test_handle_hitl_clarification_type(self):
@@ -506,17 +509,20 @@ class TestHandleHITL:
         mock_event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
 
         # HITLService and get_event_log are imported locally in _handle_hitl_interrupt
+        from app.services.substrate.hitl_pause import HITLPaused
+
         with (
             patch("app.services.hitl_service.HITLService", return_value=mock_hitl),
             patch(
                 "app.services.substrate.event_log.get_event_log",
                 return_value=mock_event_log,
             ),
+            pytest.raises(HITLPaused) as exc_info,
         ):
-            result = await ne._handle_hitl_interrupt(db, node, context, run_id, None, interrupt_type="clarification")
+            await ne._handle_hitl_interrupt(db, node, context, run_id, None, interrupt_type="clarification")
 
-        assert result["requires_clarification"] is True
-        assert result["requires_approval"] is False
+        assert exc_info.value.interrupt_type == "clarification"
+        assert exc_info.value.inbox_item_id == "inbox-456"
 
 
 class TestDispatchRoutingExtended:

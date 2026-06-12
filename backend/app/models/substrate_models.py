@@ -114,6 +114,9 @@ class SubstrateEventType:
     CIRCUIT_BREAKER_OPENED = "circuit_breaker.opened"
     PROVIDER_FALLBACK_INVOKED = "provider.fallback_invoked"
 
+    # Q1-B chunk 1: HITL resume event
+    HITL_RESUMED = "hitl.resumed"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"
