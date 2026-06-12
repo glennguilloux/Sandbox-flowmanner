@@ -1,0 +1,205 @@
+Chunk 2 verification — migration fix + baseline re-check
+=========================================================
+
+Captured: 2026-06-12 21:25 by orchestrator (after DeepSeek's chunk 2 work)
+Scope:    Q2-Q3 Chunk 2 (Sparse Episodic Memory for Missions)
+
+────────────────────────────────────────────────────────
+1) Migration fix proof
+────────────────────────────────────────────────────────
+
+BUG: `backend/alembic/versions/20260612_episodic_memory_001.py` had a single
+`op.execute("""...""")` block that issued TWO SQL statements (CREATE FUNCTION
++ CREATE TRIGGER) in one call. asyncpg prepared statements cannot handle
+multi-statement SQL, so the migration silently failed inside the deploy.
+The deploy script reported "Migrations applied successfully" but the
+alembic head stayed at `auth_v3_feature_flag_001`.
+
+FIX: Split into two separate `op.execute()` calls.
+
+PATCH (unified diff):
+@@ -94,19 +94,26 @@
+         "CREATE INDEX ix_episodes_tsvector ON episodes USING gin (retrieval_vector)"
+     )
+
+-    # Trigger to auto-update tsvector on INSERT/UPDATE
+-    op.execute("""
++    # Trigger to auto-update tsvector on INSERT/UPDATE.
++    # NB: asyncpg prepared statements cannot handle multi-statement SQL,
++    # so the function and trigger must be created in separate op.execute() calls.
++    op.execute(
++        """
+         CREATE OR REPLACE FUNCTION episodes_tsvector_trigger() RETURNS trigger AS $$
+         BEGIN
+             NEW.retrieval_vector := to_tsvector('english', NEW.retrieval_text);
+             RETURN NEW;
+         END;
+         $$ LANGUAGE plpgsql;
+-
++        """
++    )
++    op.execute(
++        """
+         CREATE TRIGGER episodes_tsvector_update
+         BEFORE INSERT OR UPDATE ON episodes
+         FOR EACH ROW EXECUTE FUNCTION episodes_tsvector_trigger();
+-    """)
++        """
++    )
+
+APPLY: `docker cp` patched file into running container, then `alembic upgrade head`.
+
+$ docker cp /opt/flowmanner/backend/alembic/versions/20260612_episodic_memory_001.py \
+    backend:/app/alembic/versions/20260612_episodic_memory_001.py
+$ docker compose exec -T backend alembic upgrade head
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade auth_v3_feature_flag_001 -> episodic_memory_001, Add episodes table for sparse episodic memory.
+$ docker compose exec -T backend alembic current
+episodic_memory_001 (head)
+
+────────────────────────────────────────────────────────
+2) Table + trigger + indexes verified
+────────────────────────────────────────────────────────
+
+$ docker compose exec -T postgres psql -U flowmanner -d flowmanner -c "\d episodes"
+                                          Table "public.episodes"
+      Column      |           Type           | Collation | Nullable |                Default
+------------------+--------------------------+-----------+----------+--------------------------------------
+ id               | uuid                     |           | not null |
+ workspace_id     | uuid                     |           | not null |
+ user_id          | integer                  |           | not null |
+ mission_id       | uuid                     |           | not null |
+ step_type        | character varying(100)   |           | not null |
+ outcome          | character varying(20)    |           | not null |
+ cost_bucket      | character varying(20)    |           | not null |
+ hitl_outcome     | character varying(20)    |           |          |
+ retrieval_text   | text                     |           | not null |
+ qdrant_point_id  | character varying(64)    |           |          |
+ embedding_model  | character varying(100)   |           | not null | 'all-MiniLM-L6-v2'::character varying
+ retrieval_vector | tsvector                 |           |          |
+ created_at       | timestamp with time zone |           | not null | now()
+ updated_at       | timestamp with time zone |           | not null | now()
+Indexes:
+    "episodes_pkey" PRIMARY KEY, btree (id)
+    "ix_episodes_mission" btree (mission_id) WHERE mission_id IS NOT NULL
+    "ix_episodes_tsvector" gin (retrieval_vector)
+    "ix_episodes_ws_user_created" btree (workspace_id, user_id, created_at DESC)
+Foreign-key constraints:
+    "episodes_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Triggers:
+    episodes_tsvector_update BEFORE INSERT OR UPDATE ON episodes FOR EACH ROW EXECUTE FUNCTION episodes_tsvector_trigger()
+
+All 4 indexes present (pkey + composite + partial + GIN). Trigger registered. FK to users.
+
+────────────────────────────────────────────────────────
+3) Trigger fire-test (proves end-to-end)
+────────────────────────────────────────────────────────
+
+$ docker compose exec -T postgres psql -U flowmanner -d flowmanner -c "
+INSERT INTO episodes (id, workspace_id, user_id, mission_id, step_type, outcome, cost_bucket, retrieval_text)
+VALUES ('00000000-0000-0000-0000-000000000099', '00000000-0000-0000-0000-000000000001', 1, '00000000-0000-0000-0000-000000000002', 'mission', 'success', 'small', 'test hello world');
+SELECT id, retrieval_vector IS NOT NULL AS tsvector_populated FROM episodes WHERE id = '00000000-0000-0000-0000-000000000099';
+DELETE FROM episodes WHERE id = '00000000-0000-0000-0000-000000000099';"
+INSERT 0 1
+                  id                  | tsvector_populated
+--------------------------------------+--------------------
+ 00000000-0000-0000-0000-000000000099 | t
+DELETE 1
+
+Trigger fires on INSERT, populates tsvector column. Then DELETE for cleanup. ✓
+
+────────────────────────────────────────────────────────
+4) Endpoints registered and live
+────────────────────────────────────────────────────────
+
+$ curl -sS http://localhost:8000/openapi.json | grep -i episo
+/api/episodes/retrieve
+/api/missions/{mission_id}/episodes
+
+$ curl -sS -o /dev/null -w "POST /api/episodes/retrieve → HTTP %{http_code}\n" \
+    -X POST http://localhost:8000/api/episodes/retrieve \
+    -H "Content-Type: application/json" -d '{}'
+POST /api/episodes/retrieve → HTTP 401   (auth required — correct, router is loaded)
+
+$ curl -sS -o /dev/null -w "GET /api/missions/x/episodes → HTTP %{http_code}\n" \
+    http://localhost:8000/api/missions/00000000-0000-0000-0000-000000000000/episodes
+GET /api/missions/x/episodes → HTTP 401  (auth required — correct)
+
+NOTE: The router prefix is `/api` (not `/api/v1`) for the episodic memory endpoints
+(this matches the rest of the legacy app; `/api/v1` is the newer convention). The
+orchestrator initially tested the wrong path and got 404 — endpoints exist, just
+under a different prefix.
+
+────────────────────────────────────────────────────────
+5) Worker code — event-driven, no LLM
+────────────────────────────────────────────────────────
+
+$ grep -n "llm\|summariz\|openai\|anthropic" backend/app/services/episodic_memory_worker.py
+202:                types.add("llm_call")
+217:        llm_count = sum(
+227:        if llm_count:
+228:            parts.append(f"{llm_count} LLM calls")
+
+All matches are for COUNTING `LLM_CALL` events from the substrate event log,
+not for CALLING an LLM. The `_build_summary` method (lines 217-232) constructs
+a compact string like "Mission 'X', 3 tasks completed, 7 tool calls, 2 LLM calls"
+— no external LLM call. ✓
+
+────────────────────────────────────────────────────────
+6) New tests re-run on host venv
+────────────────────────────────────────────────────────
+
+$ /opt/flowmanner/backend/.venv/bin/python -m pytest \
+    tests/test_episodic_memory.py tests/test_memory_redaction.py -v --no-header
+============================= 29 passed, 1 warning in 5.15s =============================
+
+15 unit tests + 14 redaction tests, all green. ✓
+
+────────────────────────────────────────────────────────
+7) Substrate baseline re-run (canonical command from substrate-baseline-v1.md)
+────────────────────────────────────────────────────────
+
+$ /opt/flowmanner/backend/.venv/bin/python -m pytest \
+    tests/test_substrate_circuit_breaker.py \
+    tests/test_substrate_event_log.py \
+    tests/test_substrate_event_log_integration_pg.py \
+    tests/test_substrate_hitl_pause.py \
+    tests/test_substrate_lease_integration.py \
+    tests/test_substrate_lease_reclaimer.py \
+    tests/test_substrate_replay.py \
+    tests/test_substrate_resume_validation.py \
+    tests/test_substrate_worker_leases.py \
+    tests/test_mission_circuit_breaker.py \
+    tests/test_mission_executor.py \
+    -v --tb=line 2>&1 | tail -20
+...
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_insert_succeeds
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_update_rejected_by_trigger
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_delete_rejected_by_trigger
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_trigger_exists_in_database
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_trigger_catalog_matches_migration
+FAILED tests/test_mission_executor.py::TestMissionExecutorInterface::test_mission_executor_has_execute_task
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_propagates_model_router_failure
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_returns_success_true_on_valid_response
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_treats_empty_response_as_failure
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_returns_failure_when_model_router_unavailable
+============ 10 failed, 151 passed, 9 warnings in 105.57s (0:01:45) =============
+
+151 pass / 10 fail, identical to pre-Chunk-2 baseline. No new failures. ✓
+
+────────────────────────────────────────────────────────
+8) Endpoint paths — fix the orchestrator's 404 confusion
+────────────────────────────────────────────────────────
+
+The episodic memory endpoints are mounted at `/api/...` (not `/api/v1/...`).
+The orchestrator initially tested `/api/v1/episodes/retrieve` and got 404.
+The correct paths are:
+  - POST /api/episodes/retrieve
+  - GET /api/missions/{mission_id}/episodes
+Both return 401 (auth required) without a valid session, confirming the
+router is loaded and live. This is a documentation point for future chunks.
+
+────────────────────────────────────────────────────────
+VERDICT: Chunk 2 is complete. 29 new tests pass, baseline unchanged at 151/10,
+migration applied, endpoints live, worker event-driven, redaction proven.

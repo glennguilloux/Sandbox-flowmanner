@@ -2,10 +2,10 @@
   "schema_version": "1.0",
   "project": "flowmanner-q2-q3-agentic-workflow",
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
-  "current_chunk": 2,
-  "current_chunk_name": "Sparse Episodic Memory for Missions",
-  "current_chunk_status": "prompt-written-awaiting-deepseek",
-  "last_completed_chunk": 1,
+  "current_chunk": 3,
+  "current_chunk_name": "Sparse Tool Routing",
+  "current_chunk_status": "not-started",
+  "last_completed_chunk": 2,
   "chunks": [
     {
       "id": 1,
@@ -39,41 +39,68 @@
     {
       "id": 2,
       "name": "Sparse Episodic Memory for Missions",
-      "status": "blocked-on-chunk-1",
-      "estimate_w": 2
+      "status": "complete-with-bugfix-by-orchestrator",
+      "estimate_w": 2,
+      "prompt": ".hermes/plans/q2-q3-chunk2-sparse-episodic-memory-prompt.md",
+      "stop_gates": [
+        "29 new tests pass (15 unit + 14 redaction) — VERIFIED: `29 passed in 5.15s`",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 2) — VERIFIED post-migration-fix",
+        "Migration `episodic_memory_001` applied to live DB — VERIFIED via `alembic current` + `\\d episodes` + trigger fire test",
+        "Router registered, endpoints live at /api/episodes/retrieve and /api/missions/{id}/episodes — VERIFIED via OpenAPI + 401 (auth required) on unauth curl",
+        "Worker is event-driven (subscribes to substrate mission.completed events) — VERIFIED by code inspection: no LLM call in _build_summary",
+        "Episode model + EpisodicMemoryService + redaction logic on disk — VERIFIED: 4 new files, 21.9KB service, 14 redaction tests",
+        "git diff --check clean — VERIFIED by DeepSeek report"
+      ],
+      "evidence_files": [
+        ".sisyphus/evidence/chunk-2-baseline-green.txt",
+        ".sisyphus/evidence/chunk-2-memory-valid.txt",
+        ".sisyphus/evidence/chunk-2-redaction-valid.txt",
+        ".sisyphus/evidence/chunk-2-migration-fix.txt"
+      ],
+      "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
+      "pre_existing_failures": 10,
+      "commits": {
+        "backend_main": ["35fdc0e", "ac0c6ef", "30e3356", "58bebde"]
+      },
+      "bugfix_by_orchestrator": {
+        "bug": "Migration `20260612_episodic_memory_001.py` used a multi-statement `op.execute()` for the trigger function + trigger creation. asyncpg prepared statements cannot handle multi-statement SQL — the deploy script reported 'Migrations applied successfully' but the head was still at `auth_v3_feature_flag_001` (the new migration silently failed). The deploy script does not fail the build on migration errors.",
+        "fix": "Split the single `op.execute(\"\"\"...\"\"\")` into two separate `op.execute()` calls (one for the function, one for the trigger). Applied via `docker cp` into the running container, then `alembic upgrade head` succeeded. Trigger fire-tested in postgres: `tsvector_populated = t`.",
+        "root_cause": "asyncpg (the async PG driver) prepares each statement individually and cannot batch multiple statements into a single prepare. SQLAlchemy's `op.execute()` on a multi-statement string goes through asyncpg's prepared-statement path which rejects the multi-statement input.",
+        "deployed_via": "`docker cp` + `alembic upgrade head` in container. Full backend rebuild deferred to next normal deploy (the fixed file is committed to git, so next `deploy-backend.sh` will bake it into the image)."
+      }
     },
     {
       "id": 3,
       "name": "Sparse Tool Routing",
-      "status": "blocked-on-chunk-1",
+      "status": "not-started",
       "estimate_w": 2
     },
     {
       "id": 4,
       "name": "Adaptive Reasoning Depth with HITL Escalation",
-      "status": "blocked-on-chunk-1",
+      "status": "blocked-on-chunk-3",
       "estimate_w": 2
     },
     {
       "id": 5,
       "name": "Multi-Agent Handoff Packets",
-      "status": "blocked-on-chunk-1",
+      "status": "blocked-on-chunk-3",
       "estimate_w": 4
     },
     {
       "id": 6,
       "name": "Self-Correction and Retry Under Cost Ceilings",
-      "status": "blocked-on-chunk-1",
+      "status": "blocked-on-chunk-3",
       "estimate_w": 2
     }
   ],
   "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
   "canonical_baseline_summary": "151 pass, 10 pre-existing failures (5 PG-DNS env-only, 5 mission_executor test-rot/interface-mismatch)",
   "runner": "codebuff-deepseek",
-  "runner_notes": "User runs DeepSeek via codebuff CLI; orchestrator writes prompt file at .hermes/plans/, DeepSeek reads it. Orchestrator verifies result and updates state.",
+  "runner_notes": "User runs DeepSeek via codebuff CLI; orchestrator writes prompt file at .hermes/plans/, DeepSeek reads it. Orchestrator verifies result and updates state. Orchestrator also catches sub-agent bugs (e.g. asyncpg multi-statement migration bug in Chunk 2) and applies targeted fixes.",
   "git_workflow": "direct-push-to-main",
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-12T20:50:00Z"
+  "last_updated": "2026-06-12T21:25:00Z"
 }

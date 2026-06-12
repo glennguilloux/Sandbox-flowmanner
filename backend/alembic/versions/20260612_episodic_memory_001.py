@@ -94,19 +94,26 @@ def upgrade() -> None:
         "CREATE INDEX ix_episodes_tsvector ON episodes USING gin (retrieval_vector)"
     )
 
-    # Trigger to auto-update tsvector on INSERT/UPDATE
-    op.execute("""
+    # Trigger to auto-update tsvector on INSERT/UPDATE.
+    # NB: asyncpg prepared statements cannot handle multi-statement SQL,
+    # so the function and trigger must be created in separate op.execute() calls.
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION episodes_tsvector_trigger() RETURNS trigger AS $$
         BEGIN
             NEW.retrieval_vector := to_tsvector('english', NEW.retrieval_text);
             RETURN NEW;
         END;
         $$ LANGUAGE plpgsql;
-
+        """
+    )
+    op.execute(
+        """
         CREATE TRIGGER episodes_tsvector_update
         BEFORE INSERT OR UPDATE ON episodes
         FOR EACH ROW EXECUTE FUNCTION episodes_tsvector_trigger();
-    """)
+        """
+    )
 
 
 def downgrade() -> None:
