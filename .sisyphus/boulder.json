@@ -4,7 +4,7 @@
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
   "current_chunk": 4,
   "current_chunk_name": "Adaptive Reasoning Depth with HITL Escalation",
-  "current_chunk_status": "not-started",
+  "current_chunk_status": "prompt-written-awaiting-deepseek",
   "last_completed_chunk": 3,
   "chunks": [
     {
@@ -115,7 +115,7 @@
             "bug": "`alembic upgrade head` did NOT apply the new `tool_routing_001` migration during the deploy. The deploy script said 'Migrations applied successfully' but `alembic current` was still at `episodic_memory_001` after the deploy. The migration code IS valid (single-statement `op.execute()` for the partial index) — verified by manual `alembic upgrade head` working perfectly.",
             "fix": "Orchestrator manually ran `docker compose exec -T backend alembic upgrade head` to apply the migration. Head is now at `tool_routing_001 (head)`. The `tool_routing_decisions` table exists with all 3 indexes (composite, partial mission, pkey).",
             "root_cause": "`deploy-backend.sh` line 213-214 always prints 'Migrations applied successfully' via `log_success` regardless of whether `alembic upgrade head` actually moved the head. The script does not capture stderr or check the exit code. This is the same deploy-script bug as Chunk 2 (caught there with the asyncpg multi-statement migration).",
-            "deploy_script_fix_recommended": "Add `set -e` at the top of the migration section, OR check the exit code of `alembic upgrade head` and fail the deploy if non-zero, OR verify `alembic current` matches `alembic heads` after the upgrade. Filed as a follow-up — does not block Chunk 3 completion."
+            "deploy_script_fix_recommended": "FIXED in commit 86c76fa (2026-06-13). The deploy script now (1) runs migrations AFTER build so the container has the latest migration files baked in, (2) verifies `alembic current` matches `alembic heads` after migration, and (3) auto-rollbacks on migration failure. See .sisyphus/evidence/deploy-script-migration-verification-2026-06-13.txt for full details."
           }
         ]
       }
@@ -123,8 +123,30 @@
     {
       "id": 4,
       "name": "Adaptive Reasoning Depth with HITL Escalation",
-      "status": "blocked-on-chunk-3",
-      "estimate_w": 2
+      "status": "prompt-written-awaiting-deepseek",
+      "estimate_w": 2,
+      "prompt": ".hermes/plans/q2-q3-chunk4-adaptive-reasoning-depth-prompt.md",
+      "prompt_written_at": "2026-06-13T01:30:00Z",
+      "prompt_written_by": "orchestrator",
+      "prompt_size_bytes": 37483,
+      "prompt_size_lines": 360,
+      "stop_gates_planned": [
+        "Each step records depth (shallow/normal/deep), trigger reason, budget, and escalation decision — VERIFIED by test",
+        "High-risk tools (requires_approval=True) trigger HITL escalation unless policy_override=True — VERIFIED by test",
+        "Retry exhaustion (retry_count>=3) triggers HITL escalation — VERIFIED by test",
+        "Persistent failure (prior_failures>=3) triggers HITL escalation — VERIFIED by test",
+        "Depth changes when budget/uncertainty/risk changes — VERIFIED by behavioral tests",
+        "Mission replay can reconstruct why shallow vs deep was chosen — DEPTH_DECIDED event in substrate log",
+        "10-12 new unit tests pass",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 4)",
+        "test_mission_executor.py still at 5 pre-existing failures (UNCHANGED, executor modifications must not add failures)",
+        "Migration `depth_decisions_001` applied to live DB (if created) — VERIFIED via `alembic current`",
+        "DEPTH_DECIDED event type added to substrate_models.py (additive)",
+        "Depth policy is deterministic (no LLM call inside the policy) — VERIFIED by code inspection",
+        "Reasoning-cost savings measured (shallow vs normal vs deep token projection)",
+        "git diff --check clean",
+        "Alembic head at depth_decisions_001 (if migration) or tool_routing_001 (if no migration)"
+      ]
     },
     {
       "id": 5,
@@ -147,5 +169,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-12T22:10:00Z"
+  "last_updated": "2026-06-13T01:30:00Z"
 }
