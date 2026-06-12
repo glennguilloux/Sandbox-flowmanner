@@ -466,6 +466,58 @@ async def send_slo_alert(
         logger.warning("SLO alert dispatch failed (non-fatal): %s", e)
 
 
+async def send_5xx_alert(
+    request_id: str,
+    method: str,
+    path: str,
+    exception_class: str,
+    message: str,
+) -> bool:
+    """Send a ntfy alert when an unhandled 5xx exception is caught by the
+    FastAPI general exception handler.
+
+    Posts the request_id, method, path, exception class, and message so an
+    on-call engineer can correlate the alert with backend logs. Routes
+    through the ntfy channel only (not the multi-channel dispatcher) so the
+    exception handler stays independent of NOTIFY_CHANNELS configuration.
+
+    Fires-and-forgets. Never raises — a ntfy failure must not block the
+    500 response back to the caller.
+    """
+    ntfy_url = _get_ntfy_url()
+    if not ntfy_url:
+        logger.debug(
+            "ntfy not configured (no NTFY_URL or NTFY_TOPIC) — skipping 5xx alert for %s %s",
+            method,
+            path,
+        )
+        return False
+
+    # Truncate to keep ntfy payload within reason (ntfy.sh limit ~4 KiB).
+    safe_message = (message or "")[:500]
+
+    title = f"[CRITICAL] 5xx in {method} {path}"
+    body = (
+        f"request_id: {request_id}\n"
+        f"method: {method}\n"
+        f"path: {path}\n"
+        f"exception: {exception_class}\n"
+        f"message: {safe_message}"
+    )
+    payload = {
+        "text": body,
+        "title": title,
+        "priority": "urgent",
+        "tags": ["rotating_light", "flowmanner", "5xx"],
+    }
+
+    try:
+        return await _send_ntfy(payload)
+    except Exception as e:
+        logger.warning("5xx ntfy alert failed (non-fatal): %s", e)
+        return False
+
+
 # ── Status / observability ─────────────────────────────────────────────────
 
 
