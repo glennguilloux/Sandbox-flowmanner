@@ -117,6 +117,9 @@ class SubstrateEventType:
     # Q1-B chunk 1: HITL resume event
     HITL_RESUMED = "hitl.resumed"
 
+    # Q2-Q3 Chunk 3: Tool routing events
+    TOOL_ROUTE_DECIDED = "tool_route.decided"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"

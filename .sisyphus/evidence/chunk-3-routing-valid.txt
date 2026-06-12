@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-8.4.2, pluggy-1.6.0 -- /opt/flowmanner/backend/.venv/bin/python
+asyncio: mode=Mode.AUTO
+collected 19 items
+
+tests/test_tool_router.py::TestToolRouterRoute::test_happy_path_returns_sparse_candidate_set PASSED
+tests/test_tool_router.py::TestToolRouterRoute::test_low_confidence_triggers_fallback PASSED
+tests/test_tool_router.py::TestToolRouterRoute::test_high_risk_tool_always_included PASSED
+tests/test_tool_router.py::TestToolRouterRoute::test_k_cap_enforced PASSED
+tests/test_tool_router.py::TestToolRouterRoute::test_min_confidence_constructor_param PASSED
+tests/test_tool_router.py::TestScoring::test_score_components_weighted_correctly PASSED
+tests/test_tool_router.py::TestScoring::test_text_similarity_jaccard PASSED
+tests/test_tool_router.py::TestScoring::test_permission_denied_excludes_tool PASSED
+tests/test_tool_router.py::TestAuditAndPrivacy::test_audit_event_uses_hash_not_raw_text PASSED
+tests/test_tool_router.py::TestAuditAndPrivacy::test_mode_field_is_valid PASSED
+tests/test_tool_router.py::TestScopingAndIsolation::test_route_requires_workspace_and_user PASSED
+tests/test_tool_router.py::TestScopingAndIsolation::test_empty_registry_returns_empty PASSED
+tests/test_tool_router.py::TestHelpers::test_tokenize_removes_stop_words PASSED
+tests/test_tool_router.py::TestHelpers::test_jaccard_identical_sets PASSED
+tests/test_tool_router.py::TestHelpers::test_jaccard_disjoint_sets PASSED
+tests/test_tool_router.py::TestHelpers::test_jaccard_empty_sets PASSED
+tests/test_tool_router.py::TestHelpers::test_task_text_hash_deterministic PASSED
+tests/test_tool_router.py::TestHelpers::test_task_text_hash_normalizes_whitespace PASSED
+tests/test_tool_router.py::TestHelpers::test_always_include_returns_approval_tools PASSED
+
+=============================== 19 passed in 0.07s ===============================

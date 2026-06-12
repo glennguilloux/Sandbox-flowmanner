@@ -1,0 +1,15 @@
+=========================== short test summary info ============================
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_insert_succeeds
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_update_rejected_by_trigger
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_delete_rejected_by_trigger
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_trigger_exists_in_database
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_trigger_catalog_matches_migration
+FAILED tests/test_mission_executor.py::TestMissionExecutorInterface::test_mission_executor_has_execute_task
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_propagates_model_router_failure
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_returns_success_true_on_valid_response
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_treats_empty_response_as_failure
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_returns_failure_when_model_router_unavailable
+============ 10 failed, 151 passed, 9 warnings in 119.47s (0:01:59) ============
+
+Canonical baseline: 151 pass / 10 pre-existing failures.
+No NEW failures from Chunk 3.

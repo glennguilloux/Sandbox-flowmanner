@@ -422,6 +422,9 @@ class ToolConverter:
         conversation_history: list[dict[str, Any]] = None,
         context: dict[str, Any] = None,
         model_id: str | None = None,
+        enable_routing: bool = True,
+        workspace_id: str | None = None,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Convert natural language message to tool calls.
@@ -431,6 +434,11 @@ class ToolConverter:
             conversation_history: Optional conversation history
             context: Optional context information
             model_id: Optional model ID to use (uses default if not provided)
+            enable_routing: If True (default), use ToolRouter to select a sparse
+                           candidate set before building the tools description.
+                           Set to False for legacy "send everything" behavior.
+            workspace_id: Required when enable_routing=True for tool router scoping.
+            user_id: Required when enable_routing=True for tool router scoping.
 
         Returns:
             Dictionary with:
@@ -444,8 +452,13 @@ class ToolConverter:
             return self._fallback_conversion(message)
 
         try:
-            # Build prompt
-            tools_description = self._build_tools_description()
+            # Build prompt — with optional sparse routing
+            if enable_routing and workspace_id and user_id:
+                tools_description = await self._build_routed_tools_description(
+                    message, workspace_id, user_id,
+                )
+            else:
+                tools_description = self._build_tools_description()
 
             prompt = ChatPromptTemplate.from_messages(
                 [
@@ -541,6 +554,53 @@ Response Format:
         """Build description of all tools for LLM"""
         descriptions = []
         for tool in self.tools.values():
+            descriptions.append(tool.to_llm_format())
+        return "\n".join(descriptions)
+
+    async def _build_routed_tools_description(
+        self,
+        task_text: str,
+        workspace_id: str,
+        user_id: int,
+    ) -> str:
+        """Build description for the sparse-routed tool candidate set.
+
+        Uses ToolRouter to select top-k tools, then formats them.
+        Falls back to full description on any error.
+        """
+        try:
+            from uuid import UUID
+
+            from app.services.tool_router import get_tool_router
+
+            router = get_tool_router(registry=self)
+            result = await router.route(
+                task_text=task_text,
+                workspace_id=UUID(workspace_id),
+                user_id=user_id,
+            )
+            logger.info(
+                "Tool routing: mode=%s, %d/%d tools selected (top_score=%.2f)",
+                result.mode,
+                result.candidates_returned,
+                result.candidates_considered,
+                result.top_score,
+            )
+            # Format only the selected tools
+            selected_ids = {t["tool_id"] for t in result.tools}
+            selected_tools = [t for t in self.tools.values() if t.tool_id in selected_ids]
+            return self._build_tools_description_subset(selected_tools)
+        except Exception as exc:
+            logger.warning("Tool routing failed, falling back to full registry: %s", exc)
+            return self._build_tools_description()
+
+    def _build_tools_description_subset(self, tools: list) -> str:
+        """Build description for a subset of tools.
+
+        Same format as _build_tools_description but for a filtered list.
+        """
+        descriptions = []
+        for tool in tools:
             descriptions.append(tool.to_llm_format())
         return "\n".join(descriptions)
 

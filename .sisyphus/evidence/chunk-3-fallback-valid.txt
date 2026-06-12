@@ -1,0 +1,15 @@
+Fallback tests (from test_tool_router.py):
+
+tests/test_tool_router.py::TestToolRouterRoute::test_low_confidence_triggers_fallback PASSED
+  - min_confidence=0.99 with unrelated tools triggers fallback-full-registry
+  - result.mode == "fallback-full-registry"
+  - All tools returned (candidates_returned == 2)
+
+tests/test_tool_router.py::TestToolRouterRoute::test_min_confidence_constructor_param PASSED
+  - Low threshold (0.01) → sparse mode
+  - High threshold (0.99) → fallback-full-registry mode
+
+tests/test_tool_router.py::TestScopingAndIsolation::test_empty_registry_returns_empty PASSED
+  - Empty registry → empty result, no crash
+
+All 3 fallback-related tests pass. Low confidence correctly triggers fallback-full-registry mode.
