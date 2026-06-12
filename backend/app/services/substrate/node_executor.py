@@ -276,7 +276,7 @@ class NodeExecutor:
             case NodeType.TOOL_CALL:
                 return await self._handle_tool(db, node, context, budget, run_id, workflow)
             case NodeType.CODE_EXECUTION:
-                return await self._handle_code(node, context)
+                return await self._handle_code(db, node, context, run_id, workflow)
             case NodeType.RAG_QUERY:
                 return await self._handle_rag(node, context)
             case NodeType.WEB_SEARCH:
@@ -423,6 +423,54 @@ class NodeExecutor:
 
     # ── Tool handler ────────────────────────────────────────────────
 
+    # ── Cost event recording helper (Q1-B Chunk 4) ─────────────────
+
+    async def _emit_cost_event(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        result: dict[str, Any],
+        category: str,
+        run_id: str,
+        workflow: Workflow | None = None,
+        tool_name: str | None = None,
+        embedding_tokens: int = 0,
+    ) -> None:
+        """Emit a cost event for a non-LLM node execution.
+
+        Fire-and-forget — records to LLMCallRecord with cost_category
+        so the per-step cost attribution engine can aggregate it.
+        """
+        try:
+            from app.models.cost_event import CostCategory, CostEvent
+            from app.services.cost_tracker import get_cost_tracker
+
+            cost_usd = float(result.get("cost", 0.0) or 0.0)
+            if cost_usd <= 0.0 and category == "tool_execution":
+                # Estimate based on latency if no explicit cost
+                latency_ms = int(result.get("latency_ms", 0) or 0)
+                if latency_ms > 0:
+                    cost_usd = latency_ms * 0.000001  # $1 per 1M ms ≈ $0.001/s
+
+            event = CostEvent(
+                category=CostCategory(category),
+                cost_usd=cost_usd,
+                mission_id=workflow.id if workflow else "",
+                node_id=node.id,
+                run_id=run_id,
+                provider=category,
+                model_id=node.config.get("tool_name") or node.config.get("tool_id") or category,
+                tool_name=tool_name,
+                embedding_tokens=embedding_tokens,
+                latency_ms=int(result.get("latency_ms", 0) or 0),
+                workspace_id=getattr(workflow, "workspace_id", None) or "",
+                agent_id=getattr(workflow, "user_id", None) or "",
+            )
+            tracker = get_cost_tracker()
+            await tracker.record_cost_event(db, event)
+        except Exception as e:
+            logger.debug("Cost event emission skipped for node %s: %s", node.id, e)
+
     async def _handle_tool(
         self,
         db: AsyncSession,
@@ -484,17 +532,42 @@ class NodeExecutor:
 
         params = node.config.get("params", {})
         tool_result = await handler(params, context)
-        return self._tool_result_to_dict(tool_result)
+        normalized = self._tool_result_to_dict(tool_result)
+
+        # Q1-B Chunk 4: emit tool_execution cost event
+        if normalized.get("success"):
+            await self._emit_cost_event(
+                db, node, normalized, "tool_execution", run_id, workflow,
+                tool_name=tool_name,
+            )
+
+        return normalized
 
     # ── Code execution ──────────────────────────────────────────────
 
-    async def _handle_code(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_code(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str = "",
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
         """Execute Python code in a sandboxed subprocess."""
         code = node.config.get("code") or context.get("code")
         if not code:
             return {"success": False, "error": "No code provided"}
 
-        return await self._execute_code_sandboxed(code)
+        result = await self._execute_code_sandboxed(code)
+
+        # Q1-B Chunk 4: emit tool_execution cost event for code execution
+        if result.get("success") and run_id:
+            await self._emit_cost_event(
+                db, node, result, "tool_execution", run_id, workflow,
+                tool_name="code_executor",
+            )
+
+        return result
 
     async def _execute_code_sandboxed(self, code: str) -> dict[str, Any]:
         """Execute code in a restricted subprocess.

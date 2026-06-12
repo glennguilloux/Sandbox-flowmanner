@@ -15,6 +15,7 @@ import logging
 
 from app.config import settings
 from app.core.metrics import record_llm_request
+from app.models.cost_event import CostCategory, CostEvent
 from app.models.llm_call_record import LLMCallRecord
 
 logger = logging.getLogger(__name__)
@@ -137,11 +138,58 @@ class CostTracker:
         except Exception as e:
             logger.warning("Failed to record LLM call: %s", e)
 
+    async def record_cost_event(
+        self,
+        db,
+        event: CostEvent,
+    ) -> None:
+        """Record a non-LLM cost event to the DB and Prometheus.
+
+        Used for tool_execution, embedding, external_api, storage, and
+        browser cost categories.  LLM costs should use :meth:`record_llm_call`
+        which populates prompt/completion tokens.
+
+        Args:
+            db: SQLAlchemy session, or ``None``.
+            event: A :class:`CostEvent` with pre-computed cost.
+        """
+        try:
+            if db is not None:
+                record = LLMCallRecord(
+                    mission_id=event.mission_id or None,
+                    task_id=event.node_id or None,
+                    model_id=event.model_id or event.provider,
+                    provider=event.provider,
+                    prompt_tokens=event.input_tokens,
+                    completion_tokens=event.output_tokens,
+                    cost_usd=event.cost_usd,
+                    latency_ms=event.latency_ms,
+                    success=True,
+                    workspace_id=event.workspace_id or None,
+                    agent_id=event.agent_id or None,
+                    cost_category=event.category.value,
+                    tool_name=event.tool_name,
+                    embedding_tokens=event.embedding_tokens,
+                )
+                db.add(record)
+
+            try:
+                record_llm_request(
+                    provider=event.provider,
+                    duration_seconds=event.latency_ms / 1000.0,
+                    prompt_tokens=event.input_tokens,
+                    completion_tokens=event.output_tokens,
+                    success=True,
+                )
+            except Exception as e:
+                logger.debug("cost_tracker_prometheus_record_failed error=%s", str(e))
+        except Exception as e:
+            logger.warning("Failed to record cost event: %s", e)
+
 
 # ── Singleton ──────────────────────────────────────────────────────
 
 _cost_tracker: CostTracker | None = None
-
 
 def get_cost_tracker() -> CostTracker:
     """Get or create the CostTracker singleton."""

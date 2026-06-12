@@ -47,3 +47,19 @@ class LLMCallRecord(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
+    # Q1-B Chunk 4: Per-step cost attribution columns
+    cost_category: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="llm_tokens",
+        index=True,
+    )
+    tool_name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    embedding_tokens: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        default=0,
+    )

@@ -130,6 +130,9 @@ from app.models.integration_models import (
 # Knowledge graph models (Phase 5 improvement foundation)
 from app.models.knowledge_graph_models import KnowledgeEdge, KnowledgeNode
 
+# Cost category enum + event DTO (Q1-B Chunk 4)
+from app.models.cost_event import CostCategory, CostEvent
+
 # LLM call record model (H1.3 observability)
 from app.models.llm_call_record import LLMCallRecord
 

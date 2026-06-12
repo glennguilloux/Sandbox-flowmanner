@@ -1,9 +1,11 @@
-"""Cost Attribution API — Phase 6.3.
+"""Cost Attribution API — Phase 6.3 + Q1-B Chunk 4.
 
 Endpoints:
-- GET /costs/summary       — Aggregate cost summary with flexible grouping
-- GET /costs/mission/{id}  — Cost breakdown for a specific mission
-- GET /costs/dashboard     — Dashboard data (daily time series + top agents)
+- GET /costs/summary              — Aggregate cost summary with flexible grouping
+- GET /costs/mission/{id}         — Cost breakdown for a specific mission
+- GET /costs/mission/{id}/steps   — Per-step cost breakdown (Q1-B)
+- GET /costs/by-category          — Cost breakdown by category (Q1-B)
+- GET /costs/dashboard            — Dashboard data (daily time series + top agents)
 """
 
 from __future__ import annotations
@@ -68,6 +70,55 @@ async def mission_cost(
         "mission": total,
         "breakdown": breakdown["breakdown"],
         "period": breakdown["period"],
+    }
+
+
+@router.get("/mission/{mission_id}/steps")
+async def mission_step_costs(
+    mission_id: str,
+    node_id: str | None = Query(None, description="Filter to a specific node"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Per-step cost breakdown for a mission.
+
+    Returns costs grouped by node_id and cost_category, enabling drill-down
+    from mission → node → category.
+    """
+    from app.observability.cost_engine import get_cost_engine
+
+    engine = get_cost_engine()
+    steps = await engine.step_cost(db, mission_id=mission_id, node_id=node_id)
+    return {
+        "mission_id": mission_id,
+        "steps": steps,
+    }
+
+
+@router.get("/by-category")
+async def costs_by_category(
+    mission_id: str | None = Query(None),
+    workspace_id: str | None = Depends(get_workspace_id),
+    days: int = Query(30, ge=1, le=365),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cost breakdown grouped by cost category.
+
+    Returns aggregate costs per category (llm_tokens, tool_execution,
+    embedding, external_api, storage, browser) for the given filters.
+    """
+    from app.observability.cost_engine import get_cost_engine
+
+    engine = get_cost_engine()
+    categories = await engine.cost_by_category(
+        db,
+        mission_id=mission_id,
+        workspace_id=workspace_id,
+        days=days,
+    )
+    return {
+        "categories": categories,
     }
 
 

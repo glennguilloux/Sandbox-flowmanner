@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, text
 
 from app.models.llm_call_record import LLMCallRecord
 from app.models.mission_models import Mission, MissionTask
@@ -222,6 +222,95 @@ class CostAttributionEngine:
                 user_costs[int(uid)] = user_costs.get(int(uid), 0.0) + cost
 
         return user_costs
+
+    # ── Per-step cost breakdown (Q1-B Chunk 4) ─────────────────────
+
+    async def step_cost(
+        self,
+        db: AsyncSession,
+        mission_id: str,
+        node_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Per-step cost breakdown for a mission.
+
+        When *node_id* is provided, returns costs for that specific node.
+        Otherwise returns costs grouped by node_id for the entire mission.
+
+        Returns a list of dicts, each with:
+            node_id, cost_category, calls, cost_usd, prompt_tokens,
+            completion_tokens, embedding_tokens, tool_name
+        """
+        stmt = (
+            select(
+                LLMCallRecord.task_id.label("node_id"),
+                LLMCallRecord.cost_category,
+                func.count(LLMCallRecord.id).label("calls"),
+                func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("cost_usd"),
+                func.coalesce(func.sum(LLMCallRecord.prompt_tokens), 0).label("prompt_tokens"),
+                func.coalesce(func.sum(LLMCallRecord.completion_tokens), 0).label("completion_tokens"),
+                func.coalesce(func.sum(LLMCallRecord.embedding_tokens), 0).label("embedding_tokens"),
+            )
+            .where(LLMCallRecord.mission_id == mission_id)
+        )
+        if node_id:
+            stmt = stmt.where(LLMCallRecord.task_id == node_id)
+        stmt = stmt.group_by(LLMCallRecord.task_id, LLMCallRecord.cost_category)
+        stmt = stmt.order_by(text("cost_usd DESC"))
+
+        result = await db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "node_id": str(r.node_id) if r.node_id else None,
+                "cost_category": str(r.cost_category),
+                "calls": r.calls,
+                "cost_usd": round(float(r.cost_usd), 6),
+                "prompt_tokens": int(r.prompt_tokens),
+                "completion_tokens": int(r.completion_tokens),
+                "embedding_tokens": int(r.embedding_tokens),
+            }
+            for r in rows
+        ]
+
+    async def cost_by_category(
+        self,
+        db: AsyncSession,
+        mission_id: str | None = None,
+        workspace_id: str | None = None,
+        days: int = 30,
+    ) -> list[dict[str, Any]]:
+        """Cost breakdown grouped by cost_category.
+
+        Returns a list of dicts, each with:
+            cost_category, calls, cost_usd
+        """
+        since = datetime.now(UTC) - timedelta(days=days)
+        conditions = [LLMCallRecord.timestamp >= since]
+        if mission_id:
+            conditions.append(LLMCallRecord.mission_id == mission_id)
+        if workspace_id:
+            conditions.append(LLMCallRecord.workspace_id == workspace_id)
+
+        stmt = (
+            select(
+                LLMCallRecord.cost_category,
+                func.count(LLMCallRecord.id).label("calls"),
+                func.coalesce(func.sum(LLMCallRecord.cost_usd), 0.0).label("cost_usd"),
+            )
+            .where(and_(*conditions))
+            .group_by(LLMCallRecord.cost_category)
+            .order_by(text("cost_usd DESC"))
+        )
+        result = await db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "cost_category": str(r.cost_category),
+                "calls": r.calls,
+                "cost_usd": round(float(r.cost_usd), 6),
+            }
+            for r in rows
+        ]
 
     async def workspace_cost(
         self,
