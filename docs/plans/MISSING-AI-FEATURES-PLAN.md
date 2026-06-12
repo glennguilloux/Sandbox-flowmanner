@@ -137,10 +137,10 @@ The current execution model uses Celery/RabbitMQ for task dispatch. Adding lease
 | Feature | Weeks | Status | Notes |
 |---------|------:|--------|-------|
 | Worker lease hardening (#5) | 3 | ✅ **DONE 2026-06-12** (chunks 1-3) | Schema, heartbeat, stale-lease reclaimer, chaos tests. 76/81 substrate tests pass. 3 commits in `main`. **Lease work is CLOSED.** |
-| Checkpoint production hardening (#6) | 2 | 🟡 Not started | Crash-before-checkpoint tests, resume validation. Blocked on chunks 4 prompt (next). |
+| Checkpoint production hardening (#6) | 2 | ✅ **DONE 2026-06-12** (chunk 4) | Resume validation, node-level idempotency guard, 3 crash-window chaos tests (real subprocess + SIGKILL). 88/93 substrate tests pass. 4 commits in `main`. **Checkpoint work is CLOSED.** |
 | Circuit breaker wiring (#4) | 2 | 🟡 Not started | Per-workspace + provider fallback table, half-open logic. Chunk 5 prompt pending. |
 
-**Q1-A progress: 1/3 features done, 4/7 weeks complete. Chunks 4+5 remain.**
+**Q1-A progress: 2/3 features done, 5/7 weeks complete. Chunk 5 (circuit breaker) is the last piece.**
 
 ### Q1-B — After P3 stop-gate (10 weeks)
 
