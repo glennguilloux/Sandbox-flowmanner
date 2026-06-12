@@ -134,11 +134,13 @@ The current execution model uses Celery/RabbitMQ for task dispatch. Adding lease
 
 ### Q1-A — Start now, parallel to P3 (7 weeks)
 
-| Feature | Weeks | Notes |
-|---------|------:|-------|
-| Worker lease hardening (#5) | 3 | Schema, heartbeat, stale-lease reclaim, chaos tests |
-| Checkpoint production hardening (#6) | 2 | Crash-before-checkpoint tests, resume validation |
-| Circuit breaker wiring (#4) | 2 | Per-workspace + provider fallback table, half-open logic |
+| Feature | Weeks | Status | Notes |
+|---------|------:|--------|-------|
+| Worker lease hardening (#5) | 3 | ✅ **DONE 2026-06-12** (chunks 1-3) | Schema, heartbeat, stale-lease reclaimer, chaos tests. 76/81 substrate tests pass. 3 commits in `main`. **Lease work is CLOSED.** |
+| Checkpoint production hardening (#6) | 2 | 🟡 Not started | Crash-before-checkpoint tests, resume validation. Blocked on chunks 4 prompt (next). |
+| Circuit breaker wiring (#4) | 2 | 🟡 Not started | Per-workspace + provider fallback table, half-open logic. Chunk 5 prompt pending. |
+
+**Q1-A progress: 1/3 features done, 4/7 weeks complete. Chunks 4+5 remain.**
 
 ### Q1-B — After P3 stop-gate (10 weeks)
 
