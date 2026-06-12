@@ -10,7 +10,7 @@ from .adapters import (
     mission_to_workflow,
 )
 from .event_log import EventLog, get_event_log
-from .executor import UnifiedExecutor, get_unified_executor
+from .executor import LeaseLostError, UnifiedExecutor, get_unified_executor
 from .leases import (
     LeaseRecord,
     get_active_lease,
@@ -42,6 +42,7 @@ __all__ = [
     "WorkflowNode",
     "WorkflowType",
     # Q1-A — Worker leases
+    "LeaseLostError",
     "LeaseRecord",
     "get_active_lease",
     "release_lease",

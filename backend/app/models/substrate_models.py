@@ -102,6 +102,11 @@ class SubstrateEventType:
     CIRCUIT_BREAKER_BROKEN = "circuit_breaker.broken"
     CIRCUIT_BREAKER_RESET = "circuit_breaker.reset"
 
+    # Q1-A: Worker lease events
+    LEASE_CLAIMED = "run.lease.claimed"
+    LEASE_RENEWED = "run.lease.renewed"
+    LEASE_RELEASED = "run.lease.released"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"

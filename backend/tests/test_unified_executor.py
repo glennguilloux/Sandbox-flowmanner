@@ -171,11 +171,18 @@ class TestExecute:
         mock_strategy.execute = AsyncMock(return_value=StrategyResult(success=True, status="completed"))
 
         with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            await executor.execute(db, workflow)
+            with patch(
+                "app.config.settings.FLOWMANNER_LEASE_ENABLED", False
+            ):
+                await executor.execute(db, workflow)
 
         event_log.append.assert_called()
-        first_events = event_log.append.call_args_list[0][0][2]
-        assert any(e.get("type") == "mission.started" for e in first_events)
+        # Find the append call that contains mission.started (lease events may precede it)
+        all_events = []
+        for call in event_log.append.call_args_list:
+            if len(call[0]) > 2 and isinstance(call[0][2], list):
+                all_events.extend(call[0][2])
+        assert any(e.get("type") == "mission.started" for e in all_events)
 
     @pytest.mark.asyncio
     async def test_execute_validation_failure_returns_early(self):

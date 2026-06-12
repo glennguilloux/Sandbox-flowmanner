@@ -157,6 +157,9 @@ class Settings(BaseSettings):
     # Chat tool-calling limits
     CHAT_MAX_TOOL_ROUNDS: int = 15
 
+    # Q1-A: Worker lease integration
+    FLOWMANNER_LEASE_ENABLED: bool = True
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

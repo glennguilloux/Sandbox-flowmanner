@@ -16,11 +16,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from opentelemetry import trace
 
+from app.config import settings
 from app.models.capability_models import Budget, BudgetExhausted
 from app.models.substrate_models import SubstrateEventType
 from app.services.substrate.event_log import EventLog, get_event_log
@@ -41,6 +43,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+class LeaseLostError(Exception):
+    """Raised when the heartbeat detects a stolen lease mid-execution."""
+
+    pass
 
 
 class UnifiedExecutor:
@@ -66,6 +74,8 @@ class UnifiedExecutor:
         self._abort_signals: dict[str, asyncio.Event] = {}
         self._strategies: dict[WorkflowType, ExecutionStrategy] = {}
         self._strategies_loaded = False
+        # Q1-A: Lease manager (lazily initialized per execute() call)
+        self._lease_manager: Any = None  # LeaseManager | None
 
     def _load_strategies(self) -> None:
         """Lazy-load all strategy classes on first use."""
@@ -101,6 +111,145 @@ class UnifiedExecutor:
         return strategy
 
     # ── Public API ──────────────────────────────────────────────────
+
+    @asynccontextmanager
+    async def _lease_context(self, run_id: str, db: AsyncSession, workflow: Workflow, span: Any):
+        """Context manager that claims a lease at entry and releases at exit.
+
+        On entry: claims a lease and spawns a heartbeat.  If the claim fails
+        because another worker holds a valid lease, sets
+        ``self._lease_already_running`` so the caller can return early.
+
+        On exit: cancels the heartbeat and releases the lease.
+
+        All lease operations are wrapped in try/except so that a failure
+        in the lease layer does not crash the executor (graceful degradation).
+        """
+        self._lease_manager = None
+        self._lease_already_running = None  # type: ignore[assignment]
+        lease_claimed = False
+        heartbeat_task: asyncio.Task | None = None
+        heartbeat_stop: asyncio.Event | None = None
+        lm = None
+
+        if not settings.FLOWMANNER_LEASE_ENABLED:
+            yield
+            return
+
+        try:
+            from app.services.substrate.lease_manager import LeaseManager
+
+            lm = LeaseManager(event_log=self.event_log)
+            self._lease_manager = lm
+
+            try:
+                claimed = await lm.claim(run_id, db)
+            except Exception as e:
+                # Lease claim failure must never crash the executor.
+                # Proceed without lease — the 4 guarantees are unchanged.
+                logger.warning("Lease claim failed for run %s, proceeding without lease: %s", run_id, e)
+                yield
+                return
+
+            if not claimed:
+                # Another worker holds a valid lease — don't re-execute.
+                existing = await lm.get_existing_lease(db, run_id)
+                if existing is not None:
+                    logger.info(
+                        "Run %s already leased by %s — returning existing state",
+                        run_id,
+                        existing.worker_id,
+                    )
+                    state = await self.replay_engine.rebuild_state(db, run_id)
+                    self._lease_already_running = StrategyResult(
+                        success=False,
+                        status="already_running",
+                        error=f"Run already in progress on worker {existing.worker_id}",
+                        completed_nodes=list(state.completed_tasks) if state else [],
+                        failed_nodes=list(state.failed_tasks) if state else [],
+                        total_tokens=state.total_tokens if state else 0,
+                        total_cost_usd=state.total_cost_usd if state else 0.0,
+                    )
+                    yield
+                    return
+                # Claim failed but no valid lease exists — retry (rare race).
+                claimed = await lm.claim(run_id, db)
+                if not claimed:
+                    logger.warning("Lease claim failed twice for run %s", run_id)
+                    self._lease_already_running = StrategyResult(
+                        success=False,
+                        status="lease_contention",
+                        error="Failed to acquire lease after retry",
+                    )
+                    yield
+                    return
+
+            lease_claimed = True
+
+            # Emit lease.claimed event
+            try:
+                await self.event_log.append(
+                    db,
+                    run_id,
+                    [{
+                        "type": SubstrateEventType.LEASE_CLAIMED,
+                        "payload": {
+                            "worker_id": lm.worker_id,
+                            "run_id": run_id,
+                            "ttl_seconds": lm._ttl_seconds,
+                        },
+                        "actor": "lease_manager",
+                        "mission_id": workflow.id,
+                    }],
+                )
+            except Exception as e:
+                logger.debug("Lease claimed event skipped: %s", e)
+
+            # Spawn heartbeat
+            heartbeat_stop = asyncio.Event()
+            heartbeat_task = asyncio.create_task(
+                lm.heartbeat_loop(db, heartbeat_stop)
+            )
+
+            yield
+
+        finally:
+            # Cancel heartbeat if it was started
+            if heartbeat_task is not None and heartbeat_stop is not None:
+                heartbeat_stop.set()
+                try:
+                    await asyncio.wait_for(heartbeat_task, timeout=5.0)
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    heartbeat_task.cancel()
+
+            # Release lease only if we actually claimed one
+            if lease_claimed and lm is not None:
+                reason = "completed"
+                if lm.lease_lost:
+                    reason = "lost"
+
+                await lm.release(db, reason=reason)
+
+                # Emit lease.released event
+                try:
+                    await self.event_log.append(
+                        db,
+                        run_id,
+                        [{
+                            "type": SubstrateEventType.LEASE_RELEASED,
+                            "payload": {
+                                "worker_id": lm.worker_id,
+                                "run_id": run_id,
+                                "reason": reason,
+                            },
+                            "actor": "lease_manager",
+                            "mission_id": workflow.id,
+                        }],
+                    )
+                except Exception as e:
+                    logger.debug("Lease released event skipped: %s", e)
+
+            self._lease_manager = None
 
     async def execute(
         self,
@@ -151,85 +300,128 @@ class UnifiedExecutor:
                     # Resume from last completed node
                     start_node_id = _find_resume_point(workflow, state)
 
-            # Record mission.started event
-            await self.event_log.append(
-                db,
-                run_id,
-                [
-                    {
-                        "type": SubstrateEventType.MISSION_STARTED,
-                        "payload": {
-                            "title": workflow.title,
-                            "workflow_type": workflow.type.value,
-                            "user_id": workflow.user_id,
-                            "node_count": len(workflow.nodes),
-                            "blueprint_id": blueprint_id,
-                        },
-                        "actor": "unified_executor",
-                        "mission_id": workflow.id,
+            # Q1-A: Lease integration — claim lease, spawn heartbeat, release on exit
+            async with self._lease_context(run_id, db, workflow, span):
+                # If another worker holds the lease, return existing state
+                if self._lease_already_running is not None:
+                    return self._lease_already_running
+
+                # Check if heartbeat detected a lost lease
+                if self._lease_manager is not None and self._lease_manager.lease_lost:
+                    await self._finalize_run(db, workflow, run_id, "aborted", "Lease lost during execution")
+                    return StrategyResult(
+                        success=False,
+                        status="aborted",
+                        error="Lease lost during execution",
+                    )
+
+                return await self._execute_inner(
+                    db, workflow, run_id, blueprint_id, start_node_id, context, span
+                )
+
+    async def _execute_inner(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        run_id: str,
+        blueprint_id: str | None,
+        start_node_id: str | None,
+        context: dict[str, Any] | None,
+        span: Any,
+    ) -> StrategyResult:
+        """Core execution logic (extracted so lease context wraps it)."""
+        # Record mission.started event
+        await self.event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.MISSION_STARTED,
+                    "payload": {
+                        "title": workflow.title,
+                        "workflow_type": workflow.type.value,
+                        "user_id": workflow.user_id,
+                        "node_count": len(workflow.nodes),
                         "blueprint_id": blueprint_id,
-                    }
-                ],
-                blueprint_id=blueprint_id,
+                    },
+                    "actor": "unified_executor",
+                    "mission_id": workflow.id,
+                    "blueprint_id": blueprint_id,
+                }
+            ],
+            blueprint_id=blueprint_id,
+        )
+
+        # Set up abort signal
+        self._abort_signals[run_id] = asyncio.Event()
+
+        # Phase 6.4: Initialize circuit breaker for this mission
+        await self._ensure_circuit_breaker(db, workflow)
+
+        # Get strategy and validate
+        strategy = self._get_strategy(workflow.type)
+        errors = await strategy.validate(workflow)
+        if errors:
+            await self._finalize_run(db, workflow, run_id, "failed", "; ".join(errors))
+            return StrategyResult(
+                success=False,
+                status="failed",
+                error=f"Validation failed: {'; '.join(errors)}",
             )
 
-            # Set up abort signal
-            self._abort_signals[run_id] = asyncio.Event()
+        # Execute through strategy
+        start_time = time.monotonic()
+        exec_context = context or {}
 
-            # Phase 6.4: Initialize circuit breaker for this mission
-            await self._ensure_circuit_breaker(db, workflow)
+        try:
+            # Q1-A: Check lease_lost before each strategy execution
+            if self._lease_manager is not None and self._lease_manager.lease_lost:
+                raise LeaseLostError("Lease lost before strategy execution")
 
-            # Get strategy and validate
-            strategy = self._get_strategy(workflow.type)
-            errors = await strategy.validate(workflow)
-            if errors:
-                await self._finalize_run(db, workflow, run_id, "failed", "; ".join(errors))
-                return StrategyResult(
-                    success=False,
-                    status="failed",
-                    error=f"Validation failed: {'; '.join(errors)}",
-                )
+            result = await strategy.execute(workflow, exec_context, self, db)  # type: ignore[arg-type]
+        except BudgetExhausted as e:
+            logger.warning("Budget exhausted for run %s: %s", run_id, e)
+            await self._record_budget_exhausted(db, run_id, workflow, str(e))
+            await self._finalize_run(db, workflow, run_id, "failed", str(e))
+            return StrategyResult(
+                success=False,
+                status="failed",
+                error=str(e),
+                execution_time_ms=(time.monotonic() - start_time) * 1000,
+            )
+        except LeaseLostError as e:
+            logger.warning("Lease lost for run %s: %s", run_id, e)
+            await self._finalize_run(db, workflow, run_id, "aborted", str(e))
+            return StrategyResult(
+                success=False,
+                status="aborted",
+                error=str(e),
+                execution_time_ms=(time.monotonic() - start_time) * 1000,
+            )
+        except Exception as e:
+            logger.exception("Unhandled error in run %s", run_id)
+            await self._finalize_run(db, workflow, run_id, "failed", str(e))
+            return StrategyResult(
+                success=False,
+                status="failed",
+                error=str(e),
+                execution_time_ms=(time.monotonic() - start_time) * 1000,
+            )
 
-            # Execute through strategy
-            start_time = time.monotonic()
-            exec_context = context or {}
+        result.execution_time_ms = (time.monotonic() - start_time) * 1000
 
-            try:
-                result = await strategy.execute(workflow, exec_context, self, db)  # type: ignore[arg-type]
-            except BudgetExhausted as e:
-                logger.warning("Budget exhausted for run %s: %s", run_id, e)
-                await self._record_budget_exhausted(db, run_id, workflow, str(e))
-                await self._finalize_run(db, workflow, run_id, "failed", str(e))
-                return StrategyResult(
-                    success=False,
-                    status="failed",
-                    error=str(e),
-                    execution_time_ms=(time.monotonic() - start_time) * 1000,
-                )
-            except Exception as e:
-                logger.exception("Unhandled error in run %s", run_id)
-                await self._finalize_run(db, workflow, run_id, "failed", str(e))
-                return StrategyResult(
-                    success=False,
-                    status="failed",
-                    error=str(e),
-                    execution_time_ms=(time.monotonic() - start_time) * 1000,
-                )
+        # Finalize run
+        await self._finalize_run(db, workflow, run_id, result.status, result.error)
 
-            result.execution_time_ms = (time.monotonic() - start_time) * 1000
+        # Post-execution hooks
+        await self._run_post_hooks(db, workflow, result)
 
-            # Finalize run
-            await self._finalize_run(db, workflow, run_id, result.status, result.error)
+        # Cleanup
+        self._abort_signals.pop(run_id, None)
 
-            # Post-execution hooks
-            await self._run_post_hooks(db, workflow, result)
-
-            # Cleanup
-            self._abort_signals.pop(run_id, None)
-
-            span.set_attribute("workflow.status", result.status)
-            span.set_attribute("workflow.completed_nodes", len(result.completed_nodes))
-            return result
+        span.set_attribute("workflow.status", result.status)
+        span.set_attribute("workflow.completed_nodes", len(result.completed_nodes))
+        return result
 
     async def abort(self, run_id: str, reason: str = "user_requested") -> bool:
         """Signal an abort for a running workflow.
