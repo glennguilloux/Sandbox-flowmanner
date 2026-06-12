@@ -159,6 +159,7 @@ class Settings(BaseSettings):
 
     # Q1-A: Worker lease integration
     FLOWMANNER_LEASE_ENABLED: bool = True
+    FLOWMANNER_LEASE_RECLAIMER_ENABLED: bool = True
 
     @property
     def cors_origins_list(self) -> list[str]:

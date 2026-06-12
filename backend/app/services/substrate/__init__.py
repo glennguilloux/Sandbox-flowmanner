@@ -11,6 +11,7 @@ from .adapters import (
 )
 from .event_log import EventLog, get_event_log
 from .executor import LeaseLostError, UnifiedExecutor, get_unified_executor
+from .lease_reclaimer import LeaseReclaimer, find_expired_leases, reclaim_one
 from .leases import (
     LeaseRecord,
     get_active_lease,
@@ -43,8 +44,11 @@ __all__ = [
     "WorkflowType",
     # Q1-A — Worker leases
     "LeaseLostError",
+    "LeaseReclaimer",
     "LeaseRecord",
+    "find_expired_leases",
     "get_active_lease",
+    "reclaim_one",
     "release_lease",
     "renew_lease",
     "try_claim_lease",
