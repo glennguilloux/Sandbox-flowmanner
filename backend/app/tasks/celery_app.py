@@ -39,6 +39,14 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
+# ── Q1-B Chunk 2: Beat schedule ──────────────────────────────────
+celery_app.conf.beat_schedule = {
+    "expire-hitl-items": {
+        "task": "hitl.expire_items",
+        "schedule": 300.0,  # 5 minutes
+    },
+}
+
 
 # ── Q1-A Chunk 3: Lease reclaimer lifecycle ────────────────────────
 
@@ -118,6 +126,7 @@ def _register_custom_tasks() -> None:
         ("batch_processing",  "batch.process_batch"),
         ("deepagents_tasks",  "deepagents.{execute, stream, batch_execute}"),
         ("hitl_resume",       "substrate.resume_hitl  (Q1-B chunk 1)"),
+        ("hitl_expiry",       "hitl.expire_items  (Q1-B chunk 2)"),
         ("n8n_callback",      "5 n8n integration tasks"),
         ("swarm_tasks",       "swarm.{execute_task, consensus_timeout, agent_heartbeat_check, cost_budget_check}"),
         ("training_tasks",    "training.* (7 tasks)"),

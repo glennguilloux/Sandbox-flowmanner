@@ -191,6 +191,175 @@ class HITLService:
             logger.info("Expired %d stale inbox items", len(items))
         return len(items)
 
+    async def expire_and_act(self) -> list[dict]:
+        """Expire stale HITL items and apply per-workspace auto-action.
+
+        Returns a list of dicts describing what was done for each expired item.
+        Each dict has keys: inbox_item_id, workspace_id, auto_action, dispatched.
+        """
+        from app.config import settings
+
+        now = datetime.now(UTC)
+
+        # Fetch stale items with FOR UPDATE SKIP LOCKED to prevent races
+        # between multiple workers/celery-beat invocations.
+        stmt = (
+            select(InboxItem)
+            .where(
+                InboxItem.status == InboxItemStatus.PENDING.value,
+                InboxItem.expires_at.isnot(None),
+                InboxItem.expires_at < now,
+            )
+            .with_for_update(skip_locked=True)
+        )
+        items = (await self.db.execute(stmt)).scalars().all()
+
+        if not items:
+            return []
+
+        # Group items by workspace_id for config lookup
+        workspace_ids: set[str | None] = {item.workspace_id for item in items}
+
+        # Bulk-load workspace configs
+        from app.models.hitl_models import WorkspaceHITLConfig
+
+        configs: dict[str | None, WorkspaceHITLConfig] = {}
+        non_null_ids = [wid for wid in workspace_ids if wid is not None]
+        if non_null_ids:
+            cfg_stmt = select(WorkspaceHITLConfig).where(
+                WorkspaceHITLConfig.workspace_id.in_(non_null_ids)
+            )
+            cfg_rows = (await self.db.execute(cfg_stmt)).scalars().all()
+            configs = {cfg.workspace_id: cfg for cfg in cfg_rows}
+
+        results: list[dict] = []
+        for item in items:
+            # Determine auto-action for this item's workspace
+            cfg = configs.get(item.workspace_id)
+            auto_action = cfg.auto_action if cfg else settings.HITL_DEFAULT_AUTO_ACTION
+
+            # Mark as EXPIRED (audit trail)
+            item.status = InboxItemStatus.EXPIRED.value
+            item.resolved_at = now
+            item.resolution_note = f"expired: auto-{auto_action}"
+
+            result_entry: dict = {
+                "inbox_item_id": item.id,
+                "workspace_id": item.workspace_id,
+                "auto_action": auto_action,
+                "dispatched": False,
+            }
+
+            # Emit HUMAN_INTERRUPT_RESOLVED event
+            await self._emit_resolved_event(item, auto_action)
+
+            if auto_action == "reject":
+                item.status = InboxItemStatus.REJECTED.value
+                item.resolution_note = "expired: auto-rejected"
+                await self._dispatch_resume(item, "rejected")
+                result_entry["dispatched"] = True
+                logger.info(
+                    "HITL expiry: item=%s workspace=%s action=reject (mission will fail)",
+                    item.id, item.workspace_id,
+                )
+
+            elif auto_action == "approve":
+                item.status = InboxItemStatus.APPROVED.value
+                item.resolution_note = "expired: auto-approved"
+                await self._dispatch_resume(item, "approved")
+                result_entry["dispatched"] = True
+                logger.warning(
+                    "HITL expiry: item=%s workspace=%s action=approve (mission continues)",
+                    item.id, item.workspace_id,
+                )
+
+            else:  # "stay"
+                # Leave as EXPIRED, no resume. Alert via structured log.
+                logger.warning(
+                    "HITL expiry ALERT: item=%s workspace=%s action=stay — mission remains paused indefinitely. "
+                    "Workspace owner should review stale HITL items.",
+                    item.id, item.workspace_id,
+                )
+
+            results.append(result_entry)
+
+        await self.db.flush()
+        logger.info(
+            "HITL expiry complete: %d items processed, actions: %s",
+            len(results),
+            [r["auto_action"] for r in results],
+        )
+        return results
+
+    async def _emit_resolved_event(self, item: InboxItem, auto_action: str) -> None:
+        """Emit HUMAN_INTERRUPT_RESOLVED substrate event for an expired item."""
+        try:
+            from app.models.substrate_models import SubstrateEventType
+            from app.services.substrate.event_log import get_event_log
+
+            event_log = get_event_log()
+            if item.run_id:
+                await event_log.append(
+                    self.db,
+                    item.run_id,
+                    [{
+                        "type": SubstrateEventType.HUMAN_INTERRUPT_RESOLVED,
+                        "payload": {
+                            "inbox_item_id": item.id,
+                            "resolution": "expired",
+                            "auto_action": auto_action,
+                            "mission_id": item.mission_id,
+                        },
+                        "actor": "hitl_expiry_worker",
+                        "mission_id": item.mission_id,
+                    }],
+                )
+        except Exception as e:
+            logger.debug("Failed to emit HUMAN_INTERRUPT_RESOLVED event: %s", e)
+
+    async def _dispatch_resume(self, item: InboxItem, resolution: str) -> None:
+        """Dispatch a Celery task to resume the mission after expiry."""
+        if not item.run_id:
+            logger.warning(
+                "HITL expiry: no run_id for item=%s, cannot dispatch resume",
+                item.id,
+            )
+            return
+
+        # Check if the mission is already in a terminal state
+        from app.models.mission_models import Mission
+
+        result = await self.db.execute(
+            select(Mission).where(Mission.id == item.mission_id)
+        )
+        mission = result.scalar_one_or_none()
+        if mission is None:
+            logger.warning(
+                "HITL expiry: mission=%s not found for item=%s, skipping resume",
+                item.mission_id, item.id,
+            )
+            return
+
+        current_status = mission.status.value if hasattr(mission.status, "value") else mission.status
+        if current_status in ("completed", "failed", "aborted", "cancelled"):
+            logger.info(
+                "HITL expiry: mission=%s is already %s, skipping resume for item=%s",
+                item.mission_id, current_status, item.id,
+            )
+            return
+
+        try:
+            from app.tasks.hitl_resume import dispatch_hitl_resume
+
+            dispatch_hitl_resume(
+                mission_id=item.mission_id,
+                run_id=item.run_id,
+                inbox_item_id=item.id,
+                resolution=resolution,
+            )
+        except Exception as e:
+            logger.warning("HITL expiry: failed to dispatch resume for item=%s: %s", item.id, e)
+
     async def count_pending(self, user_id: int, workspace_id: str | None = None) -> int:
         """Count pending inbox items for a user."""
         conditions = [

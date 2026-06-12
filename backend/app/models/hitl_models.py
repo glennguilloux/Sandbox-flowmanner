@@ -18,9 +18,9 @@ from datetime import datetime
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin
 
@@ -166,3 +166,40 @@ class HumanInterrupt(Exception):
         self.node_id = node_id
         self.expires_at = expires_at
         super().__init__(f"[{interrupt_type.value}] {title}")
+
+
+class WorkspaceHITLConfig(Base, TimestampMixin):
+    """Per-workspace HITL configuration.
+
+    Controls auto-action behaviour when inbox items expire.
+    Each workspace gets one row; absence means "use system defaults".
+    """
+
+    __tablename__ = "workspace_hitl_configs"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", name="uq_workspace_hitl_config"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    timeout_hours: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="24",
+    )
+    auto_action: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="reject",
+    )
+    # CHECK constraint enforces valid auto-action values at DB level
+    # (enforced via migration, not declaratively here, for consistency with
+    # other models in this file that use plain String columns)
+
+    # Relationship back to workspace
+    workspace = relationship("Workspace", foreign_keys=[workspace_id], lazy="selectin")

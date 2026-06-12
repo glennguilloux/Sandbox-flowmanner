@@ -164,6 +164,10 @@ class Settings(BaseSettings):
     # Q1-A chunk 5: Per-workspace+provider circuit breaker
     FLOWMANNER_CIRCUIT_BREAKER_ENABLED: bool = True
 
+    # Q1-B chunk 2: HITL timeout + expiry worker
+    HITL_DEFAULT_TIMEOUT_HOURS: int = 24
+    HITL_DEFAULT_AUTO_ACTION: str = "reject"  # reject | approve | stay
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

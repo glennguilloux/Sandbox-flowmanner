@@ -114,7 +114,7 @@ from app.models.graph import (
 )
 
 # HITL models (Phase 6.2)
-from app.models.hitl_models import InboxItem
+from app.models.hitl_models import InboxItem, WorkspaceHITLConfig
 
 # Idempotency models
 from app.models.idempotency import IdempotencyKey, IdempotencyRequestLog
