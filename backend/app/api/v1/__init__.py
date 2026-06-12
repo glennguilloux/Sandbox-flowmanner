@@ -122,6 +122,7 @@ hitl_router = _import_router("hitl")
 circuit_breaker_router = _import_router("circuit_breaker")
 cost_attribution_router = _import_router("cost_attribution")
 plugins_router = _import_router("plugins")
+episodic_memory_router = _import_router("episodic_memory")
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
 agent_personalities_router = _import_router("agent_personalities", tier=RouterTier.OPTIONAL)
 
@@ -230,6 +231,7 @@ for _name, _router in [
     ("costs", cost_attribution_router),
     ("plugins", plugins_router),
     ("agent-personalities", agent_personalities_router),
+    ("episodes", episodic_memory_router),
 ]:
     if _router:
         _prefix = None

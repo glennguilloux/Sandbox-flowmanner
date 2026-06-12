@@ -101,6 +101,23 @@ class MemoryConsolidationWorker:
             mission_id,
             success_flag,
         )
+
+        # Q2-Q3 Chunk 2: Also record sparse episodic memory
+        try:
+            from app.services.episodic_memory_worker import get_episodic_memory_worker
+
+            episodic_worker = get_episodic_memory_worker()
+            await episodic_worker.process_mission_completed(
+                db,
+                mission_id=mission_id,
+                run_id=payload.get("run_id", mission_id),
+                workspace_id=payload.get("workspace_id"),
+                user_id=user_id,
+            )
+        except Exception as exc:
+            # Episodic memory is best-effort; do not fail consolidation
+            logger.debug("Episodic memory recording skipped: %s", exc)
+
         return {"session_id": session.id, "memory_id": memory.id}
 
     async def retrieve_by_mission(

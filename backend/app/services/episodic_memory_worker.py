@@ -1,31 +1,18 @@
-"""Episodic Memory Consolidation Worker — Phase 6.1.
+"""Episodic Memory Consolidation Worker — Q2-Q3 Chunk 2.
 
-Subscribes to mission.completed events, extracts (context, action, outcome)
-tuples from the event log, summarizes via LLM, and embeds into Qdrant
-`mission_episodes` collection.
+Event-driven worker that subscribes to mission-completed events from
+the substrate event log and records compact, redacted episode records
+via EpisodicMemoryService.
 
-Provides:
-- consolidate_episode(): Extract + summarize + embed a completed mission
-- retrieve_relevant_episodes(): Semantic search for similar past episodes
-- forget_stale_episodes(): Archive episodes older than retention period
-
-Usage:
-    worker = EpisodicMemoryWorker(db)
-    await worker.consolidate_episode(mission_id="...", run_id="...")
-    episodes = await worker.retrieve_relevant_episodes("deploy to production", limit=5)
+Extends (does not replace) the existing MemoryConsolidationWorker.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
-from sqlalchemy import select
-
-from app.models.mission_models import Mission
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 
 if TYPE_CHECKING:
@@ -34,395 +21,223 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Qdrant collection for episodic memory
-EPISODES_COLLECTION = "mission_episodes"
+EPISODES_COLLECTION = "episodes"
 
 # Retention policy: episodes older than this are archived
 DEFAULT_RETENTION_DAYS = 90
 
+# Cost classification thresholds
+_COST_SMALL_MAX = 0.05
+_COST_MEDIUM_MAX = 0.50
+
 
 class EpisodicMemoryWorker:
-    """Consolidates mission executions into episodic memory."""
+    """Consolidates mission executions into episodic memory.
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    This worker is event-driven: it processes mission.completed events
+    from the substrate event log. It does NOT poll.
 
-    async def consolidate_episode(
+    Usage::
+
+        worker = EpisodicMemoryWorker()
+        await worker.process_mission_completed(db, mission_id="...", run_id="...")
+    """
+
+    async def process_mission_completed(
         self,
+        db: AsyncSession,
         *,
         mission_id: str,
         run_id: str,
+        workspace_id: str | None = None,
+        user_id: int | None = None,
     ) -> dict[str, Any] | None:
-        """Extract, summarize, and embed a completed mission episode.
+        """Process a mission.completed event into an episodic memory record.
+
+        Extracts compact episode data from the event log, applies redaction,
+        and stores via EpisodicMemoryService.
 
         Args:
-            mission_id: The completed mission's UUID.
-            run_id: The execution run's UUID.
+            db: Async database session
+            mission_id: The completed mission's UUID
+            run_id: The execution run's UUID
+            workspace_id: Optional workspace ID (looked up from mission if not provided)
+            user_id: Optional user ID (looked up from mission if not provided)
 
         Returns:
-            The created episode dict, or None if consolidation was skipped.
+            The created episode dict, or None if processing was skipped.
         """
-        # 1. Fetch mission metadata
-        mission = await self.db.get(Mission, mission_id)
+        from sqlalchemy import select
+
+        from app.models.mission_models import Mission
+        from app.services.episodic_memory_service import get_episodic_memory_service
+
+        service = get_episodic_memory_service()
+
+        # 1. Fetch mission metadata if workspace/user not provided
+        mission = await db.get(Mission, mission_id)
         if mission is None:
-            logger.warning("Mission %s not found — skipping consolidation", mission_id)
+            logger.warning("Mission %s not found — skipping episode recording", mission_id)
             return None
 
-        # 2. Fetch the event log for this run
+        if workspace_id is None:
+            workspace_id = getattr(mission, "workspace_id", None)
+        if user_id is None:
+            user_id = getattr(mission, "user_id", None)
+
+        if not workspace_id or not user_id:
+            logger.warning(
+                "Mission %s missing workspace_id or user_id — skipping", mission_id
+            )
+            return None
+
+        # 2. Fetch event log for this run
         stmt = (
-            select(SubstrateEvent).where(SubstrateEvent.run_id == run_id).order_by(SubstrateEvent.sequence).limit(500)
+            select(SubstrateEvent)
+            .where(SubstrateEvent.run_id == run_id)
+            .order_by(SubstrateEvent.sequence)
+            .limit(500)
         )
-        events = (await self.db.execute(stmt)).scalars().all()
+        events = (await db.execute(stmt)).scalars().all()
         if not events:
-            logger.info("No events for run %s — skipping consolidation", run_id)
+            logger.info("No events for run %s — skipping", run_id)
             return None
 
-        # 3. Extract (context, action, outcome) tuples
-        context = self._extract_context(mission, events)
-        actions = self._extract_actions(events)
+        # 3. Extract episode data
         outcome = self._extract_outcome(mission, events)
+        cost_usd = self._extract_cost(events)
+        hitl_outcome = self._extract_hitl_outcome(events)
+        summary = self._build_summary(mission, events)
+        step_types = self._extract_step_types(events)
 
-        if not actions:
-            logger.info("No meaningful actions for run %s — skipping", run_id)
-            return None
-
-        # 4. Summarize via LLM
-        summary = await self._summarize_episode(context, actions, outcome)
-
-        # 5. Embed into Qdrant
-        episode_id = await self._embed_episode(
-            mission_id=mission_id,
-            run_id=run_id,
-            workspace_id=getattr(mission, "workspace_id", None),
-            summary=summary,
-            context=context,
-            outcome=outcome,
-            event_count=len(events),
+        # 4. Record episode via service (handles redaction + embedding)
+        episode = await service.record_episode(
+            db,
+            payload={
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "mission_id": mission_id,
+                "step_type": ",".join(step_types) if step_types else "mission",
+                "outcome": outcome,
+                "cost_usd": cost_usd,
+                "hitl_outcome": hitl_outcome,
+                "summary_text": summary,
+                "event_count": len(events),
+            },
         )
 
-        if episode_id is None:
+        if episode is None:
             return None
 
-        episode = {
-            "id": episode_id,
+        result = {
+            "episode_id": episode.id,
             "mission_id": mission_id,
             "run_id": run_id,
-            "summary": summary,
-            "context": context,
             "outcome": outcome,
+            "cost_bucket": episode.cost_bucket,
             "event_count": len(events),
-            "consolidated_at": datetime.now(UTC).isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
         }
         logger.info(
-            "Episode consolidated: mission=%s events=%d summary_len=%d",
-            mission_id,
-            len(events),
-            len(summary),
+            "Episode recorded: mission=%s outcome=%s events=%d",
+            mission_id, outcome, len(events),
         )
-        return episode
+        return result
 
-    async def retrieve_relevant_episodes(
-        self,
-        query: str,
-        *,
-        workspace_id: str | None = None,
-        limit: int = 5,
-    ) -> list[dict[str, Any]]:
-        """Semantic search for relevant past episodes.
+    # ── Internal helpers ─────────────────────────────────────────
 
-        Args:
-            query: Natural language query describing the current context.
-            workspace_id: Optional filter by workspace.
-            limit: Max results.
-
-        Returns:
-            List of episode dicts sorted by relevance.
-        """
-        try:
-            from qdrant_client import AsyncQdrantClient
-            from qdrant_client.models import FieldCondition, Filter, MatchValue
-
-            from app.config import settings
-
-            client = AsyncQdrantClient(
-                host=settings.QDRANT_HOST,
-                port=settings.QDRANT_PORT,
-            )
-
-            # Check collection exists
-            if not await client.collection_exists(EPISODES_COLLECTION):
-                return []
-
-            # Embed the query
-            query_vector = await self._embed_text(query)
-            if query_vector is None:
-                return []
-
-            # Build filter
-            query_filter = None
-            if workspace_id:
-                query_filter = Filter(must=[FieldCondition(key="workspace_id", params=MatchValue(value=workspace_id))])
-
-            results = await client.search(
-                collection_name=EPISODES_COLLECTION,
-                query_vector=query_vector,
-                query_filter=query_filter,
-                limit=limit,
-                with_payload=True,
-            )
-
-            return [
-                {
-                    "id": str(r.id),
-                    "score": r.score,
-                    **(r.payload or {}),
-                }
-                for r in results
-            ]
-
-        except Exception as e:
-            logger.warning("Episode retrieval failed: %s", e)
-            return []
-
-    async def forget_stale_episodes(
-        self,
-        retention_days: int = DEFAULT_RETENTION_DAYS,
-    ) -> int:
-        """Archive episodes older than retention period.
-
-        For now, this deletes old episodes from Qdrant.
-        Future: move to cold storage (S3/filesystem).
-
-        Returns:
-            Number of episodes archived/deleted.
-        """
-        try:
-            from qdrant_client import AsyncQdrantClient
-            from qdrant_client.models import DatetimeRange, FieldCondition, Filter
-
-            from app.config import settings
-
-            client = AsyncQdrantClient(
-                host=settings.QDRANT_HOST,
-                port=settings.QDRANT_PORT,
-            )
-
-            if not await client.collection_exists(EPISODES_COLLECTION):
-                return 0
-
-            cutoff = datetime.now(UTC) - timedelta(days=retention_days)
-
-            # Delete old points
-            result = await client.delete(
-                collection_name=EPISODES_COLLECTION,
-                points_selector=Filter(
-                    must=[
-                        FieldCondition(
-                            key="consolidated_at",
-                            range=DatetimeRange(lt=cutoff.isoformat()),
-                        )
-                    ]
-                ),
-            )
-            logger.info("Archived stale episodes (retention=%dd)", retention_days)
-            return 1  # Qdrant doesn't return exact count easily
-
-        except Exception as e:
-            logger.warning("Forget policy failed: %s", e)
-            return 0
-
-    # ── Internal helpers ─────────────────────────────────────────────
-
-    def _extract_context(self, mission: Mission, events: list) -> dict[str, Any]:
-        """Extract mission context from metadata."""
-        return {
-            "title": mission.title,
-            "description": mission.description or "",
-            "mission_type": getattr(mission, "mission_type", None),
-            "workspace_id": getattr(mission, "workspace_id", None),
-        }
-
-    def _extract_actions(self, events: list) -> list[dict[str, Any]]:
-        """Extract (action, detail) tuples from task events."""
-        actions = []
-        for event in events:
-            payload = event.payload or {}
-            match event.type:
-                case SubstrateEventType.TASK_COMPLETED:
-                    actions.append(
-                        {
-                            "action": "task_completed",
-                            "task_title": payload.get("task_title", "unknown"),
-                            "tokens": payload.get("tokens", 0),
-                            "cost_usd": payload.get("cost_usd", 0.0),
-                        }
-                    )
-                case SubstrateEventType.TOOL_CALL:
-                    actions.append(
-                        {
-                            "action": "tool_call",
-                            "tool": payload.get("tool_name", "unknown"),
-                        }
-                    )
-                case SubstrateEventType.LLM_CALL:
-                    actions.append(
-                        {
-                            "action": "llm_call",
-                            "model": payload.get("model_id", "unknown"),
-                            "tokens": payload.get("prompt_tokens", 0) + payload.get("completion_tokens", 0),
-                        }
-                    )
-        return actions
-
-    def _extract_outcome(self, mission: Mission, events: list) -> dict[str, Any]:
-        """Extract final outcome from mission and terminal events."""
-        terminal = None
+    def _extract_outcome(self, mission: Any, events: list) -> str:
+        """Determine mission outcome from terminal events."""
         for event in reversed(events):
-            if event.type in (
-                SubstrateEventType.MISSION_COMPLETED,
-                SubstrateEventType.MISSION_FAILED,
-                SubstrateEventType.MISSION_ABORTED,
-            ):
-                terminal = event
-                break
+            if event.type == SubstrateEventType.MISSION_COMPLETED:
+                return "success"
+            elif event.type == SubstrateEventType.MISSION_FAILED:
+                return "failure"
+            elif event.type == SubstrateEventType.MISSION_ABORTED:
+                return "partial"
 
-        return {
-            "status": (mission.status if isinstance(mission.status, str) else mission.status.value),
-            "error": terminal.payload.get("error") if terminal else None,
-            "total_tokens": getattr(mission, "tokens_used", 0) or 0,
-            "actual_cost": getattr(mission, "actual_cost", 0.0) or 0.0,
-        }
+        # Fallback to mission status
+        status = getattr(mission, "status", None)
+        if status is not None:
+            status_str = status if isinstance(status, str) else status.value
+            if status_str in ("completed", "approved"):
+                return "success"
+            elif status_str in ("failed", "error"):
+                return "failure"
+        return "partial"
 
-    async def _summarize_episode(
-        self,
-        context: dict,
-        actions: list[dict],
-        outcome: dict,
-    ) -> str:
-        """Summarize the episode into a concise natural-language description.
+    def _extract_cost(self, events: list) -> float:
+        """Sum cost from task.completed events."""
+        total = 0.0
+        for event in events:
+            if event.type == SubstrateEventType.TASK_COMPLETED:
+                payload = event.payload or {}
+                total += payload.get("cost_usd", 0.0)
+        return total
 
-        Uses the local LLM (llama.cpp) if available, otherwise falls back
-        to a template-based summary.
+    def _extract_hitl_outcome(self, events: list) -> str | None:
+        """Extract HITL outcome from human_interrupt events."""
+        for event in events:
+            if event.type == SubstrateEventType.HUMAN_INTERRUPT_RESOLVED:
+                payload = event.payload or {}
+                action = payload.get("action", "")
+                if action in ("approved", "approve"):
+                    return "approved"
+                elif action in ("rejected", "reject"):
+                    return "rejected"
+        return None
+
+    def _extract_step_types(self, events: list) -> list[str]:
+        """Extract unique step types from events."""
+        types = set()
+        for event in events:
+            if event.type == SubstrateEventType.TASK_COMPLETED:
+                payload = event.payload or {}
+                task_type = payload.get("task_type") or payload.get("step_type")
+                if task_type:
+                    types.add(task_type)
+            elif event.type == SubstrateEventType.TOOL_CALL:
+                types.add("tool_call")
+            elif event.type == SubstrateEventType.LLM_CALL:
+                types.add("llm_call")
+        return sorted(types)
+
+    def _build_summary(self, mission: Any, events: list) -> str:
+        """Build a compact summary from mission metadata and events.
+
+        This summary is REDACTED by the service before storage.
         """
-        prompt = (
-            "Summarize this mission execution in 2-3 sentences. "
-            "Focus on what was attempted, what approach was used, and the outcome.\n\n"
-            f"Context: {json.dumps(context)}\n"
-            f"Actions taken: {json.dumps(actions[:20])}\n"
-            f"Outcome: {json.dumps(outcome)}\n\n"
-            "Summary:"
+        title = getattr(mission, "title", "Untitled") or "Untitled"
+        task_count = sum(
+            1 for e in events if e.type == SubstrateEventType.TASK_COMPLETED
+        )
+        tool_count = sum(
+            1 for e in events if e.type == SubstrateEventType.TOOL_CALL
+        )
+        llm_count = sum(
+            1 for e in events if e.type == SubstrateEventType.LLM_CALL
         )
 
-        try:
-            from decimal import Decimal
+        parts = [
+            f"Mission '{title}'",
+            f"{task_count} tasks completed",
+        ]
+        if tool_count:
+            parts.append(f"{tool_count} tool calls")
+        if llm_count:
+            parts.append(f"{llm_count} LLM calls")
 
-            from app.models.capability_models import Budget
+        return ", ".join(parts)
 
-            budget = Budget(max_cost_usd=Decimal("0.01"), max_iterations=1)
-            from app.services.budget_enforcer import get_budget_enforcer
 
-            enforcer = get_budget_enforcer()
+# ── Singleton ──────────────────────────────────────────────────────
 
-            response = await enforcer.call(
-                budget=budget,
-                model_id="llamacpp/Qwen3.6-27B",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=200,
-                temperature=0.3,
-            )
-            if response.get("success"):
-                return response.get("response", "").strip()
-        except Exception as e:
-            logger.debug("LLM summarization failed, using template: %s", e)
+_worker: EpisodicMemoryWorker | None = None
 
-        # Template fallback
-        status = outcome.get("status", "unknown")
-        title = context.get("title", "Untitled mission")
-        action_count = len(actions)
-        return (
-            f"Mission '{title}' completed with status '{status}'. "
-            f"{action_count} actions were taken. "
-            f"Total tokens: {outcome.get('total_tokens', 0)}, "
-            f"cost: ${outcome.get('actual_cost', 0.0):.4f}."
-        )
 
-    async def _embed_episode(
-        self,
-        *,
-        mission_id: str,
-        run_id: str,
-        workspace_id: str | None,
-        summary: str,
-        context: dict,
-        outcome: dict,
-        event_count: int,
-    ) -> str | None:
-        """Embed the episode into Qdrant."""
-        try:
-            from qdrant_client import AsyncQdrantClient
-            from qdrant_client.models import Distance, PointStruct, VectorParams
-
-            from app.config import settings
-
-            client = AsyncQdrantClient(
-                host=settings.QDRANT_HOST,
-                port=settings.QDRANT_PORT,
-            )
-
-            # Ensure collection
-            if not await client.collection_exists(EPISODES_COLLECTION):
-                await client.create_collection(
-                    collection_name=EPISODES_COLLECTION,
-                    vectors_config=VectorParams(
-                        size=settings.EMBEDDING_DIMENSION,
-                        distance=Distance.COSINE,
-                    ),
-                )
-
-            # Get embedding
-            vector = await self._embed_text(summary)
-            if vector is None:
-                return None
-
-            episode_id = str(uuid4())
-            now = datetime.now(UTC)
-
-            await client.upsert(
-                collection_name=EPISODES_COLLECTION,
-                points=[
-                    PointStruct(
-                        id=episode_id,
-                        vector=vector,
-                        payload={
-                            "mission_id": mission_id,
-                            "run_id": run_id,
-                            "workspace_id": workspace_id,
-                            "summary": summary,
-                            "context_title": context.get("title", ""),
-                            "outcome_status": outcome.get("status", ""),
-                            "event_count": event_count,
-                            "consolidated_at": now.isoformat(),
-                        },
-                    )
-                ],
-            )
-            return episode_id
-
-        except Exception as e:
-            logger.warning("Episode embedding failed: %s", e)
-            return None
-
-    async def _embed_text(self, text: str) -> list[float] | None:
-        """Get an embedding vector for text.
-
-        Uses the project's existing embedding service or falls back
-        to a simple hash-based approach for testing.
-        """
-        try:
-            from app.services.rag.embedding_service import EmbeddingService
-
-            service = EmbeddingService()
-            vectors = await service.embed([text])
-            return vectors[0] if vectors else None
-        except Exception as e:
-            logger.debug("Embedding service failed: %s", e)
-            return None
+def get_episodic_memory_worker() -> EpisodicMemoryWorker:
+    """Get or create the EpisodicMemoryWorker singleton."""
+    global _worker
+    if _worker is None:
+        _worker = EpisodicMemoryWorker()
+    return _worker

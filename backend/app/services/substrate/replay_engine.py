@@ -130,6 +130,48 @@ class ReplayEngine:
         checkpoint_events = await self._event_log.get_events(db, run_id, event_type="substrate.checkpoint")
         return [e.sequence for e in checkpoint_events]
 
+    async def record_episodes_used(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        episode_ids: list[str],
+        *,
+        mission_id: str | None = None,
+    ) -> None:
+        """Record which episodes were retrieved and used during a run.
+
+        Appends a read-only event to the log with the episode IDs.
+        This does NOT change replay semantics — it is purely informational.
+
+        Args:
+            db: Async database session
+            run_id: UUID string identifying the execution run
+            episode_ids: List of episode UUIDs that were retrieved
+            mission_id: Optional mission UUID
+        """
+        if not episode_ids:
+            return
+
+        await self._event_log.append(
+            db,
+            run_id=run_id,
+            events=[
+                {
+                    "type": "episodic_memory.episodes_used",
+                    "payload": {
+                        "episode_ids": episode_ids,
+                        "count": len(episode_ids),
+                    },
+                    "actor": "episodic_memory",
+                }
+            ],
+            mission_id=mission_id,
+        )
+        logger.info(
+            "Recorded %d episodes used for run %s",
+            len(episode_ids), run_id,
+        )
+
 
 # ── Singleton ──────────────────────────────────────────────────────
 
