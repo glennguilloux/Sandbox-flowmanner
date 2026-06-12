@@ -285,7 +285,42 @@ class UnifiedExecutor:
             # Check for crash recovery
             if await self.event_log.run_exists(db, run_id):
                 logger.info("Resuming run %s for workflow %s", run_id, workflow.id)
+
+                # Q1-A chunk 4: Validate resume state BEFORE rebuilding
+                from app.services.substrate.resume_validation import validate_resume_state
+
+                validation = await validate_resume_state(db, run_id, event_log=self.event_log)
+                if not validation.is_resumable:
+                    await self.event_log.append(db, run_id, [{
+                        "type": SubstrateEventType.RUN_FAILED,
+                        "payload": {"reason": "unresumable_state", "warnings": validation.warnings},
+                        "actor": "resume_validator",
+                    }])
+                    return StrategyResult(
+                        success=False,
+                        status="failed",
+                        error="unresumable_state",
+                        data={"validation": validation.warnings},
+                    )
+                if validation.warnings:
+                    _resume_warnings = validation.warnings
+                    _resume_from_seq = validation.last_event_sequence
+                else:
+                    _resume_warnings = None
+
                 state = await self.replay_engine.rebuild_state(db, run_id)
+
+                # Emit run.resumed AFTER rebuild so to_sequence is known
+                if _resume_warnings:
+                    await self.event_log.append(db, run_id, [{
+                        "type": SubstrateEventType.RUN_RESUME_VALIDATED,
+                        "payload": {
+                            "from_sequence": _resume_from_seq,
+                            "to_sequence": state.current_sequence,
+                            "warnings": _resume_warnings,
+                        },
+                        "actor": "resume_validator",
+                    }])
                 if state.status in ("completed", "failed", "aborted"):
                     return StrategyResult(
                         success=state.status == "completed",
@@ -481,7 +516,39 @@ class UnifiedExecutor:
 
         All LLM calls go through BudgetEnforcer.call().
         All tool calls go through CapabilityEngine.verify().
+
+        Q1-A chunk 4: Idempotency guard.
+        Three cases for (run_id, node_id):
+        1. node.completed exists  → skip execution, return cached result
+        2. node.started exists but no node.completed → re-execute (crash window)
+        3. no events at all       → execute normally
         """
+        # Q1-A chunk 4: Idempotency guard — check if node already completed
+        if run_id:
+            prior_completed = await self.event_log.get_events(
+                db, run_id, event_type=SubstrateEventType.NODE_COMPLETED,
+            )
+            completed_ids = {
+                (ev.payload or {}).get("task_id")
+                for ev in prior_completed
+            }
+            if node.id in completed_ids:
+                logger.info("node_skipped_idempotent: run=%s node=%s", run_id, node.id)
+                # Return cached result from the event payload
+                cached = next(
+                    ev for ev in prior_completed
+                    if (ev.payload or {}).get("task_id") == node.id
+                )
+                payload = cached.payload or {}
+                return {
+                    "success": True,
+                    "task_id": node.id,
+                    "output": payload.get("output", ""),
+                    "tokens_used": payload.get("tokens", 0),
+                    "cost_usd": payload.get("cost_usd", 0.0),
+                    "skipped_idempotent": True,
+                }
+
         from app.services.substrate.node_executor import NodeExecutor
 
         node_exec = NodeExecutor(self)

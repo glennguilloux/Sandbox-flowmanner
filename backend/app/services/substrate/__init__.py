@@ -20,6 +20,7 @@ from .leases import (
     try_claim_lease,
 )
 from .replay_engine import ReplayEngine, get_replay_engine
+from .resume_validation import ResumeValidation, validate_resume_state
 from .workflow_models import (
     NodeType,
     StrategyResult,
@@ -59,4 +60,7 @@ __all__ = [
     "graph_to_workflow",
     # H5.1 — Adapters
     "mission_to_workflow",
+    # Q1-A chunk 4 — Resume validation
+    "ResumeValidation",
+    "validate_resume_state",
 ]

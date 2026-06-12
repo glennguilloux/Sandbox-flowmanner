@@ -107,6 +107,9 @@ class SubstrateEventType:
     LEASE_RENEWED = "run.lease.renewed"
     LEASE_RELEASED = "run.lease.released"
 
+    # Q1-A chunk 4: Resume validation event
+    RUN_RESUME_VALIDATED = "run.resumed"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"
