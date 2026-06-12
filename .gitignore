@@ -64,3 +64,6 @@ static/
 
 # ── Test load reports ───────────────────────────────────────────
 tests/load/reports/*.json
+
+# ── Per-session live handoff logs (sealed to OLD/ at session end) ──
+.sisyphus/handoffs/

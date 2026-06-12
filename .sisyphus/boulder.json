@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "project": "flowmanner-q2-q3-agentic-workflow",
+  "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
+  "current_chunk": 1,
+  "current_chunk_name": "Agentic Readiness Stop Gates",
+  "current_chunk_status": "prompt-written-awaiting-deepseek",
+  "last_completed_chunk": 0,
+  "chunks": [
+    {
+      "id": 1,
+      "name": "Agentic Readiness Stop Gates",
+      "status": "prompt-written-awaiting-deepseek",
+      "estimate_w": 1,
+      "prompt": ".hermes/plans/q2-q3-chunk1-stop-gates-prompt.md",
+      "stop_gates": [
+        "P0.2 preview error is actionable in UI (SandboxPreviewButton shows real error + retry)",
+        "P0.2 backend distinguishes 404/502/504 + logs with request_id",
+        "P0.4 has explicit FIX or RESCOPE decision with evidence file",
+        "Substrate baseline ≥139 pass, 0 fail",
+        "git diff --check empty"
+      ],
+      "evidence_files": [
+        ".sisyphus/evidence/P0.2-fix-valid.txt",
+        ".sisyphus/evidence/P0.2-baseline-green.txt",
+        ".sisyphus/evidence/P0.4-decision.md"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Sparse Episodic Memory for Missions",
+      "status": "blocked-on-chunk-1",
+      "estimate_w": 2
+    },
+    {
+      "id": 3,
+      "name": "Sparse Tool Routing",
+      "status": "blocked-on-chunk-1",
+      "estimate_w": 2
+    },
+    {
+      "id": 4,
+      "name": "Adaptive Reasoning Depth with HITL Escalation",
+      "status": "blocked-on-chunk-1",
+      "estimate_w": 2
+    },
+    {
+      "id": 5,
+      "name": "Multi-Agent Handoff Packets",
+      "status": "blocked-on-chunk-1",
+      "estimate_w": 4
+    },
+    {
+      "id": 6,
+      "name": "Self-Correction and Retry Under Cost Ceilings",
+      "status": "blocked-on-chunk-1",
+      "estimate_w": 2
+    }
+  ],
+  "runner": "codebuff-deepseek",
+  "runner_notes": "User runs DeepSeek via codebuff CLI; orchestrator writes prompt file at .hermes/plans/, DeepSeek reads it. Orchestrator verifies result and updates state.",
+  "git_workflow": "direct-push-to-main",
+  "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs.",
+  "session_id": null,
+  "started_at": "2026-06-12T19:35:00Z",
+  "last_updated": "2026-06-12T19:35:00Z"
+}
