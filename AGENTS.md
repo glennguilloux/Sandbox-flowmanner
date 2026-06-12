@@ -65,6 +65,6 @@ The following items are in-flight or broken. Read the linked files before recomm
   - 14 new tests in `test_sandbox_preview_auth.py`, all passing
   - Audit: [`.hermes/plans/SANDBOX-PREVIEW-401-DEEPSEEK-AUDIT.md`](.hermes/plans/SANDBOX-PREVIEW-401-DEEPSEEK-AUDIT.md)
   - Fix plan: [`.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md`](.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md)
-  - Roadmap: `docs/REBUILD-ROADMAP.md` → ✅ DONE
-- **REBUILD-ROADMAP.md is the canonical truth** for current rebuild state. Last verified 2026-06-10. If your work touches the rebuild phases, read it first.
+  - Roadmap: archived to `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md` (sandbox chain row was ✅ DONE)
+- **`docs/REBUILD-ROADMAP.md` is ARCHIVED 2026-06-12.** Current rebuild plan: **`.sisyphus/plans/q2-q3-agentic-workflow.md`** (Q2-Q3 agentic workflow capabilities, skeleton awaiting Opus). REBUILD-ROADMAP preserved in `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md`.
 - **Memory stores are PER-MACHINE.** The agentmemory MCP store at `~/.agentmemory/data/state_store.db` is local to the machine where the agent runs. Do not assume a memory you saved on homelab is visible on ops (172.16.1.2) or VPS (74.208.115.142). For cross-instance context, rely on docs/AGENTS.md, not memory.
