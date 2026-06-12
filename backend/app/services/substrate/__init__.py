@@ -11,6 +11,13 @@ from .adapters import (
 )
 from .event_log import EventLog, get_event_log
 from .executor import UnifiedExecutor, get_unified_executor
+from .leases import (
+    LeaseRecord,
+    get_active_lease,
+    release_lease,
+    renew_lease,
+    try_claim_lease,
+)
 from .replay_engine import ReplayEngine, get_replay_engine
 from .workflow_models import (
     NodeType,
@@ -34,6 +41,12 @@ __all__ = [
     "WorkflowEdge",
     "WorkflowNode",
     "WorkflowType",
+    # Q1-A — Worker leases
+    "LeaseRecord",
+    "get_active_lease",
+    "release_lease",
+    "renew_lease",
+    "try_claim_lease",
     "flow_to_workflow",
     "get_event_log",
     "get_replay_engine",
