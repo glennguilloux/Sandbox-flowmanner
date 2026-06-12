@@ -110,6 +110,10 @@ class SubstrateEventType:
     # Q1-A chunk 4: Resume validation event
     RUN_RESUME_VALIDATED = "run.resumed"
 
+    # Q1-A chunk 5: Per-workspace+provider circuit breaker events
+    CIRCUIT_BREAKER_OPENED = "circuit_breaker.opened"
+    PROVIDER_FALLBACK_INVOKED = "provider.fallback_invoked"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"

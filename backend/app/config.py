@@ -161,6 +161,9 @@ class Settings(BaseSettings):
     FLOWMANNER_LEASE_ENABLED: bool = True
     FLOWMANNER_LEASE_RECLAIMER_ENABLED: bool = True
 
+    # Q1-A chunk 5: Per-workspace+provider circuit breaker
+    FLOWMANNER_CIRCUIT_BREAKER_ENABLED: bool = True
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

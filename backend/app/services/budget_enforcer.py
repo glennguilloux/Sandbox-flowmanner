@@ -256,6 +256,28 @@ class BudgetEnforcer:
         budget.iterations_used += 1
         start_time = time.monotonic()
 
+        # Q1-A chunk 5: Resolve provider via circuit breaker + fallback chain
+        actual_provider = model_id  # default, may be overridden by CB
+        cb_enabled = False
+        try:
+            from app.config import settings as _settings
+
+            cb_enabled = getattr(_settings, "FLOWMANNER_CIRCUIT_BREAKER_ENABLED", True)
+        except Exception:
+            pass
+
+        if cb_enabled and db_session and workspace_id:
+            try:
+                from app.services.substrate.provider_fallback import resolve_provider
+
+                actual_provider = await resolve_provider(
+                    db_session, workspace_id, model_id, check_circuit_breaker=True
+                )
+            except Exception as cb_err:
+                # CB check failure must never block LLM calls — log and continue
+                logger.debug("Provider resolution skipped: %s", cb_err)
+                actual_provider = model_id
+
         try:
             # Route through ModelRouter (primary path)
             try:
@@ -267,12 +289,12 @@ class BudgetEnforcer:
                     user_id=user_id or "system",
                     db_session=db_session,
                     is_admin=is_admin,
-                    model_preference=model_preference or model_id,
+                    model_preference=model_preference or actual_provider,
                     temperature=temperature or 0.7,
                     max_tokens=max_tokens or 2000,
                 )
 
-                actual_model = response.get("model", model_id)
+                actual_model = response.get("model", actual_provider)
                 cost_info = response.get("cost", {})
                 prompt_tokens = cost_info.get("input_tokens", 0)
                 completion_tokens = cost_info.get("output_tokens", 0)
@@ -285,7 +307,7 @@ class BudgetEnforcer:
 
                 from app.config import settings
 
-                actual_model = model_id
+                actual_model = actual_provider
                 llm_url = getattr(settings, "LLM_BASE_URL", "http://localhost:11434")
                 llm_key = getattr(settings, "LLM_API_KEY", "")
 
@@ -298,7 +320,7 @@ class BudgetEnforcer:
                         f"{llm_url}/v1/chat/completions",
                         headers=headers,
                         json={
-                            "model": model_id,
+                            "model": actual_provider,
                             "messages": messages,
                             "temperature": temperature or 0.7,
                             "max_tokens": max_tokens or 2000,
@@ -362,9 +384,18 @@ class BudgetEnforcer:
                 agent_id=agent_id,
             )
 
-            # Phase 6.4: Record in circuit breaker
+            # Phase 6.4: Record in circuit breaker (per-mission budget guard)
             if mission_id:
                 await self._record_circuit_breaker(mission_id, cost_usd, db_session)
+
+            # Q1-A chunk 5: Record success in provider circuit breaker
+            if cb_enabled and db_session and workspace_id:
+                try:
+                    from app.services.substrate.circuit_breaker import record_success
+
+                    await record_success(db_session, workspace_id, actual_provider)
+                except Exception as cb_err:
+                    logger.debug("Provider CB success recording skipped: %s", cb_err)
 
             # Enrich response with budget info
             response["budget"] = {
@@ -380,6 +411,19 @@ class BudgetEnforcer:
             raise
         except Exception as e:
             latency_ms = int((time.monotonic() - start_time) * 1000)
+
+            # Q1-A chunk 5: Record failure in provider circuit breaker
+            # record_failure emits circuit_breaker.opened event internally
+            if cb_enabled and db_session and workspace_id:
+                try:
+                    from app.services.substrate.circuit_breaker import (
+                        record_failure as cb_record_failure,
+                    )
+
+                    await cb_record_failure(db_session, workspace_id, actual_provider)
+                except Exception as cb_err:
+                    logger.debug("Provider CB failure recording skipped: %s", cb_err)
+
             logger.exception("BudgetEnforcer LLM call failed: %s", e)
             return {
                 "success": False,

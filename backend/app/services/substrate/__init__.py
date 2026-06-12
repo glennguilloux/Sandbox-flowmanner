@@ -20,6 +20,15 @@ from .leases import (
     try_claim_lease,
 )
 from .replay_engine import ReplayEngine, get_replay_engine
+from .circuit_breaker import (
+    CircuitBreakerCheck,
+    CircuitBreakerOpen,
+    CircuitBreakerState,
+    check_and_allow,
+    record_failure,
+    record_success,
+)
+from .provider_fallback import AllProvidersOpen, get_fallback_chain, resolve_provider
 from .resume_validation import ResumeValidation, validate_resume_state
 from .workflow_models import (
     NodeType,
@@ -63,4 +72,14 @@ __all__ = [
     # Q1-A chunk 4 — Resume validation
     "ResumeValidation",
     "validate_resume_state",
+    # Q1-A chunk 5 — Per-workspace+provider circuit breaker
+    "AllProvidersOpen",
+    "CircuitBreakerCheck",
+    "CircuitBreakerOpen",
+    "CircuitBreakerState",
+    "check_and_allow",
+    "get_fallback_chain",
+    "record_failure",
+    "record_success",
+    "resolve_provider",
 ]
