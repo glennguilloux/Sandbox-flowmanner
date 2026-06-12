@@ -1,0 +1,47 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-8.4.2, pluggy-1.6.0 -- /opt/flowmanner/backend/.venv/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.11.14', 'Platform': 'Linux-7.0.10-arch1-1-x86_64-with-glibc2.43', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'mock': '3.15.1', 'timeout': '2.4.0', 'cov': '7.1.0', 'clarity': '1.0.1', 'html': '4.2.0', 'flask': '1.3.0', 'json-report': '1.5.0', 'asyncio': '0.25.3', 'xdist': '3.8.0', 'metadata': '3.1.1', 'Faker': '24.14.1', 'anyio': '4.13.0'}}
+rootdir: /opt/flowmanner/backend
+configfile: pyproject.toml
+plugins: mock-3.15.1, timeout-2.4.0, cov-7.1.0, clarity-1.0.1, html-4.2.0, flask-1.3.0, json-report-1.5.0, asyncio-0.25.3, xdist-3.8.0, metadata-3.1.1, Faker-24.14.1, anyio-4.13.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 29 items
+
+tests/test_episodic_memory.py::TestClassifyCost::test_small_cost PASSED  [  3%]
+tests/test_episodic_memory.py::TestClassifyCost::test_medium_cost PASSED [  6%]
+tests/test_episodic_memory.py::TestClassifyCost::test_large_cost PASSED  [ 10%]
+tests/test_episodic_memory.py::TestClassifyCost::test_boundary_small_to_medium PASSED [ 13%]
+tests/test_episodic_memory.py::TestClassifyCost::test_boundary_medium_to_large PASSED [ 17%]
+tests/test_episodic_memory.py::TestRecordEpisode::test_record_episode_success PASSED [ 20%]
+tests/test_episodic_memory.py::TestRecordEpisode::test_record_episode_missing_fields_returns_none PASSED [ 24%]
+tests/test_episodic_memory.py::TestRetrievalCapping::test_max_retrieval_constant PASSED [ 27%]
+tests/test_episodic_memory.py::TestRetrievalCapping::test_k_cap_enforced PASSED [ 31%]
+tests/test_episodic_memory.py::TestRerank::test_rrf_fusion PASSED        [ 34%]
+tests/test_episodic_memory.py::TestRerank::test_rerank_respects_k PASSED [ 37%]
+tests/test_episodic_memory.py::TestWorkspaceScoping::test_retrieve_requires_workspace_id PASSED [ 41%]
+tests/test_episodic_memory.py::TestBuildRetrievalText::test_basic_retrieval_text PASSED [ 44%]
+tests/test_episodic_memory.py::TestBuildRetrievalText::test_retrieval_text_with_summary PASSED [ 48%]
+tests/test_episodic_memory.py::TestBuildRetrievalText::test_retrieval_text_truncates_long_summary PASSED [ 51%]
+tests/test_memory_redaction.py::TestRedactAPIKeys::test_sk_prefix_key_redacted PASSED [ 55%]
+tests/test_memory_redaction.py::TestRedactAPIKeys::test_bearer_token_redacted PASSED [ 58%]
+tests/test_memory_redaction.py::TestRedactAPIKeys::test_key_prefix_redacted PASSED [ 62%]
+tests/test_memory_redaction.py::TestRedactFilePaths::test_home_path_redacted PASSED [ 65%]
+tests/test_memory_redaction.py::TestRedactFilePaths::test_macos_path_redacted PASSED [ 68%]
+tests/test_memory_redaction.py::TestRedactLLMOutputs::test_long_llm_output_redacted PASSED [ 72%]
+tests/test_memory_redaction.py::TestRedactLLMOutputs::test_short_llm_output_preserved PASSED [ 75%]
+tests/test_memory_redaction.py::TestRedactEnvSecrets::test_secret_env_var_redacted PASSED [ 79%]
+tests/test_memory_redaction.py::TestRedactEnvSecrets::test_password_env_var_redacted PASSED [ 82%]
+tests/test_memory_redaction.py::TestRedactEnvSecrets::test_token_env_var_redacted PASSED [ 86%]
+tests/test_memory_redaction.py::TestRedactNoOp::test_empty_string PASSED [ 89%]
+tests/test_memory_redaction.py::TestRedactNoOp::test_none_returns_empty PASSED [ 93%]
+tests/test_memory_redaction.py::TestRedactNoOp::test_benign_text_unchanged PASSED [ 96%]
+tests/test_memory_redaction.py::TestRedactNoOp::test_combined_redaction PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 29 passed, 1 warning in 5.16s =========================
