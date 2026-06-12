@@ -20,6 +20,7 @@ Delegates to focused sub-modules:
 import logging
 import tempfile
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -50,6 +51,9 @@ from app.services.mission_errors import (
 from app.services.mission_planner import MissionPlanner
 from app.services.sandbox_service import SandboxService
 from app.services.task_executor import TaskExecutor
+from app.services.depth_policy import DepthPolicy
+from app.models.depth_models import DepthLevel
+from app.models.substrate_models import SubstrateEventType
 from app.tools._sandbox_context import set_current_sandbox_id
 
 logger = logging.getLogger(__name__)
@@ -110,6 +114,8 @@ class MissionExecutor:
             resource_limits=self.resource_limits,
             log_callback=self._log,
         )
+        # Q2-Q3 Chunk 4: Depth policy for adaptive reasoning
+        self.depth_policy = DepthPolicy()
 
     # ── Shared service accessors ──────────────────────────────────────────────
 
@@ -250,8 +256,15 @@ class MissionExecutor:
 
     # ── Main execution loop ───────────────────────────────────────────────────
 
-    async def execute_mission(self, mission_id: UUID) -> dict[str, Any]:
-        """Execute a mission — main orchestrator loop."""
+    async def execute_mission(self, mission_id: UUID, *, enable_depth_policy: bool = True) -> dict[str, Any]:
+        """Execute a mission — main orchestrator loop.
+
+        Args:
+            mission_id: UUID of the mission to execute.
+            enable_depth_policy: If True (default), uses the adaptive depth
+                policy to decide reasoning depth per step.  If False, uses
+                the legacy "one depth for all steps" behavior.
+        """
 
         async with AsyncSessionLocal() as db:
             with tracer.start_as_current_span("mission.execute") as span:
@@ -427,7 +440,72 @@ class MissionExecutor:
 
                         for task in ready:
                             try:
-                                # Check for human approval requirement before execution
+                                # Q2-Q3 Chunk 4: Depth policy decision
+                                if enable_depth_policy:
+                                    depth_decision = self.depth_policy.decide(
+                                        risk=getattr(task, "risk_level", "low") or "low",
+                                        uncertainty=getattr(task, "uncertainty", 0.5) or 0.5,
+                                        budget_remaining_usd=Decimal(str(mission.budget_remaining or "0")) if hasattr(mission, "budget_remaining") and mission.budget_remaining else Decimal("5.00"),
+                                        prior_failures=getattr(task, "prior_failures", 0) or 0,
+                                        tool_requires_approval=getattr(task, "requires_approval", False) or False,
+                                        retry_count=getattr(task, "retry_count", 0) or 0,
+                                        policy_override=getattr(task, "policy_override", False) or False,
+                                    )
+
+                                    # Set reflection iterations based on depth
+                                    task.max_reflection_iterations = depth_decision.estimated_reflection_iterations
+
+                                    # Emit depth_decided audit event
+                                    await self._emit_depth_event(
+                                        db,
+                                        mission,
+                                        task,
+                                        depth_decision,
+                                        risk=getattr(task, "risk_level", "low") or "low",
+                                        uncertainty=getattr(task, "uncertainty", 0.5) or 0.5,
+                                    )
+
+                                    # Check for HITL escalation from depth policy
+                                    if depth_decision.escalate_to_hitl:
+                                        hitl_title = f"HITL escalation: {depth_decision.hitl_reason}"
+                                        if depth_decision.hitl_reason == "tool_requires_approval":
+                                            hitl_title = f"Approval required for: {task.title}"
+
+                                        interrupt = HumanInterrupt(
+                                            mission_id=str(mission.id),
+                                            interrupt_type="approval",
+                                            context={
+                                                "mission_title": mission.title,
+                                                "task_title": task.title,
+                                                "task_description": task.description,
+                                                "task_type": task.task_type,
+                                                "depth_level": depth_decision.level.value,
+                                                "depth_reason": depth_decision.reason,
+                                                "hitl_reason": depth_decision.hitl_reason,
+                                            },
+                                            proposed_action={
+                                                "action": "execute_task",
+                                                "task_id": str(task.id),
+                                                "depth_level": depth_decision.level.value,
+                                            },
+                                            confidence=0.5,
+                                        )
+                                        await self.hitl_manager.raise_interrupt(db, interrupt)
+                                        mission.status = MissionStatus.PAUSED
+                                        await db.commit()
+                                        await self._log(
+                                            db,
+                                            mission.id,
+                                            task.id,
+                                            "info",
+                                            f"Mission paused — HITL escalation ({depth_decision.hitl_reason}): {task.title}",
+                                        )
+                                        return {
+                                            "success": True,
+                                            "status": MissionStatus.PAUSED,
+                                        }
+
+                                # Legacy path: check for human approval requirement (always runs)
                                 if getattr(task, "approval_required", False) and self.hitl_manager:
                                     interrupt = HumanInterrupt(
                                         mission_id=str(mission.id),
@@ -724,6 +802,63 @@ class MissionExecutor:
             )
         except Exception as e:
             logger.error("Failed to create log entry: %s", e)
+
+    # ── Depth policy audit event ──────────────────────────────────────────
+
+    async def _emit_depth_event(
+        self,
+        db,
+        mission,
+        task,
+        depth_decision,
+        *,
+        risk: str = "low",
+        uncertainty: float = 0.5,
+    ) -> None:
+        """Emit a depth_decided substrate event for audit/replay."""
+        try:
+            from app.database import AsyncSessionLocal
+            from app.services.substrate.event_log import get_event_log
+
+            audit_event = self.depth_policy.build_audit_event(
+                depth_decision,
+                risk=risk,
+                uncertainty=uncertainty,
+                budget_remaining_usd=Decimal(str(getattr(mission, "budget_remaining", "5.00") or "5.00")),
+                prior_failures=getattr(task, "prior_failures", 0) or 0,
+                retry_count=getattr(task, "retry_count", 0) or 0,
+                step_id=str(task.id),
+                mission_id=str(mission.id),
+                workspace_id=getattr(mission, "workspace_id", None),
+                user_id=getattr(mission, "user_id", None),
+            )
+
+            # Use a run_id equal to mission_id for substrate events
+            run_id = str(mission.id)
+
+            event_log = get_event_log()
+            async with AsyncSessionLocal() as event_db:
+                await event_log.append(
+                    event_db,
+                    run_id,
+                    [{
+                        "type": SubstrateEventType.DEPTH_DECIDED,
+                        "payload": audit_event.model_dump(),
+                        "actor": "depth_policy",
+                        "task_id": str(task.id),
+                        "mission_id": str(mission.id),
+                    }],
+                )
+
+            logger.debug(
+                "Depth event emitted: task=%s level=%s hitl=%s",
+                task.id,
+                depth_decision.level.value,
+                depth_decision.escalate_to_hitl,
+            )
+        except Exception as e:
+            # Depth audit is non-critical — log and continue
+            logger.debug("Failed to emit depth event: %s", e)
 
     # ── Planning (delegated) ──────────────────────────────────────────────────
 
