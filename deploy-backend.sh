@@ -163,8 +163,39 @@ pre_deploy_health() {
 # ---------------------------------------------------------------------------
 # Alembic Migrations
 # ---------------------------------------------------------------------------
+
+# Detect uncommitted migration files in backend/alembic/versions/ and warn
+# the operator that they will be baked into the image but NOT applied to the
+# running DB unless --migrate is passed.
+#
+# Catches: untracked files (??) and modified tracked files (M) ending in .py.
+# Misses: migrations in HEAD that were never applied to the DB (would need
+# a DB query to detect — out of scope for this patch).
+check_pending_migrations() {
+  local pending
+  pending=$(git -C "$COMPOSE_DIR" status --porcelain backend/alembic/versions/ 2>/dev/null \
+            | grep -E '\.py$' \
+            | grep -vE '^.D ' \
+            | awk '{print $2}') || pending=""
+
+  if [ -z "$pending" ]; then
+    return 0
+  fi
+
+  local count
+  count=$(echo "$pending" | wc -l)
+  log_warn "Found ${count} uncommitted migration file(s) in backend/alembic/versions/:"
+  while IFS= read -r mig; do
+    log_warn "  - ${mig}"
+  done <<< "$pending"
+  log_warn "These will be baked into the image but NOT applied to the DB."
+  log_warn "Apply now with: $0 --migrate"
+  echo ""
+}
+
 run_migrations() {
   if [ "$MIGRATE" = false ]; then
+    check_pending_migrations
     log_info "Skipping migrations (--migrate not specified)"
     return 0
   fi
