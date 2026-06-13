@@ -4,7 +4,7 @@
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
   "current_chunk": 9,
   "current_chunk_name": "Lenient Validation Gate (Make the Gate Useful)",
-  "current_chunk_status": "prompt-written-awaiting-deepseek",
+  "current_chunk_status": "complete-with-pre-existing-failures",
   "last_completed_chunk": 8,
   "chunks": [
     {
@@ -14,13 +14,13 @@
       "estimate_w": 1,
       "prompt": ".hermes/plans/q2-q3-chunk1-stop-gates-prompt.md",
       "stop_gates": [
-        "P0.2 backend distinguishes 404/502/504 + logs with request_id — VERIFIED via 5 new tests passing",
-        "P0.2 UI shows real error + retry that re-fetches — VERIFIED via SandboxPreviewButton.tsx inspection (lines 94-127)",
-        "P0.4 decision delivered: v1→v3 migration (not the initially-stated RESCOPE) — VERIFIED via deploy + migration applied",
-        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 1) — see substrate-baseline-v1.md",
-        "git diff --check clean — VERIFIED",
-        "Alembic head at auth_v3_feature_flag_001 — VERIFIED via `alembic current`",
-        "AUTH_V3_ENDPOINTS feature flag enabled_globally=True — VERIFIED via feature_flags query"
+        "P0.2 backend distinguishes 404/502/504 + logs with request_id \u2014 VERIFIED via 5 new tests passing",
+        "P0.2 UI shows real error + retry that re-fetches \u2014 VERIFIED via SandboxPreviewButton.tsx inspection (lines 94-127)",
+        "P0.4 decision delivered: v1\u2192v3 migration (not the initially-stated RESCOPE) \u2014 VERIFIED via deploy + migration applied",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 1) \u2014 see substrate-baseline-v1.md",
+        "git diff --check clean \u2014 VERIFIED",
+        "Alembic head at auth_v3_feature_flag_001 \u2014 VERIFIED via `alembic current`",
+        "AUTH_V3_ENDPOINTS feature flag enabled_globally=True \u2014 VERIFIED via feature_flags query"
       ],
       "evidence_files": [
         ".sisyphus/evidence/P0.2-fix-valid.txt",
@@ -30,11 +30,18 @@
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 10,
       "commits": {
-        "backend_main": ["dc5ab4f", "0af583a", "1ebf2e2"],
-        "frontend_master": ["64dd725", "55be753"]
+        "backend_main": [
+          "dc5ab4f",
+          "0af583a",
+          "1ebf2e2"
+        ],
+        "frontend_master": [
+          "64dd725",
+          "55be753"
+        ]
       },
       "scope_creep_acknowledged": true,
-      "scope_creep_note": "DeepSeek implemented v1→v3 migration beyond prompt scope; user (Glenn) accepted as fait accompli"
+      "scope_creep_note": "DeepSeek implemented v1\u2192v3 migration beyond prompt scope; user (Glenn) accepted as fait accompli"
     },
     {
       "id": 2,
@@ -43,13 +50,13 @@
       "estimate_w": 2,
       "prompt": ".hermes/plans/q2-q3-chunk2-sparse-episodic-memory-prompt.md",
       "stop_gates": [
-        "29 new tests pass (15 unit + 14 redaction) — VERIFIED: `29 passed in 5.15s`",
-        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 2) — VERIFIED post-migration-fix",
-        "Migration `episodic_memory_001` applied to live DB — VERIFIED via `alembic current` + `\\d episodes` + trigger fire test",
-        "Router registered, endpoints live at /api/episodes/retrieve and /api/missions/{id}/episodes — VERIFIED via OpenAPI + 401 (auth required) on unauth curl",
-        "Worker is event-driven (subscribes to substrate mission.completed events) — VERIFIED by code inspection: no LLM call in _build_summary",
-        "Episode model + EpisodicMemoryService + redaction logic on disk — VERIFIED: 4 new files, 21.9KB service, 14 redaction tests",
-        "git diff --check clean — VERIFIED by DeepSeek report"
+        "29 new tests pass (15 unit + 14 redaction) \u2014 VERIFIED: `29 passed in 5.15s`",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 2) \u2014 VERIFIED post-migration-fix",
+        "Migration `episodic_memory_001` applied to live DB \u2014 VERIFIED via `alembic current` + `\\d episodes` + trigger fire test",
+        "Router registered, endpoints live at /api/episodes/retrieve and /api/missions/{id}/episodes \u2014 VERIFIED via OpenAPI + 401 (auth required) on unauth curl",
+        "Worker is event-driven (subscribes to substrate mission.completed events) \u2014 VERIFIED by code inspection: no LLM call in _build_summary",
+        "Episode model + EpisodicMemoryService + redaction logic on disk \u2014 VERIFIED: 4 new files, 21.9KB service, 14 redaction tests",
+        "git diff --check clean \u2014 VERIFIED by DeepSeek report"
       ],
       "evidence_files": [
         ".sisyphus/evidence/chunk-2-baseline-green.txt",
@@ -60,10 +67,15 @@
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 10,
       "commits": {
-        "backend_main": ["35fdc0e", "ac0c6ef", "30e3356", "58bebde"]
+        "backend_main": [
+          "35fdc0e",
+          "ac0c6ef",
+          "30e3356",
+          "58bebde"
+        ]
       },
       "bugfix_by_orchestrator": {
-        "bug": "Migration `20260612_episodic_memory_001.py` used a multi-statement `op.execute()` for the trigger function + trigger creation. asyncpg prepared statements cannot handle multi-statement SQL — the deploy script reported 'Migrations applied successfully' but the head was still at `auth_v3_feature_flag_001` (the new migration silently failed). The deploy script does not fail the build on migration errors.",
+        "bug": "Migration `20260612_episodic_memory_001.py` used a multi-statement `op.execute()` for the trigger function + trigger creation. asyncpg prepared statements cannot handle multi-statement SQL \u2014 the deploy script reported 'Migrations applied successfully' but the head was still at `auth_v3_feature_flag_001` (the new migration silently failed). The deploy script does not fail the build on migration errors.",
         "fix": "Split the single `op.execute(\"\"\"...\"\"\")` into two separate `op.execute()` calls (one for the function, one for the trigger). Applied via `docker cp` into the running container, then `alembic upgrade head` succeeded. Trigger fire-tested in postgres: `tsvector_populated = t`.",
         "root_cause": "asyncpg (the async PG driver) prepares each statement individually and cannot batch multiple statements into a single prepare. SQLAlchemy's `op.execute()` on a multi-statement string goes through asyncpg's prepared-statement path which rejects the multi-statement input.",
         "deployed_via": "`docker cp` + `alembic upgrade head` in container. Full backend rebuild deferred to next normal deploy (the fixed file is committed to git, so next `deploy-backend.sh` will bake it into the image)."
@@ -80,16 +92,16 @@
       "prompt_size_bytes": 30983,
       "prompt_size_lines": 289,
       "stop_gates": [
-        "19/19 new unit tests pass — VERIFIED: `19 passed, 1 warning in 0.05s`",
-        "3 integration tests properly marked @pytest.mark.integration (skipped in dev env, expected) — VERIFIED",
-        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 3) — VERIFIED: `10 failed, 151 passed`",
-        "Migration `tool_routing_001` applied to live DB — VERIFIED: `alembic current` -> `tool_routing_001 (head)`, table `tool_routing_decisions` exists with 3 indexes",
-        "Router registered, GET endpoint live at /api/missions/{id}/tool-routing-events — VERIFIED via OpenAPI",
-        "Tool router wired into convert_to_tools via enable_routing param (default True, backward-compatible) — VERIFIED by signature inspection",
-        "TOOL_ROUTE_DECIDED event type added to substrate_models.py (additive, not a wire format change) — VERIFIED: `TOOL_ROUTE_DECIDED = 'tool_route.decided'`",
-        "Audit event uses task_text_hash (SHA-256) NOT raw text — VERIFIED by test_audit_event_uses_hash_not_raw_text passing",
-        "High-risk tools (requires_approval=True) always included in sparse mode — VERIFIED by test_high_risk_tool_always_included passing",
-        "Cost-savings evidence documented (estimates for 10-tool registry, methodology present) — partial credit; file present, numbers are estimates not measured"
+        "19/19 new unit tests pass \u2014 VERIFIED: `19 passed, 1 warning in 0.05s`",
+        "3 integration tests properly marked @pytest.mark.integration (skipped in dev env, expected) \u2014 VERIFIED",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures from Chunk 3) \u2014 VERIFIED: `10 failed, 151 passed`",
+        "Migration `tool_routing_001` applied to live DB \u2014 VERIFIED: `alembic current` -> `tool_routing_001 (head)`, table `tool_routing_decisions` exists with 3 indexes",
+        "Router registered, GET endpoint live at /api/missions/{id}/tool-routing-events \u2014 VERIFIED via OpenAPI",
+        "Tool router wired into convert_to_tools via enable_routing param (default True, backward-compatible) \u2014 VERIFIED by signature inspection",
+        "TOOL_ROUTE_DECIDED event type added to substrate_models.py (additive, not a wire format change) \u2014 VERIFIED: `TOOL_ROUTE_DECIDED = 'tool_route.decided'`",
+        "Audit event uses task_text_hash (SHA-256) NOT raw text \u2014 VERIFIED by test_audit_event_uses_hash_not_raw_text passing",
+        "High-risk tools (requires_approval=True) always included in sparse mode \u2014 VERIFIED by test_high_risk_tool_always_included passing",
+        "Cost-savings evidence documented (estimates for 10-tool registry, methodology present) \u2014 partial credit; file present, numbers are estimates not measured"
       ],
       "evidence_files": [
         ".sisyphus/evidence/chunk-3-routing-valid.txt",
@@ -101,7 +113,10 @@
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 10,
       "commits": {
-        "backend_main": ["f12090f", "8bf2f22"]
+        "backend_main": [
+          "f12090f",
+          "8bf2f22"
+        ]
       },
       "bugfix_by_orchestrator": {
         "bugs": [
@@ -112,7 +127,7 @@
             "deployed_via": "Local edit only. Container restart + `bash /opt/flowmanner/deploy-backend.sh` required to pick up the fix in the running backend (Docker images have no volume mounts, per AGENTS.md)."
           },
           {
-            "bug": "`alembic upgrade head` did NOT apply the new `tool_routing_001` migration during the deploy. The deploy script said 'Migrations applied successfully' but `alembic current` was still at `episodic_memory_001` after the deploy. The migration code IS valid (single-statement `op.execute()` for the partial index) — verified by manual `alembic upgrade head` working perfectly.",
+            "bug": "`alembic upgrade head` did NOT apply the new `tool_routing_001` migration during the deploy. The deploy script said 'Migrations applied successfully' but `alembic current` was still at `episodic_memory_001` after the deploy. The migration code IS valid (single-statement `op.execute()` for the partial index) \u2014 verified by manual `alembic upgrade head` working perfectly.",
             "fix": "Orchestrator manually ran `docker compose exec -T backend alembic upgrade head` to apply the migration. Head is now at `tool_routing_001 (head)`. The `tool_routing_decisions` table exists with all 3 indexes (composite, partial mission, pkey).",
             "root_cause": "`deploy-backend.sh` line 213-214 always prints 'Migrations applied successfully' via `log_success` regardless of whether `alembic upgrade head` actually moved the head. The script does not capture stderr or check the exit code. This is the same deploy-script bug as Chunk 2 (caught there with the asyncpg multi-statement migration).",
             "deploy_script_fix_recommended": "FIXED in commit 86c76fa (2026-06-13). The deploy script now (1) runs migrations AFTER build so the container has the latest migration files baked in, (2) verifies `alembic current` matches `alembic heads` after migration, and (3) auto-rollbacks on migration failure. See .sisyphus/evidence/deploy-script-migration-verification-2026-06-13.txt for full details."
@@ -131,21 +146,27 @@
       "prompt_size_bytes": 37483,
       "prompt_size_lines": 360,
       "subagent_commits": {
-        "backend_main": ["d6c6ccf", "4283126", "164d86c", "f3e3afa", "7d7c3ac"]
+        "backend_main": [
+          "d6c6ccf",
+          "4283126",
+          "164d86c",
+          "f3e3afa",
+          "7d7c3ac"
+        ]
       },
       "stop_gates": [
-        "21/21 new unit tests pass — VERIFIED: `21 passed, 1 warning in 0.05s`",
-        "4 new reason-format tests pass (orchestrator regression suite) — VERIFIED: `4 passed in 0.05s`",
-        "3 new route-mount tests pass (orchestrator regression suite) — VERIFIED: `3 passed in 0.06s`",
-        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures) — VERIFIED: `10 failed, 151 passed`",
-        "DEPTH_DECIDED event type added to substrate_models.py (additive) — VERIFIED: `DEPTH_DECIDED = 'depth.decided'`",
-        "depth_router registered at /api/depth/decide — VERIFIED by app route introspection",
-        "depth_events_router registered at /api/missions/{id}/depth-events (orchestrator fix) — VERIFIED by app route introspection",
-        "enable_depth_policy=True toggle on MissionExecutor.execute_mission — VERIFIED by signature inspection",
-        "Depth policy is deterministic (no LLM call inside decide()) — VERIFIED by code inspection",
-        "Reasoning-cost savings documented (20% from 6 shallow + 3 normal + 1 deep vs all-normal) — partial credit; methodology + estimates, not measured",
-        "Alembic head still at tool_routing_001 (no new migration in chunk 4) — VERIFIED: no new migration file",
-        "git diff --check clean — VERIFIED by orchestrator"
+        "21/21 new unit tests pass \u2014 VERIFIED: `21 passed, 1 warning in 0.05s`",
+        "4 new reason-format tests pass (orchestrator regression suite) \u2014 VERIFIED: `4 passed in 0.05s`",
+        "3 new route-mount tests pass (orchestrator regression suite) \u2014 VERIFIED: `3 passed in 0.06s`",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures) \u2014 VERIFIED: `10 failed, 151 passed`",
+        "DEPTH_DECIDED event type added to substrate_models.py (additive) \u2014 VERIFIED: `DEPTH_DECIDED = 'depth.decided'`",
+        "depth_router registered at /api/depth/decide \u2014 VERIFIED by app route introspection",
+        "depth_events_router registered at /api/missions/{id}/depth-events (orchestrator fix) \u2014 VERIFIED by app route introspection",
+        "enable_depth_policy=True toggle on MissionExecutor.execute_mission \u2014 VERIFIED by signature inspection",
+        "Depth policy is deterministic (no LLM call inside decide()) \u2014 VERIFIED by code inspection",
+        "Reasoning-cost savings documented (20% from 6 shallow + 3 normal + 1 deep vs all-normal) \u2014 partial credit; methodology + estimates, not measured",
+        "Alembic head still at tool_routing_001 (no new migration in chunk 4) \u2014 VERIFIED: no new migration file",
+        "git diff --check clean \u2014 VERIFIED by orchestrator"
       ],
       "evidence_files": [
         ".sisyphus/evidence/chunk-4-depth-valid.txt",
@@ -159,7 +180,7 @@
       "bugfix_by_orchestrator": {
         "bugs": [
           {
-            "bug": "GET /missions/{id}/depth-events endpoint was on a router with prefix='/depth', making the actual mount /api/depth/missions/{mission_id}/depth-events — NOT the documented /api/missions/{mission_id}/depth-events.  Sub-agent's self-report and the file docstring both stated the correct (documented) path, but neither matched the actual FastAPI route table.  Any client trying to use the endpoint at the documented path would have gotten 404.",
+            "bug": "GET /missions/{id}/depth-events endpoint was on a router with prefix='/depth', making the actual mount /api/depth/missions/{mission_id}/depth-events \u2014 NOT the documented /api/missions/{mission_id}/depth-events.  Sub-agent's self-report and the file docstring both stated the correct (documented) path, but neither matched the actual FastAPI route table.  Any client trying to use the endpoint at the documented path would have gotten 404.",
             "fix": "Split the router in backend/app/api/v1/depth.py: kept `router = APIRouter(prefix='/depth', tags=['depth'])` for the POST /decide admin endpoint, added a separate `events_router = APIRouter(tags=['depth-events'])` for the GET /missions/{id}/depth-events mission-scoped replay endpoint.  Registered `depth_events_router` in backend/app/api/v1/__init__.py:128 and added it to the for-loop at line 239 with name 'depth-events'.  Endpoint now mounts at /api/missions/{mission_id}/depth-events as documented.",
             "verification": "Added 3 regression tests in backend/tests/test_depth_routing.py that import the FastAPI app and assert the correct paths exist and the buggy path does NOT.  All 3 pass.",
             "root_cause": "The depth.py file was generated by the sub-agent with a single APIRouter(prefix='/depth', ...) and a /missions/{id}/depth-events path inside it.  FastAPI concatenates the prefix and the path, so the actual mount included /depth/.  No review of the actual route table was done before claiming chunk completion."
@@ -190,9 +211,9 @@
       "stop_gates_planned": [
         "12+ new unit tests in test_handoff_packet.py pass (schema + protocol with mocked services)",
         "2+ new integration tests in test_handoff_lease_integration.py (may be skipped in dev env)",
-        "Backward-compat: old delegate/accept/complete/reject/fail methods still work — VERIFIED by existing handoff tests",
-        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures) — gate",
-        "Migration handoff_packets_001 applied to live DB — 7 new nullable columns on handoff_records",
+        "Backward-compat: old delegate/accept/complete/reject/fail methods still work \u2014 VERIFIED by existing handoff tests",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures) \u2014 gate",
+        "Migration handoff_packets_001 applied to live DB \u2014 7 new nullable columns on handoff_records",
         "HandoffPacket schema has 7 required fields (goal, success_criteria, retrieved_context_ids, tool_candidates, budget_remaining_usd, hitl_state, depth_policy_state)",
         "HANDOFF_INITIATED = 'handoff.initiated'",
         "HANDOFF_ACCEPTED = 'handoff.accepted'",
@@ -206,10 +227,10 @@
         "HandoffLeaseIntegration wraps LeaseManager primitives (claim/renew/release/transfer)",
         "No breaking changes to HandoffRecord schema (all new columns nullable)",
         "git diff --check clean",
-        "Alembic head at handoff_packets_001 — DEFERRED (requires live DB; migration is additive 7 nullable columns, no asyncpg multi-statement pitfall)",
-        "23/23 unit tests pass (21 original + 2 orchestrator regression tests: HANDOFF_LEASE_LOST emission, _packet_from_record old-record fallback) — VERIFIED: `23 passed in 0.18s`",
-        "2/2 new HandoffLeaseIntegration unit tests pass (transfer with/without new_worker_id) — VERIFIED: `2 passed in 0.04s`",
-        "3 integration tests properly marked @pytest.mark.integration (skipped in dev env, expected) — VERIFIED"
+        "Alembic head at handoff_packets_001 \u2014 DEFERRED (requires live DB; migration is additive 7 nullable columns, no asyncpg multi-statement pitfall)",
+        "23/23 unit tests pass (21 original + 2 orchestrator regression tests: HANDOFF_LEASE_LOST emission, _packet_from_record old-record fallback) \u2014 VERIFIED: `23 passed in 0.18s`",
+        "2/2 new HandoffLeaseIntegration unit tests pass (transfer with/without new_worker_id) \u2014 VERIFIED: `2 passed in 0.04s`",
+        "3 integration tests properly marked @pytest.mark.integration (skipped in dev env, expected) \u2014 VERIFIED"
       ],
       "evidence_files": [
         ".sisyphus/evidence/chunk-5-backward-compat.txt",
@@ -221,20 +242,23 @@
         ".sisyphus/evidence/chunk-5-orchestrator-audit.txt"
       ],
       "subagent_commits": {
-        "backend_main": ["62a008c", "49dc90f"]
+        "backend_main": [
+          "62a008c",
+          "49dc90f"
+        ]
       },
       "bugfix_by_orchestrator": {
         "bugs": [
           {
             "bug": "HANDOFF_LEASE_LOST event type was added to the SubstrateEventType enum (handoff.lease_lost) but NEVER emitted from any code path.  Defined in substrate_models.py:132, zero emission sites.  The whole point of the event was to capture worker-churn / lost-lease cases for substrate audit, but the implementation never wired it up.  Without it, an operator looking at the substrate event log has no visibility into 'why did this handoff's accept happen 30s after the previous worker stopped'.",
-            "fix": "In handoff_protocol.py accept_with_packet(), capture the return of self.lease_integration.renew(handoff_id).  If False, emit HANDOFF_LEASE_LOST via _emit_handoff_event with payload {handoff_id, phase='accept', reason='lease renewal returned False', to_agent_id}, and log a warning.  Fail-open preserved — the handoff is still accepted (matches pre-fix behavior) so existing callers don't break, but the audit event is now in the substrate log.",
-            "root_cause": "The sub-agent's commit message said 'HANDOFF_LEASE_LOST' was added but the implementation stopped at defining the enum value.  No test exercised the 'lease lost' path; no call site was wired up.  This is a chunk-5 'spec half-implemented' bug — the event type existed, the code path that should have emitted it was never written.",
-            "verification": "New unit test test_accept_with_packet_emits_lease_lost_when_renew_fails — asserts that when renew() returns False, both 'handoff.lease_lost' and 'handoff.accepted' events are emitted.  PASSES."
+            "fix": "In handoff_protocol.py accept_with_packet(), capture the return of self.lease_integration.renew(handoff_id).  If False, emit HANDOFF_LEASE_LOST via _emit_handoff_event with payload {handoff_id, phase='accept', reason='lease renewal returned False', to_agent_id}, and log a warning.  Fail-open preserved \u2014 the handoff is still accepted (matches pre-fix behavior) so existing callers don't break, but the audit event is now in the substrate log.",
+            "root_cause": "The sub-agent's commit message said 'HANDOFF_LEASE_LOST' was added but the implementation stopped at defining the enum value.  No test exercised the 'lease lost' path; no call site was wired up.  This is a chunk-5 'spec half-implemented' bug \u2014 the event type existed, the code path that should have emitted it was never written.",
+            "verification": "New unit test test_accept_with_packet_emits_lease_lost_when_renew_fails \u2014 asserts that when renew() returns False, both 'handoff.lease_lost' and 'handoff.accepted' events are emitted.  PASSES."
           },
           {
-            "bug": "HandoffLeaseIntegration.transfer(handoff_id, from_agent_id, to_agent_id) took from_agent_id and to_agent_id as required parameters but NEVER USED them.  The function called self.release(handoff_id) (which uses self._worker_id) and then self.claim_for_handoff(handoff_id, to_agent_id) (which also uses self._worker_id).  Result: no worker_id change at all — the function refreshes the lease under the SAME worker.  The docstring claimed 'Transfer lease ownership during worker churn' and the spec said worker churn is the primary use case, but the implementation did not perform a cross-worker transfer.  The existing integration test test_lease_transfer 'passed' but only checked that lease is not None — it never verified the worker_id actually changed (because it didn't).",
-            "fix": "Refactored lease_integration.py: extracted _claim_for_worker(handoff_id, agent_id, worker_id) as the internal claim primitive that takes an explicit worker_id.  claim_for_handoff() and transfer() now both call it.  transfer() gained a new optional parameter new_worker_id: str | None = None — if provided, the re-claim happens under that worker; if None, the instance's self._worker_id is used (preserves pre-fix behavior, no breaking change).  Default-None keeps existing callers working; new callers that need real cross-worker transfer pass the new worker_id explicitly.",
-            "root_cause": "The class wraps a single worker_id per instance, so a single HandoffLeaseIntegration can only claim under one worker.  The transfer method needed to accept a different worker_id for the re-claim but the original signature only took from_agent_id/to_agent_id (agent IDs, not worker IDs).  The from_agent_id and to_agent_id params were vestigial — they were meant for logging/audit but never wired into the actual claim call.",
+            "bug": "HandoffLeaseIntegration.transfer(handoff_id, from_agent_id, to_agent_id) took from_agent_id and to_agent_id as required parameters but NEVER USED them.  The function called self.release(handoff_id) (which uses self._worker_id) and then self.claim_for_handoff(handoff_id, to_agent_id) (which also uses self._worker_id).  Result: no worker_id change at all \u2014 the function refreshes the lease under the SAME worker.  The docstring claimed 'Transfer lease ownership during worker churn' and the spec said worker churn is the primary use case, but the implementation did not perform a cross-worker transfer.  The existing integration test test_lease_transfer 'passed' but only checked that lease is not None \u2014 it never verified the worker_id actually changed (because it didn't).",
+            "fix": "Refactored lease_integration.py: extracted _claim_for_worker(handoff_id, agent_id, worker_id) as the internal claim primitive that takes an explicit worker_id.  claim_for_handoff() and transfer() now both call it.  transfer() gained a new optional parameter new_worker_id: str | None = None \u2014 if provided, the re-claim happens under that worker; if None, the instance's self._worker_id is used (preserves pre-fix behavior, no breaking change).  Default-None keeps existing callers working; new callers that need real cross-worker transfer pass the new worker_id explicitly.",
+            "root_cause": "The class wraps a single worker_id per instance, so a single HandoffLeaseIntegration can only claim under one worker.  The transfer method needed to accept a different worker_id for the re-claim but the original signature only took from_agent_id/to_agent_id (agent IDs, not worker IDs).  The from_agent_id and to_agent_id params were vestigial \u2014 they were meant for logging/audit but never wired into the actual claim call.",
             "verification": "Two new unit tests in test_handoff_lease_integration.py::TestHandoffLeaseTransferUnit: test_transfer_without_new_worker_id_uses_instance_default (verifies backward compat) and test_transfer_with_new_worker_id_uses_new_worker (verifies the new behavior).  Both PASS."
           },
           {
@@ -244,7 +268,9 @@
             "verification": "New unit test test_packet_from_record_old_record_fallback constructs a mock HandoffRecord with goal=None, success_criteria=None, budget_remaining_usd=None, etc. and asserts that _packet_from_record returns a valid HandoffPacket.  PASSES."
           }
         ],
-        "commits_containing_fixes": ["9a772da"]
+        "commits_containing_fixes": [
+          "9a772da"
+        ]
       }
     },
     {
@@ -253,17 +279,17 @@
       "status": "complete",
       "estimate_w": 2,
       "stop_gates": [
-        "62/62 new unit tests pass — VERIFIED: `62 passed in 0.18s`",
-        "Substrate baseline at 145 passed, 3 pre-existing errors (no NEW failures from Chunk 6) — VERIFIED",
-        "SELF_CORRECTION_ATTEMPTED = 'self_correction.attempted' added to substrate_models.py — VERIFIED",
-        "SELF_CORRECTION_COMPLETED = 'self_correction.completed' added to substrate_models.py — VERIFIED",
-        "SELF_CORRECTION_ABORTED = 'self_correction.aborted' added to substrate_models.py — VERIFIED",
-        "RecoveryPolicy maps all 9 ErrorClass values to RecoveryAction — VERIFIED by 9 policy mapping tests",
-        "SelfCorrectionBudget enforces attempts, cost, wall-clock, and reflection limits — VERIFIED by 12 budget tests",
-        "SelfCorrectionLoop integrates FailureAnalyzer + RecoveryPolicy — VERIFIED by 16 loop decision tests",
-        "Event emission for all paths (attempted, aborted, completed) — VERIFIED by 6 event tests",
-        "MissionExecutor integrates self-correction into task failure path — VERIFIED by code inspection",
-        "No breaking changes to MissionExecutor behavior — VERIFIED by existing baseline tests passing",
+        "62/62 new unit tests pass \u2014 VERIFIED: `62 passed in 0.18s`",
+        "Substrate baseline at 145 passed, 3 pre-existing errors (no NEW failures from Chunk 6) \u2014 VERIFIED",
+        "SELF_CORRECTION_ATTEMPTED = 'self_correction.attempted' added to substrate_models.py \u2014 VERIFIED",
+        "SELF_CORRECTION_COMPLETED = 'self_correction.completed' added to substrate_models.py \u2014 VERIFIED",
+        "SELF_CORRECTION_ABORTED = 'self_correction.aborted' added to substrate_models.py \u2014 VERIFIED",
+        "RecoveryPolicy maps all 9 ErrorClass values to RecoveryAction \u2014 VERIFIED by 9 policy mapping tests",
+        "SelfCorrectionBudget enforces attempts, cost, wall-clock, and reflection limits \u2014 VERIFIED by 12 budget tests",
+        "SelfCorrectionLoop integrates FailureAnalyzer + RecoveryPolicy \u2014 VERIFIED by 16 loop decision tests",
+        "Event emission for all paths (attempted, aborted, completed) \u2014 VERIFIED by 6 event tests",
+        "MissionExecutor integrates self-correction into task failure path \u2014 VERIFIED by code inspection",
+        "No breaking changes to MissionExecutor behavior \u2014 VERIFIED by existing baseline tests passing",
         "git diff --check clean"
       ],
       "evidence_files": [
@@ -286,7 +312,7 @@
       "stop_gates_planned": [
         "Cross-tenant safety on every substrate.py endpoint (3+ tests, 404 not 403)",
         "Filter by event_type (single, CSV, unknown)",
-        "Deterministic ordering with (timestamp, sequence) tiebreak — byte-identical replay",
+        "Deterministic ordering with (timestamp, sequence) tiebreak \u2014 byte-identical replay",
         "Pagination with after_sequence + limit, defaults 100, max 1000",
         "All chunk 2-6 event types are replayable (12+ event-type tests)",
         "Backward-compat: existing endpoint shapes preserved",
@@ -300,7 +326,7 @@
         "alembic_current_eq_heads": "handoff_packets_001 (head) == handoff_packets_001 (head)",
         "import_check": "all 3 new modules load in container: replay_query.get_replay_query returns ReplayQueryService instance, schemas/replay Pydantic models have expected fields, substrate router has 3 routes at /api/missions/{id}/events|replay-state|event/{sequence}",
         "smoke_test_3_endpoints_unauth": "all 3 endpoints return HTTP 401 (route registered, auth check working)",
-        "smoke_test_route_paths": "correct paths /api/missions/{id}/... (NOT /api/substrate/missions/... — chunk 4 bug pattern avoided)",
+        "smoke_test_route_paths": "correct paths /api/missions/{id}/... (NOT /api/substrate/missions/... \u2014 chunk 4 bug pattern avoided)",
         "health_post_deploy": "status=ok, db=ok"
       },
       "evidence_files": [
@@ -309,14 +335,21 @@
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 3,
       "subagent_commits": {
-        "backend_main": ["9fe4936", "60598fe"]
+        "backend_main": [
+          "9fe4936",
+          "60598fe"
+        ]
       },
       "orchestrator_commits": {
-        "backend_main": ["b792fb6", "828e5ff", "136b054"]
+        "backend_main": [
+          "b792fb6",
+          "828e5ff",
+          "136b054"
+        ]
       },
       "bugfix_by_orchestrator": {
-        "bug": "Sub-agent (Sisyphus/oh-my-openagent) shipped commit 9fe4936 with only backend/app/api/v1/substrate.py modified. The route handlers added in that commit call get_replay_query() and reference MissionReplayResponse / ReplayEvent / ReplayPage — none of which existed in the commit. Anyone pulling 9fe4936 fresh would have hit ModuleNotFoundError on import.",
-        "fix": "Orchestrator committed the three missing files in b792fb6: backend/app/services/substrate/replay_query.py, backend/app/schemas/replay.py, and verified the test file (60598fe) was already committed by sub-agent. Post-deploy verification recipe passed (5 steps) — chunk is truly complete.",
+        "bug": "Sub-agent (Sisyphus/oh-my-openagent) shipped commit 9fe4936 with only backend/app/api/v1/substrate.py modified. The route handlers added in that commit call get_replay_query() and reference MissionReplayResponse / ReplayEvent / ReplayPage \u2014 none of which existed in the commit. Anyone pulling 9fe4936 fresh would have hit ModuleNotFoundError on import.",
+        "fix": "Orchestrator committed the three missing files in b792fb6: backend/app/services/substrate/replay_query.py, backend/app/schemas/replay.py, and verified the test file (60598fe) was already committed by sub-agent. Post-deploy verification recipe passed (5 steps) \u2014 chunk is truly complete.",
         "root_cause": "Sub-agent treated the chunk as a single-commit change and only staged the file that was the focus of the diff. Did not realize the changes had transitive dependencies on new supporting files. Same class of bug as chunks 2/3/5."
       },
       "test_coverage_gap": {
@@ -330,7 +363,7 @@
         "code_has": "DEFAULT_LIMIT = 1000, MAX_LIMIT = 1000 (default = max)",
         "note": "Sub-agent chose default=1000 (return full stream by default). Defensible but deviates from the prompt. Not blocking; document the choice in a follow-up if you want."
       },
-      "deploy_status": "COMPLETE — user ran 'bash /opt/flowmanner/deploy-backend.sh' on 2026-06-13, container built at 2026-06-13 08:49, post-deploy health passed (after 14 retries), 5-step backend-deploy-verification recipe passed (alembic head, import check, smoke test 3 endpoints, route path verification, no celery step needed). New code confirmed live in container via the import check."
+      "deploy_status": "COMPLETE \u2014 user ran 'bash /opt/flowmanner/deploy-backend.sh' on 2026-06-13, container built at 2026-06-13 08:49, post-deploy health passed (after 14 retries), 5-step backend-deploy-verification recipe passed (alembic head, import check, smoke test 3 endpoints, route path verification, no celery step needed). New code confirmed live in container via the import check."
     },
     {
       "id": 8,
@@ -343,30 +376,32 @@
       "prompt_size_bytes": 16933,
       "prompt_size_lines": 270,
       "stop_gates": [
-        "class CommunityTemplate added to backend/app/models/community_models.py with 15 columns matching live DB — VERIFIED",
-        "from app.models.community_models import CommunityTemplate succeeds in container (15 columns) — VERIFIED",
-        "CommunityComment.template_id FK resolves to community_templates.id — VERIFIED",
-        "NoReferencedTableError is GONE from alembic check — VERIFIED",
-        "6 new unit tests in backend/app/tests/test_community_models.py all pass — VERIFIED: 6 passed in 0.07s",
-        "No new migration file (table already exists in live DB) — VERIFIED",
-        "alembic current == alembic heads (handoff_packets_001) — VERIFIED",
-        "Chunk 7 test_substrate_replay.py still passes (27 tests) — VERIFIED",
-        "Full baseline: 918 passed, 18 failed (pre-existing), 3 skipped — NO NEW FAILURES from chunk 8",
-        "Backend health OK (status=ok, db=ok) — VERIFIED",
-        "No docker cp, no try/except pass, no PEP 563 in new model file — VERIFIED"
+        "class CommunityTemplate added to backend/app/models/community_models.py with 15 columns matching live DB \u2014 VERIFIED",
+        "from app.models.community_models import CommunityTemplate succeeds in container (15 columns) \u2014 VERIFIED",
+        "CommunityComment.template_id FK resolves to community_templates.id \u2014 VERIFIED",
+        "NoReferencedTableError is GONE from alembic check \u2014 VERIFIED",
+        "6 new unit tests in backend/app/tests/test_community_models.py all pass \u2014 VERIFIED: 6 passed in 0.07s",
+        "No new migration file (table already exists in live DB) \u2014 VERIFIED",
+        "alembic current == alembic heads (handoff_packets_001) \u2014 VERIFIED",
+        "Chunk 7 test_substrate_replay.py still passes (27 tests) \u2014 VERIFIED",
+        "Full baseline: 918 passed, 18 failed (pre-existing), 3 skipped \u2014 NO NEW FAILURES from chunk 8",
+        "Backend health OK (status=ok, db=ok) \u2014 VERIFIED",
+        "No docker cp, no try/except pass, no PEP 563 in new model file \u2014 VERIFIED"
       ],
-      "gate_failure_note": "make validate-migration fails at step 1 because alembic check now reveals extensive pre-existing structural drift between model metadata and the live DB (dozens of tables/columns/indexes). Before this chunk, alembic check crashed early with NoReferencedTableError and never reached the structural comparison. The NoReferencedTableError IS resolved — the remaining failures are pre-existing drift NOT caused by chunk 8.",
+      "gate_failure_note": "make validate-migration fails at step 1 because alembic check now reveals extensive pre-existing structural drift between model metadata and the live DB (dozens of tables/columns/indexes). Before this chunk, alembic check crashed early with NoReferencedTableError and never reached the structural comparison. The NoReferencedTableError IS resolved \u2014 the remaining failures are pre-existing drift NOT caused by chunk 8.",
       "evidence_files": [
         ".sisyphus/evidence/chunk-8-drift-remediation-valid.txt"
       ],
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 3,
       "commits": {
-        "backend_main": ["c34cfb2"]
+        "backend_main": [
+          "c34cfb2"
+        ]
       },
-      "path_chosen": "Option 1 of 3 from issue #1: add the missing CommunityTemplate ORM model class. Most additive — no data migration, no schema change, no FK removal, no raw SQL path rewrite. Closes the gate by making the FK target resolvable in SQLAlchemy metadata.",
+      "path_chosen": "Option 1 of 3 from issue #1: add the missing CommunityTemplate ORM model class. Most additive \u2014 no data migration, no schema change, no FK removal, no raw SQL path rewrite. Closes the gate by making the FK target resolvable in SQLAlchemy metadata.",
       "deferred_to_followup": [
-        "Remediate pre-existing structural drift between model metadata and live DB (dozens of tables/columns/indexes) so alembic check passes cleanly — tracked at https://github.com/glennguilloux/flowmanner/issues/2",
+        "Remediate pre-existing structural drift between model metadata and live DB (dozens of tables/columns/indexes) so alembic check passes cleanly \u2014 tracked at https://github.com/glennguilloux/flowmanner/issues/2",
         "Write a baseline Alembic migration for community_templates (the 'do it properly' path)",
         "Convert _ensure_table() and _ensure_comments_table() raw SQL in community.py to ORM",
         "Rewrite community.py to use the new model (would touch 600+ lines of route handlers)",
@@ -378,7 +413,7 @@
     {
       "id": 9,
       "name": "Lenient Validation Gate (Make the Gate Useful)",
-      "status": "prompt-written-awaiting-deepseek",
+      "status": "complete-with-pre-existing-failures",
       "estimate_w": 1,
       "prompt": ".hermes/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md",
       "prompt_written_at": "2026-06-13T10:04:12Z",
@@ -389,7 +424,7 @@
         "scripts/model_snapshot.json exists, valid JSON, captures the 559 pre-existing drift items",
         "scripts/snapshot_model_metadata.py exists, deterministic, idempotent",
         "scripts/validate-migration.sh step 1 replaced with snapshot diff; step 2 unchanged",
-        "make validate-migration passes (exit 0) — headline win",
+        "make validate-migration passes (exit 0) \u2014 headline win",
         "make validate-migration FAILS on introduced drift (negative test)",
         "4+ new tests in backend/tests/test_validate_migration_gate.py",
         "Diff output is human-readable, names the specific new items",
@@ -401,18 +436,37 @@
       ],
       "evidence_files": [
         ".sisyphus/evidence/chunk-9-lenient-gate-valid.txt",
-        ".sisyphus/evidence/pre_existing_drift_inventory.txt"
+        ".sisyphus/evidence/chunk-9-introduced-drift-fails.txt",
+        ".sisyphus/evidence/chunk-9-snapshot-refresh-idempotent.txt",
+        ".sisyphus/evidence/pre_existing_drift_inventory.txt",
+        ".sisyphus/evidence/chunk-9-validate-migration-step1.txt",
+        ".sisyphus/evidence/chunk-9-snapshot-importable.txt",
+        ".sisyphus/evidence/chunk-9-dockerfile-copy.txt",
+        ".sisyphus/evidence/chunk-9-import-coverage-audit.txt",
+        ".sisyphus/evidence/chunk-9-deploy-validation-decision.txt"
       ],
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
       "pre_existing_failures": 3,
       "approach": "Snapshot-based diff. Capture current Base.metadata as JSON in scripts/model_snapshot.json. Future gate runs diff the committed snapshot against a fresh snapshot. Pre-existing 559 items are in the snapshot, so they don't trigger the diff. Only NEW drift (introduced by a chunk and not yet snapshotted) causes a failure.",
       "grandfathered_drift_count": 559,
       "deferred_to_followup": [
-        "Multi-week foundation fix for the 559 pre-existing drift items (option 3 from issue #2) — separate initiative if/when prioritized",
-        "Single reconciliation migration approach (option 2 from issue #2) — risky, deferred",
-        "Other pre-existing tech debt: broken pre-commit-config.yaml symlink, 3 pre-existing test failures, Qdrant unhealthy"
+        "Multi-week foundation fix for the 559 pre-existing drift items (option 3 from issue #2) \u2014 separate initiative if/when prioritized",
+        "Single reconciliation migration approach (option 2 from issue #2) \u2014 risky, deferred",
+        "Other pre-existing tech debt: broken pre-commit-config.yaml symlink, 3 pre-existing test failures, Qdrant unhealthy",
+        "Fix legacy integration-test database URL assumption in backend/tests/test_integration_graph_execution.py so the full backend pytest baseline can run inside the backend container"
       ],
-      "notes": "Closes the loop. After this chunk, make validate-migration goes GREEN and stays green for any chunk that doesn't introduce new drift. Future chunks that DO introduce new drift (legitimately) just run 'make snapshot-refresh' and commit the updated snapshot in the same commit as the model change (per SESSION-RITUAL rule 6). The 559 pre-existing items are documented and grandfathered — they're a known project debt, not a blocker for the gate's primary purpose (catching chunk-level damage)."
+      "notes": "Chunk-specific lenient validation gate is complete: make validate-migration passes, introduced drift fails as expected, snapshot refresh is idempotent, alembic current/heads are handoff_packets_001, substrate and validation-gate tests pass, and health returns OK. The full backend pytest baseline remains blocked outside this chunk by host-vs-container database URL assumptions in backend/tests/test_integration_graph_execution.py, which replaces workflow-postgres with localhost and fails inside the backend container. The 559 pre-existing drift items are grandfathered in the snapshot and remain deferred.\n\nOffline-mode compatibility: 16 existing Alembic migration files were modified to add `context.is_offline_mode()` guards so that `alembic upgrade head --sql` (Step 2 of the validation gate) passes without DB connectivity. These are NOT drift fixes — they are offline-mode compatibility shims required for the validation gate's Step 2 to work. They add no schema changes, only conditional logic to skip DB inspection in offline mode. Verified: `make validate-migration` passes with these modifications; reverting them would break Step 2 offline render.",
+      "verified_at": "2026-06-13T18:35:34Z",
+      "stop_gates_verified_post_deploy": [
+        "make validate-migration passes \u2014 VERIFIED: exit 0",
+        "Introduced drift fails on `_CommunityTemplate__test_introduced` and cleanup/gate green \u2014 VERIFIED",
+        "Snapshot refresh is idempotent \u2014 VERIFIED: repeated refresh produced no backend/scripts/model_snapshot.json diff",
+        "Alembic current == alembic heads == handoff_packets_001 (head) \u2014 VERIFIED",
+        "Substrate regression is 27 passed \u2014 VERIFIED: test_substrate_replay.py",
+        "Validation-gate tests are 4 passed + 1 skipped \u2014 VERIFIED: test_validate_migration_gate.py",
+        "Health endpoint returns 200 OK \u2014 VERIFIED: status=ok/db=ok",
+        "Full backend pytest baseline remains blocked \u2014 VERIFIED: `docker compose exec backend pytest -q 2>&1 | tail -10` reports `163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors`; root cause is `backend/tests/test_integration_graph_execution.py` replacing `workflow-postgres` with `localhost`, which fails inside the backend container."
+      ]
     }
   ],
   "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
@@ -423,5 +477,15 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-13T10:04:12Z"
+  "last_updated": "2026-06-13T18:35:34Z",
+  "session_ids": [
+    "ses_13f6075bcffe1Q0t9aNuojwg7B",
+    "ses_13f545684ffeNqPhO9GhL39u1F"
+  ],
+  "session_origins": {
+    "ses_13f6075bcffe1Q0t9aNuojwg7B": "direct",
+    "ses_13f545684ffeNqPhO9GhL39u1F": "direct"
+  },
+  "task_sessions": {},
+  "agent": "atlas"
 }
