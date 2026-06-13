@@ -324,7 +324,22 @@
         "code_has": "DEFAULT_LIMIT = 1000, MAX_LIMIT = 1000 (default = max)",
         "note": "Sub-agent chose default=1000 (return full stream by default). Defensible but deviates from the prompt. Not blocking; document the choice in a follow-up."
       },
-      "deploy_status": "PENDING — user reviews audit, then runs 'bash /opt/flowmanner/deploy-backend.sh' (no --migrate; this chunk adds no migration). Post-deploy, run pytest + smoke-test the hardened endpoints before marking complete."
+      "post_handoff_verification": {
+        "verified_at": "2026-06-13T08:42:00Z",
+        "verified_by": "sub-agent (post-handoff pass)",
+        "results": {
+          "pytest_tests/test_substrate_replay.py": "27 passed in 0.24s (exit 0)",
+          "ruff_check_4_files": "All checks passed (exit 0)",
+          "py_compile_4_files": "exit 0",
+          "git_diff_check_HEAD~4..HEAD": "exit 0 (clean)",
+          "make_validate-migration": "fails on known community_templates drift (issue #1), NOT on chunk 7",
+          "deploy-backend.sh_--migrate_--dry-run": "exit 0 (script is well-formed, no actual deploy)"
+        },
+        "evidence_file_updated": ".sisyphus/evidence/chunk-7-replay-valid.txt (now 213 lines, 39 lines added in 828e5ff)",
+        "commit": "828e5ff chore(sisyphus): add chunk 7 post-handoff verification evidence",
+        "deploy_status_after_verification": "STILL PENDING — host-side verification is good, but the running backend container was last built 2026-06-13 08:10:26 UTC (pre-chunk-7 image). The new code is in source + git + on origin, but NOT in the running container. Per the verifying-flowmanner-deploys skill, the chunk is not truly 'complete' until the user deploys AND the 5-step recipe passes in the container."
+      },
+      "deploy_status": "PENDING — user reviews audit, then runs 'bash /opt/flowmanner/deploy-backend.sh' (no --migrate; this chunk adds no migration). Post-deploy, user must run the 5-step backend-deploy-verification recipe (alembic current, import check, smoke test the 3 hardened endpoints, baseline pytest, celery inspect — last one is N/A here since no new Celery task). After verification passes, orchestrator bumps status to 'complete' in a follow-up commit."
     }
   ],
   "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
