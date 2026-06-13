@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "project": "flowmanner-q2-q3-agentic-workflow",
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
-  "current_chunk": 8,
-  "current_chunk_name": "community_templates Drift Remediation (Issue #1)",
-  "current_chunk_status": "complete-with-pre-existing-gate-failure",
+  "current_chunk": 9,
+  "current_chunk_name": "Lenient Validation Gate (Make the Gate Useful)",
+  "current_chunk_status": "prompt-written-awaiting-deepseek",
   "last_completed_chunk": 8,
   "chunks": [
     {
@@ -366,7 +366,7 @@
       },
       "path_chosen": "Option 1 of 3 from issue #1: add the missing CommunityTemplate ORM model class. Most additive — no data migration, no schema change, no FK removal, no raw SQL path rewrite. Closes the gate by making the FK target resolvable in SQLAlchemy metadata.",
       "deferred_to_followup": [
-        "Remediate pre-existing structural drift between model metadata and live DB (dozens of tables/columns/indexes) so alembic check passes cleanly",
+        "Remediate pre-existing structural drift between model metadata and live DB (dozens of tables/columns/indexes) so alembic check passes cleanly — tracked at https://github.com/glennguilloux/flowmanner/issues/2",
         "Write a baseline Alembic migration for community_templates (the 'do it properly' path)",
         "Convert _ensure_table() and _ensure_comments_table() raw SQL in community.py to ORM",
         "Rewrite community.py to use the new model (would touch 600+ lines of route handlers)",
@@ -374,6 +374,45 @@
         "Fix the 3 pre-existing test failures"
       ],
       "notes": "CommunityTemplate drift (issue #1) is CLOSED. NoReferencedTableError resolved. make validate-migration still fails due to pre-existing structural drift that was masked by the FK error."
+    },
+    {
+      "id": 9,
+      "name": "Lenient Validation Gate (Make the Gate Useful)",
+      "status": "prompt-written-awaiting-deepseek",
+      "estimate_w": 1,
+      "prompt": ".hermes/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md",
+      "prompt_written_at": "2026-06-13T10:04:12Z",
+      "prompt_written_by": "orchestrator",
+      "prompt_size_bytes": 24750,
+      "prompt_size_lines": 444,
+      "stop_gates_planned": [
+        "scripts/model_snapshot.json exists, valid JSON, captures the 559 pre-existing drift items",
+        "scripts/snapshot_model_metadata.py exists, deterministic, idempotent",
+        "scripts/validate-migration.sh step 1 replaced with snapshot diff; step 2 unchanged",
+        "make validate-migration passes (exit 0) — headline win",
+        "make validate-migration FAILS on introduced drift (negative test)",
+        "4+ new tests in backend/tests/test_validate_migration_gate.py",
+        "Diff output is human-readable, names the specific new items",
+        "alembic current == alembic heads (no migration in this chunk)",
+        "Chunk 7 + 8 regression: 27 + 6 tests still pass",
+        "Substrate baseline preserved at 160 + 4 = 164 pass, 3 pre-existing failures",
+        "git diff --check clean",
+        "Pre-existing drift inventory at .sisyphus/evidence/pre_existing_drift_inventory.txt"
+      ],
+      "evidence_files": [
+        ".sisyphus/evidence/chunk-9-lenient-gate-valid.txt",
+        ".sisyphus/evidence/pre_existing_drift_inventory.txt"
+      ],
+      "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
+      "pre_existing_failures": 3,
+      "approach": "Snapshot-based diff. Capture current Base.metadata as JSON in scripts/model_snapshot.json. Future gate runs diff the committed snapshot against a fresh snapshot. Pre-existing 559 items are in the snapshot, so they don't trigger the diff. Only NEW drift (introduced by a chunk and not yet snapshotted) causes a failure.",
+      "grandfathered_drift_count": 559,
+      "deferred_to_followup": [
+        "Multi-week foundation fix for the 559 pre-existing drift items (option 3 from issue #2) — separate initiative if/when prioritized",
+        "Single reconciliation migration approach (option 2 from issue #2) — risky, deferred",
+        "Other pre-existing tech debt: broken pre-commit-config.yaml symlink, 3 pre-existing test failures, Qdrant unhealthy"
+      ],
+      "notes": "Closes the loop. After this chunk, make validate-migration goes GREEN and stays green for any chunk that doesn't introduce new drift. Future chunks that DO introduce new drift (legitimately) just run 'make snapshot-refresh' and commit the updated snapshot in the same commit as the model change (per SESSION-RITUAL rule 6). The 559 pre-existing items are documented and grandfathered — they're a known project debt, not a blocker for the gate's primary purpose (catching chunk-level damage)."
     }
   ],
   "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
@@ -384,5 +423,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-13T12:30:00Z"
+  "last_updated": "2026-06-13T10:04:12Z"
 }
