@@ -98,3 +98,15 @@
 - The first idempotency attempt exposed nondeterministic `generated_at`; fixed `backend/scripts/snapshot_model_metadata.py` to use deterministic `generated_at` (`1970-01-01T00:00:00Z` by default, with `SOURCE_DATE_EPOCH`/`SNAPSHOT_GENERATED_AT` overrides).
 - Rebuilt/restarted backend again without migrations and verified two consecutive `make snapshot-refresh` runs produced identical SHA-256 `245ba76f98cfb8aa05be33fd0058a923e7176a237eeb350a0c2ac5f0b1a89b86`.
 - Evidence captured in `.sisyphus/evidence/chunk-9-snapshot-refresh-output.txt`.
+
+
+## F3 Final Verification Wave — 2026-06-13T18:59:58Z
+- Ran F3 manual QA from the current state and saved concise evidence to `.sisyphus/evidence/final-qa/f3-manual-qa.md`.
+- Snapshot script output was written to a container temp JSON file and consumed by `/app/scripts/snapshot_diff.py` with exit 0 on identical input.
+- Drift was simulated non-destructively with a container-side `PYTHON_BIN` wrapper that adds `__qa_wrapper_introduced` to the generated snapshot; direct `bash scripts/validate-migration.sh` exited 1 and `make validate-migration` exited nonzero for the same diff.
+- Missing snapshot path was tested through `make validate-migration` with `SNAPSHOT_FILE=/tmp/f3-missing-snapshot.json`; the script emitted "Snapshot file not found" and `make` returned nonzero.
+- Malformed JSON and empty model metadata edge cases were tested directly with `snapshot_diff.py`; malformed input exited 2, empty metadata exited 0.
+- Snapshot refresh idempotency passed: two `make snapshot-refresh` runs followed by `git diff -- backend/scripts/model_snapshot.json` returned empty diff.
+- Chunk-specific checks passed: `bash scripts/validate-migration.sh`, `make validate-migration`, substrate pytest (`27 passed`), validation-gate pytest (`4 passed, 1 skipped`), Alembic current/heads (`handoff_packets_001 (head)`), and health curl (`{"status":"ok"}`).
+- Full backend pytest tail was rechecked and remains the inherited legacy blocker; documented in the F3 evidence rather than masking chunk-specific QA.
+- No model files or committed snapshot JSON were edited for F3; simulated drift used only container temp files and was cleaned up.
