@@ -91,8 +91,8 @@ from app.models.chat import ChatFile, ChatFolder, ChatMessage, ChatThread
 # Circuit breaker models (Phase 6.4)
 from app.models.circuit_breaker_models import MissionCircuitBreaker
 
-# Community models (Phase 3 comments)
-from app.models.community_models import CommunityComment
+# Community models (Phase 3 comments + drift remediation chunk 8)
+from app.models.community_models import CommunityComment, CommunityTemplate
 
 # Evaluation models
 from app.models.evaluation_models import (
