@@ -50,3 +50,30 @@
 - Malformed snapshots raise `ValueError`; CLI usage exits `0` for no diff, `1` for diff, and `2` for usage or malformed input.
 - Verified identical snapshots, introduced column, removed table, changed column, added index, added unique constraint, added foreign key, 50-line output cap, env-var CLI, malformed CLI, `ruff check`, and clean LSP diagnostics.
 
+
+## T5 Dockerfile COPY verification — 2026-06-13T13:10:26.004042+00:00
+- Confirmed `backend/Dockerfile:81` contains `COPY scripts/ /app/scripts/`.
+- Because `backend/scripts/snapshot_model_metadata.py` and `backend/scripts/snapshot_diff.py` exist in the backend build context, the image will contain `/app/scripts/snapshot_model_metadata.py` and `/app/scripts/snapshot_diff.py`.
+- Evidence written to `.sisyphus/evidence/chunk-9-dockerfile-copy.txt`.
+
+## T4 Pre-existing drift inventory — 2026-06-13T13:17:59.072695+00:00
+- Ran `docker compose exec -T backend alembic check` with `set +e` from `/opt/flowmanner` so the failing command could be captured.
+- Raw output exit status was `255`; raw output was preserved at `.sisyphus/evidence/t4_alembic_check_raw.txt` and `.sisyphus/evidence/pre_existing_drift_raw_alembic_check.txt`.
+- Categorized inventory written to `.sisyphus/evidence/pre_existing_drift_inventory.txt`.
+- Alembic reported 588 `Detected ...` lines. Excluded 29 PostgreSQL SERIAL sequence ownership notices, leaving 559 pre-existing drift items.
+- Drift count by type: tables 82 (added 10, removed 72), columns 185 (added 23, removed 25, type_change 11, NOT NULL 113, NULL 2, comment 11), indexes 241 (added 48, removed 186, changed 7), unique constraints 14 (added 1, removed 13), foreign keys 37 (added 8, removed 29), unknown 0.
+- No migrations, model definitions, or validation scripts were modified for T4.
+
+## T7 Validate migration step 1 replacement — 2026-06-13T15:37:32+02:00
+- Replaced `scripts/validate-migration.sh` Step 1 with snapshot-diff logic while preserving Step 2 (`alembic upgrade head --sql`) and helper infrastructure.
+- Step 1 now resolves `SNAPSHOT_FILE` to `${COMPOSE_DIR}/backend/scripts/model_snapshot.json`, generates a fresh container snapshot via `python /app/scripts/snapshot_model_metadata.py`, diffs with `python /app/scripts/snapshot_diff.py "$SNAPSHOT_FILE" "$FRESH_SNAPSHOT"`, and treats exit `1` as a clear validation failure.
+- Verified with `bash -n scripts/validate-migration.sh` and a temporary fake `docker` shim covering missing snapshot, clean diff, diff-found, and snapshot-generation-failure branches without touching the live container.
+- Evidence saved to `.sisyphus/evidence/chunk-9-validate-migration-step1.txt`.
+
+
+
+## T8 Makefile snapshot-refresh target — 2026-06-13T13:33:24Z
+- Added `.PHONY: snapshot-refresh` in the Makefile database section.
+- Target runs `$(COMPOSE_PROD) exec -T backend python /app/scripts/snapshot_model_metadata.py > $(PROJECT_ROOT)/backend/scripts/model_snapshot.json` and echoes refresh status.
+- Updated `validate-migration` help text from `alembic check + offline SQL render` to `snapshot diff + offline SQL render`.
+- Verified `make help` lists `snapshot-refresh`; `make -n snapshot-refresh` dry-runs the expected container command and exact output path. Did not run the real refresh target.
