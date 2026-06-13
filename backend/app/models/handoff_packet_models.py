@@ -67,9 +67,9 @@ class HandoffPacket(BaseModel):
 
     handoff_id: str
     from_agent_id: str
-    from_agent_name: str | None = None
+    from_agent_name: str | None
     to_agent_id: str
-    to_agent_name: str | None = None
+    to_agent_name: str | None
     goal: str = Field(..., min_length=1, max_length=4000)
     success_criteria: list[str] = Field(..., min_length=1, max_length=20)
     retrieved_context_ids: list[str] = Field(default_factory=list, max_length=50)

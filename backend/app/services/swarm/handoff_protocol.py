@@ -576,7 +576,11 @@ class HandoffProtocol:
             to_agent_id=handoff.to_agent_id,
             to_agent_name=handoff.to_agent_name,
             goal=handoff.goal or handoff.task_description,
-            success_criteria=handoff.success_criteria or [],
+            success_criteria=(
+                handoff.success_criteria
+                if handoff.success_criteria
+                else [handoff.task_description]
+            ),
             retrieved_context_ids=handoff.retrieved_context_ids or [],
             tool_candidates=handoff.tool_candidates or [],
             budget=HandoffBudget(
