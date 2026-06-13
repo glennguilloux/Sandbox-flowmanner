@@ -1,8 +1,12 @@
 """Depth policy API endpoints (Q2-Q3 Chunk 4).
 
-Provides:
+Two routers are exposed:
 - POST /depth/decide — compute a depth decision for given inputs (admin/testing)
 - GET /missions/{mission_id}/depth-events — list depth_decided events for a mission
+
+The events endpoint is on its own router (events_router) so its path is
+/api/missions/{mission_id}/depth-events and NOT /api/depth/missions/...
+(this was a routing bug fixed by the orchestrator on 2026-06-12).
 """
 
 import logging
@@ -21,7 +25,13 @@ from app.services.depth_policy import DepthPolicy
 
 logger = logging.getLogger(__name__)
 
+# /depth/decide — admin/testing endpoint for the policy itself
 router = APIRouter(prefix="/depth", tags=["depth"])
+
+# /missions/{mission_id}/depth-events — mission-scoped replay endpoint.
+# Kept on a separate router so its path resolves to /api/missions/...
+# (NOT /api/depth/missions/...).  Q2-Q3 chunk 4 orchestrator fix.
+events_router = APIRouter(tags=["depth-events"])
 
 # ── Request / Response models ──────────────────────────────────────
 
@@ -94,7 +104,7 @@ async def decide_depth(request: DepthDecideRequest) -> DepthDecisionResponse:
     )
 
 
-@router.get("/missions/{mission_id}/depth-events", response_model=list[DepthEventResponse])
+@events_router.get("/missions/{mission_id}/depth-events", response_model=list[DepthEventResponse])
 async def get_depth_events(
     mission_id: str,
     db: AsyncSession = Depends(get_db),

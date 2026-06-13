@@ -815,9 +815,20 @@ class MissionExecutor:
         risk: str = "low",
         uncertainty: float = 0.5,
     ) -> None:
-        """Emit a depth_decided substrate event for audit/replay."""
+        """Emit a depth_decided substrate event for audit/replay.
+
+        Uses the caller's `db` session (orchestrator fix 2026-06-12):
+        the previous implementation opened its own AsyncSessionLocal()
+        which committed the event in a SEPARATE transaction from the
+        mission execution.  That caused audit/replay divergence: if the
+        parent mission transaction rolled back, the depth event would
+        stay in the DB.  Using the caller's session keeps the event
+        atomically consistent with the parent transaction.
+
+        Wrapped in try/except so a failure to write the audit event does
+        not abort mission execution (audit is non-critical).
+        """
         try:
-            from app.database import AsyncSessionLocal
             from app.services.substrate.event_log import get_event_log
 
             audit_event = self.depth_policy.build_audit_event(
@@ -837,18 +848,17 @@ class MissionExecutor:
             run_id = str(mission.id)
 
             event_log = get_event_log()
-            async with AsyncSessionLocal() as event_db:
-                await event_log.append(
-                    event_db,
-                    run_id,
-                    [{
-                        "type": SubstrateEventType.DEPTH_DECIDED,
-                        "payload": audit_event.model_dump(),
-                        "actor": "depth_policy",
-                        "task_id": str(task.id),
-                        "mission_id": str(mission.id),
-                    }],
-                )
+            await event_log.append(
+                db,
+                run_id,
+                [{
+                    "type": SubstrateEventType.DEPTH_DECIDED,
+                    "payload": audit_event.model_dump(),
+                    "actor": "depth_policy",
+                    "task_id": str(task.id),
+                    "mission_id": str(mission.id),
+                }],
+            )
 
             logger.debug(
                 "Depth event emitted: task=%s level=%s hitl=%s",

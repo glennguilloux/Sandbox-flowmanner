@@ -1,0 +1,90 @@
+Chunk 4 — Orchestrator Audit Verdict
+====================================
+
+Date: 2026-06-12 23:08 UTC
+Auditor: Orchestrator (Hermes session, not sub-agent)
+Sub-agent report claimed: "5 commits pushed to origin/main, 21 tests pass, baseline 151/10 unchanged, no regressions"
+
+What was VERIFIED (not just trusted):
+  [✓] 5 commits exist on origin/main: 7d7c3ac, f3e3afa, 164d86c, 4283126, d6c6ccf
+  [✓] All 8 claimed files exist on disk with non-trivial sizes
+  [✓] .venv/bin/python -m pytest tests/test_depth_policy.py -v → 21 passed, 0 failed (0.05s)
+  [✓] Canonical substrate baseline (11 files) → 151 passed, 10 failed (UNCHANGED from lock)
+  [✓] SubstrateEventType.DEPTH_DECIDED = "depth.decided" added at substrate_models.py:124
+  [✓] depth_router registered in api/v1/__init__.py:127 + :238
+  [✓] enable_depth_policy=True toggle on execute_mission (line 259) with legacy path preserved
+  [✓] _emit_depth_event calls event_log.append() with DEPTH_DECIDED type (line 841)
+  [✓] Token math: 10×1500=15000 all-normal; 6×500+3×1500+1×4500=12000 mixed; 20% savings (CORRECT)
+  [✓] depth_models.py does NOT use `from __future__ import annotations` (chunk 3 lesson applied)
+  [✓] no `from __future__ import annotations` in any new chunk 4 file (chunk 3 lesson applied)
+  [✓] git diff --check origin/main..main → empty (clean)
+
+BUGS FOUND (1 critical, 2 minor):
+
+  [BUG-1 — CRITICAL: Endpoint path mismatch]
+    The sub-agent's report says:
+      POST /depth/decide
+      GET /missions/{id}/depth-events
+    The docstring in depth.py:1-6 says the same.
+    ACTUAL FastAPI route table (verified by importing app.main_fastapi):
+      POST /api/depth/decide
+      GET /api/depth/missions/{mission_id}/depth-events
+    Root cause: depth.py:24 declares `APIRouter(prefix="/depth", tags=["depth"])`
+                and line 97 registers `@router.get("/missions/{mission_id}/depth-events", ...)`
+                The /depth prefix concatenates → /api/depth/missions/{id}/depth-events
+    Impact: Any client trying to hit /api/missions/{id}/depth-events gets 404. The endpoint
+            is reachable but at a non-standard, surprising path under /api/depth/.
+    Severity: CRITICAL because the report itself documents the wrong path — i.e. nobody
+              could have actually used the endpoint to verify it works.
+    Fix: Split depth_router into two routers, OR change the GET endpoint to a separate
+         events router without the /depth prefix. E.g.:
+           # depth.py
+           router = APIRouter(prefix="/depth", tags=["depth"])  # POST /decide only
+           events_router = APIRouter(tags=["depth-events"])  # GET /missions/{id}/depth-events
+           @events_router.get("/missions/{mission_id}/depth-events", ...)
+         And register both in __init__.py. About 8 lines of changes.
+
+  [BUG-2 — MINOR: reason string joins ALL signals, not just the winner]
+    In depth_policy.py:152-153:
+       reason = "; ".join(reasons)
+    where `reasons` is appended for EVERY signal (lines 127, 132, 137, 142). For a
+    low-risk, low-uncertainty, high-budget step that picks SHALLOW, the reason is:
+      "risk=low; uncertainty=0.20 < 0.3; prior_failures=0; budget=$5.00 (adequate)"
+    But for a HIGH-RISK step that picks DEEP, the reason ALSO includes "uncertainty=0.20
+    < 0.3" and "prior_failures=0" and "budget=$5.00 (adequate)" — the audit log
+    will show the user that the policy voted DEEP because of risk, but the reason
+    string implies the other 3 signals also contributed. This is misleading for replay.
+    Fix: Build the reason from the winning candidate's reason + (optional) "runner-up"
+         notes, or list the winning signal first and tag the others as "non-binding".
+
+  [BUG-3 — MINOR: _emit_depth_event opens a new DB session instead of using the caller's]
+    In mission_executor.py:810-851, _emit_depth_event takes `db` as a parameter but
+    never uses it — instead it opens `async with AsyncSessionLocal() as event_db:`
+    on line 840. The depth event is committed in a separate transaction from the
+    parent mission execution. If the parent rolls back, the depth event STAYS in
+    the DB. This is documented as "non-critical, log and continue" but it can cause
+    audit/replay divergence.
+    Fix: Either use the passed `db` session (and accept that audit fails if the
+         mission transaction fails), or use a savepoint inside the parent session.
+         Lowest-risk fix: add a comment documenting the divergence explicitly.
+
+BUGS NOT FOUND (i.e. the prior-chunk failure modes were AVOIDED this time):
+  [✓] No `from __future__ import annotations` in any Pydantic model file (chunk 3 lesson)
+  [✓] No new migration (asyncpg multi-statement bug can't recur)
+  [✓] Policy is fully deterministic — no LLM call in the decision path (cost-savings claim holds)
+  [✓] All 21 tests are real, not stubs (covered: 6 risk/uncertainty/budget/failure, 4 HITL
+       escalation, 2 retry, 1 persistent failure, 1 policy override, 1 audit, 2 version,
+       3 custom thresholds, 2 reflection, 2 priority order)
+
+VERDICT:
+  Not safe to mark "complete" yet. The routing bug means the user-facing endpoint
+  doesn't exist at the documented path. This is a hard error, not a cosmetic issue.
+
+  Three options for the user:
+    A) Orchestrator fixes BUG-1 (split router, ~8 lines) + BUG-2 (winner-only reason
+       string) + BUG-3 (use caller's db session). Boulder → "complete-with-bugfix-by-orchestrator".
+       Total: 1 commit, push, done.
+    B) User wants to keep BUG-1 path as-is (intentional admin endpoint under /api/depth/).
+       Then I update the docstring + user-facing description to match reality. The two
+       minor bugs (reason string, db session) get filed as follow-ups.
+    C) Reject chunk 4 entirely and have the sub-agent redo it. Heaviest option.

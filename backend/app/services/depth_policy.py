@@ -108,8 +108,6 @@ class DepthPolicy:
         Returns:
             DepthDecision with level, reason, escalation flags, and metadata.
         """
-        reasons: list[str] = []
-
         # ── Step 1: Evaluate HITL escalation (hard rules) ─────────────
         escalate_to_hitl, hitl_reason = self._should_escalate_to_hitl(
             tool_requires_approval=tool_requires_approval,
@@ -124,33 +122,32 @@ class DepthPolicy:
         # Signal 1: Risk
         risk_candidate = self._risk_to_depth(risk)
         candidates.append(risk_candidate)
-        reasons.append(risk_candidate.reason)
 
         # Signal 2: Uncertainty
         unc_candidate = self._uncertainty_to_depth(uncertainty)
         candidates.append(unc_candidate)
-        reasons.append(unc_candidate.reason)
 
         # Signal 3: Prior failures
         fail_candidate = self._prior_failures_to_depth(prior_failures)
         candidates.append(fail_candidate)
-        reasons.append(fail_candidate.reason)
 
         # Signal 4: Budget
         budget_candidate = self._budget_to_depth(budget_remaining_usd)
         candidates.append(budget_candidate)
-        reasons.append(budget_candidate.reason)
 
-        # ── Step 3: Combine candidates (highest priority wins) ────────
-        level = self._combine_decisions(candidates)
+        # ── Step 3: Pick the winning candidate (highest priority wins) ─
+        # Orchestrator fix 2026-06-12: use the WINNER's reason only, not a
+        # concatenation of all signals.  The audit event payload still
+        # carries every signal (risk/uncertainty/budget/failures) as
+        # separate fields, so the full picture is preserved for replay.
+        best = self._combine_decisions(candidates)
+        level = best.level
+        reason = best.reason
 
-        # ── Step 4: HITL escalation overrides level to deep ──────────
+        # ── Step 4: HITL escalation forces level to deep ──────────────
         if escalate_to_hitl:
             level = DepthLevel.DEEP
-            reasons.append(f"HITL escalation: {hitl_reason}")
-
-        # Build human-readable reason
-        reason = "; ".join(reasons)
+            reason = f"{reason}; HITL: {hitl_reason}"
 
         # Map level to reflection iterations
         iterations = REFLECTION_ITERATIONS[level]
@@ -316,16 +313,21 @@ class DepthPolicy:
 
         return False, None
 
-    def _combine_decisions(self, candidates: list[_CandidateDecision]) -> DepthLevel:
-        """Combine candidate decisions using deterministic priority order.
+    def _combine_decisions(self, candidates: list[_CandidateDecision]) -> _CandidateDecision:
+        """Pick the winning candidate using deterministic priority order.
 
-        The candidate with the highest priority wins.
-        If there's a tie, deeper depth wins (conservative default).
+        The candidate with the highest priority wins.  If there's a tie,
+        deeper depth wins (conservative default).  Returns the candidate
+        itself (not just its level) so the caller can use the winner's
+        reason string verbatim — see orchestrator fix 2026-06-12.
         """
         if not candidates:
-            return DepthLevel.NORMAL
+            return _CandidateDecision(
+                level=DepthLevel.NORMAL,
+                reason="no signals (default normal)",
+                priority=0,
+            )
 
         # Sort by priority descending, then by depth (deep > normal > shallow)
         depth_order = {DepthLevel.DEEP: 3, DepthLevel.NORMAL: 2, DepthLevel.SHALLOW: 1}
-        best = max(candidates, key=lambda c: (c.priority, depth_order[c.level]))
-        return best.level
+        return max(candidates, key=lambda c: (c.priority, depth_order[c.level]))

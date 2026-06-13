@@ -422,3 +422,82 @@ class TestPriorityOrder:
         )
         assert decision.level == DepthLevel.DEEP
         assert "uncertainty=0.80" in decision.reason
+
+
+class TestReasonFormat:
+    """Orchestrator fix 2026-06-12: reason is the WINNER's reason only.
+
+    Before the fix, the reason string joined ALL 4 signals (risk, uncertainty,
+    failures, budget) with semicolons, which made the audit/replay log
+    misleading: a DEEP decision would show "uncertainty=0.20 < 0.3" as if
+    uncertainty mattered.  The fix uses the winner's reason string verbatim.
+    The full per-signal values are still in the audit event payload.
+    """
+
+    def test_reason_is_winner_only_low_risk_shallow(self, policy: DepthPolicy):
+        """All 4 signals vote SHALLOW; reason should be the winner (risk=low)."""
+        decision = policy.decide(
+            risk="low",
+            uncertainty=0.1,
+            budget_remaining_usd=Decimal("5.00"),
+            prior_failures=0,
+            tool_requires_approval=False,
+            retry_count=0,
+        )
+        assert decision.level == DepthLevel.SHALLOW
+        # The reason should be short and only mention the winning signal
+        assert ";" not in decision.reason, (
+            f"Reason should not be a semicolon-joined list, got: {decision.reason!r}"
+        )
+        assert "risk=low" in decision.reason
+
+    def test_reason_is_winner_only_high_risk_deep(self, policy: DepthPolicy):
+        """High risk beats everything; reason should be the risk signal only."""
+        decision = policy.decide(
+            risk="high",
+            uncertainty=0.1,  # would otherwise vote shallow
+            budget_remaining_usd=Decimal("5.00"),  # would otherwise vote normal
+            prior_failures=0,  # would otherwise vote shallow
+            tool_requires_approval=False,
+            retry_count=0,
+        )
+        assert decision.level == DepthLevel.DEEP
+        assert ";" not in decision.reason, (
+            f"Reason should not be a semicolon-joined list, got: {decision.reason!r}"
+        )
+        assert "risk=high" in decision.reason
+        # The misleading non-binding signals must NOT appear
+        assert "uncertainty=0.10 < 0.3" not in decision.reason
+        assert "prior_failures=0" not in decision.reason
+        assert "(adequate)" not in decision.reason
+
+    def test_hitl_reason_appends_cleanly(self, policy: DepthPolicy):
+        """HITL escalation should append '; HITL: <reason>' to the winner's reason."""
+        decision = policy.decide(
+            risk="low",
+            uncertainty=0.1,
+            budget_remaining_usd=Decimal("5.00"),
+            prior_failures=0,
+            tool_requires_approval=True,  # triggers HITL
+            retry_count=0,
+        )
+        assert decision.escalate_to_hitl is True
+        assert decision.level == DepthLevel.DEEP
+        # Reason should contain the winner's reason AND the HITL clause
+        assert "risk=low" in decision.reason
+        assert "HITL: tool_requires_approval" in decision.reason
+
+    def test_low_budget_winner_shows_budget_reason(self, policy: DepthPolicy):
+        """When budget is the binding signal, reason should be the budget clause."""
+        decision = policy.decide(
+            risk="low",
+            uncertainty=0.1,
+            budget_remaining_usd=Decimal("0.05"),  # below $0.10 threshold
+            prior_failures=0,
+            tool_requires_approval=False,
+            retry_count=0,
+        )
+        assert decision.level == DepthLevel.SHALLOW
+        assert ";" not in decision.reason
+        assert "budget" in decision.reason
+        assert "budget preservation" in decision.reason
