@@ -1,0 +1,7 @@
+Command: docker compose exec -T backend alembic check
+Working directory: /opt/flowmanner
+Captured at: 2026-06-13T13:09:02.458653Z
+Exit status: 255
+Raw output path: /opt/flowmanner/.sisyphus/evidence/t4_alembic_check_raw.txt
+Raw output bytes: 453667
+Raw output lines: 592

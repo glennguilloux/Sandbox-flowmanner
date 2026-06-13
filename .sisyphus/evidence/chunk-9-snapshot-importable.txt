@@ -1,0 +1,169 @@
+# Evidence — T2 Snapshot schema correction
+
+Generated at: 2026-06-13T12:19:08Z
+
+## Files changed for this correction
+- `backend/scripts/snapshot_model_metadata.py`
+- `.sisyphus/notepads/q2-q3-agentic-workflow/learnings.md`
+- `.sisyphus/evidence/chunk-9-snapshot-importable.txt`
+
+`backend/app/models/__init__.py` was not edited during this correction.
+
+## Required import checks
+
+Working directory: `/opt/flowmanner/backend`
+
+Command:
+```bash
+python3 -c "import app.models; print('import app.models ok')" && python3 -m app.models
+```
+
+Exit code: `0`
+
+stdout:
+```text
+import app.models ok
+Registered 134 SQLAlchemy tables
+```
+
+stderr:
+```text
+```
+
+## Snapshot schema check
+
+Working directory: `/opt/flowmanner/backend`
+
+Command:
+```bash
+python3 - <<'PY'
+import importlib.util
+from pathlib import Path
+from app.models import Base
+
+spec = importlib.util.spec_from_file_location('snapshot_model_metadata', Path('scripts/snapshot_model_metadata.py'))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+snapshot = module.build_snapshot(Base.metadata)
+assert list(snapshot.keys()) == ['generated_at', 'alembic_version', 'model_count', 'tables']
+assert snapshot['generated_at'].endswith('Z')
+assert snapshot['alembic_version'] == ''
+assert snapshot['model_count'] == len(snapshot['tables'])
+
+for table in snapshot['tables']:
+    assert set(table.keys()) == {'name', 'columns', 'indexes', 'unique_constraints', 'foreign_keys'}
+    assert isinstance(table['columns'], dict)
+    assert list(table['columns'].values()) == [table['columns'][name] for name in sorted(table['columns'])]
+    assert all(isinstance(column_type, str) for column_type in table['columns'].values())
+    assert table['indexes'] == sorted(table['indexes'])
+    assert all(isinstance(index_name, str) for index_name in table['indexes'])
+    assert table['unique_constraints'] == sorted(table['unique_constraints'])
+    assert all(isinstance(columns, list) for columns in table['unique_constraints'])
+    assert table['foreign_keys'] == sorted(table['foreign_keys'])
+    assert all(isinstance(pair, list) and len(pair) == 2 for pair in table['foreign_keys'])
+
+print(f"schema ok: {snapshot['model_count']} tables")
+PY
+```
+
+Exit code: `0`
+
+stdout:
+```text
+schema ok: 134 tables
+```
+
+stderr:
+```text
+```
+
+## Snapshot determinism check
+
+Working directory: `/opt/flowmanner/backend`
+
+Command:
+```bash
+python3 scripts/snapshot_model_metadata.py > /tmp/snapshot_schema_1.json
+python3 scripts/snapshot_model_metadata.py > /tmp/snapshot_schema_2.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+first = json.loads(Path('/tmp/snapshot_schema_1.json').read_text())
+second = json.loads(Path('/tmp/snapshot_schema_2.json').read_text())
+assert json.dumps(first['tables'], sort_keys=True) == json.dumps(second['tables'], sort_keys=True)
+print('tables deterministic ok')
+PY
+```
+
+Exit code: `0`
+
+stdout:
+```text
+tables deterministic ok
+```
+
+stderr:
+```text
+```
+
+## ALEMBIC_VERSION helper check
+
+Working directory: `/opt/flowmanner/backend`
+
+Command:
+```bash
+ALEMBIC_VERSION=test-revision python3 - <<'PY'
+import importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('snapshot_model_metadata', Path('scripts/snapshot_model_metadata.py'))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+assert module._get_alembic_version() == 'test-revision'
+print('alembic env ok')
+PY
+```
+
+Exit code: `0`
+
+stdout:
+```text
+alembic env ok
+```
+
+stderr:
+```text
+```
+
+## Static checks
+
+Working directory: `/opt/flowmanner/backend`
+
+Command:
+```bash
+ruff check app/models/__main__.py scripts/snapshot_model_metadata.py
+```
+
+Exit code: `0`
+
+stdout:
+```text
+All checks passed!
+```
+
+stderr:
+```text
+```
+
+## LSP diagnostics
+
+Tool: `lsp_diagnostics`
+
+Files:
+- `/opt/flowmanner/backend/app/models/__main__.py`
+- `/opt/flowmanner/backend/scripts/snapshot_model_metadata.py`
+
+Result:
+```text
+No diagnostics found
+```

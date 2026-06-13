@@ -1,0 +1,175 @@
+# T7 Evidence — validate-migration.sh Step 1 snapshot diff
+
+Generated: 2026-06-13T15:52:56+02:00
+
+## Relevant script snippets
+
+### Header Step 1/Step 2 description
+
+```bash
+#   Step 1: snapshot diff against backend/scripts/model_snapshot.json on host
+#           and /app/scripts/model_snapshot.json inside the backend container
+#           — catch NEW model/migration drift while ignoring the committed
+#             historical baseline
+#   Step 2: `alembic upgrade head --sql`    — catch offline-mode failures
+#                                             (sa.inspect, asyncpg multi-statement,
+#                                             env.py bugs, etc.)
+```
+
+### Step 1 snapshot-diff block with host/container path split
+
+```bash
+# --- Helpers -----------------------------------------------------------------
+exec_alembic() {
+  cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" "$@"
+}
+
+cleanup() { rm -f "$OFFLINE_SQL_PATH" "$FRESH_SNAPSHOT" 2>/dev/null || true; }
+trap cleanup EXIT
+
+# --- Step 1: snapshot diff ---------------------------------------------------
+log_step "Step 1/2: snapshot diff (model/migration drift)"
+
+SNAPSHOT_FILE="${SNAPSHOT_FILE:-${COMPOSE_DIR}/backend/scripts/model_snapshot.json}"
+CONTAINER_SNAPSHOT_FILE="${CONTAINER_SNAPSHOT_FILE:-/app/scripts/model_snapshot.json}"
+
+if [ ! -f "$SNAPSHOT_FILE" ]; then
+  log_error "Snapshot file not found: $SNAPSHOT_FILE"
+  log_error "Run 'make snapshot-refresh' to generate it, then commit the result."
+  exit 1
+fi
+
+log_info "Committed host snapshot: ${SNAPSHOT_FILE}"
+log_info "Container snapshot path: ${CONTAINER_SNAPSHOT_FILE}"
+
+# --- Pre-flight --------------------------------------------------------------
+if ! command -v docker >/dev/null 2>&1; then
+  log_error "docker is not on PATH"
+  exit 1
+fi
+
+if ! cd "$COMPOSE_DIR" && docker compose ps --services --status running 2>/dev/null \
+     | grep -q "^${BACKEND_CONTAINER}$"; then
+  log_error "Backend container '${BACKEND_CONTAINER}' is not running"
+  log_error "Start it with: cd ${COMPOSE_DIR} && docker compose up -d ${BACKEND_CONTAINER}"
+  exit 1
+fi
+
+if ! exec_alembic python /app/scripts/snapshot_model_metadata.py > "$FRESH_SNAPSHOT" 2>/dev/null; then
+  log_error "Snapshot generation failed inside the container"
+  log_error "Ensure ${BACKEND_CONTAINER} is running an image that contains /app/scripts/snapshot_model_metadata.py"
+  exit 1
+fi
+
+set +e
+DIFF_OUTPUT="$(exec_alembic python /app/scripts/snapshot_diff.py "$CONTAINER_SNAPSHOT_FILE" "$FRESH_SNAPSHOT" 2>&1)"
+DIFF_STATUS=$?
+set -e
+
+if [ "$DIFF_STATUS" -eq 0 ]; then
+  log_success "No new drift since snapshot"
+elif [ "$DIFF_STATUS" -eq 1 ]; then
+  log_error "Snapshot drift detected:"
+  if [ -n "$DIFF_OUTPUT" ]; then
+    printf '%s\n' "$DIFF_OUTPUT" | while IFS= read -r line; do
+      log_error "$line"
+    done
+  else
+    log_error "No diff output was produced"
+  fi
+  log_error "If this drift is intentional, run 'make snapshot-refresh' to update the baseline."
+  exit 1
+else
+  log_error "Snapshot diff failed with exit code ${DIFF_STATUS}"
+  if [ -n "$DIFF_OUTPUT" ]; then
+    printf '%s\n' "$DIFF_OUTPUT" | while IFS= read -r line; do
+      log_error "$line"
+    done
+  fi
+  exit "$DIFF_STATUS"
+fi
+```
+
+### Preserved Step 2 offline SQL render block
+
+```bash
+# --- Step 2: offline SQL render ----------------------------------------------
+log_step "Step 2/2: alembic upgrade head --sql (offline render)"
+
+if exec_alembic alembic upgrade head --sql > "$OFFLINE_SQL_PATH" 2>/dev/null; then
+  sql_lines=$(wc -l < "$OFFLINE_SQL_PATH")
+  sql_bytes=$(wc -c < "$OFFLINE_SQL_PATH")
+  log_success "Offline render OK — ${sql_lines} lines / ${sql_bytes} bytes"
+  log_info "  SQL preview: ${OFFLINE_SQL_PATH}"
+  log_info "  (delete with: rm ${OFFLINE_SQL_PATH})"
+else
+  log_error "Offline render FAILED"
+  log_error "This usually means a migration uses code that does not work in"
+  log_error "offline mode (e.g. sa.inspect(conn) in upgrade(), or asyncpg-"
+  log_error "incompatible multi-statement SQL via op.execute())."
+  log_error "See: .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+  exit 1
+fi
+```
+
+## Verification output
+
+### Static syntax check
+
+Command: `bash -n scripts/validate-migration.sh`
+Working directory: `/opt/flowmanner`
+Exit code: `0`
+
+```text
+bash -n: OK
+```
+
+### Missing snapshot fails before docker compose
+
+Command: `SNAPSHOT_FILE="/tmp/does-not-exist-manual.json" PATH="/tmp/fm-t7-pathfix-manual.g8iiJ1/bin:$PATH" bash scripts/validate-migration.sh`
+Working directory: `/opt/flowmanner`
+Exit code: `1`
+
+```text
+>>> Step 1/2: snapshot diff (model/migration drift)
+[FAIL]    Snapshot file not found: /tmp/does-not-exist-manual.json
+[FAIL]    Run 'make snapshot-refresh' to generate it, then commit the result.
+```
+
+The temporary fake `docker` would have printed `docker compose should not run for missing snapshot`; it did not run.
+
+### Clean branch passes `/app/scripts/model_snapshot.json` into the container
+
+Command: `COMPOSE_DIR="/tmp/fm-t7-pathfix-clean-record.sVxwcO/compose" PATH="/tmp/fm-t7-pathfix-clean-record.sVxwcO/bin:$PATH" FM_MOCK_FRESH_SNAPSHOT="/tmp/fm-t7-pathfix-clean-record.sVxwcO/compose/backend/scripts/fresh_snapshot.json" FM_MOCK_RECORD="/tmp/fm-t7-pathfix-clean-record.sVxwcO/docker-args.txt" bash scripts/validate-migration.sh`
+Working directory: `/opt/flowmanner`
+Exit code: `0`
+
+```text
+>>> Step 1/2: snapshot diff (model/migration drift)
+[INFO]    Committed host snapshot: /tmp/fm-t7-pathfix-clean-record.sVxwcO/compose/backend/scripts/model_snapshot.json
+[INFO]    Container snapshot path: /app/scripts/model_snapshot.json
+[OK]      No new drift since snapshot
+
+>>> Step 2/2: alembic upgrade head --sql (offline render)
+[OK]      Offline render OK — 2 lines / 15 bytes
+[INFO]      SQL preview: /tmp/flowmanner-migration-check-1114777.sql
+[INFO]      (delete with: rm /tmp/flowmanner-migration-check-1114777.sql)
+
+>>> Validation gate PASSED
+[OK]      Migration is safe to apply with:
+[OK]        bash /tmp/fm-t7-pathfix-clean-record.sVxwcO/compose/deploy-backend.sh --migrate
+```
+
+Recorded docker command args:
+
+```text
+compose exec -T backend python /app/scripts/snapshot_model_metadata.py
+compose exec -T backend python /app/scripts/snapshot_diff.py /app/scripts/model_snapshot.json /tmp/flowmanner-model-snapshot-1114777.json
+compose exec -T backend alembic upgrade head --sql
+```
+
+## Notes
+
+- Verification used temporary fake `docker` shims under `/tmp`; no live backend container was invoked.
+- The diff command now passes `"$CONTAINER_SNAPSHOT_FILE"` (`/app/scripts/model_snapshot.json` by default) to `/app/scripts/snapshot_diff.py`, not the host path `${COMPOSE_DIR}/backend/scripts/model_snapshot.json`.
+- `lsp_diagnostics` for Bash could not run because `bash-language-server` is not installed in this environment.

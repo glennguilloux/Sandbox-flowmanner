@@ -1,0 +1,53 @@
+# T5 Dockerfile COPY verification
+
+Timestamp: 2026-06-13T13:10:26.004042+00:00
+
+Task: Confirm backend/Dockerfile copies scripts/ into /app/scripts/ so backend container scripts are baked into the image.
+
+## Exact Dockerfile snippet
+
+```dockerfile
+74: # Copy only application code (not tests, scripts, docs, .git, etc.)
+75: COPY app/ /app/app/
+76: COPY alembic/ /app/alembic/
+77: COPY alembic.ini /app/alembic.ini
+78: COPY pyproject.toml /app/pyproject.toml
+79: COPY mcp_gateway/ /app/mcp_gateway/
+80: COPY agent_definitions/ /app/agent_definitions/
+81: COPY scripts/ /app/scripts/
+82: 
+```
+
+## Verification command output
+
+```text
+Dockerfile: backend/Dockerfile
+12: WORKDIR /build
+34: COPY requirements.txt /build/requirements.txt
+66: WORKDIR /app
+69: COPY --from=builder /opt/venv /opt/venv
+75: COPY app/ /app/app/
+76: COPY alembic/ /app/alembic/
+77: COPY alembic.ini /app/alembic.ini
+78: COPY pyproject.toml /app/pyproject.toml
+79: COPY mcp_gateway/ /app/mcp_gateway/
+80: COPY agent_definitions/ /app/agent_definitions/
+81: COPY scripts/ /app/scripts/
+92: COPY --from=builder /ms-playwright /ms-playwright
+96: COPY docker-entrypoint.py /docker-entrypoint.py
+Scripts present in backend/scripts:
+backend/scripts/snapshot_model_metadata.py: exists
+backend/scripts/snapshot_diff.py: exists
+Destination paths in image:
+/app/scripts/snapshot_model_metadata.py
+/app/scripts/snapshot_diff.py
+```
+
+## Result
+
+PASS: `COPY scripts/ /app/scripts/` is present in `backend/Dockerfile`. Because `backend/scripts/snapshot_model_metadata.py` and `backend/scripts/snapshot_diff.py` exist in the build context, the backend image will contain:
+
+backend/scripts/snapshot_model_metadata.py -> /app/scripts/snapshot_model_metadata.py: present
+backend/scripts/snapshot_diff.py -> /app/scripts/snapshot_diff.py: present
+
+No blocker found.

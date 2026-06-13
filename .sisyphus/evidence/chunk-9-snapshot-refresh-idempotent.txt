@@ -1,0 +1,54 @@
+# Chunk 9 Snapshot Refresh Idempotency Evidence
+
+Generated at: 2026-06-13T17:55:23.541605+00:00
+
+## make snapshot-refresh #1
+
+Command: make snapshot-refresh
+Exit code: 0
+
+```text
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+```
+
+## git diff -- backend/scripts/model_snapshot.json after refresh #1
+
+Command: git diff -- backend/scripts/model_snapshot.json
+Exit code: 0
+
+```text
+
+```
+
+## make snapshot-refresh #2
+
+Command: make snapshot-refresh
+Exit code: 0
+
+```text
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+```
+
+## git diff -- backend/scripts/model_snapshot.json after refresh #2
+
+Command: git diff -- backend/scripts/model_snapshot.json
+Exit code: 0
+
+```text
+
+```
+
+## backend/scripts/model_snapshot.json size/json check
+
+Command: python stat/json check
+Exit code: 0
+
+```text
+size_bytes=96140
+model_count=134
+tables_count=134
+```

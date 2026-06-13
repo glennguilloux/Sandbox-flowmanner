@@ -1,0 +1,156 @@
+# T6 Deploy Validation Decision — 2026-06-13T13:12:11Z
+
+## Relevant quoted evidence
+
+### `deploy-backend.sh` current behavior
+
+`deploy-backend.sh` currently has inline validation duplicated from the shared migration gate:
+
+```bash
+# deploy-backend.sh:204-209
+# Runs the same checks as scripts/validate-migration.sh but inline, so the
+# deploy can abort BEFORE applying migrations to the live DB. Mirrors the
+# findings doc MVP (steps 1 + 2):
+#
+#   Step 1: alembic check                 — catch model/migration drift
+#   Step 2: alembic upgrade head --sql    — catch offline-mode failures
+```
+
+`run_validation()` gates `--migrate`, honors `--no-validate`, prints dry-run commands, runs `alembic check`, then runs offline SQL render:
+
+```bash
+# deploy-backend.sh:222-268
+run_validation() {
+  if [ "$MIGRATE" = false ]; then
+    return 0
+  fi
+  if [ "$VALIDATE" = false ]; then
+    log_warn "Validation gate SKIPPED (--no-validate)"
+    return 0
+  fi
+
+  log_step "Migration validation gate (alembic check + offline SQL render)"
+
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose exec ${BACKEND_CONTAINER} alembic check"
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose exec ${BACKEND_CONTAINER} alembic upgrade head --sql > /tmp/migration.sql"
+    return 0
+  fi
+
+  local offline_sql="/tmp/flowmanner-migration-check-$$.sql"
+  trap 'rm -f "$offline_sql" 2>/dev/null || true' EXIT
+
+  # --- Step 1: alembic check ---
+  log_info "Step 1/2: alembic check (model/migration drift)"
+  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic check; then
+    log_error "VALIDATION FAILED: alembic check detected model/migration drift"
+    log_error "Fix with: cd $COMPOSE_DIR && docker compose exec $BACKEND_CONTAINER \\"
+    log_error "             alembic revision --autogenerate -m 'sync models to migrations'"
+    return 1
+  fi
+  log_success "No drift detected"
+
+  # --- Step 2: offline SQL render ---
+  log_info "Step 2/2: alembic upgrade head --sql (offline render)"
+  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" \
+       alembic upgrade head --sql > "$offline_sql" 2>/dev/null; then
+    log_error "VALIDATION FAILED: alembic offline render failed"
+    log_error "This usually means a migration uses code that does not work in"
+    log_error "offline mode (sa.inspect, asyncpg multi-statement, env.py bug)."
+    log_error "See: .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+    return 1
+  fi
+  local sql_lines sql_bytes
+  sql_lines=$(wc -l < "$offline_sql")
+  sql_bytes=$(wc -c < "$offline_sql")
+  log_success "Offline render OK — ${sql_lines} lines / ${sql_bytes} bytes"
+
+  log_success "Validation gate PASSED"
+}
+```
+
+The deploy flow calls `run_validation()` after build/deploy and before migrations:
+
+```bash
+# deploy-backend.sh:411-424
+# CRITICAL: build_and_deploy MUST run before run_migrations so the running
+# container has the latest migration files baked into its image. See
+# run_migrations() for the full explanation.
+build_and_deploy
+
+if [ "$MIGRATE" = true ]; then
+  if ! run_validation; then
+    log_error "Validation gate failed — the new image is in place but the"
+    log_error "migration is unsafe. Fix the migration, commit, and re-run:"
+    log_error "  bash $0 --migrate"
+    log_error "No automatic rollback (new image is healthy; only migration is bad)."
+    exit 1
+  fi
+  if ! run_migrations; then
+```
+
+### Shared validation script
+
+`scripts/validate-migration.sh` is the Makefile target's shared gate and already has the same MVP shape: Step 1 drift detection plus Step 2 offline SQL render.
+
+```bash
+# scripts/validate-migration.sh:104-146
+# --- Step 1: alembic check ---------------------------------------------------
+log_step "Step 1/2: alembic check (model/migration drift)"
+
+if exec_alembic alembic check; then
+  log_success "No drift detected between models and migration files"
+else
+  log_error "Drift detected — models and migration files are out of sync"
+  log_error "Fix with: cd ${COMPOSE_DIR} && docker compose exec ${BACKEND_CONTAINER} \\"
+  log_error "             alembic revision --autogenerate -m 'sync models to migrations'"
+  exit 1
+fi
+
+# --- Step 2: offline SQL render ----------------------------------------------
+log_step "Step 2/2: alembic upgrade head --sql (offline render)"
+
+if exec_alembic alembic upgrade head --sql > "$OFFLINE_SQL_PATH" 2>/dev/null; then
+  sql_lines=$(wc -l < "$OFFLINE_SQL_PATH")
+  sql_bytes=$(wc -c < "$OFFLINE_SQL_PATH")
+  log_success "Offline render OK — ${sql_lines} lines / ${sql_bytes} bytes"
+  log_info "  SQL preview: ${OFFLINE_SQL_PATH}"
+  log_info "  (delete with: rm ${OFFLINE_SQL_PATH})"
+else
+  log_error "Offline render FAILED"
+  log_error "This usually means a migration uses code that does not work in"
+  log_error "offline mode (e.g. sa.inspect(conn) in upgrade(), or asyncpg-"
+  log_error "incompatible multi-statement SQL via op.execute())."
+  log_error "See: .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+  exit 1
+fi
+
+# --- Step 3 (optional): prod-clone smoke test --------------------------------
+if [ "$RUN_CLONE" = true ]; then
+  log_step "Step 3/3: clone DB smoke test (pg_dump → upgrade head on clone)"
+  log_warn "Not yet implemented — see .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+  log_warn "This requires a separate DB user with CREATEDB rights and is not"
+  log_warn "enabled by default. Wire it in once clone DB creds are settled."
+  # Intentionally do NOT exit 1 here — --clone is a future addition, not a
+  # regression. The first two steps are still authoritative.
+fi
+
+log_step "Validation gate PASSED"
+log_success "Migration is safe to apply with:"
+log_success "  bash ${COMPOSE_DIR}/deploy-backend.sh --migrate"
+```
+
+## Decision: Option A — refactor
+
+Chosen option: **Option A (refactor)**.
+
+`deploy-backend.sh` should not duplicate the new snapshot-diff validation inline. The safer FlowManner deploy behavior is to keep one validation implementation in `scripts/validate-migration.sh` and have `deploy-backend.sh --migrate` call that shared gate.
+
+Why Option A is safer:
+
+1. **Single source of truth**: The Makefile path (`make validate-migration`) and the deploy path (`deploy-backend.sh --migrate`) will enforce the same lenient snapshot-diff semantics. This prevents a future where `make validate-migration` ignores grandfathered drift but the deploy gate still fails on it, or vice versa.
+2. **Lower deploy-risk**: Duplicating inline validation creates two maintenance paths. If T7 later adjusts snapshot-file handling, fresh-snapshot generation, diff exit codes, or output caps, Option B would require a second matching change in `deploy-backend.sh`. Option A avoids that drift.
+3. **Conservative deploy flow is preserved**: `run_validation()` remains the gate between `build_and_deploy` and `run_migrations`. If the shared script exits non-zero, the existing caller still aborts before migrations and leaves the new image healthy, matching the current deploy contract.
+4. **Existing deploy escape hatches remain deploy-owned**: `deploy-backend.sh` can still preserve `MIGRATE=false`, `VALIDATE=false`, and `DRY_RUN=true` behavior around the shared call. The shared script only owns the actual validation semantics.
+
+Implementation note for T9: keep the deploy script's outer validation guards and dry-run behavior, then delegate the real validation to `bash "${COMPOSE_DIR}/scripts/validate-migration.sh"`. Do not add `try/except: pass`, do not create migrations, and do not change model classes.

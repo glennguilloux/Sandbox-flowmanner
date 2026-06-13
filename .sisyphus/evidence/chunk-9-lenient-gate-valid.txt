@@ -1,0 +1,485 @@
+# Chunk 9 Lenient Gate Validation Evidence
+
+Generated at: 2026-06-13T17:53:58.983198+00:00
+N for git diff --check HEAD~N..HEAD: 7
+
+## make validate-migration
+
+Command: make validate-migration
+Exit code: 0
+
+```text
+[0;32mRunning migration validation gate...[0m
+bash /opt/flowmanner/scripts/validate-migration.sh
+
+[0;36m[1m>>> Step 1/2: snapshot diff (model/migration drift)[0m
+[0;34m[INFO][0m    Committed host snapshot: /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;34m[INFO][0m    Container snapshot path: /app/scripts/model_snapshot.json
+[0;32m[OK][0m      No new drift since snapshot
+
+[0;36m[1m>>> Step 2/2: alembic upgrade head --sql (offline render)[0m
+[0;32m[OK][0m      Offline render OK — 3713 lines / 146765 bytes
+[0;34m[INFO][0m      SQL preview: /tmp/flowmanner-migration-check-1433205.sql
+[0;34m[INFO][0m      (delete with: rm /tmp/flowmanner-migration-check-1433205.sql)
+
+[0;36m[1m>>> Validation gate PASSED[0m
+[0;32m[OK][0m      Migration is safe to apply with:
+[0;32m[OK][0m        bash /opt/flowmanner/deploy-backend.sh --migrate
+```
+
+## docker compose exec -T backend alembic current
+
+Command: docker compose exec -T backend alembic current
+Exit code: 0
+
+```text
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+handoff_packets_001 (head)
+```
+
+## docker compose exec -T backend alembic heads
+
+Command: docker compose exec -T backend alembic heads
+Exit code: 0
+
+```text
+handoff_packets_001 (head)
+```
+
+## docker compose exec backend pytest /app/tests/test_validate_migration_gate.py -v
+
+Command: docker compose exec backend pytest /app/tests/test_validate_migration_gate.py -v
+Exit code: 0
+
+```text
+metadata: {'Python': '3.11.11', 'Platform': 'Linux-7.0.10-arch1-1-x86_64-with-glibc2.36', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'Faker': '24.14.1', 'anyio': '4.13.0', 'asyncio': '0.25.3', 'clarity': '1.0.1', 'cov': '7.1.0', 'flask': '1.3.0', 'html': '4.2.0', 'json-report': '1.5.0', 'metadata': '3.1.1', 'mock': '3.15.1', 'timeout': '2.4.0', 'xdist': '3.8.0'}}
+rootdir: /app
+configfile: pyproject.toml
+plugins: Faker-24.14.1, anyio-4.13.0, asyncio-0.25.3, clarity-1.0.1, cov-7.1.0, flask-1.3.0, html-4.2.0, json-report-1.5.0, metadata-3.1.1, mock-3.15.1, timeout-2.4.0, xdist-3.8.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 5 items
+
+tests/test_validate_migration_gate.py::test_snapshot_file_exists_and_is_valid_json PASSED [ 20%]
+tests/test_validate_migration_gate.py::test_snapshot_matches_current_metadata PASSED [ 40%]
+tests/test_validate_migration_gate.py::test_snapshot_diff_catches_introduced_column PASSED [ 60%]
+tests/test_validate_migration_gate.py::test_step_2_offline_render_still_works SKIPPED [ 80%]
+tests/test_validate_migration_gate.py::test_snapshot_diff_silent_on_identical PASSED [100%]
+
+=============================== warnings summary ===============================
+../opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 4 passed, 1 skipped, 1 warning in 2.33s ====================
+```
+
+## docker compose exec backend pytest -q
+
+Command: docker compose exec backend pytest -q
+Exit code: 1
+
+```text
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_log_only_log_and_end_execute
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_end_executes_only_end
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_execute_nonexistent_workflow
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_subgraph_nonexistent_node
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_create_workflow_without_nodes
+163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors in 99.60s (0:01:39)
+/opt/venv/lib/python3.11/site-packages/_pytest/unraisableexception.py:33: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+```
+
+## git diff --check HEAD~7..HEAD
+
+Command: git diff --check HEAD~7..HEAD
+Exit code: 0
+
+```text
+
+```
+
+## curl -fsSL http://127.0.0.1:8000/health
+
+Command: curl -fsSL http://127.0.0.1:8000/health
+Exit code: 0
+
+```text
+{"status":"ok","app":"workflows-backend","env":"production","components":{"database":{"status":"ok","latency_ms":1.0,"detail":"PostgreSQL connected"},"redis":{"status":"ok","latency_ms":0.8,"detail":"Redis connected"},"langfuse":{"status":"healthy","latency_ms":0,"circuit_state":"CLOSED","detail":"Langfuse observability"},"reliability":{"llm_success_rate":null,"langfuse_caused_failures":0,"detail":null},"llm_provider":{"status":"healthy","model":"deepseek/deepseek-v4-flash","base_url":"https://api.deepseek.com/v1","key_configured":true,"detail":"LLM API"}}}
+```
+
+## T13 Run gate against running container — 2026-06-13T18:08:19Z
+
+## docker compose ps backend
+
+Command: docker compose ps backend
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:19Z
+Exit code: 0
+Finished at: 2026-06-13T18:08:19Z
+
+
+
+Exit code: NAME      IMAGE                        COMMAND                  SERVICE   CREATED             STATUS                       PORTS
+backend   workflows-backend:restored   "/docker-entrypoint.…"   backend   About an hour ago   Up About an hour (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+Finished at: 
+
+
+
+## make validate-migration
+
+Command: make validate-migration
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:19Z
+Exit code: 0
+Finished at: 2026-06-13T18:08:21Z
+
+
+
+Exit code: [0;32mRunning migration validation gate...[0m
+bash /opt/flowmanner/scripts/validate-migration.sh
+
+[0;36m[1m>>> Step 1/2: snapshot diff (model/migration drift)[0m
+[0;34m[INFO][0m    Committed host snapshot: /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;34m[INFO][0m    Container snapshot path: /app/scripts/model_snapshot.json
+[0;32m[OK][0m      No new drift since snapshot
+
+[0;36m[1m>>> Step 2/2: alembic upgrade head --sql (offline render)[0m
+[0;32m[OK][0m      Offline render OK — 3713 lines / 146765 bytes
+[0;34m[INFO][0m      SQL preview: /tmp/flowmanner-migration-check-1455169.sql
+[0;34m[INFO][0m      (delete with: rm /tmp/flowmanner-migration-check-1455169.sql)
+
+[0;36m[1m>>> Validation gate PASSED[0m
+[0;32m[OK][0m      Migration is safe to apply with:
+[0;32m[OK][0m        bash /opt/flowmanner/deploy-backend.sh --migrate
+Finished at: 
+
+
+
+## docker compose exec -T backend alembic current
+
+Command: docker compose exec -T backend alembic current
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:21Z
+Exit code: 0
+Finished at: 2026-06-13T18:08:22Z
+
+
+
+Exit code: INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+handoff_packets_001 (head)
+Finished at: 
+
+
+
+## docker compose exec -T backend alembic heads
+
+Command: docker compose exec -T backend alembic heads
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:22Z
+Exit code: 0
+Finished at: 2026-06-13T18:08:23Z
+
+
+
+Exit code: handoff_packets_001 (head)
+Finished at: 
+
+
+
+## docker compose exec backend pytest /app/tests/test_substrate_replay.py -q
+
+Command: docker compose exec backend pytest /app/tests/test_substrate_replay.py -q
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:23Z
+Exit code: 0
+Finished at: 2026-06-13T18:08:29Z
+
+
+
+Exit code: ...........................                                              [100%]
+=============================== warnings summary ===============================
+../opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+27 passed, 1 warning in 0.44s
+Finished at: 
+
+
+
+## docker compose exec backend pytest /app/tests/test_validate_migration_gate.py -v --tb=short
+
+Command: docker compose exec backend pytest /app/tests/test_validate_migration_gate.py -v --tb=short
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:29Z
+Exit code: 0
+Finished at: 2026-06-13T18:08:38Z
+
+
+
+Exit code: ============================= test session starts ==============================
+platform linux -- Python 3.11.11, pytest-8.4.2, pluggy-1.6.0 -- /opt/venv/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.11.11', 'Platform': 'Linux-7.0.10-arch1-1-x86_64-with-glibc2.36', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'Faker': '24.14.1', 'anyio': '4.13.0', 'asyncio': '0.25.3', 'clarity': '1.0.1', 'cov': '7.1.0', 'flask': '1.3.0', 'html': '4.2.0', 'json-report': '1.5.0', 'metadata': '3.1.1', 'mock': '3.15.1', 'timeout': '2.4.0', 'xdist': '3.8.0'}}
+rootdir: /app
+configfile: pyproject.toml
+plugins: Faker-24.14.1, anyio-4.13.0, asyncio-0.25.3, clarity-1.0.1, cov-7.1.0, flask-1.3.0, html-4.2.0, json-report-1.5.0, metadata-3.1.1, mock-3.15.1, timeout-2.4.0, xdist-3.8.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 5 items
+
+tests/test_validate_migration_gate.py::test_snapshot_file_exists_and_is_valid_json PASSED [ 20%]
+tests/test_validate_migration_gate.py::test_snapshot_matches_current_metadata PASSED [ 40%]
+tests/test_validate_migration_gate.py::test_snapshot_diff_catches_introduced_column PASSED [ 60%]
+tests/test_validate_migration_gate.py::test_step_2_offline_render_still_works SKIPPED [ 80%]
+tests/test_validate_migration_gate.py::test_snapshot_diff_silent_on_identical PASSED [100%]
+
+=============================== warnings summary ===============================
+../opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 4 passed, 1 skipped, 1 warning in 2.18s ====================
+Finished at: 
+
+
+
+## docker compose exec backend pytest -q 2>&1 | tail -10
+
+Command: docker compose exec backend pytest -q 2>&1 | tail -10
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:08:38Z
+Exit code: 0
+Finished at: 2026-06-13T18:09:50Z
+
+
+
+Exit code: ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_log_only_log_and_end_execute
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_end_executes_only_end
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_execute_nonexistent_workflow
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_subgraph_nonexistent_node
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_create_workflow_without_nodes
+163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors in 65.52s (0:01:05)
+/opt/venv/lib/python3.11/site-packages/_pytest/unraisableexception.py:33: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+Finished at: 
+
+
+
+## curl -fsSL http://127.0.0.1:8000/health
+
+Command: curl -fsSL http://127.0.0.1:8000/health
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:09:50Z
+Exit code: 0
+Finished at: 2026-06-13T18:09:55Z
+
+
+
+Exit code: {"status":"ok","app":"workflows-backend","env":"production","components":{"database":{"status":"ok","latency_ms":1.4,"detail":"PostgreSQL connected"},"redis":{"status":"ok","latency_ms":1.0,"detail":"Redis connected"},"langfuse":{"status":"healthy","latency_ms":0,"circuit_state":"CLOSED","detail":"Langfuse observability"},"reliability":{"llm_success_rate":null,"langfuse_caused_failures":0,"detail":null},"llm_provider":{"status":"healthy","model":"deepseek/deepseek-v4-flash","base_url":"https://api.deepseek.com/v1","key_configured":true,"detail":"LLM API"}}}
+Finished at: 
+
+
+
+
+## T13 corrected full backend pytest tail — 2026-06-13T18:18:22Z
+
+Command: set -o pipefail; docker compose exec backend pytest -q 2>&1 | tail -10
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:17:10Z
+Exit code: 1
+Finished at: 2026-06-13T18:18:22Z
+
+```text
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_log_only_log_and_end_execute
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_end_executes_only_end
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_execute_nonexistent_workflow
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_subgraph_nonexistent_node
+ERROR tests/test_integration_graph_execution.py::TestEdgeCases::test_create_workflow_without_nodes
+163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors in 64.75s (0:01:04)
+/opt/venv/lib/python3.11/site-packages/_pytest/unraisableexception.py:33: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+```
+
+## T13 representative failing test command/output — 2026-06-13T18:20:03Z
+
+Command: docker compose exec -T backend pytest -q tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start -vv --tb=short
+Working dir: /opt/flowmanner
+Started at: 2026-06-13T18:19:56Z
+Exit code: 1
+Finished at: 2026-06-13T18:20:03Z
+
+```text
+============================= test session starts ==============================
+platform linux -- Python 3.11.11, pytest-8.4.2, pluggy-1.6.0 -- /opt/venv/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.11.11', 'Platform': 'Linux-7.0.10-arch1-1-x86_64-with-glibc2.36', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'Faker': '24.14.1', 'anyio': '4.13.0', 'asyncio': '0.25.3', 'clarity': '1.0.1', 'cov': '7.1.0', 'flask': '1.3.0', 'html': '4.2.0', 'json-report': '1.5.0', 'metadata': '3.1.1', 'mock': '3.15.1', 'timeout': '2.4.0', 'xdist': '3.8.0'}}
+rootdir: /app
+configfile: pyproject.toml
+plugins: Faker-24.14.1, anyio-4.13.0, asyncio-0.25.3, clarity-1.0.1, cov-7.1.0, flask-1.3.0, html-4.2.0, json-report-1.5.0, metadata-3.1.1, mock-3.15.1, timeout-2.4.0, xdist-3.8.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 1 item
+
+tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start ERROR [100%]
+
+==================================== ERRORS ====================================
+_ ERROR at setup of TestSubGraphExecution.test_subgraph_from_task_skips_start __
+tests/test_integration_graph_execution.py:124: in test_user_and_session
+    await session.commit()
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py:1011: in commit
+    await greenlet_spawn(self.sync_session.commit)
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py:200: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1969: in commit
+    trans.commit(_to_root=True)
+<string>:2: in commit
+    ???
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1256: in commit
+    self._prepare_impl()
+<string>:2: in _prepare_impl
+    ???
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1231: in _prepare_impl
+    self.session.flush()
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:4312: in flush
+    self._flush(objects)
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:4447: in _flush
+    with util.safe_reraise():
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:4408: in _flush
+    flush_context.execute()
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py:466: in execute
+    rec.execute(self)
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py:60: in save_obj
+    for (
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py:221: in _organize_states_for_save
+    for state, dict_, mapper, connection in _connections_for_states(
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py:1736: in _connections_for_states
+    connection = uowtransaction.transaction.connection(base_mapper)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:2: in connection
+    ???
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:995: in connection
+    return self._connection_for_bind(bind, execution_options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:2: in _connection_for_bind
+    ???
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1129: in _connection_for_bind
+    conn = self._parent._connection_for_bind(
+<string>:2: in _connection_for_bind
+    ???
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1143: in _connection_for_bind
+    conn = bind.connect()
+           ^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:3269: in connect
+    return self._connection_cls(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:145: in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:3293: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:452: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:1269: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:716: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/impl.py:284: in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:393: in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:678: in __init__
+    self.__connect()
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:902: in __connect
+    with util.safe_reraise():
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py:898: in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py:645: in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py:616: in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py:941: in connect
+    await_only(creator_fn(*arg, **kw)),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py:130: in await_only
+    return current.driver.switch(awaitable)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py:195: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/asyncpg/connection.py:2443: in connect
+    return await connect_utils._connect(
+/opt/venv/lib/python3.11/site-packages/asyncpg/connect_utils.py:1249: in _connect
+    raise last_error or exceptions.TargetServerAttributeNotMatched(
+/opt/venv/lib/python3.11/site-packages/asyncpg/connect_utils.py:1218: in _connect
+    conn = await _connect_addr(
+/opt/venv/lib/python3.11/site-packages/asyncpg/connect_utils.py:1054: in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/asyncpg/connect_utils.py:1099: in __connect_addr
+    tr, pr = await connector
+             ^^^^^^^^^^^^^^^
+/opt/venv/lib/python3.11/site-packages/asyncpg/connect_utils.py:969: in _create_ssl_connection
+    tr, pr = await loop.create_connection(
+/usr/local/lib/python3.11/asyncio/base_events.py:1094: in create_connection
+    raise OSError('Multiple exceptions: {}'.format(
+E   OSError: Multiple exceptions: [Errno 111] Connect call failed ('::1', 5432, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 5432)
+=============================== warnings summary ===============================
+../opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start
+========================= 1 warning, 1 error in 0.58s ==========================
+```
+
+
+## T13 failure diagnosis — 2026-06-13T18:21:00Z
+
+- Full backend pytest tail failed with `163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors`, which is materially worse than the expected baseline of about `164+ passed / 3 pre-existing failures`.
+- Representative failing command: `docker compose exec -T backend pytest -q tests/test_integration_graph_execution.py::TestSubGraphExecution::test_subgraph_from_task_skips_start -vv --tb=short`.
+- Root cause traced to `backend/tests/test_integration_graph_execution.py`: it overrides the container-reachable database host `workflow-postgres` to `localhost` (`settings.DATABASE_URL.replace("workflow-postgres", "localhost")`) and monkeypatches `app.database.AsyncSessionLocal` to that localhost engine.
+- When tests run inside the backend container, `localhost:5432` is the backend container itself, not the PostgreSQL service (`workflow-postgres` / `10.0.4.2`), so SQLAlchemy/asyncpg raises `OSError: Multiple exceptions: [Errno 111] Connect call failed ('::1', 5432, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 5432)`.
+- This is outside the chunk 9 lenient validation gate scope. Chunk-specific stop-gate checks passed (`make validate-migration`, Alembic current/heads match, substrate regression 27 passed, validation-gate tests 4 passed + 1 skipped, health 200 OK). Full-suite baseline remains blocked until the host-vs-container database URL assumptions in legacy integration tests are fixed or the full suite is run from the host with the intended localhost mapping.
