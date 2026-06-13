@@ -214,7 +214,7 @@ top_keys ['alembic_version', 'generated_at', 'model_count', 'tables']
 model_count 134
 tables_type list
 tables_len 134
-alembic_version 
+alembic_version
 generated_at 2026-06-13T14:41:35Z
 first_table_type dict
 size_bytes 96140
