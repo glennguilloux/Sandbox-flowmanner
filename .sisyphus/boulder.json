@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "project": "flowmanner-q2-q3-agentic-workflow",
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
-  "current_chunk": 4,
-  "current_chunk_name": "Adaptive Reasoning Depth with HITL Escalation",
-  "current_chunk_status": "complete-with-bugfix-by-orchestrator",
+  "current_chunk": 5,
+  "current_chunk_name": "Multi-Agent Handoff Packets",
+  "current_chunk_status": "prompt-written-awaiting-deepseek",
   "last_completed_chunk": 4,
   "chunks": [
     {
@@ -180,8 +180,30 @@
     {
       "id": 5,
       "name": "Multi-Agent Handoff Packets",
-      "status": "blocked-on-chunk-4",
-      "estimate_w": 4
+      "status": "prompt-written-awaiting-deepseek",
+      "estimate_w": 4,
+      "prompt": ".hermes/plans/q2-q3-chunk5-multi-agent-handoff-packets-prompt.md",
+      "prompt_written_at": "2026-06-13T00:15:00Z",
+      "prompt_written_by": "orchestrator",
+      "prompt_size_bytes": 33879,
+      "prompt_size_lines": 343,
+      "stop_gates_planned": [
+        "12+ new unit tests in test_handoff_packet.py pass (schema + protocol with mocked services)",
+        "2+ new integration tests in test_handoff_lease_integration.py (may be skipped in dev env)",
+        "Backward-compat: old delegate/accept/complete/reject/fail methods still work — VERIFIED by existing handoff tests",
+        "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures) — gate",
+        "Migration handoff_packets_001 applied to live DB — 7 new nullable columns on handoff_records",
+        "HandoffPacket schema has 7 required fields (goal, success_criteria, retrieved_context_ids, tool_candidates, budget_remaining_usd, hitl_state, depth_policy_state)",
+        "5 new event types added to SubstrateEventType (HANDOFF_INITIATED/ACCEPTED/COMPLETED/FAILED/BUDGET_EXHAUSTED/LEASE_LOST) — additive",
+        "delegate_with_packet emits HANDOFF_INITIATED via event_log.append",
+        "complete_with_packet with spent_usd > remaining_usd raises BudgetExceededError AND emits HANDOFF_BUDGET_EXHAUSTED (NOT HANDOFF_COMPLETED)",
+        "Cross-workspace HITL item in packet raises ValueError (no cross-tenant leakage)",
+        "HandoffLeaseIntegration wraps LeaseManager primitives (claim/renew/release/transfer)",
+        "No breaking changes to HandoffRecord schema (all new columns nullable)",
+        "git diff --check clean",
+        "Alembic head at handoff_packets_001"
+      ],
+      "scope_refinement": "Plan estimates 4w but orchestrator found existing HandoffProtocol (286 lines) + HandoffRecord scaffolding; actual work is an UPGRADE to typed packet with budget/HITL/lease preservation, not a greenfield build. Realistic: ~3w if no surprises, 4w if substrate integration is hard."
     },
     {
       "id": 6,
@@ -198,5 +220,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-12T23:15:00Z"
+  "last_updated": "2026-06-13T00:15:00Z"
 }
