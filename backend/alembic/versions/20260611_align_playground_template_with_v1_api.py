@@ -19,7 +19,7 @@ Create Date: 2026-06-11
 
 from sqlalchemy import text as sa_text
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision = "align_playground_template_with_v1_api_001"
@@ -30,6 +30,10 @@ depends_on = None
 
 def upgrade() -> None:
     """Rename template values from 'python.img' to 'python-img'."""
+    if context.is_offline_mode():
+        op.execute("UPDATE playground_sandboxes SET template = 'python-img' WHERE template = 'python.img'")
+        return
+
     conn = op.get_bind()
     result = conn.execute(
         sa_text(
@@ -52,6 +56,10 @@ def downgrade() -> None:
     reverted, which is incorrect. Operators wanting a true revert
     should restore from a pre-migration database backup.
     """
+    if context.is_offline_mode():
+        op.execute("UPDATE playground_sandboxes SET template = 'python.img' WHERE template = 'python-img'")
+        return
+
     conn = op.get_bind()
     result = conn.execute(
         sa_text(

@@ -12,9 +12,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.models.blueprint_models import Blueprint, Run

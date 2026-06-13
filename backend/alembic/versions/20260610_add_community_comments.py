@@ -7,7 +7,7 @@ Create Date: 2026-06-10
 
 import sqlalchemy as sa
 
-from alembic import op
+from alembic import context, op
 
 revision = "add_community_comments"
 down_revision = "phase103_drop_old_tables"
@@ -16,14 +16,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Table may already exist (created outside Alembic); skip if so.
-    bind = op.get_bind()
-    has_table = bind.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-            "WHERE table_schema='public' AND table_name='community_comments')"
-        )
-    ).scalar()
+    if context.is_offline_mode():
+        has_table = False
+    else:
+        bind = op.get_bind()
+        has_table = bind.execute(
+            sa.text(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema='public' AND table_name='community_comments')"
+            )
+        ).scalar()
     if has_table:
         return
 

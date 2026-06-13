@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from sqlalchemy import text as sa_text
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision = "seed_sandboxd_tools"
@@ -79,7 +79,34 @@ SANDBOXD_TOOLS = [
 ]
 
 
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
 def upgrade() -> None:
+    if context.is_offline_mode():
+        for index, tool in enumerate(SANDBOXD_TOOLS, start=1):
+            tool_id = f"seed_sandboxd_tools_{index:02d}"
+            op.execute(
+                "INSERT INTO tools_catalog ("
+                "id, slug, name, description, category, tool_type, "
+                "handler_ref, tags, source, version, "
+                "enabled, visibility, requires_auth, timeout_seconds, tier, "
+                "created_at, updated_at"
+                ") VALUES ("
+                f"{_sql_literal(tool_id)}, "
+                f"{_sql_literal(tool['slug'])}, "
+                f"{_sql_literal(tool['name'])}, "
+                f"{_sql_literal(tool['description'])}, "
+                f"{_sql_literal(tool['category'])}, 'builtin', "
+                f"{_sql_literal(tool['handler_ref'])}, "
+                f"{_sql_literal(json.dumps(tool['tags']))}::jsonb, 'alembic_seed', 1, "
+                "true, 'public', true, "
+                f"{tool['timeout_seconds']}, 1, now(), now()"
+                ") ON CONFLICT (slug) DO NOTHING"
+            )
+        return
+
     conn = op.get_bind()
     for tool in SANDBOXD_TOOLS:
         tool_id = str(uuid4())
@@ -114,8 +141,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    conn = op.get_bind()
     slugs = [t["slug"] for t in SANDBOXD_TOOLS]
+    if context.is_offline_mode():
+        op.execute(
+            "DELETE FROM tools_catalog WHERE slug = ANY(ARRAY["
+            + ", ".join(_sql_literal(slug) for slug in slugs)
+            + "])"
+        )
+        return
+
+    conn = op.get_bind()
     conn.execute(
         sa_text("DELETE FROM tools_catalog WHERE slug = ANY(:slugs)"),
         {"slugs": slugs},

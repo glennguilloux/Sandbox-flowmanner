@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import text as sa_text
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision = "seed_sandbox_dag_blueprint"
@@ -126,7 +126,34 @@ OUTPUT_SCHEMA = {
 }
 
 
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
 def upgrade() -> None:
+    if context.is_offline_mode():
+        op.execute(
+            "INSERT INTO blueprints ("
+            "id, user_id, title, description, "
+            "blueprint_type, definition, input_schema, output_schema, "
+            "status, version, tags, category, icon, "
+            "run_count, created_at, updated_at"
+            ") VALUES ("
+            f"{_sql_literal(BLUEPRINT_ID)}, {SYSTEM_USER_ID}, "
+            f"{_sql_literal('Sandbox Code Runner')}, "
+            f"{_sql_literal('Generate Python code with an LLM, execute it in an isolated Docker sandbox, and summarize the results. Demonstrates the sandbox DAG node (Phase 3).')}, "
+            "'dag', "
+            f"{_sql_literal(json.dumps(SAMPLE_DAG_DEFINITION))}::jsonb, "
+            f"{_sql_literal(json.dumps(INPUT_SCHEMA))}::jsonb, "
+            f"{_sql_literal(json.dumps(OUTPUT_SCHEMA))}::jsonb, "
+            "'published', 1, "
+            f"{_sql_literal(json.dumps(['sandbox', 'code-execution', 'demo', 'dag']))}::jsonb, "
+            f"{_sql_literal('code-execution-and-development')}, {_sql_literal('sandbox')}, "
+            "0, now(), now()"
+            ") ON CONFLICT DO NOTHING"
+        )
+        return
+
     conn = op.get_bind()
     conn.execute(
         sa_text(
@@ -168,6 +195,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if context.is_offline_mode():
+        op.execute(f"DELETE FROM blueprints WHERE id = {_sql_literal(BLUEPRINT_ID)}")
+        return
+
     conn = op.get_bind()
     conn.execute(
         sa_text("DELETE FROM blueprints WHERE id = :id"),

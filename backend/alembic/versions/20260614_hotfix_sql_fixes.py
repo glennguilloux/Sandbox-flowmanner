@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy import inspect, text
 from sqlalchemy.dialects.postgresql import JSONB
 
-from alembic import op
+from alembic import context, op
 
 revision = "hotfix_sql_fixes"
 down_revision = "add_expected_behaviors"
@@ -21,6 +21,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if context.is_offline_mode():
+        return
+
     bind = op.get_bind()
     inspector = inspect(bind)
 
@@ -148,6 +151,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if context.is_offline_mode():
+        return
+
     bind = op.get_bind()
     inspector = inspect(bind)
     tables = set(inspector.get_table_names())

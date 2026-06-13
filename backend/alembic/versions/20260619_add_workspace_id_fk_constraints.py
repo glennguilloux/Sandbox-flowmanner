@@ -9,7 +9,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 
-from alembic import op
+from alembic import context, op
 
 revision: str = "fk_workspace_id_constraints_001"
 down_revision: str | Sequence[str] | None = "fk_user_id_constraints_001"
@@ -19,6 +19,9 @@ depends_on: str | Sequence[str] | None = None
 
 def _fk_exists(table: str, column: str, ref_table: str) -> bool:
     """Check if a FK constraint already exists on a column."""
+    if context.is_offline_mode():
+        return False
+
     bind = op.get_bind()
     result = bind.execute(
         sa.text(

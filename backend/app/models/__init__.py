@@ -53,6 +53,22 @@ from app.models.agent import (
     EscalationRecord,
     HandoffRecord,
 )
+from app.models.analytics import AnalyticsEvent
+from app.models.auth_models import (
+    CustomRole,
+    OIDCProvider,
+    RoleDelegation,
+    RolePermission,
+    UserCustomRole,
+    UserOIDCAccount,
+    UserTenant,
+)
+from app.models.auth_v3_models import (
+    ApiKey,
+    AuthSession,
+    AuthWebhookSubscription,
+    OIDCProviderConfig,
+)
 
 # Binding models (Phase 2.3)
 from app.models.binding_models import (
@@ -94,6 +110,9 @@ from app.models.circuit_breaker_models import MissionCircuitBreaker
 # Community models (Phase 3 comments + drift remediation chunk 8)
 from app.models.community_models import CommunityComment, CommunityTemplate
 
+# Cost category enum + event DTO (Q1-B Chunk 4)
+from app.models.cost_event import CostCategory, CostEvent
+
 # Evaluation models
 from app.models.evaluation_models import (
     EvalRun,
@@ -101,6 +120,7 @@ from app.models.evaluation_models import (
     GoldenTestCase,
 )
 from app.models.extension import Extension
+from app.models.feedback_models import FeedbackPattern, FeedbackReport
 
 # Workflow models (consolidated from GraphWorkflow + Flow, H4.2)
 from app.models.graph import (
@@ -129,9 +149,7 @@ from app.models.integration_models import (
 
 # Knowledge graph models (Phase 5 improvement foundation)
 from app.models.knowledge_graph_models import KnowledgeEdge, KnowledgeNode
-
-# Cost category enum + event DTO (Q1-B Chunk 4)
-from app.models.cost_event import CostCategory, CostEvent
+from app.models.learning_models import AdaptationRuleDB, LearningFeedbackDB
 
 # LLM call record model (H1.3 observability)
 from app.models.llm_call_record import LLMCallRecord
@@ -152,18 +170,30 @@ from app.models.mission_models import (
     MissionLog,
     MissionTask,
 )
+from app.models.models import (
+    AgentReview,
+    ComposedCapabilityModel,
+    LogEntry,
+    MarketplaceCategoryModel,
+    MarketplaceListingModel,
+    MarketplaceReviewModel,
+    UserInstallationModel,
+)
+from app.models.notification_models import Notification, NotificationSettings, PushSubscription
 
 # Partner models (depend on User)
 from app.models.partner_revenue_models import (
     Partner,
     PartnerRevenue,
 )
+from app.models.phase4_models import FeatureFlag, IntegrationConnection, UsageRecord, UserFile, UserSettings
 
 # Playground sandbox models (Phase 4)
 from app.models.playground_models import PlaygroundSandbox
 
 # Plugin models (Phase 9.1)
 from app.models.plugin_models import InstalledPlugin
+from app.models.roadmap_models import RoadmapComment, RoadmapItem, RoadmapVote
 
 # Sandbox models (sandboxd integration)
 from app.models.sandbox_models import MissionSandbox
@@ -190,6 +220,7 @@ from app.models.swarm_models import OrchestratorExecution, OrchestratorTask
 
 # Canonical tool + capability catalog models (Phase 1)
 from app.models.tool_catalog_models import Tool, ToolVersion
+from app.models.tool_models import CustomTool, ToolAnalytics, ToolChain, ToolChainExecution, ToolPermission
 
 # Topology models (Phase 1.1f)
 from app.models.topology_models import (
@@ -197,7 +228,9 @@ from app.models.topology_models import (
     TopologyNode,
     TopologySnapshot,
 )
+from app.models.trigger_models import MissionTrigger, TriggerLog
 from app.models.user import User
+from app.models.webhook_models import WebhookEndpoint, WebhookLog
 
 # Workflow versioning and execution events (Phase 2.6)
 from app.models.workflow_version_models import (

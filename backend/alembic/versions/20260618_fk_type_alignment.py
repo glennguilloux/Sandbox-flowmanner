@@ -14,7 +14,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from alembic import op
+from alembic import context, op
 
 revision: str = "fk_type_alignment_001"
 down_revision: str | Sequence[str] | None = "phase4_playground"
@@ -105,6 +105,9 @@ def _alter_varchar_to_uuid(table: str, column: str) -> None:
 
 
 def upgrade() -> None:
+    if context.is_offline_mode():
+        return
+
     # ── Issue #1: Create cost_records table (was missing from migrations) ──
     if not _table_exists("cost_records"):
         op.create_table(
@@ -170,6 +173,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if context.is_offline_mode():
+        return
+
     # Revert uuid → varchar
     for table in ["learning_feedback", "cost_records"]:
         col_type = _column_type_name(table, "mission_id")

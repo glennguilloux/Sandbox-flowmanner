@@ -28,7 +28,7 @@ record. Do NOT re-run this migration manually.
 
 from sqlalchemy import text as sa_text
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision = "backfill_playground_template_001"
@@ -49,6 +49,10 @@ def upgrade() -> None:
     that wants to keep using react-standard can re-set the value on the
     row after this migration runs.
     """
+    if context.is_offline_mode():
+        op.execute("UPDATE playground_sandboxes SET template = 'python-img' WHERE template = 'react-standard'")
+        return
+
     conn = op.get_bind()
     result = conn.execute(
         sa_text(

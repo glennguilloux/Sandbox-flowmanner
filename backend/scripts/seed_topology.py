@@ -130,15 +130,15 @@ async def _build_synthetic_topology(conn) -> dict:
         sa_text("SELECT template_id, slug, name, agent_type FROM agent_templates WHERE is_active = true")
     )
     agents = r.fetchall()
-    for agent in agents:
-        nodes.append(
-            {
-                "id": agent.slug,
-                "label": agent.name,
-                "stack": agent.agent_type or "agent",
-                "type": "agent",
-            }
-        )
+    nodes.extend(
+        {
+            "id": agent.slug,
+            "label": agent.name,
+            "stack": agent.agent_type or "agent",
+            "type": "agent",
+        }
+        for agent in agents
+    )
 
     # Tool nodes (from bindings)
     r = await conn.execute(
@@ -151,15 +151,15 @@ async def _build_synthetic_topology(conn) -> dict:
         )
     )
     tools = r.fetchall()
-    for tool in tools:
-        nodes.append(
-            {
-                "id": tool.slug,
-                "label": tool.name,
-                "stack": tool.category or "tool",
-                "type": "tool",
-            }
-        )
+    nodes.extend(
+        {
+            "id": tool.slug,
+            "label": tool.name,
+            "stack": tool.category or "tool",
+            "type": "tool",
+        }
+        for tool in tools
+    )
 
     # Edges: agent → tool (from bindings)
     r = await conn.execute(
@@ -173,30 +173,30 @@ async def _build_synthetic_topology(conn) -> dict:
         )
     )
     bindings = r.fetchall()
-    for b in bindings:
-        edges.append(
-            {
-                "source": b.agent_slug,
-                "target": b.tool_slug,
-                "relation": "uses",
-                "confidence": "DECLARED",
-            }
-        )
+    edges.extend(
+        {
+            "source": b.agent_slug,
+            "target": b.tool_slug,
+            "relation": "uses",
+            "confidence": "DECLARED",
+        }
+        for b in bindings
+    )
 
     # Capability nodes (from catalog, top-level only)
     r = await conn.execute(
         sa_text("SELECT slug, name, category FROM capabilities_catalog WHERE enabled = true LIMIT 50")
     )
     caps = r.fetchall()
-    for cap in caps:
-        nodes.append(
-            {
-                "id": cap.slug,
-                "label": cap.name,
-                "stack": cap.category or "capability",
-                "type": "capability",
-            }
-        )
+    nodes.extend(
+        {
+            "id": cap.slug,
+            "label": cap.name,
+            "stack": cap.category or "capability",
+            "type": "capability",
+        }
+        for cap in caps
+    )
 
     return {"nodes": nodes, "edges": edges}
 

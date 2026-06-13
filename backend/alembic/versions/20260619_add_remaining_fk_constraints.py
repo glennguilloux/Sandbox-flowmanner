@@ -15,7 +15,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from alembic import op
+from alembic import context, op
 
 revision: str = "fk_remaining_constraints_001"
 down_revision: str | Sequence[str] | None = "fk_workspace_id_constraints_001"
@@ -25,6 +25,9 @@ depends_on: str | Sequence[str] | None = None
 
 def _fk_exists(table: str, column: str, ref_table: str) -> bool:
     """Check if a FK constraint already exists on a column."""
+    if context.is_offline_mode():
+        return False
+
     bind = op.get_bind()
     result = bind.execute(
         sa.text(
@@ -44,8 +47,11 @@ def _fk_exists(table: str, column: str, ref_table: str) -> bool:
     return result.fetchone() is not None
 
 
-def _column_type_name(table_name: str, column_name: str) -> str | None:
+def _column_type_name(table_name: str, column_name: str, offline_type: str | None = None) -> str | None:
     """Return the DB type name of a column, or None if the column doesn't exist."""
+    if context.is_offline_mode():
+        return offline_type
+
     bind = op.get_bind()
     try:
         cols = {c["name"]: str(c["type"]) for c in sa.inspect(bind).get_columns(table_name)}
@@ -87,7 +93,7 @@ def upgrade() -> None:
     # ── Fix llm_call_records.agent_id type mismatch ──
     # agents.id is varchar but llm_call_records.agent_id is uuid
     # Convert uuid → varchar to match agents.id
-    col_type = _column_type_name("llm_call_records", "agent_id")
+    col_type = _column_type_name("llm_call_records", "agent_id", offline_type="UUID")
     if col_type and "UUID" in col_type.upper():
         op.alter_column(
             "llm_call_records",
@@ -186,7 +192,7 @@ def downgrade() -> None:
         op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
 
     # Revert llm_call_records.agent_id varchar → uuid
-    col_type = _column_type_name("llm_call_records", "agent_id")
+    col_type = _column_type_name("llm_call_records", "agent_id", offline_type="CHARACTER VARYING")
     if col_type and "CHAR" in col_type.upper():
         op.alter_column(
             "llm_call_records",

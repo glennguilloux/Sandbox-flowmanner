@@ -29,7 +29,7 @@ Stale capabilities_catalog entries (10):
 
 from sqlalchemy import text
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers
 revision = "cleanup_stale_handler_refs_001"
@@ -63,6 +63,23 @@ _STALE_CAP_SLUGS = (
 
 
 def upgrade() -> None:
+    if context.is_offline_mode():
+        op.execute(
+            "UPDATE tools_catalog SET handler_ref = NULL "
+            "WHERE slug = ANY(ARRAY['document_analyzer', 'database_query', 'knowledge_base', 'web_search', "
+            "'blog_post_expander', 'google_search_api', 'pdf_parser', 'postgresql_client']) "
+            "AND handler_ref IS NOT NULL"
+        )
+        op.execute(
+            "UPDATE capabilities_catalog SET handler_ref = NULL "
+            "WHERE slug = ANY(ARRAY['agent__customer-support-v1', 'agent__general-assistant-v1', "
+            "'agent__code-assistant-v1', 'agent__research-analyst-v1', 'agent__content-writer-v1', "
+            "'agent__data-scientist-v1', 'agent__automation-specialist-v1', 'agent__financial-analyst-v1', "
+            "'agent__legal-assistant-v1', 'agent__creative-writer-v1']) "
+            "AND handler_ref IS NOT NULL"
+        )
+        return
+
     conn = op.get_bind()
 
     # NULL out stale handler_refs in tools_catalog

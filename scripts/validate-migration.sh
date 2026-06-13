@@ -9,7 +9,10 @@
 #   .hermes/plans/migration-research-2026-06-13-FINDINGS.md
 # specifically the steps that do NOT require production DB credentials:
 #
-#   Step 1: `alembic check`                 — catch model/migration drift
+#   Step 1: snapshot diff against backend/scripts/model_snapshot.json on host
+#           and /app/scripts/model_snapshot.json inside the backend container
+#           — catch NEW model/migration drift while ignoring the committed
+#             historical baseline
 #   Step 2: `alembic upgrade head --sql`    — catch offline-mode failures
 #                                             (sa.inspect, asyncpg multi-statement,
 #                                             env.py bugs, etc.)
@@ -43,7 +46,12 @@ set -euo pipefail
 # --- Configuration -----------------------------------------------------------
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/flowmanner}"
 BACKEND_CONTAINER="${BACKEND_CONTAINER:-backend}"
+PYTHON_BIN="${PYTHON_BIN:-/opt/venv/bin/python}"
+ALEMBIC_BIN="${ALEMBIC_BIN:-alembic}"
 OFFLINE_SQL_PATH="/tmp/flowmanner-migration-check-$$.sql"
+FRESH_SNAPSHOT="/tmp/flowmanner-model-snapshot-$$.json"
+CONTAINER_FRESH_SNAPSHOT="${CONTAINER_FRESH_SNAPSHOT:-/tmp/flowmanner-model-snapshot-$$.json}"
+CONTAINER_SNAPSHOT_FILE="${CONTAINER_SNAPSHOT_FILE:-/app/scripts/model_snapshot.json}"
 RUN_CLONE=false
 
 # --- Colors ------------------------------------------------------------------
@@ -80,6 +88,29 @@ for arg in "$@"; do
   esac
 done
 
+# --- Helpers -----------------------------------------------------------------
+exec_alembic() {
+  cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" "$@"
+}
+
+cleanup() { rm -f "$OFFLINE_SQL_PATH" "$FRESH_SNAPSHOT" 2>/dev/null || true; }
+trap cleanup EXIT
+
+# --- Step 1: snapshot diff ---------------------------------------------------
+log_step "Step 1/2: snapshot diff (model/migration drift)"
+
+SNAPSHOT_FILE="${SNAPSHOT_FILE:-${COMPOSE_DIR}/backend/scripts/model_snapshot.json}"
+CONTAINER_SNAPSHOT_FILE="${CONTAINER_SNAPSHOT_FILE:-/app/scripts/model_snapshot.json}"
+
+if [ ! -f "$SNAPSHOT_FILE" ]; then
+  log_error "Snapshot file not found: $SNAPSHOT_FILE"
+  log_error "Run 'make snapshot-refresh' to generate it, then commit the result."
+  exit 1
+fi
+
+log_info "Committed host snapshot: ${SNAPSHOT_FILE}"
+log_info "Container snapshot path: ${CONTAINER_SNAPSHOT_FILE}"
+
 # --- Pre-flight --------------------------------------------------------------
 if ! command -v docker >/dev/null 2>&1; then
   log_error "docker is not on PATH"
@@ -93,24 +124,38 @@ if ! cd "$COMPOSE_DIR" && docker compose ps --services --status running 2>/dev/n
   exit 1
 fi
 
-# --- Helpers -----------------------------------------------------------------
-exec_alembic() {
-  cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" "$@"
-}
-
-cleanup() { rm -f "$OFFLINE_SQL_PATH" 2>/dev/null || true; }
-trap cleanup EXIT
-
-# --- Step 1: alembic check ---------------------------------------------------
-log_step "Step 1/2: alembic check (model/migration drift)"
-
-if exec_alembic alembic check; then
-  log_success "No drift detected between models and migration files"
-else
-  log_error "Drift detected — models and migration files are out of sync"
-  log_error "Fix with: cd ${COMPOSE_DIR} && docker compose exec ${BACKEND_CONTAINER} \\"
-  log_error "             alembic revision --autogenerate -m 'sync models to migrations'"
+if ! exec_alembic bash -lc "${PYTHON_BIN} /app/scripts/snapshot_model_metadata.py > ${CONTAINER_FRESH_SNAPSHOT}" 2>/dev/null; then
+  log_error "Snapshot generation failed inside the container"
+  log_error "Ensure ${BACKEND_CONTAINER} is running an image that contains /app/scripts/snapshot_model_metadata.py"
   exit 1
+fi
+
+set +e
+DIFF_OUTPUT="$(exec_alembic "${PYTHON_BIN}" /app/scripts/snapshot_diff.py "$CONTAINER_SNAPSHOT_FILE" "$CONTAINER_FRESH_SNAPSHOT" 2>&1)"
+DIFF_STATUS=$?
+set -e
+
+if [ "$DIFF_STATUS" -eq 0 ]; then
+  log_success "No new drift since snapshot"
+elif [ "$DIFF_STATUS" -eq 1 ]; then
+  log_error "Snapshot drift detected:"
+  if [ -n "$DIFF_OUTPUT" ]; then
+    printf '%s\n' "$DIFF_OUTPUT" | while IFS= read -r line; do
+      log_error "$line"
+    done
+  else
+    log_error "No diff output was produced"
+  fi
+  log_error "If this drift is intentional, run 'make snapshot-refresh' to update the baseline."
+  exit 1
+else
+  log_error "Snapshot diff failed with exit code ${DIFF_STATUS}"
+  if [ -n "$DIFF_OUTPUT" ]; then
+    printf '%s\n' "$DIFF_OUTPUT" | while IFS= read -r line; do
+      log_error "$line"
+    done
+  fi
+  exit "$DIFF_STATUS"
 fi
 
 # --- Step 2: offline SQL render ----------------------------------------------

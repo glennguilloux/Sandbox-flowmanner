@@ -128,20 +128,19 @@ async def run():
                     break
 
         sem_deps = 0
-        for prefix, members in domain_members.items():
+        for members in domain_members.values():
             if len(members) < 2:
                 continue
             for i in range(len(members)):
                 for j in range(i + 1, len(members)):
                     cap_a = f"agent__{members[i]}"
                     cap_b = f"agent__{members[j]}"
-                    if cap_a in cap_map and cap_b in cap_map:
-                        if (cap_a, cap_b) not in existing:
-                            deps.append((cap_a, cap_b, "optional"))
-                            deps.append((cap_b, cap_a, "optional"))
-                            existing.add((cap_a, cap_b))
-                            existing.add((cap_b, cap_a))
-                            sem_deps += 1
+                    if cap_a in cap_map and cap_b in cap_map and (cap_a, cap_b) not in existing:
+                        deps.append((cap_a, cap_b, "optional"))
+                        deps.append((cap_b, cap_a, "optional"))
+                        existing.add((cap_a, cap_b))
+                        existing.add((cap_b, cap_a))
+                        sem_deps += 1
 
         logger.info("Semantic clustering: %d additional dependency pairs", sem_deps)
 

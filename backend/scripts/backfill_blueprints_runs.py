@@ -14,10 +14,13 @@ import asyncio
 import logging
 import sys
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.models.blueprint_models import Blueprint, BlueprintVersion, Run
@@ -56,22 +59,21 @@ async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: 
         tasks = list(tasks_result.scalars().all())
 
         # Build definition from mission plan + tasks
-        nodes = []
-        for task in tasks:
-            nodes.append(
-                {
-                    "id": str(task.id),
-                    "type": task.task_type or "llm_call",
-                    "title": task.title or "",
-                    "description": task.description or "",
-                    "config": task.input_data or {},
-                    "dependencies": (task.dependencies if isinstance(task.dependencies, list) else []),
-                    "assigned_model": task.assigned_model,
-                    "assigned_agent_id": (str(task.assigned_agent_id) if task.assigned_agent_id else None),
-                    "max_retries": task.max_retries or 3,
-                    "fallback_strategy": "human_escalate",
-                }
-            )
+        nodes = [
+            {
+                "id": str(task.id),
+                "type": task.task_type or "llm_call",
+                "title": task.title or "",
+                "description": task.description or "",
+                "config": task.input_data or {},
+                "dependencies": (task.dependencies if isinstance(task.dependencies, list) else []),
+                "assigned_model": task.assigned_model,
+                "assigned_agent_id": (str(task.assigned_agent_id) if task.assigned_agent_id else None),
+                "max_retries": task.max_retries or 3,
+                "fallback_strategy": "human_escalate",
+            }
+            for task in tasks
+        ]
 
         definition = {
             "blueprint_type": mission.mission_type or "solo",

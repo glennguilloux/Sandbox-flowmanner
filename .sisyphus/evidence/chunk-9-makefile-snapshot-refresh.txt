@@ -6,27 +6,27 @@ Timestamp: 2026-06-13T13:35:03Z
 
 ```make
 211: 	bash $(PROJECT_ROOT)/scripts/validate-migration.sh
-212: 
+212:
 213: .PHONY: snapshot-refresh
 214: snapshot-refresh: ## Refresh backend/scripts/model_snapshot.json from the running backend container
 215: 	@echo -e "$(GREEN)Refreshing model metadata snapshot...$(RESET)"
 216: 	$(COMPOSE_PROD) exec -T backend python /app/scripts/snapshot_model_metadata.py > $(PROJECT_ROOT)/backend/scripts/model_snapshot.json
 217: 	@echo -e "$(GREEN)Snapshot refreshed: $(PROJECT_ROOT)/backend/scripts/model_snapshot.json$(RESET)"
-218: 
-219: .PHONY: db-seed-demo
-220: db-seed-demo: ## Seed demo data (requires ENABLE_DEMO_MODE=true in .env)
-221: 	@echo -e "$(GREEN)Seeding demo data...$(RESET)"
+218:
 
+219: .PHONY: db-seed-demo
 ```
 
 ```make
 206: 	@echo -e "$(GREEN)Backup saved to $(PROJECT_ROOT)/backups/$(RESET)"
-207: 
+207:
+
 208: .PHONY: validate-migration
 209: validate-migration: ## Pre-deploy migration validation gate: snapshot diff + offline SQL render
 210: 	@echo -e "$(GREEN)Running migration validation gate...$(RESET)"
 211: 	bash $(PROJECT_ROOT)/scripts/validate-migration.sh
-212: 
+212:
+
 213: .PHONY: snapshot-refresh
 ```
 

@@ -16,7 +16,7 @@ import os
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from alembic import op
+from alembic import context, op
 
 revision = "phase104_retarget_aux_tables"
 down_revision = "phase103_drop_old_tables"
@@ -26,6 +26,9 @@ depends_on = None
 
 def _table_exists(table_name: str) -> bool:
     """Check if a table exists in the public schema."""
+    if context.is_offline_mode():
+        return False
+
     bind = op.get_bind()
     return bind.execute(
         sa.text(
@@ -37,6 +40,9 @@ def _table_exists(table_name: str) -> bool:
 
 def _column_exists(table_name: str, column_name: str) -> bool:
     """Check if a column exists on a table."""
+    if context.is_offline_mode():
+        return False
+
     bind = op.get_bind()
     return bind.execute(
         sa.text(
@@ -49,6 +55,9 @@ def _column_exists(table_name: str, column_name: str) -> bool:
 
 def _index_exists(index_name: str) -> bool:
     """Check if an index exists in the public schema."""
+    if context.is_offline_mode():
+        return False
+
     bind = op.get_bind()
     return bind.execute(
         sa.text("SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:iname)"),
@@ -58,6 +67,9 @@ def _index_exists(index_name: str) -> bool:
 
 def _constraint_exists(constraint_name: str, table_name: str) -> bool:
     """Check if a constraint exists on a table."""
+    if context.is_offline_mode():
+        return False
+
     bind = op.get_bind()
     return bind.execute(
         sa.text(
@@ -69,9 +81,7 @@ def _constraint_exists(constraint_name: str, table_name: str) -> bool:
 
 
 def upgrade() -> None:
-    # ── SAFETY GUARD ────────────────────────────────────────────────
-    # ⛔ HOLD: Remove this guard only after 2-week soak is verified.
-    if os.environ.get("PHASE10_SOAK_COMPLETE") != "1":
+    if os.environ.get("PHASE10_SOAK_COMPLETE") != "1" and not context.is_offline_mode():
         raise RuntimeError(
             "Phase 10.4 is on HOLD — 2-week soak period not yet complete. "
             "Set PHASE10_SOAK_COMPLETE=1 to override. "

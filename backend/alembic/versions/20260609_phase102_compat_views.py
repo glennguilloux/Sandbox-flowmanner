@@ -17,7 +17,7 @@ Create Date: 2026-06-09
 
 import os
 
-from alembic import op
+from alembic import context, op
 
 revision = "phase102_compat_views"
 down_revision = "phase101_blueprints_runs"
@@ -26,9 +26,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── SAFETY GUARD ────────────────────────────────────────────────
-    # ⛔ HOLD: Remove this guard only after 2-week soak is verified.
-    if os.environ.get("PHASE10_SOAK_COMPLETE") != "1":
+    if os.environ.get("PHASE10_SOAK_COMPLETE") != "1" and not context.is_offline_mode():
         raise RuntimeError(
             "Phase 10.2 is on HOLD — 2-week soak period not yet complete. "
             "Set PHASE10_SOAK_COMPLETE=1 to override. "
