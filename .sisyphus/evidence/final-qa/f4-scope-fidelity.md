@@ -5,7 +5,7 @@ Scope: Q2-Q3 Chunk 9 — Lenient Validation Gate (Snapshot Diff)
 
 ## Inputs reviewed
 
-- Plan: `.sisyphus/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md`
+- Plan: `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`
 - Boulder: `.sisyphus/boulder.json`
 - Notepads:
   - `.sisyphus/notepads/undefined/learnings.md`
@@ -38,7 +38,7 @@ Findings:
 
 All T1-T14 deliverables are present in the combined committed/current diff and evidence:
 
-1. T1 import-coverage audit and ADD IMPORTS decision: present in `.sisyphus/evidence/chunk-9-import-coverage-audit.txt` and `.sisyphus/drafts/q2-q3-chunk9-lenient-validation-gate-prompt.md`.
+1. T1 import-coverage audit and ADD IMPORTS decision: present in `.sisyphus/evidence/chunk-9-import-coverage-audit.txt` and `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`.
 2. T2 `backend/scripts/snapshot_model_metadata.py`: present and JSON/schema/determinism evidence reviewed.
 3. T3 `backend/scripts/snapshot_diff.py`: present and diff behavior evidence reviewed.
 4. T4 pre-existing drift inventory: `.sisyphus/evidence/pre_existing_drift_inventory.txt` exists with 559 categorized items; raw `alembic check` output preserved.

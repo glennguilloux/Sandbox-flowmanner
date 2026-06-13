@@ -4,7 +4,7 @@
 - Plan: `.sisyphus/plans/q2-q3-agentic-workflow.md`
 - Current chunk: `9`
 - Chunk name: `Lenient Validation Gate (Make the Gate Useful)`
-- Plan prompt: `.sisyphus/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md`
+- Plan prompt: `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`
 - Session: `ses_13f545684ffeNqPhO9GhL39u1F`
 
 ## Inherited Wisdom
@@ -29,7 +29,7 @@
 ## T1 Import-coverage audit — 2026-06-13T11:29:42.951966+00:00
 - Audited 52 `backend/app/models/*.py` modules excluding `__init__.py`.
 - Found 12 snapshot coverage gaps: `analytics.py`, `auth_models.py`, `auth_v3_models.py`, `feedback_models.py`, `learning_models.py`, `models.py`, `notification_models.py`, `phase4_models.py`, `roadmap_models.py`, `tool_models.py`, `trigger_models.py`, `webhook_models.py`.
-- Decision recorded in `.sisyphus/drafts/q2-q3-chunk9-lenient-validation-gate-prompt.md`: ADD IMPORTS in a later task; T1 must not edit `backend/app/models/__init__.py`.
+- Decision recorded in `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`: ADD IMPORTS in a later task; T1 must not edit `backend/app/models/__init__.py`.
 - `depth_models.py`, `handoff_packet_models.py`, `io_models.py`, and `tool_routing_models.py` were missing from `__init__.py` but do not define SQLAlchemy `Base` subclasses, so they are not snapshot coverage gaps.
 
 ## T2 Snapshot import fix — 2026-06-13T12:03:17Z

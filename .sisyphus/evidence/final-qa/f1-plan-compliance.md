@@ -4,7 +4,7 @@
 Timestamp: 2026-06-13T20:50:00Z
 
 ## Scope read
-- Read `.sisyphus/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md` end-to-end.
+- Read `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md` end-to-end.
 - Read inherited notes: `.sisyphus/notepads/undefined/learnings.md` and `.sisyphus/notepads/q2-q3-agentic-workflow/issues.md`.
 - Read evidence: `chunk-9-lenient-gate-valid.txt`, `chunk-9-introduced-drift-fails.txt`, `chunk-9-snapshot-refresh-idempotent.txt`, `pre_existing_drift_inventory.txt`, and `.sisyphus/boulder.json`.
 - Inspected key implementation files: `scripts/validate-migration.sh`, `backend/scripts/snapshot_model_metadata.py`, `backend/scripts/snapshot_diff.py`, `backend/tests/test_validate_migration_gate.py`, `Makefile`, `deploy-backend.sh`, and `backend/Dockerfile` COPY directive.

@@ -415,7 +415,7 @@
       "name": "Lenient Validation Gate (Make the Gate Useful)",
       "status": "complete-with-pre-existing-failures",
       "estimate_w": 1,
-      "prompt": ".hermes/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md",
+      "prompt": ".sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md",
       "prompt_written_at": "2026-06-13T10:04:12Z",
       "prompt_written_by": "orchestrator",
       "prompt_size_bytes": 24750,

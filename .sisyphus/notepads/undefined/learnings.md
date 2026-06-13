@@ -5,7 +5,7 @@ This is the fallback notepad requested by the boulder continuation directive.
 ## Active Plan
 - Plan: `.sisyphus/plans/q2-q3-agentic-workflow.md`
 - Current chunk: `9`
-- Chunk prompt: `.sisyphus/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md`
+- Chunk prompt: `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`
 - Session: `ses_13f545684ffeNqPhO9GhL39u1F`
 
 ## T11 Validate migration gate tests — 2026-06-13T17:47:00+02:00
@@ -16,7 +16,7 @@ This is the fallback notepad requested by the boulder continuation directive.
 ## T10 Snapshot baseline generation — 2026-06-13T16:48:25+02:00
 - Plan: `.sisyphus/plans/q2-q3-agentic-workflow.md`
 - Current chunk: `9`
-- Chunk prompt: `.sisyphus/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md`
+- Chunk prompt: `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`
 - Session: `ses_13f545684ffeNqPhO9GhL39u1F`
 
 ## Inherited Wisdom

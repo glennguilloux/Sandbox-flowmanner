@@ -58,7 +58,7 @@ The 22 unaccounted files include F1/F2/F3 evidence + t4_alembic_check_* + pre_ex
 
 ## Key Files
 
-- **Plan:** `.sisyphus/plans/q2-q3-chunk9-lenient-validation-gate-prompt.md`
+- **Plan:** `.sisyphus/plans/OLD/q2-q3-chunk9-lenient-validation-gate-prompt-2026-06-13.md`
 - **Boulder:** `.sisyphus/boulder.json` (chunk 9 status: `complete-with-pre-existing-failures`)
 - **Evidence:** `.sisyphus/evidence/chunk-9-lenient-gate-valid.txt`, `chunk-9-introduced-drift-fails.txt`, `chunk-9-snapshot-refresh-idempotent.txt`, `pre_existing_drift_inventory.txt`
 - **Final QA:** `.sisyphus/evidence/final-qa/f1-plan-compliance.md`, `f2-code-quality.md`, `f4-scope-fidelity.md`
