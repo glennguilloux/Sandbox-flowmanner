@@ -70,6 +70,13 @@
 - Verified with `bash -n scripts/validate-migration.sh` and a temporary fake `docker` shim covering missing snapshot, clean diff, diff-found, and snapshot-generation-failure branches without touching the live container.
 - Evidence saved to `.sisyphus/evidence/chunk-9-validate-migration-step1.txt`.
 
+## T7 container snapshot path fix — 2026-06-13T15:52:56+02:00
+- Fixed the no-volume backend container path bug by keeping `SNAPSHOT_FILE` as the host-side `${COMPOSE_DIR}/backend/scripts/model_snapshot.json` and adding `CONTAINER_SNAPSHOT_FILE="${CONTAINER_SNAPSHOT_FILE:-/app/scripts/model_snapshot.json}"`.
+- The diff command now passes `"$CONTAINER_SNAPSHOT_FILE"` and `"$FRESH_SNAPSHOT"` to `/app/scripts/snapshot_diff.py`; the host path is only used for the preflight existence check.
+- Moved the missing-snapshot check before the Docker preflight so `SNAPSHOT_FILE=/tmp/does-not-exist-manual.json scripts/validate-migration.sh` fails before any `docker compose` invocation.
+- Re-verified with `bash -n scripts/validate-migration.sh`, the required missing-snapshot check, and a fake Docker clean branch that recorded `python /app/scripts/snapshot_diff.py /app/scripts/model_snapshot.json ...`.
+
+
 
 
 ## T8 Makefile snapshot-refresh target — 2026-06-13T13:33:24Z
@@ -77,3 +84,10 @@
 - Target runs `$(COMPOSE_PROD) exec -T backend python /app/scripts/snapshot_model_metadata.py > $(PROJECT_ROOT)/backend/scripts/model_snapshot.json` and echoes refresh status.
 - Updated `validate-migration` help text from `alembic check + offline SQL render` to `snapshot diff + offline SQL render`.
 - Verified `make help` lists `snapshot-refresh`; `make -n snapshot-refresh` dry-runs the expected container command and exact output path. Did not run the real refresh target.
+
+## T9 Deploy validation delegation — 2026-06-13T14:18:23.742840+00:00
+- Refactored `deploy-backend.sh run_validation()` to delegate real validation to `bash "${COMPOSE_DIR}/scripts/validate-migration.sh"`.
+- Preserved deploy-owned guards: `MIGRATE=false` returns immediately, `VALIDATE=false` skips with a warning, and `DRY_RUN=true` prints `bash /opt/flowmanner/scripts/validate-migration.sh` plus `snapshot diff + offline SQL render` without executing it.
+- Verified with `bash -n deploy-backend.sh`, `bash deploy-backend.sh --dry-run --migrate`, `bash deploy-backend.sh --dry-run`, and `bash deploy-backend.sh --dry-run --migrate --no-validate`.
+- Verified the call site remains `if ! run_validation; then`.
+- Evidence: `.sisyphus/evidence/chunk-9-deploy-dry-run.txt`.

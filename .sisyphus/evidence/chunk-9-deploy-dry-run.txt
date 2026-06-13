@@ -1,0 +1,265 @@
+T9 evidence: deploy-backend.sh validation delegation dry-run
+Timestamp: 2026-06-13T14:19:06.387604+00:00
+Working directory: /opt/flowmanner
+
+## Command: bash -n deploy-backend.sh
+Exit: 0
+Output:
+(no output)
+
+## Command: bash deploy-backend.sh --dry-run --migrate
+Exit: 0
+Output:
+
+[1m========================================[0m
+[1m  Flowmanner Backend Deployment[0m
+[1m========================================[0m
+
+[1;33m[WARN][0m    DRY-RUN MODE — no changes will be made
+
+[0;34m[INFO][0m    Migrations: ENABLED
+
+
+[0;36m[1m>>> Pre-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (current) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (current) health check passed (attempt 1/3)
+[0;32m[SUCCESS][0m Current backend is healthy — good baseline
+
+[0;36m[1m>>> Saving current backend image for rollback[0m
+[0;32m[SUCCESS][0m Current image tagged as workflows-backend:backup-current
+
+[0;36m[1m>>> Building backend image[0m
+[1;33m[DRY-RUN][0m docker build -t workflows-backend:restored /opt/flowmanner/backend/
+[1;33m[DRY-RUN][0m cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend
+
+[0;36m[1m>>> Migration validation gate (snapshot diff + offline SQL render)[0m
+[1;33m[DRY-RUN][0m bash /opt/flowmanner/scripts/validate-migration.sh
+[1;33m[DRY-RUN][0m   snapshot diff + offline SQL render
+
+[0;36m[1m>>> Running Alembic migrations[0m
+[1;33m[DRY-RUN][0m docker compose exec backend alembic upgrade head
+[1;33m[DRY-RUN][0m (post-upgrade head verification also runs in real mode)
+
+[0;36m[1m>>> Post-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (new) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (new) health check passed (attempt 1/15)
+[0;32m[SUCCESS][0m Post-deploy health check passed
+
+[0;32m[1m========================================[0m
+[0;32m[1m  Backend Deploy Complete[0m
+[0;32m[1m========================================[0m
+
+
+
+## Command: bash deploy-backend.sh --dry-run
+Exit: 0
+Output:
+
+[1m========================================[0m
+[1m  Flowmanner Backend Deployment[0m
+[1m========================================[0m
+
+[1;33m[WARN][0m    DRY-RUN MODE — no changes will be made
+
+
+
+[0;36m[1m>>> Pre-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (current) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (current) health check passed (attempt 1/3)
+[0;32m[SUCCESS][0m Current backend is healthy — good baseline
+
+[0;36m[1m>>> Saving current backend image for rollback[0m
+[0;32m[SUCCESS][0m Current image tagged as workflows-backend:backup-current
+
+[0;36m[1m>>> Building backend image[0m
+[1;33m[DRY-RUN][0m docker build -t workflows-backend:restored /opt/flowmanner/backend/
+[1;33m[DRY-RUN][0m cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend
+[0;34m[INFO][0m    Skipping migrations (--migrate not specified)
+
+[0;36m[1m>>> Post-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (new) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (new) health check passed (attempt 1/15)
+[0;32m[SUCCESS][0m Post-deploy health check passed
+
+[0;32m[1m========================================[0m
+[0;32m[1m  Backend Deploy Complete[0m
+[0;32m[1m========================================[0m
+
+
+
+## Command: bash deploy-backend.sh --dry-run --migrate --no-validate
+Exit: 0
+Output:
+
+[1m========================================[0m
+[1m  Flowmanner Backend Deployment[0m
+[1m========================================[0m
+
+[1;33m[WARN][0m    DRY-RUN MODE — no changes will be made
+
+[0;34m[INFO][0m    Migrations: ENABLED
+
+
+[0;36m[1m>>> Pre-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (current) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (current) health check passed (attempt 1/3)
+[0;32m[SUCCESS][0m Current backend is healthy — good baseline
+
+[0;36m[1m>>> Saving current backend image for rollback[0m
+[0;32m[SUCCESS][0m Current image tagged as workflows-backend:backup-current
+
+[0;36m[1m>>> Building backend image[0m
+[1;33m[DRY-RUN][0m docker build -t workflows-backend:restored /opt/flowmanner/backend/
+[1;33m[DRY-RUN][0m cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend
+[1;33m[WARN][0m    Validation gate SKIPPED (--no-validate)
+
+[0;36m[1m>>> Running Alembic migrations[0m
+[1;33m[DRY-RUN][0m docker compose exec backend alembic upgrade head
+[1;33m[DRY-RUN][0m (post-upgrade head verification also runs in real mode)
+
+[0;36m[1m>>> Post-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (new) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (new) health check passed (attempt 1/15)
+[0;32m[SUCCESS][0m Post-deploy health check passed
+
+[0;32m[1m========================================[0m
+[0;32m[1m  Backend Deploy Complete[0m
+[0;32m[1m========================================[0m
+
+
+
+## Snippet: deploy-backend.sh run_validation()
+201: # -------------------------------------------------------------------
+202: # Migration Validation Gate
+203: # -------------------------------------------------------------------
+204: # Delegates the real validation work to scripts/validate-migration.sh so the
+205: # Makefile path and deploy path use the same snapshot-diff gate.
+206: #
+207: # This runs AFTER build_and_deploy so the running container has the latest
+208: # migration files baked in — otherwise validation would be checking the OLD image
+209: # against the NEW source, which is a tautology and useless.
+210: #
+211: # On failure: exits non-zero WITHOUT rolling back. The new image is up and
+212: # healthy, only the migration is broken. State is recoverable: fix the migration
+213: # and re-run with --migrate (no rebuild needed).
+214: #
+215: # On success: returns 0 and run_migrations proceeds normally.
+216: run_validation() {
+217:   if [ "$MIGRATE" = false ]; then
+218:     return 0
+219:   fi
+220:   if [ "$VALIDATE" = false ]; then
+221:     log_warn "Validation gate SKIPPED (--no-validate)"
+222:     return 0
+223:   fi
+224: 
+225:   log_step "Migration validation gate (snapshot diff + offline SQL render)"
+226: 
+227:   if [ "$DRY_RUN" = true ]; then
+228:     echo -e "${YELLOW}[DRY-RUN]${NC} bash ${COMPOSE_DIR}/scripts/validate-migration.sh"
+229:     echo -e "${YELLOW}[DRY-RUN]${NC}   snapshot diff + offline SQL render"
+230:     return 0
+231:   fi
+232: 
+233:   bash "${COMPOSE_DIR}/scripts/validate-migration.sh"
+234: }
+
+## Snippet: deploy-backend.sh run_validation() call site
+382:   if [ "$MIGRATE" = true ]; then
+383:     if ! run_validation; then
+384:       log_error "Validation gate failed — the new image is in place but the"
+
+## Snippet: scripts/validate-migration.sh shared gate
+96: # --- Step 1: snapshot diff ---------------------------------------------------
+97: log_step "Step 1/2: snapshot diff (model/migration drift)"
+98: 
+99: SNAPSHOT_FILE="${SNAPSHOT_FILE:-${COMPOSE_DIR}/backend/scripts/model_snapshot.json}"
+100: CONTAINER_SNAPSHOT_FILE="${CONTAINER_SNAPSHOT_FILE:-/app/scripts/model_snapshot.json}"
+101: 
+102: if [ ! -f "$SNAPSHOT_FILE" ]; then
+103:   log_error "Snapshot file not found: $SNAPSHOT_FILE"
+104:   log_error "Run 'make snapshot-refresh' to generate it, then commit the result."
+105:   exit 1
+106: fi
+107: 
+108: log_info "Committed host snapshot: ${SNAPSHOT_FILE}"
+109: log_info "Container snapshot path: ${CONTAINER_SNAPSHOT_FILE}"
+110: 
+111: # --- Pre-flight --------------------------------------------------------------
+112: if ! command -v docker >/dev/null 2>&1; then
+113:   log_error "docker is not on PATH"
+114:   exit 1
+115: fi
+116: 
+117: if ! cd "$COMPOSE_DIR" && docker compose ps --services --status running 2>/dev/null \
+118:      | grep -q "^${BACKEND_CONTAINER}$"; then
+119:   log_error "Backend container '${BACKEND_CONTAINER}' is not running"
+120:   log_error "Start it with: cd ${COMPOSE_DIR} && docker compose up -d ${BACKEND_CONTAINER}"
+121:   exit 1
+122: fi
+123: 
+124: if ! exec_alembic python /app/scripts/snapshot_model_metadata.py > "$FRESH_SNAPSHOT" 2>/dev/null; then
+125:   log_error "Snapshot generation failed inside the container"
+126:   log_error "Ensure ${BACKEND_CONTAINER} is running an image that contains /app/scripts/snapshot_model_metadata.py"
+127:   exit 1
+128: fi
+129: 
+130: set +e
+131: DIFF_OUTPUT="$(exec_alembic python /app/scripts/snapshot_diff.py "$CONTAINER_SNAPSHOT_FILE" "$FRESH_SNAPSHOT" 2>&1)"
+132: DIFF_STATUS=$?
+133: set -e
+134: 
+135: if [ "$DIFF_STATUS" -eq 0 ]; then
+136:   log_success "No new drift since snapshot"
+137: elif [ "$DIFF_STATUS" -eq 1 ]; then
+138:   log_error "Snapshot drift detected:"
+139:   if [ -n "$DIFF_OUTPUT" ]; then
+140:     printf '%s\n' "$DIFF_OUTPUT" | while IFS= read -r line; do
+141:       log_error "$line"
+142:     done
+143:   else
+144:     log_error "No diff output was produced"
+145:   fi
+146:   log_error "If this drift is intentional, run 'make snapshot-refresh' to update the baseline."
+147:   exit 1
+148: else
+149:   log_error "Snapshot diff failed with exit code ${DIFF_STATUS}"
+150:   if [ -n "$DIFF_OUTPUT" ]; then
+151:     printf '%s\n' "$DIFF_OUTPUT" | while IFS= read -r line; do
+152:       log_error "$line"
+153:     done
+154:   fi
+155:   exit "$DIFF_STATUS"
+156: fi
+157: 
+158: # --- Step 2: offline SQL render ----------------------------------------------
+159: log_step "Step 2/2: alembic upgrade head --sql (offline render)"
+160: 
+161: if exec_alembic alembic upgrade head --sql > "$OFFLINE_SQL_PATH" 2>/dev/null; then
+162:   sql_lines=$(wc -l < "$OFFLINE_SQL_PATH")
+163:   sql_bytes=$(wc -c < "$OFFLINE_SQL_PATH")
+164:   log_success "Offline render OK — ${sql_lines} lines / ${sql_bytes} bytes"
+165:   log_info "  SQL preview: ${OFFLINE_SQL_PATH}"
+166:   log_info "  (delete with: rm ${OFFLINE_SQL_PATH})"
+167: else
+168:   log_error "Offline render FAILED"
+169:   log_error "This usually means a migration uses code that does not work in"
+170:   log_error "offline mode (e.g. sa.inspect(conn) in upgrade(), or asyncpg-"
+171:   log_error "incompatible multi-statement SQL via op.execute())."
+172:   log_error "See: .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+173:   exit 1
+174: fi
+175: 
+176: # --- Step 3 (optional): prod-clone smoke test --------------------------------
+177: if [ "$RUN_CLONE" = true ]; then
+178:   log_step "Step 3/3: clone DB smoke test (pg_dump → upgrade head on clone)"
+179:   log_warn "Not yet implemented — see .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+180:   log_warn "This requires a separate DB user with CREATEDB rights and is not"
+181:   log_warn "enabled by default. Wire it in once clone DB creds are settled."
+182:   # Intentionally do NOT exit 1 here — --clone is a future addition, not a
+183:   # regression. The first two steps are still authoritative.
+184: fi
+185: 
+186: log_step "Validation gate PASSED"
+187: log_success "Migration is safe to apply with:"
+188: log_success "  bash ${COMPOSE_DIR}/deploy-backend.sh --migrate"
