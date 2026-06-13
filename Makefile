@@ -205,6 +205,11 @@ db-backup: ## Backup PostgreSQL database
 	docker exec workflow-postgres pg_dump -U flowmanner flowmanner | gzip > $(PROJECT_ROOT)/backups/flowmanner_$$(date +%Y%m%d_%H%M%S).sql.gz
 	@echo -e "$(GREEN)Backup saved to $(PROJECT_ROOT)/backups/$(RESET)"
 
+.PHONY: validate-migration
+validate-migration: ## Pre-deploy migration validation gate: alembic check + offline SQL render
+	@echo -e "$(GREEN)Running migration validation gate...$(RESET)"
+	bash $(PROJECT_ROOT)/scripts/validate-migration.sh
+
 .PHONY: db-seed-demo
 db-seed-demo: ## Seed demo data (requires ENABLE_DEMO_MODE=true in .env)
 	@echo -e "$(GREEN)Seeding demo data...$(RESET)"

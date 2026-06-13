@@ -49,25 +49,30 @@ log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $*"; }
 log_error()   { echo -e "${RED}[ERROR]${NC}   $*"; }
 log_step()    { echo -e "\n${CYAN}${BOLD}>>> $*${NC}"; }
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Flags
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------
 DRY_RUN=false
 ROLLBACK=false
 MIGRATE=false
+VALIDATE=true  # Auto-on when --migrate is set; disable with --no-validate
 
 for arg in "$@"; do
   case "$arg" in
-    --dry-run)  DRY_RUN=true ;;
-    --rollback) ROLLBACK=true ;;
-    --migrate)  MIGRATE=true ;;
+    --dry-run)     DRY_RUN=true ;;
+    --rollback)    ROLLBACK=true ;;
+    --migrate)     MIGRATE=true ;;
+    --validate)    VALIDATE=true ;;
+    --no-validate) VALIDATE=false ;;
     --help|-h)
-      echo "Usage: $0 [--migrate] [--dry-run] [--rollback]"
+      echo "Usage: $0 [--migrate] [--dry-run] [--rollback] [--validate|--no-validate]"
       echo ""
       echo "Options:"
-      echo "  --migrate    Run alembic migrations before deploying"
-      echo "  --dry-run    Preview actions without executing"
-      echo "  --rollback   Revert to the previous backend version"
+      echo "  --migrate       Run alembic migrations before deploying"
+      echo "  --dry-run       Preview actions without executing"
+      echo "  --rollback      Revert to the previous backend version"
+      echo "  --validate      Force-enable pre-migrate validation gate (default when --migrate)"
+      echo "  --no-validate   Skip the pre-migrate validation gate (escape hatch)"
       exit 0
       ;;
     *)
@@ -191,6 +196,75 @@ check_pending_migrations() {
   log_warn "These will be baked into the image but NOT applied to the DB."
   log_warn "Apply now with: $0 --migrate"
   echo ""
+}
+
+# -------------------------------------------------------------------
+# Migration Validation Gate
+# -------------------------------------------------------------------
+# Runs the same checks as scripts/validate-migration.sh but inline, so the
+# deploy can abort BEFORE applying migrations to the live DB. Mirrors the
+# findings doc MVP (steps 1 + 2):
+#
+#   Step 1: alembic check                 — catch model/migration drift
+#   Step 2: alembic upgrade head --sql    — catch offline-mode failures
+#                                            (asyncpg multi-statement, sa.inspect,
+#                                            env.py bugs, etc.)
+#
+# This runs AFTER build_and_deploy so the running container has the latest
+# migration files baked in — otherwise alembic would be checking the OLD image
+# against the NEW source, which is a tautology and useless.
+#
+# On failure: exits 1 WITHOUT rolling back. The new image is up and healthy,
+# only the migration is broken. State is recoverable: fix the migration and
+# re-run with --migrate (no rebuild needed).
+#
+# On success: returns 0 and run_migrations proceeds normally.
+run_validation() {
+  if [ "$MIGRATE" = false ]; then
+    return 0
+  fi
+  if [ "$VALIDATE" = false ]; then
+    log_warn "Validation gate SKIPPED (--no-validate)"
+    return 0
+  fi
+
+  log_step "Migration validation gate (alembic check + offline SQL render)"
+
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose exec ${BACKEND_CONTAINER} alembic check"
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose exec ${BACKEND_CONTAINER} alembic upgrade head --sql > /tmp/migration.sql"
+    return 0
+  fi
+
+  local offline_sql="/tmp/flowmanner-migration-check-$$.sql"
+  trap 'rm -f "$offline_sql" 2>/dev/null || true' EXIT
+
+  # --- Step 1: alembic check ---
+  log_info "Step 1/2: alembic check (model/migration drift)"
+  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic check; then
+    log_error "VALIDATION FAILED: alembic check detected model/migration drift"
+    log_error "Fix with: cd $COMPOSE_DIR && docker compose exec $BACKEND_CONTAINER \\"
+    log_error "             alembic revision --autogenerate -m 'sync models to migrations'"
+    return 1
+  fi
+  log_success "No drift detected"
+
+  # --- Step 2: offline SQL render ---
+  log_info "Step 2/2: alembic upgrade head --sql (offline render)"
+  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" \
+       alembic upgrade head --sql > "$offline_sql" 2>/dev/null; then
+    log_error "VALIDATION FAILED: alembic offline render failed"
+    log_error "This usually means a migration uses code that does not work in"
+    log_error "offline mode (sa.inspect, asyncpg multi-statement, env.py bug)."
+    log_error "See: .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
+    return 1
+  fi
+  local sql_lines sql_bytes
+  sql_lines=$(wc -l < "$offline_sql")
+  sql_bytes=$(wc -c < "$offline_sql")
+  log_success "Offline render OK — ${sql_lines} lines / ${sql_bytes} bytes"
+
+  log_success "Validation gate PASSED"
 }
 
 run_migrations() {
@@ -340,6 +414,13 @@ main() {
   build_and_deploy
 
   if [ "$MIGRATE" = true ]; then
+    if ! run_validation; then
+      log_error "Validation gate failed — the new image is in place but the"
+      log_error "migration is unsafe. Fix the migration, commit, and re-run:"
+      log_error "  bash $0 --migrate"
+      log_error "No automatic rollback (new image is healthy; only migration is bad)."
+      exit 1
+    fi
     if ! run_migrations; then
       log_error "Migrations failed — rolling back to previous image"
       perform_rollback
