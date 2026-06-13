@@ -180,7 +180,7 @@
     {
       "id": 5,
       "name": "Multi-Agent Handoff Packets",
-      "status": "prompt-written-awaiting-deepseek",
+      "status": "complete-with-bugfix-by-orchestrator",
       "estimate_w": 4,
       "prompt": ".hermes/plans/q2-q3-chunk5-multi-agent-handoff-packets-prompt.md",
       "prompt_written_at": "2026-06-13T00:15:00Z",
