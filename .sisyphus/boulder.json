@@ -3,8 +3,8 @@
   "project": "flowmanner-q2-q3-agentic-workflow",
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
   "current_chunk": 8,
-  "current_chunk_name": "(next — TBD)",
-  "current_chunk_status": "pending",
+  "current_chunk_name": "community_templates Drift Remediation (Issue #1)",
+  "current_chunk_status": "prompt-written-awaiting-deepseek",
   "last_completed_chunk": 7,
   "chunks": [
     {
@@ -331,6 +331,44 @@
         "note": "Sub-agent chose default=1000 (return full stream by default). Defensible but deviates from the prompt. Not blocking; document the choice in a follow-up if you want."
       },
       "deploy_status": "COMPLETE — user ran 'bash /opt/flowmanner/deploy-backend.sh' on 2026-06-13, container built at 2026-06-13 08:49, post-deploy health passed (after 14 retries), 5-step backend-deploy-verification recipe passed (alembic head, import check, smoke test 3 endpoints, route path verification, no celery step needed). New code confirmed live in container via the import check."
+    },
+    {
+      "id": 8,
+      "name": "community_templates Drift Remediation (Issue #1)",
+      "status": "prompt-written-awaiting-deepseek",
+      "estimate_w": 1,
+      "prompt": ".hermes/plans/q2-q3-chunk8-community-templates-drift-remediation-prompt.md",
+      "prompt_written_at": "2026-06-13T08:59:39Z",
+      "prompt_written_by": "orchestrator",
+      "prompt_size_bytes": 16933,
+      "prompt_size_lines": 270,
+      "stop_gates_planned": [
+        "class CommunityTemplate added to backend/app/models/community_models.py with the 15 live-DB columns",
+        "from app.models.community_models import CommunityTemplate succeeds in container and tests",
+        "alembic check passes (no more NoReferencedTableError) — gate step 1 is GREEN",
+        "3+ new tests in backend/tests/test_community_models.py (FK resolution, schema shape, column types)",
+        "No new migration file (table already exists in live DB)",
+        "alembic current == alembic heads after the chunk (no head change)",
+        "make validate-migration passes (exit 0) — both steps green",
+        "Chunk 7's test_substrate_replay.py still passes (27 tests) — regression check",
+        "Substrate baseline preserved at 145 + 3 (new tests) = 148 pass, 3 pre-existing failures",
+        "git diff --check clean",
+        "No docker cp, no try/except pass, no PEP 563 in new model file"
+      ],
+      "evidence_files": [
+        ".sisyphus/evidence/chunk-8-drift-remediation-valid.txt"
+      ],
+      "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
+      "pre_existing_failures": 3,
+      "path_chosen": "Option 1 of 3 from issue #1: add the missing CommunityTemplate ORM model class. Most additive — no data migration, no schema change, no FK removal, no raw SQL path rewrite. Closes the gate by making the FK target resolvable in SQLAlchemy metadata.",
+      "deferred_to_followup": [
+        "Write a baseline Alembic migration for community_templates (the 'do it properly' path)",
+        "Convert _ensure_table() and _ensure_comments_table() raw SQL in community.py to ORM",
+        "Rewrite community.py to use the new model (would touch 600+ lines of route handlers)",
+        "Fix the broken .pre-commit-config.yaml symlink",
+        "Fix the 3 pre-existing test failures"
+      ],
+      "notes": "Small, focused chunk. Closes the pre-existing drift that blocks make validate-migration on every deploy. Single change: add CommunityTemplate class. Single new test file. No migration. No API changes."
     }
   ],
   "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
@@ -341,5 +379,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-13T08:50:00Z"
+  "last_updated": "2026-06-13T08:59:39Z"
 }
