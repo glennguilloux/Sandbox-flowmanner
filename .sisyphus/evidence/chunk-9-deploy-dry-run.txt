@@ -152,15 +152,15 @@ Output:
 221:     log_warn "Validation gate SKIPPED (--no-validate)"
 222:     return 0
 223:   fi
-224: 
+224:
 225:   log_step "Migration validation gate (snapshot diff + offline SQL render)"
-226: 
+226:
 227:   if [ "$DRY_RUN" = true ]; then
 228:     echo -e "${YELLOW}[DRY-RUN]${NC} bash ${COMPOSE_DIR}/scripts/validate-migration.sh"
 229:     echo -e "${YELLOW}[DRY-RUN]${NC}   snapshot diff + offline SQL render"
 230:     return 0
 231:   fi
-232: 
+232:
 233:   bash "${COMPOSE_DIR}/scripts/validate-migration.sh"
 234: }
 
@@ -172,43 +172,43 @@ Output:
 ## Snippet: scripts/validate-migration.sh shared gate
 96: # --- Step 1: snapshot diff ---------------------------------------------------
 97: log_step "Step 1/2: snapshot diff (model/migration drift)"
-98: 
+98:
 99: SNAPSHOT_FILE="${SNAPSHOT_FILE:-${COMPOSE_DIR}/backend/scripts/model_snapshot.json}"
 100: CONTAINER_SNAPSHOT_FILE="${CONTAINER_SNAPSHOT_FILE:-/app/scripts/model_snapshot.json}"
-101: 
+101:
 102: if [ ! -f "$SNAPSHOT_FILE" ]; then
 103:   log_error "Snapshot file not found: $SNAPSHOT_FILE"
 104:   log_error "Run 'make snapshot-refresh' to generate it, then commit the result."
 105:   exit 1
 106: fi
-107: 
+107:
 108: log_info "Committed host snapshot: ${SNAPSHOT_FILE}"
 109: log_info "Container snapshot path: ${CONTAINER_SNAPSHOT_FILE}"
-110: 
+110:
 111: # --- Pre-flight --------------------------------------------------------------
 112: if ! command -v docker >/dev/null 2>&1; then
 113:   log_error "docker is not on PATH"
 114:   exit 1
 115: fi
-116: 
+116:
 117: if ! cd "$COMPOSE_DIR" && docker compose ps --services --status running 2>/dev/null \
 118:      | grep -q "^${BACKEND_CONTAINER}$"; then
 119:   log_error "Backend container '${BACKEND_CONTAINER}' is not running"
 120:   log_error "Start it with: cd ${COMPOSE_DIR} && docker compose up -d ${BACKEND_CONTAINER}"
 121:   exit 1
 122: fi
-123: 
+123:
 124: if ! exec_alembic python /app/scripts/snapshot_model_metadata.py > "$FRESH_SNAPSHOT" 2>/dev/null; then
 125:   log_error "Snapshot generation failed inside the container"
 126:   log_error "Ensure ${BACKEND_CONTAINER} is running an image that contains /app/scripts/snapshot_model_metadata.py"
 127:   exit 1
 128: fi
-129: 
+129:
 130: set +e
 131: DIFF_OUTPUT="$(exec_alembic python /app/scripts/snapshot_diff.py "$CONTAINER_SNAPSHOT_FILE" "$FRESH_SNAPSHOT" 2>&1)"
 132: DIFF_STATUS=$?
 133: set -e
-134: 
+134:
 135: if [ "$DIFF_STATUS" -eq 0 ]; then
 136:   log_success "No new drift since snapshot"
 137: elif [ "$DIFF_STATUS" -eq 1 ]; then
@@ -231,10 +231,10 @@ Output:
 154:   fi
 155:   exit "$DIFF_STATUS"
 156: fi
-157: 
+157:
 158: # --- Step 2: offline SQL render ----------------------------------------------
 159: log_step "Step 2/2: alembic upgrade head --sql (offline render)"
-160: 
+160:
 161: if exec_alembic alembic upgrade head --sql > "$OFFLINE_SQL_PATH" 2>/dev/null; then
 162:   sql_lines=$(wc -l < "$OFFLINE_SQL_PATH")
 163:   sql_bytes=$(wc -c < "$OFFLINE_SQL_PATH")
@@ -249,7 +249,7 @@ Output:
 172:   log_error "See: .hermes/plans/migration-research-2026-06-13-FINDINGS.md"
 173:   exit 1
 174: fi
-175: 
+175:
 176: # --- Step 3 (optional): prod-clone smoke test --------------------------------
 177: if [ "$RUN_CLONE" = true ]; then
 178:   log_step "Step 3/3: clone DB smoke test (pg_dump → upgrade head on clone)"
@@ -259,7 +259,7 @@ Output:
 182:   # Intentionally do NOT exit 1 here — --clone is a future addition, not a
 183:   # regression. The first two steps are still authoritative.
 184: fi
-185: 
+185:
 186: log_step "Validation gate PASSED"
 187: log_success "Migration is safe to apply with:"
 188: log_success "  bash ${COMPOSE_DIR}/deploy-backend.sh --migrate"
