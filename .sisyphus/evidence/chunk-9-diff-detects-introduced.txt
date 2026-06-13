@@ -1,0 +1,190 @@
+# Evidence — T3 Snapshot diff helper
+
+Generated at: 2026-06-13T12:48:05Z
+
+## Files changed for this task
+- `backend/scripts/snapshot_diff.py`
+- `.sisyphus/notepads/q2-q3-agentic-workflow/learnings.md`
+- `.sisyphus/evidence/chunk-9-diff-detects-introduced.txt`
+
+`backend/scripts/snapshot_model_metadata.py` was read only and was not edited.
+`backend/app/models/__init__.py` was not edited.
+`backend/scripts/model_snapshot.json` was not generated.
+
+## Pure Python diff assertions
+
+Working directory: `/opt/flowmanner`
+
+Command:
+```bash
+python3 - <<'PY'
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+backend = Path('/opt/flowmanner/backend')
+sys.path.insert(0, str(backend))
+from scripts.snapshot_diff import diff_snapshots
+
+def snapshot(tables):
+    return {
+        'generated_at': '2026-06-13T00:00:00Z',
+        'alembic_version': 'ignored',
+        'model_count': 999,
+        'tables': tables,
+    }
+
+old = snapshot([
+    {
+        'name': 'users',
+        'columns': {'id': 'INTEGER', 'name': 'TEXT', 'age': 'INTEGER'},
+        'indexes': ['ix_users_name'],
+        'unique_constraints': [['name']],
+        'foreign_keys': [['tenant_id', 'tenants.id']],
+    },
+    {'name': 'legacy', 'columns': {'id': 'INTEGER'}, 'indexes': [], 'unique_constraints': [], 'foreign_keys': []},
+])
+new = snapshot([
+    {
+        'name': 'users',
+        'columns': {'id': 'INTEGER', 'name': 'VARCHAR(255)', 'email': 'TEXT'},
+        'indexes': ['ix_users_email'],
+        'unique_constraints': [['email']],
+        'foreign_keys': [['tenant_id', 'tenants.id'], ['org_id', 'orgs.id']],
+    },
+    {'name': 'audits', 'columns': {'id': 'INTEGER'}, 'indexes': [], 'unique_constraints': [], 'foreign_keys': []},
+])
+
+assert diff_snapshots(old, old) == []
+print('pure diff identical snapshots: []')
+for line in diff_snapshots(old, new):
+    print(line)
+
+cap_old = snapshot([{'name': 'wide', 'columns': {f'col{i}': 'INTEGER' for i in range(60)}, 'indexes': [], 'unique_constraints': [], 'foreign_keys': []}])
+cap_new = snapshot([{'name': 'wide', 'columns': {}, 'indexes': [], 'unique_constraints': [], 'foreign_keys': []}])
+cap_lines = diff_snapshots(cap_old, cap_new)
+print(f'cap lines count: {len(cap_lines)}')
+print(f'cap final line: {cap_lines[-1]}')
+
+try:
+    diff_snapshots({'tables': [{'name': 'dup', 'columns': {}, 'indexes': [], 'unique_constraints': [], 'foreign_keys': []}, {'name': 'dup', 'columns': {}, 'indexes': [], 'unique_constraints': [], 'foreign_keys': []}]}, {'tables': []})
+except ValueError as exc:
+    print(f'malformed snapshot ValueError: {exc}')
+else:
+    raise AssertionError('malformed duplicate table names did not raise ValueError')
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    temp_path = Path(temp_dir)
+    old_path = temp_path / 'old.json'
+    new_path = temp_path / 'new.json'
+    bad_path = temp_path / 'bad.json'
+    old_path.write_text(json.dumps(old), encoding='utf-8')
+    new_path.write_text(json.dumps(new), encoding='utf-8')
+    bad_path.write_text(json.dumps({'tables': [{'name': 'bad', 'columns': 'not-a-dict', 'indexes': [], 'unique_constraints': [], 'foreign_keys': []}]}), encoding='utf-8')
+
+    for label, command, env in [
+        ('identical CLI', [sys.executable, str(backend / 'scripts' / 'snapshot_diff.py'), str(old_path), str(old_path)], os.environ.copy()),
+        ('introduced diff CLI', [sys.executable, str(backend / 'scripts' / 'snapshot_diff.py'), str(old_path), str(new_path)], os.environ.copy()),
+        ('env-var CLI', [sys.executable, str(backend / 'scripts' / 'snapshot_diff.py')], {**os.environ, 'OLD_SNAPSHOT': str(old_path), 'NEW_SNAPSHOT': str(new_path)}),
+        ('malformed CLI', [sys.executable, str(backend / 'scripts' / 'snapshot_diff.py'), str(old_path), str(bad_path)], os.environ.copy()),
+    ]:
+        result = subprocess.run(command, env=env, text=True, capture_output=True)
+        print(f'[{label}] exit={result.returncode}')
+        if result.stdout:
+            print('[stdout]')
+            print(result.stdout, end='')
+        if result.stderr:
+            print('[stderr]')
+            print(result.stderr, end='')
+
+print('snapshot_diff assertions passed')
+PY
+```
+
+Exit code: `0`
+
+stdout:
+```text
+pure diff identical snapshots: []
++ tables.audits (added)
+- tables.legacy (removed)
++ tables.users.columns.email = TEXT (added)
+- tables.users.columns.age (removed)
+~ tables.users.columns.name: TEXT -> VARCHAR(255)
++ tables.users.indexes.ix_users_email (added)
+- tables.users.indexes.ix_users_name (removed)
++ tables.users.unique_constraints.["email"] (added)
+- tables.users.unique_constraints.["name"] (removed)
++ tables.users.foreign_keys.["org_id", "orgs.id"] (added)
+cap lines count: 50
+cap final line: ... and 11 more
+malformed snapshot ValueError: old snapshot contains duplicate table names: dup
+[identical CLI] exit=0
+[introduced diff CLI] exit=1
+[stdout]
++ tables.audits (added)
+- tables.legacy (removed)
++ tables.users.columns.email = TEXT (added)
+- tables.users.columns.age (removed)
+~ tables.users.columns.name: TEXT -> VARCHAR(255)
++ tables.users.indexes.ix_users_email (added)
+- tables.users.indexes.ix_users_name (removed)
++ tables.users.unique_constraints.["email"] (added)
+- tables.users.unique_constraints.["name"] (removed)
++ tables.users.foreign_keys.["org_id", "orgs.id"] (added)
+[env-var CLI] exit=1
+[stdout]
++ tables.audits (added)
+- tables.legacy (removed)
++ tables.users.columns.email = TEXT (added)
+- tables.users.columns.age (removed)
+~ tables.users.columns.name: TEXT -> VARCHAR(255)
++ tables.users.indexes.ix_users_email (added)
+- tables.users.indexes.ix_users_name (removed)
++ tables.users.unique_constraints.["email"] (added)
+- tables.users.unique_constraints.["name"] (removed)
++ tables.users.foreign_keys.["org_id", "orgs.id"] (added)
+[malformed CLI] exit=2
+[stderr]
+snapshot diff error: new snapshot tables[0].columns must be a column type dictionary
+snapshot_diff assertions passed
+```
+
+stderr:
+```text
+```
+
+## Static checks
+
+Working directory: `/opt/flowmanner`
+
+Command:
+```bash
+ruff check backend/scripts/snapshot_diff.py
+```
+
+Exit code: `0`
+
+stdout:
+```text
+All checks passed!
+```
+
+stderr:
+```text
+```
+
+## LSP diagnostics
+
+Tool: `lsp_diagnostics`
+
+File:
+- `/opt/flowmanner/backend/scripts/snapshot_diff.py`
+
+Result:
+```text
+No diagnostics found
+```
