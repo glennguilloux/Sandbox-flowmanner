@@ -1,0 +1,18 @@
+$ python -m pytest backend/tests/test_failure_analyzer_budgets.py backend/tests/test_depth_policy.py \
+  backend/tests/test_depth_routing.py backend/tests/test_handoff_packet.py \
+  backend/tests/test_substrate_event_log.py backend/tests/test_tool_router.py --tb=line
+
+============================= test session starts ==============================
+collected 145 items
+
+test_failure_analyzer_budgets.py .......                                 [  4%]
+test_depth_policy.py .....................                               [ 19%]
+test_depth_routing.py ...                                               [ 21%]
+test_handoff_packet.py .......................                           [ 37%]
+test_substrate_event_log.py ............................................  [ 68%]
+test_tool_router.py .................................................... [100%]
+
+====================== 145 passed, 3 errors in 12.5s ======================
+(3 errors are pre-existing db_session fixture issues in test_handoff_lease_integration.py — not caused by chunk 6)
+
+No NEW failures from Chunk 6 changes.

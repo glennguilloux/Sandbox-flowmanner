@@ -131,6 +131,11 @@ class SubstrateEventType:
     HANDOFF_BUDGET_EXHAUSTED = "handoff.budget_exhausted"
     HANDOFF_LEASE_LOST = "handoff.lease_lost"
 
+    # Q2-Q3 Chunk 6: Self-correction events
+    SELF_CORRECTION_ATTEMPTED = "self_correction.attempted"
+    SELF_CORRECTION_COMPLETED = "self_correction.completed"
+    SELF_CORRECTION_ABORTED = "self_correction.aborted"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"

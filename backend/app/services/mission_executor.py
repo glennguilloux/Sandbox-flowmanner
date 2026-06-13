@@ -54,6 +54,8 @@ from app.services.task_executor import TaskExecutor
 from app.services.depth_policy import DepthPolicy
 from app.models.depth_models import DepthLevel
 from app.models.substrate_models import SubstrateEventType
+from app.services.recovery_policy import RecoveryAction
+from app.services.self_correction_loop import SelfCorrectionBudget, SelfCorrectionLoop
 from app.tools._sandbox_context import set_current_sandbox_id
 
 logger = logging.getLogger(__name__)
@@ -116,6 +118,8 @@ class MissionExecutor:
         )
         # Q2-Q3 Chunk 4: Depth policy for adaptive reasoning
         self.depth_policy = DepthPolicy()
+        # Q2-Q3 Chunk 6: Self-correction loop with cost ceilings
+        self.self_correction = SelfCorrectionLoop()
 
     # ── Shared service accessors ──────────────────────────────────────────────
 
@@ -565,28 +569,105 @@ class MissionExecutor:
                                         f"Task completed: {task.title}",
                                     )
                                 else:
-                                    if (task.retry_count or 0) < (task.max_retries or 0):
-                                        task.retry_count = (task.retry_count or 0) + 1
-                                        task.status = MissionTaskStatus.PENDING
+                                    # Q2-Q3 Chunk 6: Self-correction loop
+                                    task_error = Exception(result.get("error", "Task failed"))
+                                    sc_context = {
+                                        "task_id": str(task.id),
+                                        "mission_id": str(mission.id),
+                                        "task_type": task.task_type,
+                                        "retry_count": task.retry_count or 0,
+                                        "max_retries": task.max_retries or 0,
+                                    }
+                                    # Create event emitter that uses the event log
+                                    async def _emit_sc_event(run_id, events):
+                                        from app.services.substrate.event_log import get_event_log
+                                        el = get_event_log()
+                                        await el.append(db, run_id, events, mission_id=str(mission.id))
+
+                                    sc_result = await self.self_correction.correct(
+                                        error=task_error,
+                                        context=sc_context,
+                                        event_emitter=_emit_sc_event,
+                                    )
+
+                                    # NOTE: FALLBACK_PROVIDER currently behaves like RETRY
+                                    # (re-queue without provider switching).  Actual provider
+                                    # switching is deferred to a future chunk when the
+                                    # ModelRouter supports per-task provider override.
+                                    if sc_result.action_taken in (
+                                        RecoveryAction.RETRY,
+                                        RecoveryAction.REFLECT,
+                                        RecoveryAction.FALLBACK_PROVIDER,
+                                    ):
+                                        if (task.retry_count or 0) < (task.max_retries or 0):
+                                            task.retry_count = (task.retry_count or 0) + 1
+                                            task.status = MissionTaskStatus.PENDING
+                                            await self._log(
+                                                db,
+                                                mission.id,
+                                                task.id,
+                                                "warning",
+                                                f"Task failed ({sc_result.analysis.error_class.value if sc_result.analysis else 'unknown'}), "
+                                                f"{sc_result.action_taken.value} ({task.retry_count}/{task.max_retries}): {result.get('error')}",
+                                            )
+                                        else:
+                                            failed.add(str(task.id))
+                                            task.status = MissionTaskStatus.FAILED
+                                            task.completed_at = datetime.now(UTC)
+                                            await self._log(
+                                                db,
+                                                mission.id,
+                                                task.id,
+                                                "error",
+                                                f"Task failed after {task.max_retries} retries ({sc_result.action_taken.value}): {result.get('error')}",
+                                            )
+                                            await self.task_exec._apply_fallback(db, mission, task, result.get("error"))
+
+                                    elif sc_result.action_taken == RecoveryAction.ASK_HITL:
+                                        hitl_reason = sc_result.analysis.root_cause if sc_result.analysis else "unknown failure"
+                                        interrupt = HumanInterrupt(
+                                            mission_id=str(mission.id),
+                                            interrupt_type="approval",
+                                            context={
+                                                "mission_title": mission.title,
+                                                "task_title": task.title,
+                                                "failure_reason": hitl_reason,
+                                                "error_class": sc_result.analysis.error_class.value if sc_result.analysis else None,
+                                            },
+                                            proposed_action={
+                                                "action": "retry_task",
+                                                "task_id": str(task.id),
+                                            },
+                                            confidence=0.3,
+                                        )
+                                        await self.hitl_manager.raise_interrupt(db, interrupt)
+                                        mission.status = MissionStatus.PAUSED
+                                        await db.commit()
                                         await self._log(
                                             db,
                                             mission.id,
                                             task.id,
                                             "warning",
-                                            f"Task failed, retrying ({task.retry_count}/{task.max_retries}): {result.get('error')}",
+                                            f"Mission paused — self-correction HITL escalation: {hitl_reason}",
                                         )
-                                    else:
+                                        return {
+                                            "success": True,
+                                            "status": MissionStatus.PAUSED,
+                                        }
+
+                                    else:  # ABORT
                                         failed.add(str(task.id))
                                         task.status = MissionTaskStatus.FAILED
                                         task.completed_at = datetime.now(UTC)
+                                        abort_reason = sc_result.aborted_reason or "Self-correction budget exhausted"
                                         await self._log(
                                             db,
                                             mission.id,
                                             task.id,
                                             "error",
-                                            f"Task failed after {task.max_retries} retries: {result.get('error')}",
+                                            f"Task aborted by self-correction: {abort_reason}",
                                         )
-                                        await self.task_exec._apply_fallback(db, mission, task, result.get("error"))
+                                        await self.task_exec._apply_fallback(db, mission, task, abort_reason)
 
                             except Exception as e:
                                 logger.exception("Error executing task %s", task.id)

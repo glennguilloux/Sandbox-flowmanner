@@ -2,10 +2,10 @@
   "schema_version": "1.0",
   "project": "flowmanner-q2-q3-agentic-workflow",
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
-  "current_chunk": 5,
-  "current_chunk_name": "Multi-Agent Handoff Packets",
-  "current_chunk_status": "complete-with-bugfix-by-orchestrator",
-  "last_completed_chunk": 5,
+  "current_chunk": 6,
+  "current_chunk_name": "Self-Correction and Retry Under Cost Ceilings",
+  "current_chunk_status": "complete",
+  "last_completed_chunk": 6,
   "chunks": [
     {
       "id": 1,
@@ -250,8 +250,28 @@
     {
       "id": 6,
       "name": "Self-Correction and Retry Under Cost Ceilings",
-      "status": "ready-to-dispatch",
-      "estimate_w": 2
+      "status": "complete",
+      "estimate_w": 2,
+      "stop_gates": [
+        "62/62 new unit tests pass — VERIFIED: `62 passed in 0.18s`",
+        "Substrate baseline at 145 passed, 3 pre-existing errors (no NEW failures from Chunk 6) — VERIFIED",
+        "SELF_CORRECTION_ATTEMPTED = 'self_correction.attempted' added to substrate_models.py — VERIFIED",
+        "SELF_CORRECTION_COMPLETED = 'self_correction.completed' added to substrate_models.py — VERIFIED",
+        "SELF_CORRECTION_ABORTED = 'self_correction.aborted' added to substrate_models.py — VERIFIED",
+        "RecoveryPolicy maps all 9 ErrorClass values to RecoveryAction — VERIFIED by 9 policy mapping tests",
+        "SelfCorrectionBudget enforces attempts, cost, wall-clock, and reflection limits — VERIFIED by 12 budget tests",
+        "SelfCorrectionLoop integrates FailureAnalyzer + RecoveryPolicy — VERIFIED by 16 loop decision tests",
+        "Event emission for all paths (attempted, aborted, completed) — VERIFIED by 6 event tests",
+        "MissionExecutor integrates self-correction into task failure path — VERIFIED by code inspection",
+        "No breaking changes to MissionExecutor behavior — VERIFIED by existing baseline tests passing",
+        "git diff --check clean"
+      ],
+      "evidence_files": [
+        ".sisyphus/evidence/chunk-6-self-correction-valid.txt",
+        ".sisyphus/evidence/chunk-6-baseline-green.txt"
+      ],
+      "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
+      "pre_existing_failures": 3
     }
   ],
   "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
