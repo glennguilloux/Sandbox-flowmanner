@@ -206,9 +206,15 @@ db-backup: ## Backup PostgreSQL database
 	@echo -e "$(GREEN)Backup saved to $(PROJECT_ROOT)/backups/$(RESET)"
 
 .PHONY: validate-migration
-validate-migration: ## Pre-deploy migration validation gate: alembic check + offline SQL render
+validate-migration: ## Pre-deploy migration validation gate: snapshot diff + offline SQL render
 	@echo -e "$(GREEN)Running migration validation gate...$(RESET)"
 	bash $(PROJECT_ROOT)/scripts/validate-migration.sh
+
+.PHONY: snapshot-refresh
+snapshot-refresh: ## Refresh backend/scripts/model_snapshot.json from the running backend container
+	@echo -e "$(GREEN)Refreshing model metadata snapshot...$(RESET)"
+	$(COMPOSE_PROD) exec -T backend python /app/scripts/snapshot_model_metadata.py > $(PROJECT_ROOT)/backend/scripts/model_snapshot.json
+	@echo -e "$(GREEN)Snapshot refreshed: $(PROJECT_ROOT)/backend/scripts/model_snapshot.json$(RESET)"
 
 .PHONY: db-seed-demo
 db-seed-demo: ## Seed demo data (requires ENABLE_DEMO_MODE=true in .env)
