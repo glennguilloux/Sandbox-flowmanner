@@ -424,8 +424,28 @@ class HandoffProtocol:
         handoff.status = "accepted"
         handoff.started_at = datetime.now(UTC)
 
-        # Renew lease
-        await self.lease_integration.renew(handoff_id)
+        # Renew lease.  If the renew returns False, the lease has been lost
+        # (expired, reclaimer stole it, or another worker holds it).  Emit
+        # a HANDOFF_LEASE_LOST audit event so operators can see worker churn
+        # in the substrate log; continue to accept (fail-open, matches pre-fix
+        # behavior) so existing callers don't break.
+        renewed = await self.lease_integration.renew(handoff_id)
+        if not renewed:
+            await self._emit_handoff_event(
+                run_id=handoff.execution_id or handoff_id,
+                event_type=SubstrateEventType.HANDOFF_LEASE_LOST,
+                payload={
+                    "handoff_id": handoff_id,
+                    "phase": "accept",
+                    "reason": "lease renewal returned False",
+                    "to_agent_id": handoff.to_agent_id,
+                },
+            )
+            logger.warning(
+                "Handoff %s lease renewal returned False — emitting "
+                "HANDOFF_LEASE_LOST and continuing to accept (fail-open)",
+                handoff_id,
+            )
 
         # Emit HANDOFF_ACCEPTED event
         await self._emit_handoff_event(
@@ -550,6 +570,14 @@ class HandoffProtocol:
         HandoffRecord does not store the original initial budget.  Callers
         that need the true initial value should read it from the
         HANDOFF_INITIATED event payload.
+
+        For pre-chunk-5 records where ``budget_remaining_usd`` is NULL,
+        we cannot recover either remaining or initial from the row, so
+        we use ``Decimal('0')`` for remaining (matches "no budget
+        recorded") and ``Decimal('0.000001')`` for initial (the smallest
+        valid positive Decimal, satisfying HandoffBudget's ``gt=0``).
+        Downstream consumers that need the real initial should read
+        the HANDOFF_INITIATED event payload instead.
         """
         from app.models.handoff_packet_models import (
             HandoffBudget,
@@ -557,11 +585,13 @@ class HandoffProtocol:
             HandoffHITLState,
         )
 
-        budget_val = (
-            Decimal(str(handoff.budget_remaining_usd))
-            if handoff.budget_remaining_usd is not None
-            else Decimal("0")
-        )
+        if handoff.budget_remaining_usd is None:
+            # Pre-chunk-5 record: budget was never tracked.
+            remaining = Decimal("0")
+            initial = Decimal("0.000001")  # smallest valid positive
+        else:
+            remaining = Decimal(str(handoff.budget_remaining_usd))
+            initial = remaining
 
         hitl_data = handoff.hitl_state if handoff.hitl_state else {}
         hitl_state = HandoffHITLState(**hitl_data) if hitl_data else HandoffHITLState()
@@ -584,8 +614,8 @@ class HandoffProtocol:
             retrieved_context_ids=handoff.retrieved_context_ids or [],
             tool_candidates=handoff.tool_candidates or [],
             budget=HandoffBudget(
-                remaining_usd=budget_val,
-                initial_usd=budget_val,
+                remaining_usd=remaining,
+                initial_usd=initial,
             ),
             hitl_state=hitl_state,
             depth_policy_state=depth_state,

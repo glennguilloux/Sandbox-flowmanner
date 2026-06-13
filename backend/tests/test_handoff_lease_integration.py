@@ -67,3 +67,49 @@ class TestHandoffLeaseIntegration:
         assert ok_bad is False
 
         await li.release("h-int-003")
+
+
+# ── Unit tests for HandoffLeaseIntegration (mocked, no DB) ─────────
+
+
+class TestHandoffLeaseTransferUnit:
+    """Unit tests for the new_worker_id parameter on transfer().
+
+    Verifies the chunk-5 followup bugfix: previously transfer() took
+    to_agent_id but ignored it, claiming the lease under the same
+    worker_id.  Now an explicit new_worker_id actually changes workers.
+    """
+
+    @pytest.mark.asyncio
+    async def test_transfer_without_new_worker_id_uses_instance_default(self):
+        """If new_worker_id is None, transfer uses self._worker_id (backward compat)."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        db = MagicMock()
+        li = HandoffLeaseIntegration(db, worker_id="worker-1")
+
+        with patch.object(li, "release", new=AsyncMock()) as mock_release, \
+             patch.object(li, "_claim_for_worker", new=AsyncMock()) as mock_claim:
+            await li.transfer("h-001", "agent-1", "agent-2")
+
+        mock_release.assert_awaited_once_with("h-001")
+        # _claim_for_worker called with instance's worker_id
+        mock_claim.assert_awaited_once_with("h-001", "agent-2", "worker-1")
+
+    @pytest.mark.asyncio
+    async def test_transfer_with_new_worker_id_uses_new_worker(self):
+        """If new_worker_id is provided, transfer claims under that worker."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        db = MagicMock()
+        li = HandoffLeaseIntegration(db, worker_id="worker-1")
+
+        with patch.object(li, "release", new=AsyncMock()) as mock_release, \
+             patch.object(li, "_claim_for_worker", new=AsyncMock()) as mock_claim:
+            await li.transfer(
+                "h-001", "agent-1", "agent-2", new_worker_id="worker-2"
+            )
+
+        mock_release.assert_awaited_once_with("h-001")
+        # _claim_for_worker called with the NEW worker_id
+        mock_claim.assert_awaited_once_with("h-001", "agent-2", "worker-2")

@@ -340,3 +340,48 @@ class TestHandoffProtocolTyped:
         with patch.object(protocol, "_get", return_value=None):
             with pytest.raises(ValueError, match="not found"):
                 await protocol.accept_with_packet("h-nonexistent")
+
+    @pytest.mark.asyncio
+    async def test_accept_with_packet_emits_lease_lost_when_renew_fails(
+        self, protocol
+    ):
+        """If renew() returns False, HANDOFF_LEASE_LOST is emitted and
+        accept still completes (fail-open)."""
+        record = _make_record(status="pending", budget_remaining_usd=1.0)
+        protocol.lease_integration.renew = AsyncMock(return_value=False)
+        with patch.object(protocol, "_get", return_value=record):
+            packet = await protocol.accept_with_packet("h-001")
+        assert record.status == "accepted"
+        assert isinstance(packet, HandoffPacket)
+        # Both HANDOFF_LEASE_LOST and HANDOFF_ACCEPTED are emitted.
+        # event_log.append is called twice in this flow.
+        call_args_list = protocol._event_log.append.call_args_list
+        emitted_types = [c[0][2][0]["type"] for c in call_args_list]
+        assert "handoff.lease_lost" in emitted_types
+        assert "handoff.accepted" in emitted_types
+
+    @pytest.mark.asyncio
+    async def test_packet_from_record_old_record_fallback(self):
+        """_packet_from_record handles pre-chunk-5 records where
+        from_agent_name/success_criteria/typed-fields are NULL."""
+        from app.services.swarm.handoff_protocol import HandoffProtocol
+
+        db = _mock_db()
+        hp = HandoffProtocol(db)
+        record = _make_record(
+            status="completed",
+            goal=None,  # pre-chunk-5 record
+            success_criteria=None,  # pre-chunk-5 record
+            retrieved_context_ids=None,
+            tool_candidates=None,
+            budget_remaining_usd=None,
+            hitl_state=None,
+            depth_policy_state=None,
+        )
+        packet = hp._packet_from_record(record)
+        assert packet.goal == record.task_description  # fallback to task_description
+        assert packet.success_criteria == [record.task_description]
+        assert packet.retrieved_context_ids == []
+        assert packet.tool_candidates == []
+        assert packet.budget.remaining_usd == Decimal("0")
+        assert packet.depth_policy_state is None
