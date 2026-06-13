@@ -50,3 +50,9 @@
 - Kept deploy-owned behavior intact: no migration skips validation, `--no-validate` skips validation, and `--dry-run --migrate` shows the delegated validation command and `snapshot diff + offline SQL render`.
 - Did not change the `run_validation()` caller, deploy flags, migrations, model definitions, or `scripts/validate-migration.sh`.
 - Evidence captured in `.sisyphus/evidence/chunk-9-deploy-dry-run.txt`.
+
+## T10 Snapshot baseline generation — 2026-06-13T16:48:25+02:00
+- `bash deploy-backend.sh` (no `--migrate`) was required because the running backend image initially lacked `/app/scripts/snapshot_model_metadata.py` and `/app/scripts/snapshot_diff.py`.
+- After rebuild, `make snapshot-refresh` produced `backend/scripts/model_snapshot.json` with `model_count == len(tables) == 134` and size `96140` bytes.
+- Fixed `snapshot_model_metadata.py` generated timestamp determinism so consecutive refreshes are byte-identical; verified SHA-256 `245ba76f98cfb8aa05be33fd0058a923e7176a237eeb350a0c2ac5f0b1a89b86`.
+- Evidence captured in `.sisyphus/evidence/chunk-9-snapshot-refresh-output.txt`.

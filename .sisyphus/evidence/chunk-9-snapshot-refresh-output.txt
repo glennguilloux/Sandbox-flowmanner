@@ -1,0 +1,429 @@
+== T10 script availability check started 2026-06-13T16:37:46+02:00 ==
+$ docker compose exec -T backend sh -lc 'test -f /app/scripts/snapshot_model_metadata.py && test -f /app/scripts/snapshot_diff.py && ls -l /app/scripts/snapshot_model_metadata.py /app/scripts/snapshot_diff.py'
+zsh:6: read-only variable: status
+
+== T10 script availability retry started 2026-06-13T16:38:07+02:00 ==
+$ docker compose exec -T backend sh -lc 'test -f /app/scripts/snapshot_model_metadata.py && test -f /app/scripts/snapshot_diff.py && ls -l /app/scripts/snapshot_model_metadata.py /app/scripts/snapshot_diff.py'
+script_availability_exit=1
+
+== T10 container /app/scripts listing ==
+$ docker compose exec -T backend sh -lc 'pwd; ls -la /app/scripts'
+/app
+total 240
+drwxr-xr-x 1 flowmanner flowmanner   962 Jun 13 09:48 .
+drwxr-xr-x 1 flowmanner flowmanner    14 Jun 13 09:48 ..
+-rw-r--r-- 1 flowmanner flowmanner  9450 Jun 11 04:37 add_stub_tools.py
+-rw-r--r-- 1 flowmanner flowmanner  7160 Jun 11 04:37 backfill_blueprints_runs.py
+-rw-r--r-- 1 flowmanner flowmanner  6026 Jun 11 04:37 backfill_workspace_id.py
+-rw-r--r-- 1 flowmanner flowmanner  1083 Jun  5 11:17 check_pydantic_config.py
+-rw-r--r-- 1 flowmanner flowmanner  1848 Jun 11 04:37 create_chat_tables.py
+-rw-r--r-- 1 flowmanner flowmanner  6268 Jun  3 04:17 create_missing_tables.sql
+-rw-r--r-- 1 flowmanner flowmanner  1533 Jun  3 04:17 generate_openapi.py
+-rw-r--r-- 1 flowmanner flowmanner 12180 Jun 11 04:37 import_agent_templates.py
+-rw-r--r-- 1 flowmanner flowmanner  8013 Jun 11 04:37 import_bindings.py
+-rw-r--r-- 1 flowmanner flowmanner  9665 Jun 11 04:37 import_builtin_capabilities.py
+-rw-r--r-- 1 flowmanner flowmanner 11451 Jun 11 04:37 import_builtin_tools.py
+-rw-r--r-- 1 flowmanner flowmanner  8153 Jun 11 04:37 migrate_redis_memories.py
+-rw-r--r-- 1 flowmanner flowmanner 10456 Jun 11 04:37 seed_blueprint_e2e.py
+-rw-r--r-- 1 flowmanner flowmanner  7745 Jun 11 04:37 seed_capability_deps.py
+-rw-r--r-- 1 flowmanner flowmanner 13224 Jun 11 04:37 seed_dashboard_data.py
+-rw-r--r-- 1 flowmanner flowmanner 27576 Jun 11 04:37 seed_demo_data.py
+-rw-r--r-- 1 flowmanner flowmanner 27404 Jun 11 04:37 seed_golden_dataset.py
+-rw-r--r-- 1 flowmanner flowmanner  9989 Jun 11 04:37 seed_orchestration.py
+-rw-r--r-- 1 flowmanner flowmanner 17340 Jun 11 04:37 seed_runaway_demo.py
+-rw-r--r-- 1 flowmanner flowmanner  6271 Jun 11 04:37 seed_topology.py
+-rw-r--r-- 1 flowmanner flowmanner  4431 Jun 11 04:37 verify_backfill_consistency.py
+container_scripts_listing_exit=0
+
+== T10 backend rebuild without migrations started 2026-06-13T16:39:09+02:00 ==
+$ bash deploy-backend.sh
+
+[1m========================================[0m
+[1m  Flowmanner Backend Deployment[0m
+[1m========================================[0m
+
+
+
+[0;36m[1m>>> Pre-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (current) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (current) health check passed (attempt 1/3)
+[0;32m[SUCCESS][0m Current backend is healthy — good baseline
+
+[0;36m[1m>>> Saving current backend image for rollback[0m
+[0;32m[SUCCESS][0m Current image tagged as workflows-backend:backup-current
+
+[0;36m[1m>>> Building backend image[0m
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.19kB done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/python:3.11.11-slim-bookworm
+#2 DONE 0.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 1.25kB done
+#3 DONE 0.1s
+
+#4 [builder 1/7] FROM docker.io/library/python:3.11.11-slim-bookworm@sha256:081075da77b2b55c23c088251026fb69a7b2bf92471e491ff5fd75c192fd38e5
+#4 resolve docker.io/library/python:3.11.11-slim-bookworm@sha256:081075da77b2b55c23c088251026fb69a7b2bf92471e491ff5fd75c192fd38e5 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 232.47kB 0.0s done
+#5 DONE 0.1s
+
+#6 [builder 5/7] COPY requirements.txt /build/requirements.txt
+#6 CACHED
+
+#7 [builder 6/7] RUN pip install --no-cache-dir --upgrade pip setuptools wheel     && pip install --no-cache-dir -r /build/requirements.txt
+#7 CACHED
+
+#8 [builder 2/7] WORKDIR /build
+#8 CACHED
+
+#9 [builder 3/7] RUN apt-get update     && apt-get install -y --no-install-recommends         gcc         git         libpq-dev         libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2         libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1         libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2         libxshmfence1 libx11-6 libx11-xcb1 libxcb1 libxext6         libxfixes3 libxrender1 libxcb-shape0 libxcb-shm0         libxcb-xfixes0 libxcb-randr0 libxcb-image0 libxcb-keysyms1         libxcb-xtest0 libxcb-sync1 libxcb-util1     && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [builder 4/7] RUN python -m venv /opt/venv
+#10 CACHED
+
+#11 [builder 7/7] RUN python -m playwright install chromium
+#11 CACHED
+
+#12 [runtime  2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         chromium         curl         libpq5         libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2         libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1         libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2         libxshmfence1 libx11-6 libx11-xcb1 libxcb1 libxext6         libxfixes3 libxrender1     && rm -rf /var/lib/apt/lists/*     && apt-get clean
+#12 CACHED
+
+#13 [runtime  3/18] RUN groupadd --gid 1000 flowmanner     && useradd --uid 1000 --gid flowmanner --create-home --shell /bin/bash flowmanner
+#13 CACHED
+
+#14 [runtime  4/18] WORKDIR /app
+#14 CACHED
+
+#15 [runtime  5/18] COPY --from=builder /opt/venv /opt/venv
+#15 CACHED
+
+#16 [runtime  6/18] COPY app/ /app/app/
+#16 DONE 0.4s
+
+#17 [runtime  7/18] COPY alembic/ /app/alembic/
+#17 DONE 0.1s
+
+#18 [runtime  8/18] COPY alembic.ini /app/alembic.ini
+#18 DONE 0.2s
+
+#19 [runtime  9/18] COPY pyproject.toml /app/pyproject.toml
+#19 DONE 0.1s
+
+#20 [runtime 10/18] COPY mcp_gateway/ /app/mcp_gateway/
+#20 DONE 0.1s
+
+#21 [runtime 11/18] COPY agent_definitions/ /app/agent_definitions/
+#21 DONE 0.1s
+
+#22 [runtime 12/18] COPY scripts/ /app/scripts/
+#22 DONE 0.1s
+
+#23 [runtime 13/18] RUN find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null;     find /app -name '*.pyc' -delete 2>/dev/null;     chown -R flowmanner:flowmanner /app
+#23 DONE 0.3s
+
+#24 [runtime 14/18] RUN mkdir -p /app/uploads && chown flowmanner:flowmanner /app/uploads
+#24 DONE 0.2s
+
+#25 [runtime 15/18] COPY --from=builder /ms-playwright /ms-playwright
+#25 DONE 0.1s
+
+#26 [runtime 16/18] COPY docker-entrypoint.py /docker-entrypoint.py
+#26 DONE 0.1s
+
+#27 [runtime 17/18] RUN chmod +x /docker-entrypoint.py
+#27 DONE 0.2s
+
+#28 [runtime 18/18] RUN mkdir -p /app/uploads && chown flowmanner:flowmanner /app/uploads
+#28 DONE 0.2s
+
+#29 exporting to image
+#29 exporting layers
+#29 exporting layers 19.7s done
+#29 exporting manifest sha256:271ae3567ea5035c0fa04c09bab00db66445474b585a9e6dc3079e058a51f6bc done
+#29 exporting config sha256:2c97458e79f02724d6bad08216dfd08a38c9d3ea0a02ef44ee42ef926bd1ada6 done
+#29 exporting attestation manifest sha256:69d01658d445071ec9ef290b1b1e4562059552a5f5f13079068baca086834e6e 0.0s done
+#29 exporting manifest list sha256:a000587831dd9994207f8e3d1b40d5ed1ab06727d1af4283eb85ba6cb032e43a done
+#29 naming to docker.io/library/workflows-backend:restored done
+#29 unpacking to docker.io/library/workflows-backend:restored
+#29 unpacking to docker.io/library/workflows-backend:restored 4.4s done
+#29 DONE 24.2s
+
+View build details: docker-desktop://dashboard/build/default/default/tnj9zkw0rzf0e4etqv8zsicgj
+
+[0;36m[1m>>> Deploying backend container[0m
+ Container backend  Recreate
+ Container backend  Recreated
+ Container backend  Starting
+ Container backend  Started
+[0;32m[SUCCESS][0m Backend container restarted
+[0;34m[INFO][0m    Skipping migrations (--migrate not specified)
+
+[0;36m[1m>>> Post-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (new) health at http://localhost:8000/health ...
+[1;33m[WARN][0m    Health check attempt 1/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 2/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 3/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 4/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 5/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 6/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 7/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 8/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 9/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 10/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 11/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 12/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 13/15 failed, retrying in 3s ...
+[0;32m[SUCCESS][0m Backend (new) health check passed (attempt 14/15)
+[0;32m[SUCCESS][0m Post-deploy health check passed
+
+[0;32m[1m========================================[0m
+[0;32m[1m  Backend Deploy Complete[0m
+[0;32m[1m========================================[0m
+
+deploy_backend_exit=0
+
+== T10 post-rebuild script availability check 2026-06-13T16:40:39+02:00 ==
+$ docker compose exec -T backend sh -lc 'test -f /app/scripts/snapshot_model_metadata.py && test -f /app/scripts/snapshot_diff.py && ls -l /app/scripts/snapshot_model_metadata.py /app/scripts/snapshot_diff.py'
+-rw-r--r-- 1 flowmanner flowmanner 10784 Jun 13 12:43 /app/scripts/snapshot_diff.py
+-rw-r--r-- 1 flowmanner flowmanner  2378 Jun 13 12:16 /app/scripts/snapshot_model_metadata.py
+post_rebuild_script_availability_exit=0
+
+== T10 snapshot-refresh idempotency and validation started 2026-06-13T16:41:35+02:00 ==
+$ make snapshot-refresh
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+first_snapshot_refresh_exit=0
+
+$ python3 - <<'PY'  # validate first snapshot
+Traceback (most recent call last):
+  File "<stdin>", line 11, in <module>
+AssertionError: tables must be a dict
+first_snapshot_validation_exit=1
+
+== T10 snapshot shape inspection after first refresh 2026-06-13T16:42:00+02:00 ==
+$ python3 - <<'PY'
+top_keys ['alembic_version', 'generated_at', 'model_count', 'tables']
+model_count 134
+tables_type list
+tables_len 134
+alembic_version 
+generated_at 2026-06-13T14:41:35Z
+first_table_type dict
+size_bytes 96140
+snapshot_shape_inspection_exit=0
+
+== T10 corrected snapshot validation and idempotency retry 2026-06-13T16:42:38+02:00 ==
+validated_snapshot_shape {'model_count': 134, 'tables': 134, 'size_bytes': 96140}
+corrected_initial_validation_exit=0
+ef68daa395c5667dac6ad984a804480534533a6cde2b59678d053d111fafb2ad  backend/scripts/model_snapshot.json
+
+$ make snapshot-refresh
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+second_snapshot_refresh_exit=0
+4a6c65b127cb0ac9f36ad3432734d493e34ee2884241fcc4d2ad3d7256dde4f4  backend/scripts/model_snapshot.json
+
+$ diff -u /tmp/t10_first_snapshot.sha256 /tmp/t10_second_snapshot.sha256
+--- /tmp/t10_first_snapshot.sha256	2026-06-13 16:42:38.729714979 +0200
++++ /tmp/t10_second_snapshot.sha256	2026-06-13 16:42:39.536381895 +0200
+@@ -1 +1 @@
+-ef68daa395c5667dac6ad984a804480534533a6cde2b59678d053d111fafb2ad  backend/scripts/model_snapshot.json
++4a6c65b127cb0ac9f36ad3432734d493e34ee2884241fcc4d2ad3d7256dde4f4  backend/scripts/model_snapshot.json
+snapshot_sha256_diff_exit=1
+
+== T10 local syntax check after deterministic generated_at fix 2026-06-13T16:45:54+02:00 ==
+$ python3 -m py_compile backend/scripts/snapshot_model_metadata.py
+local_py_compile_exit=0
+
+== T10 rebuild after deterministic generated_at fix (no migrations) started 2026-06-13T16:46:13+02:00 ==
+$ bash deploy-backend.sh
+
+[1m========================================[0m
+[1m  Flowmanner Backend Deployment[0m
+[1m========================================[0m
+
+
+
+[0;36m[1m>>> Pre-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (current) health at http://localhost:8000/health ...
+[0;32m[SUCCESS][0m Backend (current) health check passed (attempt 1/3)
+[0;32m[SUCCESS][0m Current backend is healthy — good baseline
+
+[0;36m[1m>>> Saving current backend image for rollback[0m
+[0;32m[SUCCESS][0m Current image tagged as workflows-backend:backup-current
+
+[0;36m[1m>>> Building backend image[0m
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.19kB done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/python:3.11.11-slim-bookworm
+#2 DONE 0.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 1.25kB done
+#3 DONE 0.1s
+
+#4 [builder 1/7] FROM docker.io/library/python:3.11.11-slim-bookworm@sha256:081075da77b2b55c23c088251026fb69a7b2bf92471e491ff5fd75c192fd38e5
+#4 resolve docker.io/library/python:3.11.11-slim-bookworm@sha256:081075da77b2b55c23c088251026fb69a7b2bf92471e491ff5fd75c192fd38e5 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 272.98kB 0.0s done
+#5 DONE 0.1s
+
+#6 [builder 2/7] WORKDIR /build
+#6 CACHED
+
+#7 [builder 3/7] RUN apt-get update     && apt-get install -y --no-install-recommends         gcc         git         libpq-dev         libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2         libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1         libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2         libxshmfence1 libx11-6 libx11-xcb1 libxcb1 libxext6         libxfixes3 libxrender1 libxcb-shape0 libxcb-shm0         libxcb-xfixes0 libxcb-randr0 libxcb-image0 libxcb-keysyms1         libxcb-xtest0 libxcb-sync1 libxcb-util1     && rm -rf /var/lib/apt/lists/*
+#7 CACHED
+
+#8 [builder 4/7] RUN python -m venv /opt/venv
+#8 CACHED
+
+#9 [builder 5/7] COPY requirements.txt /build/requirements.txt
+#9 CACHED
+
+#10 [builder 6/7] RUN pip install --no-cache-dir --upgrade pip setuptools wheel     && pip install --no-cache-dir -r /build/requirements.txt
+#10 CACHED
+
+#11 [builder 7/7] RUN python -m playwright install chromium
+#11 CACHED
+
+#12 [runtime  4/18] WORKDIR /app
+#12 CACHED
+
+#13 [runtime  9/18] COPY pyproject.toml /app/pyproject.toml
+#13 CACHED
+
+#14 [runtime  3/18] RUN groupadd --gid 1000 flowmanner     && useradd --uid 1000 --gid flowmanner --create-home --shell /bin/bash flowmanner
+#14 CACHED
+
+#15 [runtime  5/18] COPY --from=builder /opt/venv /opt/venv
+#15 CACHED
+
+#16 [runtime 10/18] COPY mcp_gateway/ /app/mcp_gateway/
+#16 CACHED
+
+#17 [runtime  7/18] COPY alembic/ /app/alembic/
+#17 CACHED
+
+#18 [runtime  6/18] COPY app/ /app/app/
+#18 CACHED
+
+#19 [runtime  8/18] COPY alembic.ini /app/alembic.ini
+#19 CACHED
+
+#20 [runtime  2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         chromium         curl         libpq5         libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2         libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1         libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2         libxshmfence1 libx11-6 libx11-xcb1 libxcb1 libxext6         libxfixes3 libxrender1     && rm -rf /var/lib/apt/lists/*     && apt-get clean
+#20 CACHED
+
+#21 [runtime 11/18] COPY agent_definitions/ /app/agent_definitions/
+#21 CACHED
+
+#22 [runtime 12/18] COPY scripts/ /app/scripts/
+#22 DONE 0.1s
+
+#23 [runtime 13/18] RUN find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null;     find /app -name '*.pyc' -delete 2>/dev/null;     chown -R flowmanner:flowmanner /app
+#23 DONE 0.3s
+
+#24 [runtime 14/18] RUN mkdir -p /app/uploads && chown flowmanner:flowmanner /app/uploads
+#24 DONE 0.2s
+
+#25 [runtime 15/18] COPY --from=builder /ms-playwright /ms-playwright
+#25 DONE 0.1s
+
+#26 [runtime 16/18] COPY docker-entrypoint.py /docker-entrypoint.py
+#26 DONE 0.1s
+
+#27 [runtime 17/18] RUN chmod +x /docker-entrypoint.py
+#27 DONE 0.2s
+
+#28 [runtime 18/18] RUN mkdir -p /app/uploads && chown flowmanner:flowmanner /app/uploads
+#28 DONE 0.2s
+
+#29 exporting to image
+#29 exporting layers
+#29 exporting layers 19.4s done
+#29 exporting manifest sha256:48fa566d0bdfa0ffdb340b3d98d3f7296ef48b14d57591509794b9fd7a94cdc5 done
+#29 exporting config sha256:d31446a37b18ec50d9f2b5c2953884b029c4016beec1f089a78def4b4571305b done
+#29 exporting attestation manifest sha256:2458fec6ed45cbc4d86ed64bf04acc451a54025d616bd49040f348ddb354ed51 0.0s done
+#29 exporting manifest list sha256:8006b8f431d8c596c26d0f69df988332e6f7068908fbc65e93f6be2af6254d5b done
+#29 naming to docker.io/library/workflows-backend:restored done
+#29 unpacking to docker.io/library/workflows-backend:restored
+#29 unpacking to docker.io/library/workflows-backend:restored 4.3s done
+#29 DONE 23.8s
+
+View build details: docker-desktop://dashboard/build/default/default/sqfhm9vtvxzxmkvef289rysnw
+
+[0;36m[1m>>> Deploying backend container[0m
+ Container backend  Recreate
+ Container backend  Recreated
+ Container backend  Starting
+ Container backend  Started
+[0;32m[SUCCESS][0m Backend container restarted
+[0;34m[INFO][0m    Skipping migrations (--migrate not specified)
+
+[0;36m[1m>>> Post-Deploy Health Check[0m
+[0;34m[INFO][0m    Checking Backend (new) health at http://localhost:8000/health ...
+[1;33m[WARN][0m    Health check attempt 1/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 2/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 3/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 4/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 5/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 6/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 7/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 8/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 9/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 10/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 11/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 12/15 failed, retrying in 3s ...
+[1;33m[WARN][0m    Health check attempt 13/15 failed, retrying in 3s ...
+[0;32m[SUCCESS][0m Backend (new) health check passed (attempt 14/15)
+[0;32m[SUCCESS][0m Post-deploy health check passed
+
+[0;32m[1m========================================[0m
+[0;32m[1m  Backend Deploy Complete[0m
+[0;32m[1m========================================[0m
+
+post_fix_deploy_backend_exit=0
+
+== T10 post-fix script availability check 2026-06-13T16:47:59+02:00 ==
+$ docker compose exec -T backend sh -lc 'test -f /app/scripts/snapshot_model_metadata.py && test -f /app/scripts/snapshot_diff.py && ls -l /app/scripts/snapshot_model_metadata.py /app/scripts/snapshot_diff.py'
+-rw-r--r-- 1 flowmanner flowmanner 10784 Jun 13 12:43 /app/scripts/snapshot_diff.py
+-rw-r--r-- 1 flowmanner flowmanner  2747 Jun 13 14:44 /app/scripts/snapshot_model_metadata.py
+post_fix_script_availability_exit=0
+
+== T10 deterministic snapshot-refresh idempotency validation 2026-06-13T16:48:25+02:00 ==
+$ make snapshot-refresh
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+deterministic_first_snapshot_refresh_exit=0
+validated_first_snapshot {'model_count': 134, 'tables': 134, 'size_bytes': 96140, 'generated_at': '1970-01-01T00:00:00Z'}
+deterministic_first_validation_exit=0
+245ba76f98cfb8aa05be33fd0058a923e7176a237eeb350a0c2ac5f0b1a89b86  backend/scripts/model_snapshot.json
+
+$ make snapshot-refresh
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+deterministic_second_snapshot_refresh_exit=0
+245ba76f98cfb8aa05be33fd0058a923e7176a237eeb350a0c2ac5f0b1a89b86  backend/scripts/model_snapshot.json
+
+$ diff -u /tmp/t10_first_snapshot.sha256 /tmp/t10_second_snapshot.sha256
+deterministic_snapshot_sha256_diff_exit=0
+validated_second_snapshot {'model_count': 134, 'tables': 134, 'size_bytes': 96140, 'generated_at': '1970-01-01T00:00:00Z'}
+deterministic_second_validation_exit=0
+
+== T10 deterministic snapshot refresh validation completed successfully ==

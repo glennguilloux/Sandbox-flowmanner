@@ -91,3 +91,10 @@
 - Verified with `bash -n deploy-backend.sh`, `bash deploy-backend.sh --dry-run --migrate`, `bash deploy-backend.sh --dry-run`, and `bash deploy-backend.sh --dry-run --migrate --no-validate`.
 - Verified the call site remains `if ! run_validation; then`.
 - Evidence: `.sisyphus/evidence/chunk-9-deploy-dry-run.txt`.
+
+## T10 Snapshot baseline generation — 2026-06-13T16:48:25+02:00
+- Verified the running backend image initially lacked `/app/scripts/snapshot_model_metadata.py` and `/app/scripts/snapshot_diff.py`; rebuilt/restarted with `bash deploy-backend.sh` without `--migrate`, then confirmed both files were present.
+- `make snapshot-refresh` generated `backend/scripts/model_snapshot.json` with valid JSON keys `generated_at`, `alembic_version`, `model_count`, `tables`; observed `model_count == len(tables) == 134` and file size `96140` bytes, within the expected 50–200KB range.
+- The first idempotency attempt exposed nondeterministic `generated_at`; fixed `backend/scripts/snapshot_model_metadata.py` to use deterministic `generated_at` (`1970-01-01T00:00:00Z` by default, with `SOURCE_DATE_EPOCH`/`SNAPSHOT_GENERATED_AT` overrides).
+- Rebuilt/restarted backend again without migrations and verified two consecutive `make snapshot-refresh` runs produced identical SHA-256 `245ba76f98cfb8aa05be33fd0058a923e7176a237eeb350a0c2ac5f0b1a89b86`.
+- Evidence captured in `.sisyphus/evidence/chunk-9-snapshot-refresh-output.txt`.
