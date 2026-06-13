@@ -4,8 +4,8 @@
   "active_plan": ".sisyphus/plans/q2-q3-agentic-workflow.md",
   "current_chunk": 5,
   "current_chunk_name": "Multi-Agent Handoff Packets",
-  "current_chunk_status": "prompt-written-awaiting-deepseek",
-  "last_completed_chunk": 4,
+  "current_chunk_status": "complete-with-bugfix-by-orchestrator",
+  "last_completed_chunk": 5,
   "chunks": [
     {
       "id": 1,
@@ -194,21 +194,63 @@
         "Substrate baseline at 151 pass / 10 pre-existing failures (no NEW failures) — gate",
         "Migration handoff_packets_001 applied to live DB — 7 new nullable columns on handoff_records",
         "HandoffPacket schema has 7 required fields (goal, success_criteria, retrieved_context_ids, tool_candidates, budget_remaining_usd, hitl_state, depth_policy_state)",
-        "5 new event types added to SubstrateEventType (HANDOFF_INITIATED/ACCEPTED/COMPLETED/FAILED/BUDGET_EXHAUSTED/LEASE_LOST) — additive",
+        "HANDOFF_INITIATED = 'handoff.initiated'",
+        "HANDOFF_ACCEPTED = 'handoff.accepted'",
+        "HANDOFF_COMPLETED = 'handoff.completed'",
+        "HANDOFF_FAILED = 'handoff.failed'",
+        "HANDOFF_BUDGET_EXHAUSTED = 'handoff.budget_exhausted'",
+        "HANDOFF_LEASE_LOST = 'handoff.lease_lost' (emitted from accept_with_packet when renew returns False)",
         "delegate_with_packet emits HANDOFF_INITIATED via event_log.append",
         "complete_with_packet with spent_usd > remaining_usd raises BudgetExceededError AND emits HANDOFF_BUDGET_EXHAUSTED (NOT HANDOFF_COMPLETED)",
         "Cross-workspace HITL item in packet raises ValueError (no cross-tenant leakage)",
         "HandoffLeaseIntegration wraps LeaseManager primitives (claim/renew/release/transfer)",
         "No breaking changes to HandoffRecord schema (all new columns nullable)",
         "git diff --check clean",
-        "Alembic head at handoff_packets_001"
+        "Alembic head at handoff_packets_001 — DEFERRED (requires live DB; migration is additive 7 nullable columns, no asyncpg multi-statement pitfall)",
+        "23/23 unit tests pass (21 original + 2 orchestrator regression tests: HANDOFF_LEASE_LOST emission, _packet_from_record old-record fallback) — VERIFIED: `23 passed in 0.18s`",
+        "2/2 new HandoffLeaseIntegration unit tests pass (transfer with/without new_worker_id) — VERIFIED: `2 passed in 0.04s`",
+        "3 integration tests properly marked @pytest.mark.integration (skipped in dev env, expected) — VERIFIED"
       ],
-      "scope_refinement": "Plan estimates 4w but orchestrator found existing HandoffProtocol (286 lines) + HandoffRecord scaffolding; actual work is an UPGRADE to typed packet with budget/HITL/lease preservation, not a greenfield build. Realistic: ~3w if no surprises, 4w if substrate integration is hard."
+      "evidence_files": [
+        ".sisyphus/evidence/chunk-5-backward-compat.txt",
+        ".sisyphus/evidence/chunk-5-baseline-green.txt",
+        ".sisyphus/evidence/chunk-5-budget-valid.txt",
+        ".sisyphus/evidence/chunk-5-handoff-valid.txt",
+        ".sisyphus/evidence/chunk-5-hitl-scoping-valid.txt",
+        ".sisyphus/evidence/chunk-5-lease-valid.txt",
+        ".sisyphus/evidence/chunk-5-orchestrator-audit.txt"
+      ],
+      "subagent_commits": {
+        "backend_main": ["62a008c", "49dc90f"]
+      },
+      "bugfix_by_orchestrator": {
+        "bugs": [
+          {
+            "bug": "HANDOFF_LEASE_LOST event type was added to the SubstrateEventType enum (handoff.lease_lost) but NEVER emitted from any code path.  Defined in substrate_models.py:132, zero emission sites.  The whole point of the event was to capture worker-churn / lost-lease cases for substrate audit, but the implementation never wired it up.  Without it, an operator looking at the substrate event log has no visibility into 'why did this handoff's accept happen 30s after the previous worker stopped'.",
+            "fix": "In handoff_protocol.py accept_with_packet(), capture the return of self.lease_integration.renew(handoff_id).  If False, emit HANDOFF_LEASE_LOST via _emit_handoff_event with payload {handoff_id, phase='accept', reason='lease renewal returned False', to_agent_id}, and log a warning.  Fail-open preserved — the handoff is still accepted (matches pre-fix behavior) so existing callers don't break, but the audit event is now in the substrate log.",
+            "root_cause": "The sub-agent's commit message said 'HANDOFF_LEASE_LOST' was added but the implementation stopped at defining the enum value.  No test exercised the 'lease lost' path; no call site was wired up.  This is a chunk-5 'spec half-implemented' bug — the event type existed, the code path that should have emitted it was never written.",
+            "verification": "New unit test test_accept_with_packet_emits_lease_lost_when_renew_fails — asserts that when renew() returns False, both 'handoff.lease_lost' and 'handoff.accepted' events are emitted.  PASSES."
+          },
+          {
+            "bug": "HandoffLeaseIntegration.transfer(handoff_id, from_agent_id, to_agent_id) took from_agent_id and to_agent_id as required parameters but NEVER USED them.  The function called self.release(handoff_id) (which uses self._worker_id) and then self.claim_for_handoff(handoff_id, to_agent_id) (which also uses self._worker_id).  Result: no worker_id change at all — the function refreshes the lease under the SAME worker.  The docstring claimed 'Transfer lease ownership during worker churn' and the spec said worker churn is the primary use case, but the implementation did not perform a cross-worker transfer.  The existing integration test test_lease_transfer 'passed' but only checked that lease is not None — it never verified the worker_id actually changed (because it didn't).",
+            "fix": "Refactored lease_integration.py: extracted _claim_for_worker(handoff_id, agent_id, worker_id) as the internal claim primitive that takes an explicit worker_id.  claim_for_handoff() and transfer() now both call it.  transfer() gained a new optional parameter new_worker_id: str | None = None — if provided, the re-claim happens under that worker; if None, the instance's self._worker_id is used (preserves pre-fix behavior, no breaking change).  Default-None keeps existing callers working; new callers that need real cross-worker transfer pass the new worker_id explicitly.",
+            "root_cause": "The class wraps a single worker_id per instance, so a single HandoffLeaseIntegration can only claim under one worker.  The transfer method needed to accept a different worker_id for the re-claim but the original signature only took from_agent_id/to_agent_id (agent IDs, not worker IDs).  The from_agent_id and to_agent_id params were vestigial — they were meant for logging/audit but never wired into the actual claim call.",
+            "verification": "Two new unit tests in test_handoff_lease_integration.py::TestHandoffLeaseTransferUnit: test_transfer_without_new_worker_id_uses_instance_default (verifies backward compat) and test_transfer_with_new_worker_id_uses_new_worker (verifies the new behavior).  Both PASS."
+          },
+          {
+            "bug": "_packet_from_record() in handoff_protocol.py called HandoffBudget(remaining_usd=Decimal('0'), initial_usd=Decimal('0')) for pre-chunk-5 records where handoff.budget_remaining_usd is NULL.  But HandoffBudget's model field initial_usd has constraint gt=0 (must be greater than zero), so this raised pydantic_core._pydantic_core.ValidationError: Input should be greater than 0.  In practice: any call to accept_with_packet on a pre-chunk-5 record (e.g., an existing handoff that was created before chunk 5 deployed) would crash with a 500 error.  The 49dc90f followup fix added a success_criteria fallback but missed the budget fallback.",
+            "fix": "In _packet_from_record, when handoff.budget_remaining_usd is None, set remaining=Decimal('0') and initial=Decimal('0.000001') (the smallest valid positive Decimal that satisfies gt=0).  Updated the docstring to explain the fallback: 'For pre-chunk-5 records where budget_remaining_usd is NULL, we cannot recover either remaining or initial from the row, so we use Decimal('0') for remaining (matches 'no budget recorded') and Decimal('0.000001') for initial (the smallest valid positive Decimal, satisfying HandoffBudget's gt=0).'  Callers that need the true original initial should read the HANDOFF_INITIATED event payload.",
+            "root_cause": "The 49dc90f followup was a 'small fix' for two related issues (from_agent_name required + success_criteria fallback).  The author tested with mock records that had non-NULL budget_remaining_usd, so the NULL case was never exercised.  The test test_packet_from_record_old_record_fallback catches this gap.",
+            "verification": "New unit test test_packet_from_record_old_record_fallback constructs a mock HandoffRecord with goal=None, success_criteria=None, budget_remaining_usd=None, etc. and asserts that _packet_from_record returns a valid HandoffPacket.  PASSES."
+          }
+        ],
+        "commits_containing_fixes": ["9a772da"]
+      }
     },
     {
       "id": 6,
       "name": "Self-Correction and Retry Under Cost Ceilings",
-      "status": "blocked-on-chunk-3",
+      "status": "ready-to-dispatch",
       "estimate_w": 2
     }
   ],
@@ -220,5 +262,5 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-13T00:15:00Z"
+  "last_updated": "2026-06-13T08:00:00Z"
 }

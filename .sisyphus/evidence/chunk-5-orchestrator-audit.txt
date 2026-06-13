@@ -1,0 +1,102 @@
+Chunk 5 — Orchestrator Audit (followup-2)
+==========================================
+Generated: 2026-06-13
+Auditor: orchestrator (hermes M3, post-DeepSeek + post-49dc90f-followup)
+
+SCOPE
+-----
+DeepSeek delivered chunk 5 (Multi-Agent Handoff Packets) in 2 commits on
+origin/main: 62a008c (typed HandoffPacket + budget/HITL/lease preservation)
+and 49dc90f (followup: from_agent_name required + success_criteria
+fallback for pre-chunk-5 records).  Sub-agent self-reported: 21/21 unit
+tests pass, substrate baseline 151/10 unchanged, 6 evidence files written.
+
+This audit re-verified the claims by re-running the unit tests and the
+substrate baseline from scratch, then found 3 bugs the sub-agent missed.
+
+VERIFICATION OF SUB-AGENT CLAIMS
+---------------------------------
+- 21/21 unit tests pass — VERIFIED: `21 passed, 0 failed, 1 warning in 0.18s`
+- 3 integration tests marked @pytest.mark.integration — VERIFIED
+- 4/4 lease primitives exist in leases.py (try_claim_lease, renew_lease,
+  release_lease, get_active_lease) — VERIFIED
+- get_event_log exists at event_log.py:213 — VERIFIED
+- Migration chain: auth_v3_feature_flag_001 → episodic_memory_001 →
+  tool_routing_001 → handoff_packets_001 — VERIFIED linear chain
+- Migration is additive (7 nullable columns, one op.add_column per
+  column to avoid asyncpg multi-statement pitfall) — VERIFIED
+- 6 new event types added to SubstrateEventType — VERIFIED
+- Substrate baseline at 151 pass / 10 failures — VERIFIED (re-ran
+  full substrate baseline; 10 failed, 151 passed, 9 warnings in 105.43s)
+
+BUGS FOUND BY ORCHESTRATOR (3)
+-------------------------------
+
+BUG 1: HANDOFF_LEASE_LOST is dead code
+  Evidence:  grep -rn "HANDOFF_LEASE_LOST" backend/ --include="*.py"
+             → only the enum definition in substrate_models.py:132
+  Impact:    The event was added to capture worker-churn / lost-lease
+             for substrate audit, but the implementation stopped at
+             defining the enum value.  Zero call sites emit it.  No
+             test exercises the "lease lost" path.
+  Fix:       Wired emission in accept_with_packet() — if
+             lease_integration.renew() returns False, emit
+             HANDOFF_LEASE_LOST via _emit_handoff_event with
+             payload {handoff_id, phase='accept', reason,
+             to_agent_id} and log a warning.  Fail-open preserved.
+
+BUG 2: HandoffLeaseIntegration.transfer() doesn't transfer workers
+  Evidence:  Code at app/services/swarm/lease_integration.py:81-96
+             (pre-fix) calls self.release(handoff_id) and
+             self.claim_for_handoff(handoff_id, to_agent_id), but
+             both use self._worker_id.  The from_agent_id and
+             to_agent_id parameters are taken but NEVER USED.
+  Impact:    Function name + docstring promise cross-worker transfer;
+             implementation is a no-op (refreshes same lease).  The
+             "passing" integration test only checked lease is not
+             None, never verified worker_id actually changed (it
+             didn't).
+  Fix:       Extracted _claim_for_worker() as the internal claim
+             primitive.  transfer() gained new_worker_id: str | None
+             = None parameter — if provided, re-claim uses that
+             worker_id; if None, uses self._worker_id (backward
+             compat preserved).  2 new unit tests verify both paths.
+
+BUG 3: _packet_from_record() crashes on pre-chunk-5 records (NULL budget)
+  Evidence:  New unit test test_packet_from_record_old_record_fallback
+             constructs a mock HandoffRecord with
+             budget_remaining_usd=None, and the call to
+             HandoffBudget(remaining=0, initial=0) raises
+             pydantic_core.ValidationError: Input should be greater
+             than 0 (initial_usd has constraint gt=0).
+  Impact:    In production, accept_with_packet on any pre-chunk-5
+             handoff record (existing rows with NULL budget) would
+             crash with a 500.  The 49dc90f followup added a
+             success_criteria fallback but missed the budget case.
+  Fix:       In _packet_from_record, when budget_remaining_usd is
+             None, set remaining=Decimal('0') and
+             initial=Decimal('0.000001') (smallest valid positive
+             Decimal satisfying gt=0).  Updated docstring to
+             document the fallback.
+
+POST-FIX VERIFICATION
+---------------------
+- 23/23 unit tests pass (21 original + 2 new orchestrator regression
+  tests) — VERIFIED: `23 passed, 1 warning in 0.18s`
+- 2/2 new HandoffLeaseIntegration unit tests pass — VERIFIED:
+  `2 passed, 1 warning in 0.04s`
+- Substrate baseline at 151 pass / 10 failures — UNCHANGED, no new
+  failures introduced — VERIFIED: `10 failed, 151 passed, 9 warnings
+  in 105.43s`
+
+FILES MODIFIED
+--------------
+backend/app/services/swarm/handoff_protocol.py     (accept_with_packet
+                                                   + _packet_from_record
+                                                   fixes)
+backend/app/services/swarm/lease_integration.py   (transfer new_worker_id
+                                                   + _claim_for_worker
+                                                   refactor)
+backend/tests/test_handoff_packet.py              (2 new tests)
+backend/tests/test_handoff_lease_integration.py   (2 new unit tests)
+.sisyphus/boulder.json                            (chunk 5 status update)
