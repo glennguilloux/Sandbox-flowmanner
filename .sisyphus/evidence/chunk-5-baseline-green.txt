@@ -1,0 +1,24 @@
+Chunk 5 — Substrate Baseline Verification
+==========================================
+Generated: 2026-06-13
+
+Command:
+cd /opt/flowmanner/backend && .venv/bin/python -m pytest \
+    tests/test_substrate_circuit_breaker.py \
+    tests/test_substrate_event_log.py \
+    tests/test_substrate_event_log_integration_pg.py \
+    tests/test_substrate_hitl_pause.py \
+    tests/test_substrate_lease_integration.py \
+    tests/test_substrate_lease_reclaimer.py \
+    tests/test_substrate_replay.py \
+    tests/test_substrate_resume_validation.py \
+    tests/test_substrate_worker_leases.py \
+    tests/test_mission_circuit_breaker.py \
+    tests/test_mission_executor.py \
+    -q --tb=no
+
+Result:
+10 failed, 151 passed, 9 warnings in 122.08s
+
+UNCHANGED from chunks 1-4 baseline. No new failures introduced.
+Pre-existing failures (5 in test_substrate_event_log_integration_pg + 5 in test_mission_executor).

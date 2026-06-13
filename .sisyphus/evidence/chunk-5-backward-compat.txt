@@ -1,0 +1,25 @@
+Chunk 5 — Backward Compatibility Evidence
+==========================================
+Generated: 2026-06-13
+
+Test: test_backward_compat_delegate_still_works
+Result: PASSED
+
+Behavior:
+- Old delegate(from_agent_id, from_agent_name, task_description, to_agent_id) still works
+- Creates HandoffRecord with task_description set, goal=None (typed field not set)
+- context/constraints are free-form dicts (no typed packet)
+- No lease claimed, no substrate events emitted (old method behavior preserved)
+
+Old methods preserved (unchanged signatures):
+- delegate(from_agent_id, from_agent_name, task_description, ...) → HandoffRecord
+- accept(handoff_id) → HandoffRecord | None
+- complete(handoff_id, result, result_metadata) → HandoffRecord | None
+- reject(handoff_id, reason) → HandoffRecord | None
+- fail(handoff_id, error) → HandoffRecord | None
+  NOTE: fail() now also emits HANDOFF_FAILED substrate event (additive, non-breaking)
+
+HandoffRecord backward compatibility:
+- All 7 new columns are nullable=True with no server_default
+- Existing rows load without the new fields set (goal=None, budget_remaining_usd=None, etc.)
+- No changes to existing column types or constraints

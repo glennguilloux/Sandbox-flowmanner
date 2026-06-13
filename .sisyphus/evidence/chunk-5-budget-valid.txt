@@ -1,0 +1,22 @@
+Chunk 5 — Budget Enforcement Evidence
+======================================
+Generated: 2026-06-13
+
+Test: test_complete_with_overspend_raises_and_emits_budget_exhausted
+Result: PASSED
+
+Behavior:
+- complete_with_packet(handoff_id, result, spent_usd=Decimal("5.00")) with budget_remaining_usd=1.0
+- Raises BudgetExceededError (NOT completing the handoff)
+- Sets handoff.status = "failed"
+- Emits HANDOFF_BUDGET_EXHAUSTED substrate event (NOT HANDOFF_COMPLETED)
+- Releases lease via lease_integration.release()
+
+Test: test_delegate_with_zero_budget_raises
+Result: PASSED
+
+Behavior:
+- delegate_with_packet(packet) where packet.budget.remaining_usd = 0
+- Raises BudgetExceededError BEFORE any DB write
+- No HandoffRecord is created
+- No lease is claimed

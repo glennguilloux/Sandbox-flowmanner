@@ -20,7 +20,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -329,6 +329,17 @@ class HandoffRecord(Base, TimestampMixin):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+
+    # ── Chunk 5: Typed handoff packet fields (all nullable, additive) ──
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    success_criteria: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    retrieved_context_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    tool_candidates: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    budget_remaining_usd: Mapped[float | None] = mapped_column(
+        Numeric(precision=12, scale=6), nullable=True
+    )
+    hitl_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    depth_policy_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class EscalationRecord(Base, TimestampMixin):

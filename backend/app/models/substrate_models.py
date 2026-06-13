@@ -123,6 +123,14 @@ class SubstrateEventType:
     # Q2-Q3 Chunk 4: Adaptive reasoning depth events
     DEPTH_DECIDED = "depth.decided"
 
+    # Q2-Q3 Chunk 5: Multi-agent handoff events
+    HANDOFF_INITIATED = "handoff.initiated"
+    HANDOFF_ACCEPTED = "handoff.accepted"
+    HANDOFF_COMPLETED = "handoff.completed"
+    HANDOFF_FAILED = "handoff.failed"
+    HANDOFF_BUDGET_EXHAUSTED = "handoff.budget_exhausted"
+    HANDOFF_LEASE_LOST = "handoff.lease_lost"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"

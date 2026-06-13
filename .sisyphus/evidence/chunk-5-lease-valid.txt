@@ -1,0 +1,31 @@
+Chunk 5 — Lease Integration Evidence
+======================================
+Generated: 2026-06-13
+
+File: backend/app/services/swarm/lease_integration.py
+
+Methods implemented:
+1. claim_for_handoff(handoff_id, agent_id) → str
+   - Calls try_claim_lease(db, worker_id, run_id, ttl_seconds)
+   - Synthetic run_id = f"handoff-{handoff_id}"
+   - Raises RuntimeError if claim fails
+
+2. renew(handoff_id) → bool
+   - Calls renew_lease(db, worker_id, run_id, ttl_seconds)
+   - Returns False if lease was lost
+
+3. release(handoff_id) → None
+   - Calls release_lease(db, worker_id, run_id)
+   - Idempotent (release_lease is owner-only no-op if not held)
+
+4. transfer(handoff_id, from_agent_id, to_agent_id) → None
+   - Releases old lease, claims new one for new agent
+   - Used during worker churn scenarios
+
+Integration with HandoffProtocol:
+- delegate_with_packet: calls claim_for_handoff
+- accept_with_packet: calls renew
+- complete_with_packet: calls release (on both success and budget-exhausted paths)
+
+Unit tests (mocked): 21 tests in test_handoff_packet.py — all pass
+Integration tests (real DB, @pytest.mark.integration): 3 tests in test_handoff_lease_integration.py — may skip in dev env

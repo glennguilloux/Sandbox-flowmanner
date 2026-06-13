@@ -1,0 +1,28 @@
+Chunk 5 — HITL Scoping Evidence
+=================================
+Generated: 2026-06-13
+
+Test: test_delegate_with_cross_workspace_hitl_raises
+Result: PASSED
+
+Behavior:
+- Packet with workspace_id="ws-main" containing HITL item with workspace_id="ws-other"
+- Raises ValueError with "workspace_id mismatch"
+- No HandoffRecord created
+
+Test: test_delegate_with_unscoped_hitl_item_raises
+Result: PASSED
+
+Behavior:
+- Packet with workspace_id="ws-main" containing HITL item with no workspace_id
+- Raises ValueError with "no workspace_id"
+- Prevents unscoped items from leaking into a scoped handoff
+
+Implementation (in delegate_with_packet):
+    if packet.hitl_state.pending_items and packet.hitl_state.workspace_id:
+        for item in packet.hitl_state.pending_items:
+            item_ws = item.get("workspace_id")
+            if item_ws is None:
+                raise ValueError(f"HITL item {item.get('id')} has no workspace_id ...")
+            if item_ws != packet.hitl_state.workspace_id:
+                raise ValueError(f"HITL item {item.get('id')} workspace_id mismatch ...")
