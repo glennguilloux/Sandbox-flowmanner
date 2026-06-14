@@ -90,21 +90,19 @@ class Critique(Base, TimestampMixin):
         ),
         # Composite indexes for the documented recall patterns.
         # (user_id, workspace_id, created_at) — fast active-scope lookup.
+        # Note: single-column indexes on mission_id and program_id are
+        # auto-created by ``index=True`` on the mapped_column below
+        # (named ``ix_critiques_mission_id`` / ``ix_critiques_program_id``
+        # by SQLAlchemy's default). They are NOT re-declared here to
+        # avoid duplicate-index errors at the snapshot validation gate
+        # (the project pattern: rely on the column-level ``index=True``
+        # for single-column indexes, use ``__table_args__`` for
+        # composite or named indexes).
         Index(
             "ix_critiques_user_ws_created",
             "user_id",
             "workspace_id",
             "created_at",
-        ),
-        # (mission_id) — fast mission-scoped recall.
-        Index(
-            "ix_critiques_mission_id",
-            "mission_id",
-        ),
-        # (program_id) — fast program-scoped recall.
-        Index(
-            "ix_critiques_program_id",
-            "program_id",
         ),
     )
 
