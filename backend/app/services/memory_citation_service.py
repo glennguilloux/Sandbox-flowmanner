@@ -164,10 +164,7 @@ def format_memory_block(claims: list[PersonalMemoryClaim]) -> str:
             object_str = json.dumps(claim.object, sort_keys=True, default=str)
         except (TypeError, ValueError):
             object_str = str(claim.object)
-        lines.append(
-            f"- {claim.subject} → {claim.predicate} → {object_str}"
-            f" (confidence: {claim.confidence:.2f})"
-        )
+        lines.append(f"- {claim.subject} → {claim.predicate} → {object_str} (confidence: {claim.confidence:.2f})")
     return "\n".join(lines)
 
 
@@ -182,6 +179,93 @@ def short_claim_id(claim: PersonalMemoryClaim) -> str:
     return f"c-{raw[:8]}"
 
 
+def _safe_object_str(obj: object) -> str:
+    """Render a claim's ``object`` (JSON-shaped) as a compact string for
+    the LLM-injected memory block and the SSE citation event.
+
+    Uses ``sort_keys=True`` for stable ordering and ``default=str`` so
+    non-JSON values (e.g. datetimes) degrade to a printable string
+    rather than raising ``TypeError``.
+    """
+    try:
+        return json.dumps(obj, sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        return str(obj)
+
+
+def format_citation_label(claim: PersonalMemoryClaim) -> str:
+    """Build the locked bracket-wrapped citation label for a claim.
+
+    Per plan §7 the format is::
+
+        [memory: c-14, mission #482, conf 0.85]
+
+    Degrades gracefully when ``mission_number`` is unavailable (the
+    claim is not sourced from a mission)::
+
+        [memory: c-14, conf 0.85]
+
+    The short-UUID prefix (``c-<8hex>``) always comes from
+    :func:`short_claim_id` so the label is a drop-in for the chat chip.
+    """
+    short = short_claim_id(claim)
+    mission_number = getattr(claim, "mission_number", None)
+    confidence = float(claim.confidence)
+    if mission_number is not None:
+        return f"[memory: {short}, mission #{int(mission_number)}, conf {confidence:.2f}]"
+    return f"[memory: {short}, conf {confidence:.2f}]"
+
+
+def build_citation_event(
+    claim: PersonalMemoryClaim,
+    *,
+    message_id: str,
+) -> dict[str, Any]:
+    """Build one ``memory_citation`` SSE event payload (plan §4).
+
+    Emitted AFTER the assistant message is persisted so ``message_id`` is
+    known. The frontend renders a :class:`MemoryCitationChip` per event
+    using the ``label`` field as the chip's primary text and the
+    individual ``subject`` / ``predicate`` / ``object`` fields for the
+    rich tooltip / WhyDrawer.
+
+    Stage 2 of T33. Stage 1 emits only ``memory_recall_used`` (which
+    carries the same short-UUID label so the frontend can pre-stage
+    metadata before the richer ``memory_citation`` arrives).
+
+    ``mission_id`` and ``mission_number`` are passed through if present
+    on the claim. Today the model has no denormalized ``mission_number``
+    column, so the label degrades to ``[memory: c-14, conf 0.85]``;
+    T33.1 will wire the mission join to add the ``#482`` suffix.
+    """
+    label = format_citation_label(claim)
+    mission_id = getattr(claim, "mission_id", None) or (
+        str(claim.source_id) if claim.source_type == "mission" and claim.source_id is not None else None
+    )
+    payload: dict[str, Any] = {
+        "type": "memory_citation",
+        "message_id": str(message_id),
+        "citation_id": str(claim.id),
+        "claim_id": str(claim.id),
+        "label": label,
+        "short_id": short_claim_id(claim),
+        "subject": claim.subject,
+        "predicate": claim.predicate,
+        "object": _safe_object_str(claim.object),
+        "scope": claim.scope,
+        "confidence": float(claim.confidence),
+        "source": "pre_llm_context",
+    }
+    if mission_id is not None:
+        payload["mission_id"] = str(mission_id)
+    mission_number = getattr(claim, "mission_number", None)
+    if mission_number is not None:
+        payload["mission_number"] = int(mission_number)
+    if claim.expires_at is not None:
+        payload["expires_at"] = claim.expires_at.isoformat()
+    return payload
+
+
 def build_recall_used_event(
     claim: PersonalMemoryClaim,
     *,
@@ -191,8 +275,8 @@ def build_recall_used_event(
 
     Emitted AFTER the assistant message is persisted so ``message_id`` is
     known. The frontend uses this to attach recall metadata to the
-    assistant message; Stage 2 will add ``memory_citation`` events that
-    carry the actual short-UUID label and confidence for chip rendering.
+    assistant message; Stage 2 adds ``memory_citation`` events that
+    carry the full bracket label and confidence for chip rendering.
     """
     return {
         "type": "memory_recall_used",

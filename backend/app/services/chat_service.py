@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.services.memory_citation_service import (
+    build_citation_event,
     build_recall_used_event,
     format_memory_block,
     recall_for_chat,
@@ -1229,9 +1230,7 @@ async def stream_message_to_llm(
                             query=content,
                         )
                         if memory_recall_claims:
-                            messages_for_llm = _inject_memory_context(
-                                messages_for_llm, memory_recall_claims
-                            )
+                            messages_for_llm = _inject_memory_context(messages_for_llm, memory_recall_claims)
                             logger.info(
                                 "stream_message_to_llm: injected %d memory claims for thread %s",
                                 len(memory_recall_claims),
@@ -1239,16 +1238,14 @@ async def stream_message_to_llm(
                             )
                     except Exception as recall_err:
                         logger.warning(
-                            "stream_message_to_llm: memory recall failed for thread %s, "
-                            "continuing without context: %s",
+                            "stream_message_to_llm: memory recall failed for thread %s, continuing without context: %s",
                             thread_id,
                             recall_err,
                         )
                         memory_recall_claims = []
                 else:
                     logger.info(
-                        "stream_message_to_llm: skipping memory recall for thread %s "
-                        "(workspace_id is null)",
+                        "stream_message_to_llm: skipping memory recall for thread %s (workspace_id is null)",
                         thread_id,
                     )
 
@@ -1460,13 +1457,17 @@ async def stream_message_to_llm(
 
         # ── T33 Stage 1: emit memory_recall_used events for cited claims ──
         # Emitted AFTER the assistant message is persisted so the frontend
-        # can attach the recall metadata to the right message. Stage 2
-        # will add memory_citation events that carry the short-UUID chip
-        # label and confidence for rendering.
+        # can attach the recall metadata to the right message.
         for claim in memory_recall_claims:
-            yield json.dumps(
-                build_recall_used_event(claim, message_id=str(assistant_msg.id))
-            )
+            yield json.dumps(build_recall_used_event(claim, message_id=str(assistant_msg.id)))
+
+        # ── T33 Stage 2: emit memory_citation events for the chip UI ──
+        # Same ordered list as the recall-used events above. The frontend
+        # renders one <MemoryCitationChip> per memory_citation event.
+        # The bracket label is built in the service (format_citation_label)
+        # so the chip displays the locked format verbatim.
+        for claim in memory_recall_claims:
+            yield json.dumps(build_citation_event(claim, message_id=str(assistant_msg.id)))
 
         try:
             from app.services.usage_service import get_usage_service

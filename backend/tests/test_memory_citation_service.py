@@ -1,16 +1,20 @@
 """Unit tests for the T33 MemoryCitationService.
 
-TDD: tests first. Plan §10 specifies 8 backend test scenarios; this file
+TDD: tests first. Plan §10 specifies backend test scenarios; this file
 covers the pure-logic ones (no DB / no SSE):
 
   1. Defensive filter excludes ``sensitivity="sensitive"`` claims
   2. Defensive filter excludes ``sensitivity="restricted"`` claims
   3. Defensive filter excludes ``scope="private"`` claims
   4. Defensive filter keeps ``sensitivity="normal"`` + non-private
-  5. format_memory_block returns "" for empty claim list
-  6. format_memory_block renders the locked subject → predicate → object format
-  7. short_claim_id produces ``c-<8-hex>`` from a UUID
-  8. build_recall_used_event carries message_id + short label + confidence
+  5. recall_for_chat calls recall with min_confidence=0.7 and top_k=5
+  6. format_memory_block returns "" for empty claim list
+  7. format_memory_block renders the locked subject → predicate → object format
+  8. short_claim_id produces ``c-<8-hex>`` from a UUID
+  9. format_citation_label renders bracket labels with/without mission number
+  10. build_citation_event carries chip payload and optional mission metadata
+  11. build_recall_used_event carries message_id + short label + confidence
+  12. memory events are JSON serializable
 
 The DB-bound tests (recall_for_chat hitting PostgreSQL) live in the
 integration suite under ``tests/test_chat_memory_citations.py`` to keep
@@ -26,7 +30,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.memory_citation_service import build_recall_used_event, format_memory_block, short_claim_id
+from app.services.memory_citation_service import (
+    build_citation_event,
+    build_recall_used_event,
+    format_citation_label,
+    format_memory_block,
+    short_claim_id,
+)
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 
@@ -40,6 +50,8 @@ def _claim(
     sensitivity: str = "normal",
     scope: str = "workspace",
     confidence: float = 0.85,
+    source_id: uuid.UUID | None = None,
+    mission_number: int | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         id=id or uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
@@ -54,7 +66,8 @@ def _claim(
         sensitivity=sensitivity,
         confidence=confidence,
         importance=0.5,
-        source_id=None,
+        source_id=source_id,
+        mission_number=mission_number,
         last_used_at=None,
         expires_at=None,
         deleted_at=None,
@@ -81,9 +94,7 @@ class TestDefensiveFilter:
                 "app.services.personal_memory_service.PersonalMemoryService.recall",
                 AsyncMock(return_value=([sensitive, normal], 2)),
             )
-            result = await recall_for_chat(
-                mock_db, user_id=1, workspace_id="ws-1", query="x"
-            )
+            result = await recall_for_chat(mock_db, user_id=1, workspace_id="ws-1", query="x")
         assert result == [normal]
 
     @pytest.mark.asyncio
@@ -98,9 +109,7 @@ class TestDefensiveFilter:
                 "app.services.personal_memory_service.PersonalMemoryService.recall",
                 AsyncMock(return_value=([restricted, normal], 2)),
             )
-            result = await recall_for_chat(
-                mock_db, user_id=1, workspace_id="ws-1", query="x"
-            )
+            result = await recall_for_chat(mock_db, user_id=1, workspace_id="ws-1", query="x")
         assert result == [normal]
 
     @pytest.mark.asyncio
@@ -115,9 +124,7 @@ class TestDefensiveFilter:
                 "app.services.personal_memory_service.PersonalMemoryService.recall",
                 AsyncMock(return_value=([private, personal], 2)),
             )
-            result = await recall_for_chat(
-                mock_db, user_id=1, workspace_id="ws-1", query="x"
-            )
+            result = await recall_for_chat(mock_db, user_id=1, workspace_id="ws-1", query="x")
         assert result == [personal]
 
     @pytest.mark.asyncio
@@ -131,9 +138,7 @@ class TestDefensiveFilter:
                 "app.services.personal_memory_service.PersonalMemoryService.recall",
                 AsyncMock(return_value=([normal], 1)),
             )
-            result = await recall_for_chat(
-                mock_db, user_id=1, workspace_id="ws-1", query="x"
-            )
+            result = await recall_for_chat(mock_db, user_id=1, workspace_id="ws-1", query="x")
         assert result == [normal]
 
     @pytest.mark.asyncio
@@ -225,6 +230,53 @@ class TestShortClaimId:
     def test_uppercase_uuid_normalized_to_lowercase(self) -> None:
         claim = _claim(id=uuid.UUID("ABCDEF12-3456-7890-ABCD-EF1234567890"))
         assert short_claim_id(claim) == "c-abcdef12"
+
+
+class TestCitationEventBuilders:
+    def test_format_citation_label_without_mission_number(self) -> None:
+        claim = _claim(id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
+        assert format_citation_label(claim) == "[memory: c-550e8400, conf 0.85]"
+
+    def test_format_citation_label_with_mission_number(self) -> None:
+        claim = _claim(mission_number=482)
+        assert format_citation_label(claim) == "[memory: c-550e8400, mission #482, conf 0.85]"
+
+    def test_build_citation_event_carries_chip_payload(self) -> None:
+        claim = _claim(
+            id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
+            subject="Flowmanner",
+            predicate="uses",
+            object={"framework": "Next.js"},
+            scope="workspace",
+            confidence=0.85,
+        )
+        evt = build_citation_event(claim, message_id="42")
+        assert evt["type"] == "memory_citation"
+        assert evt["message_id"] == "42"
+        assert evt["citation_id"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert evt["claim_id"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert evt["label"] == "[memory: c-550e8400, conf 0.85]"
+        assert evt["short_id"] == "c-550e8400"
+        assert evt["subject"] == "Flowmanner"
+        assert evt["predicate"] == "uses"
+        assert evt["object"] == '{"framework": "Next.js"}'
+        assert evt["scope"] == "workspace"
+        assert evt["confidence"] == 0.85
+        assert evt["source"] == "pre_llm_context"
+        assert "mission_id" not in evt
+        assert "mission_number" not in evt
+
+    def test_build_citation_event_carries_mission_metadata_when_present(self) -> None:
+        source_id = uuid.UUID("abcdef12-3456-7890-abcd-ef1234567890")
+        claim = _claim(source_id=source_id, mission_number=482)
+        evt = build_citation_event(claim, message_id="42")
+        assert evt["mission_id"] == "abcdef12-3456-7890-abcd-ef1234567890"
+        assert evt["mission_number"] == 482
+
+    def test_build_citation_event_is_json_serializable(self) -> None:
+        evt = build_citation_event(_claim(), message_id="99")
+        round_tripped = json.loads(json.dumps(evt))
+        assert round_tripped == evt
 
 
 # ── build_recall_used_event tests ────────────────────────────────────
