@@ -160,6 +160,13 @@ from app.models.llm_call_record import LLMCallRecord
 # Materialization state model (Phase 1.1e)
 from app.models.materialization_models import MaterializationState
 
+# Memory correction events (D30-60, T29 — privacy audit trail)
+from app.models.memory_correction_models import (
+    ALL_ACTORS,
+    ALL_EVENT_TYPES,
+    MemoryCorrectionEvent,
+)
+
 # Memory models (canonical + legacy)
 from app.models.memory_models import MemoryEntry
 
