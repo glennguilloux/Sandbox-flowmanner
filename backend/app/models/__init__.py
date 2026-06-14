@@ -170,6 +170,13 @@ from app.models.mission_models import (
     MissionLog,
     MissionTask,
 )
+# Mission Programs (T1)
+from app.models.mission_program_models import (
+    MissionProgram,
+    ProgramRun,
+    ProgramRunStatus,
+    ProgramStatus,
+)
 from app.models.models import (
     AgentReview,
     ComposedCapabilityModel,

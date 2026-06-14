@@ -1,0 +1,2 @@
+=== NOT NULL guardrail check ===
+OK: NOT NULL enforced: IntegrityError (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.NotNullViolationError'>: null value in column "workspace_id" of relation "mission_programs" violates not-null constra
