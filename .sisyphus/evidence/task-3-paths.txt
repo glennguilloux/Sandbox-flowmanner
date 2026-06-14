@@ -1,0 +1,38 @@
+=== T3: API path inventory for Mission Programs ===
+Source: src/lib/api/programs.ts
+Date: 2026-06-14T04:36:09+02:00
+
+--- Distinct /api/v2/programs path patterns (single-quoted + backtick template literals) ---
+`/api/v2/programs/${id}`
+`/api/v2/programs/${id}/consolidate`
+`/api/v2/programs/${id}/fire`
+`/api/v2/programs/${programId}/learning`
+`/api/v2/programs/${programId}/notes`
+`/api/v2/programs/${programId}/runs`
+
+--- Distinct path count ---
+6
+
+--- Per-line path occurrences (with line numbers) ---
+138:  return apiClient.get<PaginatedPrograms>("/api/v2/programs", { params });
+142:  return apiClient.get<Program>(`/api/v2/programs/${id}`);
+150:    "/api/v2/programs",
+162:    `/api/v2/programs/${id}`,
+169:  await apiClient.delete<void>(`/api/v2/programs/${id}`, idemHeaders(idempotencyKey));
+178:    `/api/v2/programs/${id}/fire`,
+188:  return apiClient.get<PaginatedRuns>(`/api/v2/programs/${programId}/runs`, { params });
+197:    `/api/v2/programs/${id}/consolidate`,
+204:  return apiClient.get<LearningBrief>(`/api/v2/programs/${programId}/learning`);
+211:  return apiClient.patch<Program>(`/api/v2/programs/${programId}/notes`, {
+
+--- Function → path map ---
+function:   return apiClient.get<PaginatedPrograms>("/api/v2/programs", { params });
+function:   return apiClient.get<Program>(`/api/v2/programs/${id}`);
+function:   return apiClient.post<Program>(
+function:   return apiClient.patch<Program>(
+function:   await apiClient.delete<void>(`/api/v2/programs/${id}`, idemHeaders(idempotencyKey));
+function:   return apiClient.post<ProgramRun>(
+function:   return apiClient.get<PaginatedRuns>(`/api/v2/programs/${programId}/runs`, { params });
+function:   return apiClient.post<ConsolidateResponse>(
+function:   return apiClient.get<LearningBrief>(`/api/v2/programs/${programId}/learning`);
+function:   return apiClient.patch<Program>(`/api/v2/programs/${programId}/notes`, {

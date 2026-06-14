@@ -1,0 +1,26 @@
+=== Task 2: Negative-budget check (TDD GREEN) ===
+Date: 2026-06-14
+Schema file: backend/app/schemas/program.py
+Test file: backend/tests/test_program_schemas.py
+
+>>> ProgramCreate(name='x', per_run_budget_usd=-1.0) must raise ValidationError
+>>> ProgramCreate(name='x', per_run_budget_usd=0.0) must succeed (ge=0 boundary)
+>>> ProgramCreate(name='x', monthly_budget_usd=-0.5) must raise ValidationError
+
+--- Container execution (docker compose exec backend python -c "...") ---
+
+=== Negative budget check ===
+OK: rejected with 1 error(s); first: greater_than_equal on loc=('per_run_budget_usd',)
+OK: zero budget accepted (per_run_budget_usd=0.0)
+OK: monthly budget negative rejected with greater_than_equal
+
+--- Interpretation ---
+- `per_run_budget_usd=-1.0` → ValidationError, code=greater_than_equal, loc=('per_run_budget_usd',)
+  → confirms Field(ge=0) is enforced on the create schema.
+- `per_run_budget_usd=0.0` → accepted, value preserved.
+  → confirms ge=0 (not gt=0); zero is the boundary and is valid.
+- `monthly_budget_usd=-0.5` → ValidationError, code=greater_than_equal
+  → confirms Field(ge=0) is enforced on monthly_budget_usd too.
+
+All three negative-budget assertions in the task spec are satisfied.
+No regressions vs. the existing `mission.py` schema (same ConfigDict idiom).

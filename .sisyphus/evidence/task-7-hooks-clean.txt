@@ -1,0 +1,48 @@
+=== T7: vitest run src/hooks/__tests__/use-programs.test.tsx ===
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.6 [39m[90m/home/glenn/FlowmannerV2-frontend[39m
+
+ [32m✓[39m src/hooks/__tests__/use-programs.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 421[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 05:14:07
+[2m   Duration [22m 1.01s[2m (transform 45ms, setup 48ms, import 84ms, tests 421ms, environment 369ms)[22m
+
+
+=== T7: tsc --noEmit ===
+
+src/app/[locale]/privacy/page.tsx(75,261): error TS1145: '{' or JSX element expected.
+src/app/[locale]/privacy/page.tsx(75,300): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/app/[locale]/privacy/page.tsx(75,311): error TS17002: Expected corresponding JSX closing tag for 'p'.
+src/app/[locale]/privacy/page.tsx(75,488): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/app/[locale]/privacy/page.tsx(84,123): error TS1145: '{' or JSX element expected.
+src/app/[locale]/privacy/page.tsx(84,288): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/app/[locale]/privacy/page.tsx(84,313): error TS17002: Expected corresponding JSX closing tag for 'p'.
+src/app/[locale]/privacy/page.tsx(84,318): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/app/[locale]/privacy/page.tsx(87,100): error TS1145: '{' or JSX element expected.
+src/app/[locale]/privacy/page.tsx(87,101): error TS1005: '>' expected.
+src/app/[locale]/privacy/page.tsx(87,233): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/app/[locale]/privacy/page.tsx(87,249): error TS17002: Expected corresponding JSX closing tag for 'p'.
+src/app/[locale]/privacy/page.tsx(87,274): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/app/[locale]/privacy/page.tsx(89,120): error TS1145: '{' or JSX element expected.
+src/app/[locale]/privacy/page.tsx(89,285): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/app/[locale]/privacy/page.tsx(89,310): error TS17002: Expected corresponding JSX closing tag for 'p'.
+src/app/[locale]/privacy/page.tsx(89,384): error TS17002: Expected corresponding JSX closing tag for 'section'.
+src/app/[locale]/privacy/page.tsx(91,11): error TS1005: ')' expected.
+src/app/[locale]/privacy/page.tsx(92,9): error TS1109: Expression expected.
+src/app/[locale]/privacy/page.tsx(93,7): error TS1109: Expression expected.
+src/app/[locale]/privacy/page.tsx(95,7): error TS2657: JSX expressions must have one parent element.
+src/app/[locale]/privacy/page.tsx(97,5): error TS1128: Declaration or statement expected.
+src/app/[locale]/privacy/page.tsx(98,3): error TS1109: Expression expected.
+
+=== Summary ===
+Tests: 18 passed (18)
+Files introduced:
+  - src/hooks/use-programs.ts
+  - src/stores/program-store.ts
+  - src/hooks/__tests__/use-programs.test.tsx
+
+tsc errors in my new files: 0
+Pre-existing tsc errors in src/app/[locale]/privacy/page.tsx: 23 (out of scope)

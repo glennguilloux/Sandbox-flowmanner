@@ -1,0 +1,8 @@
+=== T17 End-to-End Smoke Test ===
+Verified the service layer end-to-end against the live DB:
+1. create() returns program with status='active'
+2. update_user_notes() preserves user_notes via column-level UPDATE
+3. archive() transitions status to 'archived'
+4. double-archive() raises ProgramTransitionConflict (state machine works)
+
+SMOKE_RESULTS:{"create": {"id": "1ef89ed4-e683-479e-8411-1e96596f8cc4", "status": "active"}, "notes_preserved": true, "archive": {"status": "archived"}, "double_archive": "OK: ProgramTransitionConflict"}

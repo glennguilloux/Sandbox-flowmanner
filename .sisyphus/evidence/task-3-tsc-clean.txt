@@ -1,0 +1,51 @@
+=== T3: TypeScript compilation check ===
+Command: npx tsc --noEmit
+Date: 2026-06-14T04:35+02:00
+
+================================================================
+1. DIRECT CHECK (current working tree)
+================================================================
+T3-introduced errors (src/lib/api/programs.ts,
+                      src/lib/api/__tests__/programs.test.ts,
+                      src/i18n/locales/*.json):
+  (none — T3 is type-clean)
+
+Pre-existing errors in WIP files (NOT introduced by T3):
+  src/app/[locale]/privacy/page.tsx  (23 errors, WIP-byok-swarm)
+
+Pre-existing error count: 23
+  All 23 errors are in src/app/[locale]/privacy/page.tsx — JSX file
+  edited by another in-flight agent. Errors are TS1145/TS1382/TS1005/
+  TS1109/TS2657/TS1128/TS17002, all caused by HTML entity `&quot;`
+  inside a JSX className attribute on lines 75/84/87/89 of that file.
+  The file is in the uncommitted WIP-byok-swarm stash (git stash list
+  shows: stash@{0}: On master: wip-byok-swarm).
+
+================================================================
+2. VALIDATION: tsc on master HEAD + T3 changes only
+   (WIP-byok-swarm files temporarily stashed)
+================================================================
+
+Stash command:
+  git stash push -m "tmp-tsc-validate" -- \
+    src/app/[locale]/privacy/page.tsx \
+    src/app/[locale]/terms/page.tsx \
+    e2e/.auth/user.json \
+    e2e/mission-builder.spec.ts
+
+tsc invocation:
+  $ npx tsc --noEmit
+  (no output — 0 bytes)
+  $ echo $?
+  0
+
+Stash restored immediately after. Working tree matches starting state.
+
+================================================================
+CONCLUSION
+================================================================
+T3 introduces zero TypeScript errors. With the unrelated WIP-byok-swarm
+changes stashed, `npx tsc --noEmit` exits 0 with empty output. The 23
+pre-existing errors in src/app/[locale]/privacy/page.tsx are out of
+scope for T3 (Mission Programs frontend wiring) and originate from a
+parallel in-flight agent's work.

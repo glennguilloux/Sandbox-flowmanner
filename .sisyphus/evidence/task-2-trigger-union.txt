@@ -1,0 +1,34 @@
+=== Task 2: Trigger discriminated union check (TDD GREEN) ===
+Date: 2026-06-14
+Schema file: backend/app/schemas/program.py
+
+>>> TriggerConfig is `Annotated[Union[CronTrigger, WebhookTrigger, ManualTrigger], Field(discriminator="type")]`
+>>> Each variant uses `model_config = ConfigDict(extra="forbid")` and a `Literal["..."]` type field.
+
+--- Container execution (docker compose exec backend python -c "...") ---
+
+=== Trigger discriminated union check ===
+OK cron: type='cron', expression='0 9 * * *', tz='UTC'
+OK manual: type='manual'
+OK webhook: type='webhook', secret='shh', path='/hooks/x'
+OK cron-no-expr: rejected with missing on loc=('trigger_config', 'cron', 'expression')
+OK bogus-type: rejected with union_tag_invalid on loc=('trigger_config',)
+OK TriggerConfig is Annotated Union of 3 variants
+
+--- Interpretation ---
+- `ProgramCreate(trigger_config={'type': 'cron', 'expression': '0 9 * * *', 'timezone': 'UTC'})`
+  → resolves to `CronTrigger` instance; `expression` and `timezone` populated.
+- `ProgramCreate(trigger_config={'type': 'manual'})`
+  → resolves to `ManualTrigger` instance; only the discriminator field required.
+- `ProgramCreate(trigger_config={'type': 'webhook', 'secret': 'shh', 'path': '/hooks/x'})`
+  → resolves to `WebhookTrigger` instance; both `secret` and `path` required.
+- `ProgramCreate(trigger_config={'type': 'cron'})` (missing expression)
+  → ValidationError, code=missing, loc=('trigger_config', 'cron', 'expression').
+  → Pydantic correctly identifies the variant (cron) and the missing field.
+- `ProgramCreate(trigger_config={'type': 'bogus'})` (unknown discriminator)
+  → ValidationError, code=union_tag_invalid, loc=('trigger_config',).
+  → Pydantic discriminated-union reject fires.
+
+Discriminator type-checked via `isinstance`:
+  - CronTrigger, WebhookTrigger, ManualTrigger all instantiated as expected.
+All three test cases (f), (g), (h) from the task spec are satisfied.

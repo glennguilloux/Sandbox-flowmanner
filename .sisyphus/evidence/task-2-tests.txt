@@ -1,0 +1,87 @@
+=== Task 2: pytest output (TDD GREEN) ===
+Date: 2026-06-14
+Test file: backend/tests/test_program_schemas.py
+Test command (per task spec): `docker compose exec backend pytest tests/test_program_schemas.py -v`
+  (Note: container rootdir is /app, so the path is `tests/...` not `backend/tests/...`.
+   The on-host file is at `backend/tests/test_program_schemas.py`, baked into the image
+   under `/app/tests/test_program_schemas.py` on rebuild.)
+
+--- Full pytest output (verbatim) ---
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.11, pytest-8.4.2, pluggy-1.6.0 -- /opt/venv/bin/python
+rootdir: /app
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-0.25.3, clarity-1.0.1, cov-7.1.0, flask-1.3.0, html-4.2.0, json-report-1.5.0, metadata-3.1.1, mock-3.15.0, timeout-2.4.0, xdist-3.8.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 32 items
+
+tests/test_program_schemas.py::TestProgramCreateValidation::test_a_empty_name_raises_validation_error PASSED [  3%]
+tests/test_program_schemas.py::TestProgramCreateValidation::test_b_negative_per_run_budget_raises PASSED [  6%]
+tests/test_program_schemas.py::TestProgramCreateValidation::test_c_zero_per_run_budget_succeeds PASSED [  9%]
+tests/test_program_schemas.py::TestProgramCreateValidation::test_c2_negative_monthly_budget_raises PASSED [ 12%]
+tests/test_program_schemas.py::TestProgramCreateValidation::test_c3_default_optional_fields PASSED [ 15%]
+tests/test_program_schemas.py::TestProgramCreateValidation::test_c4_extra_field_forbidden PASSED [ 18%]
+tests/test_program_schemas.py::TestConsolidateRequestValidation::test_d_limit_zero_raises PASSED [ 21%]
+tests/test_program_schemas.py::TestConsolidateRequestValidation::test_e_limit_51_raises PASSED [ 25%]
+tests/test_program_schemas.py::TestConsolidateRequestValidation::test_j_default_limit_is_10 PASSED [ 28%]
+tests/test_program_schemas.py::TestConsolidateRequestValidation::test_j2_boundary_limits_succeeds PASSED [ 31%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_f_cron_trigger_validates PASSED [ 34%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_g_manual_trigger_validates PASSED [ 37%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_g2_webhook_trigger_validates PASSED [ 40%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_h_cron_missing_expression_raises PASSED [ 43%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_h2_webhook_missing_secret_raises PASSED [ 46%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_h3_unknown_trigger_type_raises PASSED [ 50%]
+tests/test_program_schemas.py::TestTriggerDiscriminatedUnion::test_h4_cron_extra_field_forbidden PASSED [ 53%]
+tests/test_program_schemas.py::TestLearningBriefBase::test_i_user_notes_default_empty PASSED [ 56%]
+tests/test_program_schemas.py::TestLearningBriefBase::test_i2_user_notes_settable PASSED [ 59%]
+tests/test_program_schemas.py::TestLearningBriefBase::test_i3_full_brief_round_trip PASSED [ 62%]
+tests/test_program_schemas.py::TestLearningBriefBase::test_i4_extra_field_forbidden PASSED [ 65%]
+tests/test_program_schemas.py::TestResponseSchemas::test_program_response_extra_field_allowed PASSED [ 68%]
+tests/test_program_schemas.py::TestResponseSchemas::test_program_run_response_minimal PASSED [ 71%]
+tests/test_program_schemas.py::TestResponseSchemas::test_consolidate_response_wraps_brief PASSED [ 75%]
+tests/test_program_schemas.py::TestFireRequest::test_fire_request_empty PASSED [ 78%]
+tests/test_program_schemas.py::TestFireRequest::test_fire_request_with_payload PASSED [ 81%]
+tests/test_program_schemas.py::TestFireRequest::test_fire_request_extra_forbidden PASSED [ 84%]
+tests/test_program_schemas.py::TestProgramUpdate::test_program_update_empty PASSED [ 87%]
+tests/test_program_schemas.py::TestProgramUpdate::test_program_update_status_validated PASSED [ 90%]
+tests/test_program_schemas.py::TestProgramUpdate::test_program_update_status_garbage_rejected PASSED [ 93%]
+tests/test_program_schemas.py::TestProgramUpdate::test_program_update_extra_forbidden PASSED [ 96%]
+tests/test_program_schemas.py::TestProgramUpdate::test_program_update_empty_name_rejected PASSED [100%]
+
+=============================== warnings summary ===============================
+../opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group in eps.values() for ep in ep)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 32 passed, 1 warning in 0.10s =========================
+
+--- TDD audit ---
+RED phase (test file written first, schema file absent):
+  $ pytest tests/test_program_schemas.py
+  ============= 32 failed, 1 warning in 0.21s =============
+  All 32 tests failed with ModuleNotFoundError on `app.schemas.program` (or
+  attribute access before import). This is the expected RED outcome.
+
+GREEN phase (schema file written after the RED was confirmed):
+  $ pytest tests/test_program_schemas.py
+  ============= 32 passed, 1 warning in 0.06s =============
+  All 32 tests pass with the implementation in `backend/app/schemas/program.py`.
+
+--- Coverage of the 10 spec test cases ---
+(a) ProgramCreate(name="") raises ValidationError ............................ test_a
+(b) ProgramCreate(per_run_budget_usd=-1.0) raises ValidationError ........... test_b
+(c) ProgramCreate(per_run_budget_usd=0.0) succeeds ........................... test_c
+(d) ConsolidateRequest(limit=0) raises ValidationError ...................... test_d
+(e) ConsolidateRequest(limit=51) raises ValidationError ..................... test_e
+(f) Cron trigger succeeds .................................................. test_f
+(g) Manual trigger succeeds ................................................ test_g
+(h) Cron trigger missing expression raises ................................. test_h
+(i) LearningBriefBase(user_notes=...) works, defaults to "" ................ test_i, test_i2, test_i3
+(j) ConsolidateRequest() defaults to limit=10 ............................... test_j
+
+All 10 spec-required cases are covered. The remaining 22 tests cover extra
+guardrails: extra='forbid' on every create/update/request model, status literal
+rejection, LearningBriefBase full sub-key round-trip, response models minimal
+construction, and FireRequest/ProgramUpdate extra-field rejection.
