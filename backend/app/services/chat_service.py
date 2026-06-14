@@ -5,7 +5,9 @@ import json
 import logging
 import os
 import time
+from datetime import UTC
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from openai import AsyncOpenAI
 from sqlalchemy import func, select
@@ -15,13 +17,17 @@ from app.models.phase4_models import UserFile
 
 logger = logging.getLogger(__name__)
 
-from datetime import UTC
-from typing import TYPE_CHECKING
-
 from app.config import settings
+from app.services.memory_citation_service import (
+    build_recall_used_event,
+    format_memory_block,
+    recall_for_chat,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.personal_memory_models import PersonalMemoryClaim
 
 PROVIDER_MAP = {
     "deepseek": ("https://api.deepseek.com/v1", "DEEPSEEK_API_KEY"),
@@ -850,6 +856,29 @@ async def _build_chat_messages(
     return messages
 
 
+def _inject_memory_context(
+    messages: list[dict],
+    claims: list[PersonalMemoryClaim],
+) -> list[dict]:
+    """Insert a system message containing the recalled-memory context.
+
+    No-op when ``claims`` is empty. The memory message is inserted at
+    index 1 (right after the existing system prompt at index 0) so the
+    LLM sees it before the conversation history. This is the chat-side
+    half of plan §3 (Pre-LLM injection) — the LLM is told what was
+    recalled; the citation chips are rendered by the frontend from the
+    ``memory_recall_used`` SSE event metadata (not parsed from the LLM's
+    text). See plan §2 "Critical Design Principle".
+    """
+    if not claims:
+        return messages
+    block = format_memory_block(claims)
+    if not block:
+        return messages
+    messages.insert(1, {"role": "system", "content": block})
+    return messages
+
+
 async def send_message_to_llm(
     db: AsyncSession,
     thread_id: int,
@@ -1184,6 +1213,45 @@ async def stream_message_to_llm(
         async with breaker.protect():
             messages_for_llm = await _build_chat_messages(db, thread_id)
 
+            # ── T33 Stage 1: pre-LLM memory recall + injection ──────
+            # Guarded by (a) the feature flag, (b) the thread having a
+            # workspace_id (per plan §13 M4). A recall outage is logged
+            # and swallowed — the LLM call always proceeds.
+            memory_recall_claims: list[PersonalMemoryClaim] = []
+            if settings.CHAT_MEMORY_CITATIONS_ENABLED:
+                thread_for_recall = await get_chat_thread(db, thread_id)
+                if thread_for_recall and thread_for_recall.workspace_id:
+                    try:
+                        memory_recall_claims = await recall_for_chat(
+                            db,
+                            user_id=user_id,
+                            workspace_id=thread_for_recall.workspace_id,
+                            query=content,
+                        )
+                        if memory_recall_claims:
+                            messages_for_llm = _inject_memory_context(
+                                messages_for_llm, memory_recall_claims
+                            )
+                            logger.info(
+                                "stream_message_to_llm: injected %d memory claims for thread %s",
+                                len(memory_recall_claims),
+                                thread_id,
+                            )
+                    except Exception as recall_err:
+                        logger.warning(
+                            "stream_message_to_llm: memory recall failed for thread %s, "
+                            "continuing without context: %s",
+                            thread_id,
+                            recall_err,
+                        )
+                        memory_recall_claims = []
+                else:
+                    logger.info(
+                        "stream_message_to_llm: skipping memory recall for thread %s "
+                        "(workspace_id is null)",
+                        thread_id,
+                    )
+
             if attachments:
                 messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
 
@@ -1389,6 +1457,16 @@ async def stream_message_to_llm(
                 save_err,
             )
             assistant_msg = await create_chat_message_fresh_session(thread_id, "assistant", full_response)
+
+        # ── T33 Stage 1: emit memory_recall_used events for cited claims ──
+        # Emitted AFTER the assistant message is persisted so the frontend
+        # can attach the recall metadata to the right message. Stage 2
+        # will add memory_citation events that carry the short-UUID chip
+        # label and confidence for rendering.
+        for claim in memory_recall_claims:
+            yield json.dumps(
+                build_recall_used_event(claim, message_id=str(assistant_msg.id))
+            )
 
         try:
             from app.services.usage_service import get_usage_service

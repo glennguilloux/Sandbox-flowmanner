@@ -157,6 +157,12 @@ class Settings(BaseSettings):
     # Chat tool-calling limits
     CHAT_MAX_TOOL_ROUNDS: int = 15
 
+    # T33 — Inline memory citations in chat.
+    # Stage 0 = False (no behavior change). Stage 1+ flips to True to enable
+    # the pre-LLM memory recall path in chat_service.stream_message_to_llm.
+    # Per-tenant or per-user override is intentionally NOT in scope for T33.
+    CHAT_MEMORY_CITATIONS_ENABLED: bool = False
+
     # Q1-A: Worker lease integration
     FLOWMANNER_LEASE_ENABLED: bool = True
     FLOWMANNER_LEASE_RECLAIMER_ENABLED: bool = True
