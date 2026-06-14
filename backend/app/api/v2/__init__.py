@@ -48,6 +48,21 @@ from app.api.v2.personal_memory import (  # noqa: E402
 api_v2_router.include_router(personal_memory_router)
 _fastapi_app.add_exception_handler(RequestValidationError, pm_validation_handler)
 
+# Critic Inspection API (D30-60, T28) — read-only /critiques surface for
+# the Programs brief UI and the future "show alternatives" UI. Mirrors
+# the personal_memory section above: import router + validation handler,
+# include router, register the domain-specific 422 handler on the main
+# FastAPI app.
+from app.api.v2.critiques import (  # noqa: E402
+    critiques_validation_handler,
+    router as critiques_router,
+)
+
+api_v2_router.include_router(critiques_router)
+_fastapi_app.add_exception_handler(
+    RequestValidationError, critiques_validation_handler
+)
+
 from app.api.v2.dashboard import router as dashboard_router
 from app.api.v2.integrations import router as integrations_router
 from app.api.v2.integrations_actions import router as integrations_actions_router

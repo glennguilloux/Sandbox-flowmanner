@@ -27,7 +27,7 @@ import logging
 import uuid
 from typing import Any
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.critique_models import ALL_CRITIC_KINDS, Critique
@@ -191,6 +191,92 @@ class CritiqueService:
             critique.score_overall,
         )
         return critique
+
+    # ── Read: list ──────────────────────────────────────────────────
+
+    async def list(
+        self,
+        *,
+        user_id: int,
+        workspace_id: str,
+        mission_id: uuid.UUID | None = None,
+        program_id: uuid.UUID | None = None,
+        critic_kind: str | None = None,
+        min_score_overall: float | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Critique], int]:
+        """Paginated listing for the v2 /critiques inspection surface.
+
+        Always filters by ``(user_id, workspace_id)`` (the workspace
+        isolation guardrail — see the module docstring). All other
+        filters are optional; passing ``None`` means "do not constrain
+        on this column".
+
+        Validates ``critic_kind`` against ``ALL_CRITIC_KINDS`` and
+        ``min_score_overall`` against ``[0.0, 1.0]`` up front so a bad
+        client value surfaces as a ``CritiqueValidationError`` (→ 422)
+        rather than a 500 from a raw IntegrityError.
+
+        Returns ``(items, total_count)``. Items are ordered by
+        ``created_at DESC`` (most recent first — the inspection UI's
+        preferred sort).
+
+        Per ``services/AGENTS.md`` rule 3: this method does NOT call
+        ``db.commit()``. The caller (route) owns the transaction.
+        """
+        # ── Validation ────────────────────────────────────────────
+        if critic_kind is not None:
+            self._validate_critic_kind(critic_kind)
+        if min_score_overall is not None:
+            if not (SCORE_MIN <= min_score_overall <= SCORE_MAX):
+                raise CritiqueValidationError(
+                    f"min_score_overall must be in [{SCORE_MIN}, {SCORE_MAX}]; "
+                    f"got {min_score_overall!r}"
+                )
+
+        # ── Predicate composition ─────────────────────────────────
+        # Mandatory isolation predicate.
+        base_predicates = [
+            Critique.user_id == user_id,
+            Critique.workspace_id == workspace_id,
+        ]
+        # Optional filters, added incrementally — no premature commit
+        # (the route commits when the request is done).
+        optional_predicates: list[Any] = []
+        if mission_id is not None:
+            optional_predicates.append(Critique.mission_id == mission_id)
+        if program_id is not None:
+            optional_predicates.append(Critique.program_id == program_id)
+        if critic_kind is not None:
+            optional_predicates.append(Critique.critic_kind == critic_kind)
+        if min_score_overall is not None:
+            optional_predicates.append(
+                Critique.score_overall >= min_score_overall
+            )
+
+        where_clause = and_(*base_predicates, *optional_predicates)
+
+        # ── Total count ───────────────────────────────────────────
+        count_stmt = (
+            select(func.count())
+            .select_from(Critique)
+            .where(where_clause)
+        )
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        # ── Items (paginated, ordered by created_at DESC) ────────
+        items_stmt = (
+            select(Critique)
+            .where(where_clause)
+            .order_by(Critique.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        items = list(
+            (await self.db.execute(items_stmt)).scalars().all()
+        )
+        return items, int(total)
 
     # ── Read: get ───────────────────────────────────────────────────
 
