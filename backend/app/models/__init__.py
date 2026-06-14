@@ -166,6 +166,8 @@ from app.models.memory_correction_models import (
     ALL_EVENT_TYPES,
     MemoryCorrectionEvent,
 )
+# Memory extraction pauses (D30-60, T30 — pause toggle)
+from app.models.memory_extraction_pause_models import MemoryExtractionPause
 
 # Memory models (canonical + legacy)
 from app.models.memory_models import MemoryEntry
