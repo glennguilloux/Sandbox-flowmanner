@@ -168,6 +168,12 @@ from app.models.memory_correction_models import (
 )
 # Memory extraction pauses (D30-60, T30 — pause toggle)
 from app.models.memory_extraction_pause_models import MemoryExtractionPause
+# Memory digest deliveries (D30-60, T31 — daily digest)
+from app.models.memory_digest_models import (
+    ALL_DELIVERY_CHANNELS,
+    ALL_DELIVERY_STATUSES,
+    MemoryDigestDelivery,
+)
 
 # Memory models (canonical + legacy)
 from app.models.memory_models import MemoryEntry
