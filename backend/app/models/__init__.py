@@ -177,6 +177,10 @@ from app.models.mission_program_models import (
     ProgramRunStatus,
     ProgramStatus,
 )
+
+# Personal memory claims (D0-30, T18)
+from app.models.personal_memory_models import PersonalMemoryClaim
+
 from app.models.models import (
     AgentReview,
     ComposedCapabilityModel,
