@@ -289,6 +289,116 @@ class MissionProgramService:
         )
         return items, int(total)
 
+    # ── T8: fire_program (real implementation) ───────────────────────
+
+    async def fire_program(
+        self,
+        user_id: int,
+        program_id: uuid.UUID,
+        trigger_type: str,
+        trigger_payload: dict | None = None,
+    ) -> ProgramRun:
+        """Fire a program: ACTIVE check → budget pre-check → create
+        Mission + ProgramRun → dispatch to UnifiedExecutor.
+
+        Returns the ProgramRun with a terminal status (or "failed" on
+        executor error). Per the substrate contract
+        (``substrate/AGENTS.md`` rule 1), the UnifiedExecutor is the only
+        entry point for workflow execution; we do not call into the
+        legacy ``MissionExecutor`` from this path.
+
+        Transaction discipline: this method NEVER commits — the caller
+        (route / CQRS handler) owns the unit-of-work. We ``flush()`` so
+        mission_id + run_id are observable.
+        """
+        # Lazy imports break cycles and keep test patching points stable.
+        from app.models.mission_models import Mission, MissionStatus
+        from app.services.substrate.adapters import mission_to_workflow
+        from app.services.substrate.executor import get_unified_executor
+
+        # 1. Load program (raises ProgramNotFound / ProgramForbidden).
+        program = await self.get(user_id, program_id)
+
+        # 2. Status gate: only ACTIVE programs can be fired.
+        if program.status != ProgramStatus.ACTIVE.value:
+            raise ProgramTransitionConflict(
+                f"cannot fire program in status {program.status!r} "
+                "(must be 'active')"
+            )
+
+        # 3. Budget pre-check (per-run + monthly caps, T10).
+        estimated_cost = 0.05  # default planning estimate (USD)
+        await self._check_program_budget(program, estimated_cost)
+
+        # 4. Create the child Mission. The base constraints from the
+        # program are copied verbatim; we add a ``_planning_context``
+        # sub-key that carries the learning brief for the planner to
+        # consume (per the §T5 plan, this is the structured-brief path).
+        existing_constraints = dict(program.base_constraints or {})
+        existing_constraints["_planning_context"] = {
+            "learning_brief": dict(program.learning_brief or {}),
+        }
+        mission = Mission(
+            user_id=program.user_id,
+            workspace_id=program.workspace_id,
+            title=f"[Program] {program.name}",
+            description=program.description or "",
+            mission_type=program.mission_type,
+            constraints=existing_constraints,
+            status=MissionStatus.PENDING,
+        )
+        self.db.add(mission)
+        await self.db.flush()  # populate mission.id
+
+        # 5. Create the ProgramRun in RUNNING state.
+        run = ProgramRun(
+            program_id=program.id,
+            mission_id=mission.id,
+            trigger_type=trigger_type,
+            trigger_payload=trigger_payload,
+            status="running",
+        )
+        self.db.add(run)
+        await self.db.flush()  # populate run.id
+
+        # 6. Dispatch to the unified executor (the only execution entry
+        # point per ``substrate/AGENTS.md``). Outcome is captured back
+        # onto the ProgramRun; the runner itself is synchronous from
+        # this caller's point of view (the substrate is async but
+        # in-process — async/await is a no-op for our purposes here).
+        try:
+            workflow = mission_to_workflow(mission, tasks=[])
+            executor = get_unified_executor()
+            result = await executor.execute(self.db, workflow)
+            run.status = "completed" if getattr(result, "success", False) else "failed"
+            run.cost_usd = float(getattr(result, "total_cost_usd", 0.0) or 0.0)
+            run.tokens_used = int(getattr(result, "total_tokens", 0) or 0)
+            # execution_time_ms is a float in milliseconds; duration_seconds
+            # is stored as float seconds. Fall back to 0.0 on bad input.
+            exec_ms = float(getattr(result, "execution_time_ms", 0.0) or 0.0)
+            run.duration_seconds = exec_ms / 1000.0
+            # summary is a free-form field; we keep the executor's
+            # ``data``/``error`` summary if present, else None.
+            summary = getattr(result, "data", None) or getattr(result, "error", None)
+            if isinstance(summary, str):
+                run.outcome_summary = summary[:1000]
+        except Exception as exc:
+            logger.exception("fire_program: executor failed")
+            run.status = "failed"
+            run.outcome_summary = f"executor error: {exc!s}"[:1000]
+
+        await self.db.flush()
+        await self.db.refresh(run)
+
+        # 7. Audit (non-blocking).
+        self._safe_audit(
+            "program_fired",
+            program_id=str(program.id),
+            run_id=str(run.id),
+            user_id=user_id,
+        )
+        return run
+
     # ── Learning brief helpers ────────────────────────────────────────
 
     async def get_learning_brief(self, program_id: uuid.UUID) -> dict | None:
@@ -319,23 +429,13 @@ class MissionProgramService:
         self._safe_audit("program_updated", program_id=str(program.id), user_id=user_id)
         return program
 
-    # ── Stubs (filled in T8/T9) ───────────────────────────────────────
+    # ── T8: fire_program (real implementation) ───────────────────────
+#
+# NOTE: The old "Stubs (filled in T8/T9)" section that defined stub
+# fire_program() + consolidate_learning() is replaced by the real
+# implementations above. Do not re-introduce stubs here — see the
+# implementation directly above.
 
-    async def fire_program(
-        self,
-        user_id: int,
-        program_id: uuid.UUID,
-        trigger_type: str,
-        trigger_payload: dict | None = None,
-    ) -> ProgramRun:
-        """Fire a program — creates a Mission + ProgramRun. Implemented in T8."""
-        raise NotImplementedError("fire_program is implemented in T8")
-
-    async def consolidate_learning(
-        self, user_id: int, program_id: uuid.UUID, limit: int = 10
-    ) -> ConsolidateResponse:
-        """Consolidate the last ``limit`` runs into the learning brief. T9."""
-        raise NotImplementedError("consolidate_learning is implemented in T9")
 
     # ── Budget helper (T10) ──────────────────────────────────────────
 
