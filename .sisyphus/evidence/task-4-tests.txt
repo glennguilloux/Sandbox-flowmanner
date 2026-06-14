@@ -1,0 +1,30 @@
+============================= test session starts ==============================
+collecting ... collected 19 items
+
+tests/test_program_cqrs.py::TestMapProgramInfraError::test_integrity_error_maps_to_validation_error PASSED [  5%]
+tests/test_program_cqrs.py::TestMapProgramInfraError::test_dbapi_error_invalidated_connection_maps_to_program_error PASSED [ 10%]
+tests/test_program_cqrs.py::TestMapProgramInfraError::test_dbapi_error_valid_connection_maps_to_program_error PASSED [ 15%]
+tests/test_program_cqrs.py::TestMapProgramInfraError::test_generic_exception_maps_to_program_error PASSED [ 21%]
+tests/test_program_cqrs.py::TestBaseClasses::test_command_handler_base_stores_session PASSED [ 26%]
+tests/test_program_cqrs.py::TestBaseClasses::test_query_handler_base_stores_session PASSED [ 31%]
+tests/test_program_cqrs.py::TestProgramAudit::test_audit_stores_session PASSED [ 36%]
+tests/test_program_cqrs.py::TestProgramAudit::test_program_created_records_event PASSED [ 42%]
+tests/test_program_cqrs.py::TestProgramAudit::test_program_fired_records_event PASSED [ 47%]
+tests/test_program_cqrs.py::TestProgramAudit::test_audit_does_not_raise_on_broken_logger PASSED [ 52%]
+tests/test_program_cqrs.py::TestProgramCommandHandlersAudit::test_create_program_audit_logs_creation PASSED [ 57%]
+tests/test_program_cqrs.py::TestProgramCommandHandlersAudit::test_create_program_audit_injected_into_service PASSED [ 63%]
+tests/test_program_cqrs.py::TestProgramCommandHandlersSoftDelete::test_delete_program_calls_service_archive PASSED [ 68%]
+tests/test_program_cqrs.py::TestProgramCommandHandlersFireAndConsolidate::test_fire_program_threads_idempotency_key_into_audit PASSED [ 73%]
+tests/test_program_cqrs.py::TestProgramCommandHandlersFireAndConsolidate::test_fire_program_surfaces_not_implemented PASSED [ 78%]
+tests/test_program_cqrs.py::TestProgramCommandHandlersUserNotes::test_update_user_notes_calls_service PASSED [ 84%]
+tests/test_program_cqrs.py::TestProgramQueryHandlersWorkspaceFilter::test_list_programs_filters_by_workspace_id PASSED [ 89%]
+tests/test_program_cqrs.py::TestProgramQueryHandlersWorkspaceFilter::test_list_programs_workspace_id_none PASSED [ 94%]
+tests/test_program_cqrs.py::TestProgramQueryHandlersForbidden::test_get_program_raises_forbidden_for_non_member PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 19 passed, 1 warning in 0.28s =========================

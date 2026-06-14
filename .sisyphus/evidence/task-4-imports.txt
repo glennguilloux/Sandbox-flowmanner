@@ -1,0 +1,11 @@
+=== T4: _program_cqrs import test ===
+ProgramAudit: <class 'app.api._program_cqrs.audit.ProgramAudit'>
+CommandHandlerBase: <class 'app.api._program_cqrs.base.CommandHandlerBase'>
+QueryHandlerBase: <class 'app.api._program_cqrs.base.QueryHandlerBase'>
+ProgramCommandHandlers: <class 'app.api._program_cqrs.commands.ProgramCommandHandlers'>
+ProgramQueryHandlers: <class 'app.api._program_cqrs.queries.ProgramQueryHandlers'>
+get_program_commands: <function get_program_commands at 0x7f86205b9260>
+get_program_queries: <function get_program_queries at 0x7f8620ce9620>
+map_program_infra_error: <function map_program_infra_error at 0x7f8622c5a160>
+
+Public API surface verified.

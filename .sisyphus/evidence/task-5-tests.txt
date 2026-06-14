@@ -1,0 +1,20 @@
+tests/test_mission_program_service.py::test_create_returns_active_program_with_null_brief PASSED [  8%]
+tests/test_mission_program_service.py::test_get_raises_not_found_for_missing_program PASSED [ 16%]
+tests/test_mission_program_service.py::test_get_for_non_owner_non_member_raises_forbidden PASSED [ 25%]
+tests/test_mission_program_service.py::test_update_on_archived_program_raises_conflict PASSED [ 33%]
+tests/test_mission_program_service.py::test_archive_with_in_flight_run_raises_conflict PASSED [ 41%]
+tests/test_mission_program_service.py::test_update_user_notes_preserves_structured_fields PASSED [ 50%]
+tests/test_mission_program_service.py::test_list_filters_by_workspace_id PASSED [ 58%]
+tests/test_mission_program_service.py::test_budget_check_per_run_cap_rejects PASSED [ 66%]
+tests/test_mission_program_service.py::test_budget_check_monthly_cap_rejects PASSED [ 75%]
+tests/test_mission_program_service.py::test_budget_check_no_caps_means_no_enforcement PASSED [ 83%]
+tests/test_mission_program_service.py::test_archive_active_to_archived_succeeds PASSED [ 91%]
+tests/test_mission_program_service.py::test_archive_paused_to_archived_succeeds PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 12 passed, 1 warning in 1.78s =========================
