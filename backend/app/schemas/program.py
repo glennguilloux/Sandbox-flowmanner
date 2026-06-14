@@ -90,6 +90,13 @@ class LearningBriefBase(BaseModel):
     last_consolidated_at: str | None = None
     # SEPARATE field — consolidation MUST NEVER touch this. User-owned.
     user_notes: str = ""
+    # T22: cross-pollinated personal-memory claims (top-N from
+    # ``PersonalMemoryService.recall`` for this program owner). Schema
+    # is ``list[dict]`` to keep the brief forward-compatible: the
+    # renderers in T21+ read individual keys, not the typed shape.
+    # Default empty list — programs without a personal-memory service
+    # (or with no eligible claims) carry an empty list.
+    user_personal_claims: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # ── Program CRUD ──────────────────────────────────────────────────────────

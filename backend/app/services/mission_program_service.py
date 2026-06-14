@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,9 +110,22 @@ class MissionProgramService:
     populated before the caller's commit/rollback decision.
     """
 
-    def __init__(self, db: AsyncSession, audit: Any | None = None) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        audit: Any | None = None,
+        get_personal_memory_service: Callable[[], Any] | None = None,
+    ) -> None:
         self.db = db
         self.audit = audit or _NoOpAudit()
+        # T22: late-binding callable (per services/AGENTS.md rule 2)
+        # for the personal-memory service used by ``consolidate_learning``
+        # to cross-pollinate the user's top-N claims into the brief.
+        # When the callable returns ``None`` (no service registered) or
+        # raises, the brief carries ``user_personal_claims=[]``.
+        self._get_personal_memory_service: Callable[[], Any] = (
+            get_personal_memory_service or (lambda: None)
+        )
 
     # ── CRUD ──────────────────────────────────────────────────────────
 
@@ -587,22 +600,73 @@ class MissionProgramService:
             ) + len(terminal_runs)
             new_structured = existing
 
-        # 6. Merge: new structured fields + existing user_notes (NEVER
-        # overwritten) + last_consolidated_at.
+        # 6.5. Fetch user personal claims (T22 cross-pollination).
+        # Defence-in-depth: try/except so a personal-memory failure
+        # never breaks the consolidation flow. Top-20 cap (vs the
+        # planner's 10) because a program-level brief is rendered
+        # more deliberately and can carry a longer context.
+        user_personal_claims: list[dict] = []
+        try:
+            pm_service = self._get_personal_memory_service()
+            if pm_service is not None:
+                claims, _total = await pm_service.recall(
+                    user_id=user_id,
+                    workspace_id=program.workspace_id,
+                    query="",  # recall all eligible
+                    scopes=["personal", "workspace", "program"],
+                    top_k=20,
+                    min_confidence=0.0,
+                )
+                # Belt-and-suspenders: even though recall scopes already
+                # exclude "private", re-filter at the renderer seam in
+                # case recall ever loosens its scope contract. Then
+                # apply the top-20 cap explicitly (the recall top_k
+                # is a hint, not a contract — mocks and future
+                # implementations may return more).
+                eligible = [
+                    c for c in (claims or [])
+                    if getattr(c, "sensitivity", "normal") != "restricted"
+                    and getattr(c, "scope", "personal") != "private"
+                ][:20]
+                user_personal_claims = [
+                    {
+                        "id": str(c.id),
+                        "subject": c.subject,
+                        "predicate": c.predicate,
+                        "object": c.object,
+                        "claim_type": c.claim_type,
+                        "scope": c.scope,
+                        "confidence": c.confidence,
+                        "importance": c.importance,
+                        "source_type": c.source_type,
+                    }
+                    for c in eligible
+                ]
+        except Exception as exc:
+            logger.warning(
+                "consolidation: personal memory fetch failed: %s",
+                exc,
+                exc_info=True,
+            )
+            # user_personal_claims stays []
+
+        # 7. Merge: new structured fields + existing user_notes (NEVER
+        # overwritten) + last_consolidated_at + user_personal_claims.
         existing = dict(program.learning_brief or {})
         existing_user_notes = existing.get("user_notes", "")
         merged = {
             **new_structured,
             "user_notes": existing_user_notes,
             "last_consolidated_at": datetime.now(UTC).isoformat(),
+            "user_personal_claims": user_personal_claims,
         }
 
-        # 7. Persist (column-level UPDATE — touches learning_brief only).
+        # 8. Persist (column-level UPDATE — touches learning_brief only).
         program.learning_brief = merged
         await self.db.flush()
         await self.db.refresh(program)
 
-        # 8. Audit (non-blocking).
+        # 9. Audit (non-blocking).
         self._safe_audit(
             "program_consolidated",
             program_id=str(program.id),
