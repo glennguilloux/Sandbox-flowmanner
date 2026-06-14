@@ -40,12 +40,18 @@ IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
 IDEMPOTENCY_REPLAY_HEADER = "Idempotency-Replay"
 
 
-def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS):
+def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS, *, required: bool = False):
     """FastAPI dependency factory for scoped idempotent mutation endpoints.
 
     Returns a cached JSONResponse on replay/conflict, or None on pass-through.
     Stores the new IdempotencyKey on request.state._idempotency_record so
     the IdempotencyFinalizationMiddleware can persist the response.
+
+    When ``required=True`` the dep enforces the presence of an
+    ``Idempotency-Key`` header — a missing key returns a 400 v2 envelope
+    error rather than silently passing through.  This is the strict
+    policy used by the program router (T11); the mission router remains
+    opt-in for backward compatibility.
     """
 
     async def _check(
@@ -55,6 +61,12 @@ def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS):
     ) -> JSONResponse | None:
         key = request.headers.get(IDEMPOTENCY_KEY_HEADER)
         if not key:
+            if required:
+                return _make_error_response(
+                    400,
+                    "IDEMPOTENCY_KEY_REQUIRED",
+                    "Idempotency-Key header is required for this endpoint",
+                )
             return None
 
         if not _validate_key(key):

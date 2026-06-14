@@ -27,6 +27,11 @@ api_v2_router.include_router(chat_router)
 api_v2_router.include_router(workspaces_router)
 api_v2_router.include_router(search_router)
 
+# Mission Programs (T11) — thin CQRS wrappers with idempotency + rate limits
+from app.api.v2.programs import router as programs_router
+
+api_v2_router.include_router(programs_router)
+
 from app.api.v2.dashboard import router as dashboard_router
 from app.api.v2.integrations import router as integrations_router
 from app.api.v2.integrations_actions import router as integrations_actions_router
