@@ -70,6 +70,7 @@ os.environ.setdefault(
 # Late imports so env var is honored.
 from app.api.deps import get_current_user, get_db, get_workspace_id  # noqa: E402
 from app.main_fastapi import app  # noqa: E402
+from app.models.memory_correction_models import MemoryCorrectionEvent  # noqa: E402
 from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.models.workspace_models import Workspace  # noqa: E402
@@ -286,6 +287,220 @@ async def ctx():
                 await cleanup.commit()
         except Exception:
             pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 16–18. GET /claims/{id}/provenance — T32 (Memory Inspector's Why drawer)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _make_correction_event(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    workspace_id: str,
+    claim_id: uuid.UUID,
+    event_type: str,
+    actor: str = "user",
+    source: str | None = None,
+) -> MemoryCorrectionEvent:
+    """Helper — append a single audit row directly via the model.
+
+    Bypasses ``MemoryCorrectionService.record_event`` so the test does
+    not depend on service-layer behavior; the route under test calls
+    ``MemoryCorrectionService.get_provenance`` which only READS the
+    table. Direct inserts are the right granularity for a router test.
+    """
+    event = MemoryCorrectionEvent(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        claim_id=claim_id,
+        event_type=event_type,
+        actor=actor,
+        source=source,
+    )
+    session.add(event)
+    await session.flush()
+    return event
+
+
+async def test_provenance_claim_with_events(ctx) -> None:
+    """GET /claims/{id}/provenance returns event_count + bucket map.
+
+    Case 16: a claim that has been viewed 1x, edited 1x, and inspected
+    1x. The route must return event_count=3, the ``events_by_type``
+    bucket map keyed by ALL_EVENT_TYPES with the right counts, and the
+    most-recent event_type/actor in ``last_*`` fields.
+    """
+    client = ctx["client"]
+    session = ctx["session"]
+    user = ctx["user"]
+    ws = ctx["workspace"]
+
+    claim = await _make_claim(
+        session,
+        user_id=user.id,
+        workspace_id=ws.id,
+        subject="prefers dark mode",
+    )
+    # Three events in chronological order. The route/service orders by
+    # created_at DESC, so "inspect" should be the last_event_type.
+    await _make_correction_event(
+        session,
+        user_id=user.id,
+        workspace_id=ws.id,
+        claim_id=claim.id,
+        event_type="view",
+    )
+    await _make_correction_event(
+        session,
+        user_id=user.id,
+        workspace_id=ws.id,
+        claim_id=claim.id,
+        event_type="edit",
+    )
+    await _make_correction_event(
+        session,
+        user_id=user.id,
+        workspace_id=ws.id,
+        claim_id=claim.id,
+        event_type="inspect",
+    )
+    await session.commit()
+
+    resp = client.get(
+        f"/api/v2/personal_memory/claims/{claim.id}/provenance"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["error"] is None
+    data = body["data"]
+    assert data["claim_id"] == str(claim.id)
+    assert data["event_count"] == 3
+    assert data["last_event_type"] == "inspect"
+    assert data["last_actor"] == "user"
+    # Stable bucket map: every ALL_EVENT_TYPES key present, counts
+    # match what we inserted (1 view, 1 edit, 1 inspect, 0 everything else).
+    assert data["events_by_type"]["view"] == 1
+    assert data["events_by_type"]["edit"] == 1
+    assert data["events_by_type"]["inspect"] == 1
+    assert data["events_by_type"]["forget"] == 0
+    assert data["events_by_type"]["create"] == 0
+    assert "first_event_at" in data and data["first_event_at"] is not None
+    assert "last_event_at" in data and data["last_event_at"] is not None
+
+
+async def test_provenance_claim_with_no_events(ctx) -> None:
+    """GET /provenance on a claim with zero events returns the empty shape.
+
+    Case 17: a freshly-created claim has no audit events yet. The
+    service returns the zero-filled bucket map; the route must forward
+    that as-is so the UI can render "No audit events recorded yet."
+    """
+    client = ctx["client"]
+    session = ctx["session"]
+    user = ctx["user"]
+    ws = ctx["workspace"]
+
+    claim = await _make_claim(
+        session,
+        user_id=user.id,
+        workspace_id=ws.id,
+        subject="a new claim",
+    )
+    await session.commit()
+
+    resp = client.get(
+        f"/api/v2/personal_memory/claims/{claim.id}/provenance"
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["event_count"] == 0
+    assert data["first_event_at"] is None
+    assert data["last_event_at"] is None
+    assert data["last_event_type"] is None
+    assert data["last_actor"] is None
+    # Every key in ALL_EVENT_TYPES must be present, with value 0.
+    for et in (
+        "view", "edit", "delete", "forget", "create",
+        "inspect", "export", "pause", "resume",
+    ):
+        assert data["events_by_type"][et] == 0, et
+
+
+async def test_provenance_unknown_claim_returns_empty_shape(ctx) -> None:
+    """GET /provenance on an unknown claim id returns the empty shape, not 404.
+
+    Case 18 — privacy guardrail: the route must NOT leak existence of
+    claims in other workspaces. A random UUID returns the same
+    ``event_count: 0, *_at: None`` shape as a real claim with no
+    events, so an attacker cannot probe for claim existence.
+
+    Note: the *route* doesn't return 404 for unknown IDs; that's a
+    security feature, not a bug. The shape is identical to case 17
+    so the UI treats them the same way.
+    """
+    client = ctx["client"]
+    unknown_id = uuid.uuid4()
+    resp = client.get(
+        f"/api/v2/personal_memory/claims/{unknown_id}/provenance"
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["claim_id"] == str(unknown_id)
+    assert data["event_count"] == 0
+    assert data["first_event_at"] is None
+    assert data["last_event_at"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Provenance test cleanup (cases 16–18) — separate from case 15 because
+# the ctx fixture used by the new tests does not own the cross-ws
+# teardown.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _cleanup_provenance_test_rows(
+    user_id: int, workspace_id: str
+) -> None:
+    """Delete rows created by the provenance tests (cases 16–18)."""
+    try:
+        async with TestSessionLocal() as cleanup:
+            await cleanup.execute(
+                text(
+                    "DELETE FROM memory_correction_events "
+                    "WHERE user_id = :uid"
+                ),
+                {"uid": user_id},
+            )
+            await cleanup.execute(
+                text(
+                    "DELETE FROM personal_memory_claims "
+                    "WHERE user_id = :uid AND workspace_id = :wid"
+                ),
+                {"uid": user_id, "wid": workspace_id},
+            )
+            await cleanup.execute(
+                text("DELETE FROM workspaces WHERE id = :wid"),
+                {"wid": workspace_id},
+            )
+            await cleanup.execute(
+                text("DELETE FROM users WHERE id = :uid"),
+                {"uid": user_id},
+            )
+            await cleanup.commit()
+    except Exception:
+        pass
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _provenance_test_cleanup(ctx):
+    """Yield, then wipe rows created by the provenance tests (16–18)."""
+    yield
+    user = ctx.get("user")
+    ws = ctx.get("workspace")
+    if user is not None and ws is not None:
+        await _cleanup_provenance_test_rows(user.id, ws.id)
 
 
 def _current_user_factory(user: User):

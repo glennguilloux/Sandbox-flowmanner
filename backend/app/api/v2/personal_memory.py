@@ -44,6 +44,7 @@ from app.schemas.personal_memory import (
     PersonalMemoryClaimResponse,
     PersonalMemoryClaimUpdate,
     PersonalMemoryForgetRequest,
+    PersonalMemoryProvenanceResponse,
     PersonalMemoryRecallItem,
     PersonalMemoryRecallRequest,
     PersonalMemoryRecallResponse,
@@ -54,6 +55,7 @@ from app.services.personal_memory_service import (
     PersonalMemoryService,
     PersonalMemoryValidationError,
 )
+from app.services.memory_correction_service import MemoryCorrectionService
 
 logger = logging.getLogger(__name__)
 
@@ -317,3 +319,41 @@ async def forget_claim(
     # Commit the service's flushed write (services/AGENTS.md rule 3).
     await _commit(db)
     return ok(PersonalMemoryClaimResponse.model_validate(claim).model_dump(mode="json"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. GET /claims/{id}/provenance — per-claim audit summary (T32)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/claims/{claim_id}/provenance")
+async def claim_provenance(
+    claim_id: uuid.UUID,
+    workspace_id: str = Depends(get_workspace_id),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Return the audit-trail summary for a single claim.
+
+    Thin envelope-wrapping layer over
+    ``MemoryCorrectionService.get_provenance()`` (D30-60, T29 service).
+    The service does the heavy lifting (workspace-isolated event fetch
+    + stable ``events_by_type`` bucket map); the route just unwraps
+    the dataclass into a Pydantic response.
+
+    Privacy guardrail: cross-tenant claims return
+    ``event_count: 0, *_at: None`` (NOT 404) so a malicious user can't
+    probe whether a claim exists in a different workspace. This mirrors
+    the design of ``PersonalMemoryService.list_for_user`` for the same
+    reason.
+    """
+    service = MemoryCorrectionService(db)
+    summary = await service.get_provenance(
+        user_id=user.id,
+        workspace_id=workspace_id,
+        claim_id=claim_id,
+    )
+    # The service already returns the canonical shape; wrap it in the
+    # Pydantic response for OpenAPI documentation + validation.
+    payload = PersonalMemoryProvenanceResponse.model_validate(summary)
+    return ok(payload.model_dump(mode="json"))

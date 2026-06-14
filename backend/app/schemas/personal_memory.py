@@ -235,8 +235,44 @@ class PersonalMemoryForgetRequest(BaseModel):
     default) is a soft-delete (sets ``deleted_at``); ``hard=True`` removes
     the row from the table.
     """
-
     model_config = ConfigDict(extra="forbid")
 
     claim_id: str = Field(min_length=36, max_length=36)
     hard: bool = False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Provenance (T32) — per-claim audit summary for the Memory Inspector's
+# "Why does FlowManner think this?" drawer.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class PersonalMemoryProvenanceResponse(BaseModel):
+    """Response body for ``GET /api/v2/personal_memory/claims/{id}/provenance``.
+
+    Mirrors the shape returned by
+    ``MemoryCorrectionService.get_provenance()`` (D30-60, T29 service),
+    re-exported through the v2 envelope so the Memory Inspector UI can
+    render the audit trail.
+
+    Notes:
+    * ``events_by_type`` always contains every key in
+      ``app.models.memory_correction_models.ALL_EVENT_TYPES`` (zero-count
+      buckets are filled in by the service layer). This lets the UI
+      render a stable "Activity" widget without checking for missing
+      keys.
+    * ``last_event_type`` and ``last_actor`` are strings, not enums, so
+      a future ALL_* change in the model doesn't require a schema
+      version bump.
+    * All datetime fields are nullable — a claim with no recorded audit
+      events returns ``event_count: 0`` and ``*_at: None``.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    claim_id: uuid.UUID
+    event_count: int
+    first_event_at: datetime | None = None
+    last_event_at: datetime | None = None
+    last_event_type: str | None = None
+    last_actor: str | None = None
+    events_by_type: dict[str, int]
