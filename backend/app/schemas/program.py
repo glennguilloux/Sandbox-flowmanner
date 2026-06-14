@@ -97,6 +97,17 @@ class LearningBriefBase(BaseModel):
     # Default empty list — programs without a personal-memory service
     # (or with no eligible claims) carry an empty list.
     user_personal_claims: list[dict[str, Any]] = Field(default_factory=list)
+    # T27 (D30-60): critic-stack outputs appended by
+    # ``MissionProgramService.apply_improvement_batch`` and (optionally)
+    # ``consolidate_learning(critic_payload=...)``. All additive — the
+    # default empty list matches the project's backward-compatibility
+    # pattern from T22 (the new field defaults to []).
+    critic_plan_adjustments: list[dict[str, Any]] = Field(default_factory=list)
+    critic_tool_suggestions: list[dict[str, Any]] = Field(default_factory=list)
+    critic_common_failure_patterns: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
+    critic_last_applied_at: str | None = None
 
 
 # ── Program CRUD ──────────────────────────────────────────────────────────

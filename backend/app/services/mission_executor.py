@@ -839,22 +839,178 @@ class MissionExecutor:
             improvement_loop = get_improvement_loop()
             if improvement_loop is None:
                 logger.debug("Improvement loop not initialized, skipping analysis")
-                return
-
-            await improvement_loop.on_mission_complete(
-                mission_id=str(mission.id),
-                agent_id=mission.agent_id,
-                success=(mission.status == MissionStatus.COMPLETED),
-                metrics={
-                    "title": mission.title,
-                    "task_count": float(len(mission.tasks) if hasattr(mission, "tasks") else 0),
-                    "error_message": mission.error_message,
-                },
-            )
-
-            logger.info("Improvement analysis completed for mission %s", mission.id)
+            else:
+                await improvement_loop.on_mission_complete(
+                    mission_id=str(mission.id),
+                    agent_id=mission.agent_id,
+                    success=(mission.status == MissionStatus.COMPLETED),
+                    metrics={
+                        "title": mission.title,
+                        "task_count": float(len(mission.tasks) if hasattr(mission, "tasks") else 0),
+                        "error_message": mission.error_message,
+                    },
+                )
+                logger.info("Improvement analysis completed for mission %s", mission.id)
         except Exception as improvement_error:
             logger.warning("Non-critical failure in improvement analysis: %s", improvement_error)
+
+        # D30-60 T27: run the critic after the existing improvement loop.
+        # Failures here must NEVER break mission completion — wrapped
+        # defensively in a sibling try/except.
+        try:
+            await self._trigger_critique_analysis(mission)
+        except Exception as critic_error:
+            logger.warning("Non-critical failure in critic analysis: %s", critic_error)
+
+    # ── Critic analysis (D30-60 T27) ────────────────────────────────────────
+
+    async def _trigger_critique_analysis(self, mission) -> None:
+        """Run the CriticAgent + ImprovementGenerator and persist a
+        ``Critique`` row for the just-completed mission.
+
+        If the mission belongs to a program, also feed the resulting
+        ``ImprovementBatch`` into the program's learning_brief via
+        ``MissionProgramService.apply_improvement_batch`` (non-destructive
+        merge). The mission's program_id is looked up via the latest
+        ``ProgramRun`` for the mission (Mission has no program_id column
+        directly — programs and missions are linked via ProgramRun).
+
+        Wrapped at the caller (``_trigger_improvement_analysis``) in
+        try/except so a critic failure does not break mission execution.
+        """
+        # Lazy imports to avoid an import cycle and to keep the
+        # import-time cost off the hot path.
+        from app.services.critic import CriticAgent, CriticInput
+        from app.services.critique_service import CritiqueService
+        from app.services.improvement_generator import (
+            ImprovementGenerator,
+            MissionContext,
+        )
+
+        # 1. Build the CriticInput from the mission. The plan and outcome
+        #    are duck-typed (dict or stringified) — T25's CriticInput
+        #    accepts both. We fall back to a stringified view if either
+        #    attribute is missing.
+        goal = (
+            getattr(mission, "description", None)
+            or getattr(mission, "title", "")
+            or ""
+        )
+        plan: Any = getattr(mission, "plan", None) or {}
+        outcome: Any = getattr(mission, "results", None) or {}
+        critic_input = CriticInput(mission_goal=goal, plan=plan, outcome=outcome)
+
+        # 2. Invoke the critic + generate the improvement batch.
+        critic = CriticAgent()
+        critic_output = await critic.critique(
+            mission_goal=goal,
+            plan=plan,
+            outcome=outcome,
+            user_id=str(getattr(mission, "user_id", "")),
+            workspace_id=str(getattr(mission, "workspace_id", "")),
+        )
+        generator = ImprovementGenerator()
+        batch = generator.generate(
+            critic_output,
+            MissionContext(
+                mission_id=str(mission.id),
+                goal=goal,
+                plan=plan if isinstance(plan, dict) else {},
+                outcome=outcome if isinstance(outcome, dict) else {},
+                user_id=int(getattr(mission, "user_id", 0) or 0),
+                workspace_id=str(getattr(mission, "workspace_id", "")),
+            ),
+        )
+
+        # 3. Look up the program_id for this mission (Mission has no
+        #    program_id column — programs and missions are linked via
+        #    ProgramRun.mission_id). If no run exists, program_id stays
+        #    None and we still persist the critique at the mission level.
+        program_id = await self._lookup_program_id_for_mission(mission.id)
+
+        # 4. Persist the critique row. CritiqueService never commits —
+        #    the caller of _trigger_critique_analysis owns the
+        #    transaction. The mission_executor orchestrator has already
+        #    committed the mission state by this point, so the new
+        #    critique row is written in a follow-up transaction.
+        critique_service = CritiqueService(self.session)  # type: ignore[attr-defined]
+        await critique_service.create_from_critic(
+            user_id=int(getattr(mission, "user_id", 0) or 0),
+            workspace_id=str(getattr(mission, "workspace_id", "")),
+            mission_id=mission.id,
+            program_id=program_id,
+            critic_output=critic_output,
+            critic_kind="critic",
+        )
+
+        # 5. If the mission belongs to a program, feed the improvement
+        #    batch into the program's learning_brief (non-destructive
+        #    merge).
+        if program_id is not None:
+            try:
+                from app.services.mission_program_service import (
+                    MissionProgramService,
+                )
+
+                program_service = MissionProgramService(self.session)  # type: ignore[attr-defined]
+                await program_service.apply_improvement_batch(
+                    user_id=int(getattr(mission, "user_id", 0) or 0),
+                    program_id=program_id,
+                    batch=batch,
+                )
+                logger.info(
+                    "critic.improvements_applied mission_id=%s program_id=%s "
+                    "adjustments=%d tool_suggestions=%d",
+                    mission.id,
+                    program_id,
+                    len(batch.plan_adjustments),
+                    len(batch.tool_suggestions),
+                )
+            except Exception as apply_err:
+                logger.warning(
+                    "critic.improvements_apply_failed mission_id=%s program_id=%s: %s",
+                    mission.id,
+                    program_id,
+                    apply_err,
+                )
+
+        logger.info(
+            "critic.analysis_completed mission_id=%s score_overall=%s "
+            "recommendation=%s",
+            mission.id,
+            critic_output.score_overall,
+            batch.overall_recommendation,
+        )
+
+    async def _lookup_program_id_for_mission(
+        self, mission_id: Any
+    ) -> Any:
+        """Find the most-recent ProgramRun.program_id for a given mission.
+
+        Returns ``None`` if the mission has no ProgramRun rows (i.e. it
+        was fired outside any program). The lookup is defensive: a
+        failure to query ProgramRun is logged and treated as "no program"
+        so the critic surface stays mission-level when the program
+        association is unavailable.
+        """
+        try:
+            from app.models.mission_program_models import ProgramRun
+
+            result = await self.session.execute(  # type: ignore[attr-defined]
+                select(ProgramRun.program_id)
+                .where(ProgramRun.mission_id == mission_id)
+                .order_by(ProgramRun.created_at.desc())
+                .limit(1)
+            )
+            row = result.first()
+            return row[0] if row else None
+        except Exception as lookup_err:
+            logger.debug(
+                "critic.program_lookup_failed mission_id=%s: %s",
+                mission_id,
+                lookup_err,
+            )
+            return None
 
     # ── Logging ───────────────────────────────────────────────────────────────
 

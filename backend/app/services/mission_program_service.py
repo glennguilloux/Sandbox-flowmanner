@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Any, Callable
 
 from sqlalchemy import and_, func, or_, select
@@ -445,7 +446,11 @@ class MissionProgramService:
     # ── T9: consolidate_learning (real implementation) ──────────────
 
     async def consolidate_learning(
-        self, user_id: int, program_id: uuid.UUID, limit: int = 10
+        self,
+        user_id: int,
+        program_id: uuid.UUID,
+        limit: int = 10,
+        critic_payload: dict | None = None,
     ) -> ConsolidateResponse:
         """Synthesize a new learning brief from the last N terminal runs.
 
@@ -660,6 +665,22 @@ class MissionProgramService:
             "last_consolidated_at": datetime.now(UTC).isoformat(),
             "user_personal_claims": user_personal_claims,
         }
+        # T27 (D30-60): if the caller supplied a critic_payload (e.g. the
+        # latest ``CriticOutput`` from the executor hook), merge its
+        # structured fields into the brief. The same non-destructive
+        # discipline applies: the LLM-synthesized fields win for the
+        # top-level keys (plan_adjustments, common_failures, etc.),
+        # user_notes and user_personal_claims stay owned by the
+        # user/T22 paths.
+        if critic_payload:
+            for k, v in critic_payload.items():
+                # Defence in depth: never let a critic payload overwrite
+                # the user-owned fields. The LLM synthesis happens
+                # FIRST so its keys land in new_structured; critic
+                # fields are additive only.
+                if k in {"user_notes", "user_personal_claims"}:
+                    continue
+                merged[k] = v
 
         # 8. Persist (column-level UPDATE — touches learning_brief only).
         program.learning_brief = merged
@@ -678,6 +699,144 @@ class MissionProgramService:
             consolidated_runs=len(terminal_runs),
             brief=LearningBriefBase(**merged),
             duration_ms=int((_time.monotonic() - start) * 1000),
+        )
+
+    # ── T27 (D30-60): apply_improvement_batch ────────────────────────
+
+    # Top-N cap for each list field in the brief. Mirrors the T22 cap
+    # on user_personal_claims (top 20) — bigger than the planner's
+    # top-10 because a program-level brief is rendered more deliberately
+    # and can carry a longer context. The cap is per-list; the brief
+    # total is unbounded but bounded in practice by how often the
+    # executor hook fires.
+    _CRITIC_LIST_CAP = 20
+
+    async def apply_improvement_batch(
+        self,
+        *,
+        user_id: int,
+        program_id: uuid.UUID,
+        batch: Any,  # ImprovementBatch — type hint avoided to break the
+                     # import cycle (improvement_generator imports
+                     # nothing from this module, but keeping the hint
+                     # as Any future-proofs the wiring).
+    ) -> None:
+        """Append a ``CriticOutput``-derived ``ImprovementBatch`` to the
+        program's learning_brief.
+
+        Non-destructive merge semantics — same discipline as the
+        ``user_personal_claims`` cross-pollination in
+        ``consolidate_learning`` (T22): the existing ``plan_adjustments``
+        string, ``user_notes``, and ``user_personal_claims`` are NOT
+        overwritten. Instead, three NEW additive fields
+        (``critic_plan_adjustments``, ``critic_tool_suggestions``,
+        ``critic_common_failure_patterns``) are appended to and
+        top-20-capped.
+
+        The caller (the executor's ``_trigger_critique_analysis`` hook)
+        owns the transaction — this method only ``flush()``-es so the
+        caller's commit/rollback decision is the one that finalizes
+        the write (per ``services/AGENTS.md`` rule 3).
+
+        Empty batches are a no-op (early return) to avoid dirtying the
+        brief on no-op critic runs.
+        """
+        # 1. Load the program (raises ProgramNotFound / ProgramForbidden).
+        program = await self.get(user_id, program_id)
+
+        # 2. Reject archived programs (same discipline as consolidate_learning).
+        if program.status == "archived":
+            raise ProgramTransitionConflict(
+                "cannot apply improvement batch to an archived program"
+            )
+
+        # 3. Empty-batch short-circuit.
+        has_content = (
+            bool(batch.plan_adjustments)
+            or bool(batch.tool_suggestions)
+            or bool(batch.common_failure_patterns)
+        )
+        if not has_content:
+            logger.debug(
+                "apply_improvement_batch: empty batch, no-op program_id=%s",
+                program_id,
+            )
+            return
+
+        # 4. Build the merge payload — dict-shaped, mirroring the
+        #    LearningBriefBase critic_* fields added in T27.
+        existing = dict(program.learning_brief or {})
+        now_iso = datetime.now(UTC).isoformat()
+
+        new_adjustments = [
+            {
+                "description": a.description,
+                "category": a.category,
+                "confidence": a.confidence,
+                "source": a.source,
+            }
+            for a in batch.plan_adjustments
+        ]
+        new_tools = [
+            {
+                "tool_name": t.tool_name,
+                "reason": t.reason,
+                "confidence": t.confidence,
+            }
+            for t in batch.tool_suggestions
+        ]
+        new_failures = list(batch.common_failure_patterns)
+
+        merged_adjustments = (
+            list(existing.get("critic_plan_adjustments", []))
+            + new_adjustments
+        )[-self._CRITIC_LIST_CAP :]
+        merged_tools = (
+            list(existing.get("critic_tool_suggestions", []))
+            + new_tools
+        )[-self._CRITIC_LIST_CAP :]
+        merged_failures = (
+            list(existing.get("critic_common_failure_patterns", []))
+            + new_failures
+        )[-self._CRITIC_LIST_CAP :]
+
+        merged = {
+            **existing,
+            "critic_plan_adjustments": merged_adjustments,
+            "critic_tool_suggestions": merged_tools,
+            "critic_common_failure_patterns": merged_failures,
+            "critic_last_applied_at": now_iso,
+            # T27 discipline: never overwrite user-owned fields.
+            # If the existing brief had user_notes or
+            # user_personal_claims, they are preserved via the
+            # ``**existing`` spread. If not, the brief gets
+            # empty-list defaults via the LearningBriefBase schema
+            # when the JSONB is re-hydrated.
+        }
+
+        # 5. Persist (column-level UPDATE — touches learning_brief only).
+        program.learning_brief = merged
+        await self.db.flush()
+        await self.db.refresh(program)
+
+        # 6. Audit (non-blocking).
+        self._safe_audit(
+            "program_improvement_batch_applied",
+            program_id=str(program.id),
+            user_id=user_id,
+            adjustments=len(new_adjustments),
+            tool_suggestions=len(new_tools),
+            failure_patterns=len(new_failures),
+        )
+
+        logger.info(
+            "program.improvement_batch_applied program_id=%s user_id=%s "
+            "adjustments=%d tools=%d failures=%d",
+            program_id,
+            user_id,
+            len(new_adjustments),
+            len(new_tools),
+            len(new_failures),
         )
 
     # ── Budget helper (T10) ──────────────────────────────────────────

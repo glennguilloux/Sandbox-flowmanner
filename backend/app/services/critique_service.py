@@ -1,0 +1,222 @@
+"""CritiqueService — persistence layer for the D30-60 critic stack (T27).
+
+Wraps ``CriticOutput`` (from T25) and persists a single ``Critique`` row
+per critic run. This service is the canonical write/read surface for
+the ``critiques`` table established in T24.
+
+Critical guardrails (from the End-of-Galaxy plan §D30-60):
+
+* **No ``db.commit()``** — per ``services/AGENTS.md`` rule 3. The caller
+  (route / executor hook / CQRS handler) owns the transaction boundary.
+  We only ``flush()`` so the caller's commit/rollback decision is the
+  one that finalizes the write.
+* **Every read query filters by ``(user_id, workspace_id)`` together.**
+  Mirrors the ``PersonalMemoryService`` isolation guardrail — the critic
+  surface is workspace-scoped to prevent cross-tenant leakage of
+  critique verdicts.
+* **Validation happens at the service layer** so a bad ``critic_kind``
+  or out-of-range score surfaces as a 422 (or runtime ValueError) at
+  the call site, not a 500 from a raw IntegrityError on flush.
+* **Score clamping at write time.** Even if the upstream ``CriticOutput``
+  (T25) clamps its own scores defensively, we re-clamp here as a
+  belt-and-suspenders measure.
+"""
+from __future__ import annotations
+
+import logging
+import uuid
+from typing import Any
+
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.critique_models import ALL_CRITIC_KINDS, Critique
+from app.services.critic import CriticOutput
+
+logger = logging.getLogger(__name__)
+
+
+# ── Exception hierarchy ────────────────────────────────────────────────
+
+
+class CritiqueServiceError(Exception):
+    """Base for all critique-service errors."""
+
+
+class CritiqueNotFound(CritiqueServiceError):
+    """Raised when a critique ID does not resolve to a row (or is filtered
+    out by the (user_id, workspace_id) predicate — same outcome to the
+    caller: NotFound, to avoid leaking existence across the isolation
+    boundary)."""
+
+
+class CritiqueValidationError(CritiqueServiceError, ValueError):
+    """Raised for input validation failures. Inherits from both
+    ``CritiqueServiceError`` and ``ValueError`` so callers can use
+    either ``except ValueError`` (Pythonic) or
+    ``except CritiqueValidationError`` (specific)."""
+
+
+# ── Limits ─────────────────────────────────────────────────────────────
+
+
+# Defensive cap on the free-text summary column. Matches the project's
+# pattern of capping short text fields at the service layer (see
+# ``consolidate_learning``'s 500-char plan_adjustments cap scaled up).
+MAX_SUMMARY_CHARS = 2000
+
+# Score bounds (per Critique model's CHECK constraint).
+SCORE_MIN = 0.0
+SCORE_MAX = 1.0
+
+
+# ── Helpers ────────────────────────────────────────────────────────────
+
+
+def _clamp_score(value: float | None) -> float | None:
+    """Clamp a 0.0-1.0 score into range, or return None for None/NaN.
+
+    A non-None out-of-range value is clamped to the nearest bound rather
+    than rejected, so the critic stack stays resilient to upstream drift.
+    """
+    if value is None:
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    # NaN guard.
+    if v != v:  # NaN != NaN
+        return None
+    if v < SCORE_MIN:
+        return SCORE_MIN
+    if v > SCORE_MAX:
+        return SCORE_MAX
+    return v
+
+
+def _truncate_summary(value: str | None) -> str | None:
+    """Cap a free-text summary to ``MAX_SUMMARY_CHARS`` characters.
+
+    A non-None value longer than the cap is truncated; ``None`` passes
+    through unchanged. Empty strings are preserved as empty strings.
+    """
+    if value is None:
+        return None
+    if len(value) <= MAX_SUMMARY_CHARS:
+        return value
+    return value[:MAX_SUMMARY_CHARS]
+
+
+# ── Service ────────────────────────────────────────────────────────────
+
+
+class CritiqueService:
+    """Persistence layer for the ``critiques`` table (D30-60 T27).
+
+    Per ``services/AGENTS.md`` rule 3: this service NEVER calls
+    ``db.commit()``. The caller (executor hook, route, CQRS handler)
+    owns the transaction. We only ``flush()`` so IDs and column defaults
+    are populated before the caller's commit/rollback decision.
+    """
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    # ── Validation helpers ──────────────────────────────────────────
+
+    @staticmethod
+    def _validate_critic_kind(critic_kind: str) -> None:
+        if critic_kind not in ALL_CRITIC_KINDS:
+            raise CritiqueValidationError(
+                f"invalid critic_kind={critic_kind!r}; "
+                f"must be one of {list(ALL_CRITIC_KINDS)}"
+            )
+
+    # ── Write: create_from_critic ───────────────────────────────────
+
+    async def create_from_critic(
+        self,
+        *,
+        user_id: int,
+        workspace_id: str,
+        mission_id: uuid.UUID,
+        critic_output: CriticOutput,
+        critic_kind: str,
+        program_id: uuid.UUID | None = None,
+    ) -> Critique:
+        """Persist a ``Critique`` row from a ``CriticOutput``.
+
+        Validates ``critic_kind``, clamps the four score columns, and
+        truncates the free-text summary. The DB CHECK constraints will
+        also reject invalid values, but pre-validating at the service
+        layer turns a 500 (raw IntegrityError) into a 422 (or a
+        domain-specific exception) with a precise message.
+
+        Returns the persisted (flushed, refreshed) ``Critique`` row.
+        Caller owns the transaction (no commit here).
+        """
+        self._validate_critic_kind(critic_kind)
+
+        kwargs = critic_output.to_critique_kwargs()
+        # Clamp all four score columns defensively.
+        kwargs["score_overall"] = _clamp_score(kwargs.get("score_overall"))
+        kwargs["score_alignment"] = _clamp_score(kwargs.get("score_alignment"))
+        kwargs["score_safety"] = _clamp_score(kwargs.get("score_safety"))
+        kwargs["score_completeness"] = _clamp_score(
+            kwargs.get("score_completeness")
+        )
+        # Truncate the free-text summary.
+        kwargs["summary"] = _truncate_summary(kwargs.get("summary"))
+
+        critique = Critique(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            mission_id=mission_id,
+            program_id=program_id,
+            critic_kind=critic_kind,
+            **kwargs,
+        )
+        self.db.add(critique)
+        await self.db.flush()
+        await self.db.refresh(critique)
+        logger.info(
+            "critique.persisted id=%s user_id=%s workspace_id=%s "
+            "mission_id=%s critic_kind=%s score_overall=%s",
+            critique.id,
+            user_id,
+            workspace_id,
+            mission_id,
+            critic_kind,
+            critique.score_overall,
+        )
+        return critique
+
+    # ── Read: get ───────────────────────────────────────────────────
+
+    async def get(
+        self,
+        *,
+        user_id: int,
+        workspace_id: str,
+        critique_id: uuid.UUID,
+    ) -> Critique:
+        """Fetch a single critique by id, scoped to (user_id, workspace_id).
+
+        Raises ``CritiqueNotFound`` if no row matches. The
+        ``(user_id, workspace_id)`` filter is intentionally non-optional
+        — callers cannot bypass the workspace isolation guardrail.
+        """
+        result = await self.db.execute(
+            select(Critique).where(
+                and_(
+                    Critique.id == critique_id,
+                    Critique.user_id == user_id,
+                    Critique.workspace_id == workspace_id,
+                )
+            )
+        )
+        critique = result.scalar_one_or_none()
+        if critique is None:
+            raise CritiqueNotFound(f"critique {critique_id} not found")
+        return critique
