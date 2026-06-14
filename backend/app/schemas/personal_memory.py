@@ -194,16 +194,17 @@ class PersonalMemoryRecallRequest(BaseModel):
     min_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
-class PersonalMemoryRecallItem(BaseModel):
+class PersonalMemoryRecallItem(PersonalMemoryClaimResponse):
     """One recalled claim in a recall response.
 
-    ``similarity`` is a placeholder for T20+ semantic search scoring.
-    For T19 (substring match) it's always ``None``.
+    Inherits all claim fields from ``PersonalMemoryClaimResponse``
+    (so callers get a flat shape: ``id``, ``subject``, ``predicate``,
+    etc.) and adds a ``similarity`` score (T20+ semantic search
+    scoring). For T19 (substring match) it's always ``None``.
+
+    Inherits ``from_attributes=True`` from the parent — instantiable
+    from an ORM instance via ``PersonalMemoryRecallItem(**claim.__dict__)``.
     """
-
-    model_config = ConfigDict(from_attributes=True)
-
-    claim: PersonalMemoryClaimResponse
     similarity: float | None = None
 
 
@@ -228,12 +229,14 @@ class PersonalMemoryListResponse(BaseModel):
 
 
 class PersonalMemoryForgetRequest(BaseModel):
-    """Request body for the explicit ``POST /claims/{id}/forget`` endpoint.
+    """Request body for the explicit ``POST /forget`` endpoint.
 
-    ``hard=False`` (the default) is a soft-delete (sets ``deleted_at``);
-    ``hard=True`` removes the row from the table.
+    ``claim_id`` is the UUID of the claim to forget. ``hard=False`` (the
+    default) is a soft-delete (sets ``deleted_at``); ``hard=True`` removes
+    the row from the table.
     """
 
     model_config = ConfigDict(extra="forbid")
 
+    claim_id: str = Field(min_length=36, max_length=36)
     hard: bool = False

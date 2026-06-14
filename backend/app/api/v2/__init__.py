@@ -32,6 +32,22 @@ from app.api.v2.programs import router as programs_router
 
 api_v2_router.include_router(programs_router)
 
+# Personal Memory MVP (D0-30, T23) — Memory Inspector API
+# Import the router AND register a domain-specific Pydantic validation
+# handler on the main FastAPI app so 422s from the personal_memory
+# routes get ``PERSONAL_MEMORY_VALIDATION_ERROR`` instead of FastAPI's
+# generic ``{"detail": [...]}`` default.
+from app.main_fastapi import app as _fastapi_app  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+
+from app.api.v2.personal_memory import (  # noqa: E402
+    pm_validation_handler,
+    router as personal_memory_router,
+)
+
+api_v2_router.include_router(personal_memory_router)
+_fastapi_app.add_exception_handler(RequestValidationError, pm_validation_handler)
+
 from app.api.v2.dashboard import router as dashboard_router
 from app.api.v2.integrations import router as integrations_router
 from app.api.v2.integrations_actions import router as integrations_actions_router

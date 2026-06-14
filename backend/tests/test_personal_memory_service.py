@@ -521,22 +521,39 @@ class TestPersonalMemoryForgetRequestSchema:
     def test_default_hard_false(self) -> None:
         from app.schemas.personal_memory import PersonalMemoryForgetRequest
 
-        req = PersonalMemoryForgetRequest()
+        req = PersonalMemoryForgetRequest(
+            claim_id="00000000-0000-0000-0000-000000000000"
+        )
         assert req.hard is False
 
     def test_explicit_hard_true(self) -> None:
         from app.schemas.personal_memory import PersonalMemoryForgetRequest
 
-        req = PersonalMemoryForgetRequest(hard=True)
+        req = PersonalMemoryForgetRequest(
+            claim_id="00000000-0000-0000-0000-000000000000", hard=True
+        )
         assert req.hard is True
 
-    def test_extra_field_rejected(self) -> None:
+    def test_claim_id_required(self) -> None:
         from pydantic import ValidationError
 
         from app.schemas.personal_memory import PersonalMemoryForgetRequest
 
         with pytest.raises(ValidationError):
-            PersonalMemoryForgetRequest(hard=False, claim_id=uuid.uuid4())
+            PersonalMemoryForgetRequest()
+
+    def test_extra_field_rejected(self) -> None:
+        """An unknown field on the forget request is rejected (extra=forbid)."""
+        from pydantic import ValidationError
+
+        from app.schemas.personal_memory import PersonalMemoryForgetRequest
+
+        with pytest.raises(ValidationError):
+            PersonalMemoryForgetRequest(
+                claim_id="00000000-0000-0000-0000-000000000000",
+                hard=False,
+                bogus_field="not-allowed",
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
