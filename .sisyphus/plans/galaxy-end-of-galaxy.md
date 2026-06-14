@@ -303,3 +303,113 @@ These remain to be decided before D30 ship:
 4. **Public SDK license** — MIT? Apache 2.0? Source-available (BSL)?
 5. **Zapier** — publish ourselves, or wait for community pull?
 6. **Competitive response** — does FlowManner want to be a MemGPT competitor (open agent memory) or a vertical (mission + memory for ops teams)? The strategic positioning affects which capabilities to ship first.
+
+
+## Appendix F — Decisions Locked (2026-06-14)
+
+User's answers to the 5 open questions. These are now **final defaults** baked into every subsequent spec:
+
+### 1. Rollout shape: STAGED 1 → 10 → 100, behind feature flags
+
+Do NOT ship all-at-once.
+
+**Stage 0 — internal dogfood** (1-3 users)
+- Memory + reasoning + Slack/Notion on real missions
+- Goal: catch trust, privacy, cost issues
+
+**Stage 1 — trusted pilot** (10 users)
+- Explicit opt-in
+- Visible memory citations
+- Daily/weekly memory digest
+- Manual feedback channel
+
+**Stage 2 — beta cohort** (100 users)
+- Feature-flagged
+- ToT only for risky/expensive missions
+- Slack/Notion limited to connected workspaces
+
+**Stage 3 — general availability**
+- All users get Memory Inspector
+- ToT remains opt-in / budgeted
+- Slack/Notion/SDK public
+
+**Release gates** (must all pass before next stage):
+- Memory correction rate acceptable
+- No privacy incidents
+- No prompt-injection / memory-poisoning issues
+- ToT stays inside budget
+- Mission success quality improves measurably
+- Slack/Notion integrations are reliable
+
+### 2. Memory retention: PER-CLAIM TTL, not one global rule
+
+| Claim type | Default TTL | Promotion path | Deletion |
+|------------|-------------|----------------|----------|
+| Explicit user-confirmed facts | Forever (until user deletes) | n/a | User-initiated |
+| Inferred preferences | 12 months, decay if unused | Promote to permanent on user confirm | Auto-decay |
+| Mission-specific observations | 90-180 days | Promote to Mission Program learning if useful | Auto-expire |
+| Sensitive personal claims | Opt-in only, shorter TTL (30-90 days) | Never silent permanent | User-initiated |
+| Workspace/project facts | While workspace exists | n/a | Anonymize or delete on workspace removal |
+
+**Default is NOT forever.** Forever requires explicit user confirmation OR workspace-level necessity.
+
+### 3. World model scope: PER-USER + WORKSPACE-SCOPED, no cross-tenant
+
+```sql
+personal_memory_claims:
+  id: UUID
+  user_id: Integer        -- owner
+  workspace_id: String    -- tenant boundary (NOT NULL for all scopes)
+  subject: String
+  predicate: String
+  object: JSON
+  claim_type: String      -- fact|preference|observation|sensitive
+  scope: String           -- personal|workspace|program|private
+  confidence: Float
+  source: String          -- mission_id | conversation_id | user_explicit
+  created_at, last_used_at, expires_at, deleted_at
+```
+
+**Scopes**:
+- **personal**: belongs to user; visible only to that user; e.g. "prefers terse updates"
+- **workspace**: belongs to workspace; visible to workspace members with access; e.g. "project uses Qdrant"
+- **program**: belongs to Mission Program; learned from many missions; e.g. "backend deploys usually need health-check verification"
+- **private**: user-only, sensitive; never injected unless explicitly recalled
+
+**Avoids the trust problem**: users fearing one workspace contaminates another. Enforced at the DB query layer (every recall filters by user_id OR workspace_id, never both).
+
+### 4. Public SDK license: APACHE 2.0
+
+| Artifact | License |
+|----------|---------|
+| Public Python SDK | Apache 2.0 |
+| Public TypeScript SDK | Apache 2.0 |
+| CLI binary | Apache 2.0 |
+| Example apps | MIT (looser) |
+| Hosted control-plane / server components | Separate commercial license (if needed) |
+
+Rationale: MIT is simplest, but Apache 2.0 gives FlowManner a patent grant while staying permissive and developer-friendly. BSL would reduce adoption and make developers suspicious.
+
+### 5. Zapier: DEFERRED to last
+
+User explicitly: "Zapier last on my mind!" — published last, after Slack/Notion/SDK API contract stabilizes. No work on Zapier integration until D90 or later.
+
+---
+
+## Appendix G — Default Decision Matrix (copy-paste into future specs)
+
+When in doubt during implementation, use this matrix:
+
+| Question | Default |
+|----------|---------|
+| New feature rollout | Feature-flagged; staged 0→1→2→3 |
+| New memory claim | Per-claim TTL; never forever by default |
+| Memory scope | Per-user + workspace, never cross-tenant |
+| SDK / public artifact license | Apache 2.0 (MIT for examples) |
+| Third-party platform (Slack/Notion/Zapier/etc.) | First one: Slack. Notion second. Zapier last. |
+| Reasoning depth (ToT) | Opt-in, budget-capped at $0.05/plan |
+| Memory extraction model | Cheap (DeepSeek-Flash or local Qwen-0.5B) |
+| Memory correction UX | Inline citations + one-click forget + daily digest |
+| Sensitive data | Opt-in only, short TTL, never silent permanent |
+| World model cross-pollination | Blocked (per-mission-programs-plan scope) |
+| Privacy incidents | Hard gate, halt rollout |
