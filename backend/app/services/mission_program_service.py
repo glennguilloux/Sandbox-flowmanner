@@ -429,13 +429,192 @@ class MissionProgramService:
         self._safe_audit("program_updated", program_id=str(program.id), user_id=user_id)
         return program
 
-    # ── T8: fire_program (real implementation) ───────────────────────
-#
-# NOTE: The old "Stubs (filled in T8/T9)" section that defined stub
-# fire_program() + consolidate_learning() is replaced by the real
-# implementations above. Do not re-introduce stubs here — see the
-# implementation directly above.
+    # ── T9: consolidate_learning (real implementation) ──────────────
 
+    async def consolidate_learning(
+        self, user_id: int, program_id: uuid.UUID, limit: int = 10
+    ) -> ConsolidateResponse:
+        """Synthesize a new learning brief from the last N terminal runs.
+
+        Algorithm:
+        1. Load program (ownership check); reject if archived.
+        2. Query last ``limit`` runs with status IN
+           ('completed', 'failed', 'aborted') — NEVER 'running'.
+        3. If zero → return consolidated_runs=0, brief=existing, no error.
+        4. Fetch per-run episode summaries from EpisodicMemoryService.
+        5. Call BudgetEnforcer for LLM synthesis of structured fields.
+        6. Merge: structured fields from LLM + existing user_notes
+           (NEVER overwritten) + last_consolidated_at timestamp.
+        7. Persist via column-level UPDATE on ``learning_brief``.
+        8. Audit log (non-blocking).
+
+        The ``user_notes`` field is owned by the user path
+        (``update_user_notes``) and is intentionally never overwritten
+        by this method, even if the LLM happens to return a
+        ``user_notes`` key in its response.
+        """
+        import time as _time
+        import json
+        import re
+        from datetime import UTC, datetime
+        from decimal import Decimal
+
+        from app.services.budget_enforcer import get_budget_enforcer
+        from app.services.episodic_memory_service import (
+            get_episodic_memory_service,
+        )
+        from app.models.capability_models import Budget
+        from app.schemas.program import LearningBriefBase
+
+        start = _time.monotonic()
+
+        # 1. Load program (raises ProgramNotFound / ProgramForbidden).
+        program = await self.get(user_id, program_id)
+
+        # 2. Reject archived programs (consolidation on archived is invalid).
+        if program.status == "archived":
+            raise ProgramTransitionConflict(
+                "cannot consolidate learning for an archived program"
+            )
+
+        # 3. Query last `limit` terminal runs (NEVER 'running').
+        terminal_runs = list(
+            (
+                await self.db.execute(
+                    select(ProgramRun)
+                    .where(ProgramRun.program_id == program_id)
+                    .where(
+                        ProgramRun.status.in_(
+                            ("completed", "failed", "aborted")
+                        )
+                    )
+                    .order_by(ProgramRun.created_at.desc())
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        if not terminal_runs:
+            return ConsolidateResponse(
+                consolidated_runs=0,
+                brief=LearningBriefBase(**(program.learning_brief or {})),
+                duration_ms=int((_time.monotonic() - start) * 1000),
+            )
+
+        # 4. Episode summaries (per-run). Failures are isolated — one bad
+        # run does not poison the whole consolidation.
+        memory = get_episodic_memory_service()
+        summaries: list[dict] = []
+        for run in terminal_runs:
+            try:
+                episodes = await memory.get_episodes_for_mission(
+                    self.db,
+                    mission_id=str(run.mission_id),
+                    workspace_id=program.workspace_id,
+                    user_id=user_id,
+                )
+                summaries.append(
+                    {
+                        "run_id": str(run.id),
+                        "mission_id": str(run.mission_id),
+                        "status": run.status,
+                        "cost_usd": run.cost_usd,
+                        "tokens_used": run.tokens_used,
+                        "duration_seconds": run.duration_seconds,
+                        "outcome_summary": run.outcome_summary,
+                        "episode_count": len(episodes) if episodes else 0,
+                    }
+                )
+            except Exception as exc:
+                logger.warning(
+                    "episode fetch failed for run %s: %s",
+                    run.id,
+                    exc,
+                    exc_info=True,
+                )
+                summaries.append(
+                    {
+                        "run_id": str(run.id),
+                        "status": run.status,
+                        "cost_usd": run.cost_usd,
+                    }
+                )
+
+        # 5. LLM synthesis via BudgetEnforcer.
+        new_structured: dict = {}
+        try:
+            enforcer = get_budget_enforcer()
+            budget = Budget(max_cost_usd=Decimal("0.10"))
+            prompt = (
+                f"Analyze {len(summaries)} runs of mission program "
+                f"'{program.name}'. Return a JSON object with: "
+                f"total_runs (int), success_rate (float 0-1), "
+                f"avg_cost_usd (float), avg_tokens (int), "
+                f"common_failures (list of {{pattern, count, mitigation}}), "
+                f"effective_tools (list of strings), "
+                f"ineffective_tools (list of strings), "
+                f"hitl_history (list of {{outcome, count}}), "
+                f"plan_adjustments (string ≤ 500 chars). "
+                f"Run summaries:\n{json.dumps(summaries, indent=2, default=str)}\n"
+                f"Return ONLY the JSON object, no other text."
+            )
+            response = await enforcer.call(
+                budget=budget,
+                model_id="claude-sonnet-4",
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = (
+                response.get("content", "")
+                if isinstance(response, dict)
+                else str(response)
+            )
+            match = re.search(r"\{.*\}", content, re.DOTALL)
+            if match:
+                new_structured = json.loads(match.group(0))
+        except Exception as exc:
+            logger.warning(
+                "consolidation LLM call failed: %s", exc, exc_info=True
+            )
+
+        if not new_structured:
+            # Fallback: bump total_runs on the existing brief so we still
+            # have a non-trivial merged result.
+            existing = dict(program.learning_brief or {})
+            existing["total_runs"] = (
+                existing.get("total_runs") or 0
+            ) + len(terminal_runs)
+            new_structured = existing
+
+        # 6. Merge: new structured fields + existing user_notes (NEVER
+        # overwritten) + last_consolidated_at.
+        existing = dict(program.learning_brief or {})
+        existing_user_notes = existing.get("user_notes", "")
+        merged = {
+            **new_structured,
+            "user_notes": existing_user_notes,
+            "last_consolidated_at": datetime.now(UTC).isoformat(),
+        }
+
+        # 7. Persist (column-level UPDATE — touches learning_brief only).
+        program.learning_brief = merged
+        await self.db.flush()
+        await self.db.refresh(program)
+
+        # 8. Audit (non-blocking).
+        self._safe_audit(
+            "program_consolidated",
+            program_id=str(program.id),
+            runs=len(terminal_runs),
+            user_id=user_id,
+        )
+
+        return ConsolidateResponse(
+            consolidated_runs=len(terminal_runs),
+            brief=LearningBriefBase(**merged),
+            duration_ms=int((_time.monotonic() - start) * 1000),
+        )
 
     # ── Budget helper (T10) ──────────────────────────────────────────
 

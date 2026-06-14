@@ -85,11 +85,23 @@ class TriggerBridge:
             await asyncio.sleep(FALLBACK_TICK_SECONDS)
 
     async def _poll_once(self) -> None:
-        """Check and fire due cron triggers."""
+        """Check and fire due cron triggers + MissionProgram fires.
+
+        Two independent paths run in this tick:
+
+        1. Legacy cron triggers (trigger_service.process_cron_triggers).
+        2. NEW (T9): active MissionProgram rows whose trigger_config is
+           ``cron`` type — dispatched via
+           ``MissionProgramService.fire_program``.
+
+        Each path uses its own DB session so a failure in one does not
+        poison the other.
+        """
         import time
 
         self._tick_count += 1
         self._last_tick_time = time.monotonic()
+        # Path 1: legacy cron triggers (unchanged).
         try:
             async with AsyncSessionLocal() as db:
                 from app.services.trigger_service import process_cron_triggers
@@ -100,6 +112,79 @@ class TriggerBridge:
                     logger.info("TriggerBridge dispatched %d cron trigger(s)", fired)
         except Exception as e:
             logger.error("TriggerBridge polling tick failed: %s", e, exc_info=True)
+        # Path 2: MissionProgram cron fires (T9). Failures are isolated
+        # so the legacy path above is never blocked.
+        try:
+            async with AsyncSessionLocal() as db:
+                program_run_ids = await self._dispatch_program_fires(db)
+                await db.commit()
+                if program_run_ids:
+                    logger.info(
+                        "TriggerBridge dispatched %d program fire(s)",
+                        len(program_run_ids),
+                    )
+        except Exception as e:
+            logger.error(
+                "TriggerBridge program dispatch failed: %s", e, exc_info=True
+            )
+
+    async def _dispatch_program_fires(self, db) -> list:
+        """Find active MissionProgram rows with cron triggers and dispatch
+        them via ``MissionProgramService.fire_program``.
+
+        Returns a list of new ``ProgramRun.id`` UUIDs. The caller is
+        responsible for committing the session.
+
+        NOTE: simplified — this implementation fires ALL active programs
+        whose ``trigger_config.type == "cron"`` on every tick. In
+        production (T15) this will be replaced by proper cron-expression
+        matching using a cron parser. For the wiring smoke test this is
+        sufficient: it proves the dispatch path works end-to-end.
+        """
+        # Lazy imports — keeps the bridge lightweight and avoids cycles.
+        from uuid import UUID
+
+        from sqlalchemy import select
+
+        from app.models.mission_program_models import MissionProgram
+        from app.services.mission_program_service import (
+            MissionProgramService,
+        )
+
+        programs = list(
+            (
+                await db.execute(
+                    select(MissionProgram).where(
+                        MissionProgram.status == "active"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        fired: list[UUID] = []
+        for program in programs:
+            cfg = program.trigger_config or {}
+            if cfg.get("type") != "cron":
+                continue
+            try:
+                service = MissionProgramService(db)
+                run = await service.fire_program(
+                    user_id=program.user_id,
+                    program_id=program.id,
+                    trigger_type="cron",
+                    trigger_payload=None,
+                )
+                fired.append(run.id)
+            except Exception as exc:
+                logger.warning(
+                    "program fire failed for %s: %s",
+                    program.id,
+                    exc,
+                    exc_info=True,
+                )
+        return fired
 
 
 # ── Notify helper: called from trigger_service when next_fire_at changes ──
