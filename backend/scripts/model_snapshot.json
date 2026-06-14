@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 134,
+  "model_count": 141,
   "tables": [
     {
       "columns": {
@@ -774,6 +774,60 @@
         "ix_composed_capabilities_name"
       ],
       "name": "composed_capabilities",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "alternatives": "JSONB",
+        "created_at": "DATETIME",
+        "critic_kind": "VARCHAR(30)",
+        "duration_ms": "INTEGER",
+        "id": "UUID",
+        "improvements": "JSONB",
+        "misses": "JSONB",
+        "mission_id": "UUID",
+        "model_id": "VARCHAR(100)",
+        "program_id": "UUID",
+        "raw_response": "JSONB",
+        "risks": "JSONB",
+        "score_alignment": "FLOAT",
+        "score_completeness": "FLOAT",
+        "score_overall": "FLOAT",
+        "score_safety": "FLOAT",
+        "summary": "TEXT",
+        "tokens_in": "INTEGER",
+        "tokens_out": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "program_id",
+          "mission_programs.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_critiques_critic_kind",
+        "ix_critiques_mission_id",
+        "ix_critiques_program_id",
+        "ix_critiques_user_id",
+        "ix_critiques_user_ws_created",
+        "ix_critiques_workspace_id"
+      ],
+      "name": "critiques",
       "unique_constraints": []
     },
     {
@@ -1657,6 +1711,79 @@
     },
     {
       "columns": {
+        "actor": "VARCHAR(20)",
+        "claim_id": "UUID",
+        "created_at": "DATETIME",
+        "details": "JSONB",
+        "event_type": "VARCHAR(20)",
+        "id": "UUID",
+        "source": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "claim_id",
+          "personal_memory_claims.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_correction_events_claim_id",
+        "ix_memory_correction_events_user_ws_created",
+        "ix_memory_correction_events_user_ws_event_type"
+      ],
+      "name": "memory_correction_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "claims_count": "INTEGER",
+        "claims_summary": "JSONB",
+        "created_at": "DATETIME",
+        "delivered_at": "DATETIME",
+        "delivery_channel": "VARCHAR(30)",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "recipient": "VARCHAR(255)",
+        "sent_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_digest_deliveries_delivery_channel",
+        "ix_memory_digest_deliveries_sent_at",
+        "ix_memory_digest_deliveries_status",
+        "ix_memory_digest_deliveries_user_id",
+        "ix_memory_digest_deliveries_user_ws_channel",
+        "ix_memory_digest_deliveries_user_ws_sent",
+        "ix_memory_digest_deliveries_workspace_id"
+      ],
+      "name": "memory_digest_deliveries",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
         "agent_id": "VARCHAR(255)",
         "content": "TEXT",
         "created_at": "DATETIME",
@@ -1688,6 +1815,37 @@
         "ix_memory_entries_workspace_id"
       ],
       "name": "memory_entries",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "conversation_id": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "reason": "VARCHAR(500)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_extraction_pauses_conversation_id",
+        "ix_memory_extraction_pauses_expires_at",
+        "ix_memory_extraction_pauses_lookup",
+        "ix_memory_extraction_pauses_user_id",
+        "ix_memory_extraction_pauses_workspace_id"
+      ],
+      "name": "memory_extraction_pauses",
       "unique_constraints": []
     },
     {
@@ -1792,6 +1950,43 @@
         "ix_mission_logs_timestamp"
       ],
       "name": "mission_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "base_constraints": "JSONB",
+        "base_context_files": "JSONB",
+        "base_context_urls": "JSONB",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "UUID",
+        "learning_brief": "JSONB",
+        "mission_type": "VARCHAR(50)",
+        "monthly_budget_usd": "DOUBLE",
+        "name": "VARCHAR(255)",
+        "per_run_budget_usd": "DOUBLE",
+        "status": "VARCHAR(20)",
+        "trigger_config": "JSONB",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_programs_status",
+        "ix_mission_programs_user_id",
+        "ix_mission_programs_workspace_id"
+      ],
+      "name": "mission_programs",
       "unique_constraints": []
     },
     {
@@ -2280,6 +2475,49 @@
     },
     {
       "columns": {
+        "claim_type": "VARCHAR(20)",
+        "confidence": "FLOAT",
+        "created_at": "DATETIME",
+        "deleted_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "importance": "FLOAT",
+        "last_used_at": "DATETIME",
+        "object": "JSONB",
+        "predicate": "VARCHAR(100)",
+        "scope": "VARCHAR(20)",
+        "sensitivity": "VARCHAR(20)",
+        "source_id": "UUID",
+        "source_type": "VARCHAR(30)",
+        "subject": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_personal_memory_claims_claim_type",
+        "ix_personal_memory_claims_deleted_at",
+        "ix_personal_memory_claims_scope",
+        "ix_personal_memory_claims_user_id",
+        "ix_personal_memory_claims_user_ws_deleted",
+        "ix_personal_memory_claims_workspace_id",
+        "ix_personal_memory_claims_workspace_scope"
+      ],
+      "name": "personal_memory_claims",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
         "anonymous_ip": "VARCHAR(45)",
         "claimed_at": "DATETIME",
         "created_at": "DATETIME",
@@ -2314,6 +2552,39 @@
         "ix_playground_sandboxes_workspace_id"
       ],
       "name": "playground_sandboxes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "cost_usd": "DOUBLE",
+        "created_at": "DATETIME",
+        "duration_seconds": "DOUBLE",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "outcome_summary": "TEXT",
+        "program_id": "UUID",
+        "status": "VARCHAR(20)",
+        "tokens_used": "INTEGER",
+        "trigger_payload": "JSONB",
+        "trigger_type": "VARCHAR(20)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "program_id",
+          "mission_programs.id"
+        ]
+      ],
+      "indexes": [
+        "ix_program_runs_mission_id",
+        "ix_program_runs_program_id",
+        "ix_program_runs_status"
+      ],
+      "name": "program_runs",
       "unique_constraints": []
     },
     {
