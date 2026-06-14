@@ -110,6 +110,9 @@ from app.models.circuit_breaker_models import MissionCircuitBreaker
 # Community models (Phase 3 comments + drift remediation chunk 8)
 from app.models.community_models import CommunityComment, CommunityTemplate
 
+# Critique model (D30-60, T24 — Critic Agent + Memory Correction UX)
+from app.models.critique_models import ALL_CRITIC_KINDS, Critique
+
 # Cost category enum + event DTO (Q1-B Chunk 4)
 from app.models.cost_event import CostCategory, CostEvent
 
