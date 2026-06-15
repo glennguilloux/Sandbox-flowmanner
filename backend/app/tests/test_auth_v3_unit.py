@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from pydantic import ValidationError
 
@@ -9,6 +11,8 @@ from app.schemas.auth_v3 import (
     RegisterRequest,
 )
 from app.services.auth_v3_service import (
+    _to_utc_aware,
+    _to_utc_naive,
     create_access_token,
     decode_access_token,
     generate_invite_token,
@@ -137,5 +141,76 @@ class TestAccessTokenCreation:
 
         settings.JWT_SECRET_KEY = "test-secret-key-for-unit-tests-32chars!!"
 
-        result = decode_access_token("invalid.token.here")
-        assert result is None
+        assert decode_access_token("not-a-real-token") is None
+
+
+# ═══════════════════════════════════════════════
+# _to_utc_aware — regression for the v1→v3 refresh 500
+# ═══════════════════════════════════════════════
+#
+# Background: 2026-06-15, every POST /api/v3/auth/sessions/refresh returned
+# 500 with "can't compare offset-naive and offset-aware datetimes". Root
+# cause: the v1 ``refresh_tokens`` table stores ``expires_at`` as naive UTC
+# (``timestamp without time zone``), and the v3 migration code compared it
+# directly to ``datetime.now(UTC)`` without reattaching tzinfo. These tests
+# pin the helper that bridges the two representations. The endpoint-level
+# behaviour is covered in test_auth_v3_integration.py.
+
+
+class TestToUtcAware:
+    def test_none_passes_through(self):
+        assert _to_utc_aware(None) is None
+
+    def test_naive_gets_utc_attached(self):
+        naive = datetime(2026, 6, 15, 12, 0, 0)  # no tzinfo
+        assert naive.tzinfo is None
+        result = _to_utc_aware(naive)
+        assert result is not None
+        assert result.tzinfo is UTC
+        assert result == naive.replace(tzinfo=UTC)
+
+    def test_aware_passes_through_unchanged(self):
+        aware = datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
+        result = _to_utc_aware(aware)
+        assert result is aware  # identity preserved, no rewrap
+
+    def test_naive_in_past_compares_against_aware_now_without_raising(self):
+        """Reproduces the original 500: comparing naive past < aware now()."""
+        naive_past = datetime(2026, 6, 14, 0, 0, 0)  # naive, expired
+        aware_now = datetime.now(UTC)
+        # The original bug: naive_past < aware_now raises TypeError.
+        with pytest.raises(TypeError):
+            naive_past < aware_now
+        # After normalization: comparison works and reports "expired".
+        normalized = _to_utc_aware(naive_past)
+        assert normalized is not None
+        assert normalized < aware_now  # no exception
+
+    def test_naive_in_future_does_not_trigger_expiry(self):
+        naive_future = datetime.now() + timedelta(days=7)  # naive
+        normalized = _to_utc_aware(naive_future)
+        assert normalized is not None
+        assert normalized > datetime.now(UTC)  # not expired
+
+
+class TestToUtcNaive:
+    """Mirror of TestToUtcAware for the write-side: v1 columns are
+    ``timestamp without time zone`` and asyncpg rejects aware datetimes
+    on insert. The migration code in ``_try_migrate_v1_token`` must
+    strip tzinfo before writing to ``refresh_tokens.last_used_at``."""
+
+    def test_none_passes_through(self):
+        assert _to_utc_naive(None) is None
+
+    def test_aware_gets_tzinfo_stripped(self):
+        aware = datetime.now(UTC)
+        assert aware.tzinfo is not None
+        result = _to_utc_naive(aware)
+        assert result is not None
+        assert result.tzinfo is None
+        assert result == aware.replace(tzinfo=None)
+
+    def test_naive_passes_through_unchanged(self):
+        naive = datetime(2026, 6, 15, 12, 0, 0)
+        result = _to_utc_naive(naive)
+        assert result is naive  # identity preserved, no rewrap

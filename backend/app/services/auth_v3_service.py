@@ -72,6 +72,44 @@ def validate_role(role: str) -> bool:
 
 
 # ──────────────────────────────────────────────────────────────
+# Datetime normalization
+# ──────────────────────────────────────────────────────────────
+
+
+def _to_utc_aware(dt: datetime | None) -> datetime | None:
+    """Re-attach UTC tzinfo to a datetime that came from a naive-UTC column.
+
+    The legacy ``refresh_tokens`` table stores ``expires_at`` as
+    ``timestamp without time zone`` (see ``app.services.auth_service`` — the
+    writer strips tzinfo via ``.replace(tzinfo=None)`` before insert, on
+    purpose for pre-v3 client compatibility). When the v3 refresh path
+    reads one of these rows back through asyncpg, the value comes back as
+    a *naive* datetime, and a direct comparison to ``datetime.now(UTC)``
+    (which is aware) raises ``TypeError: can't compare offset-naive and
+    offset-aware datetimes``. This helper bridges the two representations
+    by assuming the naive value is UTC — which is the convention used
+    throughout the v1 code path. Returns ``None`` unchanged.
+    """
+    if dt is None:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+
+
+def _to_utc_naive(dt: datetime | None) -> datetime | None:
+    """Strip tzinfo from a datetime so it can be written to a naive-UTC column.
+
+    The v1 schema stores ``last_used_at`` as ``timestamp without time zone``,
+    which asyncpg refuses to accept with tzinfo set. The v1 codebase writes
+    to it with ``datetime.now(UTC).replace(tzinfo=None)`` (see
+    ``auth_service.py``); the v3 migration path has to do the same when
+    it touches v1 columns. Returns ``None`` unchanged.
+    """
+    if dt is None:
+        return None
+    return dt if dt.tzinfo is None else dt.replace(tzinfo=None)
+
+
+# ──────────────────────────────────────────────────────────────
 # Token hashing utilities
 # ──────────────────────────────────────────────────────────────
 
@@ -221,7 +259,11 @@ async def _try_migrate_v1_token(
     if v1_token.is_revoked:
         return None
 
-    if v1_token.expires_at and v1_token.expires_at < datetime.now(UTC):
+    # ``refresh_tokens.expires_at`` is stored as naive UTC (the v1 schema
+    # is ``timestamp without time zone`` by design), so we normalize to
+    # aware-UTC before comparing against ``datetime.now(UTC)``.
+    v1_expires = _to_utc_aware(v1_token.expires_at)
+    if v1_expires and v1_expires < datetime.now(UTC):
         v1_token.is_revoked = True
         await db.flush()
         return None
@@ -246,7 +288,10 @@ async def _try_migrate_v1_token(
 
     # Revoke the v1 token so it cannot be reused
     v1_token.is_revoked = True
-    v1_token.last_used_at = datetime.now(UTC)
+    # ``refresh_tokens.last_used_at`` is ``timestamp without time zone``;
+    # asyncpg refuses aware datetimes on insert. The v1 codebase always
+    # writes this column with tzinfo stripped — see auth_service.py:135.
+    v1_token.last_used_at = _to_utc_naive(datetime.now(UTC))
 
     await db.flush()
     await db.refresh(new_session)
@@ -290,8 +335,12 @@ async def refresh_session(
         await revoke_token_family(db, session.family_id)
         return None
 
-    # Check expiry
-    if session.expires_at < datetime.now(UTC):
+    # Check expiry (normalize to UTC-aware — see _to_utc_aware for the
+    # why; the v1 ``refresh_tokens`` schema is naive-UTC, and a stray
+    # ``TIMESTAMP`` column in ``auth_sessions`` would have the same
+    # problem. Defending the v3 hot path too is cheap.)
+    session_expires = _to_utc_aware(session.expires_at)
+    if session_expires is None or session_expires < datetime.now(UTC):
         session.is_active = False
         session.revoked_at = datetime.now(UTC)
         session.revoke_reason = "expired"
