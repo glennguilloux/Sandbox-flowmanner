@@ -23,37 +23,28 @@ logger = structlog.get_logger(__name__)
 def _run_async(coro):
     """Run an async coroutine from a sync Celery task context.
 
-    Uses the `langgraph_tasks.py` pattern: create a new event loop, register
-    it globally with `asyncio.set_event_loop()` so asyncpg / SQLAlchemy
-    futures bind to it, then run until complete.  The previous
-    `asyncio.run()` approach fails on the first attempt in a Celery
-    prefork worker because asyncpg creates connections tied to whatever
-    loop is current at the time of the call; with `asyncio.run()` the
-    loop is created, the coroutine runs, the loop closes, and any
-    pending asyncpg cleanup crashes with "got Future ... attached to a
-    different loop" (visible in worker logs as a 30s retry that
-    succeeds).
+    Celery prefork workers reuse a child process for many tasks. asyncpg
+    connections are bound to the event loop that created them, so the worker
+    must reuse one loop per child process instead of creating/closing a fresh
+    loop for every task.
     """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop.run_until_complete(coro)
 
 
 async def _expire_async() -> dict:
     """Expire stale HITL items and apply auto-actions."""
-    from app.database import AsyncSessionLocal, engine
+    from app.database import AsyncSessionLocal
     from app.services.hitl_service import HITLService
-
-    # Dispose the engine's connection pool so we don't reuse asyncpg
-    # connections that were bound to a previous event loop (Celery
-    # prefork workers create a new loop per task, but the global
-    # engine + its connection pool persist across tasks — see worker
-    # logs for "got Future ... attached to a different loop" before
-    # this fix).
-    await engine.dispose()
 
     async with AsyncSessionLocal() as db:
         service = HITLService(db)

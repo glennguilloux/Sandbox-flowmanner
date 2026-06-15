@@ -549,6 +549,63 @@ async def test_expiry_uses_workspace_default_when_no_override():
 # ── Celery task tests ────────────────────────────────────────────────
 
 
+def test_run_async_reuses_event_loop_across_calls():
+    """Celery child processes must keep the same loop for asyncpg connections."""
+    from app.tasks import hitl_expiry
+
+    old_loop = None
+    had_old_loop = False
+    try:
+        old_loop = asyncio.get_event_loop()
+        had_old_loop = True
+    except RuntimeError:
+        pass
+
+    async def loop_identity():
+        return id(asyncio.get_running_loop())
+
+    try:
+        first_loop_id = hitl_expiry._run_async(loop_identity())
+        second_loop_id = hitl_expiry._run_async(loop_identity())
+    finally:
+        if not had_old_loop:
+            loop = asyncio.get_event_loop()
+            asyncio.set_event_loop(None)
+            loop.close()
+
+    assert second_loop_id == first_loop_id
+
+
+def test_expire_async_does_not_dispose_global_engine_before_session():
+    """The expiry task should not close asyncpg connections from another loop."""
+    import app.database as database
+    from app.tasks import hitl_expiry
+
+    session = AsyncMock()
+    session.__aenter__.return_value = session
+    session.__aexit__.return_value = None
+
+    fake_engine = MagicMock()
+    fake_engine.dispose = AsyncMock(side_effect=AssertionError("engine.dispose should not be called"))
+
+    class FakeHITLService:
+        def __init__(self, db):
+            self.db = db
+
+        async def expire_and_act(self):
+            return []
+
+    with patch.object(database, "engine", fake_engine), \
+            patch.object(database, "AsyncSessionLocal", return_value=session), \
+            patch("app.services.hitl_service.HITLService", FakeHITLService):
+        result = hitl_expiry._run_async(hitl_expiry._expire_async())
+
+    assert result["processed"] == 0
+    assert result["actions"] == []
+    fake_engine.dispose.assert_not_called()
+
+
+
 def test_expire_hitl_items_task_registered():
     """The hitl.expire_items task must be in the Celery registry."""
     from app.tasks.celery_app import celery_app
