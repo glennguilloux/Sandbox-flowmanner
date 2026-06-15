@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FlowManner — End of the Galaxy Taxonomy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #020617;
+    --panel: #0f172a;
+    --panel-2: #0b1220;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --green: #34d399;
+    --green-fill: rgba(6, 78, 59, 0.4);
+    --amber: #fbbf24;
+    --amber-fill: rgba(120, 53, 15, 0.3);
+    --red: #fb7185;
+    --red-fill: rgba(136, 19, 55, 0.4);
+    --cyan: #22d3ee;
+    --cyan-fill: rgba(8, 51, 68, 0.4);
+    --violet: #a78bfa;
+    --violet-fill: rgba(76, 29, 149, 0.4);
+    --orange: #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 32px;
+    line-height: 1.5;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(30, 41, 59, 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30, 41, 59, 0.4) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: -1;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pulse-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 16px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  h1 .accent { color: var(--cyan); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .meta {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: right;
+  }
+
+  .layers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .layer {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .layer-label {
+    border-right: 1px solid var(--border);
+    padding-right: 14px;
+  }
+  .layer-label .num {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+  .layer-label .name {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 4px 0;
+  }
+  .layer-label .pct {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .layer-label .pct.amber { color: var(--amber); }
+  .layer-label .pct.red { color: var(--red); }
+  .layer-label .bar {
+    margin-top: 6px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .layer-label .bar-fill {
+    height: 100%;
+    background: var(--green);
+  }
+  .layer-label .bar-fill.amber { background: var(--amber); }
+  .layer-label .bar-fill.red { background: var(--red); }
+  .layer-label .desc {
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .caps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+  }
+  .cap {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left-width: 3px;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 11px;
+    position: relative;
+  }
+  .cap.green { border-left-color: var(--green); }
+  .cap.amber { border-left-color: var(--amber); }
+  .cap.red { border-left-color: var(--red); }
+  .cap .label {
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cap .label .status {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .cap.green .status { background: var(--green-fill); color: var(--green); }
+  .cap.amber .status { background: var(--amber-fill); color: var(--amber); }
+  .cap.red .status { background: var(--red-fill); color: var(--red); }
+  .cap .desc {
+    font-size: 9.5px;
+    color: var(--muted);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .stat .v {
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .stat .l {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .stat.green .v { color: var(--green); }
+  .stat.amber .v { color: var(--amber); }
+  .stat.red .v { color: var(--red); }
+  .stat.violet .v { color: var(--violet); }
+
+  .next-90 {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .next-90 h2 {
+    font-size: 14px;
+    color: var(--cyan);
+    margin-bottom: 14px;
+    letter-spacing: 0.05em;
+  }
+  .next-90 .cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .col h3 {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .col ul { list-style: none; }
+  .col li {
+    font-size: 10.5px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .col li:last-child { border-bottom: none; }
+  .col li::before {
+    content: '▸';
+    color: var(--cyan);
+    font-size: 8px;
+  }
+  .col li .cost {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 9px;
+  }
+
+  footer {
+    color: var(--muted);
+    font-size: 9px;
+    text-align: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="pulse-dot"></div>
+  <div>
+    <h1>FlowManner <span class="accent">→ End of the Galaxy</span> Taxonomy</h1>
+    <div class="subtitle">Full-stack capability map · 11 layers · 121 API modules · 116 tools · 7 substrate strategies · 16 improvement modules</div>
+  </div>
+  <div class="meta">
+    Homelab FastAPI + Next.js · Generated 2026-06-14<br>
+    Target: every LLM capability realisable
+  </div>
+</header>
+
+<div class="summary">
+  <div class="stat green"><div class="v">156</div><div class="l">DB TABLES</div></div>
+  <div class="stat green"><div class="v">121</div><div class="l">API ENDPOINTS</div></div>
+  <div class="stat amber"><div class="v">~70%</div><div class="l">CAPABILITY COVERAGE</div></div>
+  <div class="stat violet"><div class="v">11</div><div class="l">CAPABILITY LAYERS</div></div>
+</div>
+
+<div class="layers">
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 00</div>
+      <div class="name">Foundation</div>
+      <div class="pct">75%</div>
+      <div class="bar"><div class="bar-fill" style="width:75%"></div></div>
+      <div class="desc">Compute, storage, network — the substrate everything runs on.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">Docker Compose Stack <span class="status">OK</span></div><div class="desc">postgres, redis, rabbitmq, qdrant, jaeger</div></div>
+      <div class="cap green"><div class="label">VPS + Homelab <span class="status">OK</span></div><div class="desc">WireGuard tunnel, nginx + SSL</div></div>
+      <div class="cap green"><div class="label">Verified Backup <span class="status">OK</span></div><div class="desc">pg_dump + 4 docker volumes + env + ssh, restore-tested</div></div>
+      <div class="cap amber"><div class="label">Single Homelab <span class="status">PARTIAL</span></div><div class="desc">No multi-region; SSD failure = full rebuild</div></div>
+      <div class="cap amber"><div class="label">1 GPU Host <span class="status">PARTIAL</span></div><div class="desc">llama.cpp on homelab, no GPU pool</div></div>
+      <div class="cap red"><div class="label">Multi-Region Failover <span class="status">GAP</span></div><div class="desc">No standby region; single point of failure</div></div>
+      <div class="cap red"><div class="label">Auto-Scaling <span class="status">GAP</span></div><div class="desc">No horizontal scaling; K8s absent</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 01</div>
+      <div class="name">Identity & Tenancy</div>
+      <div class="pct">85%</div>
+      <div class="bar"><div class="bar-fill" style="width:85%"></div></div>
+      <div class="desc">Who can use this, and how they're isolated.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">User Auth <span class="status">OK</span></div><div class="desc">JWT + 2FA + OIDC + cookies (v3)</div></div>
+      <div class="cap green"><div class="label">Workspaces <span class="status">OK</span></div><div class="desc">Workspace + WorkspaceMember model</div></div>
+      <div class="cap green"><div class="label">Subscription Tiers <span class="status">OK</span></div><div class="desc">PayPal + Stripe, per-tier rate limits</div></div>
+      <div class="cap green"><div class="label">API Keys (BYOK) <span class="status">OK</span></div><div class="desc">Encrypted at rest, OpenAI/Anthropic/etc.</div></div>
+      <div class="cap amber"><div class="label">Workspace Isolation <span class="status">PARTIAL</span></div><div class="desc">Programmatic checks, no RLS</div></div>
+      <div class="cap red"><div class="label">SAML / Enterprise SSO <span class="status">GAP</span></div><div class="desc">No Okta/AzureAD bridge</div></div>
+      <div class="cap red"><div class="label">Cross-Tenant Federation <span class="status">GAP</span></div><div class="desc">No agent-to-agent across orgs</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 02</div>
+      <div class="name">Knowledge & Memory</div>
+      <div class="pct">65%</div>
+      <div class="bar"><div class="bar-fill" style="width:65%"></div></div>
+      <div class="desc">What the system knows and remembers across time.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">Episodic Memory <span class="status">OK</span></div><div class="desc">Mission summaries, structured events</div></div>
+      <div class="cap green"><div class="label">RAG (Qdrant) <span class="status">OK</span></div><div class="desc">Vector retrieval, semantic search</div></div>
+      <div class="cap green"><div class="label">Semantic Graph <span class="status">OK</span></div><div class="desc">366 nodes, 32 edges, topology manager</div></div>
+      <div class="cap green"><div class="label">Learning Service <span class="status">OK</span></div><div class="desc">inject_into_planner_context</div></div>
+      <div class="cap green"><div class="label">Mission Programs Brief <span class="status">OK</span></div><div class="desc">Just shipped — durable learning loops</div></div>
+      <div class="cap amber"><div class="label">Cross-Session Context <span class="status">PARTIAL</span></div><div class="desc">Sessions reset; no long threads</div></div>
+      <div class="cap red"><div class="label">Long-Term Personal Memory <span class="status">GAP</span></div><div class="desc">No per-user persistent knowledge graph</div></div>
+      <div class="cap red"><div class="label">World Model <span class="status">GAP</span></div><div class="desc">No persistent state of the user's world</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 03</div>
+      <div class="name">Reasoning & Planning</div>
+      <div class="pct">80%</div>
+      <div class="bar"><div class="bar-fill" style="width:80%"></div></div>
+      <div class="desc">How the system decomposes work and recovers from failure.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">MissionPlanner <span class="status">OK</span></div><div class="desc">LLM-driven plan generation with learning injection</div></div>
+      <div class="cap green"><div class="label">7 Substrate Strategies <span class="status">OK</span></div><div class="desc">solo, dag, graph, swarm, pipeline, meta, langgraph</div></div>
+      <div class="cap green"><div class="label">HITL Pause/Resume <span class="status">OK</span></div><div class="desc">Human-in-the-loop with inbox</div></div>
+      <div class="cap green"><div class="label">Circuit Breaker <span class="status">OK</span></div><div class="desc">Per-mission, lazy-created</div></div>
+      <div class="cap green"><div class="label">Failure Analysis <span class="status">OK</span></div><div class="desc">16 improvement modules: causal, hypothesis, strategy_evolution</div></div>
+      <div class="cap amber"><div class="label">Real-Time Pause/Resume <span class="status">PARTIAL</span></div><div class="desc">Exists but limited granularity</div></div>
+      <div class="cap red"><div class="label">Tree-of-Thoughts <span class="status">GAP</span></div><div class="desc">No multi-path planning explorer</div></div>
+      <div class="cap red"><div class="label">Self-Critique / Red-Team <span class="status">GAP</span></div><div class="desc">No adversarial self-review</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 04</div>
+      <div class="name">Tools & Action</div>
+      <div class="pct">75%</div>
+      <div class="bar"><div class="bar-fill" style="width:75%"></div></div>
+      <div class="desc">What the system can actually DO in the world.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">116 Tools <span class="status">OK</span></div><div class="desc">code, rag, web_search, browser, file, etc.</div></div>
+      <div class="cap green"><div class="label">Code Execution <span class="status">OK</span></div><div class="desc">sandboxd isolation, Playwright pre-installed</div></div>
+      <div class="cap green"><div class="label">Browser Automation <span class="status">OK</span></div><div class="desc">Chromium + Playwright</div></div>
+      <div class="cap green"><div class="label">File System <span class="status">OK</span></div><div class="desc">uploads + MCP filesystem server</div></div>
+      <div class="cap green"><div class="label">Web Search <span class="status">OK</span></div><div class="desc">SearXNG multi-provider</div></div>
+      <div class="cap green"><div class="label">GitHub (MCP) <span class="status">OK</span></div><div class="desc">PRs, issues, code review</div></div>
+      <div class="cap green"><div class="label">Linear Integration <span class="status">OK</span></div><div class="desc">Issue sync</div></div>
+      <div class="cap amber"><div class="label">Persistent Shell Sessions <span class="status">PARTIAL</span></div><div class="desc">sandboxd has shell but not exposed as a tool</div></div>
+      <div class="cap red"><div class="label">Calendar (Google/Outlook) <span class="status">GAP</span></div><div class="desc">No OAuth integration</div></div>
+      <div class="cap red"><div class="label">Email (Send/Receive) <span class="status">GAP</span></div><div class="desc">No SMTP/IMAP bridge</div></div>
+      <div class="cap red"><div class="label">User-Defined Tools (SDK) <span class="status">GAP</span></div><div class="desc">No way for end-users to add custom tools</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 05</div>
+      <div class="name">Communication</div>
+      <div class="pct">55%</div>
+      <div class="bar"><div class="bar-fill" style="width:55%"></div></div>
+      <div class="desc">How humans and other systems talk to the LLM.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">Chat (SSE Streaming) <span class="status">OK</span></div><div class="desc">Real-time streaming, WebSocket presence</div></div>
+      <div class="cap green"><div class="label">HITL Inbox <span class="status">OK</span></div><div class="desc">Human approvals, async notifications</div></div>
+      <div class="cap green"><div class="label">i18n (5 locales) <span class="status">OK</span></div><div class="desc">en, de, es, fr, ja</div></div>
+      <div class="cap green"><div class="label">TTS Pipeline <span class="status">OK</span></div><div class="desc">audio_format_converter + tts-api.ts (backend ready, UI thin)</div></div>
+      <div class="cap amber"><div class="label">Voice UI <span class="status">PARTIAL</span></div><div class="desc">TTS works, no push-to-talk client</div></div>
+      <div class="cap red"><div class="label">STT (Speech-to-Text) <span class="status">GAP</span></div><div class="desc">No transcription pipeline</div></div>
+      <div class="cap red"><div class="label">Video / Multimodal <span class="status">GAP</span></div><div class="desc">No frame-level vision, no video gen</div></div>
+      <div class="cap red"><div class="label">Slack/Discord/Teams Channels <span class="status">GAP</span></div><div class="desc">LLM not addressable as a chat participant</div></div>
+      <div class="cap red"><div class="label">Mobile Native App <span class="status">GAP</span></div><div class="desc">Web only, no iOS/Android</div></div>
+      <div class="cap red"><div class="label">IDE Plugin <span class="status">GAP</span></div><div class="desc">No VSCode/JetBrains extension</div></div>
+      <div class="cap red"><div class="label">CLI Tool <span class="status">GAP</span></div><div class="desc">No `flowmanner` binary</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 06</div>
+      <div class="name">Execution & Orchestration</div>
+      <div class="pct">85%</div>
+      <div class="bar"><div class="bar-fill" style="width:85%"></div></div>
+      <div class="desc">How work actually runs and recovers.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">UnifiedExecutor (H5.1) <span class="status">OK</span></div><div class="desc">Single durable entry, all workflows</div></div>
+      <div class="cap green"><div class="label">7 Substrate Strategies <span class="status">OK</span></div><div class="desc">Each with its own executor + strategy</div></div>
+      <div class="cap green"><div class="label">Triggers (cron/webhook) <span class="status">OK</span></div><div class="desc">2-second polling, dispatch by program</div></div>
+      <div class="cap green"><div class="label">Celery + RabbitMQ <span class="status">OK</span></div><div class="desc">Async jobs, retry, DLQ</div></div>
+      <div class="cap green"><div class="label">Lease Manager <span class="status">OK</span></div><div class="desc">Crash recovery, automatic reclaim</div></div>
+      <div class="cap green"><div class="label">Replay Engine <span class="status">OK</span></div><div class="desc">State reconstruction from event log</div></div>
+      <div class="cap green"><div class="label">Mission Programs <span class="status">OK</span></div><div class="desc">Just shipped — durable + learning</div></div>
+      <div class="cap amber"><div class="label">Distributed Execution <span class="status">PARTIAL</span></div><div class="desc">Single homelab; no cross-host dispatch</div></div>
+      <div class="cap red"><div class="label">GPU Scheduling <span class="status">GAP</span></div><div class="desc">1 llama.cpp host, no queue</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 07</div>
+      <div class="name">Self-Improvement</div>
+      <div class="pct">70%</div>
+      <div class="bar"><div class="bar-fill" style="width:70%"></div></div>
+      <div class="desc">How the system gets measurably better over time.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">Telemetry <span class="status">OK</span></div><div class="desc">Langfuse + Jaeger traces, cost attribution</div></div>
+      <div class="cap green"><div class="label">Improvement Cluster <span class="status">OK</span></div><div class="desc">16 modules: failure_repository, strategy_evolution, etc.</div></div>
+      <div class="cap green"><div class="label">Mission Programs Learning <span class="status">OK</span></div><div class="desc">Just shipped — manual consolidation, user_notes preserved</div></div>
+      <div class="cap green"><div class="label">57 Capabilities Registry <span class="status">OK</span></div><div class="desc">Hydrated from DB, exposed via CapabilityEngine</div></div>
+      <div class="cap green"><div class="label">Knob Manager <span class="status">OK</span></div><div class="desc">Auto-tuning of operational knobs</div></div>
+      <div class="cap amber"><div class="label">Capability Marketplace <span class="status">PARTIAL</span></div><div class="desc">Registry exists, no public marketplace</div></div>
+      <div class="cap red"><div class="label">Auto Model Selection <span class="status">GAP</span></div><div class="desc">Locked by T10 guardrail; no per-task routing</div></div>
+      <div class="cap red"><div class="label">Cross-Program Learning <span class="status">GAP</span></div><div class="desc">Locked by T9 scope; programs isolated</div></div>
+      <div class="cap red"><div class="label">A/B Test Framework <span class="status">GAP</span></div><div class="desc">No experimentation platform</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 08</div>
+      <div class="name">Integration & Extensibility</div>
+      <div class="pct">50%</div>
+      <div class="bar"><div class="bar-fill" style="width:50%"></div></div>
+      <div class="desc">How the platform reaches the rest of the world.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">MCP Gateway <span class="status">OK</span></div><div class="desc">2 servers: filesystem, GitHub</div></div>
+      <div class="cap green"><div class="label">7 Integrations <span class="status">OK</span></div><div class="desc">adapters, monitoring, oauth, openwhisk, sandboxd</div></div>
+      <div class="cap green"><div class="label">Capability Engine <span class="status">OK</span></div><div class="desc">Type-safe capability tokens</div></div>
+      <div class="cap green"><div class="label">BYOK <span class="status">OK</span></div><div class="desc">OpenAI, Anthropic, Together, DeepInfra</div></div>
+      <div class="cap green"><div class="label">OAuth for Users <span class="status">OK</span></div><div class="desc">integrations_oauth.py</div></div>
+      <div class="cap green"><div class="label">Webhook Receivers <span class="status">OK</span></div><div class="desc">Trigger bridge + webhooks</div></div>
+      <div class="cap red"><div class="label">Slack / Discord / Teams <span class="status">GAP</span></div><div class="desc">No native channels</div></div>
+      <div class="cap red"><div class="label">Notion / Airtable / Coda <span class="status">GAP</span></div><div class="desc">No knowledge base bridges</div></div>
+      <div class="cap red"><div class="label">Zapier-like Marketplace <span class="status">GAP</span></div><div class="desc">No third-party connector platform</div></div>
+      <div class="cap red"><div class="label">Public SDK for Devs <span class="status">GAP</span></div><div class="desc">No client libraries; OpenAPI only</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 09</div>
+      <div class="name">Frontend & UX</div>
+      <div class="pct">70%</div>
+      <div class="bar"><div class="bar-fill" style="width:70%"></div></div>
+      <div class="desc">How humans interact with the platform.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">Next.js 15 + App Router <span class="status">OK</span></div><div class="desc">Modern React 19, server components</div></div>
+      <div class="cap green"><div class="label">5 i18n Locales <span class="status">OK</span></div><div class="desc">en, de, es, fr, ja</div></div>
+      <div class="cap green"><div class="label">Mission Builder UI <span class="status">OK</span></div><div class="desc">Just shipped: dashboard, create, runs, brief</div></div>
+      <div class="cap green"><div class="label">Chat Interface <span class="status">OK</span></div><div class="desc">Streaming, BYOK model picker</div></div>
+      <div class="cap green"><div class="label">Dashboard + Analytics <span class="status">OK</span></div><div class="desc">Mission stats, cost views</div></div>
+      <div class="cap green"><div class="label">56 Portfolio Apps <span class="status">OK</span></div><div class="desc">Marketing surfaces</div></div>
+      <div class="cap amber"><div class="label">Mobile-Responsive <span class="status">PARTIAL</span></div><div class="desc">Mostly yes; touch UX uneven</div></div>
+      <div class="cap red"><div class="label">Voice UI <span class="status">GAP</span></div><div class="desc">No push-to-talk; no wake word</div></div>
+      <div class="cap red"><div class="label">Mobile Native App <span class="status">GAP</span></div><div class="desc">No iOS, no Android, no Flutter</div></div>
+      <div class="cap red"><div class="label">IDE Plugin <span class="status">GAP</span></div><div class="desc">No VSCode/JetBrains extension</div></div>
+      <div class="cap red"><div class="label">Browser Extension <span class="status">GAP</span></div><div class="desc">No content-script agent</div></div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="layer-label">
+      <div class="num">LAYER 10</div>
+      <div class="name">Production & Operations</div>
+      <div class="pct">70%</div>
+      <div class="bar"><div class="bar-fill" style="width:70%"></div></div>
+      <div class="desc">How we keep this thing running.</div>
+    </div>
+    <div class="caps">
+      <div class="cap green"><div class="label">Alembic Migrations <span class="status">OK</span></div><div class="desc">156 tables, full lineage tracked</div></div>
+      <div class="cap green"><div class="label">Deploy Scripts <span class="status">OK</span></div><div class="desc">deploy-backend + deploy-frontend with backup/rollback</div></div>
+      <div class="cap green"><div class="label">Verified Backup <span class="status">OK</span></div><div class="desc">Restore-tested today, 3s, 6.4M</div></div>
+      <div class="cap green"><div class="label">Health Checks <span class="status">OK</span></div><div class="desc">/api/health with component status</div></div>
+      <div class="cap green"><div class="label">Cost Attribution <span class="status">OK</span></div><div class="desc">Per-mission, per-workspace, per-program</div></div>
+      <div class="cap amber"><div class="label">Disaster Recovery <span class="status">PARTIAL</span></div><div class="desc">Procedure documented, single-machine target</div></div>
+      <div class="cap red"><div class="label">Multi-Region Failover <span class="status">GAP</span></div><div class="desc">No standby; SSD dies = 10-min rebuild</div></div>
+      <div class="cap red"><div class="label">Auto-Rollback on Bad Deploy <span class="status">GAP</span></div><div class="desc">deploy-backend.sh has rollback flag but no auto-trigger</div></div>
+      <div class="cap red"><div class="label">Observability Dashboards <span class="status">GAP</span></div><div class="desc">No Grafana, no SLO tracking</div></div>
+      <div class="cap red"><div class="label">Cron-Based Backup <span class="status">GAP</span></div><div class="desc">Script is manual only</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="next-90">
+  <h2>// NEXT 90 DAYS — PUNCH LIST TO REACH "EVERY CAPABILITY"</h2>
+  <div class="cols">
+    <div class="col">
+      <h3>QUICK WINS (≤1 week each)</h3>
+      <ul>
+        <li>Cron-based nightly backup <span class="cost">2h</span></li>
+        <li>STT via Whisper (self-hosted) <span class="cost">1 day</span></li>
+        <li>Voice UI (push-to-talk in chat) <span class="cost">2 days</span></li>
+        <li>Slack + Discord integrations <span class="cost">3 days</span></li>
+        <li>Google Calendar OAuth <span class="cost">3 days</span></li>
+        <li>User-defined tools SDK (Python only) <span class="cost">1 week</span></li>
+        <li>CLI binary `flowmanner` <span class="cost">1 week</span></li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>MEDIUM BETS (2-4 weeks each)</h3>
+      <ul>
+        <li>Long-term personal memory (per-user KG) <span class="cost">2 wks</span></li>
+        <li>Tree-of-thoughts planner <span class="cost">3 wks</span></li>
+        <li>Mobile app (Expo + React Native) <span class="cost">3 wks</span></li>
+        <li>VSCode extension (LSP + chat) <span class="cost">3 wks</span></li>
+        <li>Public Python SDK + JS SDK <span class="cost">2 wks</span></li>
+        <li>Grafana + SLO dashboards <span class="cost">2 wks</span></li>
+        <li>Auto-rollback on health-check failure <span class="cost">1 wk</span></li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>MOONSHOTS (1-3 months)</h3>
+      <ul>
+        <li>Multi-region active-active <span class="cost">2 mo</span></li>
+        <li>GPU pool + scheduler <span class="cost">2 mo</span></li>
+        <li>Capability marketplace (3rd party) <span class="cost">2 mo</span></li>
+        <li>Video / multimodal streaming <span class="cost">3 mo</span></li>
+        <li>Cross-tenant agent federation <span class="cost">3 mo</span></li>
+        <li>SAML / enterprise SSO <span class="cost">1 mo</span></li>
+        <li>Self-critique + red-team agent <span class="cost">2 mo</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<footer>
+  FlowManner Mission Programs Plan · 17/17 tasks shipped · F1-F4 all APPROVE
+  · 176 tests passing · End of the Galaxy taxonomy, 2026-06-14
+</footer>
+
+</body>
+</html>
