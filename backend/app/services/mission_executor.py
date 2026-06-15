@@ -123,12 +123,38 @@ class MissionExecutor:
 
     # ── Shared service accessors ──────────────────────────────────────────────
 
-    def _get_model_router(self):
-        if self.model_router is None:
+    def _get_model_router(self, user_id: str | None = None):
+        """Return the ModelRouter for the current execution context.
+
+        If ``user_id`` is provided, the cached router is replaced with a
+        user_id-aware router (so BYOK key resolution uses the right user).
+        If ``user_id`` is None, the cached router is returned, or a
+        no-arg fallback is created if no router has been wired yet.
+
+        The no-arg fallback path is preserved for non-mission callers
+        (chat, background jobs) where no user context is available.
+        """
+        needs_rebuild = user_id is not None and (
+            self.model_router is None
+            or getattr(self.model_router, "user_id", None) != user_id
+        )
+        if needs_rebuild:
+            try:
+                ModelRouter = _import_model_router()
+                self.model_router = ModelRouter(user_id=user_id)
+                logger.info("ModelRouter wired for user_id=%s", user_id)
+            except PermanentMissionError as e:
+                logger.error("Permanent error loading ModelRouter: %s", e)
+                self.model_router = None
+            except Exception as e:
+                logger.warning("Could not load ModelRouter: %s", e)
+                self.model_router = None
+        elif self.model_router is None:
+            # Fallback lazy loader: no user_id, no cached router
             try:
                 ModelRouter = _import_model_router()
                 self.model_router = ModelRouter()
-                logger.info("ModelRouter loaded successfully")
+                logger.info("ModelRouter loaded successfully (fallback, no user_id)")
             except PermanentMissionError as e:
                 logger.error("Permanent error loading ModelRouter: %s", e)
                 self.model_router = None
@@ -301,8 +327,7 @@ class MissionExecutor:
                     span.set_attribute("mission.title", mission.title)
 
                     # Wire ModelRouter with user context for BYOK key resolution
-                    ModelRouter = _import_model_router()
-                    self.model_router = ModelRouter(user_id=str(mission.user_id))
+                    self.model_router = self._get_model_router(user_id=str(mission.user_id))
 
                     # Wire HITLManager for human approval checks
                     self.hitl_manager = get_hitl_manager()
@@ -378,6 +403,10 @@ class MissionExecutor:
                     completed: set = set()
                     failed: set = set()
                     skipped: set = set()
+                    # Surface the first task error in the final return so callers
+                    # can see what went wrong (e.g. ModelRouter BYOK failures) without
+                    # having to dig through the mission log.
+                    first_task_error: str | None = None
 
                     max_iterations = len(tasks) * settings.MISSION_MAX_ITERATION_MULTIPLIER
                     iteration = 0
@@ -569,6 +598,11 @@ class MissionExecutor:
                                         f"Task completed: {task.title}",
                                     )
                                 else:
+                                    # Capture the first task error so the final return
+                                    # value can surface what went wrong (ModelRouter
+                                    # failures, BYOK missing keys, etc.).
+                                    if first_task_error is None:
+                                        first_task_error = result.get("error") or "Task failed (no error message)"
                                     # Q2-Q3 Chunk 6: Self-correction loop
                                     task_error = Exception(result.get("error", "Task failed"))
                                     sc_context = {
@@ -801,6 +835,7 @@ class MissionExecutor:
                         "status": mission.status,
                         "completed_tasks": len(completed),
                         "failed_tasks": len(failed),
+                        "error": first_task_error or mission.error_message,
                         "results": mission.results,
                     }
 
@@ -1115,8 +1150,7 @@ class MissionExecutor:
             result = await db.execute(select(Mission).where(Mission.id == str(mission_id)))
             mission = result.scalars().first()
             if mission:
-                ModelRouter = _import_model_router()
-                self.model_router = ModelRouter(user_id=str(mission.user_id))
+                self.model_router = self._get_model_router(user_id=str(mission.user_id))
 
         return await self.planner.plan_mission(mission_id)
 
