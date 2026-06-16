@@ -226,7 +226,7 @@ class MissionExecutor:
                 await db.commit()
                 await self._log(
                     db,
-                    mission_id,  # type: ignore[arg-type]
+                    mission_id,
                     step.id,
                     "info",
                     f"Task {step.title} state transition: {prev_state} → {status}",
@@ -1052,8 +1052,12 @@ class MissionExecutor:
     async def _log(
         self,
         db,
-        mission_id: UUID,
-        task_id: UUID | None,
+        # MissionLog.mission_id and .task_id are typed as `Mapped[str]` in
+        # `app/models/mission_models.py` (DB column `UUID(as_uuid=True)`),
+        # and all call sites pass ORM attributes (`mission.id`, `task.id`)
+        # that are also `str` at the type level. Accept `str` to match.
+        mission_id: str,
+        task_id: str | None,
         level: str,
         message: str,
         extra_data: dict = None,
