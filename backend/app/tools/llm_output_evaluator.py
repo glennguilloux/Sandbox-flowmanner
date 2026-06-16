@@ -171,18 +171,18 @@ class LlmOutputEvaluatorTool(BaseTool):
             criteria_names = [c.name for c in criteria_items]
         else:
             criteria_items = [
-                EvaluationCriterion(
+                EvaluationCriterion(  # type: ignore[call-arg]
                     name="hallucination",
                     weight=2.0,
                     description="Detect factually incorrect claims",
                 ),
-                EvaluationCriterion(
+                EvaluationCriterion(  # type: ignore[call-arg]
                     name="factual_accuracy",
                     weight=2.0,
                     description="Verify facts against ground truth",
                 ),
-                EvaluationCriterion(name="coherence", weight=1.0, description="Logical flow and clarity"),
-                EvaluationCriterion(
+                EvaluationCriterion(name="coherence", weight=1.0, description="Logical flow and clarity"),  # type: ignore[call-arg]
+                EvaluationCriterion(  # type: ignore[call-arg]
                     name="relevance_to_query",
                     weight=1.0,
                     description="Response addresses the query",
@@ -216,11 +216,12 @@ class LlmOutputEvaluatorTool(BaseTool):
             detail_scores = {c["criterion"]: c["score"] for c in evaluation.get("criteria", [])}
             if detail_scores:
                 weighted_sum = sum(
-                    s * criteria_map.get(name, EvaluationCriterion(name=name)).weight
+                    s * criteria_map.get(name, EvaluationCriterion(name=name)).weight  # type: ignore[call-arg]
                     for name, s in detail_scores.items()
                 )
                 total_weight = sum(
-                    criteria_map.get(name, EvaluationCriterion(name=name)).weight for name in detail_scores
+                    criteria_map.get(name, EvaluationCriterion(name=name)).weight  # type: ignore[call-arg, misc]
+                    for name in detail_scores
                 )
                 overall = round(weighted_sum / total_weight, 1) if total_weight > 0 else 0.0
             else:
