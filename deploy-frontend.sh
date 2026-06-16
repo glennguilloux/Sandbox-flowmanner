@@ -6,7 +6,7 @@ VPS_HOST="${VPS_HOST:-74.208.115.142}"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -i $SSH_KEY"
 
 echo "=== Rsyncing frontend to VPS ==="
-rsync -avz --progress \
+rsync -avz --progress --delete \
   -e "ssh $SSH_OPTS" \
   --exclude node_modules --exclude .next --exclude .git \
   /home/glenn/FlowmannerV2-frontend/ \
