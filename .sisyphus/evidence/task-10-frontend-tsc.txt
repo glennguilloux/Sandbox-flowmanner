@@ -1,1 +1,27 @@
-task_10_frontend_tsc_exit=0
+command=npx tsc --noEmit
+working_directory=/home/glenn/FlowmannerV2-frontend
+exit_code=1
+timestamp=2026-06-16T14:19:00Z
+
+.next/dev/types/validator.ts(427,1): error TS1128: Declaration or statement expected.
+
+DRIFT: validator.ts is a Next.js-generated file (1141 lines).
+- "Validate " comment count: 121
+- Standalone "}" line count: 124
+- Unbalanced: 3 extra closing braces.
+
+This is a known Next.js dev-mode bug: the auto-generated validator.ts
+desyncs when pages are added/removed while a dev server is running.
+4 new commits since the last tsc pass (2026-06-11) added pages, including
+the new /[locale]/playground/ route, the nav rework, and the sandbox
+playground hook.
+
+Fix: rm -rf .next && next dev   (or rm -rf .next && next build)
+This regenerates validator.ts with balanced braces. The .next/ tree is
+gitignored; this is a state-of-the-checkout issue, not a code defect.
+
+NOTE: No user-authored source files produce a tsc error. The single
+error is entirely within the generated .next/dev/types/validator.ts.
+
+Prior runs (2026-06-11): exit 0. Current: exit 1 due to .next cache
+corruption from the 4 new commits.

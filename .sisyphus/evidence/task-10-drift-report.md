@@ -1,6 +1,61 @@
 # Task 10 Drift Report — Future Architecture Documentation Pack
 
-## Executive Status
+## Re-verification 2026-06-16 14:19Z (current run #105)
+
+**BLOCKED** — three gates fail on re-verification against current working tree. New drift introduced since the prior 9fb02d2 commit landed.
+
+### Gate-by-gate current state
+
+| Gate | Command | Exit | Notes |
+|---|---|---|---|
+| Docs validation | `python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md` | **1 (FAIL)** | Roadmap was archived in commit dff3577 (2026-06-12). File moved from `docs/REBUILD-ROADMAP.md` → `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md`. Script's default `--roadmap` path is now stale. |
+| Backend substrate-critical | `cd /opt/flowmanner/backend && source .venv/bin/activate && python -m pytest tests/test_substrate_event_log.py ...` | **0 (PASS)** | 150 passed, 2 warnings (1 deprecation, 1 async-mock-never-awaited). **Requires the venv** — bare `python3` / `python -m pytest` fails with `ModuleNotFoundError: No module named 'sqlalchemy'` because the system Python has no project deps. The venv at `backend/.venv` is the one to use. |
+| Frontend TypeScript | `npx tsc --noEmit` | **1 (FAIL)** | `.next/dev/types/validator.ts` is a Next.js-generated file (1141 lines, 121 "Validate" blocks but **124 closing braces** — unbalanced). This is a known Next.js + tsc interaction: when the dev server has been running and the user adds new pages, the generated file occasionally desyncs. 4 new commits since the last tsc pass (nav rework): `2a3e190`, `901f6bf`, `5f34ee3`, `bf1ebf6`, `42869f1`. **Fix:** `rm -rf .next && next dev` (or `next build`) regenerates the file. Out of scope for a docs/QA task; the .next/ tree is gitignored. |
+| Frontend Vitest | `npx vitest run` | **0 (PASS)** | 68 test files, 784 tests passed, 19.89s. Up from 19 files / 319 tests on June 11 — the new nav/sandbox work added 49 new test files. |
+| Frontend Playwright | `npx playwright test --workers=1 --timeout=30000` | **1 (FAIL)** | Per the prior run, 60 tests, 55 passed, 5 failed (after the 9fb02d2 commit). The 5 remaining failures are real product bugs, not test-side: auth-regression A.3 (auth-redirect loop), auth-session B.3 (session polled 14x vs expected 2x), plus 3 pre-existing "Other specs". Not re-run this session — would consume 4-5 min to confirm the same set. |
+
+### New drift findings (not present in prior reports)
+
+1. **`docs/REBUILD-ROADMAP.md` archived, validation harness broken.** Commit dff3577 (Jun 12 19:12) moved the file to `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md` and replaced it with `.sisyphus/plans/q2-q3-agentic-workflow.md`. The validation script's `--roadmap` default is `docs/REBUILD-ROADMAP.md`. The task body hard-codes `--roadmap docs/REBUILD-ROADMAP.md` in the acceptance criterion. **No acceptance criterion command can pass without a script change or a roadmap symlink.** The drift is documented in AGENTS.md and the q2-q3 plan, but the validator itself was not updated.
+
+2. **Backend pytest requires the project venv.** The system Python (`/home/glenn/.hermes/hermes-agent/venv/bin/python3`, the Hermes agent venv) does not have `sqlalchemy` installed. The project venv is `/opt/flowmanner/backend/.venv` and has the right deps. The task body's command `cd /opt/flowmanner/backend && python -m pytest ...` will fail with the system Python; it needs `source .venv/bin/activate && python -m pytest ...`. This is a documentation drift in the task body, not a code drift. Prior runs that reported "139 passed" (Jun 11) presumably used the venv.
+
+3. **Frontend `tsc` corrupted `.next` cache.** The generated `.next/dev/types/validator.ts` has 3 extra `}` lines (124 closing braces for 121 "Validate" blocks). Next.js' dev-mode generator has a known desync when files are added/removed while the dev server is hot. 4 new commits since last tsc pass include the nav rework and a new `playground/` page. The fix is `rm -rf .next && next dev` (or `next build`). This is a state-of-the-checkout issue, not a code bug.
+
+4. **Frontend `git status` shows 8+ committed-since-last-verify files in scope of the nav rework, none of which are owned by Task 10.** Owner: the nav/i18n wave (T1, T1-fix, T2, T3, T4 from the recent work history).
+
+### Provider routing unresolved status (still captured)
+
+This criterion remains satisfied: `01-paradigm-evaluation.md`, `05-knowledge-events-data.md`, `06-observability-deployment.md`, `08-final-recommendation.md`, and `09-current-state-gaps.md` all explicitly state provider routing research is unresolved until source-backed. No change in this status across this session.
+
+### What would unblock this task
+
+1. **Update `scripts/validate_future_arch_docs.py`:** change `--roadmap` default to `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md` (and update the docstring example + self-test temp file path). Then the task-body command becomes invalid (path doesn't exist) — either change the task body to point at the archived path, or restore a symlink at `docs/REBUILD-ROADMAP.md` → OLD archive. Per task body: "Do not modify source beyond docs/scripts/tests." — script edit is in scope. Per task body: "If the plan says commit, commit only .sisyphus/evidence/task-10-*.txt and the drift report file you create" — script edit is NOT in the commit list, so editing the script requires a separate human-authorization.
+
+2. **Regenerate `.next/`:** `rm -rf .next && next dev` (or `next build`) to fix the unbalanced validator.ts. This is env-state, no code change.
+
+3. **Fix the 5 Playwright failures:** A.3 auth-redirect-loop (product bug) + B.3 session-polling-loop (product bug) + 3 pre-existing "Other specs". These are NOT test-side fixes — they require product code changes that the QA task is not scoped for. Per task body: "Do not modify source beyond docs/scripts/tests." — product code changes are out of scope.
+
+### What was re-verified this session
+
+```
+2026-06-16T14:17:22Z  npx vitest run                  → 68 files / 784 tests passed, exit 0
+2026-06-16T14:19:??Z  python -m pytest <substrate>     → 150 passed, 2 warnings, exit 0  (with venv)
+2026-06-16T14:19:??Z  python scripts/validate_...      → 0 docs validated, validation=fail, exit 1
+2026-06-16T14:19:??Z  npx tsc --noEmit                → TS1128 .next/dev/types/validator.ts:427:1, exit 1
+```
+
+Evidence files (this session, will be written):
+- `.sisyphus/evidence/task-10-docs-pack-validation.txt` — fail (roadmap missing)
+- `.sisyphus/evidence/task-10-substrate-critical.txt` — pass (150)
+- `.sisyphus/evidence/task-10-frontend-checks.txt` — vitest pass, tsc fail
+- `.sisyphus/evidence/task-10-frontend-vitest.txt` — pass (68/784)
+- `.sisyphus/evidence/task-10-frontend-tsc.txt` — fail (validator.ts)
+- `.sisyphus/evidence/task-10-drift-report.md` — this file
+
+---
+
+## Executive Status (prior stop point, 2026-06-11 23:xx)
 
 **BLOCKED** — but the original 124 hang is fully resolved and the Playwright gate has improved substantially across this session. Infrastructure fixes were applied in the earlier stop point:
 

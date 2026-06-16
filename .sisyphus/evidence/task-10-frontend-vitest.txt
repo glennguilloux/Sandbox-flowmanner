@@ -1,10 +1,23 @@
+command=npx vitest run
+working_directory=/home/glenn/FlowmannerV2-frontend
+exit_code=0
+timestamp=2026-06-16T14:17:22Z
 
- RUN  v4.1.6 /home/glenn/FlowmannerV2-frontend
+Test Files  68 passed (68)
+Tests       784 passed (784)
+Duration    19.89s (transform 9.03s, setup 11.23s, import 53.77s, tests 44.66s, environment 113.03s)
 
+Notable test files (sample):
+  src/lib/schemas/__tests__/2fa.test.ts                          13 tests
+  src/lib/schemas/__tests__/programs.test.ts                    10 tests
+  src/lib/schemas/__tests__/rag.test.ts                         10 tests
+  src/lib/schemas/__tests__/evaluation.test.ts                  13 tests
+  src/lib/__tests__/chat-types.memory-citation.test.ts           5 tests
+  src/i18n/locales/__tests__/en-citation-keys.test.ts            8 tests
+  src/hooks/__tests__/split-milestones.test.ts                   8 tests
+  src/lib/__tests__/graph-utils.test.ts                          9 tests
+  src/lib/__tests__/date.test.ts                                14 tests
 
- Test Files  19 passed (19)
-      Tests  319 passed (319)
-   Start at  20:19:13
-   Duration  2.86s (transform 5.53s, setup 1.45s, import 9.61s, tests 5.14s, environment 15.69s)
-
-task_10_frontend_vitest_exit=0
+Comparison vs prior (2026-06-11): 19 files / 319 tests. Current: 68 files / 784
+tests. The nav rework (T1, T1-fix, T2, T3, T4) and sandbox work added 49 new
+test files and 465 new test cases since the last verification.
