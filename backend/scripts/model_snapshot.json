@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 141,
+  "model_count": 142,
   "tables": [
     {
       "columns": {
@@ -2471,6 +2471,44 @@
         "ix_partners_contact_email"
       ],
       "name": "partners",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action": "VARCHAR(50)",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "metadata": "JSONB",
+        "mission_id": "UUID",
+        "old_text": "TEXT",
+        "reviewed_at": "DATETIME",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "UUID",
+        "write_type": "VARCHAR(50)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_pending_writes_expires",
+        "ix_pending_writes_mission_id",
+        "ix_pending_writes_status",
+        "ix_pending_writes_status_pending",
+        "ix_pending_writes_user_id",
+        "ix_pending_writes_workspace_id"
+      ],
+      "name": "pending_writes",
       "unique_constraints": []
     },
     {
