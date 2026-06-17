@@ -29,3 +29,20 @@ Verify:
 curl -sS http://127.0.0.1:11435/v1/models | head -c 200
 # Expect: {"models":[{"name":"qwen2.5-1.5b-instruct-q4_k_m.gguf",...
 ```
+
+UFW (homelab default is deny-incoming):
+
+The backend container reaches the host's llama-server via the bridge IP
+(`10.0.4.1:<port>` from a container on `glenn_workflows-web`). UFW blocks
+new ports by default. Add an explicit allow rule — UFW-native form
+survives reboot and `ufw reload`, raw `iptables -I INPUT` does not:
+
+```bash
+sudo ufw allow 11435/tcp comment "llama.cpp 1.5B light reviewer"
+```
+
+Test from inside a container after the rule is in:
+
+```bash
+docker compose exec backend curl -sS http://10.0.4.1:11435/v1/models
+```
