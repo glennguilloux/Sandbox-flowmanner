@@ -44,13 +44,13 @@ def upgrade() -> None:
         "pending_writes",
         sa.Column(
             "id",
-            postgresql.UUID(as_uuid=False),
+            sa.String(36),
             primary_key=True,
             nullable=False,
         ),
         sa.Column(
             "workspace_id",
-            postgresql.UUID(as_uuid=False),
+            sa.String(36),
             sa.ForeignKey("workspaces.id", ondelete="SET NULL"),
             nullable=True,
         ),
@@ -62,7 +62,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "mission_id",
-            postgresql.UUID(as_uuid=False),
+            sa.String(36),
             nullable=True,
         ),
         sa.Column(
