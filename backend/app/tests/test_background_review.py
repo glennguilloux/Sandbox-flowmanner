@@ -292,12 +292,17 @@ def test_min_mission_thresholds_match_plan():
 # ── 7. review_mission best-effort semantics ──────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_review_mission_swallows_caller_exceptions():
+def test_review_mission_swallows_caller_exceptions():
     """The sync wrapper must never propagate exceptions from the async body.
 
     We patch the async body to raise; the wrapper must catch and return
     a summary with ``outcome='error'``.
+
+    This test is sync on purpose: production Celery workers invoke
+    ``review_mission`` from a worker thread with no running event loop,
+    so ``asyncio.run`` works. Running this inside a pytest-asyncio loop
+    would raise before we ever reach the patched async body, masking the
+    real best-effort behavior we want to verify.
     """
     from app.tasks import background_review_tasks
 
