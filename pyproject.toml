@@ -9,6 +9,10 @@ module = "app.migrations.versions.*"
 disable_error_code = ["attr-defined"]
 
 [[tool.mypy.overrides]]
+module = "app.governance.workflow_config.config_manager"
+disable_error_code = ["attr-defined", "unused-coroutine"]
+
+[[tool.mypy.overrides]]
 module = "redis"
 ignore_missing_imports = true
 

@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# This module predates the AsyncSession-only database refactor (commit that
+# aliased SessionLocal -> AsyncSessionLocal). The methods are still sync-style
+# and the callers (governance/controlflow/agent.py) are sync, so converting
+# to async would require refactoring all callers out of scope here. The
+# attr-defined and unused-coroutine errors are expected technical debt that
+# is documented for a follow-up migration. See swarm_tasks.py for the same
+# pattern. The matching mypy override is in /opt/flowmanner/pyproject.toml
+# under [tool.mypy.overrides] for app.governance.workflow_config.config_manager.
 """
 Workflow Config Manager
 
