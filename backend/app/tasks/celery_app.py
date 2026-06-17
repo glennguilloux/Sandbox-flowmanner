@@ -135,6 +135,7 @@ def _register_custom_tasks() -> None:
     """
     # Each entry: (module_name, comment)  - imported for decorator side effects.
     task_modules = [
+        ("background_review_tasks", "memory.review_mission  (background self-improvement)"),
         ("batch_processing",  "batch.process_batch"),
         ("deepagents_tasks",  "deepagents.{execute, stream, batch_execute}"),
         ("hitl_resume",       "substrate.resume_hitl  (Q1-B chunk 1)"),

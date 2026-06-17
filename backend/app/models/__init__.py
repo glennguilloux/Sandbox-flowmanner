@@ -176,7 +176,7 @@ from app.models.memory_digest_models import (
 )
 
 # Memory models (canonical + legacy)
-from app.models.memory_models import MemoryEntry
+from app.models.memory_models import MemoryEntry, PendingWrite
 
 # Mission versioning (Phase 3.1 — already existed, now normalized)
 from app.models.mission_advanced_models import MissionVersion

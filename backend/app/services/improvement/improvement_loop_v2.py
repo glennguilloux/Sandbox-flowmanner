@@ -398,6 +398,50 @@ class ImprovementLoopV2:
                 },
             )
 
+        # Background self-improvement review — fires for every mission
+        # completion (subject to the skip rules inside the task).
+        # Fire-and-forget per services/AGENTS.md §10: never blocks the
+        # caller. The Celery task is best-effort — a failure inside
+        # ``review_mission`` is logged but does NOT propagate here.
+        # Per the task decision, the hook ALWAYS enqueues; the skip
+        # logic (duration<10s OR turns<3) lives INSIDE the Celery
+        # task, because ``on_mission_complete`` does not receive
+        # duration / turn_count in its signature.
+        try:
+            import asyncio
+
+            from app.tasks.background_review_tasks import review_mission
+
+            asyncio.create_task(self._dispatch_background_review(review_mission, mission_id))
+        except Exception as exc:
+            logger.debug(
+                "Background review dispatch unavailable for mission=%s: %s",
+                mission_id,
+                exc,
+            )
+
+    async def _dispatch_background_review(
+        self,
+        review_mission: Any,
+        mission_id: str,
+    ) -> None:
+        """Fire-and-forget wrapper for ``review_mission.delay``.
+
+        Lives on the same instance so the existing improvement loop
+        singleton is the single owner of the dispatch. The ``.delay``
+        call is sync (kombu) so this coroutine returns almost
+        immediately; keeping it ``async`` lets us add a retry/audit
+        layer here without churning the Celery signature.
+        """
+        try:
+            review_mission.delay(mission_id)
+        except Exception as exc:
+            logger.debug(
+                "Background review enqueue failed for mission=%s: %s",
+                mission_id,
+                exc,
+            )
+
     async def on_failure(
         self,
         failure_context: FailureContext,
