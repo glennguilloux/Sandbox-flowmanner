@@ -34,6 +34,40 @@ def test_llamacpp_model_instantiation(mock_openai_cls):
 
 
 @patch.object(_mod, "ChatOpenAI", autospec=True)
+def test_llamacpp_light_routing_uses_light_url(mock_openai_cls):
+    """The 1.5B model must route to the light server, not the 27B server."""
+    openai_instance = MagicMock()
+    mock_openai_cls.return_value = openai_instance
+
+    mgr = LLMManager()
+    result = mgr.get_model("llamacpp-qwen2.5-1.5b")
+
+    from app.config import settings
+
+    mock_openai_cls.assert_called_once_with(
+        model="qwen2.5:1.5b",
+        base_url=settings.LLAMACPP_LIGHT_URL + "/v1",
+        api_key="not-needed",
+    )
+    assert result is openai_instance
+
+
+def test_get_llamacpp_base_url_falls_back_to_primary():
+    """Models without a per-model override route to the 27B server."""
+    from app.config import settings
+    from app.services.langgraph.llm_config import get_llamacpp_base_url
+
+    assert get_llamacpp_base_url("llamacpp-qwen2.5-14b") == settings.LLAMACPP_URL
+
+
+def test_get_llamacpp_base_url_routes_1_5b_to_light():
+    from app.config import settings
+    from app.services.langgraph.llm_config import get_llamacpp_base_url
+
+    assert get_llamacpp_base_url("llamacpp-qwen2.5-1.5b") == settings.LLAMACPP_LIGHT_URL
+
+
+@patch.object(_mod, "ChatOpenAI", autospec=True)
 def test_cloud_model_instantiation(mock_openai_cls):
     openai_instance = MagicMock()
     mock_openai_cls.return_value = openai_instance

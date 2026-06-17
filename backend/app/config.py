@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     AES_ENCRYPTION_KEY: str = "change-me-in-production"
 
     LLAMACPP_URL: str = "http://10.0.4.1:11434"
+    LLAMACPP_LIGHT_URL: str = "http://10.0.4.1:11435"
     LITELLM_ENDPOINT: str = "http://localhost:4000"
 
     QDRANT_URL: str = "http://localhost:6333"

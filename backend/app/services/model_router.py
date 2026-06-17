@@ -45,6 +45,7 @@ class ModelRouter:
     # Model category lists
     LOCAL_MODELS = [
         "llamacpp-qwen3.6-27b",
+        "llamacpp-qwen2.5-1.5b",
     ]
 
     FREE_CLOUD_MODELS: list[str] = []

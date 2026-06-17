@@ -1,0 +1,30 @@
+[Unit]
+Description=llama.cpp server (Qwen2.5-1.5B light reviewer)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=glenn
+Group=glenn
+ExecStart=/mnt/apps/llama.cpp-mtp/build/bin/llama-server \
+  --model /mnt/apps/models/light/qwen2.5-1.5b-instruct-q4_k_m.gguf \
+  --host 0.0.0.0 \
+  --port 11435 \
+  --ctx-size 8192 \
+  --gpu-layers 99 \
+  --flash-attn on \
+  --parallel 2 \
+  --cont-batching \
+  --log-file /var/log/llama-server-light.log
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65536
+TimeoutStartSec=120
+
+# Environment
+Environment="PATH=/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
+Environment="LD_LIBRARY_PATH=/mnt/apps/llama.cpp-mtp/build/bin"
+
+[Install]
+WantedBy=multi-user.target

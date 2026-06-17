@@ -292,6 +292,7 @@ class ModelRouter:
             test_models = {
                 "deepseek": "deepseek-v4-flash",
                 "llamacpp": "Qwen3.6-27B-Q5_K_M-mtp.gguf",
+                "llamacpp_light": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
             }
 
             model_name = test_models.get(provider_id)

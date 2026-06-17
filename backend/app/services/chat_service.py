@@ -34,6 +34,7 @@ PROVIDER_MAP = {
     "deepseek": ("https://api.deepseek.com/v1", "DEEPSEEK_API_KEY"),
     "zhipuai": ("https://open.bigmodel.cn/api/paas/v4", "ZHIPUAI_API_KEY"),
     "llamacpp": (f"{settings.LLAMACPP_URL}/v1", None),
+    "llamacpp_light": (f"{settings.LLAMACPP_LIGHT_URL}/v1", None),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY"),
     "anthropic": ("https://api.anthropic.com/v1", "ANTHROPIC_API_KEY"),

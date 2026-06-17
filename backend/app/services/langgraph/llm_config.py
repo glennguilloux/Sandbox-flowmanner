@@ -13,6 +13,40 @@ except ImportError:
     ChatOpenAI = None
 
 
+# Per-model base URL overrides for llamacpp variants served by separate
+# llama-server instances. Keys are the public model_id (e.g. "llamacpp-qwen2.5-1.5b"),
+# values are the base URL of the llama-server *without* the trailing "/v1".
+# Used by the background review task's fast-path for short, structured JSON
+# extraction (memory entries, supersede decisions) where the 27B is overkill.
+_LLAMACPP_MODEL_URL_OVERRIDES: dict[str, str] = {}
+
+
+def _init_llamacpp_overrides() -> None:
+    """Populate the per-model URL override map from settings.
+
+    Called lazily on first instantiation so settings are resolved at runtime
+    (Settings uses pydantic-settings which reads from env at import time, but
+    tests may override the env after import).
+    """
+    if _LLAMACPP_MODEL_URL_OVERRIDES:
+        return
+    from app.config import settings
+
+    _LLAMACPP_MODEL_URL_OVERRIDES["llamacpp-qwen2.5-1.5b"] = settings.LLAMACPP_LIGHT_URL
+
+
+def get_llamacpp_base_url(model_id: str) -> str:
+    """Return the base URL (no trailing /v1) for a llamacpp model_id.
+
+    Falls back to settings.LLAMACPP_URL (the primary 27B server) if no
+    per-model override is registered.
+    """
+    from app.config import settings
+
+    _init_llamacpp_overrides()
+    return _LLAMACPP_MODEL_URL_OVERRIDES.get(model_id) or settings.LLAMACPP_URL
+
+
 class LLMManager:
     _instances: OrderedDict[str, Any] = OrderedDict()
     _lock = threading.Lock()
@@ -64,9 +98,10 @@ class LLMManager:
         mapped = self.MODEL_MAP.get(model_id, model_id)
 
         if self._is_local_heuristic(model_id) or mapped.endswith(".gguf"):
+            base_url = get_llamacpp_base_url(model_id) + "/v1"
             return ChatOpenAI(
                 model=mapped,
-                base_url=settings.LLAMACPP_URL + "/v1",
+                base_url=base_url,
                 api_key="not-needed",
             )
 
