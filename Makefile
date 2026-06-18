@@ -158,10 +158,8 @@ test-backend-cov: ## Run backend tests with coverage
 deploy: deploy-backend deploy-frontend ## Deploy all (backend + frontend)
 
 .PHONY: deploy-backend
-deploy-backend: build-backend ## Build and deploy backend
-	@echo -e "$(GREEN)Restarting backend container...$(RESET)"
-	cd $(PROJECT_ROOT) && docker compose up -d --no-deps --force-recreate backend
-	@echo -e "$(GREEN)Backend deployed.$(RESET)"
+deploy-backend: ## Build and deploy backend (via deploy-backend.sh with precheck)
+	bash $(PROJECT_ROOT)/deploy-backend.sh
 
 .PHONY: deploy-frontend
 deploy-frontend: ## Deploy frontend to VPS

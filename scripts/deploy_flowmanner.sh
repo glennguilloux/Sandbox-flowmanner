@@ -231,7 +231,7 @@ deploy_frontend() {
     return 0
   fi
 
-  if ! timeout "$DEPLOY_TIMEOUT" bash "$FRONTEND_DEPLOY_SCRIPT"; then
+  if ! timeout "$DEPLOY_TIMEOUT" bash "$FRONTEND_DEPLOY_SCRIPT" --skip-precheck; then
     local rc=$?
     if [ "$rc" -eq 124 ]; then
       die "Frontend deploy TIMED OUT after ${DEPLOY_TIMEOUT}s — check VPS manually" 5

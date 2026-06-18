@@ -7,12 +7,14 @@
 #   ./deploy-backend.sh --migrate        # Run alembic migrations before deploy
 #   ./deploy-backend.sh --dry-run        # Preview without executing
 #   ./deploy-backend.sh --rollback       # Revert to previous backend version
+#   ./deploy-backend.sh --skip-precheck  # Skip the pre-deploy gate
 #   ./deploy-backend.sh --migrate --dry-run
 #
 # Environment:
 #   Runs on: Homelab (local machine)
 #   Backend container: workflows-backend:restored
 #   Health: curl -f http://localhost:8000/health
+#   Precheck gate: scripts/pre-deploy-check.sh (Wave 2 wired-in)
 # =============================================================================
 
 set -euo pipefail
@@ -56,23 +58,27 @@ DRY_RUN=false
 ROLLBACK=false
 MIGRATE=false
 VALIDATE=true  # Auto-on when --migrate is set; disable with --no-validate
+SKIP_PRECHECK=false
 
 for arg in "$@"; do
   case "$arg" in
-    --dry-run)     DRY_RUN=true ;;
-    --rollback)    ROLLBACK=true ;;
-    --migrate)     MIGRATE=true ;;
-    --validate)    VALIDATE=true ;;
-    --no-validate) VALIDATE=false ;;
+    --dry-run)        DRY_RUN=true ;;
+    --rollback)       ROLLBACK=true ;;
+    --migrate)        MIGRATE=true ;;
+    --validate)       VALIDATE=true ;;
+    --no-validate)    VALIDATE=false ;;
+    --skip-precheck)  SKIP_PRECHECK=true ;;
     --help|-h)
-      echo "Usage: $0 [--migrate] [--dry-run] [--rollback] [--validate|--no-validate]"
+      echo "Usage: $0 [--migrate] [--dry-run] [--rollback] [--validate|--no-validate] [--skip-precheck]"
       echo ""
       echo "Options:"
-      echo "  --migrate       Run alembic migrations before deploying"
-      echo "  --dry-run       Preview actions without executing"
-      echo "  --rollback      Revert to the previous backend version"
-      echo "  --validate      Force-enable pre-migrate validation gate (default when --migrate)"
-      echo "  --no-validate   Skip the pre-migrate validation gate (escape hatch)"
+      echo "  --migrate         Run alembic migrations before deploying"
+      echo "  --dry-run         Preview actions without executing"
+      echo "  --rollback        Revert to the previous backend version"
+      echo "  --validate        Force-enable pre-migrate validation gate (default when --migrate)"
+      echo "  --no-validate     Skip the pre-migrate validation gate (escape hatch)"
+      echo "  --skip-precheck   Skip the pre-deploy gate (used by orchestrators"
+      echo "                    that have already validated)"
       exit 0
       ;;
     *)
@@ -113,6 +119,16 @@ check_health() {
 # Record current image for rollback
 save_current_image() {
   log_step "Saving current backend image for rollback"
+
+  # In DRY_RUN mode, NEVER overwrite the saved-image slot. Otherwise
+  # repeated dry-runs (e.g. for safety before a real deploy) would lose
+  # the original backup tag — a silent state corruption that defeats
+  # the rollback path entirely.
+  if [ "$DRY_RUN" = true ]; then
+    log_info "[DRY-RUN] would tag ${BACKEND_IMAGE} -> ${BACKUP_TAG} + ${CURRENT_TAG}"
+    log_info "[DRY-RUN] no actual image tags modified"
+    return 0
+  fi
 
   # Check if image exists
   if ! docker image inspect "$BACKEND_IMAGE" > /dev/null 2>&1; then
@@ -345,6 +361,31 @@ post_deploy_health() {
 }
 
 # ---------------------------------------------------------------------------
+# Pre-Deploy Gate (Wave 2 — pre-deploy-check.sh)
+# ---------------------------------------------------------------------------
+# Fail-closed gate invoked up-front unless --skip-precheck is passed.
+# Orchestrators (deploy-all.sh, scripts/deploy_flowmanner.sh) pass
+# --skip-precheck because they have their own preflight. Manual invocations
+# run the full gate. --rollback exits before this point.
+PRECHECK_SCRIPT="${COMPOSE_DIR}/scripts/pre-deploy-check.sh"
+
+run_precheck() {
+  if [ "$SKIP_PRECHECK" = true ]; then
+    log_info "precheck SKIPPED (--skip-precheck)"
+    return 0
+  fi
+  if [ ! -x "$PRECHECK_SCRIPT" ]; then
+    log_error "precheck not found or not executable at $PRECHECK_SCRIPT"
+    exit 1
+  fi
+  log_info "Running precheck: $PRECHECK_SCRIPT"
+  if ! bash "$PRECHECK_SCRIPT"; then
+    log_error "precheck FAILED — aborting deploy"
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
@@ -371,6 +412,7 @@ main() {
   fi
 
   # -- Normal deploy --
+  run_precheck
   pre_deploy_health
   save_current_image
 
