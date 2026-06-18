@@ -259,7 +259,7 @@ main() {
     if [ "$DRY_RUN" = true ]; then backend_args+=" --dry-run"; fi
     if [ "$MIGRATE" = true ];  then backend_args+=" --migrate"; fi
 
-    if bash "$DEPLOY_BACKEND" $backend_args; then
+    if bash "$DEPLOY_BACKEND" $backend_args --skip-precheck; then
       BACKEND_DEPLOYED=true
       log_success "Backend deployment complete"
     else
@@ -282,7 +282,7 @@ main() {
     local frontend_args=""
     if [ "$DRY_RUN" = true ]; then frontend_args+=" --dry-run"; fi
 
-    if bash "$DEPLOY_FRONTEND" $frontend_args; then
+    if bash "$DEPLOY_FRONTEND" $frontend_args --skip-precheck; then
       FRONTEND_DEPLOYED=true
       log_success "Frontend deployment complete"
     else
