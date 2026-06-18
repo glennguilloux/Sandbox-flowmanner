@@ -36,6 +36,7 @@ COMPOSE_DIR="${COMPOSE_DIR:-$PROJECT_ROOT}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/api/health}"
 WG_CHECK="${WG_CHECK:-}"
 FLOWMANNER_DEPLOY_OVERRIDE_REASON="${FLOWMANNER_DEPLOY_OVERRIDE_REASON:-}"
+STATUS_FILE="${STATUS_FILE:-}"
 
 # Counts of check outcomes (for the final summary line)
 CHECKS_RUN=0
@@ -125,34 +126,67 @@ record_info() {
 # --- Check 1: STATUS.md presence + [BLOCKED] markers -------------------------
 # Per §4.5 of the handoff: if STATUS.md is absent, emit an info-level note
 # and DO NOT fail. Only a present file containing [BLOCKED] markers fails.
+#
+# STATUS_FILE env var overrides the default path (default: $PROJECT_ROOT/STATUS.md).
+# Per-agent session state is gitignored (.gitignore), so a missing file is the
+# normal pre-initialization state, not an error.
 check_status_file() {
   log_step "Check 1/6: STATUS.md [BLOCKED] markers"
-  local status_file="$PROJECT_ROOT/STATUS.md"
+  local status_file="${STATUS_FILE:-$PROJECT_ROOT/STATUS.md}"
   if [[ ! -f "$status_file" ]]; then
     record_info "status_file" "STATUS.md not present at $status_file (info-level, not a failure)"
     return 0
   fi
-  # Skeleton: TODO Wave 2 will parse for [BLOCKED] markers using
-  # grep -F '[BLOCKED]' "$status_file" and report each occurrence.
-  record_info "status_file" "STATUS.md present (BLOCKED-marker parsing lands in Wave 2)"
+  # Parse for [BLOCKED] markers (literal text — no regex). Multiple occurrences
+  # are listed individually so the operator can act on each.
+  local blocked_lines
+  blocked_lines=$(grep -nF '[BLOCKED]' "$status_file" 2>/dev/null || true)
+  if [[ -z "$blocked_lines" ]]; then
+    record_pass "status_file" "present, no [BLOCKED] markers ($status_file)"
+    return 0
+  fi
+  local count
+  count=$(echo "$blocked_lines" | wc -l)
+  record_fail "status_file" "$count [BLOCKED] marker(s) in $status_file — clear before deploy"
+  echo "$blocked_lines" | sed 's/^/    /'
   return 0
 }
 
 # --- Check 2: working tree cleanliness (excluding STATUS.md) ------------------
-# Skeleton: fail on any non-STATUS.md porcelain entry. Wave 2 Task 4 adds
-# sub-check logic (e.g. allow docs/, .sisyphus/, e2e/.auth/ as soft-passes).
+# Per HANDOFF §3.3 (D3) + §4.5: STATUS.md is intentionally mutable per-agent
+# session state and is .gitignore'd. STATUS.example.md is the committed
+# template. Both are excluded from this check.
+#
+# Policy: any untracked or modified entry that is NOT gitignored and NOT in
+# the STATUS exclusion list hard-fails the deploy. Operators must commit,
+# stash, or add to .gitignore before retrying.
 check_working_tree() {
   log_step "Check 2/6: working tree cleanliness"
-  local dirty
-  dirty=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null \
-          | grep -v 'STATUS\.md$' || true)
-  if [[ -z "$dirty" ]]; then
-    record_pass "working_tree" "clean (excluding STATUS.md)"
+  # porcelain format: XY<space>path (XY are 2 status chars)
+  local dirty_entries=""
+  local line path
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    # Strip the 2-char status prefix to get the path.
+    path="${line:3}"
+    # Skip STATUS files (intentionally mutable per-agent session state).
+    [[ "$path" == "STATUS.md" || "$path" == "STATUS.example.md" ]] && continue
+    # Skip paths that gitignore would ignore. check-ignore returns 0 (ignored)
+    # for untracked + gitignored, and 1 (not ignored) for tracked files even
+    # if a .gitignore pattern matches them — which is the semantic we want.
+    if git -C "$PROJECT_ROOT" check-ignore -q "$path" 2>/dev/null; then
+      continue
+    fi
+    dirty_entries+="$line"$'\n'
+  done < <(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null || true)
+  if [[ -z "$dirty_entries" ]]; then
+    record_pass "working_tree" "clean (excluding STATUS.md / STATUS.example.md / gitignored)"
     return 0
   fi
-  # Skeleton: any dirty entry is a hard fail. Wave 2 will refine.
-  record_fail "working_tree" "uncommitted entries (skeleton policy: hard-fail any)"
-  echo "$dirty" | sed 's/^/    /'
+  local count
+  count=$(printf '%s' "$dirty_entries" | grep -c . || true)
+  record_fail "working_tree" "$count uncommitted non-ignored entry(ies) — commit or stash before deploy"
+  printf '%s' "$dirty_entries" | sed 's/^/    /'
   return 0
 }
 
