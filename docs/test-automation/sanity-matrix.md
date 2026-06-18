@@ -15,4 +15,8 @@
 | `backend/app/websocket/` | `sanity_websocket` | `backend/websocket` |
 | `frontend/src/app/dashboard/**` | `sanity_frontend` | `frontend` |
 
-This file is maintained manually until `scripts/select-sanity.py` is built (§4.3).
+> **Source of truth:** `scripts/select-sanity.py` (`PATH_MARKERS` and
+> `FRONTEND_PLAYWRIGHT` dicts) is the runtime authority. This table is the
+> human-readable form of the same mapping. If the two diverge, the **script
+> wins** — please update this table in the same PR. See §4.3 for the
+> original placeholder note.
