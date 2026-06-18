@@ -394,14 +394,14 @@ assert_failure() {
 }
 
 assert_output_contains() {
-  if ! echo "$output" | grep -qF "$1"; then
+  if ! echo "$output" | grep -qFe "$1"; then
     { echo "Expected output to contain: '$1'"; echo "Actual: $output"; } >&2
     return 1
   fi
 }
 
 refute_output_contains() {
-  if echo "$output" | grep -qF "$1"; then
+  if echo "$output" | grep -qFe "$1"; then
     { echo "Expected output NOT to contain: '$1'"; echo "Actual: $output"; } >&2
     return 1
   fi

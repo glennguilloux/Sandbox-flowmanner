@@ -152,4 +152,8 @@ log_step "Restarting nginx"
 maybe_run ssh $SSH_OPTS root@${VPS_HOST} \
   "cd /opt/flowmanner && docker compose restart nginx"
 
-log_success "Frontend deploy complete"
+if $DRY_RUN; then
+  log_dry "Frontend deploy simulation complete (no side effects)"
+else
+  log_success "Frontend deploy complete"
+fi
