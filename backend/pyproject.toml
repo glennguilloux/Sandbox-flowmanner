@@ -1,8 +1,23 @@
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = [
+    "--ignore=tests/smoke",
+    "--ignore=tests/chaos",
+]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "smoke: smoke tests (excluded from default runs; run with `pytest tests/smoke/`)",
+    "chaos: chaos tests (excluded from default runs; run with `pytest tests/chaos/`)",
+    "sanity: sanity tests (per-area markers: sanity_auth, sanity_chat, …)",
+    "sanity_auth: sanity tests for the auth area",
+    "sanity_chat: sanity tests for the chat area",
+    "sanity_missions: sanity tests for the missions area",
+    "sanity_byok: sanity tests for the BYOK area",
+    "sanity_websocket: sanity tests for the WebSocket area",
+    "sanity_frontend: sanity tests for the frontend area",
+    "regression: regression tests; defend against a specific past bug (§5)",
+    "flaky: quarantined flaky test; does not block merge (§10.4)",
 ]
 
 # ── mypy ─────────────────────────────────────────────────────────────────────
