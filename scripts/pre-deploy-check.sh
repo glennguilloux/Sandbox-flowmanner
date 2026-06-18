@@ -207,21 +207,25 @@ check_wireguard() {
 # --- Check 4: backend health URL reachable ------------------------------------
 # Default URL matches pre-flight.sh; both `/health` and `/api/health` work
 # because of the dual router mount in main_fastapi.py:359-360.
+#
+# Per §4.2 + §6 YAGNI: live-only — no "last deploy healthy" artifact file.
+# HTTP 200 = pass; any non-2xx response, connection refused, or timeout
+# (curl --max-time 5) = fail.
 check_health_url() {
   log_step "Check 4/6: backend health URL ($HEALTH_URL)"
+  # -w '%{http_code}': always emits the code (curl prints "000" when no HTTP
+  # transaction occurred, e.g. connection refused). -S surfaces error detail
+  # on stderr (we capture stdout only).
   local http_code
-  # curl -f returns non-zero on >=400, which we map to a fail.
-  if http_code=$(curl -fsS --max-time 5 -o /dev/null -w '%{http_code}' \
-                 "$HEALTH_URL" 2>/dev/null); then
+  http_code=$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' \
+              "$HEALTH_URL" 2>/dev/null || true)
+  # If curl exits before producing output (very rare), http_code is empty.
+  : "${http_code:=000}"
+  if [[ "$http_code" == "200" ]]; then
     record_pass "health_url" "HTTP $http_code"
     return 0
   fi
-  # Skeleton distinguishes connect-refused (backend not running) vs 5xx.
-  # Wave 2 will tighten this once we have a contract for /api/health JSON shape.
-  local curl_err
-  curl_err=$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' \
-             "$HEALTH_URL" 2>&1 || true)
-  record_fail "health_url" "no 2xx from $HEALTH_URL (curl exit: $curl_err)"
+  record_fail "health_url" "expected HTTP 200, got HTTP $http_code from $HEALTH_URL"
   return 0
 }
 
