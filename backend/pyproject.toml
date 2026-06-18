@@ -34,4 +34,3 @@ no_strict_optional = true
 [[tool.mypy.overrides]]
 module = "app.migrations.versions.*"
 disable_error_code = ["attr-defined"]
-
