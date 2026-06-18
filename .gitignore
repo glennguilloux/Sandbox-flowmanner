@@ -67,3 +67,8 @@ tests/load/reports/*.json
 
 # ── Per-session live handoff logs (sealed to OLD/ at session end) ──
 .sisyphus/handoffs/
+.worktrees/
+.sisyphus/drafts/
+.sisyphus/evidence/
+.sisyphus/plans/
+docs/research/
