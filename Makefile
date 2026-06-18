@@ -150,6 +150,12 @@ test-backend-cov: ## Run backend tests with coverage
 	@echo -e "$(GREEN)Running backend tests with coverage...$(RESET)"
 	cd $(BACKEND_DIR) && python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
+.PHONY: reproduce
+reproduce: ## Reproduce a failed CI run by RUN_ID
+	@echo "RUN_ID=$(RUN_ID)"
+	@echo "Planned artifact location: .github/actions/reproducer-artifacts/$(RUN_ID)"
+	@echo "Reproducer artifacts not yet available. Planned: fetch artifact for RUN_ID=$(RUN_ID), restore env, re-run failed tests."
+
 # ============================================================
 # Deployment
 # ============================================================
