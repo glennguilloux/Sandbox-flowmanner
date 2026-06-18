@@ -67,3 +67,7 @@ tests/load/reports/*.json
 
 # ── Per-session live handoff logs (sealed to OLD/ at session end) ──
 .sisyphus/handoffs/
+
+# ── Archived OLD/ drafts + plans (sealed; never resurrect without a handoff ref) ──
+.sisyphus/drafts/OLD/
+.sisyphus/plans/OLD/
