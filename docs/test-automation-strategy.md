@@ -263,7 +263,7 @@ For each domain area, a sanity suite is defined:
 ### 4.3 Sanity selection rules
 
 - **Auto-selected per PR.** CI inspects the diff and selects the relevant sanity suites. Touching `app/chat/**` ⇒ run `pytest -m sanity_chat`. Touching `frontend/src/app/dashboard/**` ⇒ run Playwright with `--grep @sanity_dashboard`.
-  - **Implementation (tooling to build):** a path-based CI matrix in `.github/workflows/sanity-matrix.yml`, or a `scripts/select-sanity.py` that maps `git diff --name-only` to marker expressions. Until either exists, the path-to-marker mapping is maintained manually in `docs/test-automation/sanity-matrix.md` (also to be created).
+  - **Implementation:** `scripts/select-sanity.py` maps `git diff --name-only` to a marker expression suitable for `pytest -m "<expr>"` (or a Playwright `--grep` invocation for frontend paths). The path-to-marker table is documented in `docs/test-automation/sanity-matrix.md` for human reference; the script is the source of truth.
 - **Tagged, not free-form.** Use pytest markers (`@pytest.mark.sanity_chat`) and Playwright tags (`@sanity`).
 - **Under 60 s total.** If a sanity suite exceeds 60 s, it has grown into a regression test and must be split.
 
