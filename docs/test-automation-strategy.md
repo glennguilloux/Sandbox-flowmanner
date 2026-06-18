@@ -1,6 +1,6 @@
 # Test Automation Strategy
 
-**Status:** v1.4 — codebase-verification pass: health endpoints, DB smoke example, logging path, test count, deploy probes, frontend source paths, implementation status, and flake deletion policy all reconciled with the live repo.
+**Status:** v1.5 — §4.3 implementation note corrected: select-sanity.py and sanity-matrix.md are committed, not "to build" / "to be created".
 **Last updated:** 2026-06-18
 **Owners:** Backend & Frontend leads
 **Scope:** Flowmanner — Next.js frontend (homelab source `/home/glenn/FlowmannerV2-frontend/`; VPS rsync target `/opt/flowmanner/frontend/`) and FastAPI backend (`/opt/flowmanner/backend/`)
@@ -1106,6 +1106,8 @@ def test_<area>_<happy_path>_<expected_outcome>(client, seed_user):
   **Policy doc sync:**
   - Added **[policy doc §7.1 "Pytest discovery"](./test-automation-policy.md#71-pytest-discovery-mandatory-addopts)** with the full `pyproject.toml` snippet and the rationale. Made the rule operational (forbidden without override). Bumped the policy doc to v1.1.
 
+- **2026-06-18** — v1.5. §4.3 stale-framing fix:
+  - Replaced the "tooling to build" / "(also to be created)" framing with the current state: `scripts/select-sanity.py` is the source of truth and `docs/test-automation/sanity-matrix.md` is the human-readable mirror. Docs-only; no behavior or policy change. (Previously committed as 914c1e2 without a version bump; this entry logs the change.)
 - **2026-06-18** — v1.4. Codebase-verification pass:
   - Fixed all `/healthz` → `/health` and `/readyz` → `/ready` references (endpoints verified against `backend/app/api/v1/health.py`).
   - Fixed §3.4 smoke example: `from app.db import session_scope` → `from app.database import get_db_session` (async); `app/db.py` does not exist.
