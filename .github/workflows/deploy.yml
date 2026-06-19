@@ -45,11 +45,12 @@ jobs:
       - uses: actions/checkout@v4
 
       # The homelab has /home/glenn/.rd/bin in PATH which contains the
-      # Rancher Desktop docker shim. The shim rejects standard
-      # 'docker compose up -d ...' flag combinations in non-TTY contexts
-      # (works fine when the user runs deploy-backend.sh interactively,
-      # fails in CI). Force the real docker by symlinking it ahead of
-      # .rd/bin in PATH.
+      # Rancher Desktop docker shim. The shim rejects the short-form
+      # '-d' flag on 'docker compose up' in non-TTY contexts (works
+      # fine when the user runs deploy-backend.sh interactively, fails
+      # in CI). The fix is to invoke the real docker with --detach
+      # (long form) — same semantics, different flag that the shim
+      # doesn't mishandle.
       - name: Deploy backend
         env:
           DOCKER_CONFIG: /tmp/fm-deploy-docker-config
@@ -57,8 +58,32 @@ jobs:
         run: |
           mkdir -p "$DOCKER_CONFIG"
           echo '{"auths":{}}' > "$DOCKER_CONFIG/config.json"
+          # Wrap docker compose to translate -d → --detach. The homelab's
+          # docker CLI plugin auto-discovery points
+          # ~/.docker/cli-plugins/docker-compose at Rancher Desktop's
+          # compose binary, which rejects the short-form '-d' flag in
+          # non-TTY contexts (works interactively, fails in CI). The
+          # workaround: shim 'docker compose' with a wrapper that
+          # translates -d to --detach before dispatching to the real
+          # compose plugin. We use absolute path /usr/local/bin/docker
+          # inside the wrapper to avoid recursing into the wrapper
+          # itself (since /tmp is prepended to PATH).
+          cat > /tmp/fm-docker <<'EOF'
+          #!/bin/bash
+          if [ "$1" = "compose" ]; then
+            shift
+            args=()
+            for a in "$@"; do
+              if [ "$a" = "-d" ]; then args+=(--detach); else args+=("$a"); fi
+            done
+            exec /usr/local/bin/docker compose "${args[@]}"
+          fi
+          exec /usr/local/bin/docker "$@"
+          EOF
+          chmod +x /tmp/fm-docker
+          export PATH=/tmp:$PATH
           echo "DEBUG: which docker=$(which docker)"
-          echo "DEBUG: docker version=$(docker --version 2>&1 | head -1)"
+          echo "DEBUG: which docker-compose=$(which docker-compose 2>/dev/null || echo none)"
           bash /opt/flowmanner/deploy-backend.sh
 
   deploy-frontend:
