@@ -44,8 +44,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The homelab has /home/glenn/.rd/bin in PATH which contains a
+      # docker-credential-secretservice helper. BuildKit tries to use it
+      # when pulling base images and fails with "Cannot autolaunch D-Bus
+      # without X11 $DISPLAY" in the headless runner. Set a clean
+      # DOCKER_CONFIG (no credsStore) so anonymous pulls work.
       - name: Deploy backend
-        run: bash /opt/flowmanner/deploy-backend.sh
+        env:
+          DOCKER_CONFIG: /tmp/fm-deploy-docker-config
+        run: |
+          mkdir -p "$DOCKER_CONFIG"
+          echo '{"auths":{}}' > "$DOCKER_CONFIG/config.json"
+          bash /opt/flowmanner/deploy-backend.sh
 
   deploy-frontend:
     name: Deploy frontend (homelab → VPS)
