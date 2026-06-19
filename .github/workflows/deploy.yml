@@ -1,206 +1,82 @@
+# Deploy workflow — orchestrates Flowmanner backend + frontend deploys.
+#
+# Architecture (after 2026-06-19 redesign):
+#   * All jobs run on self-hosted runner (homelab).
+#   * deploy-backend: runs /opt/flowmanner/deploy-backend.sh directly.
+#     The script is homelab-local — it builds the docker image from
+#     /opt/flowmanner/backend/ and restarts the homelab containers.
+#   * deploy-frontend: runs /opt/flowmanner/deploy-frontend.sh directly.
+#     The script rsyncs /home/glenn/FlowmannerV2-frontend/ to the VPS and
+#     builds + restarts the frontend container + nginx there.
+#   * verify: curls backend + frontend from the homelab.
+#
+# Why no VPS-side intermediate script anymore: the old workflow uploaded
+# deploy-backend.sh to the VPS and executed it there, but the script does
+# `ssh $HOMELAB` from inside (it assumes it's running locally on the
+# homelab). That nested VPS→homelab hop failed at the root key chain. The
+# fix is to run the deploy scripts on the homelab directly, where they're
+# actually designed to run.
+#
+# Migrations: the workflow does NOT pass --migrate. If alembic migrations
+# need to run, run them manually first:
+#   bash /opt/flowmanner/deploy-backend.sh --migrate
+# Then push to trigger the workflow (which will redeploy without
+# re-migrating). Migration safety requires the operator's eye, not the
+# workflow's.
+
 name: Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      skip_backend:
-        description: "Skip backend deploy"
-        type: boolean
-        default: false
-      skip_frontend:
-        description: "Skip frontend deploy"
-        type: boolean
-        default: false
 
 concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
-env:
-  VPS_HOST: 74.208.115.142
-  VPS_USER: root
-  HOMELAB_HOST: 10.99.0.3
-  BACKEND_IMAGE: workflows-backend:restored
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ── Deploy Backend (homelab via VPS jump) ─────────────────────
   deploy-backend:
-    name: Deploy backend to homelab
+    name: Deploy backend (homelab-local)
     runs-on: self-hosted
-    if: ${{ !inputs.skip_backend }}
     environment: production
     timeout-minutes: 10
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify SSH tools
-        run: |
-          set -euo pipefail
-          command -v rsync >/dev/null || { echo "rsync not installed"; exit 1; }
-          test -r /home/glenn/.ssh/vps_flowmanner_new || { echo "vps_flowmanner_new key missing"; exit 1; }
-          echo "rsync + vps key present"
+      - name: Deploy backend
+        run: bash /opt/flowmanner/deploy-backend.sh
 
-      - name: Rsync backend source to VPS staging
-        run: |
-          rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new" \
-            --exclude .git \
-            --exclude __pycache__ \
-            --exclude .mypy_cache \
-            --exclude .ruff_cache \
-            --exclude .pytest_cache \
-            --exclude .venv \
-            --exclude '*.pyc' \
-            backend/ \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/tmp/backend-deploy/
-
-      - name: Write and execute deploy script on VPS
-        run: |
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "cat > /tmp/deploy-backend.sh << 'SCRIPT'
-          #!/bin/bash
-          set -e
-
-          HOMELAB=${{ env.HOMELAB_HOST }}
-          IMAGE=${{ env.BACKEND_IMAGE }}
-
-          echo \"=== Tagging current image for rollback ===\"
-          ssh -o StrictHostKeyChecking=accept-new \$HOMELAB \
-            \"docker tag \$IMAGE \${IMAGE}.rollback 2>/dev/null || echo no_previous_image\"
-
-          echo \"=== Copying source to homelab ===\"
-          rsync -avz --delete \
-            -e 'ssh -o StrictHostKeyChecking=accept-new' \
-            /tmp/backend-deploy/ \
-            \$HOMELAB:/opt/flowmanner/backend/
-
-          echo \"=== Building and deploying on homelab ===\"
-          ssh -o StrictHostKeyChecking=accept-new \$HOMELAB '
-            set -e
-            cd /opt/flowmanner
-            docker build -t $IMAGE backend/
-            docker compose up -d --no-deps --force-recreate backend
-          '
-
-          echo \"=== Waiting for health check ===\"
-          for i in \$(seq 1 30); do
-            if ssh -o StrictHostKeyChecking=accept-new \$HOMELAB \
-              \"curl -sf http://localhost:8000/health > /dev/null 2>&1\"; then
-              echo \"Backend is healthy\"
-              exit 0
-            fi
-            echo \"Waiting... (\$i/30)\"
-            sleep 2
-          done
-
-          echo \"=== Health check failed, rolling back ===\"
-          ssh -o StrictHostKeyChecking=accept-new \$HOMELAB \
-            \"docker tag \${IMAGE}.rollback \$IMAGE 2>/dev/null || true; \
-             cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend\"
-          exit 1
-          SCRIPT
-          chmod +x /tmp/deploy-backend.sh
-          bash /tmp/deploy-backend.sh"
-
-      - name: Cleanup staging
-        if: always()
-        run: |
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "rm -rf /tmp/backend-deploy /tmp/deploy-backend.sh" || true
-
-  # ── Deploy Frontend (VPS) ─────────────────────────────────────
   deploy-frontend:
-    name: Deploy frontend to VPS
+    name: Deploy frontend (homelab → VPS)
     runs-on: self-hosted
-    if: ${{ !inputs.skip_frontend }}
     environment: production
     timeout-minutes: 10
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify SSH tools
-        run: |
-          set -euo pipefail
-          command -v rsync >/dev/null || { echo "rsync not installed"; exit 1; }
-          test -r /home/glenn/.ssh/vps_flowmanner_new || { echo "vps_flowmanner_new key missing"; exit 1; }
-          echo "rsync + vps key present"
+      - name: Deploy frontend
+        run: bash /opt/flowmanner/deploy-frontend.sh
 
-      - name: Rsync frontend source to VPS
-        run: |
-          rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new" \
-            --exclude node_modules \
-            --exclude .next \
-            --exclude .git \
-            --exclude test-results \
-            frontend/ \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/opt/flowmanner/frontend/
-
-      - name: Build and deploy frontend on VPS
-        run: |
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "cd /opt/flowmanner && \
-              docker compose build frontend && \
-              docker compose up -d --no-deps frontend && \
-              docker compose restart nginx"
-
-      - name: Health check frontend
-        run: |
-          sleep 10
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "curl -sf -o /dev/null -w '%{http_code}' https://flowmanner.com/ || \
-             curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ || \
-             echo 'Frontend health check failed'"
-
-      - name: Rollback frontend on failure
-        if: failure()
-        run: |
-          echo "Rolling back frontend - restarting previous container..."
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "cd /opt/flowmanner && docker compose restart frontend nginx" || true
-
-  # ── Post-deploy verification ──────────────────────────────────
   verify:
     name: Post-deploy verification
     runs-on: self-hosted
     needs: [deploy-backend, deploy-frontend]
     if: always() && !cancelled()
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Verify SSH tools
-        run: |
-          set -euo pipefail
-          test -r /home/glenn/.ssh/vps_flowmanner_new || { echo "vps_flowmanner_new key missing"; exit 1; }
-          echo "vps key present"
-
       - name: Verify backend health
         if: needs.deploy-backend.result == 'success'
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "curl -sf http://10.99.0.3:8000/health && echo ' Backend OK via WireGuard'"
+          curl -fsS http://localhost:8000/health && echo " Backend OK"
 
       - name: Verify frontend health
         if: needs.deploy-frontend.result == 'success'
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ && echo ' Frontend OK'"
+          curl -fsS -o /dev/null -w '%{http_code}\n' https://flowmanner.com/ && echo " Frontend OK"
 
       - name: Deployment summary
         if: always()
         run: |
-          echo "## Deployment Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "Backend deploy:  ${{ needs.deploy-backend.result }}"
+          echo "Frontend deploy: ${{ needs.deploy-frontend.result }}"
