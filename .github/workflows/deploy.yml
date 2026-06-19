@@ -39,14 +39,14 @@ jobs:
       - name: Verify SSH tools
         run: |
           set -euo pipefail
-          command -v sshpass >/dev/null || { echo "sshpass not installed"; exit 1; }
-          command -v rsync   >/dev/null || { echo "rsync not installed"; exit 1; }
-          echo "sshpass + rsync present"
+          command -v rsync >/dev/null || { echo "rsync not installed"; exit 1; }
+          test -r /home/glenn/.ssh/vps_flowmanner_new || { echo "vps_flowmanner_new key missing"; exit 1; }
+          echo "rsync + vps key present"
 
       - name: Rsync backend source to VPS staging
         run: |
           rsync -avz --delete \
-            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
+            -e "ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new" \
             --exclude .git \
             --exclude __pycache__ \
             --exclude .mypy_cache \
@@ -59,10 +59,7 @@ jobs:
 
       - name: Write and execute deploy script on VPS
         run: |
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "cat > /tmp/deploy-backend.sh << 'SCRIPT'
           #!/bin/bash
@@ -112,10 +109,7 @@ jobs:
       - name: Cleanup staging
         if: always()
         run: |
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "rm -rf /tmp/backend-deploy /tmp/deploy-backend.sh" || true
 
@@ -133,14 +127,14 @@ jobs:
       - name: Verify SSH tools
         run: |
           set -euo pipefail
-          command -v sshpass >/dev/null || { echo "sshpass not installed"; exit 1; }
-          command -v rsync   >/dev/null || { echo "rsync not installed"; exit 1; }
-          echo "sshpass + rsync present"
+          command -v rsync >/dev/null || { echo "rsync not installed"; exit 1; }
+          test -r /home/glenn/.ssh/vps_flowmanner_new || { echo "vps_flowmanner_new key missing"; exit 1; }
+          echo "rsync + vps key present"
 
       - name: Rsync frontend source to VPS
         run: |
           rsync -avz --delete \
-            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
+            -e "ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new" \
             --exclude node_modules \
             --exclude .next \
             --exclude .git \
@@ -150,10 +144,7 @@ jobs:
 
       - name: Build and deploy frontend on VPS
         run: |
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "cd /opt/flowmanner && \
               docker compose build frontend && \
@@ -163,10 +154,7 @@ jobs:
       - name: Health check frontend
         run: |
           sleep 10
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "curl -sf -o /dev/null -w '%{http_code}' https://flowmanner.com/ || \
              curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ || \
@@ -176,10 +164,7 @@ jobs:
         if: failure()
         run: |
           echo "Rolling back frontend - restarting previous container..."
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "cd /opt/flowmanner && docker compose restart frontend nginx" || true
 
@@ -194,26 +179,20 @@ jobs:
       - name: Verify SSH tools
         run: |
           set -euo pipefail
-          command -v sshpass >/dev/null || { echo "sshpass not installed"; exit 1; }
-          echo "sshpass present"
+          test -r /home/glenn/.ssh/vps_flowmanner_new || { echo "vps_flowmanner_new key missing"; exit 1; }
+          echo "vps key present"
 
       - name: Verify backend health
         if: needs.deploy-backend.result == 'success'
         run: |
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "curl -sf http://10.99.0.3:8000/health && echo ' Backend OK via WireGuard'"
 
       - name: Verify frontend health
         if: needs.deploy-frontend.result == 'success'
         run: |
-          sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
+          ssh -o StrictHostKeyChecking=accept-new -i /home/glenn/.ssh/vps_flowmanner_new \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ && echo ' Frontend OK'"
 
