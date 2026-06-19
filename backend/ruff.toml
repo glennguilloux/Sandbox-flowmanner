@@ -45,8 +45,10 @@ ignore = [
 [lint.per-file-ignores]
 # SQLAlchemy models need type imports at runtime for Mapped[...] annotations
 # F821 false positives: SQLAlchemy resolves relationship forward refs lazily
-"app/models/*.py" = ["TC001", "TC002", "TC003", "F821"]
+"app/models/*.py" = ["F821"]
 # Tools use dynamic type references
 "app/tools/*.py" = ["F821"]
 # Strawberry GraphQL needs runtime imports (Info, JSON, datetime)
-"app/api/v2/schema.py" = ["TC001", "TC002", "TC003"]
+# (was "TC001", "TC002", "TC003" before ruff 0.6 — those rule codes were
+# removed in ruff 0.6 and now cause a TOML parse error under pinned 0.6.9.)
+"app/api/v2/schema.py" = []

@@ -30,6 +30,14 @@ HEALTH_URL="http://localhost:8000/health"
 HEALTH_CHECK_RETRIES=15
 HEALTH_CHECK_DELAY=3
 
+# All three containers share the BACKEND_IMAGE and run code from the
+# same /app/ tree baked at build time.  Whenever the image changes, all
+# three must be recreated together — otherwise the FastAPI backend can
+# be running new code while the celery worker / beat still execute the
+# old image, which silently drops task handlers (or worse, runs them
+# against a model schema that the task code doesn't know about).
+CELERY_SERVICES=("celery-worker" "celery-beat")
+
 # Rollback tags
 BACKUP_TAG="workflows-backend:backup-$(date +%Y%m%d-%H%M%S)"
 CURRENT_TAG="workflows-backend:backup-current"
@@ -142,6 +150,14 @@ save_current_image() {
   log_success "Current image tagged as ${CURRENT_TAG}"
 }
 
+# Recreate every container that pins BACKEND_IMAGE so all three stay in
+# sync with the current image tag.  Used by both build_and_deploy (after
+# a fresh build) and perform_rollback (after retagging the old image).
+recreate_backend_services() {
+  cd "$COMPOSE_DIR" && docker compose up -d --no-deps --force-recreate \
+    "$BACKEND_CONTAINER" "${CELERY_SERVICES[@]}"
+}
+
 # Rollback to previous backend version
 perform_rollback() {
   log_step "Rolling back backend to previous version"
@@ -155,8 +171,11 @@ perform_rollback() {
   # Retag backup as the active image
   docker tag "$CURRENT_TAG" "$BACKEND_IMAGE"
 
-  # Restart container with the old image
-  cd "$COMPOSE_DIR" && docker compose up -d --no-deps --force-recreate "$BACKEND_CONTAINER"
+  # Restart every container that pins BACKEND_IMAGE with the old image,
+  # not just the FastAPI backend — otherwise celery would keep running
+  # the new (rolled-back-from) code while the API reverts to old.
+  cd "$COMPOSE_DIR" && docker compose up -d --no-deps --force-recreate \
+    "$BACKEND_CONTAINER" "${CELERY_SERVICES[@]}"
 
   # Verify rollback health
   if check_health "$HEALTH_URL" "Backend (rollback)" 8 3; then
@@ -330,20 +349,24 @@ build_and_deploy() {
   log_step "Building backend image"
 
   if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} docker build -t ${BACKEND_IMAGE} ${BACKEND_SOURCE}"
-    echo -e "${YELLOW}[DRY-RUN]${NC} cd ${COMPOSE_DIR} && docker compose up -d --no-deps --force-recreate ${BACKEND_CONTAINER}"
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker build --target runtime -t ${BACKEND_IMAGE} ${BACKEND_SOURCE}"
+    echo -e "${YELLOW}[DRY-RUN]${NC} cd ${COMPOSE_DIR} && docker compose up -d --no-deps --force-recreate ${BACKEND_CONTAINER} ${CELERY_SERVICES[*]}"
     return 0
   fi
 
   # Build new image (target runtime — test stage is last, not default)
   docker build --target runtime -t "$BACKEND_IMAGE" "$BACKEND_SOURCE"
 
-  log_step "Deploying backend container"
+  log_step "Deploying backend + celery containers"
+  log_info "Recreating: ${BACKEND_CONTAINER} ${CELERY_SERVICES[*]}"
 
-  # Restart container with new image
-  cd "$COMPOSE_DIR" && docker compose up -d --no-deps --force-recreate "$BACKEND_CONTAINER"
+  # Restart every container that pins BACKEND_IMAGE so all three run the
+  # freshly-built code.  Doing it here (after the build, before the
+  # health check) means the health-checked backend is the new code and
+  # any celery task that fires after deploy also runs the new code.
+  recreate_backend_services
 
-  log_success "Backend container restarted"
+  log_success "Backend + celery containers recreated"
 }
 
 # ---------------------------------------------------------------------------
