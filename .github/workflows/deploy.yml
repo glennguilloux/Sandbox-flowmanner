@@ -46,7 +46,7 @@ jobs:
       - name: Rsync backend source to VPS staging
         run: |
           rsync -avz --delete \
-            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new" \
+            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
             --exclude .git \
             --exclude __pycache__ \
             --exclude .mypy_cache \
@@ -61,6 +61,8 @@ jobs:
         run: |
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "cat > /tmp/deploy-backend.sh << 'SCRIPT'
           #!/bin/bash
@@ -112,6 +114,8 @@ jobs:
         run: |
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "rm -rf /tmp/backend-deploy /tmp/deploy-backend.sh" || true
 
@@ -136,7 +140,7 @@ jobs:
       - name: Rsync frontend source to VPS
         run: |
           rsync -avz --delete \
-            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new" \
+            -e "sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=accept-new -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
             --exclude node_modules \
             --exclude .next \
             --exclude .git \
@@ -148,6 +152,8 @@ jobs:
         run: |
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "cd /opt/flowmanner && \
               docker compose build frontend && \
@@ -159,6 +165,8 @@ jobs:
           sleep 10
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "curl -sf -o /dev/null -w '%{http_code}' https://flowmanner.com/ || \
              curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ || \
@@ -170,6 +178,8 @@ jobs:
           echo "Rolling back frontend - restarting previous container..."
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "cd /opt/flowmanner && docker compose restart frontend nginx" || true
 
@@ -192,6 +202,8 @@ jobs:
         run: |
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "curl -sf http://10.99.0.3:8000/health && echo ' Backend OK via WireGuard'"
 
@@ -200,6 +212,8 @@ jobs:
         run: |
           sshpass -p '${{ secrets.VPS_SSH_PASSWORD }}' ssh \
             -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
             "curl -sf -o /dev/null -w '%{http_code}' http://localhost:3000/ && echo ' Frontend OK'"
 
