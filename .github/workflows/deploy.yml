@@ -64,11 +64,11 @@ jobs:
           # compose binary, which rejects the short-form '-d' flag in
           # non-TTY contexts. Encoding the wrapper in base64 to avoid
           # YAML heredoc indentation corrupting the shebang line.
-          base64 -d > /tmp/fm-docker <<< 'IyEvYmluL2Jhc2gKaWYgWyAiJDEiID0gImNvbXBvc2UiIF07IHRoZW4KICBzaGlmdAogIGFyZ3M9KCkKICBmb3IgYSBpbiAiJEAiOyBkbwogICAgaWYgWyAiJGEiID0gIi1kIiBdOyB0aGVuIGFyZ3MrPSgtLWRldGFjaCk7IGVsc2UgYXJncys9KCIkYSIpOyBmaQogIGRvbmUKICBleGVjIC91c3IvbG9jYWwvYmluL2RvY2tlciBjb21wb3NlICIke2FyZ3NbQF19IgpmaQpleGVjIC91c3IvbG9jYWwvYmluL2RvY2tlciAiJEAiCg=='
-          chmod +x /tmp/fm-docker
+          base64 -d > /tmp/docker <<< 'IyEvYmluL2Jhc2gKaWYgWyAiJDEiID0gImNvbXBvc2UiIF07IHRoZW4KICBzaGlmdAogIGFyZ3M9KCkKICBmb3IgYSBpbiAiJEAiOyBkbwogICAgaWYgWyAiJGEiID0gIi1kIiBdOyB0aGVuIGFyZ3MrPSgtLWRldGFjaCk7IGVsc2UgYXJncys9KCIkYSIpOyBmaQogIGRvbmUKICBleGVjIC91c3IvbG9jYWwvYmluL2RvY2tlciBjb21wb3NlICIke2FyZ3NbQF19IgpmaQpleGVjIC91c3IvbG9jYWwvYmluL2RvY2tlciAiJEAiCg=='
+          chmod +x /tmp/docker
           export PATH=/tmp:$PATH
           echo "DEBUG: which docker=$(which docker)"
-          echo "DEBUG: head wrapper: $(head -c 20 /tmp/fm-docker | tr -d '\n')"
+          echo "DEBUG: head wrapper: $(head -c 20 /tmp/docker | tr -d '\n')"
           bash /opt/flowmanner/deploy-backend.sh
 
   deploy-frontend:
