@@ -44,14 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The homelab has /home/glenn/.rd/bin in PATH which contains a
-      # docker-credential-secretservice helper. BuildKit tries to use it
-      # when pulling base images and fails with "Cannot autolaunch D-Bus
-      # without X11 $DISPLAY" in the headless runner. Set a clean
-      # DOCKER_CONFIG (no credsStore) so anonymous pulls work.
+      # The homelab has /home/glenn/.rd/bin in PATH which contains the
+      # Rancher Desktop docker shim. BuildKit's credential lookup hits
+      # docker-credential-secretservice there ("Cannot autolaunch D-Bus
+      # without X11 $DISPLAY"), and the shim itself rejects standard
+      # "docker compose up -d ..." flag combinations in non-TTY contexts.
+      # Set PATH + DOCKER_CONFIG to bypass both: use the real docker at
+      # /usr/local/bin and a clean config dir.
       - name: Deploy backend
         env:
           DOCKER_CONFIG: /tmp/fm-deploy-docker-config
+          PATH: /usr/local/bin:/usr/bin:/bin
         run: |
           mkdir -p "$DOCKER_CONFIG"
           echo '{"auths":{}}' > "$DOCKER_CONFIG/config.json"
