@@ -28,7 +28,7 @@ jobs:
   # ── Deploy Backend (homelab via VPS jump) ─────────────────────
   deploy-backend:
     name: Deploy backend to homelab
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ !inputs.skip_backend }}
     environment: production
 
@@ -113,7 +113,7 @@ jobs:
   # ── Deploy Frontend (VPS) ─────────────────────────────────────
   deploy-frontend:
     name: Deploy frontend to VPS
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ !inputs.skip_frontend }}
     environment: production
 
@@ -166,7 +166,7 @@ jobs:
   # ── Post-deploy verification ──────────────────────────────────
   verify:
     name: Post-deploy verification
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [deploy-backend, deploy-frontend]
     if: always() && !cancelled()
     steps:
