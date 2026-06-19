@@ -53,23 +53,14 @@ jobs:
       # doesn't mishandle.
       - name: Deploy backend
         env:
-          DOCKER_CONFIG: /tmp/fm-deploy-docker-config
+          # Keep the PATH override: avoids the Rancher Desktop docker shim
+          # at ~/.rd/bin/docker (which drags in a credential helper that
+          # auto-launches D-Bus and fails headless). Do NOT override
+          # DOCKER_CONFIG: the compose plugin is discovered under
+          # $DOCKER_CONFIG/cli-plugins/, and pointing it at an empty dir
+          # makes `docker compose` an "unknown command" in the runner.
           PATH: /usr/local/bin:/usr/bin:/bin
-        run: |
-          mkdir -p "$DOCKER_CONFIG"
-          echo '{"auths":{}}' > "$DOCKER_CONFIG/config.json"
-          # Wrap docker compose to translate -d → --detach. The homelab's
-          # docker CLI plugin auto-discovery points
-          # ~/.docker/cli-plugins/docker-compose at Rancher Desktop's
-          # compose binary, which rejects the short-form '-d' flag in
-          # non-TTY contexts. Encoding the wrapper in base64 to avoid
-          # YAML heredoc indentation corrupting the shebang line.
-          base64 -d > /tmp/docker <<< 'IyEvYmluL2Jhc2gKaWYgWyAiJDEiID0gImNvbXBvc2UiIF07IHRoZW4KICBzaGlmdAogIGFyZ3M9KCkKICBmb3IgYSBpbiAiJEAiOyBkbwogICAgaWYgWyAiJGEiID0gIi1kIiBdOyB0aGVuIGFyZ3MrPSgtLWRldGFjaCk7IGVsc2UgYXJncys9KCIkYSIpOyBmaQogIGRvbmUKICBleGVjIC91c3IvbG9jYWwvYmluL2RvY2tlciBjb21wb3NlICIke2FyZ3NbQF19IgpmaQpleGVjIC91c3IvbG9jYWwvYmluL2RvY2tlciAiJEAiCg=='
-          chmod +x /tmp/docker
-          export PATH=/tmp:$PATH
-          echo "DEBUG: which docker=$(which docker)"
-          echo "DEBUG: head wrapper: $(head -c 20 /tmp/docker | tr -d '\n')"
-          bash /opt/flowmanner/deploy-backend.sh
+        run: bash /opt/flowmanner/deploy-backend.sh
 
   deploy-frontend:
     name: Deploy frontend (homelab → VPS)
