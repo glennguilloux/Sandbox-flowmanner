@@ -11,7 +11,7 @@ concurrency:
 jobs:
   deletion-guard-and-sanity:
     name: Deletion guard + backend sanity
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout full history

@@ -36,12 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SSH tools
-        timeout-minutes: 3
+      - name: Verify SSH tools
         run: |
           set -euo pipefail
-          timeout 120 sudo apt-get update
-          timeout 120 sudo apt-get install -y sshpass rsync
+          command -v sshpass >/dev/null || { echo "sshpass not installed"; exit 1; }
+          command -v rsync   >/dev/null || { echo "rsync not installed"; exit 1; }
+          echo "sshpass + rsync present"
 
       - name: Rsync backend source to VPS staging
         run: |
@@ -126,12 +126,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SSH tools
-        timeout-minutes: 3
+      - name: Verify SSH tools
         run: |
           set -euo pipefail
-          timeout 120 sudo apt-get update
-          timeout 120 sudo apt-get install -y sshpass rsync
+          command -v sshpass >/dev/null || { echo "sshpass not installed"; exit 1; }
+          command -v rsync   >/dev/null || { echo "rsync not installed"; exit 1; }
+          echo "sshpass + rsync present"
 
       - name: Rsync frontend source to VPS
         run: |
@@ -181,12 +181,11 @@ jobs:
     if: always() && !cancelled()
     timeout-minutes: 10
     steps:
-      - name: Install SSH tools
-        timeout-minutes: 3
+      - name: Verify SSH tools
         run: |
           set -euo pipefail
-          timeout 120 sudo apt-get update
-          timeout 120 sudo apt-get install -y sshpass
+          command -v sshpass >/dev/null || { echo "sshpass not installed"; exit 1; }
+          echo "sshpass present"
 
       - name: Verify backend health
         if: needs.deploy-backend.result == 'success'
