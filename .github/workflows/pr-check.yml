@@ -33,18 +33,19 @@ jobs:
             exit 1
           fi
 
-      # Self-hosted runner is Arch Linux; actions/setup-python@v5 has no
-      # prebuilt Python for Arch in its versions manifest, so it fails with
-      # "version '3.11' ... not found for this operating system".  The
-      # uv-managed python3.11 (/home/glenn/.local/bin) is present on the
-      # runner and is the same interpreter the backend .venv uses.  The pip
-      # cache (~/.cache/pip) is local on the self-hosted runner, so the
-      # `cache: pip` setup-python option is unnecessary.
-      - name: Use local Python 3.11
+      # Self-hosted runner is Arch Linux.  actions/setup-python@v5 has no
+      # prebuilt Python for Arch, so the runner's uv-managed python3.11
+      # (/home/glenn/.local/bin) is used directly via uv.  A throwaway venv
+      # at /tmp is created because the uv-managed interpreter refuses pip
+      # installs (PEP 668 — externally-managed-environment).  The local pip
+      # cache (~/.cache/pip, 9 GB on the runner) is still consulted by uv.
+      - name: Set up Python 3.11 venv via uv
         run: |
-          command -v python3.11 >/dev/null || { echo "::error::python3.11 not on PATH (self-hosted Arch runner)"; exit 1; }
-          echo "Using $(python3.11 --version)"
-          python3.11 -m pip install -r backend/requirements.txt
+          command -v uv >/dev/null || { echo "::error::uv not on PATH (self-hosted Arch runner)"; exit 1; }
+          command -v python3.11 >/dev/null || { echo "::error::python3.11 not on PATH"; exit 1; }
+          echo "Using $(python3.11 --version) via uv $(uv --version)"
+          uv venv /tmp/prcheck-venv --python python3.11
+          uv pip install --python /tmp/prcheck-venv/bin/python -r backend/requirements.txt
 
       - name: Run backend pytest sanity check
         env:
@@ -58,4 +59,4 @@ jobs:
           LANGFUSE_ENABLED: "false"
         run: |
           cd backend
-          python3.11 -m pytest tests/ -x -q --tb=short -m "not integration"
+          /tmp/prcheck-venv/bin/python -m pytest tests/ -x -q --tb=short -m "not integration"
