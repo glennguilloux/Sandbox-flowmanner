@@ -74,7 +74,7 @@ class TestSSEStreamEndpointExists:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.services.chat_service.get_chat_thread",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -96,7 +96,7 @@ class TestSSEEventFormat:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.services.chat_service.get_chat_thread",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -119,7 +119,7 @@ class TestSSEEventFormat:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.services.chat_service.get_chat_thread",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -143,7 +143,7 @@ class TestSSEEventFormat:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.services.chat_service.get_chat_thread",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -178,7 +178,7 @@ class TestSSEAuthAndOwnership:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.services.chat_service.get_chat_thread",
                 new=AsyncMock(return_value=thread),
             ),
             patch(

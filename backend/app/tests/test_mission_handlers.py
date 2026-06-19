@@ -486,7 +486,7 @@ class TestHandleUpdateTask:
         mock_db.refresh = AsyncMock()
 
         with patch(
-            "app.api._mission_cqrs.commands.get_mission",
+            "app.api._mission_cqrs.commands.require_mission_access",
             new=AsyncMock(return_value=mock_mission),
         ):
             payload = SimpleNamespace(
@@ -514,7 +514,7 @@ class TestHandleUpdateTask:
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         with patch(
-            "app.api._mission_cqrs.commands.get_mission",
+            "app.api._mission_cqrs.commands.require_mission_access",
             new=AsyncMock(return_value=mock_mission),
         ):
             payload = SimpleNamespace(
@@ -752,7 +752,7 @@ class TestHandleAbortMission:
 
         with (
             patch(
-                "app.api._mission_cqrs.commands.get_mission",
+                "app.api._mission_cqrs.commands.require_mission_access",
                 new=AsyncMock(return_value=mock_mission),
             ),
             patch(

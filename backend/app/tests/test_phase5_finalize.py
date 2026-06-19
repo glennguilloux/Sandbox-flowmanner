@@ -50,10 +50,6 @@ class TestCacheHitAvoidsDbForGetMission:
                 }
             ),
         )
-        mock_get_mission = mocker.patch(
-            "app.api._mission_cqrs.queries.get_mission",
-            new=AsyncMock(),
-        )
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
         session = AsyncMock()
@@ -62,7 +58,7 @@ class TestCacheHitAvoidsDbForGetMission:
 
         assert result.title == "Cached"
         mock_cache_get.assert_awaited_once()
-        mock_get_mission.assert_not_awaited()  # ← key assertion
+        session.execute.assert_not_called()  # ← key assertion
 
     @pytest.mark.asyncio
     async def test_cache_miss_then_populates_then_hit(self, mocker):

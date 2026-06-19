@@ -155,7 +155,7 @@ def test_delete_agent_success(test_client):
     mock_user = make_user()
     app.dependency_overrides[get_current_user] = lambda: mock_user
     try:
-        with patch("app.api.v1.agent.get_agent", new_callable=AsyncMock) as get_mock:
+        with patch("app.api.v1.agent.require_agent_access", new_callable=AsyncMock) as get_mock:
             get_mock.return_value = make_agent()
             with patch("app.api.v1.agent.delete_agent", new_callable=AsyncMock) as del_mock:
                 del_mock.return_value = True

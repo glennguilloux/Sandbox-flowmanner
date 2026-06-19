@@ -12,7 +12,7 @@ class FakeCompletion:
     """Minimal non-streaming completion response."""
 
     def __init__(self, content: str = "hello", tokens: int = 10):
-        self.choices = [MagicMock(message=MagicMock(content=content))]
+        self.choices = [MagicMock(message=MagicMock(content=content, tool_calls=None))]
         self.usage = MagicMock(total_tokens=tokens, prompt_tokens=4, completion_tokens=tokens - 4)
 
 
@@ -89,7 +89,7 @@ async def test_byok_key_injection(mock_db):
             thread_id=1,
             content="test",
             user_id=7,
-            user_api_key="sk-user-key-abc",
+            user_api_key="sk-byok-test-key",
             model_id="gpt-4o",
         )
 
@@ -98,7 +98,7 @@ async def test_byok_key_injection(mock_db):
     # A per-request AsyncOpenAI must have been instantiated with the user key
     MockAsyncOpenAI.assert_called_once()
     init_kwargs = MockAsyncOpenAI.call_args.kwargs
-    assert init_kwargs.get("api_key") == "sk-user-key-abc"
+    assert init_kwargs.get("api_key") == "sk-byok-test-key"
 
 
 @pytest.mark.asyncio
@@ -182,15 +182,16 @@ async def test_stream_message_byok_creates_per_request_client(mock_db):
 
         import app.services.chat_service as cs
 
-        events = []
-        async for event in cs.stream_message_to_llm(
-            db=mock_db,
-            thread_id=1,
-            content="stream me",
-            user_id=3,
-            user_api_key="sk-stream-key",
-        ):
-            events.append(event)
+        events = [
+            event
+            async for event in cs.stream_message_to_llm(
+                db=mock_db,
+                thread_id=1,
+                content="stream me",
+                user_id=3,
+                user_api_key="sk-stream-key",
+            )
+        ]
 
     MockAsyncOpenAI.assert_called_once()
     init_kwargs = MockAsyncOpenAI.call_args.kwargs
@@ -227,15 +228,16 @@ async def test_stream_message_default_path(mock_db):
 
         import app.services.chat_service as cs
 
-        events = []
-        async for event in cs.stream_message_to_llm(
-            db=mock_db,
-            thread_id=2,
-            content="default stream",
-            user_id=4,
-            user_api_key=None,
-        ):
-            events.append(event)
+        events = [
+            event
+            async for event in cs.stream_message_to_llm(
+                db=mock_db,
+                thread_id=2,
+                content="default stream",
+                user_id=4,
+                user_api_key=None,
+            )
+        ]
 
     mock_client.chat.completions.create.assert_called_once()
     import json
