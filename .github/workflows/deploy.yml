@@ -31,12 +31,17 @@ jobs:
     runs-on: self-hosted
     if: ${{ !inputs.skip_backend }}
     environment: production
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install SSH tools
-        run: sudo apt-get update && sudo apt-get install -y sshpass rsync
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          timeout 120 sudo apt-get update
+          timeout 120 sudo apt-get install -y sshpass rsync
 
       - name: Rsync backend source to VPS staging
         run: |
@@ -116,12 +121,17 @@ jobs:
     runs-on: self-hosted
     if: ${{ !inputs.skip_frontend }}
     environment: production
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install SSH tools
-        run: sudo apt-get update && sudo apt-get install -y sshpass rsync
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          timeout 120 sudo apt-get update
+          timeout 120 sudo apt-get install -y sshpass rsync
 
       - name: Rsync frontend source to VPS
         run: |
@@ -169,9 +179,14 @@ jobs:
     runs-on: self-hosted
     needs: [deploy-backend, deploy-frontend]
     if: always() && !cancelled()
+    timeout-minutes: 10
     steps:
       - name: Install SSH tools
-        run: sudo apt-get update && sudo apt-get install -y sshpass
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          timeout 120 sudo apt-get update
+          timeout 120 sudo apt-get install -y sshpass
 
       - name: Verify backend health
         if: needs.deploy-backend.result == 'success'
