@@ -44,6 +44,10 @@ jobs:
           command -v uv >/dev/null || { echo "::error::uv not on PATH (self-hosted Arch runner)"; exit 1; }
           command -v python3.11 >/dev/null || { echo "::error::python3.11 not on PATH"; exit 1; }
           echo "Using $(python3.11 --version) via uv $(uv --version)"
+          # /tmp persists between jobs on the self-hosted runner (unlike
+          # GitHub-hosted VMs), so a prior job's venv can still be at this
+          # path.  Clear it before recreating to keep the step idempotent.
+          rm -rf /tmp/prcheck-venv
           uv venv /tmp/prcheck-venv --python python3.11
           uv pip install --python /tmp/prcheck-venv/bin/python -r backend/requirements.txt
 
