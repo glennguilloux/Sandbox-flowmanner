@@ -42,9 +42,19 @@ def _run_async(coro):
 
 
 async def _expire_async() -> dict:
-    """Expire stale HITL items and apply auto-actions."""
-    from app.database import AsyncSessionLocal
+    """Expire stale HITL items and apply auto-actions.
+
+    Mirrors the fix applied to hitl_resume.py on 2026-06-12: disposes the
+    global async engine at task start so any asyncpg connections inherited
+    from the parent celery-worker process (fork-time artifact) are dropped
+    before we open a fresh session on the current event loop.  Without
+    this, asyncpg raises "got Future ... attached to a different loop"
+    in SQLAlchemy's connection-pool cleanup after the task completes.
+    """
+    from app.database import AsyncSessionLocal, engine
     from app.services.hitl_service import HITLService
+
+    await engine.dispose()
 
     async with AsyncSessionLocal() as db:
         service = HITLService(db)

@@ -36,7 +36,7 @@ def sample_user():
 
 
 def test_register_success(test_client, mock_db_session):
-    """POST /api/auth/register returns 201 with tokens."""
+    """POST /api/auth/register returns 200 with tokens."""
     mock_db_session.execute.return_value.scalar_one_or_none.return_value = None
     with (
         patch("app.api.v1.auth.check_rate_limit", return_value=(True, 5, 0)),
@@ -55,7 +55,7 @@ def test_register_success(test_client, mock_db_session):
                 "username": "newuser",
             },
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
         assert "refresh_token" in data

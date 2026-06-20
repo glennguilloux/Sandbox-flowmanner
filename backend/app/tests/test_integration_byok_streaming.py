@@ -22,6 +22,7 @@ def _make_thread(user_id: int = 1):
         title="BYOK Thread",
         is_archived=False,
         metadata_=None,
+        workspace_id=None,
     )
 
 
@@ -168,7 +169,7 @@ class TestBYOKStreamingHeaderAccepted:
     def test_byok_header_accepted_returns_200(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch("app.services.chat_service.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Hello", " world"),
@@ -177,7 +178,7 @@ class TestBYOKStreamingHeaderAccepted:
             response = auth_client.post(
                 "/api/chat/threads/42/chat/stream",
                 json={"role": "user", "content": "Hi"},
-                headers={"X-User-API-Key": "sk-byok-test-key"},
+                headers={"X-User-API-Key": "***"},
             )
 
         assert response.status_code == 200
@@ -186,7 +187,7 @@ class TestBYOKStreamingHeaderAccepted:
     def test_byok_header_stream_returns_token_events(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch("app.services.chat_service.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Hello", " world"),
@@ -195,7 +196,7 @@ class TestBYOKStreamingHeaderAccepted:
             response = auth_client.post(
                 "/api/chat/threads/42/chat/stream",
                 json={"role": "user", "content": "Hi"},
-                headers={"X-User-API-Key": "sk-byok-test-key"},
+                headers={"X-User-API-Key": "***"},
             )
 
         events = _parse_sse_events(response.text)
@@ -207,7 +208,7 @@ class TestBYOKStreamingHeaderAccepted:
     def test_no_byok_header_also_works(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch("app.services.chat_service.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("ok"),
@@ -225,7 +226,7 @@ class TestStreamingCompleteEvent:
     def test_complete_event_present_with_usage(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch("app.services.chat_service.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("Test"),
@@ -246,7 +247,7 @@ class TestStreamingCompleteEvent:
     def test_sse_format_has_data_prefix_and_double_newline(self, auth_client):
         thread = _make_thread(user_id=1)
         with (
-            patch("app.api.v1.chat.get_chat_thread", new=AsyncMock(return_value=thread)),
+            patch("app.services.chat_service.get_chat_thread", new=AsyncMock(return_value=thread)),
             patch(
                 "app.api.v1.chat.stream_message_to_llm",
                 return_value=_fake_stream_with_usage("x"),

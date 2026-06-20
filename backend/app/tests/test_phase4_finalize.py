@@ -47,10 +47,6 @@ class TestGetMissionCacheHitAvoidsDb:
                 }
             ),
         )
-        mock_get_mission = mocker.patch(
-            "app.api._mission_cqrs.queries.get_mission",
-            new=AsyncMock(),
-        )
 
         from app.api._mission_cqrs.queries import MissionQueryHandlers
 
@@ -62,7 +58,7 @@ class TestGetMissionCacheHitAvoidsDb:
         assert str(result.id) == valid_id
         mock_cache_get.assert_awaited_once()
         # DB fetch must NOT have been called
-        mock_get_mission.assert_not_awaited()
+        session.execute.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_cache_miss_falls_through_to_db(self, mocker):
@@ -400,18 +396,18 @@ class TestNoEnsureFutureInCqrs:
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "queries.py"
         content = path.read_text()
-        assert "_schedule_fire_and_forget" in content, (
-            "queries.py should use _schedule_fire_and_forget instead of ensure_future"
-        )
+        assert (
+            "_schedule_fire_and_forget" in content
+        ), "queries.py should use _schedule_fire_and_forget instead of ensure_future"
 
     def test_commands_py_uses_schedule_helper(self):
         from pathlib import Path
 
         path = Path(__file__).parent.parent / "api" / "_mission_cqrs" / "commands.py"
         content = path.read_text()
-        assert "_schedule_fire_and_forget" in content, (
-            "commands.py should use _schedule_fire_and_forget instead of ensure_future"
-        )
+        assert (
+            "_schedule_fire_and_forget" in content
+        ), "commands.py should use _schedule_fire_and_forget instead of ensure_future"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

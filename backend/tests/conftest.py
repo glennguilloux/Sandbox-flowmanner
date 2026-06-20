@@ -117,6 +117,7 @@ from fastapi.routing import APIRouter
 from fastapi.testclient import TestClient
 
 from app.api.v1.agent import router as agent_router
+from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.swarm import router as swarm_router
 from app.api.v1.swarm_protocol import router as protocol_router
@@ -141,6 +142,7 @@ def test_app():
     app = FastAPI()
 
     api_router = APIRouter(prefix="/api")
+    api_router.include_router(auth_router)
     api_router.include_router(swarm_router)
     api_router.include_router(protocol_router, prefix="/swarm")
     api_router.include_router(dashboard_router)
@@ -209,18 +211,25 @@ def test_client(test_app, mock_db, mock_user):
 
 
 @pytest.fixture
-def mock_db_session():
-    """Alias for mock_db — used by v3 integration tests."""
-    session = AsyncMock()
+def mock_db_session(mock_db):
+    """The same session the app under test sees (via test_client's get_db
+    override), with explicit execute/commit/flush mocks.
+
+    test_client wires ``mock_db`` into the app, but many tests inject this
+    fixture and configure it.  Returning ``mock_db`` itself (mutated in place)
+    ensures both fixtures point at one shared object, so configurations made
+    through ``mock_db_session`` are visible to the app under test.  v3 tests
+    that yield ``mock_db_session`` directly are unaffected — same object.
+    """
     execute_mock = AsyncMock()
     execute_mock.return_value = MagicMock()
-    session.execute = execute_mock
-    session.commit = AsyncMock()
-    session.rollback = AsyncMock()
-    session.close = AsyncMock()
-    session.flush = AsyncMock()
-    session.refresh = AsyncMock()
-    return session
+    mock_db.execute = execute_mock
+    mock_db.commit = AsyncMock()
+    mock_db.rollback = AsyncMock()
+    mock_db.close = AsyncMock()
+    mock_db.flush = AsyncMock()
+    mock_db.refresh = AsyncMock()
+    return mock_db
 
 
 @pytest.fixture
