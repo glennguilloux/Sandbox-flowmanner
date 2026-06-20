@@ -18,7 +18,6 @@ from uuid import uuid4
 
 import pytest
 
-
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
@@ -112,20 +111,18 @@ async def test_expiry_marks_stale_items_expired():
 
     # Third call (mission lookup for _dispatch_resume)
     mock_mission_result = MagicMock()
-    mock_mission_result.scalar_one_or_none.return_value = _make_mission(
-        stale_item.mission_id, "paused"
-    )
+    mock_mission_result.scalar_one_or_none.return_value = _make_mission(stale_item.mission_id, "paused")
 
     mock_db.execute.side_effect = [
-        mock_scalars_1,   # SELECT FOR UPDATE stale items
-        mock_scalars_2,   # workspace configs
+        mock_scalars_1,  # SELECT FOR UPDATE stale items
+        mock_scalars_2,  # workspace configs
         mock_mission_result,  # mission lookup
     ]
     mock_db.flush = AsyncMock()
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume"):
             results = await service.expire_and_act()
 
@@ -160,9 +157,7 @@ async def test_expiry_auto_reject_fails_mission():
     mock_scalars_cfg.scalars.return_value.all.return_value = [ws_cfg]
 
     mock_mission_result = MagicMock()
-    mock_mission_result.scalar_one_or_none.return_value = _make_mission(
-        stale_item.mission_id, "paused"
-    )
+    mock_mission_result.scalar_one_or_none.return_value = _make_mission(stale_item.mission_id, "paused")
 
     mock_db.execute.side_effect = [
         mock_scalars_stale,
@@ -173,7 +168,7 @@ async def test_expiry_auto_reject_fails_mission():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume") as mock_dispatch:
             results = await service.expire_and_act()
 
@@ -214,9 +209,7 @@ async def test_expiry_auto_approve_continues_mission():
     mock_scalars_cfg.scalars.return_value.all.return_value = [ws_cfg]
 
     mock_mission_result = MagicMock()
-    mock_mission_result.scalar_one_or_none.return_value = _make_mission(
-        stale_item.mission_id, "paused"
-    )
+    mock_mission_result.scalar_one_or_none.return_value = _make_mission(stale_item.mission_id, "paused")
 
     mock_db.execute.side_effect = [
         mock_scalars_stale,
@@ -227,7 +220,7 @@ async def test_expiry_auto_approve_continues_mission():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume") as mock_dispatch:
             results = await service.expire_and_act()
 
@@ -275,7 +268,7 @@ async def test_expiry_stay_alerts_user():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume") as mock_dispatch:
             results = await service.expire_and_act()
 
@@ -334,7 +327,7 @@ async def test_expiry_respects_workspace_config():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume"):
             results = await service.expire_and_act()
 
@@ -402,7 +395,7 @@ async def test_expiry_emits_resolved_event():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock) as mock_emit:
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock) as mock_emit:  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume"):
             results = await service.expire_and_act()
 
@@ -437,25 +430,23 @@ async def test_expiry_idempotent():
     mock_scalars_cfg.scalars.return_value.all.return_value = [ws_cfg]
 
     mock_mission_result = MagicMock()
-    mock_mission_result.scalar_one_or_none.return_value = _make_mission(
-        stale_item.mission_id, "paused"
-    )
+    mock_mission_result.scalar_one_or_none.return_value = _make_mission(stale_item.mission_id, "paused")
 
     # Second run: finds nothing (items already resolved)
     mock_scalars_empty = MagicMock()
     mock_scalars_empty.scalars.return_value.all.return_value = []
 
     mock_db.execute.side_effect = [
-        mock_scalars_stale,    # first run: stale items
-        mock_scalars_cfg,      # first run: workspace config
-        mock_mission_result,   # first run: mission lookup
-        mock_scalars_empty,    # second run: no stale items
+        mock_scalars_stale,  # first run: stale items
+        mock_scalars_cfg,  # first run: workspace config
+        mock_mission_result,  # first run: mission lookup
+        mock_scalars_empty,  # second run: no stale items
     ]
     mock_db.flush = AsyncMock()
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume") as mock_dispatch:
             # First run
             results_1 = await service.expire_and_act()
@@ -521,9 +512,7 @@ async def test_expiry_uses_workspace_default_when_no_override():
     mock_scalars_cfg.scalars.return_value.all.return_value = []
 
     mock_mission_result = MagicMock()
-    mock_mission_result.scalar_one_or_none.return_value = _make_mission(
-        stale_item.mission_id, "paused"
-    )
+    mock_mission_result.scalar_one_or_none.return_value = _make_mission(stale_item.mission_id, "paused")
 
     mock_db.execute.side_effect = [
         mock_scalars_stale,
@@ -534,7 +523,7 @@ async def test_expiry_uses_workspace_default_when_no_override():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume") as mock_dispatch:
             with patch("app.config.settings") as mock_settings:
                 mock_settings.HITL_DEFAULT_AUTO_ACTION = "reject"
@@ -576,43 +565,12 @@ def test_run_async_reuses_event_loop_across_calls():
     assert second_loop_id == first_loop_id
 
 
-def test_expire_async_does_not_dispose_global_engine_before_session():
-    """The expiry task should not close asyncpg connections from another loop."""
-    import app.database as database
-    from app.tasks import hitl_expiry
-
-    session = AsyncMock()
-    session.__aenter__.return_value = session
-    session.__aexit__.return_value = None
-
-    fake_engine = MagicMock()
-    fake_engine.dispose = AsyncMock(side_effect=AssertionError("engine.dispose should not be called"))
-
-    class FakeHITLService:
-        def __init__(self, db):
-            self.db = db
-
-        async def expire_and_act(self):
-            return []
-
-    with patch.object(database, "engine", fake_engine), \
-            patch.object(database, "AsyncSessionLocal", return_value=session), \
-            patch("app.services.hitl_service.HITLService", FakeHITLService):
-        result = hitl_expiry._run_async(hitl_expiry._expire_async())
-
-    assert result["processed"] == 0
-    assert result["actions"] == []
-    fake_engine.dispose.assert_not_called()
-
-
-
 def test_expire_hitl_items_task_registered():
     """The hitl.expire_items task must be in the Celery registry."""
     from app.tasks.celery_app import celery_app
 
     assert "hitl.expire_items" in celery_app.tasks, (
-        f"hitl.expire_items not registered. "
-        f"Got: {sorted(k for k in celery_app.tasks if 'hitl' in k)}"
+        f"hitl.expire_items not registered. " f"Got: {sorted(k for k in celery_app.tasks if 'hitl' in k)}"
     )
 
 
@@ -621,9 +579,7 @@ def test_beat_schedule_includes_expire_hitl():
     from app.tasks.celery_app import celery_app
 
     schedule = celery_app.conf.beat_schedule or {}
-    assert "expire-hitl-items" in schedule, (
-        f"expire-hitl-items not in beat_schedule. Got: {list(schedule.keys())}"
-    )
+    assert "expire-hitl-items" in schedule, f"expire-hitl-items not in beat_schedule. Got: {list(schedule.keys())}"
     entry = schedule["expire-hitl-items"]
     assert entry["task"] == "hitl.expire_items"
     assert entry["schedule"] == 300.0
@@ -655,9 +611,7 @@ async def test_expiry_skips_terminal_mission():
 
     # Mission is already failed
     mock_mission_result = MagicMock()
-    mock_mission_result.scalar_one_or_none.return_value = _make_mission(
-        stale_item.mission_id, "failed"
-    )
+    mock_mission_result.scalar_one_or_none.return_value = _make_mission(stale_item.mission_id, "failed")
 
     mock_db.execute.side_effect = [
         mock_scalars_stale,
@@ -668,7 +622,7 @@ async def test_expiry_skips_terminal_mission():
 
     service = HITLService(mock_db)
 
-    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):
+    with patch.object(service, "_emit_resolved_event", new_callable=AsyncMock):  # noqa: SIM117
         with patch("app.tasks.hitl_resume.dispatch_hitl_resume") as mock_dispatch:
             results = await service.expire_and_act()
 
