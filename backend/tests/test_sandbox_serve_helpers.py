@@ -432,27 +432,25 @@ class TestStartStaticHttpServer:
 
 
 class TestEnsureServingOnPort:
-    """ensure_serving_on_port — fire-and-forget convenience wrapper."""
+    """ensure_serving_on_port — DEPRECATED, no-op stub.
+
+    The sandboxd base image's entrypoint now starts the http server on container
+    start, so ``ensure_serving_on_port`` is kept only as an import-safe stub that
+    returns ``None`` immediately.  These tests pin the new contract: the function
+    must never call ``exec_command``.
+    """
 
     @pytest.mark.asyncio
     async def test_starts_server_when_not_serving(self):
         from app.tools._sandbox_serve_helpers import ensure_serving_on_port
 
         mock_client = MagicMock()
-        # First call: check_port returns 000 (not serving)
-        # Second call: start command succeeds
-        mock_client.exec_command = AsyncMock(
-            side_effect=[
-                {"stdout": "000", "stderr": "", "exit_code": 0},
-                {"stdout": "", "stderr": "", "exit_code": 0},
-            ]
-        )
+        mock_client.exec_command = AsyncMock(return_value={"stdout": "000", "stderr": "", "exit_code": 0})
 
-        # Must not raise, must not return anything
+        # Must not raise, must not return anything, must not exec anything
         result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
         assert result is None
-        # Both calls were made
-        assert mock_client.exec_command.await_count == 2
+        assert mock_client.exec_command.await_count == 0
 
     @pytest.mark.asyncio
     async def test_is_idempotent_when_already_serving(self):
@@ -460,14 +458,13 @@ class TestEnsureServingOnPort:
         from app.tools._sandbox_serve_helpers import ensure_serving_on_port
 
         mock_client = MagicMock()
-        # Only one call: check_port returns 200 (already serving)
         mock_client.exec_command = AsyncMock(return_value={"stdout": "200", "stderr": "", "exit_code": 0})
 
         result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
 
         assert result is None
-        # Only the check happened, no start
-        assert mock_client.exec_command.await_count == 1
+        # No-op stub: no exec calls regardless of port state
+        assert mock_client.exec_command.await_count == 0
 
     @pytest.mark.asyncio
     async def test_swallows_check_port_exceptions(self):
@@ -502,7 +499,8 @@ class TestEnsureServingOnPort:
 
     @pytest.mark.asyncio
     async def test_uses_fire_and_forget_mode(self):
-        """ensure_serving_on_port must NOT request a PID return."""
+        """ensure_serving_on_port is a no-op — it neither requests a PID return
+        nor spawns any background process."""
         from app.tools._sandbox_serve_helpers import ensure_serving_on_port
 
         mock_client = MagicMock()
@@ -513,12 +511,11 @@ class TestEnsureServingOnPort:
             ]
         )
 
-        await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
+        result = await ensure_serving_on_port(mock_client, "sb-abc", 8081, "/home/sandbox")
 
-        # The second call (the start command) must NOT include the PID pipeline
-        start_cmd = mock_client.exec_command.call_args_list[1][0][1]
-        cmd_str = start_cmd[2]
-        assert "echo $!" not in cmd_str
+        assert result is None
+        # No-op: neither call is made
+        assert mock_client.exec_command.await_count == 0
 
     @pytest.mark.asyncio
     async def test_uses_default_serve_workspace_constant(self):

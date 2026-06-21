@@ -304,6 +304,7 @@ class TestHandleCode:
         ne, _ = _make_mock_node_executor()
         node = _make_node(node_type="code_execution", config={"code": "print(42)"})
         context = {"mission_id": "m1"}
+        db = AsyncMock()
 
         with patch.object(
             ne,
@@ -314,7 +315,7 @@ class TestHandleCode:
                 "output": {"stdout": "42\n", "return_code": 0},
             },
         ) as mock_exec:
-            result = await ne._handle_code(node, context)
+            result = await ne._handle_code(db, node, context)
 
         assert result["success"] is True
         mock_exec.assert_awaited_once_with("print(42)")
@@ -324,6 +325,7 @@ class TestHandleCode:
         ne, _ = _make_mock_node_executor()
         node = _make_node(node_type="code_execution", config={})
         context = {"code": "x = 1"}
+        db = AsyncMock()
 
         with patch.object(
             ne,
@@ -331,7 +333,7 @@ class TestHandleCode:
             new_callable=AsyncMock,
             return_value={"success": True, "output": {}},
         ) as mock_exec:
-            await ne._handle_code(node, context)
+            await ne._handle_code(db, node, context)
 
         mock_exec.assert_awaited_once_with("x = 1")
 
@@ -340,8 +342,9 @@ class TestHandleCode:
         ne, _ = _make_mock_node_executor()
         node = _make_node(node_type="code_execution", config={})
         context = {}
+        db = AsyncMock()
 
-        result = await ne._handle_code(node, context)
+        result = await ne._handle_code(db, node, context)
         assert result["success"] is False
         assert "No code" in result["error"]
 
