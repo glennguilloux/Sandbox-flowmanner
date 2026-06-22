@@ -146,9 +146,13 @@ jobs:
             --ignore=tests/chaos/
 
   # ── Frontend type check + unit tests + build ──────────────────
+  # Skipped on this repo: the frontend was moved to a separate repo
+  # (FlowmannerV2-frontend) and is not checked out here. Re-enable when
+  # the frontend is re-merged into this monorepo.
   frontend:
     name: Frontend (tsc, vitest, build)
     runs-on: ubuntu-latest
+    if: hashFiles('frontend/package-lock.json') != ''
     defaults:
       run:
         working-directory: frontend
@@ -202,7 +206,7 @@ jobs:
   e2e:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && hashFiles('frontend/package-lock.json') != ''
     needs: [frontend]
     defaults:
       run:
