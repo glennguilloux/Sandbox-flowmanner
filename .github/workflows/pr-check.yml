@@ -115,14 +115,12 @@ jobs:
           # surrounding surface rather than failing on a missing optional
           # dep that the codebase is moving away from.
           #
-          # test_substrate_lease_reclaimer::TestChaosReclaimer::test_chaos_kill_then_reclaim
-          # is deselected because it intermittently fails with "Event loop is
-          # closed" when run after other tests (passes alone). Pre-existing
-          # isolation bug noted in PR #10; track proper fix in a follow-up.
+          # Substrate lease reclaimer tests are marked @pytest.mark.integration
+          # upstream (recent commit on PR #17) because they need a real
+          # Postgres on localhost:5432 which the CI runner does not provide.
           /tmp/prcheck-venv/bin/python -m pytest tests/ \
             --ignore=tests/test_audio_format_converter.py \
             --ignore=tests/test_audio_sentiment_analyzer.py \
             --ignore=tests/test_speaker_diarization.py \
             --ignore=tests/test_speech_to_text_transcriber.py \
-            --deselect=tests/test_substrate_lease_reclaimer.py::TestChaosReclaimer::test_chaos_kill_then_reclaim \
             -x -q --tb=short -m "not integration"

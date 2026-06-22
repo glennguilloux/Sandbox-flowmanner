@@ -123,6 +123,7 @@ async def db():
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.integration
 class TestFindExpiredLeases:
     async def test_returns_only_expired(self, db):
         """find_expired_leases returns only leases with expires_at < now()."""
@@ -319,6 +320,7 @@ class TestReclaimerDisabledFlag:
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.integration
 class TestReclaimerIntegration:
     async def test_reclaimer_cleans_up_expired_seeds(self, db):
         """Seed an expired lease, run the reclaimer, verify it's gone."""
@@ -439,6 +441,7 @@ async def _fresh_db():
     return factory(), engine
 
 
+@pytest.mark.integration
 class TestChaosReclaimer:
     async def test_chaos_kill_then_reclaim(self):
         """Spawn a subprocess that acquires a lease, kill -9 it, verify reclaimer cleans up.
