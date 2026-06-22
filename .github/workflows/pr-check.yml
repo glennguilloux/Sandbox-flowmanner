@@ -23,15 +23,60 @@ jobs:
         run: |
           set -euo pipefail
 
-          DELETED=$(git diff --diff-filter=D --name-only "${{ github.event.pull_request.base.sha }}...HEAD" \
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+
+          DELETED=$(git diff --diff-filter=D --name-only "${BASE_SHA}...HEAD" \
             | grep -E '^(backend|frontend)/.*\.(py|ts|tsx)$' || true)
 
-          if [ -n "$DELETED" ]; then
-            echo "::error::Deleted backend/frontend file(s) need justification before merge:"
-            echo "$DELETED"
-            echo "Add a justification to the commit body, or retire the covered contract to docs/LEGACY.md (§5.1)."
-            exit 1
+          # No backend/frontend code files deleted → pass.
+          if [ -z "$DELETED" ]; then
+            exit 0
           fi
+
+          # 1) A "Deletion justification:" section in any PR commit body satisfies
+          #    the guard. Matched case-insensitively on a literal substring so the
+          #    author can wrap the header in markdown (e.g. "Deletion
+          #    justification:" or "**Deletion justification:**") without the
+          #    check becoming a regex footgun.
+          if git log --format=%B "${BASE_SHA}..HEAD" \
+             | grep -qi 'deletion justification:'; then
+            echo "Deletion justification found in PR commit body — passing guard."
+            exit 0
+          fi
+
+          # 2) Fall back to docs/LEGACY.md. The retirement table is the
+          #    authoritative record of contracts removed from active enforcement
+          #    (see docs/test-automation-strategy.md §5.1). Each deleted path
+          #    must appear (as a substring) somewhere in the LEGACY file to be
+          #    considered covered; if every deleted path is covered, the PR
+          #    passes. Authors covering many files can list each path in a
+          #    row of the retirement table.
+          LEGACY="docs/LEGACY.md"
+          declare -a UNCOVERED_ARR
+          if [ -f "$LEGACY" ]; then
+            while IFS= read -r path; do
+              [ -z "$path" ] && continue
+              if ! grep -qF -- "$path" "$LEGACY"; then
+                UNCOVERED_ARR+=("$path")
+              fi
+            done <<< "$DELETED"
+          else
+            while IFS= read -r path; do
+              [ -z "$path" ] && continue
+              UNCOVERED_ARR+=("$path")
+            done <<< "$DELETED"
+          fi
+          UNCOVERED=$(printf '%s\n' "${UNCOVERED_ARR[@]}")
+
+          if [ -z "$UNCOVERED" ]; then
+            echo "All deleted paths covered by ${LEGACY} — passing guard."
+            exit 0
+          fi
+
+          echo "::error::Deleted backend/frontend file(s) need justification before merge:"
+          echo "$UNCOVERED"
+          echo "Add a 'Deletion justification:' section to one of the PR's commit bodies, or retire the covered contract to ${LEGACY} (see docs/test-automation-strategy.md §5.1)."
+          exit 1
 
       # Self-hosted runner is Arch Linux.  actions/setup-python@v5 has no
       # prebuilt Python for Arch, so the runner's uv-managed python3.11
