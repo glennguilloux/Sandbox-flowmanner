@@ -551,8 +551,14 @@ async def test_get_connector_for_discord_skips_oauth():
 
 
 @pytest.mark.asyncio
-async def test_refresh_google_token_success():
+async def test_refresh_google_token_success(monkeypatch):
     """_refresh_google_token exchanges a refresh token."""
+    # The bridge short-circuits when Google OAuth env vars are absent; the
+    # test must set them itself rather than depending on the host env so it
+    # is hermetic in CI.
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "test-client-secret")
+
     bridge = IntegrationBridge()
 
     with patch("httpx.AsyncClient") as mock_client_cls:
@@ -581,8 +587,14 @@ async def test_refresh_google_token_success():
 
 
 @pytest.mark.asyncio
-async def test_refresh_google_token_fails():
+async def test_refresh_google_token_fails(monkeypatch):
     """_refresh_google_token returns None on HTTP failure."""
+    # Same hermetic env-var setup as the success test: without these the
+    # bridge short-circuits to None before the mocked httpx is ever called,
+    # making the HTTP-failure path untestable.
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "test-client-secret")
+
     bridge = IntegrationBridge()
 
     with patch("httpx.AsyncClient") as mock_client_cls:
