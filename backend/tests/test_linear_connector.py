@@ -20,11 +20,19 @@ from app.services.connectors.linear_connector import LinearConnector
 
 
 def _make_config(auth_config: dict | None = None) -> ConnectorConfig:
+    # Note: LinearConnector.__init__ only copies `settings.LINEAR_API_KEY` into
+    # auth_config['key_value'] when auth_config['api_key'] is unset. Set both
+    # keys so the test is hermetic in CI (where settings.LINEAR_API_KEY is not
+    # exported) — the connector's _validate_credentials reads `key_value` (or
+    # falls back to settings.LINEAR_API_KEY).
+    base_auth = {"api_key": "lin_api_test123", "key_value": "lin_api_test123"}
+    if auth_config:
+        base_auth.update(auth_config)
     return ConnectorConfig(
         name="test-linear",
         connector_type="linear",
         auth_type=AuthType.API_KEY,
-        auth_config=auth_config or {"api_key": "lin_api_test123"},
+        auth_config=base_auth,
     )
 
 
