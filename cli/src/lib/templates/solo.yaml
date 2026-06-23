@@ -1,0 +1,53 @@
+# flowmanner.yaml — version 1
+#
+# Author a workflow locally, then push it to FlowManner:
+#   flowmanner validate
+#   flowmanner push       # creates a draft Blueprint, prints id
+#   flowmanner publish    # mark it ready to run
+#   flowmanner run        # create a Run + stream live progress
+#
+# Full reference: https://flowmanner.com/documentation
+
+version: 1
+
+name: "{{ name }}"
+description: |
+  A hello-world workflow. One LLM call, no tools.
+  Edit the `prompt` below and re-run.
+
+# solo | dag | swarm | pipeline | graph | meta | langgraph
+blueprint_type: solo
+
+# Inputs the user fills in when invoking `flowmanner run`.
+# Each key becomes a variable available in templated strings as
+# `{{ inputs.<key> }}`.
+inputs:
+  topic:
+    type: string
+    default: "AI agent reliability"
+  tone:
+    type: string
+    default: "concise, technical"
+
+# The workflow itself — kept in the same shape the backend expects.
+definition:
+  blueprint_type: solo
+  nodes:
+    - id: draft
+      type: llm
+      title: Draft the brief
+      description: Single LLM call producing a 3-paragraph brief.
+      config:
+        prompt: |
+          Write a 3-paragraph brief about {{ inputs.topic }}.
+          Tone: {{ inputs.tone }}.
+        model: gpt-4o-mini
+        max_tokens: 800
+      assigned_model: gpt-4o-mini
+  edges: []
+  budget:
+    max_cost_usd: 1.00
+    max_wall_time_seconds: 120
+    max_iterations: 5
+    max_depth: 1
+  config: {}

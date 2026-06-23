@@ -1,0 +1,70 @@
+{
+  "name": "@flowmanner/cli",
+  "version": "0.1.0",
+  "description": "Official FlowManner CLI — author, push, and run AI workflows from your terminal.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "flowmanner": "./bin/flowmanner.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "bin",
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsc && npm run copy-templates",
+    "copy-templates": "mkdir -p templates && cp -r src/lib/templates/*.yaml templates/",
+    "dev": "tsx src/index.ts",
+    "start": "node bin/flowmanner.js",
+    "test": "tsx --test tests/*.test.ts",
+    "lint": "eslint src tests",
+    "format": "prettier -w src tests",
+    "prepare": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "conf": "^13.0.0",
+    "inquirer": "^12.1.0",
+    "js-yaml": "^4.1.0",
+    "open": "^10.1.0",
+    "ora": "^8.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/inquirer": "^9.0.7",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.7.0",
+    "@types/open": "^6.2.1",
+    "eslint": "^9.39.4",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.62.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "keywords": [
+    "flowmanner",
+    "ai",
+    "workflows",
+    "agents",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/flowmanner/flowmanner-cli.git"
+  },
+  "homepage": "https://flowmanner.com",
+  "bugs": {
+    "url": "https://github.com/flowmanner/flowmanner-cli/issues"
+  }
+}

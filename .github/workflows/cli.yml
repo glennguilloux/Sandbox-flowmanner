@@ -1,0 +1,53 @@
+name: cli
+
+# Runs against the @flowmanner/cli subproject. Triggers:
+#   - push to main when cli/** or this workflow changes (self-trigger so
+#     edits to the workflow file run the gate)
+#   - PRs targeting main when cli/** or this workflow changes
+#
+# Working directory is `cli/` so all npm commands run there. Uses the
+# GitHub-hosted ubuntu runner (the self-hosted Arch runner is tuned for
+# the Python/Next.js stack — it doesn't preinstall Node 20).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli.yml'
+
+defaults:
+  run:
+    working-directory: cli
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cli/package-lock.json
+
+      # --ignore-scripts avoids running `prepare` (which calls `npm run
+      # build`) so we don't double-build.
+      - name: Install deps
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
