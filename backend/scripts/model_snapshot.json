@@ -2487,7 +2487,7 @@
         "status": "VARCHAR(50)",
         "updated_at": "DATETIME",
         "user_id": "INTEGER",
-        "workspace_id": "UUID",
+        "workspace_id": "VARCHAR(36)",
         "write_type": "VARCHAR(50)"
       },
       "foreign_keys": [

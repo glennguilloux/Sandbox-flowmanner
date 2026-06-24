@@ -7,6 +7,10 @@ import pytest
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
+# Module-level constants used by multiple tests to assert that the default
+# shared ``_client`` is in use (branch 3 of the client-selection logic).
+from app.services.chat_service import _LLM_API_BASE, _LLM_API_KEY  # noqa: E402
+
 
 class FakeCompletion:
     """Minimal non-streaming completion response."""
@@ -23,14 +27,17 @@ class FakeChunk:
 
 @pytest.fixture
 def mock_db():
-    """Async db session that returns a dummy ChatMessage on flush/refresh."""
+    """Async db session that returns a dummy ChatMessage on flush/refresh.
+
+    Scalar callers (count/get_chat_thread) get ``msg``. Scalars-list callers
+    (e.g. ``_lookup_stored_byok_key``) rely on MagicMock's default-empty
+    ``__iter__`` — no extra config is needed.
+    """
     db = AsyncMock()
     msg = MagicMock()
-    msg.id = 42
     db.flush = AsyncMock()
     db.refresh = AsyncMock()
     db.add = MagicMock()
-    # execute returns a scalar result for count queries
     db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=msg)))
     return db
 
@@ -41,6 +48,16 @@ async def test_default_key_path(mock_db):
     fake_response = FakeCompletion(content="world", tokens=8)
 
     with (
+        # Pin client resolution so the test is independent of shell-level
+        # DEEPSEEK_API_KEY / LLM_API_KEY values (the real failure mode: when
+        # DEEPSEEK_API_KEY is set in the shell and LLM_API_KEY is not, the
+        # api-key branch (else) creates a new AsyncOpenAI client that no
+        # mock catches). Returning the module-level constants guarantees
+        # branch 3 (use the patched ``_client``) fires.
+        patch(
+            "app.services.chat_service._resolve_provider",
+            return_value=(_LLM_API_BASE, _LLM_API_KEY, "deepseek-v4-flash"),
+        ),
         patch("app.services.chat_service._client") as mock_client,
         patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
         patch("app.services.chat_service._get_chat_openai_tools", return_value=None),
@@ -213,6 +230,12 @@ async def test_stream_message_default_path(mock_db):
     fake_stream_response.__aiter__ = lambda self: fake_stream().__aiter__()
 
     with (
+        # Pin client resolution so the test is independent of shell-level
+        # DEEPSEEK_API_KEY / LLM_API_KEY values — see test_default_key_path.
+        patch(
+            "app.services.chat_service._resolve_provider",
+            return_value=(_LLM_API_BASE, _LLM_API_KEY, "deepseek-v4-flash"),
+        ),
         patch("app.services.chat_service._client") as mock_client,
         patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock) as mock_msg,
     ):
