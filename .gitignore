@@ -72,3 +72,6 @@ tests/load/reports/*.json
 .sisyphus/evidence/
 .sisyphus/plans/
 docs/research/
+
+# Agent session artifacts (per-session exit audits, plans, logs)
+.sisyphus/exit-audit-*.md

@@ -339,3 +339,4 @@ Tests are in `e2e/`. Runs against local dev server (localhost:3000).
 | Frontend deploy timed out | Do NOT retry. First check: `ssh -i ~/.ssh/vps_flowmanner_new root@74.208.115.142 "cd /opt/flowmanner && docker compose ps"` and compare image dates. The deploy may have succeeded but the agent just didn't wait long enough (~4 min). |
 | Frontend deploy failed | Check `/opt/flowmanner/deploy-frontend.sh` output — auto-rollback runs on failure |
 | CodeGraph index stale | `cd /home/glenn/FlowmannerV2-frontend && npx codegraph-ai index .` |
+| Deploy guard rejects untracked session files | Per-session exit audits at `.sisyphus/exit-audit-*.md` are gitignored — leave them untracked, they will not trip the deploy guard |
