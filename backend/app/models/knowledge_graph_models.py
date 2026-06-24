@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, String
+from sqlalchemy import DateTime, Float, ForeignKey, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,7 +34,7 @@ class KnowledgeNode(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     node_type: Mapped[str] = mapped_column(String(50), nullable=False)
     node_key: Mapped[str] = mapped_column(String(255), nullable=False)
-    properties: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="'{}'::jsonb")
+    properties: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -81,7 +81,7 @@ class KnowledgeEdge(Base):
     )
     edge_type: Mapped[str] = mapped_column(String(50), nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=False, server_default="1.0")
-    properties: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="'{}'::jsonb")
+    properties: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

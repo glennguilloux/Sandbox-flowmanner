@@ -248,7 +248,7 @@ class PendingWrite(Base, TimestampMixin):
         default=lambda: str(uuid.uuid4()),
     )
     workspace_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False),
+        String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

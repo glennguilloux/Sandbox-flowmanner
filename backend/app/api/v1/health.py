@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 
 from fastapi import APIRouter, Response
 from pydantic import BaseModel
@@ -30,17 +32,30 @@ class ReadyResponse(BaseModel):
     qdrant: str
 
 
-@router.get("/health", response_model=HealthResponse)
-async def health():
+# ── TTL cache for /health ──────────────────────────────────────────────────
+# At 500 RPS the uncached endpoint saturates Postgres + Redis + Qdrant
+# (3 round-trips per call). With a 5-second TTL, only 1 in ~2500 requests
+# runs the heavy probes; the rest return instantly from cache.
+#
+# `/health/full` remains uncached for real-time diagnostics.
+_HEALTH_CACHE_TTL = 5.0  # seconds
+_health_cache: HealthResponse | None = None
+_health_cache_ts: float = 0.0
+_health_lock = asyncio.Lock()
+
+
+async def _probe_health() -> HealthResponse:
+    """Run all component probes and return a HealthResponse.
+
+    This is the heavy path — touches Postgres, Redis, Qdrant, and reads
+    reliability / circuit-breaker state. Called on cache miss only.
+    """
     db_status = "unknown"
     redis_status = "unknown"
-    qdrant_status = "unknown"
-    db_latency = 0
-    redis_latency = 0
+    db_latency: float = 0
+    redis_latency: float = 0
 
     try:
-        import time
-
         from app.database import engine
 
         start = time.time()
@@ -52,8 +67,6 @@ async def health():
         db_status = "error"
 
     try:
-        import time
-
         from redis.asyncio import Redis
 
         start = time.time()
@@ -64,16 +77,6 @@ async def health():
         redis_status = "ok"
     except Exception:
         redis_status = "error"
-
-    try:
-        from qdrant_client import AsyncQdrantClient
-
-        qdrant = AsyncQdrantClient(url=settings.QDRANT_URL)
-        await qdrant.get_collections()
-        await qdrant.close()
-        qdrant_status = "ok"
-    except Exception:
-        qdrant_status = "error"
 
     llm_configured = bool(settings.LLM_API_KEY)
 
@@ -136,8 +139,44 @@ async def health():
     )
 
 
-@router.get("/health/full")
+async def _get_cached_health() -> HealthResponse:
+    """Return health status from cache, refreshing if stale.
+
+    Uses a lock so that when the cache expires only one request runs
+    the heavy probes; concurrent waiters get the fresh result.
+    """
+    global _health_cache, _health_cache_ts
+
+    now = time.monotonic()
+    if _health_cache is not None and (now - _health_cache_ts) < _HEALTH_CACHE_TTL:
+        return _health_cache  # type: ignore[return-value]
+
+    async with _health_lock:
+        # Double-check after acquiring the lock — another task may have
+        # refreshed the cache while we were waiting.
+        now = time.monotonic()
+        if _health_cache is not None and (now - _health_cache_ts) < _HEALTH_CACHE_TTL:
+            return _health_cache  # type: ignore[return-value]
+
+        result = await _probe_health()
+        _health_cache = result
+        _health_cache_ts = time.monotonic()
+        return result
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health():
+    """Lightweight liveness probe — returns cached component status.
+
+    Cache TTL is 5 seconds. For real-time deep diagnostics use
+    ``GET /health/full``.
+    """
+    return await _get_cached_health()
+
+
+@router.get("/health/full", response_model=HealthResponse)
 async def health_full():
+    """Deep diagnostic probe — runs all checks in real time (uncached)."""
     db_status = "unknown"
     redis_status = "unknown"
     qdrant_status = "unknown"
@@ -174,14 +213,15 @@ async def health_full():
     llm_configured = bool(settings.LLM_API_KEY)
     llm_status = "ok" if llm_configured else "not_configured"
 
-    return {
-        "status": "ok",
-        "app": settings.APP_NAME,
-        "env": settings.APP_ENV,
-        "components": {
+    return HealthResponse(
+        status="ok",
+        app=settings.APP_NAME,
+        env=settings.APP_ENV,
+        components={
             "database": {"status": db_status, "latency_ms": None, "detail": None},
             "redis": {"status": redis_status, "latency_ms": None, "detail": None},
-            "langfuse": {"status": "ok", "latency_ms": None, "circuit_state": "closed"},
+            "qdrant": {"status": qdrant_status, "latency_ms": None, "detail": None},
+            "langfuse": {"status": "ok", "latency_ms": None, "circuit_state": "closed", "detail": None},
             "reliability": {
                 "llm_success_rate": 0.95,
                 "langfuse_caused_failures": 0,
@@ -192,9 +232,10 @@ async def health_full():
                 "base_url": settings.LLM_API_BASE,
                 "key_configured": llm_configured,
                 "status": llm_status,
+                "detail": "LLM API",
             },
         },
-    }
+    )
 
 
 @router.get("/ready", response_model=ReadyResponse)
