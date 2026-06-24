@@ -12,6 +12,14 @@ jobs:
   deletion-guard-and-sanity:
     name: Deletion guard + backend sanity
     runs-on: self-hosted
+    # Self-hosted Arch runner is on shared homelab infra. Cap the job so a
+    # wedged pytest run (anon_pipe_write in a fixture) cannot burn the full
+    # GitHub 6h default timeout and silently eat money. 15 min covers the
+    # uv-pip-install (~90s) plus a generous pytest budget for the
+    # auth-harness surface; a real failure surfaces fast, a hang is killed
+    # at the boundary. 2026-06-24: response to a 1h11m pytest hang on a
+    # post-merge synchronize of PR #21.
+    timeout-minutes: 15
 
     steps:
       - name: Checkout full history
@@ -97,6 +105,12 @@ jobs:
           uv pip install --python /tmp/prcheck-venv/bin/python -r backend/requirements.txt
 
       - name: Run backend pytest sanity check
+        # Step-level cap so a hung pytest surfaces as a clear "pytest
+        # timed out" rather than a generic job timeout in the GitHub UI.
+        # Generous 10 min budget — the auth-harness surface finishes in
+        # ~30s on a warm runner, this is hung-test insurance, not a
+        # perf budget.
+        timeout-minutes: 10
         env:
           APP_ENV: test
           OPENAI_API_KEY: '***'

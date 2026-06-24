@@ -22,12 +22,16 @@ until T4 wires up ``ProgramAudit``.
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    import uuid
+    from collections.abc import Callable
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mission_program_models import (
     MissionProgram,
@@ -124,15 +128,11 @@ class MissionProgramService:
         # to cross-pollinate the user's top-N claims into the brief.
         # When the callable returns ``None`` (no service registered) or
         # raises, the brief carries ``user_personal_claims=[]``.
-        self._get_personal_memory_service: Callable[[], Any] = (
-            get_personal_memory_service or (lambda: None)
-        )
+        self._get_personal_memory_service: Callable[[], Any] = get_personal_memory_service or (lambda: None)
 
     # ── CRUD ──────────────────────────────────────────────────────────
 
-    async def create(
-        self, user_id: int, workspace_id: str, payload: ProgramCreate
-    ) -> MissionProgram:
+    async def create(self, user_id: int, workspace_id: str, payload: ProgramCreate) -> MissionProgram:
         """Insert a new program. Status defaults to ``"active"``."""
         program = MissionProgram(
             user_id=user_id,
@@ -161,9 +161,7 @@ class MissionProgramService:
 
     async def get(self, user_id: int, program_id: uuid.UUID) -> MissionProgram:
         """Fetch a program; raise ``ProgramNotFound`` or ``ProgramForbidden``."""
-        result = await self.db.execute(
-            select(MissionProgram).where(MissionProgram.id == program_id)
-        )
+        result = await self.db.execute(select(MissionProgram).where(MissionProgram.id == program_id))
         program = result.scalar_one_or_none()
         if program is None:
             raise ProgramNotFound(f"Program {program_id} not found")
@@ -177,7 +175,7 @@ class MissionProgramService:
         workspace_id: str | None,
         page: int,
         per_page: int,
-    ) -> tuple[list[MissionProgram], int]:
+    ) -> tuple[list[MissionProgram], int]:  # type: ignore[valid-type]
         """Return paginated programs the user can see.
 
         Access predicate: owned by user OR in a workspace the user is an
@@ -199,25 +197,17 @@ class MissionProgramService:
         if workspace_id is not None:
             stmt = stmt.where(MissionProgram.workspace_id == workspace_id)
         # Count
-        count_stmt = select(func.count()).select_from(MissionProgram).where(
-            access_predicate
-        )
+        count_stmt = select(func.count()).select_from(MissionProgram).where(access_predicate)
         if workspace_id is not None:
             count_stmt = count_stmt.where(MissionProgram.workspace_id == workspace_id)
         total = (await self.db.execute(count_stmt)).scalar_one()
         # Page
         offset = (page - 1) * per_page
-        stmt = (
-            stmt.order_by(MissionProgram.created_at.desc())
-            .offset(offset)
-            .limit(per_page)
-        )
+        stmt = stmt.order_by(MissionProgram.created_at.desc()).offset(offset).limit(per_page)
         items = list((await self.db.execute(stmt)).scalars().all())
         return items, int(total)
 
-    async def update(
-        self, user_id: int, program_id: uuid.UUID, patch: ProgramUpdate
-    ) -> MissionProgram:
+    async def update(self, user_id: int, program_id: uuid.UUID, patch: ProgramUpdate) -> MissionProgram:
         """PATCH semantics — only fields explicitly set in ``patch`` are
         applied. Status transitions are validated via ``ProgramStatus.can_transition_to``.
         """
@@ -234,12 +224,8 @@ class MissionProgramService:
                 except ValueError as exc:
                     raise ProgramValidationError(str(exc)) from exc
                 if not current.can_transition_to(target):
-                    raise ProgramTransitionConflict(
-                        f"cannot transition {current.value} -> {target.value}"
-                    )
-            if field == "trigger_config" and value is not None and hasattr(
-                value, "model_dump"
-            ):
+                    raise ProgramTransitionConflict(f"cannot transition {current.value} -> {target.value}")
+            if field == "trigger_config" and value is not None and hasattr(value, "model_dump"):
                 value = value.model_dump()
             setattr(program, field, value)
 
@@ -264,9 +250,7 @@ class MissionProgramService:
         # Validate transition.
         current = ProgramStatus(program.status)
         if not current.can_transition_to(ProgramStatus.ARCHIVED):
-            raise ProgramTransitionConflict(
-                f"cannot transition {current.value} -> archived"
-            )
+            raise ProgramTransitionConflict(f"cannot transition {current.value} -> archived")
         program.status = "archived"
         await self.db.flush()
         await self.db.refresh(program)
@@ -276,16 +260,12 @@ class MissionProgramService:
 
     # ── Runs ──────────────────────────────────────────────────────────
 
-    async def list_runs(
-        self, program_id: uuid.UUID, page: int, per_page: int
-    ) -> tuple[list[ProgramRun], int]:
+    async def list_runs(self, program_id: uuid.UUID, page: int, per_page: int) -> tuple[list[ProgramRun], int]:  # type: ignore[valid-type]
         """Paginated listing of runs for a program (newest first)."""
         offset = (page - 1) * per_page
         total = (
             await self.db.execute(
-                select(func.count())
-                .select_from(ProgramRun)
-                .where(ProgramRun.program_id == program_id)
+                select(func.count()).select_from(ProgramRun).where(ProgramRun.program_id == program_id)
             )
         ).scalar_one()
         items = list(
@@ -335,10 +315,7 @@ class MissionProgramService:
 
         # 2. Status gate: only ACTIVE programs can be fired.
         if program.status != ProgramStatus.ACTIVE.value:
-            raise ProgramTransitionConflict(
-                f"cannot fire program in status {program.status!r} "
-                "(must be 'active')"
-            )
+            raise ProgramTransitionConflict(f"cannot fire program in status {program.status!r} " "(must be 'active')")
 
         # 3. Budget pre-check (per-run + monthly caps, T10).
         estimated_cost = 0.05  # default planning estimate (USD)
@@ -417,16 +394,10 @@ class MissionProgramService:
 
     async def get_learning_brief(self, program_id: uuid.UUID) -> dict | None:
         """Return the raw ``learning_brief`` JSONB for a program (or None)."""
-        result = await self.db.execute(
-            select(MissionProgram.learning_brief).where(
-                MissionProgram.id == program_id
-            )
-        )
+        result = await self.db.execute(select(MissionProgram.learning_brief).where(MissionProgram.id == program_id))
         return result.scalar_one_or_none()
 
-    async def update_user_notes(
-        self, user_id: int, program_id: uuid.UUID, notes: str
-    ) -> MissionProgram:
+    async def update_user_notes(self, user_id: int, program_id: uuid.UUID, notes: str) -> MissionProgram:
         """Update ONLY the ``user_notes`` sub-key of the learning brief.
 
         Consolidation MUST NEVER overwrite ``user_notes``; this helper is
@@ -471,18 +442,18 @@ class MissionProgramService:
         by this method, even if the LLM happens to return a
         ``user_notes`` key in its response.
         """
-        import time as _time
         import json
         import re
+        import time as _time
         from datetime import UTC, datetime
         from decimal import Decimal
 
+        from app.models.capability_models import Budget
+        from app.schemas.program import LearningBriefBase
         from app.services.budget_enforcer import get_budget_enforcer
         from app.services.episodic_memory_service import (
             get_episodic_memory_service,
         )
-        from app.models.capability_models import Budget
-        from app.schemas.program import LearningBriefBase
 
         start = _time.monotonic()
 
@@ -491,9 +462,7 @@ class MissionProgramService:
 
         # 2. Reject archived programs (consolidation on archived is invalid).
         if program.status == "archived":
-            raise ProgramTransitionConflict(
-                "cannot consolidate learning for an archived program"
-            )
+            raise ProgramTransitionConflict("cannot consolidate learning for an archived program")
 
         # 3. Query last `limit` terminal runs (NEVER 'running').
         terminal_runs = list(
@@ -501,11 +470,7 @@ class MissionProgramService:
                 await self.db.execute(
                     select(ProgramRun)
                     .where(ProgramRun.program_id == program_id)
-                    .where(
-                        ProgramRun.status.in_(
-                            ("completed", "failed", "aborted")
-                        )
-                    )
+                    .where(ProgramRun.status.in_(("completed", "failed", "aborted")))
                     .order_by(ProgramRun.created_at.desc())
                     .limit(limit)
                 )
@@ -523,16 +488,46 @@ class MissionProgramService:
 
         # 4. Episode summaries (per-run). Failures are isolated — one bad
         # run does not poison the whole consolidation.
-        memory = get_episodic_memory_service()
+        # Gated: episodic memory is a sunset candidate (feature flag default off).
+        memory = get_episodic_memory_service()  # Returns None when flag is off
         summaries: list[dict] = []
         for run in terminal_runs:
-            try:
-                episodes = await memory.get_episodes_for_mission(
-                    self.db,
-                    mission_id=str(run.mission_id),
-                    workspace_id=program.workspace_id,
-                    user_id=user_id,
-                )
+            if memory is not None:
+                try:
+                    episodes = await memory.get_episodes_for_mission(
+                        self.db,
+                        mission_id=str(run.mission_id),
+                        workspace_id=program.workspace_id,
+                        user_id=user_id,
+                    )
+                    summaries.append(
+                        {
+                            "run_id": str(run.id),
+                            "mission_id": str(run.mission_id),
+                            "status": run.status,
+                            "cost_usd": run.cost_usd,
+                            "tokens_used": run.tokens_used,
+                            "duration_seconds": run.duration_seconds,
+                            "outcome_summary": run.outcome_summary,
+                            "episode_count": len(episodes) if episodes else 0,
+                        }
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "episode fetch failed for run %s: %s",
+                        run.id,
+                        exc,
+                        exc_info=True,
+                    )
+                    summaries.append(
+                        {
+                            "run_id": str(run.id),
+                            "status": run.status,
+                            "cost_usd": run.cost_usd,
+                        }
+                    )
+            else:
+                # Cross-mission memory disabled — still include run metadata
                 summaries.append(
                     {
                         "run_id": str(run.id),
@@ -542,21 +537,7 @@ class MissionProgramService:
                         "tokens_used": run.tokens_used,
                         "duration_seconds": run.duration_seconds,
                         "outcome_summary": run.outcome_summary,
-                        "episode_count": len(episodes) if episodes else 0,
-                    }
-                )
-            except Exception as exc:
-                logger.warning(
-                    "episode fetch failed for run %s: %s",
-                    run.id,
-                    exc,
-                    exc_info=True,
-                )
-                summaries.append(
-                    {
-                        "run_id": str(run.id),
-                        "status": run.status,
-                        "cost_usd": run.cost_usd,
+                        "episode_count": 0,
                     }
                 )
 
@@ -583,26 +564,18 @@ class MissionProgramService:
                 model_id="claude-sonnet-4",
                 messages=[{"role": "user", "content": prompt}],
             )
-            content = (
-                response.get("content", "")
-                if isinstance(response, dict)
-                else str(response)
-            )
+            content = response.get("content", "") if isinstance(response, dict) else str(response)
             match = re.search(r"\{.*\}", content, re.DOTALL)
             if match:
                 new_structured = json.loads(match.group(0))
         except Exception as exc:
-            logger.warning(
-                "consolidation LLM call failed: %s", exc, exc_info=True
-            )
+            logger.warning("consolidation LLM call failed: %s", exc, exc_info=True)
 
         if not new_structured:
             # Fallback: bump total_runs on the existing brief so we still
             # have a non-trivial merged result.
             existing = dict(program.learning_brief or {})
-            existing["total_runs"] = (
-                existing.get("total_runs") or 0
-            ) + len(terminal_runs)
+            existing["total_runs"] = (existing.get("total_runs") or 0) + len(terminal_runs)
             new_structured = existing
 
         # 6.5. Fetch user personal claims (T22 cross-pollination).
@@ -629,7 +602,8 @@ class MissionProgramService:
                 # is a hint, not a contract — mocks and future
                 # implementations may return more).
                 eligible = [
-                    c for c in (claims or [])
+                    c
+                    for c in (claims or [])
                     if getattr(c, "sensitivity", "normal") != "restricted"
                     and getattr(c, "scope", "personal") != "private"
                 ][:20]
@@ -717,9 +691,9 @@ class MissionProgramService:
         user_id: int,
         program_id: uuid.UUID,
         batch: Any,  # ImprovementBatch — type hint avoided to break the
-                     # import cycle (improvement_generator imports
-                     # nothing from this module, but keeping the hint
-                     # as Any future-proofs the wiring).
+        # import cycle (improvement_generator imports
+        # nothing from this module, but keeping the hint
+        # as Any future-proofs the wiring).
     ) -> None:
         """Append a ``CriticOutput``-derived ``ImprovementBatch`` to the
         program's learning_brief.
@@ -746,15 +720,11 @@ class MissionProgramService:
 
         # 2. Reject archived programs (same discipline as consolidate_learning).
         if program.status == "archived":
-            raise ProgramTransitionConflict(
-                "cannot apply improvement batch to an archived program"
-            )
+            raise ProgramTransitionConflict("cannot apply improvement batch to an archived program")
 
         # 3. Empty-batch short-circuit.
         has_content = (
-            bool(batch.plan_adjustments)
-            or bool(batch.tool_suggestions)
-            or bool(batch.common_failure_patterns)
+            bool(batch.plan_adjustments) or bool(batch.tool_suggestions) or bool(batch.common_failure_patterns)
         )
         if not has_content:
             logger.debug(
@@ -787,18 +757,13 @@ class MissionProgramService:
         ]
         new_failures = list(batch.common_failure_patterns)
 
-        merged_adjustments = (
-            list(existing.get("critic_plan_adjustments", []))
-            + new_adjustments
-        )[-self._CRITIC_LIST_CAP :]
-        merged_tools = (
-            list(existing.get("critic_tool_suggestions", []))
-            + new_tools
-        )[-self._CRITIC_LIST_CAP :]
-        merged_failures = (
-            list(existing.get("critic_common_failure_patterns", []))
-            + new_failures
-        )[-self._CRITIC_LIST_CAP :]
+        merged_adjustments = (list(existing.get("critic_plan_adjustments", [])) + new_adjustments)[
+            -self._CRITIC_LIST_CAP :
+        ]
+        merged_tools = (list(existing.get("critic_tool_suggestions", [])) + new_tools)[-self._CRITIC_LIST_CAP :]
+        merged_failures = (list(existing.get("critic_common_failure_patterns", [])) + new_failures)[
+            -self._CRITIC_LIST_CAP :
+        ]
 
         merged = {
             **existing,
@@ -830,8 +795,7 @@ class MissionProgramService:
         )
 
         logger.info(
-            "program.improvement_batch_applied program_id=%s user_id=%s "
-            "adjustments=%d tools=%d failures=%d",
+            "program.improvement_batch_applied program_id=%s user_id=%s " "adjustments=%d tools=%d failures=%d",
             program_id,
             user_id,
             len(new_adjustments),
@@ -841,9 +805,7 @@ class MissionProgramService:
 
     # ── Budget helper (T10) ──────────────────────────────────────────
 
-    async def _check_program_budget(
-        self, program: MissionProgram, estimated_cost_usd: float
-    ) -> None:
+    async def _check_program_budget(self, program: MissionProgram, estimated_cost_usd: float) -> None:
         """Per-run + monthly budget pre-check.
 
         Called by ``fire_program`` (T8) BEFORE creating a new Mission to
@@ -854,10 +816,7 @@ class MissionProgramService:
         ``ProgramBudgetExceeded`` if any cap would be exceeded.
         """
         # Per-run cap.
-        if (
-            program.per_run_budget_usd is not None
-            and estimated_cost_usd > program.per_run_budget_usd
-        ):
+        if program.per_run_budget_usd is not None and estimated_cost_usd > program.per_run_budget_usd:
             raise ProgramBudgetExceeded(
                 f"per_run budget exceeded: estimated ${estimated_cost_usd:.4f} > "
                 f"cap ${program.per_run_budget_usd:.4f}"
@@ -868,19 +827,14 @@ class MissionProgramService:
             spend_stmt = (
                 select(func.coalesce(func.sum(ProgramRun.cost_usd), 0.0))
                 .where(ProgramRun.program_id == program.id)
-                .where(
-                    ProgramRun.status.in_(("completed", "failed", "aborted"))
-                )
+                .where(ProgramRun.status.in_(("completed", "failed", "aborted")))
                 .where(ProgramRun.created_at >= month_start)
             )
-            current_spend = float(
-                (await self.db.execute(spend_stmt)).scalar_one() or 0.0
-            )
+            current_spend = float((await self.db.execute(spend_stmt)).scalar_one() or 0.0)
             projected = current_spend + estimated_cost_usd
             if projected > program.monthly_budget_usd:
                 raise ProgramBudgetExceeded(
-                    f"monthly budget exceeded: ${projected:.4f} > "
-                    f"cap ${program.monthly_budget_usd:.4f}"
+                    f"monthly budget exceeded: ${projected:.4f} > " f"cap ${program.monthly_budget_usd:.4f}"
                 )
 
     # ── Internal helpers ─────────────────────────────────────────────
@@ -908,6 +862,4 @@ class MissionProgramService:
         try:
             getattr(self.audit, method_name)(**kwargs)
         except Exception:  # pragma: no cover — defensive
-            logger.warning(
-                "%s audit failed (non-blocking)", method_name, exc_info=True
-            )
+            logger.warning("%s audit failed (non-blocking)", method_name, exc_info=True)

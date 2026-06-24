@@ -34,6 +34,8 @@ def _make_mock_node_executor():
     mock_executor.is_running = MagicMock(return_value=True)
     mock_executor.event_log = MagicMock()
     mock_executor.event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
+    mock_executor.event_log.get_latest_sequence = AsyncMock(return_value=0)
+    mock_executor.event_log.get_events = AsyncMock(return_value=[])
     mock_executor.call_llm = AsyncMock(
         return_value={
             "success": True,

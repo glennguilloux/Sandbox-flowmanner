@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.integrations.sandboxd_client import SandboxdClient, get_sandboxd_client
 from app.models.capability_models import Action, Budget, BudgetExhausted, ResourceRef
-from app.models.substrate_models import SubstrateEventType
+from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.sandbox_service import SandboxService
 from app.services.substrate.event_log import get_event_log
 from app.services.substrate.workflow_models import (
@@ -74,6 +74,30 @@ print(_out, end='')
 """
 
 
+# ── Context window constants (Q2-Q3 Chunk 2 Tier 1) ──────────────
+
+# Default number of recent events to inject into agent context.
+# Tunable per mission via workflow.metadata["context_window_size"].
+_DEFAULT_CONTEXT_WINDOW_SIZE: int = 20
+
+# Event types excluded from the context window — these are infrastructure
+# noise that adds tokens without helping the agent reason about its task.
+_NOISY_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        SubstrateEventType.LEASE_CLAIMED,
+        SubstrateEventType.LEASE_RENEWED,
+        SubstrateEventType.LEASE_RELEASED,
+        SubstrateEventType.CIRCUIT_BREAKER_TRIGGERED,
+        SubstrateEventType.CIRCUIT_BREAKER_BROKEN,
+        SubstrateEventType.CIRCUIT_BREAKER_RESET,
+        SubstrateEventType.CIRCUIT_BREAKER_OPENED,
+        SubstrateEventType.PROVIDER_FALLBACK_INVOKED,
+        SubstrateEventType.RUN_RESUME_VALIDATED,
+        SubstrateEventType.CHECKPOINT,
+    }
+)
+
+
 class NodeExecutor:
     """Shared node execution — used by all 7 strategies."""
 
@@ -99,6 +123,61 @@ class NodeExecutor:
         if self._sbx_svc is None:
             self._sbx_svc = SandboxService(self._sandbox_client)
         return self._sbx_svc
+
+    # ── Context window (Q2-Q3 Chunk 2 Tier 1) ──────────────────────
+
+    async def _build_context_window(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        current_sequence: int,
+        context_window_size: int,
+    ) -> list[SubstrateEvent]:
+        """Fetch the last N raw events for within-mission context.
+
+        Returns causally-ordered, un-redacted events from the event log,
+        excluding infrastructure noise (leases, circuit breakers, etc.).
+
+        Args:
+            db: Async database session
+            run_id: The substrate run ID
+            current_sequence: The sequence of the just-emitted task.started event.
+                              Events at this sequence are excluded (it's the
+                              event we just wrote, not prior context).
+            context_window_size: Number of recent events to fetch (N).
+
+        Returns:
+            List of SubstrateEvent objects, ordered by sequence ascending.
+        """
+        event_log = get_event_log()
+        from_seq = max(0, current_sequence - context_window_size)
+        raw_events = await event_log.get_events(
+            db,
+            run_id,
+            from_sequence=from_seq,
+            to_sequence=current_sequence - 1,
+            limit=context_window_size,
+        )
+        # Filter out noisy infrastructure events
+        return [e for e in raw_events if e.type not in _NOISY_EVENT_TYPES]
+
+    @staticmethod
+    def _format_context_events(events: list[SubstrateEvent]) -> str:
+        """Format context events as structured text for LLM injection.
+
+        Each event is serialized as a compact line with sequence, type,
+        actor, and payload summary.  Payloads are truncated to 300 chars
+        to avoid blowing up the context window.
+        """
+        if not events:
+            return ""
+        lines: list[str] = []
+        for ev in events:
+            payload_str = json.dumps(ev.payload or {}, default=str)
+            if len(payload_str) > 300:
+                payload_str = payload_str[:300] + "..."
+            lines.append(f"[{ev.sequence}] {ev.type} (actor={ev.actor}) {payload_str}")
+        return "\n".join(lines)
 
     async def execute(
         self,
@@ -145,7 +224,27 @@ class NodeExecutor:
 
             node.status = "running"
 
-            # Record task.started event
+            # Q2-Q3 Chunk 2 Tier 1: Build context window BEFORE emitting
+            # task.started so we can record the window range in the event.
+            context_window_size = (
+                workflow.metadata.get("context_window_size", _DEFAULT_CONTEXT_WINDOW_SIZE)
+                if workflow
+                else _DEFAULT_CONTEXT_WINDOW_SIZE
+            )
+            current_seq = await event_log.get_latest_sequence(db, run_id)
+            context_events: list[SubstrateEvent] = []
+            if current_seq > 0 and context_window_size > 0:
+                context_events = await self._build_context_window(db, run_id, current_seq + 1, context_window_size)
+
+            # Record task.started event (includes context window range for replay)
+            context_window_meta = {}
+            if context_events:
+                context_window_meta = {
+                    "context_window_from_seq": context_events[0].sequence,
+                    "context_window_to_seq": context_events[-1].sequence,
+                    "context_window_event_count": len(context_events),
+                }
+
             await event_log.append(
                 db,
                 run_id,
@@ -157,6 +256,7 @@ class NodeExecutor:
                             "task_title": node.title,
                             "task_type": node.type.value,
                             "attempt": attempt + 1,
+                            **context_window_meta,
                         },
                         "actor": "node_executor",
                         "mission_id": workflow.id if workflow else None,
@@ -166,7 +266,15 @@ class NodeExecutor:
             )
 
             try:
-                result = await self._dispatch(db, node, context, budget, run_id, workflow)
+                result = await self._dispatch(
+                    db,
+                    node,
+                    context,
+                    budget,
+                    run_id,
+                    workflow,
+                    context_events=context_events,
+                )
             except BudgetExhausted:
                 raise
             except Exception as e:
@@ -268,11 +376,21 @@ class NodeExecutor:
         budget: Budget,
         run_id: str,
         workflow: Workflow | None = None,
+        *,
+        context_events: list[SubstrateEvent] | None = None,
     ) -> dict[str, Any]:
         """Dispatch a node to the appropriate handler based on its type."""
         match node.type:
             case NodeType.LLM_CALL:
-                return await self._handle_llm(db, node, context, budget, run_id, workflow)
+                return await self._handle_llm(
+                    db,
+                    node,
+                    context,
+                    budget,
+                    run_id,
+                    workflow,
+                    context_events=context_events or [],
+                )
             case NodeType.TOOL_CALL:
                 return await self._handle_tool(db, node, context, budget, run_id, workflow)
             case NodeType.CODE_EXECUTION:
@@ -354,6 +472,8 @@ class NodeExecutor:
         budget: Budget,
         run_id: str,
         workflow: Workflow | None = None,
+        *,
+        context_events: list[SubstrateEvent] | None = None,
     ) -> dict[str, Any]:
         """Execute an LLM call through the BudgetEnforcer."""
         # Phase 6.4: Circuit breaker check before LLM call
@@ -377,6 +497,20 @@ class NodeExecutor:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
+
+        # Q2-Q3 Chunk 2 Tier 1: Inject last-N event context window.
+        # This goes as a system message before the user prompt so the model
+        # can attend over recent mission history when generating its response.
+        if context_events:
+            ctx_text = self._format_context_events(context_events)
+            if ctx_text:
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": f"Recent mission events (last {len(context_events)} steps):\n{ctx_text}",
+                    }
+                )
+
         messages.append({"role": "user", "content": prompt})
 
         response = await enforcer.call(
@@ -537,7 +671,12 @@ class NodeExecutor:
         # Q1-B Chunk 4: emit tool_execution cost event
         if normalized.get("success"):
             await self._emit_cost_event(
-                db, node, normalized, "tool_execution", run_id, workflow,
+                db,
+                node,
+                normalized,
+                "tool_execution",
+                run_id,
+                workflow,
                 tool_name=tool_name,
             )
 
@@ -563,7 +702,12 @@ class NodeExecutor:
         # Q1-B Chunk 4: emit tool_execution cost event for code execution
         if result.get("success") and run_id:
             await self._emit_cost_event(
-                db, node, result, "tool_execution", run_id, workflow,
+                db,
+                node,
+                result,
+                "tool_execution",
+                run_id,
+                workflow,
                 tool_name="code_executor",
             )
 
@@ -687,8 +831,8 @@ class NodeExecutor:
             service = get_search_service()
             request = SearchRequest(
                 query=query,
-                search_type=SearchType.GENERAL,
-                max_results=5,  # type: ignore[attr-defined]
+                search_type=SearchType.GENERAL,  # type: ignore[attr-defined]
+                max_results=5,
             )
             response = await service.search(request)
 
@@ -1112,10 +1256,13 @@ class NodeExecutor:
 
         # Find the inbox item for this node in this run
         result = await db.execute(
-            select(InboxItem).where(
+            select(InboxItem)
+            .where(
                 InboxItem.run_id == run_id,
                 InboxItem.node_id == node.id,
-            ).order_by(InboxItem.created_at.desc()).limit(1)
+            )
+            .order_by(InboxItem.created_at.desc())
+            .limit(1)
         )
         item = result.scalar_one_or_none()
         if item is None:
@@ -1194,17 +1341,21 @@ class NodeExecutor:
             from sqlalchemy import select as select_
 
             existing_result = await db.execute(
-                select_(InboxItem).where(
+                select_(InboxItem)
+                .where(
                     InboxItem.run_id == run_id,
                     InboxItem.node_id == node.id,
                     InboxItem.status == "pending",
-                ).order_by(InboxItem.created_at.desc()).limit(1)
+                )
+                .order_by(InboxItem.created_at.desc())
+                .limit(1)
             )
             existing_item = existing_result.scalar_one_or_none()
             if existing_item is not None:
                 logger.info(
                     "HITL interrupt already pending: node=%s inbox_item=%s",
-                    node.id, existing_item.id,
+                    node.id,
+                    existing_item.id,
                 )
                 item = existing_item
         except Exception as dup_err:
@@ -1212,18 +1363,18 @@ class NodeExecutor:
 
         if item is None:
             item = await service.create_interrupt(
-            mission_id=mission_id or "unknown",
-            user_id=user_id,
-            interrupt_type=hitl_type,
-            title=title,
-            description=description,
-            proposed_action=proposed_action,
-            context={"current_context": context},
-            task_id=node.id,
-            node_id=node.id,
-            run_id=run_id,
-            workspace_id=workspace_id,
-        )
+                mission_id=mission_id or "unknown",
+                user_id=user_id,
+                interrupt_type=hitl_type,
+                title=title,
+                description=description,
+                proposed_action=proposed_action,
+                context={"current_context": context},
+                task_id=node.id,
+                node_id=node.id,
+                run_id=run_id,
+                workspace_id=workspace_id,
+            )
 
         # Record event
         await event_log.append(
@@ -1282,8 +1433,8 @@ class NodeExecutor:
             service = get_search_service()
             request = SearchRequest(
                 query=query,
-                search_type=SearchType.GENERAL,
-                max_results=5,  # type: ignore[attr-defined]
+                search_type=SearchType.GENERAL,  # type: ignore[attr-defined]
+                max_results=5,
             )
             response = await service.search(request)
             results = [{"title": r.title, "url": r.url, "snippet": r.snippet} for r in response.results]

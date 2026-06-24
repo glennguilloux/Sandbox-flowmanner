@@ -25,8 +25,8 @@ from opentelemetry import trace
 from app.config import settings
 from app.models.capability_models import Budget, BudgetExhausted
 from app.models.substrate_models import SubstrateEventType
-from app.services.substrate.hitl_pause import HITLPaused
 from app.services.substrate.event_log import EventLog, get_event_log
+from app.services.substrate.hitl_pause import HITLPaused
 from app.services.substrate.replay_engine import ReplayEngine, get_replay_engine
 from app.services.substrate.strategies.base import (
     ExecutionStrategy,
@@ -192,25 +192,25 @@ class UnifiedExecutor:
                 await self.event_log.append(
                     db,
                     run_id,
-                    [{
-                        "type": SubstrateEventType.LEASE_CLAIMED,
-                        "payload": {
-                            "worker_id": lm.worker_id,
-                            "run_id": run_id,
-                            "ttl_seconds": lm._ttl_seconds,
-                        },
-                        "actor": "lease_manager",
-                        "mission_id": workflow.id,
-                    }],
+                    [
+                        {
+                            "type": SubstrateEventType.LEASE_CLAIMED,
+                            "payload": {
+                                "worker_id": lm.worker_id,
+                                "run_id": run_id,
+                                "ttl_seconds": lm._ttl_seconds,
+                            },
+                            "actor": "lease_manager",
+                            "mission_id": workflow.id,
+                        }
+                    ],
                 )
             except Exception as e:
                 logger.debug("Lease claimed event skipped: %s", e)
 
             # Spawn heartbeat
             heartbeat_stop = asyncio.Event()
-            heartbeat_task = asyncio.create_task(
-                lm.heartbeat_loop(db, heartbeat_stop)
-            )
+            heartbeat_task = asyncio.create_task(lm.heartbeat_loop(db, heartbeat_stop))
 
             yield
 
@@ -220,7 +220,7 @@ class UnifiedExecutor:
                 heartbeat_stop.set()
                 try:
                     await asyncio.wait_for(heartbeat_task, timeout=5.0)
-                except (asyncio.TimeoutError, asyncio.CancelledError):
+                except (TimeoutError, asyncio.CancelledError):
                     heartbeat_task.cancel()
 
             # Release lease only if we actually claimed one
@@ -236,16 +236,18 @@ class UnifiedExecutor:
                     await self.event_log.append(
                         db,
                         run_id,
-                        [{
-                            "type": SubstrateEventType.LEASE_RELEASED,
-                            "payload": {
-                                "worker_id": lm.worker_id,
-                                "run_id": run_id,
-                                "reason": reason,
-                            },
-                            "actor": "lease_manager",
-                            "mission_id": workflow.id,
-                        }],
+                        [
+                            {
+                                "type": SubstrateEventType.LEASE_RELEASED,
+                                "payload": {
+                                    "worker_id": lm.worker_id,
+                                    "run_id": run_id,
+                                    "reason": reason,
+                                },
+                                "actor": "lease_manager",
+                                "mission_id": workflow.id,
+                            }
+                        ],
                     )
                 except Exception as e:
                     logger.debug("Lease released event skipped: %s", e)
@@ -292,11 +294,17 @@ class UnifiedExecutor:
 
                 validation = await validate_resume_state(db, run_id, event_log=self.event_log)
                 if not validation.is_resumable:
-                    await self.event_log.append(db, run_id, [{
-                        "type": SubstrateEventType.RUN_FAILED,
-                        "payload": {"reason": "unresumable_state", "warnings": validation.warnings},
-                        "actor": "resume_validator",
-                    }])
+                    await self.event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.RUN_FAILED,
+                                "payload": {"reason": "unresumable_state", "warnings": validation.warnings},
+                                "actor": "resume_validator",
+                            }
+                        ],
+                    )
                     return StrategyResult(
                         success=False,
                         status="failed",
@@ -313,15 +321,21 @@ class UnifiedExecutor:
 
                 # Emit run.resumed AFTER rebuild so to_sequence is known
                 if _resume_warnings:
-                    await self.event_log.append(db, run_id, [{
-                        "type": SubstrateEventType.RUN_RESUME_VALIDATED,
-                        "payload": {
-                            "from_sequence": _resume_from_seq,
-                            "to_sequence": state.current_sequence,
-                            "warnings": _resume_warnings,
-                        },
-                        "actor": "resume_validator",
-                    }])
+                    await self.event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.RUN_RESUME_VALIDATED,
+                                "payload": {
+                                    "from_sequence": _resume_from_seq,
+                                    "to_sequence": state.current_sequence,
+                                    "warnings": _resume_warnings,
+                                },
+                                "actor": "resume_validator",
+                            }
+                        ],
+                    )
                 if state.status in ("completed", "failed", "aborted"):
                     return StrategyResult(
                         success=state.status == "completed",
@@ -351,9 +365,7 @@ class UnifiedExecutor:
                         error="Lease lost during execution",
                     )
 
-                return await self._execute_inner(
-                    db, workflow, run_id, blueprint_id, start_node_id, context, span
-                )
+                return await self._execute_inner(db, workflow, run_id, blueprint_id, start_node_id, context, span)
 
     async def _execute_inner(
         self,
@@ -429,7 +441,9 @@ class UnifiedExecutor:
             # Q1-B chunk 1: HITL pause — release lease, emit RUN_PAUSED, return paused status
             logger.info(
                 "HITL paused for run %s: node=%s inbox_item=%s",
-                run_id, e.node_id, e.inbox_item_id,
+                run_id,
+                e.node_id,
+                e.inbox_item_id,
             )
             await self._handle_hitl_pause(db, workflow, run_id, e)
             return StrategyResult(
@@ -546,19 +560,15 @@ class UnifiedExecutor:
         # Q1-A chunk 4: Idempotency guard — check if node already completed
         if run_id:
             prior_completed = await self.event_log.get_events(
-                db, run_id, event_type=SubstrateEventType.NODE_COMPLETED,
+                db,
+                run_id,
+                event_type=SubstrateEventType.NODE_COMPLETED,
             )
-            completed_ids = {
-                (ev.payload or {}).get("task_id")
-                for ev in prior_completed
-            }
+            completed_ids = {(ev.payload or {}).get("task_id") for ev in prior_completed}
             if node.id in completed_ids:
                 logger.info("node_skipped_idempotent: run=%s node=%s", run_id, node.id)
                 # Return cached result from the event payload
-                cached = next(
-                    ev for ev in prior_completed
-                    if (ev.payload or {}).get("task_id") == node.id
-                )
+                cached = next(ev for ev in prior_completed if (ev.payload or {}).get("task_id") == node.id)
                 payload = cached.payload or {}
                 return {
                     "success": True,
@@ -751,23 +761,27 @@ class UnifiedExecutor:
         await self.event_log.append(
             db,
             run_id,
-            [{
-                "type": SubstrateEventType.MISSION_PAUSED,
-                "payload": {
-                    "reason": f"hitl_{hitl.interrupt_type}",
-                    "inbox_item_id": hitl.inbox_item_id,
-                    "node_id": hitl.node_id,
-                    "interrupt_type": hitl.interrupt_type,
-                    "title": hitl.title,
-                },
-                "actor": "hitl_pause",
-                "mission_id": workflow.id,
-                "task_id": hitl.node_id,
-            }],
+            [
+                {
+                    "type": SubstrateEventType.MISSION_PAUSED,
+                    "payload": {
+                        "reason": f"hitl_{hitl.interrupt_type}",
+                        "inbox_item_id": hitl.inbox_item_id,
+                        "node_id": hitl.node_id,
+                        "interrupt_type": hitl.interrupt_type,
+                        "title": hitl.title,
+                    },
+                    "actor": "hitl_pause",
+                    "mission_id": workflow.id,
+                    "task_id": hitl.node_id,
+                }
+            ],
         )
         logger.info(
             "RUN_PAUSED emitted for run %s: HITL %s node=%s",
-            run_id, hitl.interrupt_type, hitl.node_id,
+            run_id,
+            hitl.interrupt_type,
+            hitl.node_id,
         )
 
     async def _run_post_hooks(
@@ -846,27 +860,25 @@ class UnifiedExecutor:
                     mission_id=workflow.id,
                     agent_id=None,
                     success=result.success,
-                    metadata={
-                        "title": workflow.title,
-                        "task_count": len(workflow.nodes),
-                        "error_message": result.error,
+                    metrics={
+                        "task_count": float(len(workflow.nodes)),
                     },
                 )
         except Exception as e:
             logger.debug("Improvement analysis hook skipped: %s", e)
 
-        # Phase 6.1: Episodic memory consolidation
+        # Phase 6.1: Episodic memory consolidation (gated by feature flag)
         try:
-            from app.database import AsyncSessionLocal
-            from app.services.episodic_memory_worker import EpisodicMemoryWorker
+            if settings.FLOWMANNER_CROSS_MISSION_MEMORY and result.success:
+                from app.database import AsyncSessionLocal
+                from app.services.episodic_memory_worker import EpisodicMemoryWorker
 
-            if result.success:
-                async with AsyncSessionLocal() as ep_db:
-                    worker = EpisodicMemoryWorker(ep_db)
-                    await worker.consolidate_episode(
-                        mission_id=workflow.id,
-                        run_id=result.run_id or "",
-                    )
+                worker = EpisodicMemoryWorker()
+                await worker.process_mission_completed(
+                    db,
+                    mission_id=workflow.id,
+                    run_id=result.run_id or "",
+                )
         except Exception as e:
             logger.debug("Episodic memory consolidation skipped: %s", e)
 

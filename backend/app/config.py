@@ -175,6 +175,13 @@ class Settings(BaseSettings):
     HITL_DEFAULT_TIMEOUT_HOURS: int = 24
     HITL_DEFAULT_AUTO_ACTION: str = "reject"  # reject | approve | stay
 
+    # Q2-Q3 Chunk 2 Tier 2: Cross-mission episodic memory
+    # Default OFF — the BM25+vector episodic memory system is a sunset
+    # candidate (model eats individual agent memory by late 2027).
+    # Gated behind this flag so it can be re-enabled for the DRR experiment
+    # or if cross-mission recall proves valuable.
+    FLOWMANNER_CROSS_MISSION_MEMORY: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

@@ -73,6 +73,9 @@ class EpisodicMemoryWorker:
         from app.services.episodic_memory_service import get_episodic_memory_service
 
         service = get_episodic_memory_service()
+        if service is None:
+            logger.debug("Cross-mission memory disabled — skipping episode recording")
+            return None
 
         # 1. Fetch mission metadata if workspace/user not provided
         mission = await db.get(Mission, mission_id)
@@ -86,17 +89,12 @@ class EpisodicMemoryWorker:
             user_id = getattr(mission, "user_id", None)
 
         if not workspace_id or not user_id:
-            logger.warning(
-                "Mission %s missing workspace_id or user_id — skipping", mission_id
-            )
+            logger.warning("Mission %s missing workspace_id or user_id — skipping", mission_id)
             return None
 
         # 2. Fetch event log for this run
         stmt = (
-            select(SubstrateEvent)
-            .where(SubstrateEvent.run_id == run_id)
-            .order_by(SubstrateEvent.sequence)
-            .limit(500)
+            select(SubstrateEvent).where(SubstrateEvent.run_id == run_id).order_by(SubstrateEvent.sequence).limit(500)
         )
         events = (await db.execute(stmt)).scalars().all()
         if not events:
@@ -140,7 +138,9 @@ class EpisodicMemoryWorker:
         }
         logger.info(
             "Episode recorded: mission=%s outcome=%s events=%d",
-            mission_id, outcome, len(events),
+            mission_id,
+            outcome,
+            len(events),
         )
         return result
 
@@ -208,15 +208,9 @@ class EpisodicMemoryWorker:
         This summary is REDACTED by the service before storage.
         """
         title = getattr(mission, "title", "Untitled") or "Untitled"
-        task_count = sum(
-            1 for e in events if e.type == SubstrateEventType.TASK_COMPLETED
-        )
-        tool_count = sum(
-            1 for e in events if e.type == SubstrateEventType.TOOL_CALL
-        )
-        llm_count = sum(
-            1 for e in events if e.type == SubstrateEventType.LLM_CALL
-        )
+        task_count = sum(1 for e in events if e.type == SubstrateEventType.TASK_COMPLETED)
+        tool_count = sum(1 for e in events if e.type == SubstrateEventType.TOOL_CALL)
+        llm_count = sum(1 for e in events if e.type == SubstrateEventType.LLM_CALL)
 
         parts = [
             f"Mission '{title}'",

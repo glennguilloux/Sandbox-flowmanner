@@ -7,6 +7,7 @@ Provides:
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -70,13 +71,19 @@ async def retrieve_episodes(
     body: RetrieveRequest,
     db: Any = Depends(get_db),
     current_user: Any = Depends(get_current_user),
-    service: EpisodicMemoryService = Depends(get_episodic_memory_service),
+    service: EpisodicMemoryService | None = Depends(get_episodic_memory_service),
 ) -> RetrieveResponse:
     """Retrieve the most relevant prior episodes for a query.
 
     Uses hybrid BM25 + vector search with a hard cap of 5 results.
     All results are scoped to the requesting user's workspace.
     """
+    if service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Cross-mission memory is disabled (FLOWMANNER_CROSS_MISSION_MEMORY=off)",
+        )
+
     user_id = getattr(current_user, "id", None)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -92,10 +99,8 @@ async def retrieve_episodes(
     # Record which episodes were retrieved in the event log (best-effort)
     episode_ids = [r.get("id") for r in results if r.get("id")]
     if episode_ids:
-        try:
+        with contextlib.suppress(Exception):
             await service.mark_used(db, episode_ids=episode_ids, mission_id="retrieve_query")
-        except Exception:
-            pass  # Best-effort audit trail
 
     episodes = [
         EpisodeResponse(
@@ -125,13 +130,19 @@ async def get_mission_episodes(
     workspace_id: str,
     db: Any = Depends(get_db),
     current_user: Any = Depends(get_current_user),
-    service: EpisodicMemoryService = Depends(get_episodic_memory_service),
+    service: EpisodicMemoryService | None = Depends(get_episodic_memory_service),
 ) -> MissionEpisodesResponse:
     """List episodes that influenced a specific mission.
 
     Returns all episode records associated with the given mission,
     scoped to the requesting user's workspace.
     """
+    if service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Cross-mission memory is disabled (FLOWMANNER_CROSS_MISSION_MEMORY=off)",
+        )
+
     user_id = getattr(current_user, "id", None)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Authentication required")

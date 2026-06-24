@@ -21,7 +21,6 @@ import hashlib
 import logging
 import re
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from app.models.tool_routing_models import (
     ToolRouteDecidedEvent,
@@ -30,8 +29,10 @@ from app.models.tool_routing_models import (
 )
 
 if TYPE_CHECKING:
-    from app.services.langgraph.tool_converter import ToolConverter, ToolDefinition
+    from uuid import UUID
+
     from app.services.episodic_memory_service import EpisodicMemoryService
+    from app.services.langgraph.tool_converter import ToolConverter, ToolDefinition
     from app.services.substrate.event_log import EventLog
 
 logger = logging.getLogger(__name__)
@@ -45,27 +46,128 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "search": ["search", "find", "lookup", "query", "discover", "browse"],
     "config": ["config", "configuration", "settings", "save", "load", "preferences"],
     "integration": [
-        "integration", "slack", "github", "google", "notion", "linear",
-        "discord", "connect", "send message", "create issue", "email",
+        "integration",
+        "slack",
+        "github",
+        "google",
+        "notion",
+        "linear",
+        "discord",
+        "connect",
+        "send message",
+        "create issue",
+        "email",
     ],
 }
 
 # ── Text similarity helpers ────────────────────────────────────────
 
-_STOP_WORDS = frozenset({
-    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "shall", "can", "to", "of", "in", "for",
-    "on", "with", "at", "by", "from", "as", "into", "through", "during",
-    "before", "after", "above", "below", "between", "out", "off", "over",
-    "under", "again", "further", "then", "once", "and", "but", "or",
-    "nor", "not", "so", "if", "than", "too", "very", "just", "about",
-    "it", "its", "this", "that", "these", "those", "i", "me", "my",
-    "we", "our", "you", "your", "he", "him", "his", "she", "her",
-    "they", "them", "their", "what", "which", "who", "whom",
-    "all", "each", "every", "both", "few", "more", "most", "other",
-    "some", "such", "no", "only", "own", "same", "also",
-})
+_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "shall",
+        "can",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "and",
+        "but",
+        "or",
+        "nor",
+        "not",
+        "so",
+        "if",
+        "than",
+        "too",
+        "very",
+        "just",
+        "about",
+        "it",
+        "its",
+        "this",
+        "that",
+        "these",
+        "those",
+        "i",
+        "me",
+        "my",
+        "we",
+        "our",
+        "you",
+        "your",
+        "he",
+        "him",
+        "his",
+        "she",
+        "her",
+        "they",
+        "them",
+        "their",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "only",
+        "own",
+        "same",
+        "also",
+    }
+)
 
 
 def _tokenize(text: str) -> set[str]:
@@ -199,21 +301,20 @@ class ToolRouter:
                     if tool_score:
                         selected.append(tool_score)
                     else:
-                        selected.append(ToolScore(
-                            tool_id=tool.tool_id,
-                            score=0.0,
-                            components={},
-                            reasons=["always-include: requires_approval=True"],
-                        ))
+                        selected.append(
+                            ToolScore(
+                                tool_id=tool.tool_id,
+                                score=0.0,
+                                components={},
+                                reasons=["always-include: requires_approval=True"],
+                            )
+                        )
 
             # Build reasons dict
             for s in selected:
                 reasons[s.tool_id] = "; ".join(s.reasons) if s.reasons else "scored"
 
-            result_tools = [
-                t.to_dict() for t in all_tools
-                if t.tool_id in {s.tool_id for s in selected}
-            ]
+            result_tools = [t.to_dict() for t in all_tools if t.tool_id in {s.tool_id for s in selected}]
 
         else:
             # Fallback: return ALL tools (preserve current behavior)
@@ -386,11 +487,7 @@ class ToolRouter:
         so the LLM can see them and the approval workflow can trigger.
         Safety over sparsity.
         """
-        return [
-            tool.tool_id
-            for tool in self._registry.list_tools()
-            if tool.requires_approval
-        ]
+        return [tool.tool_id for tool in self._registry.list_tools() if tool.requires_approval]
 
     # ── Audit ──────────────────────────────────────────────────────
 
@@ -414,6 +511,7 @@ class ToolRouter:
         if self._audit_log is None:
             try:
                 from app.services.substrate.event_log import get_event_log
+
                 self._audit_log = get_event_log()
             except Exception:
                 return
@@ -470,11 +568,13 @@ def get_tool_router(
     if _router is None:
         if registry is None:
             from app.services.langgraph.tool_converter import get_tool_converter
+
             registry = get_tool_converter()
         if memory_service is None:
             try:
                 from app.services.episodic_memory_service import get_episodic_memory_service
-                memory_service = get_episodic_memory_service()
+
+                memory_service = get_episodic_memory_service()  # Returns None when flag is off
             except Exception:
                 memory_service = None
         _router = ToolRouter(

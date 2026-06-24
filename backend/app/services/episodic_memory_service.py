@@ -48,8 +48,7 @@ _FILE_PATH_RE = re.compile(
     r"/(?:home|Users)/[A-Za-z0-9_\-]+/[^\s]*",
 )
 _ENV_SECRET_RE = re.compile(
-    r"(?:SECRET|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|DB_PASS|REDIS_PASSWORD)"
-    r"[_A-Z]*\s*[=:]\s*\S+",
+    r"(?:SECRET|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|DB_PASS|REDIS_PASSWORD)" r"[_A-Z]*\s*[=:]\s*\S+",
     re.IGNORECASE,
 )
 _LONG_LLM_OUTPUT_RE = re.compile(
@@ -71,8 +70,8 @@ _DENY_LIST_PATTERNS = _compile_deny_list()
 
 # ── Cost bucket thresholds ─────────────────────────────────────────
 
-_COST_SMALL_MAX = 0.05   # $0.05
-_COST_MEDIUM_MAX = 0.50   # $0.50
+_COST_SMALL_MAX = 0.05  # $0.05
+_COST_MEDIUM_MAX = 0.50  # $0.50
 
 
 def _classify_cost(cost_usd: float) -> str:
@@ -217,8 +216,11 @@ class EpisodicMemoryService:
 
         # 1. BM25 search (PostgreSQL ts_rank)
         bm25_results = await self._bm25_search(
-            db, query_text=redacted_query,
-            workspace_id=workspace_id, user_id=user_id, limit=k * 2,
+            db,
+            query_text=redacted_query,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            limit=k * 2,
         )
 
         # 2. Vector search (Qdrant)
@@ -258,22 +260,20 @@ class EpisodicMemoryService:
         if not episode_ids:
             return 0
 
-        stmt = (
-            select(Episode)
-            .where(Episode.id.in_(episode_ids))
-        )
+        stmt = select(Episode).where(Episode.id.in_(episode_ids))
         result = await db.execute(stmt)
         episodes = result.scalars().all()
 
         updated = 0
-        for ep in episodes:
+        for _ep in episodes:
             # Use raw SQL to append mission_id to a tracking column
             # Since Episode doesn't have a JSONB meta column, we log instead
             updated += 1
 
         logger.info(
             "Marked %d episodes as used by mission %s",
-            updated, mission_id,
+            updated,
+            mission_id,
         )
 
         # Record in event log via replay engine
@@ -401,12 +401,15 @@ class EpisodicMemoryService:
                 ORDER BY score DESC
                 LIMIT :limit
             """)
-            result = await db.execute(stmt, {
-                "query": query_text,
-                "ws": workspace_id,
-                "uid": user_id,
-                "limit": limit,
-            })
+            result = await db.execute(
+                stmt,
+                {
+                    "query": query_text,
+                    "ws": workspace_id,
+                    "uid": user_id,
+                    "limit": limit,
+                },
+            )
             rows = result.fetchall()
 
             return [
@@ -639,8 +642,17 @@ class EpisodicMemoryService:
 _service: EpisodicMemoryService | None = None
 
 
-def get_episodic_memory_service() -> EpisodicMemoryService:
-    """Get or create the EpisodicMemoryService singleton."""
+def get_episodic_memory_service() -> EpisodicMemoryService | None:
+    """Get or create the EpisodicMemoryService singleton.
+
+    Returns None when FLOWMANNER_CROSS_MISSION_MEMORY is disabled.
+    Callers MUST handle the None return (the service is a sunset candidate).
+    """
+    from app.config import settings
+
+    if not settings.FLOWMANNER_CROSS_MISSION_MEMORY:
+        return None
+
     global _service
     if _service is None:
         _service = EpisodicMemoryService()

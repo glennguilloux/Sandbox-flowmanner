@@ -102,18 +102,21 @@ class MemoryConsolidationWorker:
             success_flag,
         )
 
-        # Q2-Q3 Chunk 2: Also record sparse episodic memory
+        # Q2-Q3 Chunk 2: Also record sparse episodic memory (gated)
         try:
-            from app.services.episodic_memory_worker import get_episodic_memory_worker
+            from app.config import settings
 
-            episodic_worker = get_episodic_memory_worker()
-            await episodic_worker.process_mission_completed(
-                db,
-                mission_id=mission_id,
-                run_id=payload.get("run_id", mission_id),
-                workspace_id=payload.get("workspace_id"),
-                user_id=user_id,
-            )
+            if settings.FLOWMANNER_CROSS_MISSION_MEMORY:
+                from app.services.episodic_memory_worker import get_episodic_memory_worker
+
+                episodic_worker = get_episodic_memory_worker()
+                await episodic_worker.process_mission_completed(
+                    db,
+                    mission_id=mission_id,
+                    run_id=payload.get("run_id", mission_id),
+                    workspace_id=payload.get("workspace_id"),
+                    user_id=user_id,
+                )
         except Exception as exc:
             # Episodic memory is best-effort; do not fail consolidation
             logger.debug("Episodic memory recording skipped: %s", exc)
