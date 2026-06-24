@@ -1,10 +1,11 @@
-"""Reconciliation migration — drop 28 legacy tables (Part 2 of 2).
+"""Reconciliation migration — drop 23 legacy tables (Part 2 of 2).
 
-Drops tables that exist in the DB but have no SQLAlchemy model classes.
+Drops tables that exist in the DB but have no SQLAlchemy model classes AND
+are not queried via raw SQL from application code.
 Separated from Part 1 so schema additions can be deployed and verified
 before destructive operations.
 
-Tables dropped (23 empty + 5 with data approved for dropping):
+Tables dropped (all 0 rows, no code references):
 
 Empty (0 rows):
   circuit_breaker_state, comments, cost_records, cursor_positions,
@@ -14,11 +15,18 @@ Empty (0 rows):
   spending_limits, substrate_worker_leases, swarm_executions,
   tool_routing_decisions, user_model_preferences, workflow_runs
 
-With data (approved for dropping):
-  agent_template_versions (245 rows), mission_runs (6), onboarding_state (6),
-  changelog_entries (1)
+NOT dropped (queried via raw SQL — would cause runtime 500s):
 
-NOT dropped:
+  agent_template_versions (245 rows) — queried in data_export.py,
+    workflow_version_models.py
+  mission_runs (6 rows) — queried in learning_service.py
+    (_get_model_from_runs raw SQL SELECT)
+  onboarding_state (6 rows) — queried in onboarding.py
+    (5 raw SQL ops: SELECT, INSERT, UPDATE)
+  changelog_entries (1 row) — queried in changelog.py
+    (6 raw SQL ops: SELECT, INSERT, UPDATE, DELETE)
+
+NOT dropped (have model classes or are Alembic-managed):
   alembic_version — Alembic uses this to track revision state
   audit_logs (1765 rows) — model class in legacy_models.py
   refresh_tokens (801 rows) — model class in auth_service.py
@@ -34,12 +42,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Drop 28 legacy tables that have no corresponding model classes."""
+    """Drop 23 legacy tables that have no corresponding model classes.
+
+    These tables are all empty (0 rows) and have no raw SQL references in
+    application code. The 4 tables that did have data or code references
+    (agent_template_versions, mission_runs, onboarding_state, changelog_entries)
+    have been excluded — see module docstring for details.
+    """
 
     # All drops use IF EXISTS for idempotency.
     # CASCADE is needed because some tables may have residual FK references.
+    #
+    # NOTE: Tables with active raw SQL references have been removed from this
+    # list. The migration author saw "no ORM model" and assumed "unused", but
+    # the app queries them via text("SELECT ... FROM <table>"). Dropping them
+    # would cause 500s on /api/v1/changelog, /api/v1/onboarding, learning
+    # service, and data export. See docstring above for the full list.
     legacy_tables = [
-        # Empty tables (0 rows)
         "circuit_breaker_state",
         "comments",
         "cost_records",
@@ -63,12 +82,6 @@ def upgrade() -> None:
         "tool_routing_decisions",
         "user_model_preferences",
         "workflow_runs",
-        # With data (approved for dropping)
-        "agent_template_versions",
-        "mission_runs",
-        "onboarding_state",
-        "changelog_entries",
-        # NOTE: alembic_version is NOT dropped — Alembic uses it to track state
     ]
 
     for table in legacy_tables:
