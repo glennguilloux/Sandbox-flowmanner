@@ -110,11 +110,11 @@ from app.models.circuit_breaker_models import MissionCircuitBreaker
 # Community models (Phase 3 comments + drift remediation chunk 8)
 from app.models.community_models import CommunityComment, CommunityTemplate
 
-# Critique model (D30-60, T24 — Critic Agent + Memory Correction UX)
-from app.models.critique_models import ALL_CRITIC_KINDS, Critique
-
 # Cost category enum + event DTO (Q1-B Chunk 4)
 from app.models.cost_event import CostCategory, CostEvent
+
+# Critique model (D30-60, T24 — Critic Agent + Memory Correction UX)
+from app.models.critique_models import ALL_CRITIC_KINDS, Critique
 
 # Evaluation models
 from app.models.evaluation_models import (
@@ -154,6 +154,9 @@ from app.models.integration_models import (
 from app.models.knowledge_graph_models import KnowledgeEdge, KnowledgeNode
 from app.models.learning_models import AdaptationRuleDB, LearningFeedbackDB
 
+# Legacy tables with production data (schema reconciliation)
+from app.models.legacy_models import AuditLog
+
 # LLM call record model (H1.3 observability)
 from app.models.llm_call_record import LLMCallRecord
 
@@ -166,14 +169,16 @@ from app.models.memory_correction_models import (
     ALL_EVENT_TYPES,
     MemoryCorrectionEvent,
 )
-# Memory extraction pauses (D30-60, T30 — pause toggle)
-from app.models.memory_extraction_pause_models import MemoryExtractionPause
+
 # Memory digest deliveries (D30-60, T31 — daily digest)
 from app.models.memory_digest_models import (
     ALL_DELIVERY_CHANNELS,
     ALL_DELIVERY_STATUSES,
     MemoryDigestDelivery,
 )
+
+# Memory extraction pauses (D30-60, T30 — pause toggle)
+from app.models.memory_extraction_pause_models import MemoryExtractionPause
 
 # Memory models (canonical + legacy)
 from app.models.memory_models import MemoryEntry, PendingWrite
@@ -188,6 +193,7 @@ from app.models.mission_models import (
     MissionLog,
     MissionTask,
 )
+
 # Mission Programs (T1)
 from app.models.mission_program_models import (
     MissionProgram,
@@ -195,10 +201,6 @@ from app.models.mission_program_models import (
     ProgramRunStatus,
     ProgramStatus,
 )
-
-# Personal memory claims (D0-30, T18)
-from app.models.personal_memory_models import PersonalMemoryClaim
-
 from app.models.models import (
     AgentReview,
     ComposedCapabilityModel,
@@ -215,6 +217,9 @@ from app.models.partner_revenue_models import (
     Partner,
     PartnerRevenue,
 )
+
+# Personal memory claims (D0-30, T18)
+from app.models.personal_memory_models import PersonalMemoryClaim
 from app.models.phase4_models import FeatureFlag, IntegrationConnection, UsageRecord, UserFile, UserSettings
 
 # Playground sandbox models (Phase 4)
@@ -281,3 +286,6 @@ from app.models.workspace_models import (
     WorkspaceMember,
     WorkspaceVersion,
 )
+
+# RefreshToken model lives in auth_service; import here to register with Base.metadata
+from app.services.auth_service import RefreshToken

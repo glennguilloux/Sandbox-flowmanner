@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 142,
+  "model_count": 144,
   "tables": [
     {
       "columns": {
@@ -297,6 +297,26 @@
       "foreign_keys": [],
       "indexes": [],
       "name": "analytics_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action": "VARCHAR(100)",
+        "action_details": "TEXT",
+        "created_at": "DATETIME",
+        "endpoint": "VARCHAR(255)",
+        "id": "VARCHAR(36)",
+        "ip_address": "VARCHAR(45)",
+        "method": "VARCHAR(10)",
+        "timestamp": "DATETIME",
+        "updated_at": "DATETIME",
+        "user_agent": "TEXT",
+        "user_email": "VARCHAR(255)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "audit_logs",
       "unique_constraints": []
     },
     {
@@ -2647,6 +2667,35 @@
         "ix_push_subscriptions_user_id"
       ],
       "name": "push_subscriptions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "device_name": "VARCHAR(255)",
+        "expires_at": "DATETIME",
+        "family_generation": "INTEGER",
+        "family_id": "VARCHAR(36)",
+        "id": "INTEGER",
+        "ip_address": "VARCHAR(45)",
+        "is_revoked": "BOOLEAN",
+        "last_used_at": "DATETIME",
+        "location": "VARCHAR(255)",
+        "token": "VARCHAR(500)",
+        "user_agent": "VARCHAR(500)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_refresh_tokens_family_id",
+        "ix_refresh_tokens_token"
+      ],
+      "name": "refresh_tokens",
       "unique_constraints": []
     },
     {
