@@ -18,6 +18,10 @@ PROJECT_ROOT := /opt/flowmanner
 BACKEND_DIR  := $(PROJECT_ROOT)/backend
 FRONTEND_DIR := /home/glenn/FlowmannerV2-frontend
 
+# ---- Python ----
+# Prefer the backend venv if it exists; fall back to bare python.
+PYTHON := $(shell test -x $(BACKEND_DIR)/.venv/bin/python && echo $(BACKEND_DIR)/.venv/bin/python || echo python)
+
 # ---- Docker ----
 COMPOSE_PROD := docker compose -f $(PROJECT_ROOT)/docker-compose.yml
 COMPOSE_DEV  := docker compose -f $(PROJECT_ROOT)/docker-compose.yml -f $(PROJECT_ROOT)/docker-compose.dev.yml
@@ -133,7 +137,7 @@ test: test-backend test-frontend ## Run all tests (backend + frontend)
 .PHONY: test-backend
 test-backend: ## Run backend pytest
 	@echo -e "$(GREEN)Running backend tests...$(RESET)"
-	cd $(BACKEND_DIR) && python -m pytest tests/ -v --tb=short
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -v --tb=short
 
 .PHONY: test-frontend
 test-frontend: ## Run frontend vitest
@@ -148,7 +152,7 @@ test-e2e: ## Run Playwright e2e tests
 .PHONY: test-backend-cov
 test-backend-cov: ## Run backend tests with coverage
 	@echo -e "$(GREEN)Running backend tests with coverage...$(RESET)"
-	cd $(BACKEND_DIR) && python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
 .PHONY: reproduce
 reproduce: ## Reproduce a failed CI run by RUN_ID
