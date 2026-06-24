@@ -5,7 +5,7 @@ Generated automatically from live DB audit on 2026-06-24 (v2 — corrected).
 Scope:
 - Create 10 missing tables (correct dependency order)
 - Add 32 missing columns (with server_default for NOT NULL)
-- Fix 23 real type mismatches (all with explicit USING clauses)
+- Fix 9 real type mismatches (all with explicit USING clauses)
 - Create 70 missing indexes
 - Drop stale DB indexes (106 — constraint-backed indexes excluded; those
   are managed via their parent UNIQUE/PK constraints, not direct drops)
@@ -19,6 +19,7 @@ Tables dropped: 27 legacy tables (in reconcile_schema_002)
 """
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID
 
 from alembic import op
 
@@ -284,7 +285,7 @@ def upgrade() -> None:
     op.create_table(
         "mission_versions",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("mission_id", sa.String(36), nullable=False),
+        sa.Column("mission_id", UUID(as_uuid=True), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("title", sa.String(255)),
         sa.Column("description", sa.Text()),
@@ -398,18 +399,18 @@ def upgrade() -> None:
     op.add_column("user_installations", sa.Column("created_at", sa.DateTime(timezone=True), server_default="now()"))
     op.add_column("user_installations", sa.Column("updated_at", sa.DateTime(timezone=True), server_default="now()"))
 
-    # ── STEP 5: Fix real type mismatches (23) ────────────────────
-    op.execute("ALTER TABLE agent_reviews ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
-    op.execute("ALTER TABLE analytics_events ALTER COLUMN user_id TYPE VARCHAR(255) USING user_id::VARCHAR(255)")
-    op.execute("ALTER TABLE inbox_items ALTER COLUMN mission_id TYPE VARCHAR(36) USING mission_id::VARCHAR(36)")
-    op.execute("ALTER TABLE learning_feedback ALTER COLUMN mission_id TYPE VARCHAR(36) USING mission_id::VARCHAR(36)")
-    op.execute("ALTER TABLE llm_call_records ALTER COLUMN agent_id TYPE UUID USING agent_id::UUID")
-    op.execute("ALTER TABLE log_entries ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
-    op.execute("ALTER TABLE marketplace_reviews ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
+    # ── STEP 5: Fix real type mismatches (9 — verified against live DB) ──
+    # Diagnostic 2026-06-24: removed 14 ALTERs that cast in the wrong
+    # direction.  The live DB types already match their FK targets:
+    #   - 9 user_id columns are INTEGER (matches users.id INTEGER)
+    #   - inbox_items/learning_feedback.mission_id are UUID (matches missions.id UUID)
+    #   - memory_entries/workspace_id columns are VARCHAR (matches workspaces.id VARCHAR)
+    #   - playground_sandboxes.workspace_id is VARCHAR (matches workspaces.id VARCHAR)
+    #   - llm_call_records.agent_id needs separate investigation
+    # These ALTERs would have BROKEN working FK relationships.
     op.execute("ALTER TABLE memory_entries ALTER COLUMN id TYPE UUID USING id::UUID")
     op.execute("ALTER TABLE memory_entries ALTER COLUMN session_id TYPE UUID USING session_id::UUID")
     op.execute("ALTER TABLE memory_entries ALTER COLUMN supersedes_id TYPE UUID USING supersedes_id::UUID")
-    op.execute("ALTER TABLE memory_entries ALTER COLUMN workspace_id TYPE UUID USING workspace_id::UUID")
     op.execute(
         "ALTER TABLE notification_settings ALTER COLUMN push_enabled_channels TYPE VARCHAR(255) USING push_enabled_channels::VARCHAR(255)"
     )
@@ -420,13 +421,7 @@ def upgrade() -> None:
     )
     op.execute("ALTER TABLE pending_writes ALTER COLUMN id TYPE UUID USING id::UUID")
     op.execute("ALTER TABLE pending_writes ALTER COLUMN mission_id TYPE UUID USING mission_id::UUID")
-    op.execute("ALTER TABLE playground_sandboxes ALTER COLUMN workspace_id TYPE UUID USING workspace_id::UUID")
     op.execute("ALTER TABLE push_subscriptions ALTER COLUMN endpoint TYPE TEXT USING endpoint::TEXT")
-    op.execute("ALTER TABLE roadmap_comments ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
-    op.execute("ALTER TABLE roadmap_votes ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
-    op.execute("ALTER TABLE tool_analytics ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
-    op.execute("ALTER TABLE tool_permissions ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
-    op.execute("ALTER TABLE user_installations ALTER COLUMN user_id TYPE VARCHAR(36) USING user_id::VARCHAR(36)")
 
     # ── STEP 6: Create missing indexes (70) ─────────────────────
     op.create_index("ix_agent_capability_bindings_agent_id", "agent_capability_bindings", ["agent_id"])
