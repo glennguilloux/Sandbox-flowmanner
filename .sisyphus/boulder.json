@@ -271,6 +271,15 @@
         "commits_containing_fixes": [
           "9a772da"
         ]
+      },
+      "independent_verification": {
+        "verified_at": "2026-06-24",
+        "verdict": "GREEN",
+        "tests_passed": "25/25 (23 handoff_packet + 2 lease_integration unit)",
+        "tests_errored": "3 integration tests (db_session fixture missing — properly marked @pytest.mark.integration)",
+        "bugfixes_verified": "3/3 (HANDOFF_LEASE_LOST emission, transfer new_worker_id, _packet_from_record fallback)",
+        "stop_gates_passed": "12/12",
+        "evidence_file": ".sisyphus/evidence/chunk-5-re-verify-2026-06-24.md"
       }
     },
     {
@@ -297,7 +306,14 @@
         ".sisyphus/evidence/chunk-6-baseline-green.txt"
       ],
       "canonical_baseline": ".sisyphus/plans/substrate-baseline-v1.md",
-      "pre_existing_failures": 3
+      "pre_existing_failures": 3,
+      "independent_verification": {
+        "verified_at": "2026-06-24",
+        "verdict": "GREEN",
+        "tests_passed": "62/62",
+        "stop_gates_passed": "12/12",
+        "evidence_file": ".sisyphus/evidence/chunk-6-re-verify-2026-06-24.md"
+      }
     },
     {
       "id": 7,
@@ -363,7 +379,15 @@
         "code_has": "DEFAULT_LIMIT = 1000, MAX_LIMIT = 1000 (default = max)",
         "note": "Sub-agent chose default=1000 (return full stream by default). Defensible but deviates from the prompt. Not blocking; document the choice in a follow-up if you want."
       },
-      "deploy_status": "COMPLETE \u2014 user ran 'bash /opt/flowmanner/deploy-backend.sh' on 2026-06-13, container built at 2026-06-13 08:49, post-deploy health passed (after 14 retries), 5-step backend-deploy-verification recipe passed (alembic head, import check, smoke test 3 endpoints, route path verification, no celery step needed). New code confirmed live in container via the import check."
+      "deploy_status": "COMPLETE \u2014 user ran 'bash /opt/flowmanner/deploy-backend.sh' on 2026-06-13, container built at 2026-06-13 08:49, post-deploy health passed (after 14 retries), 5-step backend-deploy-verification recipe passed (alembic head, import check, smoke test 3 endpoints, route path verification, no celery step needed). New code confirmed live in container via the import check.",
+      "independent_verification": {
+        "verified_at": "2026-06-24",
+        "verdict": "GREEN",
+        "tests_passed": "27/27",
+        "orchestrator_bugfix_verified": "Missing files (replay_query.py, schemas/replay.py, test suite) confirmed on disk from commit b792fb6",
+        "stop_gates_passed": "9/11 verified, 2 deferred (make validate-migration + alembic needs Docker/DB)",
+        "evidence_file": ".sisyphus/evidence/chunk-7-re-verify-2026-06-24.md"
+      }
     },
     {
       "id": 8,
@@ -408,7 +432,14 @@
         "Fix the broken .pre-commit-config.yaml symlink",
         "Fix the 3 pre-existing test failures"
       ],
-      "notes": "CommunityTemplate drift (issue #1) is CLOSED. NoReferencedTableError resolved. make validate-migration still fails due to pre-existing structural drift that was masked by the FK error."
+      "notes": "CommunityTemplate drift (issue #1) is CLOSED. NoReferencedTableError resolved. make validate-migration still fails due to pre-existing structural drift that was masked by the FK error.",
+      "independent_verification": {
+        "verified_at": "2026-06-24",
+        "verdict": "GREEN",
+        "tests_passed": "6/6",
+        "stop_gates_passed": "8/11 verified, 3 deferred (alembic, full baseline, health need Docker/DB)",
+        "evidence_file": ".sisyphus/evidence/chunk-8-re-verify-2026-06-24.md"
+      }
     },
     {
       "id": 9,
@@ -456,6 +487,14 @@
         "Fix legacy integration-test database URL assumption in backend/tests/test_integration_graph_execution.py so the full backend pytest baseline can run inside the backend container"
       ],
       "notes": "Chunk-specific lenient validation gate is complete: make validate-migration passes, introduced drift fails as expected, snapshot refresh is idempotent, alembic current/heads are handoff_packets_001, substrate and validation-gate tests pass, and health returns OK. The full backend pytest baseline remains blocked outside this chunk by host-vs-container database URL assumptions in backend/tests/test_integration_graph_execution.py, which replaces workflow-postgres with localhost and fails inside the backend container. The 559 pre-existing drift items are grandfathered in the snapshot and remain deferred.\n\nOffline-mode compatibility: 16 existing Alembic migration files were modified to add `context.is_offline_mode()` guards so that `alembic upgrade head --sql` (Step 2 of the validation gate) passes without DB connectivity. These are NOT drift fixes — they are offline-mode compatibility shims required for the validation gate's Step 2 to work. They add no schema changes, only conditional logic to skip DB inspection in offline mode. Verified: `make validate-migration` passes with these modifications; reverting them would break Step 2 offline render.",
+      "independent_verification": {
+        "verified_at": "2026-06-24",
+        "verdict": "GREEN",
+        "tests_passed": "5/5 (4 pass + 1 integration skip)",
+        "snapshot_diff_result": "exit 0 — no drift detected between committed snapshot and current metadata",
+        "stop_gates_passed": "8/12 verified, 4 deferred (make validate-migration Docker, alembic, full baseline, drift inventory file missing)",
+        "evidence_file": ".sisyphus/evidence/chunk-9-re-verify-2026-06-24.md"
+      },
       "verified_at": "2026-06-13T18:35:34Z",
       "stop_gates_verified_post_deploy": [
         "make validate-migration passes \u2014 VERIFIED: exit 0",
@@ -477,7 +516,7 @@
   "git_workflow_notes": "No PR per chunk. Sub-agent commits and pushes directly. User reviews via session audit, not via GitHub PRs. Frontend commits go to the frontend repo's master branch; backend commits go to this repo's main.",
   "session_id": null,
   "started_at": "2026-06-12T19:35:00Z",
-  "last_updated": "2026-06-13T18:35:34Z",
+  "last_updated": "2026-06-24T00:00:00Z",
   "session_ids": [
     "ses_13f6075bcffe1Q0t9aNuojwg7B",
     "ses_13f545684ffeNqPhO9GhL39u1F"
