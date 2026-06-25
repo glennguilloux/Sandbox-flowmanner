@@ -18,7 +18,7 @@ and the tsvector full-text index.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: TCH003 — needed at runtime by SQLAlchemy Mapped[]
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSON, JSONB, TSVECTOR, UUID
@@ -79,7 +79,7 @@ class MemoryEntry(Base, TimestampMixin):
         default=lambda: str(uuid.uuid4()),
     )
     workspace_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False),
+        String(36),
         nullable=True,
         index=True,
     )

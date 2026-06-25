@@ -64,7 +64,7 @@ class ToolPermission(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     tool_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     permission: Mapped[str] = mapped_column(String(50), default="use")
 
 
@@ -73,7 +73,7 @@ class ToolAnalytics(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     tool_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     success: Mapped[bool] = mapped_column(Boolean, default=True)

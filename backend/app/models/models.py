@@ -21,7 +21,7 @@ class LogEntry(Base, TimestampMixin):
     level: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
 
@@ -81,7 +81,7 @@ class MarketplaceReviewModel(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     listing_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)  # v2
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -92,7 +92,7 @@ class UserInstallationModel(Base, TimestampMixin):
     __tablename__ = "user_installations"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     listing_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     config: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
@@ -103,7 +103,7 @@ class AgentReview(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     agent_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)

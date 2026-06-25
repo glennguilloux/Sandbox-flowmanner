@@ -33,7 +33,7 @@ class LLMCallRecord(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Phase 6.3: Cost attribution columns
     agent_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True),
+        String(36),
         nullable=True,
         index=True,
     )

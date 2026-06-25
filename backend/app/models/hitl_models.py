@@ -14,12 +14,12 @@ Design decisions:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TCH003 — needed at runtime by SQLAlchemy Mapped[]
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import DateTime, ForeignKey, Identity, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin
@@ -71,7 +71,7 @@ class InboxItem(Base, TimestampMixin):
         index=True,
     )
     mission_id: Mapped[str] = mapped_column(
-        String(36),
+        UUID(as_uuid=True),
         ForeignKey("missions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -176,11 +176,9 @@ class WorkspaceHITLConfig(Base, TimestampMixin):
     """
 
     __tablename__ = "workspace_hitl_configs"
-    __table_args__ = (
-        UniqueConstraint("workspace_id", name="uq_workspace_hitl_config"),
-    )
+    __table_args__ = (UniqueConstraint("workspace_id", name="uq_workspace_hitl_config"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     workspace_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
