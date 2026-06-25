@@ -2059,10 +2059,12 @@ def upgrade() -> None:
             existing_server_default=sa.text("now()"),
         )
 
-    with op.batch_alter_table("workspace_hitl_configs", schema=None) as batch_op:
-        batch_op.alter_column(
-            "id", existing_type=sa.INTEGER(), server_default=None, existing_nullable=False, autoincrement=True
-        )
+    # workspace_hitl_configs.id is an identity column — skip alter_column
+    # (PostgreSQL identity columns cannot be modified via DROP DEFAULT)
+    # with op.batch_alter_table("workspace_hitl_configs", schema=None) as batch_op:
+    #     batch_op.alter_column(
+    #         "id", existing_type=sa.INTEGER(), server_default=None, existing_nullable=False, autoincrement=True
+    #     )
 
     with op.batch_alter_table("workspace_invitations", schema=None) as batch_op:
         batch_op.alter_column(
