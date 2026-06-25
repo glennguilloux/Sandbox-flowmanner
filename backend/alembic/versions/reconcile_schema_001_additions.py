@@ -1188,13 +1188,16 @@ def upgrade() -> None:
 
     with op.batch_alter_table("memory_entries", schema=None) as batch_op:
         batch_op.alter_column(
-            "id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=False
+            "id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=False,
+            postgresql_using="id::uuid"
         )
         batch_op.alter_column(
-            "session_id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=True
+            "session_id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=True,
+            postgresql_using="session_id::uuid"
         )
         batch_op.alter_column(
-            "supersedes_id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=True
+            "supersedes_id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=True,
+            postgresql_using="supersedes_id::uuid"
         )
         batch_op.drop_constraint("fk_memory_entries_agent_id", type_="foreignkey")
         batch_op.drop_constraint("fk_memory_entries_workspace_id", type_="foreignkey")
@@ -1270,7 +1273,8 @@ def upgrade() -> None:
 
     with op.batch_alter_table("notifications", schema=None) as batch_op:
         batch_op.alter_column(
-            "id", existing_type=sa.VARCHAR(length=36), type_=sa.Integer(), existing_nullable=False, autoincrement=True
+            "id", existing_type=sa.VARCHAR(length=36), type_=sa.Integer(), existing_nullable=False, autoincrement=True,
+            postgresql_using="id::integer"
         )
         batch_op.alter_column(
             "severity",
@@ -1416,10 +1420,12 @@ def upgrade() -> None:
     with op.batch_alter_table("pending_writes", schema=None) as batch_op:
         batch_op.add_column(sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False))
         batch_op.alter_column(
-            "id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=False
+            "id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=False,
+            postgresql_using="id::uuid"
         )
         batch_op.alter_column(
-            "mission_id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=True
+            "mission_id", existing_type=sa.VARCHAR(length=36), type_=sa.UUID(as_uuid=False), existing_nullable=True,
+            postgresql_using="mission_id::uuid"
         )
         batch_op.create_index(batch_op.f("ix_pending_writes_status"), ["status"], unique=False)
 
