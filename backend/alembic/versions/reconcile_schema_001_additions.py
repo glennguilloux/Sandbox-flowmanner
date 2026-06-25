@@ -620,6 +620,9 @@ def upgrade() -> None:
         )
         batch_op.drop_index("ix_agents_owner_id")
 
+    # Delete orphaned rows with NULL user_id before setting NOT NULL
+    op.execute("DELETE FROM analytics_events WHERE user_id IS NULL")
+
     with op.batch_alter_table("analytics_events", schema=None) as batch_op:
         batch_op.alter_column("user_id", existing_type=sa.INTEGER(), nullable=False)
         batch_op.drop_index("idx_analytics_event_type")
