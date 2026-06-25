@@ -11,10 +11,12 @@
 - `backend/app/models/llm_call_record.py`: agent_id UUID → String(36) (match DB VARCHAR)
 - `backend/app/models/memory_models.py`: workspace_id UUID → String(36) (match DB VARCHAR); TCH003 noqa
 
-## WHAT DID NOT CHANGE BUT WAS TOUCHED
+## ADDITIONAL CHANGES (same session)
 
-- `SESSION-RITUAL.md` — pre-existing edit from earlier session (NOT committed by this agent)
-- `backend/AGENTS.md` — pre-existing edit from earlier session (NOT committed by this agent)
+- `backend/alembic/env.py`: Removed blanket FK suppression from `compare_type`; passed `compare_type` explicitly to `do_run_migrations`
+- `backend/app/models/extension.py`: `extensions.id` String() → String(36) (match DB VARCHAR)
+- `SESSION-RITUAL.md`: Added rule 7 (migration data-mutation convention)
+- `backend/AGENTS.md`: Added migration data-mutation convention section
 
 ## TESTS RUN + RESULT
 
@@ -57,16 +59,29 @@ No new upgrade operations detected.
 
 ## NEXT SESSION HANDOFF
 
-Resolved all 14 `alembic check` drift items by aligning SQLAlchemy model column types with the live PostgreSQL schema. The drift was pre-existing — `compare_type` in `env.py` suppresses FK-bound type changes during autogenerate, so the reconciliation migration (`reconcile_schema_001`) never addressed them. Models now match DB exactly. `alembic check` reports 0 drift, 965 tests pass. The `compare_type` function in `env.py` still suppresses FK-bound type changes — this is a follow-up item to address so future drift is caught by autogenerate. No migration was needed; no deploy needed (model-only changes baked into next build).
+Resolved all 14 `alembic check` drift items by aligning SQLAlchemy model column types with the live PostgreSQL schema. The drift was pre-existing — `compare_type` in `env.py` suppressed FK-bound type changes during autogenerate, so the reconciliation migration (`reconcile_schema_001`) never addressed them. Models now match DB exactly. `alembic check` reports 0 drift, 965 tests pass.
 
-## FILES THIS AGENT DID NOT TOUCH BUT EXIST
+Also fixed the root cause: removed the blanket FK suppression from `compare_type` so future type drift is caught by autogenerate and `alembic check`. Caught and fixed one additional drift item (`extensions.id` String→String(36)) as a result.
 
-- Untracked files: (none)
-- Deleted files: (none)
-- Pre-existing unstaged edits (NOT this agent): SESSION-RITUAL.md, backend/AGENTS.md
+Added migration data-mutation convention (never DELETE rows for NOT NULL, use UPDATE with sentinel) to SESSION-RITUAL.md and backend/AGENTS.md.
 
-## COMMIT
+All changes deployed to production.
+
+## COMMITS
 
 ```
 4555295 fix(models): align SQLAlchemy column types with live DB schema
+9231f93 fix(alembic): remove blanket FK suppression from compare_type + fix extensions.id drift
+f4b83b2 docs: add migration data-mutation convention — never DELETE rows for NOT NULL
+3937265 docs: add exit audit for alembic drift fix session (2026-06-25)
+```
+
+## DEPLOY
+
+```
+Deployed via deploy-backend.sh on 2026-06-25.
+Pre-checks: 6/6 passed (5 passed, 1 info-only).
+Build: succeeded.
+Health checks: passed (4 attempts — normal startup time).
+Container: workflows-backend:restored (running).
 ```
