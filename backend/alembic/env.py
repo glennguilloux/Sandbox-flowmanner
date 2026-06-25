@@ -32,24 +32,24 @@ def include_object(object, name, type_, reflected, compare_to):
 
 
 def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
-    """Suppress type-change ALTERs that would break FK constraints or are cosmetic.
+    """Suppress type-change ALTERs that are purely cosmetic.
 
-    Returns False (= "types are the same, no ALTER needed") when:
-    1. The metadata column has a ForeignKey — the DB is the truth for FK-bound
-       columns, and changing types would break existing FK constraints.
-    2. The types are cosmetically different but map to the same PostgreSQL type
-       (TIMESTAMP/DATETIME, DOUBLE/FLOAT, BIGINT/INTEGER).
+    Returns False (= "types are the same, no ALTER needed") when the
+    types are cosmetically different but map to the same PostgreSQL type
+    (TIMESTAMP/DATETIME, DOUBLE/FLOAT, BIGINT/INTEGER, BYTEA/BLOB).
+
+    Returns True (= "types differ, generate ALTER") for all genuine
+    mismatches — including FK-bound columns.  FK-bound ALTERs require
+    ``postgresql_using`` and must be reviewed by a human, but suppressing
+    them silently caused 14 drift items to accumulate undetected
+    (fixed in commit 4555295, 2026-06-25).
     """
-    # FK-bound columns: never change type — the DB is the truth.
-    if metadata_column.foreign_keys:
-        return False
-
     ins = str(inspected_type).upper().strip()
     meta = str(metadata_type).upper().strip()
     if ins == meta:
         return False
 
-    # Cosmetic equivalence groups
+    # Cosmetic equivalence groups — types that PostgreSQL treats as identical
     _groups = (
         {"TIMESTAMP", "TIMESTAMP WITHOUT TIME ZONE", "TIMESTAMP WITH TIME ZONE", "DATETIME"},
         {"DOUBLE PRECISION", "FLOAT", "FLOAT8", "DOUBLE"},
@@ -79,6 +79,7 @@ def do_run_migrations(connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         include_object=include_object,
+        compare_type=compare_type,
         render_as_batch=True,
     )
 

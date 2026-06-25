@@ -11,7 +11,7 @@ from app.models import Base
 class Extension(Base):
     __tablename__ = "extensions"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     version = Column(String(50), nullable=False, default="1.0.0")
     description = Column(Text, nullable=True)
