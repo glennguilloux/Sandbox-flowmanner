@@ -101,35 +101,35 @@ class TestWorkspaceIdForeignKey:
         from app.models.mission_models import Mission
 
         col = Mission.__table__.columns["workspace_id"]
-        fk = list(col.foreign_keys)[0]
+        fk = next(iter(col.foreign_keys))
         assert "workspaces" in str(fk)
 
     def test_agent_workspace_fk(self):
         from app.models.agent import Agent
 
         col = Agent.__table__.columns["workspace_id"]
-        fk = list(col.foreign_keys)[0]
+        fk = next(iter(col.foreign_keys))
         assert "workspaces" in str(fk)
 
     def test_workflow_workspace_fk(self):
         from app.models.graph import Workflow
 
         col = Workflow.__table__.columns["workspace_id"]
-        fk = list(col.foreign_keys)[0]
+        fk = next(iter(col.foreign_keys))
         assert "workspaces" in str(fk)
 
     def test_workflow_execution_workspace_fk(self):
         from app.models.graph import WorkflowExecution
 
         col = WorkflowExecution.__table__.columns["workspace_id"]
-        fk = list(col.foreign_keys)[0]
+        fk = next(iter(col.foreign_keys))
         assert "workspaces" in str(fk)
 
     def test_agent_template_workspace_fk(self):
         from app.models.agent import AgentTemplate
 
         col = AgentTemplate.__table__.columns["workspace_id"]
-        fk = list(col.foreign_keys)[0]
+        fk = next(iter(col.foreign_keys))
         assert "workspaces" in str(fk)
 
     def test_tool_catalog_no_fk(self):
@@ -139,6 +139,54 @@ class TestWorkspaceIdForeignKey:
         col = Tool.__table__.columns["workspace_id"]
         fks = list(col.foreign_keys)
         assert len(fks) == 0, "tools_catalog.workspace_id should NOT have FK"
+
+
+class TestPlaygroundWorkspaceIdType:
+    """Issue #25: playground_sandboxes.workspace_id must be String(36), not UUID.
+
+    The reconciliation migration inadvertently changed it to UUID, creating a
+    type mismatch with workspaces.id (VARCHAR 36).  These tests guard against
+    regression.
+    """
+
+    def test_playground_workspace_id_is_string(self):
+        from sqlalchemy import String
+
+        from app.models.playground_models import PlaygroundSandbox
+
+        col = PlaygroundSandbox.__table__.columns["workspace_id"]
+        assert isinstance(col.type, String), f"Expected String, got {type(col.type).__name__}"
+
+    def test_playground_workspace_id_length(self):
+        from app.models.playground_models import PlaygroundSandbox
+
+        col = PlaygroundSandbox.__table__.columns["workspace_id"]
+        assert col.type.length == 36
+
+    def test_playground_workspace_id_fk_to_workspaces(self):
+        from app.models.playground_models import PlaygroundSandbox
+
+        col = PlaygroundSandbox.__table__.columns["workspace_id"]
+        fk = next(iter(col.foreign_keys))
+        assert "workspaces" in str(fk)
+
+    def test_playground_workspace_id_nullable(self):
+        from app.models.playground_models import PlaygroundSandbox
+
+        col = PlaygroundSandbox.__table__.columns["workspace_id"]
+        assert col.nullable is True
+
+    def test_playground_workspace_id_matches_workspaces_pk(self):
+        from sqlalchemy import String
+
+        from app.models.playground_models import PlaygroundSandbox
+        from app.models.workspace_models import Workspace
+
+        pk_type = Workspace.__table__.columns["id"].type
+        fk_type = PlaygroundSandbox.__table__.columns["workspace_id"].type
+        assert isinstance(pk_type, String)
+        assert isinstance(fk_type, String)
+        assert type(pk_type) == type(fk_type)
 
 
 class TestMigrationStructure:

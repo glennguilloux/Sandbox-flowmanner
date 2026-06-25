@@ -59,7 +59,7 @@ class PlaygroundSandbox(Base, TimestampMixin):
         comment="proves ownership before claiming",
     )
     workspace_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("workspaces.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
