@@ -2590,7 +2590,7 @@
         "template": "VARCHAR(64)",
         "updated_at": "DATETIME",
         "user_id": "INTEGER",
-        "workspace_id": "UUID"
+        "workspace_id": "VARCHAR(36)"
       },
       "foreign_keys": [
         [
