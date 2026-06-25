@@ -108,6 +108,34 @@ docker compose exec backend alembic upgrade head
 docker compose exec backend alembic revision --autogenerate -m "description"
 ```
 
+### Migration data-mutation convention (2026-06-25)
+
+**Rule:** When a migration needs to make a column NOT NULL and some rows have NULL values, **use `UPDATE` with a sentinel value — never `DELETE`.**
+
+Deletes are irreversible (downgrade cannot recover deleted rows) and destroy audit trails, analytics history, and forensic data.
+
+```python
+# ❌ WRONG — destroys data permanently
+op.execute("DELETE FROM analytics_events WHERE user_id IS NULL")
+
+# ✅ CORRECT — preserves rows, marks orphaned data
+op.execute(
+    "UPDATE analytics_events SET user_id = -1 "
+    "WHERE user_id IS NULL"
+)
+# Then add a comment explaining the sentinel:
+# -1 = orphaned/system row (pre-migration NULL user_id)
+```
+
+**Pre-flight checklist (run BEFORE the migration):**
+
+1. `SELECT COUNT(*) FROM <table> WHERE <col> IS NULL` — log the result.
+2. If count > 1000, require explicit human sign-off.
+3. Choose a sentinel value that cannot collide with real data (e.g., `-1` for integer FKs, `'00000000-0000-0000-0000-000000000000'` for UUID FKs).
+4. Add a `CHECK` constraint or application-level guard so the sentinel is never used for real records.
+
+**Why this matters:** The `reconcile_schema_001` migration (2026-06-24) used `DELETE FROM analytics_events WHERE user_id IS NULL` before setting NOT NULL. This permanently destroyed all anonymous/system analytics events. A sentinel `UPDATE` would have preserved them.
+
 ## Docker Commands
 
 ```bash

@@ -81,6 +81,10 @@ TESTS RUN + RESULT (paste pytest tail):
 6. **Alembic migrations must be in the same commit as the model change.**
    Never deploy a model change without its migration. Never deploy a
    migration without a model change that needs it.
+7. **Never DELETE rows in a migration to satisfy a NOT NULL constraint.**
+   Use `UPDATE ... SET <col> = <sentinel>` instead. See
+   `backend/AGENTS.md` → "Migration data-mutation convention" for the
+   full pattern and pre-flight checklist.
 7. **Do not deploy.** Glenn reviews the audit, then deploys manually.
 
 ---
