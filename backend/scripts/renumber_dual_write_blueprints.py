@@ -59,15 +59,16 @@ async def _renumber_one(
         return {"status": "skipped_no_source", "old_id": old_bp.id}
 
     new_id = str(source_mission_id)
-    if old_bp.id == new_id:
-        return {"status": "already_ok", "old_id": old_bp.id}
+    old_id = str(old_bp.id)
+    if old_id == new_id:
+        return {"status": "already_ok", "old_id": old_id}
 
     # Check for collision: a blueprint with the deterministic ID already exists.
     existing = (
         await db.execute(select(Blueprint).where(Blueprint.id == new_id, Blueprint.deleted_at.is_(None)))
     ).scalar_one_or_none()
 
-    if existing is not None:
+    if existing is not None and str(existing.id) != old_id:
         # We have both a random-ID dual-written blueprint AND a deterministic-ID
         # blueprint for the same mission. Merge by repointing child rows and
         # deleting the random-ID one.
@@ -76,25 +77,25 @@ async def _renumber_one(
             "repointing children from %s and deleting duplicate",
             new_id,
             existing.id,
-            old_bp.id,
+            old_id,
         )
         if not dry_run:
             await db.execute(
                 text("UPDATE runs SET blueprint_id = :new_id WHERE blueprint_id = :old_id"),
-                {"new_id": new_id, "old_id": old_bp.id},
+                {"new_id": new_id, "old_id": old_id},
             )
             await db.execute(
                 text("UPDATE blueprint_versions SET blueprint_id = :new_id WHERE blueprint_id = :old_id"),
-                {"new_id": new_id, "old_id": old_bp.id},
+                {"new_id": new_id, "old_id": old_id},
             )
             await db.execute(
                 text("DELETE FROM blueprints WHERE id = :old_id"),
-                {"old_id": old_bp.id},
+                {"old_id": old_id},
             )
             await db.commit()
         return {
             "status": "merged_collision",
-            "old_id": old_bp.id,
+            "old_id": old_id,
             "new_id": new_id,
         }
 
@@ -122,23 +123,23 @@ async def _renumber_one(
                 WHERE id = :old_id
                 """
             ),
-            {"new_id": new_id, "old_id": old_bp.id},
+            {"new_id": new_id, "old_id": old_id},
         )
         await db.execute(
             text("UPDATE runs SET blueprint_id = :new_id WHERE blueprint_id = :old_id"),
-            {"new_id": new_id, "old_id": old_bp.id},
+            {"new_id": new_id, "old_id": old_id},
         )
         await db.execute(
             text("UPDATE blueprint_versions SET blueprint_id = :new_id WHERE blueprint_id = :old_id"),
-            {"new_id": new_id, "old_id": old_bp.id},
+            {"new_id": new_id, "old_id": old_id},
         )
         await db.execute(
             text("DELETE FROM blueprints WHERE id = :old_id"),
-            {"old_id": old_bp.id},
+            {"old_id": old_id},
         )
         await db.commit()
 
-    return {"status": "renumbered", "old_id": old_bp.id, "new_id": new_id}
+    return {"status": "renumbered", "old_id": old_id, "new_id": new_id}
 
 
 async def _gather_candidates(db: AsyncSession) -> list[Blueprint]:
@@ -150,7 +151,7 @@ async def _gather_candidates(db: AsyncSession) -> list[Blueprint]:
         Blueprint.definition["_source_mission_id"].astext != "",
     )
     all_bps = list((await db.execute(stmt)).scalars().all())
-    candidates = [bp for bp in all_bps if bp.id != bp.definition.get("_source_mission_id")]
+    candidates = [bp for bp in all_bps if str(bp.id) != (bp.definition or {}).get("_source_mission_id")]
     return candidates
 
 
