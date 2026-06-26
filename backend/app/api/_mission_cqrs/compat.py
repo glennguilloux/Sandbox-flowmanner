@@ -364,10 +364,7 @@ async def active_missions_from_blueprints(
     #   func.count + func.sum + TASK_COMPLETED are all kept inline so the
     #   fail-first regression test can verify the math patterns.
     blueprint_ids = [str(bp.id) for bp, _ in rows]
-    nodes_by_bp: dict[str, int] = {
-        str(bp.id): len((bp.definition or {}).get("nodes") or [])
-        for bp, _ in rows
-    }
+    nodes_by_bp: dict[str, int] = {str(bp.id): len((bp.definition or {}).get("nodes") or []) for bp, _ in rows}
     completed_by_bp: dict[str, int] = {}
     if blueprint_ids:
         event_stats_stmt = (

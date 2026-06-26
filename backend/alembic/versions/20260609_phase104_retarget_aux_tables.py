@@ -1,7 +1,7 @@
 """Phase 10.4: Retarget auxiliary tables to blueprints + runs.
 
-Adds new FK columns to mission_improvements, mission_triggers, and
-mission_circuit_breakers pointing to the new blueprints and runs tables.
+Adds new FK columns to mission_triggers and mission_circuit_breakers
+pointing to the new blueprints and runs tables.
 
 These columns are populated during dual-write (Phase 5) and the old
 FK columns are dropped in the Phase 10.3 cleanup migration.
@@ -88,29 +88,6 @@ def upgrade() -> None:
             "Target apply date: 2026-06-23."
         )
 
-    # ── mission_improvements: add run_id FK ──────────────────────────
-    # Table may have been dropped in phase 10.3 — skip if absent.
-    if _table_exists("mission_improvements"):
-        if not _column_exists("mission_improvements", "run_id"):
-            op.add_column(
-                "mission_improvements",
-                sa.Column(
-                    "run_id",
-                    postgresql.UUID(as_uuid=True),
-                    nullable=True,
-                ),
-            )
-        if not _index_exists("ix_mission_improvements_run_id"):
-            op.create_index("ix_mission_improvements_run_id", "mission_improvements", ["run_id"])
-        if not _constraint_exists("fk_mission_improvements_run_id", "mission_improvements"):
-            op.create_foreign_key(
-                "fk_mission_improvements_run_id",
-                "mission_improvements",
-                "runs",
-                ["run_id"],
-                ["id"],
-            )
-
     # ── mission_triggers: add blueprint_id FK ────────────────────────
     if _table_exists("mission_triggers"):
         if not _column_exists("mission_triggers", "blueprint_id"):
@@ -173,6 +150,4 @@ def downgrade() -> None:
     op.drop_index("ix_mission_triggers_blueprint_id", table_name="mission_triggers")
     op.drop_column("mission_triggers", "blueprint_id")
 
-    op.drop_constraint("fk_mission_improvements_run_id", "mission_improvements", type_="foreignkey")
-    op.drop_index("ix_mission_improvements_run_id", table_name="mission_improvements")
-    op.drop_column("mission_improvements", "run_id")
+    # that table was retired by phase103

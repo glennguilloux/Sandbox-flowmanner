@@ -1,0 +1,30 @@
+=== Phase 3.5 Cutover — Phase A (B1–B5) Fix Verification ===
+Date: 2026-06-26
+Commit: 04327ae
+Phase: Phase A (pre-cutover bug fixes)
+
+Before (commit fda8b0b):
+  B1 test_backfill_idempotency_b1.py             F F F
+  B2 test_phase104_dropped_table_b2.py           F
+  B3 test_compat_progress_no_mission_task_b3.py  F F
+  B4 test_dual_write_failure_logged_at_warning_b4.py F F
+  B5 test_execute_async_no_silent_fallback_b5.py F F
+  TOTAL: 10 failures
+
+After (commit <this commit>):
+  B1 test_backfill_idempotency_b1.py             P P P
+  B2 test_phase104_dropped_table_b2.py           P
+  B3 test_compat_progress_no_mission_task_b3.py  P P
+  B4 test_dual_write_failure_logged_at_warning_b4.py P P
+  B5 test_execute_async_no_silent_fallback_b5.py P P
+  TOTAL: 10 passes, 0 failures
+
+Substrate baseline: 52 non-DB-dependent substrate tests all PASS.
+11 pre-existing infrastructure-only failures unchanged (PG DNS, missing migrations).
+
+Fixes applied:
+  B1: Added "_source_mission_id": str(mission.id) to definition dict
+  B2: Removed mission_improvements block from phase104 migration (code + docstring + downgrade)
+  B3: Already present in fda8b0b — verified working
+  B4: Already present in fda8b0b — verified working
+  B5: Already present in fda8b0b — verified working
