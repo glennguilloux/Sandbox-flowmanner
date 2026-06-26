@@ -30,13 +30,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import sys
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, text
 
 from app.database import AsyncSessionLocal
-from app.models.blueprint_models import Blueprint, BlueprintVersion, Run
+from app.models.blueprint_models import Blueprint
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
