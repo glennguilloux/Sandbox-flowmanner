@@ -356,56 +356,58 @@ class MissionCommandHandlers(CommandHandlerBase):
             }
 
             # Phase 10.1 DUAL-WRITE: Also create a Run (fire-and-forget)
-            try:
+            async def _dual_write_run():
                 from app.database import AsyncSessionLocal
                 from app.services.run_service import RunService
 
-                async def _dual_write_run():
-                    try:
-                        async with AsyncSessionLocal() as run_db:
-                            # Find the linked blueprint by source_mission_id
-                            from sqlalchemy import select as _sel
+                async def _op():
+                    async with AsyncSessionLocal() as run_db:
+                        # Find the linked blueprint by source_mission_id
+                        from sqlalchemy import select as _sel
 
-                            from app.models.blueprint_models import Blueprint
+                        from app.models.blueprint_models import Blueprint
 
-                            bp_result = await run_db.execute(
-                                _sel(Blueprint).where(
-                                    Blueprint.definition["_source_mission_id"].astext == str(mission_id),
-                                    Blueprint.deleted_at.is_(None),
-                                )
+                        bp_result = await run_db.execute(
+                            _sel(Blueprint).where(
+                                Blueprint.definition["_source_mission_id"].astext == str(mission_id),
+                                Blueprint.deleted_at.is_(None),
                             )
-                            bp = bp_result.scalars().first()
-                            if bp is None:
-                                logger.debug(
-                                    "No linked blueprint for mission %s — skipping run dual-write",
-                                    mission_id,
-                                )
-                                return
-                            run_svc = RunService(run_db)
-                            run = await run_svc.create_from_blueprint(
-                                blueprint_id=str(bp.id),
-                                user_id=user.id,
+                        )
+                        bp = bp_result.scalars().first()
+                        if bp is None:
+                            logger.debug(
+                                "No linked blueprint for mission %s — skipping run dual-write",
+                                mission_id,
                             )
-                            # Copy execution results from StrategyResult
-                            run.started_at = datetime.now(UTC)
-                            run.status = strategy_result.status
-                            run.total_tokens = strategy_result.total_tokens
-                            run.total_cost_usd = strategy_result.total_cost_usd
-                            run.error_message = strategy_result.error
-                            run.output_data = strategy_result.data if strategy_result.success else None
-                            if strategy_result.status in (
-                                "completed",
-                                "failed",
-                                "aborted",
-                            ):
-                                run.completed_at = datetime.now(UTC)
-                            await run_db.commit()
-                    except Exception:
-                        logger.warning("Dual-write run creation failed", exc_info=True)
+                            return
+                        run_svc = RunService(run_db)
+                        run = await run_svc.create_from_blueprint(
+                            blueprint_id=str(bp.id),
+                            user_id=user.id,
+                        )
+                        # Copy execution results from StrategyResult
+                        run.started_at = datetime.now(UTC)
+                        run.status = strategy_result.status
+                        run.total_tokens = strategy_result.total_tokens
+                        run.total_cost_usd = strategy_result.total_cost_usd
+                        run.error_message = strategy_result.error
+                        run.output_data = strategy_result.data if strategy_result.success else None
+                        if strategy_result.status in (
+                            "completed",
+                            "failed",
+                            "aborted",
+                        ):
+                            run.completed_at = datetime.now(UTC)
+                        await run_db.commit()
 
-                _schedule_fire_and_forget(_dual_write_run())
-            except Exception:
-                logger.warning("Dual-write run scheduling failed", exc_info=True)
+                await _run_with_retry(
+                    _op,
+                    operation="create_run",
+                    mission_id=str(mission_id),
+                    user_id=user.id,
+                )
+
+            _schedule_fire_and_forget(_dual_write_run())
 
             # Track analytics event (fire-and-forget)
             try:
