@@ -9,7 +9,6 @@ ownership predicates, and budget reads flow through one code path.
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import TYPE_CHECKING
 
 from app.schemas.program import (
@@ -24,6 +23,8 @@ from .base import QueryHandlerBase
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    import uuid
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -46,7 +47,7 @@ class ProgramQueryHandlers(QueryHandlerBase):
     ) -> tuple[list[ProgramResponse], int]:
         """List programs the user can see, optionally filtered by workspace."""
         service = self._build_service()
-        items, total = await service.list(
+        items, total = await service.list_programs(
             user_id=user_id,
             workspace_id=workspace_id,
             page=page,
@@ -77,9 +78,7 @@ class ProgramQueryHandlers(QueryHandlerBase):
     ) -> tuple[list[ProgramRunResponse], int]:
         """List program runs (newest first)."""
         service = self._build_service()
-        items, total = await service.list_runs(
-            program_id=program_id, page=page, per_page=per_page
-        )
+        items, total = await service.list_runs(program_id=program_id, page=page, per_page=per_page)
         return [ProgramRunResponse.model_validate(r) for r in items], total
 
     # ── Learning brief ───────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 This service is the canonical write/read surface for ``MissionProgram`` and
 ``ProgramRun`` rows. It implements:
 
-* CRUD: ``create``, ``get``, ``list``, ``update``, ``archive``
+* CRUD: ``create``, ``get``, ``list_programs``, ``update``, ``archive``
 * Runs: ``list_runs`` (read-only listing — fire/consolidate are in T8/T9)
 * Learning brief helpers: ``get_learning_brief``, ``update_user_notes``
 * Budget helper: ``_check_program_budget`` (per-run + monthly caps, T10)
@@ -169,13 +169,13 @@ class MissionProgramService:
             raise ProgramForbidden("user is not owner or workspace member")
         return program
 
-    async def list(
+    async def list_programs(  # Renamed from list: shadows builtin inside class body
         self,
         user_id: int,
         workspace_id: str | None,
         page: int,
         per_page: int,
-    ) -> tuple[list[MissionProgram], int]:  # type: ignore[valid-type]
+    ) -> tuple[list[MissionProgram], int]:
         """Return paginated programs the user can see.
 
         Access predicate: owned by user OR in a workspace the user is an
@@ -258,9 +258,9 @@ class MissionProgramService:
         self._safe_audit("program_deleted", program_id=str(program.id), user_id=user_id)
         return program
 
-    # ── Runs ──────────────────────────────────────────────────────────
+        # ── Runs ──────────────────────────────────────────────────────────
 
-    async def list_runs(self, program_id: uuid.UUID, page: int, per_page: int) -> tuple[list[ProgramRun], int]:  # type: ignore[valid-type]
+    async def list_runs(self, program_id: uuid.UUID, page: int, per_page: int) -> tuple[list[ProgramRun], int]:
         """Paginated listing of runs for a program (newest first)."""
         offset = (page - 1) * per_page
         total = (
@@ -315,7 +315,7 @@ class MissionProgramService:
 
         # 2. Status gate: only ACTIVE programs can be fired.
         if program.status != ProgramStatus.ACTIVE.value:
-            raise ProgramTransitionConflict(f"cannot fire program in status {program.status!r} " "(must be 'active')")
+            raise ProgramTransitionConflict(f"cannot fire program in status {program.status!r} (must be 'active')")
 
         # 3. Budget pre-check (per-run + monthly caps, T10).
         estimated_cost = 0.05  # default planning estimate (USD)
@@ -795,7 +795,7 @@ class MissionProgramService:
         )
 
         logger.info(
-            "program.improvement_batch_applied program_id=%s user_id=%s " "adjustments=%d tools=%d failures=%d",
+            "program.improvement_batch_applied program_id=%s user_id=%s adjustments=%d tools=%d failures=%d",
             program_id,
             user_id,
             len(new_adjustments),
@@ -818,8 +818,7 @@ class MissionProgramService:
         # Per-run cap.
         if program.per_run_budget_usd is not None and estimated_cost_usd > program.per_run_budget_usd:
             raise ProgramBudgetExceeded(
-                f"per_run budget exceeded: estimated ${estimated_cost_usd:.4f} > "
-                f"cap ${program.per_run_budget_usd:.4f}"
+                f"per_run budget exceeded: estimated ${estimated_cost_usd:.4f} > cap ${program.per_run_budget_usd:.4f}"
             )
         # Monthly cap.
         if program.monthly_budget_usd is not None:
@@ -834,7 +833,7 @@ class MissionProgramService:
             projected = current_spend + estimated_cost_usd
             if projected > program.monthly_budget_usd:
                 raise ProgramBudgetExceeded(
-                    f"monthly budget exceeded: ${projected:.4f} > " f"cap ${program.monthly_budget_usd:.4f}"
+                    f"monthly budget exceeded: ${projected:.4f} > cap ${program.monthly_budget_usd:.4f}"
                 )
 
     # ── Internal helpers ─────────────────────────────────────────────

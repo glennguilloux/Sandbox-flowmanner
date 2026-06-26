@@ -41,15 +41,15 @@ os.environ.setdefault(
 )
 
 # Late imports so env var is honored.
-from app.models.mission_models import Mission  # noqa: E402
-from app.models.mission_program_models import (  # noqa: E402
+from app.models.mission_models import Mission
+from app.models.mission_program_models import (
     MissionProgram,
     ProgramRun,
 )
-from app.models.user import User  # noqa: E402
-from app.models.workspace_models import Workspace, WorkspaceMember  # noqa: E402
-from app.schemas.program import ProgramCreate, ProgramUpdate  # noqa: E402
-from app.services.mission_program_service import (  # noqa: E402
+from app.models.user import User
+from app.models.workspace_models import Workspace, WorkspaceMember
+from app.schemas.program import ProgramCreate, ProgramUpdate
+from app.services.mission_program_service import (
     MissionProgramService,
     ProgramBudgetExceeded,
     ProgramError,
@@ -133,9 +133,7 @@ async def _make_workspace(session: AsyncSession, *, owner_id: int) -> Workspace:
     return ws
 
 
-async def _make_member(
-    session: AsyncSession, *, workspace_id: str, user_id: int
-) -> WorkspaceMember:
+async def _make_member(session: AsyncSession, *, workspace_id: str, user_id: int) -> WorkspaceMember:
     member = WorkspaceMember(
         workspace_id=workspace_id,
         user_id=user_id,
@@ -176,14 +174,13 @@ async def ctx():
                     # blocked. Disable the trigger for the duration of the
                     # cleanup, re-enable after. Order matters: children first.
                     await cleanup.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "DISABLE TRIGGER trg_substrate_events_append_only"
-                        )
+                        text("ALTER TABLE substrate_events DISABLE TRIGGER trg_substrate_events_append_only")
                     )
                     await cleanup.execute(
-                        text("DELETE FROM program_runs WHERE program_id IN "
-                             "(SELECT id FROM mission_programs WHERE user_id = :uid)"),
+                        text(
+                            "DELETE FROM program_runs WHERE program_id IN "
+                            "(SELECT id FROM mission_programs WHERE user_id = :uid)"
+                        ),
                         {"uid": owner.id},
                     )
                     await cleanup.execute(
@@ -207,10 +204,7 @@ async def ctx():
                         {"uid": owner.id},
                     )
                     await cleanup.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "ENABLE TRIGGER trg_substrate_events_append_only"
-                        )
+                        text("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
                     )
                     await cleanup.commit()
             except Exception:
@@ -219,10 +213,7 @@ async def ctx():
                 try:
                     async with TestSessionLocal() as s2:
                         await s2.execute(
-                            text(
-                                "ALTER TABLE substrate_events "
-                                "ENABLE TRIGGER trg_substrate_events_append_only"
-                            )
+                            text("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
                         )
                         await s2.commit()
                 except Exception:
@@ -295,9 +286,7 @@ async def test_get_for_non_owner_non_member_raises_forbidden(ctx) -> None:
                 await service2.get(user_id=outsider_id, program_id=program.id)
     finally:
         async with TestSessionLocal() as s3:
-            await s3.execute(
-                text("DELETE FROM users WHERE id = :uid"), {"uid": outsider_id}
-            )
+            await s3.execute(text("DELETE FROM users WHERE id = :uid"), {"uid": outsider_id})
             await s3.commit()
 
 
@@ -380,9 +369,7 @@ async def test_update_user_notes_preserves_structured_fields(ctx) -> None:
     existing_brief: dict[str, Any] = {
         "total_runs": 12,
         "success_rate": 0.75,
-        "common_failures": [
-            {"pattern": "tool_timeout", "count": 3, "mitigation": "retry"}
-        ],
+        "common_failures": [{"pattern": "tool_timeout", "count": 3, "mitigation": "retry"}],
         "effective_tools": ["web_search"],
         "ineffective_tools": ["shell_exec"],
         "plan_adjustments": "skip sundays",
@@ -400,9 +387,7 @@ async def test_update_user_notes_preserves_structured_fields(ctx) -> None:
     assert updated.learning_brief is not None
     assert updated.learning_brief["user_notes"] == "Avoid Mondays — high load"
     # Structured fields are preserved verbatim.
-    assert updated.learning_brief["common_failures"] == [
-        {"pattern": "tool_timeout", "count": 3, "mitigation": "retry"}
-    ]
+    assert updated.learning_brief["common_failures"] == [{"pattern": "tool_timeout", "count": 3, "mitigation": "retry"}]
     assert updated.learning_brief["effective_tools"] == ["web_search"]
     assert updated.learning_brief["plan_adjustments"] == "skip sundays"
     assert updated.learning_brief["total_runs"] == 12
@@ -436,7 +421,7 @@ async def test_list_filters_by_workspace_id(ctx) -> None:
     await ctx["session"].commit()
 
     # Filter by owner-ws.
-    items, total = await service.list(
+    items, total = await service.list_programs(
         user_id=ctx["owner"].id,
         workspace_id=ctx["workspace"].id,
         page=1,
@@ -448,11 +433,10 @@ async def test_list_filters_by_workspace_id(ctx) -> None:
     assert total >= 1
 
     # No filter — see both.
-    items_all, _ = await service.list(
-        user_id=ctx["owner"].id, workspace_id=None, page=1, per_page=50
-    )
+    items_all, _ = await service.list_programs(user_id=ctx["owner"].id, workspace_id=None, page=1, per_page=50)
     ids_all = {p.id for p in items_all}
-    assert p_in.id in ids_all and p_out.id in ids_all
+    assert p_in.id in ids_all
+    assert p_out.id in ids_all
 
 
 # ── (g) _check_program_budget per_run cap rejects when estimated > cap ──
@@ -569,9 +553,7 @@ async def test_archive_paused_to_archived_succeeds(ctx) -> None:
 
     # ACTIVE → PAUSED via PATCH.
     patch = ProgramUpdate(status="paused")
-    paused = await service.update(
-        user_id=ctx["owner"].id, program_id=program.id, patch=patch
-    )
+    paused = await service.update(user_id=ctx["owner"].id, program_id=program.id, patch=patch)
     await ctx["session"].commit()
     assert paused.status == "paused"
 
