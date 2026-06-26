@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -75,8 +74,21 @@ async def verify_counts(db: AsyncSession) -> list[str]:
 
 
 async def verify_sample_integrity(db: AsyncSession, sample_size: int = 100) -> list[str]:
-    """Sample random missions and verify corresponding blueprint data."""
+    """Sample random missions and verify corresponding blueprint data.
+
+    Uses ``_source_mission_id`` linkage (the canonical dual-write mechanism)
+    rather than title+user_id matching, which can produce false matches when
+    multiple blueprints share the same title.
+    """
     issues = []
+
+    # Pre-fetch all blueprints indexed by _source_mission_id for O(1) lookup
+    bp_by_source: dict[str, Blueprint] = {}
+    bp_stmt = select(Blueprint).where(Blueprint.deleted_at.is_(None))
+    for bp in (await db.execute(bp_stmt)).scalars().all():
+        src = (bp.definition or {}).get("_source_mission_id")
+        if src:
+            bp_by_source[str(src)] = bp
 
     # Get random mission IDs
     mission_ids = (
@@ -95,19 +107,11 @@ async def verify_sample_integrity(db: AsyncSession, sample_size: int = 100) -> l
         if mission is None:
             continue
 
-        # Check if blueprint exists for this mission
-        bp = (
-            await db.execute(
-                select(Blueprint).where(
-                    Blueprint.deleted_at.is_(None),
-                    Blueprint.user_id == mission.user_id,
-                    Blueprint.title == mission.title,
-                )
-            )
-        ).scalar_one_or_none()
+        # PRIMARY: check _source_mission_id linkage (canonical dual-write path)
+        bp = bp_by_source.get(str(mission_id))
 
         if bp is None:
-            issues.append(f"Mission {mission_id} has no corresponding blueprint")
+            issues.append(f"Mission {mission_id} has no corresponding blueprint via _source_mission_id")
             continue
 
         # Verify basic data match
