@@ -126,6 +126,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                         bp_svc = BlueprintService(bp_db)
                         await bp_svc.create(
                             user_id=user.id,
+                            blueprint_id=str(result.id),
                             title=payload.title,
                             description=payload.description or "",
                             blueprint_type=payload.mission_type or "solo",

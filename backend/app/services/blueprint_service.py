@@ -20,6 +20,8 @@ from app.models.blueprint_models import (
 from app.models.workspace_models import WorkspaceMember
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -59,10 +61,17 @@ class BlueprintService:
         category: str | None = None,
         icon: str | None = None,
         workspace_id: str | None = None,
+        blueprint_id: str | None = None,
     ) -> Blueprint:
-        """Create a new blueprint and its initial version snapshot."""
+        """Create a new blueprint and its initial version snapshot.
+
+        Args:
+            blueprint_id: Optional explicit blueprint ID. Used by the
+                mission dual-write path so that ``Blueprint.id`` matches the
+                source ``Mission.id`` for deterministic 1-to-1 linkage.
+        """
         bp = Blueprint(
-            id=str(uuid4()),
+            id=blueprint_id if blueprint_id is not None else str(uuid4()),
             user_id=user_id,
             title=title,
             description=description,
@@ -185,7 +194,7 @@ class BlueprintService:
 
     # ── Version history ─────────────────────────────────────────────
 
-    async def get_versions(self, blueprint_id: str, user_id: int) -> list[BlueprintVersion]:
+    async def get_versions(self, blueprint_id: str, user_id: int) -> Sequence[BlueprintVersion]:
         """Get version history for a blueprint."""
         await self.get(blueprint_id, user_id)  # ownership check
         result = await self.db.execute(
