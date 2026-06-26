@@ -1666,7 +1666,7 @@ class TestListingAndFiltering:
             return count_result if call_count <= 1 else items_result
 
         mock_db.execute = AsyncMock(side_effect=_execute)
-        result, total = await svc.list(42, status="completed")
+        result, total = await svc.list_runs(42, status="completed")  # RunService: renamed from .list (shadowed builtin)
         assert len(result) == 2
         assert total == 2
 

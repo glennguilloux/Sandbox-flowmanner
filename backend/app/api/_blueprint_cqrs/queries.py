@@ -93,7 +93,7 @@ class RunQueryHandlers(QueryHandlerBase):
         status: str | None = None,
     ) -> PaginatedRuns:
         svc = RunService(self.session)
-        items, total = await svc.list(
+        items, total = await svc.list_runs(  # RunService: renamed from .list (was shadowing builtin)
             user_id,
             page=page,
             per_page=per_page,

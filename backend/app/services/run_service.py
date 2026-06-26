@@ -242,7 +242,7 @@ class RunService:
         await self._check_access(run, user_id)
         return run
 
-    async def list(
+    async def list_runs(  # renamed from `list` (couldn't be `list`: shadows builtin inside class body)
         self,
         user_id: int,
         page: int = 1,
@@ -251,7 +251,13 @@ class RunService:
         blueprint_id: str | None = None,
         status: str | None = None,
     ) -> tuple[list[Run], int]:
-        """List runs with filtering and pagination."""
+        """List runs with filtering and pagination.
+
+        Renamed from ``list`` to ``list_runs`` because class-method ``list``
+        shadows ``builtins.list`` inside the class body, making mypy reject
+        ``-> list[Run]`` with [valid-type].  Run-service callers now
+        invoke ``svc.list_runs(...)`` instead of ``svc.list(...)``.
+        """
         stmt = select(Run)
 
         if workspace_id is not None:
