@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -49,7 +48,12 @@ from app.services.mission_service import (
 )
 from app.services.self_improvement import SelfImprovementEngine
 
-from .base import CommandHandlerBase, _make_execution_status, _schedule_fire_and_forget
+from .base import (
+    CommandHandlerBase,
+    _make_execution_status,
+    _run_with_retry,
+    _schedule_fire_and_forget,
+)
 from .compat import (
     dual_write_soft_delete_blueprint,
     dual_write_sync_blueprint,
@@ -57,6 +61,8 @@ from .compat import (
 )
 
 if TYPE_CHECKING:
+    import uuid
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -111,29 +117,31 @@ class MissionCommandHandlers(CommandHandlerBase):
 
             # Phase 10.1 DUAL-WRITE: Also create a Blueprint (fire-and-forget)
             # Runs AFTER the main mission is committed to avoid rollback on errors.
-            try:
+            async def _dual_write_blueprint():
                 from app.database import AsyncSessionLocal
                 from app.services.blueprint_service import BlueprintService
 
-                async def _dual_write_blueprint():
-                    try:
-                        async with AsyncSessionLocal() as bp_db:
-                            bp_svc = BlueprintService(bp_db)
-                            bp = await bp_svc.create(
-                                user_id=user.id,
-                                title=payload.title,
-                                description=payload.description or "",
-                                blueprint_type=payload.mission_type or "solo",
-                                workspace_id=workspace_id,
-                                definition={"_source_mission_id": str(result.id)},
-                            )
-                            await bp_db.commit()
-                    except Exception:
-                        logger.warning("Dual-write blueprint creation failed", exc_info=True)
+                async def _op():
+                    async with AsyncSessionLocal() as bp_db:
+                        bp_svc = BlueprintService(bp_db)
+                        await bp_svc.create(
+                            user_id=user.id,
+                            title=payload.title,
+                            description=payload.description or "",
+                            blueprint_type=payload.mission_type or "solo",
+                            workspace_id=workspace_id,
+                            definition={"_source_mission_id": str(result.id)},
+                        )
+                        await bp_db.commit()
 
-                _schedule_fire_and_forget(_dual_write_blueprint())
-            except Exception:
-                logger.warning("Dual-write blueprint scheduling failed", exc_info=True)
+                await _run_with_retry(
+                    _op,
+                    operation="create_blueprint",
+                    mission_id=str(result.id),
+                    user_id=user.id,
+                )
+
+            _schedule_fire_and_forget(_dual_write_blueprint())
 
             return result
 

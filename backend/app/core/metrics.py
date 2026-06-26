@@ -133,6 +133,14 @@ deploy_success_total = Gauge(
     "Successful deployment attempts",
 )
 
+# ─── Dual-Write Metrics ────────────────────────────────────────────────────
+
+dual_write_failures_total = Counter(
+    "flowmanner_dual_write_failures_total",
+    "Dual-write failures after all retry attempts exhausted",
+    ["site"],  # site: create_blueprint, sync_run_status, sync_blueprint, soft_delete_blueprint
+)
+
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 

@@ -9,22 +9,24 @@ consumers (v1, v2, frontend) continue to work without changes.
 
 from __future__ import annotations
 
-import logging
 import os
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from sqlalchemy import case, func, select
 
 from app.models.blueprint_models import Blueprint, Run
 from app.schemas.mission import MissionResponse
 
+from .base import _run_with_retry
+
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def use_new_reads() -> bool:
@@ -443,10 +445,11 @@ async def dual_write_sync_run_status(
     Called as fire-and-forget after mission status mutations.
     Opens its own session to avoid interfering with the main transaction.
     Accepts MissionStatus values and maps them to RunStatus internally.
+    Uses retry with exponential backoff for transient DB failures.
     """
     from app.database import AsyncSessionLocal
 
-    try:
+    async def _op():
         async with AsyncSessionLocal() as db:
             bp = await _find_blueprint(db, mission_id)
             if bp is None:
@@ -460,8 +463,14 @@ async def dual_write_sync_run_status(
             if completed_at is not None:
                 run.completed_at = completed_at
             await db.commit()
-    except Exception:
-        logger.warning("dual_write_sync_run_status_failed mission_id=%s", mission_id, exc_info=True)
+
+    await _run_with_retry(
+        _op,
+        operation="sync_run_status",
+        mission_id=mission_id,
+        user_id=user_id,
+        target_status=status,
+    )
 
 
 async def dual_write_sync_blueprint(
@@ -472,10 +481,11 @@ async def dual_write_sync_blueprint(
     """Update Blueprint fields (title, description, etc.) for a mission.
 
     Called as fire-and-forget after mission update mutations.
+    Uses retry with exponential backoff for transient DB failures.
     """
     from app.database import AsyncSessionLocal
 
-    try:
+    async def _op():
         async with AsyncSessionLocal() as db:
             bp = await _find_blueprint(db, mission_id)
             if bp is None:
@@ -485,8 +495,14 @@ async def dual_write_sync_blueprint(
                     setattr(bp, key, value)
             bp.updated_at = datetime.now(UTC)
             await db.commit()
-    except Exception:
-        logger.warning("dual_write_sync_blueprint_failed mission_id=%s", mission_id, exc_info=True)
+
+    await _run_with_retry(
+        _op,
+        operation="sync_blueprint",
+        mission_id=mission_id,
+        user_id=user_id,
+        fields=list(kwargs.keys()),
+    )
 
 
 async def dual_write_soft_delete_blueprint(
@@ -496,10 +512,11 @@ async def dual_write_soft_delete_blueprint(
     """Soft-delete the Blueprint linked to a mission.
 
     Called as fire-and-forget after mission deletion.
+    Uses retry with exponential backoff for transient DB failures.
     """
     from app.database import AsyncSessionLocal
 
-    try:
+    async def _op():
         async with AsyncSessionLocal() as db:
             bp = await _find_blueprint(db, mission_id)
             if bp is None:
@@ -507,8 +524,13 @@ async def dual_write_soft_delete_blueprint(
             bp.deleted_at = datetime.now(UTC)
             bp.deleted_by = user_id
             await db.commit()
-    except Exception:
-        logger.debug("dual_write_soft_delete_failed mission_id=%s", mission_id, exc_info=True)
+
+    await _run_with_retry(
+        _op,
+        operation="soft_delete_blueprint",
+        mission_id=mission_id,
+        user_id=user_id,
+    )
 
 
 # ── MissionShim: Mission-compatible object for ORM callers ───────────────

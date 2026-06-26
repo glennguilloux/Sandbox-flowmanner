@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import os
 from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -129,7 +130,7 @@ def sample_dag_definition():
 
 
 @pytest.fixture
-def _mock_execute_result():
+def mock_execute_result():
     """A successful StrategyResult for mocking UnifiedExecutor.execute()."""
     from app.services.substrate.workflow_models import StrategyResult
 
@@ -147,7 +148,7 @@ def _mock_execute_result():
 
 
 @pytest.fixture
-def _mock_failed_result():
+def mock_failed_result():
     """A failed StrategyResult for testing retry flows."""
     from app.services.substrate.workflow_models import StrategyResult
 
@@ -539,7 +540,10 @@ class TestRunLifecycle:
 
     @pytest.mark.asyncio
     async def test_execute_run_transitions_to_completed(
-        self, mock_db, sample_blueprint_definition, _mock_execute_result
+        self,
+        mock_db,
+        sample_blueprint_definition,
+        mock_execute_result,
     ):
         """execute() must transition pending → executing → completed."""
         from app.services.run_service import RunService
@@ -579,7 +583,7 @@ class TestRunLifecycle:
             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter,
         ):
             mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=_mock_execute_result)
+            mock_executor.execute = AsyncMock(return_value=mock_execute_result)
             mock_get_exec.return_value = mock_executor
             mock_adapter.return_value = MagicMock()
 
@@ -596,7 +600,10 @@ class TestRunLifecycle:
 
     @pytest.mark.asyncio
     async def test_execute_run_records_events_with_blueprint_id(
-        self, mock_db, sample_blueprint_definition, _mock_execute_result
+        self,
+        mock_db,
+        sample_blueprint_definition,
+        mock_execute_result,
     ):
         """The UnifiedExecutor.execute() call must pass blueprint_id."""
         from app.services.run_service import RunService
@@ -633,7 +640,7 @@ class TestRunLifecycle:
             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter,
         ):
             mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=_mock_execute_result)
+            mock_executor.execute = AsyncMock(return_value=mock_execute_result)
             mock_get_exec.return_value = mock_executor
             mock_adapter.return_value = MagicMock()
 
@@ -644,7 +651,7 @@ class TestRunLifecycle:
             assert call_kwargs.kwargs.get("blueprint_id") == bp_id
 
     @pytest.mark.asyncio
-    async def test_execute_non_pending_run_raises(self, mock_db, _mock_execute_result):
+    async def test_execute_non_pending_run_raises(self, mock_db, mock_execute_result):
         """Cannot execute a run that is not pending or queued."""
         from app.services.run_service import RunService, RunValidationError
 
@@ -659,7 +666,7 @@ class TestRunLifecycle:
             await svc.execute(str(run.id), 42)
 
     @pytest.mark.asyncio
-    async def test_execute_failed_run_records_error(self, mock_db, sample_blueprint_definition, _mock_failed_result):
+    async def test_execute_failed_run_records_error(self, mock_db, sample_blueprint_definition, mock_failed_result):
         """When UnifiedExecutor returns failed, Run must record error_message."""
         from app.services.run_service import RunService
 
@@ -695,7 +702,7 @@ class TestRunLifecycle:
             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter,
         ):
             mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=_mock_failed_result)
+            mock_executor.execute = AsyncMock(return_value=mock_failed_result)
             mock_get_exec.return_value = mock_executor
             mock_adapter.return_value = MagicMock()
 
@@ -1043,7 +1050,7 @@ class TestRunRetry:
     """Retry a failed run → verify new run is created with same blueprint/snapshot."""
 
     @pytest.mark.asyncio
-    async def test_retry_creates_new_run(self, mock_db, _mock_execute_result):
+    async def test_retry_creates_new_run(self, mock_db, mock_execute_result):
         """retry() must create a new Run with the same blueprint_id and snapshot."""
         from app.services.run_service import RunService
 
@@ -1701,7 +1708,7 @@ class TestFullBlueprintRunLifecycle:
     """
 
     @pytest.mark.asyncio
-    async def test_full_lifecycle(self, mock_db, sample_blueprint_definition, _mock_execute_result):
+    async def test_full_lifecycle(self, mock_db, sample_blueprint_definition, mock_execute_result):
         from app.services.blueprint_service import BlueprintService
         from app.services.run_service import RunService
         from app.services.substrate.replay_engine import ReplayEngine
@@ -1767,7 +1774,7 @@ class TestFullBlueprintRunLifecycle:
             patch("app.services.run_service.blueprint_to_workflow") as mock_adapter,
         ):
             mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=_mock_execute_result)
+            mock_executor.execute = AsyncMock(return_value=mock_execute_result)
             mock_get_exec.return_value = mock_executor
             mock_adapter.return_value = MagicMock()
             executed = await run_svc.execute(str(run.id), 42)
@@ -1946,6 +1953,7 @@ class TestDualWriteIntegration:
                 new_callable=AsyncMock,
                 return_value=MagicMock(allowed=True),
             ),
+            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
         ):
             payload = MagicMock(
                 title="Test Mission",
@@ -1957,12 +1965,11 @@ class TestDualWriteIntegration:
             handlers = MissionCommandHandlers(mock_db)
             await handlers.create_mission(mock_user, payload)
 
-        # Await all fire-and-forget coroutines (cache invalidation + dual-write)
-        for coro in _captured:
-            try:
-                await coro
-            except Exception:
-                pass
+            # Await captured fire-and-forget coroutines INSIDE the with block
+            # so patches are still active when the dual-write runs
+            for coro in _captured:
+                with contextlib.suppress(Exception):
+                    await coro
 
         # Verify BlueprintService.create was called with _source_mission_id
         mock_bp_svc.create.assert_called_once()
@@ -2053,6 +2060,7 @@ class TestDualWriteIntegration:
                 return_value=[],
             ),
             patch("app.services.run_service.RunService", return_value=mock_run_svc),
+            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=strategy_result)
@@ -2061,12 +2069,10 @@ class TestDualWriteIntegration:
             handlers = MissionCommandHandlers(mock_db)
             await handlers.execute_mission(mock_user, mission_id)
 
-        # Await fire-and-forget coroutines (dual-write run)
-        for coro in _captured:
-            try:
-                await coro
-            except Exception:
-                pass
+            # Await fire-and-forget coroutines INSIDE the with block
+            for coro in _captured:
+                with contextlib.suppress(Exception):
+                    await coro
 
         # Verify Run was created from the linked Blueprint
         mock_run_svc.create_from_blueprint.assert_called_once_with(
@@ -2153,6 +2159,7 @@ class TestDualWriteIntegration:
                 return_value=[],
             ),
             patch("app.services.run_service.RunService", return_value=mock_run_svc),
+            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=strategy_result)
@@ -2161,11 +2168,9 @@ class TestDualWriteIntegration:
             handlers = MissionCommandHandlers(mock_db)
             await handlers.execute_mission(mock_user, mission_id)
 
-        for coro in _captured:
-            try:
-                await coro
-            except Exception:
-                pass
+            for coro in _captured:
+                with contextlib.suppress(Exception):
+                    await coro
 
         mock_run_svc.create_from_blueprint.assert_not_called()
 
@@ -2251,6 +2256,7 @@ class TestDualWriteIntegration:
                 return_value=[],
             ),
             patch("app.services.run_service.RunService", return_value=mock_run_svc),
+            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_executor = AsyncMock()
             mock_executor.execute = AsyncMock(return_value=strategy_result)
@@ -2259,11 +2265,9 @@ class TestDualWriteIntegration:
             handlers = MissionCommandHandlers(mock_db)
             await handlers.execute_mission(mock_user, mission_id)
 
-        for coro in _captured:
-            try:
-                await coro
-            except Exception:
-                pass
+            for coro in _captured:
+                with contextlib.suppress(Exception):
+                    await coro
 
         mock_run_svc.create_from_blueprint.assert_called_once()
 
