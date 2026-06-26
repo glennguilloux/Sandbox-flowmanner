@@ -19,7 +19,6 @@ venv
 node_modules
 
 # Testing & CI
-tests/
 .pytest_cache/
 .coverage
 htmlcov/
