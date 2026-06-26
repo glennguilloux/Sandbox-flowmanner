@@ -18,8 +18,12 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COMMANDS_FILE = REPO_ROOT / "backend" / "app" / "api" / "_mission_cqrs" / "commands.py"
-BLUEPRINT_SERVICE_FILE = REPO_ROOT / "backend" / "app" / "services" / "blueprint_service.py"
+# When tests are copied into the backend image they live under /app/tests,
+# so the project root is /app, not /backend.
+if not (REPO_ROOT / "backend" / "app").exists():
+    REPO_ROOT = Path("/app")
+COMMANDS_FILE = REPO_ROOT / "app" / "api" / "_mission_cqrs" / "commands.py"
+BLUEPRINT_SERVICE_FILE = REPO_ROOT / "app" / "services" / "blueprint_service.py"
 
 
 def _read_commands_dual_write_block() -> str:
