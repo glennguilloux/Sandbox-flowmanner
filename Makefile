@@ -21,6 +21,8 @@ FRONTEND_DIR := /home/glenn/FlowmannerV2-frontend
 # ---- Python ----
 # Prefer the backend venv if it exists; fall back to bare python.
 PYTHON := $(shell test -x $(BACKEND_DIR)/.venv/bin/python && echo $(BACKEND_DIR)/.venv/bin/python || echo python)
+# Use python -m ruff when available, otherwise fall back to a ruff binary on PATH.
+RUFF := $(shell $(PYTHON) -m ruff --version > /dev/null 2>&1 && echo "$(PYTHON) -m ruff" || (command -v ruff > /dev/null 2>&1 && echo ruff || echo echo 'ruff not found'))
 
 # ---- Docker ----
 COMPOSE_PROD := docker compose -f $(PROJECT_ROOT)/docker-compose.yml
@@ -290,14 +292,14 @@ clean: ## Remove build artifacts and caches
 .PHONY: lint
 lint: ## Run linters
 	@echo -e "$(GREEN)Running backend linter...$(RESET)"
-	cd $(BACKEND_DIR) && python -m ruff check app/ --select E,F,W --ignore E501
+	cd $(BACKEND_DIR) && $(RUFF) check app/ --select E,F,W --ignore E501
 	@echo -e "$(GREEN)Running frontend linter...$(RESET)"
 	cd $(FRONTEND_DIR) && npx next lint 2>/dev/null || true
 
 .PHONY: format
 format: ## Run formatters
 	@echo -e "$(GREEN)Formatting backend code...$(RESET)"
-	cd $(BACKEND_DIR) && python -m ruff format app/
+	cd $(BACKEND_DIR) && $(RUFF) format app/
 	@echo -e "$(GREEN)Formatting frontend code...$(RESET)"
 	cd $(FRONTEND_DIR) && npx prettier --write "src/**/*.{ts,tsx}" 2>/dev/null || true
 
