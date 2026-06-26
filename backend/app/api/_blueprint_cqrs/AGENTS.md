@@ -36,7 +36,7 @@ These rules apply inside the `_blueprint_cqrs` package, on top of `backend/AGENT
    return await self.wrap_command(_op)
    ```
 3. **Commands delegate to services; they do not touch the ORM directly.** `BlueprintCommandHandlers` uses `BlueprintService`; `RunCommandHandlers` uses `RunService`. Service methods handle ownership, status transitions, and persistence.
-4. **Queries delegate to services too.** Same pattern: `BlueprintQueryHandlers` → `BlueprintService.list/get/get_versions`; `RunQueryHandlers` → `RunService.list/get/get_events/replay_state/get_assertions/diff_runs`. No raw SQL, no in-package query building.
+4. **Queries delegate to services too.** Same pattern: `BlueprintQueryHandlers` → `BlueprintService.list/get/get_versions`; `RunQueryHandlers` → `RunService.list_runs/get/get_events/replay_state/get_assertions/diff_runs`. No raw SQL, no in-package query building.
 5. **No audit hooks.** Blueprint / run lifecycle events are not currently audited through the `AuditService` pattern. If/when audit is needed, port the no-fail / no-flush pattern from `_mission_cqrs/audit.py`.
 6. **No dual-writes.** Blueprint is already the source of truth for the "blueprint" entity. Run is the source of truth for execution. There is no legacy table to sync to.
 7. **No cache invalidation.** Reads bypass cache (the v1 mission layer had a cache; the blueprint/run layer does not). If volume grows, port the fire-and-forget pattern from `_mission_cqrs/queries.py` and create an `app/services/blueprint_cache.py`.
@@ -77,7 +77,7 @@ These rules apply inside the `_blueprint_cqrs` package, on top of `backend/AGENT
 
 | Method | Read flag aware? | Cache (read) | Cache (populate) | Audit hook | Dual-write | Read path | Notes |
 |--------|------------------|--------------|------------------|------------|------------|-----------|-------|
-| `list_runs(user_id, page, per_page, workspace_id, blueprint_id, status)` | — | — | — | — | — | `RunService.list(...)` → SQL | Filters: workspace + blueprint + status. No caching. |
+| `list_runs(user_id, page, per_page, workspace_id, blueprint_id, status)` | — | — | — | — | — | `RunService.list_runs(...)` → SQL | Filters: workspace + blueprint + status. No caching. |
 | `get_run(user_id, run_id)` | — | — | — | — | — | `RunService.get(...)` → SQL | Service enforces ownership. |
 | `get_events(user_id, run_id, from_sequence, limit)` | — | — | — | — | — | `RunService.get_events(...)` → **substrate event log** | See [§ Substrate read paths — `get_events`](#substrate-read-paths) |
 | `replay_state(user_id, run_id, at_sequence)` | — | — | — | — | — | `RunService.replay_state(...)` → **substrate `ReplayEngine`** | See [§ Substrate read paths — `replay_state`](#substrate-read-paths) |
