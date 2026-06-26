@@ -86,10 +86,11 @@ async def backfill_blueprints(db: AsyncSession, batch_size: int = 100, dry_run: 
                 "max_depth": 5,
             },
             "config": {"source_mission_id": str(mission.id)},
+            "_source_mission_id": str(mission.id),
         }
 
         bp = Blueprint(
-            id=str(uuid4()),
+            id=str(mission.id),  # Use mission.id for idempotency — re-running backfill produces same IDs
             user_id=mission.user_id,
             title=mission.title,
             description=mission.description or "",

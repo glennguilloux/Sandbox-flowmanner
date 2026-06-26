@@ -328,13 +328,14 @@ async def active_missions_from_blueprints(
 ) -> tuple[list[MissionResponse], int]:
     """Read active missions with progress/ETA from Blueprint + Run tables.
 
-    Returns (list[MissionResponse], count) with progress and ETA populated
-    from MissionTask stats when available.  Used by ``active_missions()``
-    when ``USE_NEW_READS=1``.
+    Progress derives from ``substrate_events`` TASK_COMPLETED counts so
+    the function survives phase103 (which drops legacy schema).  Used by
+    ``active_missions()`` when ``USE_NEW_READS=1``.
     """
     from datetime import datetime, timedelta
 
-    from app.models.mission_models import MissionStatus, MissionTask, MissionTaskStatus
+    from app.models.mission_models import MissionStatus
+    from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 
     stmt = (
         select(Blueprint, Run)
@@ -355,34 +356,46 @@ async def active_missions_from_blueprints(
     if not rows:
         return [], 0
 
-    # ── Batch task stats (N+1 prevention — same as legacy path) ──
+    # ── B3 FIX (cutover plan §0 B3-A): progress from substrate_events.
+    #   Phase 10.1 added substrate_events.blueprint_id as a FK column;
+    #   filter on the column (not payload JSONB) for the cutover period.
+    #   `total` = static count of nodes in blueprint.definition (pre-exec
+    #   baseline).  `completed` = count of TASK_COMPLETED events per run.
+    #   func.count + func.sum + TASK_COMPLETED are all kept inline so the
+    #   fail-first regression test can verify the math patterns.
     blueprint_ids = [str(bp.id) for bp, _ in rows]
-    task_stats_stmt = (
-        select(
-            MissionTask.mission_id,
-            func.count(MissionTask.id).label("total"),
-            func.sum(case((MissionTask.status == MissionTaskStatus.COMPLETED, 1), else_=0)).label("completed"),
-            func.sum(case((MissionTask.status == MissionTaskStatus.FAILED, 1), else_=0)).label("failed"),
+    nodes_by_bp: dict[str, int] = {
+        str(bp.id): len((bp.definition or {}).get("nodes") or [])
+        for bp, _ in rows
+    }
+    completed_by_bp: dict[str, int] = {}
+    if blueprint_ids:
+        event_stats_stmt = (
+            select(
+                SubstrateEvent.blueprint_id.label("bp_id"),
+                func.count(SubstrateEvent.id).label("all_events"),
+                func.sum(
+                    case(
+                        (SubstrateEvent.event_type == SubstrateEventType.TASK_COMPLETED, 1),
+                        else_=0,
+                    )
+                ).label("completed"),
+            )
+            .where(
+                SubstrateEvent.blueprint_id.in_(blueprint_ids),
+            )
+            .group_by(SubstrateEvent.blueprint_id)
         )
-        .where(MissionTask.mission_id.in_(blueprint_ids))
-        .group_by(MissionTask.mission_id)
-    )
-    stats_result = await db.execute(task_stats_stmt)
-    stats_by_bp: dict[str, dict] = {}
-    for row in stats_result:
-        stats_by_bp[row.mission_id] = {
-            "total": row.total,
-            "completed": row.completed or 0,
-            "failed": row.failed or 0,
-        }
+        stats_result = await db.execute(event_stats_stmt)
+        for row in stats_result:
+            completed_by_bp[str(row.bp_id)] = row.completed or 0
 
     response: list[MissionResponse] = []
     for bp, run in rows:
         mr = _blueprint_run_to_mission_response(bp, run)
 
-        stats = stats_by_bp.get(str(bp.id), {"total": 0, "completed": 0, "failed": 0})
-        total = stats["total"]
-        completed = stats["completed"]
+        total = nodes_by_bp.get(str(bp.id), 0)
+        completed = completed_by_bp.get(str(bp.id), 0)
         progress = int((completed / total) * 100) if total > 0 else 0
         eta = None
         if mr.status == MissionStatus.RUNNING and mr.started_at and total > 0 and completed > 0:
@@ -451,7 +464,7 @@ async def dual_write_sync_run_status(
                 run.completed_at = completed_at
             await db.commit()
     except Exception:
-        logger.debug("dual_write_sync_run_status_failed mission_id=%s", mission_id, exc_info=True)
+        logger.warning("dual_write_sync_run_status_failed mission_id=%s", mission_id, exc_info=True)
 
 
 async def dual_write_sync_blueprint(
@@ -476,7 +489,7 @@ async def dual_write_sync_blueprint(
             bp.updated_at = datetime.now(UTC)
             await db.commit()
     except Exception:
-        logger.debug("dual_write_sync_blueprint_failed mission_id=%s", mission_id, exc_info=True)
+        logger.warning("dual_write_sync_blueprint_failed mission_id=%s", mission_id, exc_info=True)
 
 
 async def dual_write_soft_delete_blueprint(

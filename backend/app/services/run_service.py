@@ -167,23 +167,13 @@ class RunService:
         run.status = RunStatus.QUEUED.value
         await self.db.flush()
 
-        try:
-            from app.tasks.mission_execution import dispatch_mission_execution
+        # B5 FIX (cutover plan §0 B5): dispatch to Celery directly.
+        # No silent asyncio.create_task fallback — under a Celery outage,
+        # we surface the failure so callers see the real error rather than
+        # an orphaned background task that dies with the worker process.
+        from app.tasks.mission_execution import dispatch_mission_execution
 
-            # Reuse existing Celery infrastructure with run_id
-            dispatch_mission_execution(str(run.id), user_id)
-        except Exception:
-            logger.warning("Celery dispatch failed for run %s, using background task", run_id)
-            import asyncio
-
-            async def _run():
-                from app.database import AsyncSessionLocal
-
-                async with AsyncSessionLocal() as db:
-                    svc = RunService(db)
-                    await svc.execute(run_id, user_id)
-
-            asyncio.create_task(_run())
+        dispatch_mission_execution(str(run.id), user_id)
 
         return run
 
