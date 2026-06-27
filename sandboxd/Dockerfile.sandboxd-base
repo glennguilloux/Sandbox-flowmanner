@@ -42,6 +42,14 @@ USER root
 # Vite (via npm run dev) takes precedence when package.json exists with deps.
 ENV RUNTIMED_DEV_CMD="python3 -m http.server 3000 --directory /home/sandbox/workspace/app"
 
+# Override the runtimed socket path. The default (/home/sandbox/.runtimed)
+# is inside the bind-mounted host workspace, which is owned by a different
+# host uid and the container is started with CapDrop=ALL — root in the
+# container has no capabilities and can't create files there. /tmp is
+# mounted as a tmpfs (per the host config) so the runtimed can create
+# its socket there regardless of host permissions.
+ENV RUNTIMED_DIR=/tmp/runtimed
+
 # Entrypoint wrapper: see entrypoint-wrapper.sh in this directory.
 # Replaces the previous inline-printf heredoc (extracted to a sibling
 # file because the new logic is ~15 lines, not a one-liner).

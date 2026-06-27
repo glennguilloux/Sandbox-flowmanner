@@ -1,11 +1,16 @@
 #!/bin/sh
-# entrypoint-wrapper.sh — per-sandbox worker entrypoint
+# entrypoint-wrapper.sh — per-sandbox worker entrypoint (current)
 #
 # Runs as PID 1 in the per-sandbox worker container spawned by sandboxd.
 # Responsibilities (in order):
 #
 #   1. Create /home/sandbox/.runtimed (runtimed needs this; the bind-mount
 #      overlay means it must be created AFTER the mount is applied).
+#      Best-effort: with CapDrop=ALL, root in the container has no
+#      capabilities and the bind-mounted host workspace is owned by a
+#      different host uid, so this mkdir will usually fail with
+#      "Permission denied" — which is now OK because we override the
+#      socket path via RUNTIMED_DIR below.
 #
 #   2. Start a static HTTP server on port 8081 in the background, serving
 #      from /home/sandbox/. This makes the worker self-sufficient: the
@@ -26,9 +31,12 @@
 # debugged. This is a strict improvement over the previous behavior
 # where the server never started at all (per the session-4 audit).
 
-set -e
+# Note: set -e is intentionally OFF. The mkdir for /home/sandbox/.runtimed
+# will fail (see comment above) but we don't want that to abort the
+# script. RUNTIMED_DIR overrides the runtimed's socket path so the
+# failure is irrelevant.
 
-mkdir -p /home/sandbox/.runtimed
+mkdir -p /home/sandbox/.runtimed 2>/dev/null || true
 
 # Best-effort: RUNTIMED_DEV_CMD's directory may not exist on a fresh
 # container. The python server on 8081 serves from /home/sandbox/ root
