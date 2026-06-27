@@ -631,6 +631,110 @@ async def get_all_health_statuses(
     return await _get_cached_health(db)
 
 
+# ── Public Status Endpoint (Phase 5) ──────────────────────────────────────
+
+
+# Separate cache for the public status endpoint (no auth, different shape)
+_status_cache: dict | None = None
+_status_cache_ts: float = 0.0
+_STATUS_CACHE_TTL = 60.0  # seconds
+_status_cache_lock = _asyncio.Lock()
+
+
+async def _is_status_page_flag_enabled(db: AsyncSession) -> bool:
+    """Check whether the integration_status_page_v1 feature flag is on."""
+    return await _is_flag_enabled(db, "integration_status_page_v1")
+
+
+async def _build_status_response(db: AsyncSession) -> dict:
+    """Build the public status response (cached for 60 s)."""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import desc, select
+
+    from app.models.integration_models import IntegrationIncident
+    from app.services.integration_health_service import IntegrationHealthService
+    from app.services.integration_manifest_service import manifest_service
+
+    service = IntegrationHealthService(db)
+    latest = await service.get_all_latest()
+
+    integrations = []
+    for slug in manifest_service.slug_list:
+        manifest = manifest_service.get(slug)
+        record = latest.get(slug)
+        uptime = await service.compute_uptime_pct(slug)
+        integrations.append(
+            {
+                "slug": slug,
+                "name": manifest["name"] if manifest else slug,
+                "status": record.status if record else "unknown",
+                "uptime_30d": uptime,
+                "last_checked": record.checked_at.isoformat() if record else None,
+            }
+        )
+
+    # Fetch recent open incidents (last 30 days)
+    from datetime import timedelta
+
+    cutoff = datetime.now(UTC) - timedelta(days=30)
+    incident_result = await db.execute(
+        select(IntegrationIncident)
+        .where(IntegrationIncident.created_at >= cutoff)
+        .where(IntegrationIncident.status != "resolved")
+        .order_by(desc(IntegrationIncident.created_at))
+        .limit(20)
+    )
+    incidents = [
+        {
+            "integration_slug": inc.integration_slug,
+            "severity": inc.severity,
+            "title": inc.title,
+            "status": inc.status,
+            "created_at": inc.created_at.isoformat(),
+            "resolved_at": inc.resolved_at.isoformat() if inc.resolved_at else None,
+        }
+        for inc in incident_result.scalars().all()
+    ]
+
+    return {
+        "updated_at": datetime.now(UTC).isoformat(),
+        "integrations": integrations,
+        "incidents": incidents,
+    }
+
+
+async def _get_cached_status(db: AsyncSession) -> dict:
+    """Return status response from cache, refreshing if stale."""
+    global _status_cache, _status_cache_ts
+    now = time.monotonic()
+    if _status_cache is not None and (now - _status_cache_ts) < _STATUS_CACHE_TTL:
+        return _status_cache
+    async with _status_cache_lock:
+        now = time.monotonic()
+        if _status_cache is not None and (now - _status_cache_ts) < _STATUS_CACHE_TTL:
+            return _status_cache
+        result = await _build_status_response(db)
+        _status_cache = result
+        _status_cache_ts = time.monotonic()
+        return result
+
+
+@router.get("/status", tags=["public"])
+async def public_status(
+    db: AsyncSession = Depends(get_db),
+):
+    """Public status page endpoint — no auth required.
+
+    Returns health status for all integrations plus recent incidents.
+    Cached for 60 seconds.  Gated by the ``integration_status_page_v1``
+    feature flag.
+    """
+    if not await _is_status_page_flag_enabled(db):
+        raise HTTPException(status_code=404, detail="Status page not available")
+    return await _get_cached_status(db)
+
+
 @router.get("/{slug}/health")
 async def get_integration_health(
     slug: str,

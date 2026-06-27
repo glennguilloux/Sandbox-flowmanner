@@ -284,3 +284,45 @@ class IntegrationUsageLog(Base, TimestampMixin):
         default=lambda: datetime.now(UTC),
         index=True,
     )
+
+
+class IntegrationIncident(Base, TimestampMixin):
+    """Integration incident record.
+
+    Created automatically when a health check detects a status transition
+    from ``healthy`` to ``degraded`` or ``down``.  Resolved when the
+    integration returns to ``healthy``.  Exposed on the public status page.
+    """
+
+    __tablename__ = "integration_incidents"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+    integration_slug: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+    severity: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )  # minor, major, critical
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="open",
+    )  # open, monitoring, resolved
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )

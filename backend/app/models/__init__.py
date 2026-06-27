@@ -147,6 +147,7 @@ from app.models.integration_models import (
     HttpIntegrationConfig,
     HttpIntegrationLog,
     IntegrationHealthRecord,
+    IntegrationIncident,
     IntegrationUsageLog,
     UserOAuthApp,
     UserOAuthConnection,

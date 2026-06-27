@@ -8,8 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from app.tasks.celery_app import celery_app
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.services.integration_health_service import IntegrationHealthService
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +56,10 @@ def run_integration_health_checks(self) -> dict[str, str]:
         async with AsyncSessionLocal() as db:
             service = IntegrationHealthService(db)
             results = await service.check_all(health_checks)
+
+            # ── Incident detection (Phase 5) ─────────────────────────────
+            await _detect_and_manage_incidents(db, service, results)
+
             # Retention: clean up records older than 90 days (once per calendar day)
             from datetime import UTC, date, datetime
 
@@ -73,3 +83,65 @@ def run_integration_health_checks(self) -> dict[str, str]:
         return summary
 
     return _run_async(_run())
+
+
+async def _detect_and_manage_incidents(
+    db: AsyncSession,
+    service: IntegrationHealthService,
+    results: dict,
+) -> None:
+    """Detect health transitions and create/resolve incidents.
+
+    For each integration that is ``degraded`` or ``down``, check if an open
+    incident already exists.  If not, create one.  For integrations that
+    returned to ``healthy``, resolve any open incidents.
+    """
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from sqlalchemy import select
+
+    from app.models.integration_models import IntegrationIncident
+
+    for slug, result in results.items():
+        # ── Non-healthy: create incident if none open ────────────────
+        if result.status in ("degraded", "down"):
+            existing = await db.execute(
+                select(IntegrationIncident).where(
+                    IntegrationIncident.integration_slug == slug,
+                    IntegrationIncident.status != "resolved",
+                )
+            )
+            if existing.scalar_one_or_none() is None:
+                severity = "major" if result.status == "down" else "minor"
+                incident = IntegrationIncident(
+                    id=str(uuid4()),
+                    integration_slug=slug,
+                    severity=severity,
+                    title=f"{slug} is {result.status}",
+                    description=result.error_message,
+                    status="open",
+                )
+                db.add(incident)
+                logger.warning(
+                    "Incident created for %s: %s",
+                    slug,
+                    result.status,
+                )
+
+        # ── Healthy: resolve open incidents ──────────────────────────
+        elif result.status == "healthy":
+            open_incidents = await db.execute(
+                select(IntegrationIncident).where(
+                    IntegrationIncident.integration_slug == slug,
+                    IntegrationIncident.status != "resolved",
+                )
+            )
+            for incident in open_incidents.scalars().all():
+                incident.status = "resolved"
+                incident.resolved_at = datetime.now(UTC)
+                logger.info(
+                    "Incident resolved for %s: %s",
+                    slug,
+                    incident.id,
+                )
