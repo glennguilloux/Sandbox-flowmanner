@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 146,
+  "model_count": 147,
   "tables": [
     {
       "columns": {
@@ -1544,6 +1544,26 @@
         "ix_integration_health_records_integration_slug"
       ],
       "name": "integration_health_records",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "integration_slug": "VARCHAR(100)",
+        "resolved_at": "DATETIME",
+        "severity": "VARCHAR(20)",
+        "status": "VARCHAR(20)",
+        "title": "VARCHAR(200)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_integration_incidents_created_at",
+        "ix_integration_incidents_integration_slug"
+      ],
+      "name": "integration_incidents",
       "unique_constraints": []
     },
     {
