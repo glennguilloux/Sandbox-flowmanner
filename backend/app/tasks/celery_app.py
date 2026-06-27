@@ -54,6 +54,10 @@ celery_app.conf.beat_schedule = {
         "task": "hitl.expire_items",
         "schedule": 300.0,  # 5 minutes
     },
+    "integration-health-check-all": {
+        "task": "integration.health_check_all",
+        "schedule": 900.0,  # 15 minutes
+    },
 }
 
 
@@ -90,7 +94,6 @@ def _stop_lease_reclaimer(**kwargs):
         stop_reclaimer()
     except Exception as exc:
         logger.debug("LeaseReclaimer stop error (may not have been running): %s", exc)
-
 
 
 # ---------------------------------------------------------------------------
@@ -136,13 +139,14 @@ def _register_custom_tasks() -> None:
     # Each entry: (module_name, comment)  - imported for decorator side effects.
     task_modules = [
         ("background_review_tasks", "memory.review_mission  (background self-improvement)"),
-        ("batch_processing",  "batch.process_batch"),
-        ("deepagents_tasks",  "deepagents.{execute, stream, batch_execute}"),
-        ("hitl_resume",       "substrate.resume_hitl  (Q1-B chunk 1)"),
-        ("hitl_expiry",       "hitl.expire_items  (Q1-B chunk 2)"),
-        ("n8n_callback",      "5 n8n integration tasks"),
-        ("swarm_tasks",       "swarm.{execute_task, consensus_timeout, agent_heartbeat_check, cost_budget_check}"),
-        ("training_tasks",    "training.* (7 tasks)"),
+        ("batch_processing", "batch.process_batch"),
+        ("deepagents_tasks", "deepagents.{execute, stream, batch_execute}"),
+        ("hitl_resume", "substrate.resume_hitl  (Q1-B chunk 1)"),
+        ("hitl_expiry", "hitl.expire_items  (Q1-B chunk 2)"),
+        ("integration_health_tasks", "integration.health_check_all  (Phase 2 health checks)"),
+        ("n8n_callback", "5 n8n integration tasks"),
+        ("swarm_tasks", "swarm.{execute_task, consensus_timeout, agent_heartbeat_check, cost_budget_check}"),
+        ("training_tasks", "training.* (7 tasks)"),
     ]
 
     registered_modules: list[str] = []
@@ -159,6 +163,7 @@ def _register_custom_tasks() -> None:
     # itself is broken, this will fail too.
     try:
         from app.tasks.mission_execution import ExecuteMissionTask
+
         celery_app.register_task(ExecuteMissionTask())
     except Exception as exc:
         failed_modules.append(("mission_execution", f"{type(exc).__name__}: {exc}"))
@@ -168,7 +173,9 @@ def _register_custom_tasks() -> None:
     custom_tasks = sorted(k for k in celery_app.tasks if not k.startswith("celery."))
     logger.info(
         "Celery task registration: %d module(s) imported, %d custom task(s) in registry: %s",
-        len(registered_modules), len(custom_tasks), custom_tasks,
+        len(registered_modules),
+        len(custom_tasks),
+        custom_tasks,
     )
     if failed_modules:
         logger.warning(

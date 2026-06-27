@@ -31,32 +31,12 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 # Integrations handles first-party service connections (Slack, GitHub, etc.). No overlap.
 
 # ── Feature-flag gate for manifest-driven integrations ───────────────────
-_manifest_flag_entry: tuple[float, bool] | None = None
-_MANIFEST_FLAG_TTL = 60.0  # seconds — matches the feature-flags in-process cache
+# (flag caching now shared via _is_flag_enabled below)
 
 
 async def _is_manifest_flag_enabled(db: AsyncSession) -> bool:
-    """Check whether the integration_manifests_v1 feature flag is on.
-
-    Result is cached in-process for 60 s so toggling the flag in the DB
-    takes effect without requiring a server restart.
-    """
-    global _manifest_flag_entry
-    now = time.monotonic()
-    if _manifest_flag_entry is not None:
-        ts, value = _manifest_flag_entry
-        if (now - ts) < _MANIFEST_FLAG_TTL:
-            return value
-    try:
-        result = await db.execute(
-            text("SELECT enabled_globally FROM feature_flags WHERE key = 'integration_manifests_v1'")
-        )
-        row = result.scalar()
-        enabled = bool(row) if row is not None else False
-    except Exception:
-        enabled = False
-    _manifest_flag_entry = (now, enabled)
-    return enabled
+    """Check whether the integration_manifests_v1 feature flag is on."""
+    return await _is_flag_enabled(db, "integration_manifests_v1")
 
 
 # ── Redis-backed OAuth state store (shared across all workers) ──────────
@@ -547,3 +527,147 @@ async def check_integration_connection(
     if not conn:
         raise HTTPException(status_code=404, detail="No active connection found")
     return {"status": "ok", "message": f"{slug} connection is active"}
+
+
+# ── Health Status Endpoints (Phase 2) ─────────────────────────────────────
+
+
+import asyncio as _asyncio
+
+# ── Shared feature-flag helper ──────────────────────────────────────────────
+
+_flag_cache: dict[str, tuple[float, bool]] = {}
+_FLAG_TTL = 60.0  # seconds — matches the feature-flags in-process cache
+
+
+async def _is_flag_enabled(db: AsyncSession, key: str) -> bool:
+    """Check whether a feature flag is enabled (cached in-process for 60 s)."""
+    now = time.monotonic()
+    entry = _flag_cache.get(key)
+    if entry is not None:
+        ts, value = entry
+        if (now - ts) < _FLAG_TTL:
+            return value
+    try:
+        result = await db.execute(
+            text("SELECT enabled_globally FROM feature_flags WHERE key = :key"),
+            {"key": key},
+        )
+        row = result.scalar()
+        enabled = bool(row) if row is not None else False
+    except Exception:
+        enabled = False
+    _flag_cache[key] = (now, enabled)
+    return enabled
+
+
+# ── Health status caching ───────────────────────────────────────────────────
+
+_health_cache: dict | None = None
+_health_cache_ts: float = 0.0
+_HEALTH_CACHE_TTL = 60.0  # seconds
+_health_cache_lock = _asyncio.Lock()
+
+
+async def _is_health_flag_enabled(db: AsyncSession) -> bool:
+    """Check whether the integration_health_v1 feature flag is on."""
+    return await _is_flag_enabled(db, "integration_health_v1")
+
+
+async def _build_health_response(db: AsyncSession) -> dict:
+    """Build the full health status response (expensive — cache this)."""
+    from app.services.integration_health_service import IntegrationHealthService
+    from app.services.integration_manifest_service import manifest_service
+
+    service = IntegrationHealthService(db)
+    latest = await service.get_all_latest()
+
+    integrations = []
+    for slug in manifest_service.slug_list:
+        manifest = manifest_service.get(slug)
+        record = latest.get(slug)
+        uptime = await service.compute_uptime_pct(slug)
+        integrations.append(
+            {
+                "slug": slug,
+                "name": manifest["name"] if manifest else slug,
+                "trust_level": manifest.get("trust_level", "verified") if manifest else "verified",
+                "status": record.status if record else "unknown",
+                "latency_ms": record.latency_ms if record else None,
+                "uptime_30d": uptime,
+                "last_checked": record.checked_at.isoformat() if record else None,
+            }
+        )
+    return {"integrations": integrations}
+
+
+async def _get_cached_health(db: AsyncSession) -> dict:
+    """Return health response from cache, refreshing if stale."""
+    global _health_cache, _health_cache_ts
+    now = time.monotonic()
+    if _health_cache is not None and (now - _health_cache_ts) < _HEALTH_CACHE_TTL:
+        return _health_cache
+    async with _health_cache_lock:
+        now = time.monotonic()
+        if _health_cache is not None and (now - _health_cache_ts) < _HEALTH_CACHE_TTL:
+            return _health_cache
+        result = await _build_health_response(db)
+        _health_cache = result
+        _health_cache_ts = time.monotonic()
+        return result
+
+
+@router.get("/health")
+async def get_all_health_statuses(
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns health status for all integrations.
+
+    Unauthenticated — public trust signal.  Gated by the
+    ``integration_health_v1`` feature flag.  Cached for 60 seconds.
+    """
+    if not await _is_health_flag_enabled(db):
+        raise HTTPException(status_code=404, detail="Health status not available")
+    return await _get_cached_health(db)
+
+
+@router.get("/{slug}/health")
+async def get_integration_health(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns detailed health status for a single integration."""
+    from app.services.integration_health_service import IntegrationHealthService
+    from app.services.integration_manifest_service import manifest_service
+
+    if not await _is_health_flag_enabled(db):
+        raise HTTPException(status_code=404, detail="Health status not available")
+
+    manifest = manifest_service.get(slug)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    service = IntegrationHealthService(db)
+    record = await service.get_latest_status(slug)
+    history = await service.get_history(slug, limit=24)
+    uptime = await service.compute_uptime_pct(slug)
+
+    return {
+        "slug": slug,
+        "name": manifest["name"],
+        "trust_level": manifest.get("trust_level", "verified"),
+        "status": record.status if record else "unknown",
+        "latency_ms": record.latency_ms if record else None,
+        "status_code": record.status_code if record else None,
+        "error_message": record.error_message if record else None,
+        "uptime_30d": uptime,
+        "last_checked": record.checked_at.isoformat() if record else None,
+        "history": [
+            {
+                "status": r.status,
+                "latency_ms": r.latency_ms,
+                "checked_at": r.checked_at.isoformat(),
+            }
+            for r in history
+        ],
+    }

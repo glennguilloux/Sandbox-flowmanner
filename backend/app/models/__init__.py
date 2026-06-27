@@ -146,6 +146,7 @@ from app.models.idempotency import IdempotencyKey, IdempotencyRequestLog
 from app.models.integration_models import (
     HttpIntegrationConfig,
     HttpIntegrationLog,
+    IntegrationHealthRecord,
     UserOAuthApp,
     UserOAuthConnection,
 )

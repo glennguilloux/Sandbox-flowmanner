@@ -105,6 +105,35 @@ class HttpIntegrationLog(Base, TimestampMixin):
 # ── OAuth User-Provided App & Connection Models ───────────────────────────────
 
 
+class IntegrationHealthRecord(Base, TimestampMixin):
+    """Per-integration health check result stored by the periodic Celery task."""
+
+    __tablename__ = "integration_health_records"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+    integration_slug: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )  # healthy, degraded, down, unknown
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+
 class UserOAuthApp(Base, TimestampMixin):
     """User-provided OAuth application credentials (per service, per user).
 
