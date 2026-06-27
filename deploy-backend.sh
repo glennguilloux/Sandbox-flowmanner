@@ -312,9 +312,18 @@ run_migrations() {
     log_info "Current alembic head: ${before_head}"
   fi
 
-  if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head; then
-    log_error "alembic upgrade head FAILED"
-    return 1
+  # Retry alembic upgrade head once — the DB connection may need a moment
+  # to stabilise even after the HTTP health check passes.
+  local alembic_ok=false
+  cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head && alembic_ok=true
+  if [ "$alembic_ok" = false ]; then
+    log_warn "alembic upgrade head failed on first attempt — retrying in 5s"
+    sleep 5
+    if ! cd "$COMPOSE_DIR" && docker compose exec -T "$BACKEND_CONTAINER" alembic upgrade head; then
+      log_error "alembic upgrade head FAILED after retry"
+      return 1
+    fi
+    log_success "alembic upgrade head succeeded on retry"
   fi
 
   after_head=$(_alembic_rev alembic current)
@@ -365,6 +374,13 @@ build_and_deploy() {
   # health check) means the health-checked backend is the new code and
   # any celery task that fires after deploy also runs the new code.
   recreate_backend_services
+
+  # Wait for the backend to be healthy before returning.  This prevents
+  # the --migrate race condition: without this gate, run_migrations()
+  # fires alembic against a container that Docker reports as "up" but
+  # whose DB connection isn't established yet, causing alembic to
+  # silently no-op and the head verification to fail.
+  check_health "$HEALTH_URL" "Backend (post-recreate readiness)" 10 3
 
   log_success "Backend + celery containers recreated"
 }
