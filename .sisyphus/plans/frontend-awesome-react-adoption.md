@@ -81,10 +81,10 @@ are a parallel TS-side source of truth and (later) a FastAPI mirror via
 - `frontend/src/components/marketplace/review-component.tsx` (19 patterns).
 - `frontend/src/components/rag/{SearchBar,DocumentUploader}.tsx` (8 + 5 patterns).
 - `frontend/src/components/evaluation/evaluation-dashboard.tsx` (19 patterns).
-- `frontend/src/hooks/mission-builder/*.ts` — all custom hooks touching form state.
+- ~~`frontend/src/hooks/mission-builder/*.ts`~~ — see Plan corrections #4. All 5 hooks are data-fetching wrappers (loading/error/data[]/page/total CRUD). Form-state in mission-builder lives in the **components** (MissionProgramCreate, PropertiesPanel), not the hooks. Slice 8 = MissionProgramCreate.
 
-New files: `frontend/src/lib/schemas/{auth,settings,marketplace,memory,rag,mission-builder}.ts`,
-`frontend/src/lib/forms/use-zod-form.ts`, plus its vitest.
+New files: `frontend/src/lib/schemas/{auth,settings,marketplace,memory,rag,evaluation,programs}.ts`,
+`frontend/src/lib/forms/use-zod-form.ts`, plus its vitest. (Renamed `mission-builder` → `programs`: the schema scope is the `ProgramCreate` payload, not the wider mission-builder surface.)
 
 **Dependencies.** None blocking. Phase 1 boundaries are nice-to-have.
 
@@ -105,6 +105,19 @@ Bundle bloat — import from `react-hook-form` top-level only (tree-shaking
 works for the main entry).
 
 **Estimate:** 2-3 weeks.
+
+### Plan corrections (false-positive audits)
+
+The "Code surface" bullet list above is the priority order from the original audit, but the pattern counts ("N patterns") were `useState` counts, not form-element counts. Four targets were assessed as **not** RHF candidates. They are kept here as historical context; the migration is a no-op for them.
+
+| # | File | Why skip | Reference |
+|---|------|----------|-----------|
+| 1 | `src/components/memory-inspector/ForgetConfirmDialog.tsx` | No `<form>`, single boolean + 2 radios + click handler | Slice 3a assessment |
+| 2 | `src/components/settings/BillingSettings.tsx` | No `<form>`, no `<input>`, all `useState` is data fetching | Slice 2 assessment |
+| 3 | `src/components/rag/DocumentUploader.tsx` | No `<form>`, no submit, no controlled input. Only `useState` is data state (`uploading`, `progress`). The `useDropzoneField` helper IS the deliverable (Phase 2 risk #2) | Slice 6 handoff |
+| 4 | `src/hooks/mission-builder/*.ts` (5 files: `useExecutionPoll`, `useMissionExportImport`, `useMissionVersions`, `useNodeGroups`, `useTemplates`) | Every hook is a `[loading, error, data[], page, total]` CRUD wrapper. Zero `<form>`, zero schema, zero RHF candidate. The real form-state surface is the **components**: `MissionProgramCreate.tsx` (slice 8), `PropertiesPanel.tsx` (slice 9), `ExportImportDialog.tsx` (slice 10) | This assessment, 2026-06-15 |
+
+**Pattern.** The original audit counted `useState` calls, not actual form elements (`<form>`, `<input>`, `<select>`, `<textarea>`, `<button type="submit">`). Three of the four false positives (BillingSettings, DocumentUploader, `hooks/mission-builder/*.ts`) were pure data-fetching code with high `useState` counts. When evaluating future "form" candidates, count form elements first, `useState` second.
 
 ---
 
@@ -270,6 +283,57 @@ Do these before or during Phase 1 — they remove standing confusion:
 3. **Decide on shadcn-ui version pin strategy.** Once Phase 3 starts,
    set `components.json` to a pinned upstream commit SHA, not `latest`.
    Add `pnpm dlx shadcn@latest diff` to CI to flag drift.
+
+---
+
+## 6. Companion Track — Nav Product Discovery
+
+**Plan:** `.sisyphus/plans/flowmanner-nav-two-tier-product-discovery.md`
+(937 lines, DeepSeek-authored 2026-06-15).
+
+**Relationship to Phase 2:** parallel, not sequential. The nav restructure
+adds product-discovery categories (Missions, Hub, Marketplace, Swarm, Tools)
+that the Phase 2 form migrations target — `marketplace/review-component.tsx`
+(slice 4 done), `rag/SearchBar.tsx` (slice 5 done), `evaluation-dashboard.tsx`
+(slice 7 done), `mission-builder/MissionProgramCreate.tsx` (slice 8 next).
+**Not** `hooks/mission-builder/*.ts` — that was plan-correction #4; the
+form-state surface is the components, not the hooks. Constraints adopted: one slice per concern,
+i18n parity across `en/de/es/fr/ja`, full vitest + tsc + eslint + build +
+Playwright geometry at 1280×800 gate.
+
+**Ordering — nav slice runs LAST, after all 5 phases (user decision
+2026-06-15).** Not before Phase 3 as originally suggested. Implication:
+Phase 3 (Radix/shadcn) migrates the CURRENT 4-dropdown `floating-nav.tsx`
+to `@radix-ui/react-dropdown-menu`; the nav slice then restructures to a
+9-group two-tier layout, replacing the Radix dropdowns with the new IA.
+The Phase 3 Radix work is not wasted — it proves the Radix + shadcn
+pattern on a real component — but the specific dropdowns it produces
+will be replaced by the nav slice. Phase 5 (DnD for the nav items, kbar)
+also runs on the current nav; the nav slice lands after Phase 5.
+
+**Stop Rule cap deferred (user decision 2026-06-15).** The 300-line cap
+is aspirational; it is enforced at the end of all phases, not per
+addition. §6 brought the plan from 300 → 336 lines; further additions
+(more companion tracks, phase retros, slices) are permitted until the
+phase work concludes. The Stop Rule's "archive finished phases to
+OLD/" half still applies for any phase marked complete.
+
+**Issues flagged in the DeepSeek plan (2026-06-15 review) and resolved:**
+1. **Swarm dropdown 5 items, 1 real route — RESOLVED (option a).** Add
+   `?tab=executions|debate|handoffs|escalation` query-param support to
+   `SwarmDashboard` and its `page.tsx`. This change lands with the nav
+   slice, not before. Verified: `/en/swarm` → 404, `/en/dashboard/swarm`
+   → 200. The nav slice must also assert
+   `/en/dashboard/swarm?tab=debate` → 200 and renders the Debate tab as
+   active.
+2. **Two-tier height unspecified.** Current nav is 72px single-row;
+   two tiers need ~96–120px. Pages use `pb-24` (96px) — a taller nav
+   risks overlapping content. Implementer must pick a new height and
+   recheck the bottom-padding contract when the nav slice runs.
+3. **Unused i18n keys in Task 2's "Recommended new keys" list** (costs,
+   developer, feedback, nps, onboarding) are not in the recommended IA.
+   Trim to only-used keys per the plan's own "Must NOT add unused
+   keys" rule.
 
 ---
 
