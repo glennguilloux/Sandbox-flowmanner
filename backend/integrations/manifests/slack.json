@@ -30,7 +30,7 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false,
+    "enabled": true,
     "demo_actions": [
       {
         "label": "Send test message",

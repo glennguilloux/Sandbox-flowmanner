@@ -673,6 +673,112 @@ async def get_integration_health(
     }
 
 
+# ── Playground Endpoints (Phase 4) ────────────────────────────────────────
+
+
+class PlaygroundActionRequest(BaseModel):
+    """Request body for playground actions."""
+
+    params: dict = {}
+
+
+async def _is_playground_flag_enabled(db: AsyncSession) -> bool:
+    """Check whether the integration_playground_v1 feature flag is on."""
+    return await _is_flag_enabled(db, "integration_playground_v1")
+
+
+@router.post("/{slug}/playground/{action}")
+async def playground_action(
+    slug: str,
+    action: str,
+    body: PlaygroundActionRequest | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Execute a demo action using Flowmanner's sandbox credentials.
+
+    Rate-limited to 5 requests/minute per user per integration.
+    Returns the real or mock API response for display.
+    Gated by the ``integration_playground_v1`` feature flag.
+    """
+    from app.services.integration_manifest_service import manifest_service
+    from app.services.integration_playground_service import (
+        check_playground_rate_limit,
+        execute_playground_action,
+    )
+
+    if not await _is_playground_flag_enabled(db):
+        raise HTTPException(status_code=404, detail="Playground not available")
+
+    manifest = manifest_service.get(slug)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    playground = manifest.get("playground", {})
+    if not playground.get("enabled"):
+        raise HTTPException(
+            status_code=404,
+            detail="Playground not available for this integration",
+        )
+
+    # Validate action is in the manifest's demo_actions
+    demo_actions = playground.get("demo_actions", [])
+    valid_actions = {da["action"] for da in demo_actions}
+    if action not in valid_actions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown playground action '{action}'. Valid: {sorted(valid_actions)}",
+        )
+
+    # Rate limit: 5 per minute per user per integration
+    from app.core.demo_credentials import get_demo_credential
+
+    cred = get_demo_credential(slug)
+    rate_limit = cred.rate_limit if cred else 5
+    allowed, _remaining = check_playground_rate_limit(
+        user_id=str(user.id),
+        slug=slug,
+        max_requests=rate_limit,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Playground rate limit exceeded. Try again in a minute.",
+        )
+
+    params = body.params if body else {}
+    result = await execute_playground_action(
+        slug=slug,
+        action=action,
+        params=params,
+    )
+    return result
+
+
+@router.get("/{slug}/playground/actions")
+async def list_playground_actions(
+    slug: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List available playground actions for an integration."""
+    from app.services.integration_manifest_service import manifest_service
+
+    if not await _is_playground_flag_enabled(db):
+        raise HTTPException(status_code=404, detail="Playground not available")
+
+    manifest = manifest_service.get(slug)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    playground = manifest.get("playground", {})
+    return {
+        "slug": slug,
+        "enabled": playground.get("enabled", False),
+        "actions": playground.get("demo_actions", []),
+    }
+
+
 # ── Usage Analytics Endpoints (Phase 3) ──────────────────────────────────
 
 
