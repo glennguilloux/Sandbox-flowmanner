@@ -41,6 +41,7 @@ This project spans two machines. Use the file that matches where your agent runs
    ⚠️ **Deploy takes ~2 minutes** (backup + build + restart + health checks + auto-rollback on failure). Use `timeout=300`.
    ⚠️ **Use `deploy-backend.sh` instead of raw `docker build` commands** — the script handles image backup, health checks, and automatic rollback.
 5. **CodeGraph MCP is available** — use it FIRST before reading files. See AGENTS.homelab.md for details.
+6. **Verification scoping (path-aware):** The generic "run `make test; make lint; make build`" instruction applies **only when source code changed**. If the only modified files are documentation or handoff artifacts — anything under `.sisyphus/`, `docs/`, or top-level `*.md` — skip the full suite. Doc-only changes are verified by the session ritual checklist (`SESSION-RITUAL.md`), not by pytest. Only run `make test` / `make lint` / `make build` when `.py`, `.ts`, `.tsx`, or other source files were actually touched.
 
 ## Architecture
 
