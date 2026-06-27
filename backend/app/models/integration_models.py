@@ -236,3 +236,51 @@ class UserOAuthConnection(Base, TimestampMixin):
         from app.integrations.oauth import decrypt_token
 
         return decrypt_token(self.encrypted_refresh_token)
+
+
+class IntegrationUsageLog(Base, TimestampMixin):
+    """Per-user, per-integration usage log for analytics.
+
+    Records each integration action execution (success or failure) with
+    timing and error details.  Aggregated by IntegrationUsageService to
+    power the usage dashboard on the frontend.
+
+    Privacy: No request/response bodies or PII are stored — only slug,
+    action, status code, latency, and user_id.
+    """
+
+    __tablename__ = "integration_usage_logs"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    integration_slug: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+    action: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )  # e.g. "send_message", "create_issue"
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="success",
+    )  # success, failed, timeout
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )

@@ -299,22 +299,61 @@ async def execute_action(
             "error": f"Unknown action '{action_name}' for provider '{connection.provider}'",
         }
 
-    # 4. Dispatch to adapter
+    # 4. Dispatch to adapter (with usage tracking)
+    import time as _time
+
+    start = _time.monotonic()
     try:
         result = await adapter.execute(
             action=action_name,
             params=params,
             connection=connection,
         )
+        latency_ms = int((_time.monotonic() - start) * 1000)
+
+        # Record usage (fire-and-forget — don't fail the action if logging fails)
+        try:
+            from app.services.integration_usage_service import IntegrationUsageService
+
+            usage_svc = IntegrationUsageService(db)
+            await usage_svc.record_call(
+                user_id=int(user_id),
+                integration_slug=connection.provider,
+                action=action_name,
+                status="success" if result.get("success") else "failed",
+                latency_ms=latency_ms,
+                error_message=result.get("error") if not result.get("success") else None,
+            )
+        except Exception:
+            logger.debug("Usage recording failed (non-fatal)", exc_info=True)
+
         return result
 
     except Exception as exc:
+        latency_ms = int((_time.monotonic() - start) * 1000)
         logger.exception(
             "Action %s/%s failed for connection %s",
             connection.provider,
             action_name,
             connection_id,
         )
+
+        # Record failed usage
+        try:
+            from app.services.integration_usage_service import IntegrationUsageService
+
+            usage_svc = IntegrationUsageService(db)
+            await usage_svc.record_call(
+                user_id=int(user_id),
+                integration_slug=connection.provider,
+                action=action_name,
+                status="failed",
+                latency_ms=latency_ms,
+                error_message=str(exc)[:500],
+            )
+        except Exception:
+            logger.debug("Usage recording failed (non-fatal)", exc_info=True)
+
         return {"success": False, "error": str(exc)}
 
 

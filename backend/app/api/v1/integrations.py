@@ -671,3 +671,45 @@ async def get_integration_health(
             for r in history
         ],
     }
+
+
+# ── Usage Analytics Endpoints (Phase 3) ──────────────────────────────────
+
+
+async def _is_usage_flag_enabled(db: AsyncSession) -> bool:
+    """Check whether the integration_usage_v1 feature flag is on."""
+    return await _is_flag_enabled(db, "integration_usage_v1")
+
+
+@router.get("/{slug}/usage")
+async def get_integration_usage(
+    slug: str,
+    period: str = Query("30d", description="Time period: 7d, 30d, 90d"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns usage analytics for a user's connection to an integration.
+
+    Includes call counts, success rate, latency stats, and top actions.
+    Gated by the ``integration_usage_v1`` feature flag.
+    """
+    from app.services.integration_manifest_service import manifest_service
+    from app.services.integration_usage_service import IntegrationUsageService
+
+    if not await _is_usage_flag_enabled(db):
+        raise HTTPException(status_code=404, detail="Usage analytics not available")
+
+    if period not in ("7d", "30d", "90d"):
+        raise HTTPException(status_code=400, detail="period must be 7d, 30d, or 90d")
+
+    manifest = manifest_service.get(slug)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    service = IntegrationUsageService(db)
+    stats = await service.get_usage_stats(
+        user_id=user.id,
+        integration_slug=slug,
+        period=period,
+    )
+    return stats
