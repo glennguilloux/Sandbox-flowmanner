@@ -171,7 +171,7 @@
         "is_approved": "BOOLEAN",
         "rating": "INTEGER",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [
@@ -292,7 +292,7 @@
         "properties": "JSON",
         "session_id": "VARCHAR",
         "timestamp": "DATETIME",
-        "user_id": "VARCHAR"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [],
@@ -1064,7 +1064,7 @@
         "config": "JSON",
         "created_at": "DATETIME",
         "description": "TEXT",
-        "id": "VARCHAR",
+        "id": "VARCHAR(36)",
         "manifest": "JSON",
         "name": "VARCHAR(255)",
         "status": "VARCHAR(20)",
@@ -1411,7 +1411,7 @@
         "expires_at": "DATETIME",
         "id": "VARCHAR(36)",
         "interrupt_type": "VARCHAR(30)",
-        "mission_id": "VARCHAR(36)",
+        "mission_id": "UUID",
         "node_id": "VARCHAR(36)",
         "proposed_action": "JSONB",
         "resolution_note": "TEXT",
@@ -1533,7 +1533,7 @@
         "created_at": "DATETIME",
         "feedback_type": "VARCHAR(100)",
         "id": "INTEGER",
-        "mission_id": "VARCHAR(36)",
+        "mission_id": "UUID",
         "updated_at": "DATETIME"
       },
       "foreign_keys": [],
@@ -1546,7 +1546,7 @@
     },
     {
       "columns": {
-        "agent_id": "UUID",
+        "agent_id": "VARCHAR(36)",
         "completion_tokens": "INTEGER",
         "cost_category": "VARCHAR(30)",
         "cost_usd": "FLOAT",
@@ -1587,7 +1587,7 @@
         "session_id": "VARCHAR(36)",
         "source": "VARCHAR(255)",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [
@@ -1666,7 +1666,7 @@
         "rating": "INTEGER",
         "title": "VARCHAR(255)",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [
@@ -1818,7 +1818,7 @@
         "supersedes_id": "UUID",
         "updated_at": "DATETIME",
         "user_id": "INTEGER",
-        "workspace_id": "UUID"
+        "workspace_id": "VARCHAR(36)"
       },
       "foreign_keys": [
         [
@@ -2706,7 +2706,7 @@
         "parent_id": "UUID",
         "roadmap_item_id": "UUID",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)",
+        "user_id": "INTEGER",
         "user_name": "VARCHAR(128)"
       },
       "foreign_keys": [
@@ -2743,7 +2743,7 @@
         "created_at": "DATETIME",
         "id": "INTEGER",
         "item_id": "UUID",
-        "user_id": "VARCHAR(36)",
+        "user_id": "INTEGER",
         "vote_type": "VARCHAR(8)"
       },
       "foreign_keys": [
@@ -3141,7 +3141,7 @@
         "success": "BOOLEAN",
         "tool_id": "VARCHAR(36)",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [
@@ -3199,7 +3199,7 @@
         "permission": "VARCHAR(50)",
         "tool_id": "VARCHAR(36)",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [
@@ -3479,7 +3479,7 @@
         "installed_at": "DATETIME",
         "listing_id": "VARCHAR(36)",
         "updated_at": "DATETIME",
-        "user_id": "VARCHAR(36)"
+        "user_id": "INTEGER"
       },
       "foreign_keys": [],
       "indexes": [
