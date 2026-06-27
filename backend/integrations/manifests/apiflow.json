@@ -1,0 +1,45 @@
+{
+  "slug": "apiflow",
+  "name": "Apiflow",
+  "description": "Connect your self-hosted Apiflow instance — manage API collections, run tests, and automate API workflows via agent.",
+  "category": "development",
+  "auth_type": "api_key",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "custom_endpoint",
+      "description": "Call a custom Apiflow endpoint"
+    },
+    {
+      "name": "webhook_trigger",
+      "description": "Trigger an Apiflow webhook"
+    },
+    {
+      "name": "list_collections",
+      "description": "List API collections in Apiflow"
+    },
+    {
+      "name": "run_test",
+      "description": "Run an API test suite in Apiflow"
+    }
+  ],
+  "health_check": {
+    "endpoint": "/api/health",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": [
+      {
+        "label": "Ping endpoint",
+        "action": "ping",
+        "description": "Call a demo API endpoint to verify connectivity"
+      }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/apiflow",
+  "version": "1.0.0"
+}

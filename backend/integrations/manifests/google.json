@@ -1,0 +1,55 @@
+{
+  "slug": "google",
+  "name": "Google",
+  "description": "Access Drive, Gmail, and Calendar from your workflows.",
+  "category": "productivity",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "send_email",
+      "description": "Send an email via Gmail"
+    },
+    {
+      "name": "list_emails",
+      "description": "List recent emails from Gmail inbox"
+    },
+    {
+      "name": "create_event",
+      "description": "Create a Google Calendar event"
+    },
+    {
+      "name": "list_events",
+      "description": "List upcoming Google Calendar events"
+    },
+    {
+      "name": "drive_list_files",
+      "description": "List files in Google Drive"
+    },
+    {
+      "name": "drive_upload_file",
+      "description": "Upload a file to Google Drive"
+    },
+    {
+      "name": "drive_download_file",
+      "description": "Download a file from Google Drive"
+    },
+    {
+      "name": "drive_share_file",
+      "description": "Share a Google Drive file with others"
+    }
+  ],
+  "health_check": {
+    "endpoint": "https://www.googleapis.com/oauth2/v1/tokeninfo",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": []
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/google",
+  "version": "1.0.0"
+}

@@ -1,0 +1,50 @@
+{
+  "slug": "slack",
+  "name": "Slack",
+  "description": "Send messages, create channels, and manage workflows directly from Slack.",
+  "category": "communication",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "send_message",
+      "description": "Send a message to a Slack channel or user"
+    },
+    {
+      "name": "list_channels",
+      "description": "List public channels in the workspace"
+    },
+    {
+      "name": "create_channel",
+      "description": "Create a new Slack channel"
+    },
+    {
+      "name": "add_reaction",
+      "description": "Add an emoji reaction to a message"
+    }
+  ],
+  "health_check": {
+    "endpoint": "https://slack.com/api/auth.test",
+    "method": "POST",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": [
+      {
+        "label": "Send test message",
+        "action": "send_message",
+        "description": "Post a test message to #flowmanner-playground"
+      },
+      {
+        "label": "List channels",
+        "action": "list_channels",
+        "description": "Show public channels in the demo workspace"
+      }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/slack",
+  "version": "1.0.0"
+}

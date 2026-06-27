@@ -60,3 +60,5 @@ ignore = [
 # (was "TC001", "TC002", "TC003" before ruff 0.6 — those rule codes were
 # removed in ruff 0.6 and now cause a TOML parse error under pinned 0.6.9.)
 "app/api/v2/schema.py" = []
+# Path is used at runtime in test fixtures, not just type annotations
+"tests/test_integration_manifest_service.py" = ["TCH003"]

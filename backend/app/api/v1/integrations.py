@@ -13,7 +13,7 @@ import redis as redis_lib
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -26,6 +26,38 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
+
+# NOTE: marketplace.py handles user-generated workflow listings (publish, install, rate).
+# Integrations handles first-party service connections (Slack, GitHub, etc.). No overlap.
+
+# ── Feature-flag gate for manifest-driven integrations ───────────────────
+_manifest_flag_entry: tuple[float, bool] | None = None
+_MANIFEST_FLAG_TTL = 60.0  # seconds — matches the feature-flags in-process cache
+
+
+async def _is_manifest_flag_enabled(db: AsyncSession) -> bool:
+    """Check whether the integration_manifests_v1 feature flag is on.
+
+    Result is cached in-process for 60 s so toggling the flag in the DB
+    takes effect without requiring a server restart.
+    """
+    global _manifest_flag_entry
+    now = time.monotonic()
+    if _manifest_flag_entry is not None:
+        ts, value = _manifest_flag_entry
+        if (now - ts) < _MANIFEST_FLAG_TTL:
+            return value
+    try:
+        result = await db.execute(
+            text("SELECT enabled_globally FROM feature_flags WHERE key = 'integration_manifests_v1'")
+        )
+        row = result.scalar()
+        enabled = bool(row) if row is not None else False
+    except Exception:
+        enabled = False
+    _manifest_flag_entry = (now, enabled)
+    return enabled
+
 
 # ── Redis-backed OAuth state store (shared across all workers) ──────────
 
@@ -163,8 +195,13 @@ def _conn_to_response(c: IntegrationConnection) -> Connection:
 @router.get("")
 async def list_integrations(
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    return {"integrations": [i.model_dump() for i in AVAILABLE_INTEGRATIONS]}
+    if await _is_manifest_flag_enabled(db):
+        from app.services.integration_manifest_service import manifest_service
+
+        return {"integrations": manifest_service.load_all(), "source": "manifests"}
+    return {"integrations": [i.model_dump() for i in AVAILABLE_INTEGRATIONS], "source": "static"}
 
 
 @router.get("/connections")
@@ -189,11 +226,21 @@ async def connect_integration(
     request: Request = None,
     body: ConnectRequest | None = None,
 ):
-    integration = next((i for i in AVAILABLE_INTEGRATIONS if i.slug == slug), None)
-    if not integration:
-        raise HTTPException(status_code=404, detail="Integration not found")
+    # Look up integration from manifest (if flag enabled) or fallback to static list
+    if await _is_manifest_flag_enabled(db):
+        from app.services.integration_manifest_service import manifest_service
 
-    if integration.auth_type == "oauth2":
+        manifest = manifest_service.get(slug)
+        if not manifest:
+            raise HTTPException(status_code=404, detail="Integration not found")
+        auth_type = manifest.get("auth_type", "oauth2")
+    else:
+        integration = next((i for i in AVAILABLE_INTEGRATIONS if i.slug == slug), None)
+        if not integration:
+            raise HTTPException(status_code=404, detail="Integration not found")
+        auth_type = integration.auth_type
+
+    if auth_type == "oauth2":
         # Generate one-time auth token so the browser-based authorize redirect works
         auth_token = secrets.token_urlsafe(32)
         _store_state(
@@ -484,7 +531,7 @@ async def get_connected_integrations(
 
 
 @router.post("/{slug}/test")
-async def test_integration(
+async def check_integration_connection(
     slug: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

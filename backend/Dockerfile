@@ -80,6 +80,8 @@ COPY mcp_gateway/ /app/mcp_gateway/
 COPY agent_definitions/ /app/agent_definitions/
 COPY scripts/ /app/scripts/
 COPY tests/ /app/tests/
+COPY integrations/ /app/integrations/
+COPY schemas/ /app/schemas/
 
 # Ensure no stray __pycache__ or .pyc from the host leak in
 RUN find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \

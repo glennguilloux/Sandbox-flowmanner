@@ -1,0 +1,58 @@
+{
+  "slug": "github",
+  "name": "GitHub",
+  "description": "Automate PRs, issues, and code reviews with GitHub integration.",
+  "category": "development",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "list_repos",
+      "description": "List repositories accessible to the connected account"
+    },
+    {
+      "name": "create_issue",
+      "description": "Create a new issue in a repository"
+    },
+    {
+      "name": "create_pr",
+      "description": "Create a new pull request"
+    },
+    {
+      "name": "list_prs",
+      "description": "List pull requests in a repository"
+    },
+    {
+      "name": "webhook_push",
+      "description": "Receive push event webhooks"
+    },
+    {
+      "name": "search_code",
+      "description": "Search code across accessible repositories"
+    }
+  ],
+  "health_check": {
+    "endpoint": "https://api.github.com/rate_limit",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": [
+      {
+        "label": "List demo repos",
+        "action": "list_repos",
+        "description": "Show repositories in the flowmanner-demo org"
+      },
+      {
+        "label": "Show repo details",
+        "action": "show_repo",
+        "description": "Display README of a demo repository"
+      }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/github",
+  "version": "1.0.0"
+}

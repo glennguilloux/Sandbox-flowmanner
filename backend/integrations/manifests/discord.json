@@ -1,0 +1,57 @@
+{
+  "slug": "discord",
+  "name": "Discord",
+  "description": "Send messages, manage channels, and interact with Discord servers via bot.",
+  "category": "communication",
+  "auth_type": "bot_token",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "send_message",
+      "description": "Send a message to a Discord channel"
+    },
+    {
+      "name": "list_channels",
+      "description": "List channels in a Discord server"
+    },
+    {
+      "name": "create_channel",
+      "description": "Create a new channel in a Discord server"
+    },
+    {
+      "name": "list_guilds",
+      "description": "List Discord servers the bot has access to"
+    },
+    {
+      "name": "get_user",
+      "description": "Get information about a Discord user"
+    },
+    {
+      "name": "create_dm",
+      "description": "Create a direct message channel with a user"
+    },
+    {
+      "name": "add_reaction",
+      "description": "Add an emoji reaction to a message"
+    }
+  ],
+  "health_check": {
+    "endpoint": "https://discord.com/api/v10/gateway",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": [
+      {
+        "label": "Send test message",
+        "action": "send_message",
+        "description": "Post a test message to a demo channel"
+      }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/discord",
+  "version": "1.0.0"
+}

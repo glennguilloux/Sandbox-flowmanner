@@ -1,0 +1,39 @@
+{
+  "slug": "google_drive",
+  "name": "Google Drive",
+  "description": "Access and manage files in Google Drive from your workflows.",
+  "category": "storage",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "list_files",
+      "description": "List files and folders in Google Drive"
+    },
+    {
+      "name": "upload_file",
+      "description": "Upload a file to Google Drive"
+    },
+    {
+      "name": "download_file",
+      "description": "Download a file from Google Drive"
+    },
+    {
+      "name": "share_file",
+      "description": "Share a file with specific users or make it public"
+    }
+  ],
+  "health_check": {
+    "endpoint": "https://www.googleapis.com/drive/v3/about?fields=user",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": []
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/google-drive",
+  "version": "1.0.0"
+}

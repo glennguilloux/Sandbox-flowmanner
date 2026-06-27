@@ -44,6 +44,7 @@ tenacity>=8.0
 python-docx==0.8.11
 python-pptx>=1.0.0
 openpyxl>=3.1.0
+jsonschema>=4.17
 
 # Web Push Notifications
 pywebpush>=2.0.0

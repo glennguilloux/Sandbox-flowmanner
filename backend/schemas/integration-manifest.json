@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IntegrationManifest",
+  "description": "Schema for Flowmanner integration manifest files. Each manifest drives UI, API, docs, and testing for a single integration.",
+  "type": "object",
+  "required": ["slug", "name", "description", "category", "auth_type", "capabilities", "health_check"],
+  "properties": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$",
+      "description": "Unique identifier for the integration (lowercase, hyphens/underscores only)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Display name of the integration"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Short description shown on the integration card"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["communication", "development", "productivity", "storage", "automation"],
+      "description": "Integration category for filtering and grouping"
+    },
+    "auth_type": {
+      "type": "string",
+      "enum": ["oauth2", "api_key", "bot_token"],
+      "description": "Authentication method used by this integration"
+    },
+    "icon_url": {
+      "type": "string",
+      "description": "URL or path to the integration icon"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Capability identifier (e.g. send_message, list_channels)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what this capability does"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Optional parameter schema for this capability"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "List of capabilities this integration provides"
+    },
+    "health_check": {
+      "type": "object",
+      "required": ["endpoint", "method"],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "API endpoint to call for health checking"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST"],
+          "description": "HTTP method for the health check"
+        },
+        "expected_status": {
+          "type": "integer",
+          "default": 200,
+          "description": "Expected HTTP status code for a healthy response"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Timeout for the health check request"
+        }
+      },
+      "additionalProperties": false
+    },
+    "playground": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the playground is available for this integration"
+        },
+        "demo_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "action"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Button label shown to the user"
+              },
+              "action": {
+                "type": "string",
+                "description": "Action identifier to execute"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of what this demo action does"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "List of demo actions available in the playground"
+        }
+      },
+      "additionalProperties": false
+    },
+    "trust_level": {
+      "type": "string",
+      "enum": ["verified", "community", "beta"],
+      "default": "verified",
+      "description": "Trust tier for this integration"
+    },
+    "docs_url": {
+      "type": "string",
+      "description": "URL to integration documentation"
+    },
+    "version": {
+      "type": "string",
+      "default": "1.0.0",
+      "description": "Semantic version of the integration manifest"
+    }
+  },
+  "additionalProperties": false
+}

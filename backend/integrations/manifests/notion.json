@@ -1,0 +1,53 @@
+{
+  "slug": "notion",
+  "name": "Notion",
+  "description": "Read and write Notion pages, databases, and tasks.",
+  "category": "productivity",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    {
+      "name": "create_page",
+      "description": "Create a new page in Notion"
+    },
+    {
+      "name": "query_database",
+      "description": "Query a Notion database with filters"
+    },
+    {
+      "name": "update_page",
+      "description": "Update an existing Notion page"
+    },
+    {
+      "name": "list_pages",
+      "description": "List pages accessible to the integration"
+    },
+    {
+      "name": "search",
+      "description": "Search across all accessible Notion content"
+    },
+    {
+      "name": "create_database",
+      "description": "Create a new Notion database"
+    }
+  ],
+  "health_check": {
+    "endpoint": "https://api.notion.com/v1/users/me",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false,
+    "demo_actions": [
+      {
+        "label": "List demo pages",
+        "action": "list_pages",
+        "description": "Show pages in a demo workspace"
+      }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/notion",
+  "version": "1.0.0"
+}
