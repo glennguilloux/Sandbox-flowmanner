@@ -10,3 +10,6 @@ node_modules/
 node_modules/
 .venv/
 venv/
+
+# uv lockfiles — project uses requirements.txt, not uv
+uv.lock

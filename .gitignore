@@ -54,6 +54,9 @@ TEMP/
 # ── Compiled SDK ────────────────────────────────────────────────
 sdk-python/flowmanner-api-client/dist/
 
+# ── uv lockfiles (project uses requirements.txt, not uv) ────────
+uv.lock
+
 # ── Claude / AI context ─────────────────────────────────────────
 .claude/
 .hermes/
