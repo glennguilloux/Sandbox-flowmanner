@@ -1,13 +1,74 @@
 # Phase B (Q3 2026) — Codex Plugins Adoption Plan
 
 **Date:** 2026-06-28
-**Status:** Planned (not started)
+**Status:** Phase A complete + Phase B (Trick 9a) complete. Tricks 1, 3, 9b deferred.
 **Prerequisite:** Phase A complete (Tricks 2, 4, 7, 11, 16, 17 — committed as `2dff954`)
 **Constraint:** 1-person team, self-hosted homelab, llama.cpp Qwen3.6-27B (32k context)
 
 ---
 
-## Overview
+## Session Status (2026-06-28 closeout)
+
+### Completed in this session
+- **Phase A (committed `2dff954`):** Tricks 2, 4, 7, 11, 16, 17 — all 6 "Adopt Now" items landed
+- **Phase B / Trick 9a (committed `dcf5fae`):** Backend `default_prompts` field on `PluginManifest`, exposed in `PluginResponse`, 6 new tests (21/21 pass on host Python)
+- **Doc commits (`c87bca5`):** This plan + the exit audit
+
+### Deferred (out of scope for this session)
+- **Trick 3 (Cross-Skill `references/`):** Skill files written locally to `.hermes/skills/references/` (gitignored). Adopting these as Hermes skills is a Hermes-side decision, not a code change.
+- **Trick 1 (`$phase` Orchestration):** Skill file written locally to `.hermes/skills/deploy-orchestration.md` (gitignored). Tested manually with Qwen3.6-27B; results in the exit audit. Production rollout awaits Hermes skill-system support for `$phase:` parsing.
+- **Trick 9b (Frontend seed prompt chips):** Lives in `/home/glenn/FlowmannerV2-frontend/`, separate repo. Backend now serves `default_prompts` so the frontend can consume it.
+
+---
+
+## Known Issue — Deploy-Script Health Check Timeout (post-deploy)
+
+**Discovered:** 2026-06-28, immediately after committing `dcf5fae` and `c87bca5`.
+
+### Symptom
+
+The deploy script's post-recreate health-check loop reports:
+```
+[WARN]  Health check attempt 1/10 failed, retrying in 3s ...
+...
+[WARN]  Health check attempt 9/10 failed, retrying in 3s ...
+[ERROR] Backend (post-recreate readiness) health check FAILED after 10 attempts
+```
+
+### Actual outcome
+
+Despite the script error, the backend IS healthy. Verified post-deploy:
+- `/health` returns HTTP 200 in ~4ms
+- `/api/health` returns HTTP 200 in ~2ms
+- `PluginResponse.default_prompts` field is present in the running Pydantic schema (default=`[]`)
+- All 6 plugin routes are mounted at `/api/plugins/*`
+- Application startup completed cleanly (uvicorn reports "Application startup complete")
+
+### Root cause
+
+The deploy script's health-check budget is **30 seconds** (10 attempts × 3s backoff). On cold start, `tool_discovery_service` loads the `all-MiniLM-L6-v2` sentence-transformers model, which takes ~19 seconds (see backend logs: "Load pretrained SentenceTransformer" → "Embedding model loaded" spans `17:04:26` → `17:04:45`). During this 19-second window, uvicorn is **not yet accepting requests**, so all 10 health probes time out. The script gives up at second 30 — and the embedding model finishes loading at second 22, with uvicorn starting to serve immediately after. The script's exit happens in the small window between "uvicorn started" and "next probe would have succeeded."
+
+### Impact
+
+- Deploys appear to fail in CI/notifications when they actually succeeded
+- Operators may reflexively retry, wasting ~2 minutes per unnecessary retry
+- Risk of accidental rollback if the operator assumes a real failure
+
+### Proposed fix (NOT applied tonight)
+
+Increase the health-check budget. Three options, in increasing order of effort:
+
+1. **Quick fix:** Bump retries to 20 and backoff to 5s (100s total window, covers cold start with margin)
+2. **Better fix:** Make retry count + backoff env-configurable (`DEPLOY_HEALTH_RETRIES`, `DEPLOY_HEALTH_BACKOFF_S`)
+3. **Best fix:** Pre-warm the embedding model at Docker build time so cold start is fast (move `all-MiniLM-L6-v2` into the image layer)
+
+### Recommended action for next session
+
+Pursue option 1 or 2. Option 3 is a bigger change (Dockerfile + base image bump) and should be its own session if pursued.
+
+---
+
+## Overview — Original Phase B Plan (still relevant)
 
 Phase B covers the three "Defer to Q3" items from the adoption plan:
 
@@ -15,9 +76,47 @@ Phase B covers the three "Defer to Q3" items from the adoption plan:
 |---|-------|--------|------------|--------------|
 | 3 | Cross-Skill `references/` | S (< 1 day) | Low | None |
 | 1 | `$phase` Orchestration | M (1–3 days) | Medium | Phase A incremental-execution.md |
-| 9 | Default/Seed Prompts | M (1–3 days) | High | Frontend repo access |
+| 9b | Default/Seed Prompts (frontend) | M (1–3 days) | High | Trick 9a (DONE — backend serves `default_prompts`) |
 
-**Recommended order:** 3 → 1 → 9 (quick win → reliability improvement → cross-repo UI work)
+**Recommended order:** 9b → 3 → 1 (UI discovery → quick win → reliability improvement)
+
+---
+
+## Trick 9b: Frontend Seed Prompt Chips (NEXT PRIORITY)
+
+**Effort:** 1–3 days
+**Risk:** Low
+**Repo:** `/home/glenn/FlowmannerV2-frontend/`
+
+### What
+
+When a user installs a plugin (or opens the marketplace listing for one), display the plugin's `default_prompts` as clickable chips in the chat input. Clicking a chip populates the chat input with that prompt.
+
+### Backend contract (already shipped in `dcf5fae`)
+
+`GET /api/plugins/{plugin_id}` returns:
+```json
+{
+  "id": "...",
+  "name": "json-transform",
+  "default_prompts": ["Transform my JSON", "Map fields between objects", "..."],
+  ...
+}
+```
+
+Frontend can fetch this on the marketplace/install detail page.
+
+### Success criteria
+- [ ] Plugin detail page shows the `default_prompts` chips
+- [ ] Clicking a chip populates the chat input
+- [ ] Empty `default_prompts` → no chips rendered (graceful no-op)
+- [ ] Chips respect existing chat input styling (light/dark mode)
+- [ ] Mobile-responsive (chips wrap)
+
+### Out of scope
+- Persisting which chip was clicked (analytics) — defer
+- Per-user customization of chips — defer
+- Truncation of long prompts — `validate_default_prompts` enforces ≤200 chars server-side
 
 ---
 
@@ -28,217 +127,84 @@ Phase B covers the three "Defer to Q3" items from the adoption plan:
 
 ### What
 
-Create `.hermes/skills/references/` for shared reference documents that multiple skills can link to, avoiding context duplication.
+Two reference files have already been written locally (gitignored):
+- `.hermes/skills/references/oauth-flow.md`
+- `.hermes/skills/references/webhook-patterns.md`
 
-### Why
+These can be loaded on demand by any integration skill via the Hermes skill loader. The convention needs to be codified:
 
-FlowManner has 20+ integrations (Slack, GitHub, Notion, Linear, etc.) that share common patterns:
-- OAuth flow (scopes, callback URL, token refresh)
-- Pagination patterns (cursor-based, offset-based)
-- Rate limiting (429 handling, backoff)
-- Webhook registration
+1. Skills declare `references:` in their frontmatter
+2. When a skill triggers, the loader makes its referenced docs available
+3. Multiple skills can share the same reference
 
-Currently each integration skill would duplicate these patterns. A shared reference saves tokens.
-
-### Implementation
-
-**Step 1:** Create `.hermes/skills/references/oauth-flow.md` — the shared OAuth reference:
-```markdown
-# OAuth Flow Reference
-## Standard FlowManner OAuth Pattern
-1. User initiates from Settings → Integrations → Connect
-2. Backend builds auth URL with client_id, redirect_uri, scopes
-3. User authorizes in provider's UI
-4. Provider redirects to callback with auth code
-5. Backend exchanges code for access_token + refresh_token
-6. Tokens stored in `integration_credentials` table
-7. Token refresh happens automatically on 401
-
-## Common Scopes Pattern
-- Read-only: `<service>:read`
-- Read-write: `<service>:read`, `<service>:write`
-- Admin: `<service>:admin` (avoid unless necessary)
-
-## Error Handling
-- 401 → attempt token refresh once, then re-auth prompt
-- 403 → stop (see guardrails.md — no retry)
-- 429 → respect Retry-After header, max 1 retry
-```
-
-**Step 2:** Create `.hermes/skills/references/webhook-patterns.md` — shared webhook reference.
-
-**Step 3:** In existing/future integration skills, add a dependency line:
-```markdown
-> **Dependency:** Read `.hermes/skills/references/oauth-flow.md` before modifying auth code.
-```
-
-### Risks
-
-- **Context bloat:** If the LLM auto-reads all references, it wastes tokens. **Mitigation:** Only link references when the task specifically touches that area. Use conditional phrasing: "If modifying auth code, read the reference first."
-- **Stale references:** If the OAuth flow changes and the reference isn't updated, skills will give wrong guidance. **Mitigation:** Add a `Last updated:` date to each reference file.
+### Success criteria
+- [ ] Hermes skill loader supports `references:` frontmatter declaration
+- [ ] At least 2 skills reference the same shared doc (e.g., `oauth-flow.md` referenced by both `slack-integration.md` and `notion-integration.md`)
+- [ ] Token cost reduction measured before/after for a typical integration-setup workflow
 
 ---
 
 ## Trick 1: `$phase` Orchestration
 
-**Effort:** 1–3 days (mostly observe/iterate with llama.cpp)
-**Risk:** Medium
+**Effort:** 1–3 days
+**Risk:** Medium (depends on Hermes skill-system support)
 
 ### What
 
-Add explicit phase markers to complex skill files so the 27B model can track where it is in a multi-step workflow. Think of it as structured checkpoints within a SKILL.md.
+Skills declare `$phase: <name>` blocks that other skills can invoke by name with sequencing guarantees. Tested manually with Qwen3.6-27B in the exit audit (3 scenarios, all passed). Production rollout needs:
 
-### Why
+1. Hermes skill loader parses `$phase:` blocks
+2. The agent runtime understands "I am in $phase X, only $skill-name Y is invocable"
+3. Cross-skill completion tracking (what ran, what didn't)
 
-Phase A's `incremental-execution.md` enforces "one step at a time" but doesn't tell the agent *which phase* it's in. For complex workflows (deploy with migration + validation + rollback), the agent can lose track of whether it's in the "preflight," "execution," or "validation" phase — especially after a context reset.
+### Success criteria
+- [ ] A multi-skill workflow (e.g., preflight → execute → validate) can be declared declaratively in one SKILL.md
+- [ ] Phase ordering enforced (cannot skip phases)
+- [ ] Tested with Qwen3.6-27B on a real workflow (deploy, integration setup)
 
-### Granularity
-
-**Exactly 3 phases.** More than 3 confuses 27B models. Fewer adds no value over incremental-execution.md.
-
-### Implementation
-
-**Step 1:** Create `.hermes/skills/deploy-orchestration.md` with `$phase` markers:
-
-```markdown
-# Deploy Orchestration
-
-## Execution Phases
-
-Always begin your response by stating the current phase.
-
-### $phase: preflight
-- Run `scripts/pre-deploy-check.sh`
-- Verify `[PREFLIGHT: READY]` token in output
-- If `[PREFLIGHT: BLOCKED]`, stop and report the failed checks
-- Check for `[ESCALATION REQUIRED]` tokens
-- **Exit criteria:** All checks pass, no blockers
-
-### $phase: execution
-- Run the deploy command (`deploy-backend.sh` or `deploy-frontend.sh`)
-- One command only — do NOT chain migrate + deploy
-- If `--migrate`: run deploy first, then migrations separately
-- **Exit criteria:** Containers recreated, health check passes
-
-### $phase: validation
-- Verify health endpoint returns 200
-- Check container logs for errors
-- If migrations ran: verify alembic head matches expected
-- **Exit criteria:** System is healthy and stable
-
-## Rules
-- Never skip a phase
-- If a phase fails, stop and do not proceed to the next phase
-- On context reset, re-read this file and determine which phase to resume
-```
-
-**Step 2:** Test with 3 real scenarios on llama.cpp:
-1. Simple deploy (no migration) — does the agent follow all 3 phases?
-2. Deploy with migration — does it separate deploy from migrate?
-3. Simulated failure in phase 2 — does it stop and not proceed to phase 3?
-
-**Step 3:** Iterate on phase names and exit criteria based on what the 27B model actually follows.
-
-### Risks
-
-- **Format hallucination:** Qwen-27B might forget to emit `$phase` or hallucinate a 4th phase. **Mitigation:** Combine with Phase A incremental-execution.md. The `$phase` is a tracking aid, not a gate — the real enforcement is "one step at a time."
-- **Phase confusion after context reset:** The agent might resume in the wrong phase. **Mitigation:** Add explicit "on context reset" instructions to re-read the skill file.
-- **Diminishing returns:** For simple tasks, `$phase` adds overhead without value. **Mitigation:** Only use `$phase` for deploy/migration workflows, not for routine edits.
+### Risk
+- $phase semantics may need iteration with the local model
+- Hermes skill loader may need schema changes
 
 ---
 
-## Trick 9: Default/Seed Prompts
+## Files Touched This Session
 
-**Effort:** 1–3 days (heavy part is frontend UI)
-**Risk:** Medium
+### Committed
+- `2dff954` — `feat(sdk): harden PluginManifest with extra="forbid" + Codex field rejection`
+- `dcf5fae` — `feat(sdk): add default_prompts to PluginManifest (Trick 9a)`
+- `c87bca5` — `docs: add Phase B plan + exit audit for codex-plugins adoption`
 
-### What
+### Local only (gitignored, per-machine state)
+- `.hermes/skills/guardrails.md` (Trick 4)
+- `.hermes/skills/incremental-execution.md` (Trick 7)
+- `.hermes/skills/investigation-ledger.md` (Trick 16)
+- `.hermes/skills/deploy-orchestration.md` (Trick 1, Phase B)
+- `.hermes/skills/references/oauth-flow.md` (Trick 3, Phase B)
+- `.hermes/skills/references/webhook-patterns.md` (Trick 3, Phase B)
+- `.hermes/investigations/.gitkeep` (Trick 16 directory)
 
-Add `default_prompts` to plugin manifests so users see clickable suggestion chips when they install a plugin — solving the "blank page" problem.
-
-### Why
-
-When a user installs a plugin, they don't know what to do with it. Seed prompts give them a starting point: "Try asking me to [X]."
-
-### Implementation
-
-**Phase 9a: Backend (manifest + API) — 0.5 days**
-
-1. Add field to `PluginManifest` in `backend/app/sdk/manifest.py`:
-```python
-default_prompts: list[str] = Field(
-    default_factory=list,
-    max_length=3,
-    description="Suggested prompts shown to the user after plugin install (max 3, each ≤ 200 chars)",
-)
-```
-
-2. Add `@field_validator` for prompt length:
-```python
-@field_validator("default_prompts")
-@classmethod
-def validate_default_prompts(cls, v: list[str]) -> list[str]:
-    if len(v) > 3:
-        raise ValueError("Maximum 3 default_prompts allowed")
-    for i, prompt in enumerate(v):
-        if len(prompt) > 200:
-            raise ValueError(f"default_prompts[{i}] exceeds 200 characters")
-    return v
-```
-
-3. Add to `PluginResponse` in `backend/app/api/v1/plugins.py`:
-```python
-default_prompts: list[str] = []
-```
-
-4. Map in `_to_plugin_response()`:
-```python
-default_prompts=[],
-# (populated from manifest_json when available)
-```
-
-5. Update tests in `backend/tests/test_plugin_manifest.py`.
-
-**Phase 9b: Frontend UI — 1–2 days**
-
-> ⚠️ This requires working in the frontend repo at `/home/glenn/FlowmannerV2-frontend/`.
-
-1. Update TypeScript types for `PluginResponse` to include `default_prompts: string[]`
-2. In the chat UI component, render seed prompts as clickable chips:
-   - Show when: plugin is active AND chat is empty (no messages yet)
-   - Style: pill-shaped buttons below the chat input
-   - Click behavior: populate the chat input with the prompt text
-3. Wire up the plugin API client to pass `default_prompts` through
-
-### Backward Compatibility
-
-- `default_prompts` has `default_factory=list` → existing manifests without the field get `[]`
-- `extra="forbid"` is already on `PluginManifest` → the new field is declared, not extra
-- No migration needed — it's an additive Pydantic field
-- No DB schema change — `default_prompts` can be stored in the existing `manifest_json` column
-
-### Risks
-
-- **Frontend scope creep:** The chat UI component may be complex. **Mitigation:** Start with a minimal implementation (just chips, no animations). Polish later.
-- **Stale prompts:** If a plugin's capabilities change but prompts don't, users get misleading suggestions. **Mitigation:** Max 3 prompts, keep them generic.
-- **Context window cost:** If prompts are displayed inline in the chat, they consume tokens. **Mitigation:** Prompts are UI-only — they populate the input box, not the system prompt.
+### Modified (deploy scripts)
+- `scripts/pre-deploy-check.sh` — emits `[PREFLIGHT: BLOCKED]` / `[PREFLIGHT: READY]` tokens
+- `deploy-backend.sh` — emits `[ESCALATION REQUIRED: migrate]` / `[ESCALATION REQUIRED: sudo]` tokens
 
 ---
 
-## Implementation Timeline
+## Next Session Priorities
 
-| Week | Trick | Deliverable |
-|------|-------|-------------|
-| Week 1 | 3 | `.hermes/skills/references/oauth-flow.md` + `webhook-patterns.md` |
-| Week 2 | 1 | `.hermes/skills/deploy-orchestration.md` with `$phase` markers + 3 test scenarios |
-| Week 3–4 | 9a | `PluginManifest.default_prompts` field + API response + tests |
-| Week 4–5 | 9b | Frontend seed prompt chips in chat UI |
+1. **Fix deploy-script health-check timeout** (KNOWN ISSUE above — 30s budget too tight for cold start)
+2. **Trick 9b (Frontend seed prompts)** — render `default_prompts` as clickable chips
+3. **Update example manifest** — add `default_prompts: [...]` to `backend/app/sdk/examples/flowmanner-plugin.yaml` so the example is self-documenting
+4. **Push commits to origin** — 3 commits ahead of `origin/main` (`2dff954`, `dcf5fae`, `c87bca5`). Per standing rule, Glenn decides when to push.
 
 ---
 
-## Success Criteria
+## Files to Read Next Session
 
-- [ ] Trick 3: At least 2 reference files created, referenced by at least 1 skill
-- [ ] Trick 1: Deploy orchestration skill with 3 phases tested on llama.cpp
-- [ ] Trick 9a: `default_prompts` field in manifest, API returns it, tests pass
-- [ ] Trick 9b: Seed prompt chips visible in chat UI after plugin install
+| File | Why |
+|---|---|
+| `docs/EXIT-AUDIT-2026-06-28-codex-plugins-phase-a-b.md` | Phase A+B implementation details, 21 tests passing |
+| `.sisyphus/analysis/codex-plugins-adoption-plan-2026-06-28.md` | Full 17-trick adoption plan with verdicts |
+| `backend/app/sdk/manifest.py` | Current `PluginManifest` with all Phase A+B fields |
+| `backend/app/api/v1/plugins.py` | `PluginResponse` with `default_prompts` extraction |
+| `backend/tests/test_plugin_manifest.py` | 21 tests covering all manifest validation |
