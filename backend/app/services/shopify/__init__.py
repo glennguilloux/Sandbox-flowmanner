@@ -1,0 +1,1 @@
+"""Shopify integration service."""

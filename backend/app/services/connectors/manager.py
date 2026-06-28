@@ -30,14 +30,18 @@ from .hubspot_connector import HubSpotConnector
 from .intercom_connector import IntercomConnector
 from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
+from .monday_connector import MondayConnector
 from .notion_connector import NotionConnector
 from .pagerduty_connector import PagerDutyConnector
 from .sentry_connector import SentryConnector
+from .shopify_connector import ShopifyConnector
 from .slack_connector import SlackConnector
 from .stripe_connector import StripeConnector
+from .telegram_connector import TelegramConnector
 from .twilio_connector import TwilioConnector
 from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
+from .zendesk_connector import ZendeskConnector
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,10 @@ class ConnectorManager:
         "stripe": StripeConnector,
         "twilio": TwilioConnector,
         "vercel": VercelConnector,
+        "shopify": ShopifyConnector,
+        "zendesk": ZendeskConnector,
+        "monday": MondayConnector,
+        "telegram": TelegramConnector,
     }
 
     def __init__(self):

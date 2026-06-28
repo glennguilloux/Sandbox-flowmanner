@@ -115,6 +115,10 @@ gitlab_webhook_router = _import_router("gitlab_webhook")
 clickup_webhook_router = _import_router("clickup_webhook")
 hubspot_webhook_router = _import_router("hubspot_webhook")
 twilio_webhook_router = _import_router("twilio_webhook")
+shopify_webhook_router = _import_router("shopify_webhook")
+zendesk_webhook_router = _import_router("zendesk_webhook")
+monday_webhook_router = _import_router("monday_webhook")
+telegram_webhook_router = _import_router("telegram_webhook")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -247,6 +251,10 @@ for _name, _router in [
     ("clickup", clickup_webhook_router),
     ("hubspot", hubspot_webhook_router),
     ("twilio", twilio_webhook_router),
+    ("shopify", shopify_webhook_router),
+    ("zendesk", zendesk_webhook_router),
+    ("monday", monday_webhook_router),
+    ("telegram", telegram_webhook_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),

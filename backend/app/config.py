@@ -164,6 +164,25 @@ class Settings(BaseSettings):
     TWILIO_API_KEY_SECRET: str = ""
     TWILIO_WEBHOOK_SECRET: str = ""
 
+    # Shopify integration
+    SHOPIFY_OAUTH_CLIENT_ID: str = ""
+    SHOPIFY_OAUTH_CLIENT_SECRET: str = ""
+    SHOPIFY_WEBHOOK_SECRET: str = ""
+
+    # Zendesk integration
+    ZENDESK_OAUTH_CLIENT_ID: str = ""
+    ZENDESK_OAUTH_CLIENT_SECRET: str = ""
+    ZENDESK_WEBHOOK_SECRET: str = ""
+
+    # Monday.com integration
+    MONDAY_OAUTH_CLIENT_ID: str = ""
+    MONDAY_OAUTH_CLIENT_SECRET: str = ""
+    MONDAY_WEBHOOK_SECRET: str = ""
+
+    # Telegram integration
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

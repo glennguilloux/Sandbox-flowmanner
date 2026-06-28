@@ -284,6 +284,38 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="api_key",
     ),
+    Integration(
+        slug="shopify",
+        name="Shopify",
+        description="E-commerce platform. Manage products, orders, customers, inventory, and webhooks with AI agent integration.",
+        category="ecommerce",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="zendesk",
+        name="Zendesk",
+        description="Customer support ticketing platform. Manage tickets, users, search, organizations, groups, comments, and metrics with AI agent integration.",
+        category="support",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="monday",
+        name="Monday.com",
+        description="Work management platform. Manage boards, items, updates, users, and workspaces with AI agent integration.",
+        category="productivity",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="telegram",
+        name="Telegram",
+        description="Messaging platform via Bot API. Send messages, photos, documents, manage chats, pin messages, and configure webhooks with AI agent integration.",
+        category="communication",
+        icon_url="",
+        auth_type="api_key",
+    ),
 ]
 
 

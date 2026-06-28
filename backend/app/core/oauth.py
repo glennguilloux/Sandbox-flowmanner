@@ -256,6 +256,49 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
             "tickets",
         ],
     ),
+    "shopify": OAuthProviderConfig(
+        slug="shopify",
+        name="Shopify",
+        authorize_url="https://{shop}.myshopify.com/admin/oauth/authorize",
+        token_url="https://{shop}.myshopify.com/admin/oauth/access_token",
+        client_id_env="SHOPIFY_OAUTH_CLIENT_ID",
+        client_secret_env="SHOPIFY_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "read_products",
+            "write_products",
+            "read_orders",
+            "write_orders",
+            "read_customers",
+            "read_inventory",
+        ],
+    ),
+    "zendesk": OAuthProviderConfig(
+        slug="zendesk",
+        name="Zendesk",
+        authorize_url="https://{subdomain}.zendesk.com/oauth/authorizations/new",
+        token_url="https://{subdomain}.zendesk.com/oauth/tokens",
+        client_id_env="ZENDESK_OAUTH_CLIENT_ID",
+        client_secret_env="ZENDESK_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "read",
+            "write",
+        ],
+    ),
+    "monday": OAuthProviderConfig(
+        slug="monday",
+        name="Monday.com",
+        authorize_url="https://auth.monday.com/oauth2/authorize",
+        token_url="https://auth.monday.com/oauth2/token",
+        client_id_env="MONDAY_OAUTH_CLIENT_ID",
+        client_secret_env="MONDAY_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "boards:read",
+            "boards:write",
+            "items:read",
+            "items:write",
+            "users:read",
+        ],
+    ),
 }
 
 

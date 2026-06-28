@@ -1566,10 +1566,276 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"calendar_id": "string", "event_id": "string"},
         },
     ],
+    "shopify": [
+        {
+            "id": "get_shop",
+            "name": "Get Shopify Shop",
+            "description": "Get shop info (credential validation)",
+            "params": {},
+        },
+        {
+            "id": "list_products",
+            "name": "List Shopify Products",
+            "description": "List products",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_product",
+            "name": "Get Shopify Product",
+            "description": "Get product details",
+            "params": {"product_id": "integer"},
+        },
+        {
+            "id": "create_product",
+            "name": "Create Shopify Product",
+            "description": "Create a product",
+            "params": {"title": "string"},
+        },
+        {
+            "id": "list_orders",
+            "name": "List Shopify Orders",
+            "description": "List orders",
+            "params": {"limit": "integer", "status": "string"},
+        },
+        {
+            "id": "get_order",
+            "name": "Get Shopify Order",
+            "description": "Get order details",
+            "params": {"order_id": "integer"},
+        },
+        {
+            "id": "update_order",
+            "name": "Update Shopify Order",
+            "description": "Update an order",
+            "params": {"order_id": "integer"},
+        },
+        {
+            "id": "list_customers",
+            "name": "List Shopify Customers",
+            "description": "List customers",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_customer",
+            "name": "Get Shopify Customer",
+            "description": "Get customer details",
+            "params": {"customer_id": "integer"},
+        },
+        {
+            "id": "list_inventory_levels",
+            "name": "List Shopify Inventory Levels",
+            "description": "List inventory levels",
+            "params": {"inventory_item_ids": "string"},
+        },
+        {
+            "id": "create_webhook",
+            "name": "Create Shopify Webhook",
+            "description": "Create a webhook",
+            "params": {"topic": "string", "address": "string"},
+        },
+        {
+            "id": "list_transactions",
+            "name": "List Shopify Transactions",
+            "description": "List payment transactions",
+            "params": {"order_id": "integer"},
+        },
+    ],
+    "zendesk": [
+        {"id": "get_me", "name": "Get Zendesk User", "description": "Get current user info", "params": {}},
+        {
+            "id": "list_tickets",
+            "name": "List Zendesk Tickets",
+            "description": "List tickets",
+            "params": {"page": "integer", "per_page": "integer"},
+        },
+        {
+            "id": "get_ticket",
+            "name": "Get Zendesk Ticket",
+            "description": "Get ticket details",
+            "params": {"ticket_id": "integer"},
+        },
+        {
+            "id": "create_ticket",
+            "name": "Create Zendesk Ticket",
+            "description": "Create a ticket",
+            "params": {"subject": "string"},
+        },
+        {
+            "id": "update_ticket",
+            "name": "Update Zendesk Ticket",
+            "description": "Update a ticket",
+            "params": {"ticket_id": "integer"},
+        },
+        {
+            "id": "list_users",
+            "name": "List Zendesk Users",
+            "description": "List users",
+            "params": {"page": "integer", "per_page": "integer"},
+        },
+        {
+            "id": "get_user",
+            "name": "Get Zendesk User",
+            "description": "Get user details",
+            "params": {"user_id": "integer"},
+        },
+        {
+            "id": "search_tickets",
+            "name": "Search Zendesk Tickets",
+            "description": "Search tickets with query syntax",
+            "params": {"query": "string"},
+        },
+        {
+            "id": "list_organizations",
+            "name": "List Zendesk Organizations",
+            "description": "List organizations",
+            "params": {"page": "integer"},
+        },
+        {
+            "id": "list_groups",
+            "name": "List Zendesk Groups",
+            "description": "List agent groups",
+            "params": {"page": "integer"},
+        },
+        {
+            "id": "add_ticket_comment",
+            "name": "Add Zendesk Ticket Comment",
+            "description": "Add a comment to a ticket",
+            "params": {"ticket_id": "integer", "comment_body": "string"},
+        },
+        {
+            "id": "list_ticket_metrics",
+            "name": "List Zendesk Ticket Metrics",
+            "description": "List ticket metrics",
+            "params": {"page": "integer"},
+        },
+    ],
+    "monday": [
+        {"id": "get_me", "name": "Get Monday User", "description": "Get current user info", "params": {}},
+        {
+            "id": "list_boards",
+            "name": "List Monday Boards",
+            "description": "List boards",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_board",
+            "name": "Get Monday Board",
+            "description": "Get board details with columns and groups",
+            "params": {"board_id": "string"},
+        },
+        {
+            "id": "list_items",
+            "name": "List Monday Items",
+            "description": "List items in a board",
+            "params": {"board_id": "string", "limit": "integer"},
+        },
+        {
+            "id": "get_item",
+            "name": "Get Monday Item",
+            "description": "Get item details with column values",
+            "params": {"item_id": "string"},
+        },
+        {
+            "id": "create_item",
+            "name": "Create Monday Item",
+            "description": "Create an item in a board",
+            "params": {"board_id": "string", "item_name": "string"},
+        },
+        {
+            "id": "update_item",
+            "name": "Update Monday Item",
+            "description": "Update item column values",
+            "params": {"item_id": "string", "board_id": "string", "column_values": "string"},
+        },
+        {
+            "id": "create_update",
+            "name": "Create Monday Update (Comment)",
+            "description": "Add a comment/update to an item",
+            "params": {"item_id": "string", "body": "string"},
+        },
+        {
+            "id": "list_users",
+            "name": "List Monday Users",
+            "description": "List workspace users",
+            "params": {"limit": "integer"},
+        },
+        {"id": "list_workspaces", "name": "List Monday Workspaces", "description": "List workspaces", "params": {}},
+    ],
+    "telegram": [
+        {
+            "id": "get_me",
+            "name": "Get Telegram Bot Info",
+            "description": "Get bot info (credential validation)",
+            "params": {},
+        },
+        {
+            "id": "send_message",
+            "name": "Send Telegram Message",
+            "description": "Send a text message to a chat",
+            "params": {"chat_id": "string", "text": "string"},
+        },
+        {
+            "id": "send_photo",
+            "name": "Send Telegram Photo",
+            "description": "Send a photo (URL or file_id)",
+            "params": {"chat_id": "string", "photo": "string"},
+        },
+        {
+            "id": "send_document",
+            "name": "Send Telegram Document",
+            "description": "Send a file/document",
+            "params": {"chat_id": "string", "document": "string"},
+        },
+        {
+            "id": "edit_message",
+            "name": "Edit Telegram Message",
+            "description": "Edit a previously sent message",
+            "params": {"chat_id": "string", "message_id": "integer", "text": "string"},
+        },
+        {
+            "id": "delete_message",
+            "name": "Delete Telegram Message",
+            "description": "Delete a message",
+            "params": {"chat_id": "string", "message_id": "integer"},
+        },
+        {
+            "id": "forward_message",
+            "name": "Forward Telegram Message",
+            "description": "Forward a message to another chat",
+            "params": {"chat_id": "string", "from_chat_id": "string", "message_id": "integer"},
+        },
+        {
+            "id": "get_chat",
+            "name": "Get Telegram Chat Info",
+            "description": "Get chat info",
+            "params": {"chat_id": "string"},
+        },
+        {
+            "id": "get_chat_member",
+            "name": "Get Telegram Chat Member",
+            "description": "Get info about a chat member",
+            "params": {"chat_id": "string", "user_id": "integer"},
+        },
+        {
+            "id": "pin_message",
+            "name": "Pin Telegram Message",
+            "description": "Pin a message in a chat",
+            "params": {"chat_id": "string", "message_id": "integer"},
+        },
+        {
+            "id": "set_webhook",
+            "name": "Set Telegram Webhook",
+            "description": "Configure webhook URL for bot updates",
+            "params": {"url": "string"},
+        },
+        {
+            "id": "get_updates",
+            "name": "Get Telegram Updates",
+            "description": "Poll for updates (alternative to webhook)",
+            "params": {"limit": "integer"},
+        },
+    ],
 }
-
-
-# ── Non-OAuth integrations (API key / bot token based) ─────────
 # These skip the per-user OAuth token DB lookup entirely.
 # Add new entries here when building API-key-backed connectors.
 
@@ -1598,6 +1864,11 @@ _NON_OAUTH_CONFIGS: dict[str, dict[str, Any]] = {
         "name": "twilio-instance",
         "auth_type": "api_key",
         "label": "Twilio API Key SID + Secret",
+    },
+    "telegram": {
+        "name": "telegram-bot",
+        "auth_type": "api_key",
+        "label": "Telegram Bot Token",
     },
 }
 

@@ -201,6 +201,50 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "list_phone_numbers" in twilio_ids
     assert "get_usage" in twilio_ids
 
+    # Shopify: e-commerce platform (Batch 9)
+    shopify_caps = _INTEGRATION_CAPABILITIES.get("shopify", [])
+    assert len(shopify_caps) >= 12
+    shopify_ids = {c["id"] for c in shopify_caps}
+    assert "get_shop" in shopify_ids
+    assert "list_products" in shopify_ids
+    assert "list_orders" in shopify_ids
+    assert "create_product" in shopify_ids
+    assert "list_customers" in shopify_ids
+    assert "list_transactions" in shopify_ids
+
+    # Zendesk: customer support ticketing (Batch 9)
+    zendesk_caps = _INTEGRATION_CAPABILITIES.get("zendesk", [])
+    assert len(zendesk_caps) >= 12
+    zendesk_ids = {c["id"] for c in zendesk_caps}
+    assert "list_tickets" in zendesk_ids
+    assert "create_ticket" in zendesk_ids
+    assert "update_ticket" in zendesk_ids
+    assert "search_tickets" in zendesk_ids
+    assert "list_organizations" in zendesk_ids
+    assert "add_ticket_comment" in zendesk_ids
+
+    # Monday.com: work management (Batch 9)
+    monday_caps = _INTEGRATION_CAPABILITIES.get("monday", [])
+    assert len(monday_caps) >= 10
+    monday_ids = {c["id"] for c in monday_caps}
+    assert "list_boards" in monday_ids
+    assert "get_board" in monday_ids
+    assert "list_items" in monday_ids
+    assert "create_item" in monday_ids
+    assert "update_item" in monday_ids
+    assert "list_workspaces" in monday_ids
+
+    # Telegram: messaging platform (Batch 9)
+    telegram_caps = _INTEGRATION_CAPABILITIES.get("telegram", [])
+    assert len(telegram_caps) >= 12
+    telegram_ids = {c["id"] for c in telegram_caps}
+    assert "send_message" in telegram_ids
+    assert "send_photo" in telegram_ids
+    assert "edit_message" in telegram_ids
+    assert "forward_message" in telegram_ids
+    assert "get_chat" in telegram_ids
+    assert "pin_message" in telegram_ids
+
 
 def test_all_connectors_registered_in_manager():
     """All Batch 1-4 connectors are registered in the ConnectorManager."""
@@ -223,6 +267,10 @@ def test_all_connectors_registered_in_manager():
     assert manager.get_connector_class("clickup") is not None
     assert manager.get_connector_class("hubspot") is not None
     assert manager.get_connector_class("twilio") is not None
+    assert manager.get_connector_class("shopify") is not None
+    assert manager.get_connector_class("zendesk") is not None
+    assert manager.get_connector_class("monday") is not None
+    assert manager.get_connector_class("telegram") is not None
 
 
 def test_all_connectors_registered_in_init():
@@ -245,3 +293,7 @@ def test_all_connectors_registered_in_init():
     assert "clickup" in CONNECTOR_TYPES
     assert "hubspot" in CONNECTOR_TYPES
     assert "twilio" in CONNECTOR_TYPES
+    assert "shopify" in CONNECTOR_TYPES
+    assert "zendesk" in CONNECTOR_TYPES
+    assert "monday" in CONNECTOR_TYPES
+    assert "telegram" in CONNECTOR_TYPES

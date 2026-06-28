@@ -1,0 +1,20 @@
+{
+    "slug": "monday",
+    "name": "Monday.com",
+    "description": "Work management platform. Manage boards, items, updates, users, and workspaces with AI agent integration.",
+    "category": "productivity",
+    "icon_url": "",
+    "auth_type": "oauth2",
+    "capabilities": [
+        {"id": "get_me", "name": "Get Monday User", "description": "Get current user info"},
+        {"id": "list_boards", "name": "List Monday Boards", "description": "List boards"},
+        {"id": "get_board", "name": "Get Monday Board", "description": "Get board details with columns and groups"},
+        {"id": "list_items", "name": "List Monday Items", "description": "List items in a board"},
+        {"id": "get_item", "name": "Get Monday Item", "description": "Get item details with column values"},
+        {"id": "create_item", "name": "Create Monday Item", "description": "Create an item in a board"},
+        {"id": "update_item", "name": "Update Monday Item", "description": "Update item column values"},
+        {"id": "create_update", "name": "Create Monday Update (Comment)", "description": "Add a comment/update to an item"},
+        {"id": "list_users", "name": "List Monday Users", "description": "List workspace users"},
+        {"id": "list_workspaces", "name": "List Monday Workspaces", "description": "List workspaces"}
+    ]
+}

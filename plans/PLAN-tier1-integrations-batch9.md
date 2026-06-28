@@ -1,11 +1,11 @@
-# PLAN — Tier 1 Integrations: Batch 9 (Shopify + Zendesk + Monday.com)
+# PLAN — Tier 1 Integrations: Batch 9 (Shopify + Zendesk + Monday.com + Telegram)
 
 **Date:** June 28, 2026
 **Status:** Draft — ready for review
-**Scope:** Add new Shopify integration (12 actions) + new Zendesk integration (12 actions) + new Monday.com integration (10 actions).
+**Scope:** Add new Shopify integration (12 actions) + new Zendesk integration (12 actions) + new Monday.com integration (10 actions) + new Telegram integration (12 actions).
 **Machine:** homelab (172.16.1.1)
-**Prerequisite:** Batches 1-8 deployed and stable (21 integrations total, 194 bridge capabilities).
-**Estimated effort:** Shopify ~4 days, Zendesk ~3 days, Monday.com ~3 days. Total ~1.5 weeks.
+**Prerequisite:** Batches 1-8 deployed and stable (23 integrations total, 234 bridge capabilities).
+**Estimated effort:** Shopify ~4 days, Zendesk ~3 days, Monday.com ~3 days, Telegram ~2 days. Total ~2 weeks.
 
 ---
 
@@ -16,8 +16,9 @@ Batch 9 adds three new integrations covering e-commerce, customer support, and p
 - **Shopify** — E-commerce platform. The killer workflow: *Shopify order placed → agent creates HubSpot deal + sends Twilio SMS confirmation*. Standard OAuth2 with shop-specific URLs. HMAC-SHA256 webhook verification. Leaky-bucket rate limits (40 req/min baseline). **High business value.**
 - **Zendesk** — Customer support ticketing. The killer workflow: *Zendesk ticket created → agent creates ClickUp/Linear task + searches Notion for relevant docs*. Standard OAuth2 with subdomain-specific URLs. HMAC webhook verification. **Fills the support ticketing gap beyond Intercom.**
 - **Monday.com** — Work management platform. The killer workflow: *Sentry error → agent creates Monday item with severity + stack trace link*. Standard OAuth2. Complexity-based rate limits (not request-count). **Broadens the project management options beyond Asana/ClickUp/Jira.**
+- **Telegram** — Messaging platform via Bot API. The killer workflow: *Mission complete → agent sends summary to Telegram group + pins it*. Bot token auth (no OAuth). **Unlocks conversational agent notifications and two-way chat via Telegram bots.**
 
-**Key insight:** Shopify uses shop-specific URLs (`{shop}.myshopify.com`) — the OAuth flow must dynamically set the authorize and token URLs per shop. Zendesk similarly uses subdomain-specific URLs. Monday.com uses a GraphQL API (not REST) — a first for our integrations.
+**Key insight:** Shopify uses shop-specific URLs (`{shop}.myshopify.com`) — the OAuth flow must dynamically set the authorize and token URLs per shop. Zendesk similarly uses subdomain-specific URLs. Monday.com uses a GraphQL API (not REST) — a first for our integrations. Telegram uses bot tokens (like Twilio's API key pattern) — no OAuth needed.
 
 ---
 
@@ -447,19 +448,141 @@ Add Monday.com token refresh block in `integration_bridge.py` using generic `_re
 
 ---
 
-## PART D: Cross-Integration Workflow Test Update
+## PART D: Telegram Integration (~2 days)
+
+### Auth Model
+
+**Bot token auth** (no OAuth). Same pattern as Twilio — API key stored in settings. The bot token is obtained by messaging @BotFather on Telegram and creating a new bot. Token format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`.
+
+### Key Findings — Telegram Bot API
+
+| Aspect | What Telegram does |
+|--------|-------------------|
+| Auth | Bot token in URL: `https://api.telegram.org/bot<TOKEN>/method` |
+| Token format | `123456789:ABCdefGHIjklMNOpqrsTUVwxyz` (from @BotFather) |
+| API base URL | `https://api.telegram.org/bot<TOKEN>` |
+| **Quirk** | Token is embedded in the URL path, not a header. Each API call is `GET` or `POST` to `/bot<TOKEN>/<method>`. |
+| Rate limits | ~30 messages/sec to different chats, ~1 msg/sec to same chat. ~20 messages/min to same group. |
+| Webhook | HTTPS only. Set via `setWebhook` with a public URL. Telegram sends updates as JSON POST. Optional secret token in `X-Telegram-Bot-Api-Secret-Token` header. |
+| Polling | Alternative to webhook: `getUpdates` long-polling. |
+| Token expiry | **Never** (bot tokens don't expire unless revoked via @BotFather) |
+
+**Important quirk:** Telegram bot tokens are embedded in the URL path, not sent as headers. The client must construct URLs like `https://api.telegram.org/bot123456789:ABC.../sendMessage`. This differs from every other integration we have.
+
+### Step D1: Add Telegram settings
+
+**File:** `backend/app/config.py`
+
+```python
+# Telegram integration
+TELEGRAM_BOT_TOKEN: str = ""
+TELEGRAM_WEBHOOK_SECRET: str = ""  # X-Telegram-Bot-Api-Secret-Token
+```
+
+No OAuth — just a bot token. Add to `_NON_OAUTH_CONFIGS` in `integrations.py`.
+
+### Step D2: Create TelegramClient service
+
+**File (NEW):** `backend/app/services/telegram/__init__.py` + `backend/app/services/telegram/telegram_client.py`
+
+Async REST client for Telegram Bot API. Auth via bot token in URL path.
+
+| Action | Method | Telegram API Method | Notes |
+|--------|--------|---------------------|-------|
+| get_me | GET | `getMe` | Credential validation — returns bot info |
+| send_message | POST | `sendMessage` | Send text message to chat |
+| send_photo | POST | `sendPhoto` | Send photo (URL or file_id) |
+| send_document | POST | `sendDocument` | Send file/document |
+| edit_message | POST | `editMessageText` | Edit a previously sent message |
+| delete_message | POST | `deleteMessage` | Delete a message |
+| forward_message | POST | `forwardMessage` | Forward message to another chat |
+| get_chat | POST | `getChat` | Get chat info (title, type, etc.) |
+| get_chat_member | POST | `getChatMember` | Get info about a chat member |
+| pin_message | POST | `pinChatMessage` | Pin a message in a chat |
+| set_webhook | POST | `setWebhook` | Configure webhook URL for bot updates |
+| get_updates | GET | `getUpdates` | Poll for updates (alternative to webhook) |
+
+### Step D3: Create TelegramConnector
+
+**File (NEW):** `backend/app/services/connectors/telegram_connector.py`
+
+12 actions. Follow twilio_connector pattern (API key auth, not OAuth).
+
+### Step D4: Create Telegram webhook handler
+
+**File (NEW):** `backend/app/api/v1/telegram_webhook.py`
+
+Telegram sends updates as JSON POST to the webhook URL. Optional verification via `X-Telegram-Bot-Api-Secret-Token` header (compare against configured secret).
+
+Events: `message`, `edited_message`, `channel_post`, `my_chat_member`.
+
+### Step D5: Register Telegram bridge capabilities
+
+**File:** `backend/app/services/integration_bridge.py`
+
+```python
+"telegram": [
+    {"id": "get_me", "name": "Get Telegram Bot Info", ...},
+    {"id": "send_message", "name": "Send Telegram Message", ...},
+    {"id": "send_photo", "name": "Send Telegram Photo", ...},
+    {"id": "send_document", "name": "Send Telegram Document", ...},
+    {"id": "edit_message", "name": "Edit Telegram Message", ...},
+    {"id": "delete_message", "name": "Delete Telegram Message", ...},
+    {"id": "forward_message", "name": "Forward Telegram Message", ...},
+    {"id": "get_chat", "name": "Get Telegram Chat Info", ...},
+    {"id": "get_chat_member", "name": "Get Telegram Chat Member", ...},
+    {"id": "pin_message", "name": "Pin Telegram Message", ...},
+    {"id": "set_webhook", "name": "Set Telegram Webhook", ...},
+    {"id": "get_updates", "name": "Get Telegram Updates", ...},
+],
+```
+
+### Step D6: Manifest + static registry + icon
+
+- **Manifest:** `backend/integrations/manifests/telegram.json`
+- **Static list:** Add `Integration(slug="telegram", ...)` — in `_NON_OAUTH_CONFIGS` (not OAuth)
+- **Frontend icon:** `SiTelegram` from `@icons-pack/react-simple-icons`
+- **Connect handler:** API key (bot token) — same flow as Twilio
+
+### Step D7: Register connector + router
+
+- Register `TelegramConnector` in `connectors/__init__.py` and `connectors/manager.py`
+- Register `telegram_webhook_router` in `api/v1/__init__.py`
+
+### Step D8: Token refresh
+
+**No token refresh needed.** Telegram bot tokens do not expire.
+
+### Step D9: Tests
+
+**File (NEW):** `backend/tests/test_telegram_integration.py`
+
+- `test_telegram_in_available_integrations`
+- `test_telegram_in_non_oauth_configs`
+- `test_telegram_manifest_exists`
+- `test_telegram_bridge_capabilities`
+- `test_telegram_webhook_router_exists`
+- `test_telegram_connector_importable`
+- `test_telegram_settings_exist`
+
+Note: No `test_telegram_in_v1_oauth_providers` — Telegram uses bot token auth, not OAuth (same as Twilio).
+
+---
+
+## PART E: Cross-Integration Workflow Test Update (was Part D)
 
 Update `test_cross_integration_workflow.py`:
 - Shopify: assert 12 capabilities (new)
 - Zendesk: assert 12 capabilities (new)
 - Monday.com: assert 10 capabilities (new)
+- Telegram: assert 12 capabilities (new)
 - Update connector manager/init assertions
 
 ---
 
 ## Files Summary
 
-### New files (18)
+### New files (21)
 
 | File | Purpose |
 |------|---------|
@@ -475,24 +598,30 @@ Update `test_cross_integration_workflow.py`:
 | `backend/app/services/monday/monday_client.py` | Monday.com GraphQL client |
 | `backend/app/services/connectors/monday_connector.py` | Monday.com BaseConnector wrapper |
 | `backend/app/api/v1/monday_webhook.py` | Monday.com webhook handler |
+| `backend/app/services/telegram/__init__.py` | Telegram service package |
+| `backend/app/services/telegram/telegram_client.py` | Telegram Bot API client |
+| `backend/app/services/connectors/telegram_connector.py` | Telegram BaseConnector wrapper |
+| `backend/app/api/v1/telegram_webhook.py` | Telegram webhook handler |
 | `backend/integrations/manifests/shopify.json` | Shopify manifest |
 | `backend/integrations/manifests/zendesk.json` | Zendesk manifest |
 | `backend/integrations/manifests/monday.json` | Monday.com manifest |
+| `backend/integrations/manifests/telegram.json` | Telegram manifest |
 | `backend/tests/test_shopify_integration.py` | Shopify wiring tests |
 | `backend/tests/test_zendesk_integration.py` | Zendesk wiring tests |
 | `backend/tests/test_monday_integration.py` | Monday.com wiring tests |
+| `backend/tests/test_telegram_integration.py` | Telegram wiring tests |
 
 ### Modified files (8)
 
 | File | Change |
 |------|--------|
 | `backend/app/core/oauth.py` | Add Shopify + Zendesk + Monday OAuthProviderConfig |
-| `backend/app/config.py` | Add SHOPIFY_* + ZENDESK_* + MONDAY_* settings |
-| `backend/app/api/v1/integrations.py` | Add Shopify + Zendesk + Monday to AVAILABLE_INTEGRATIONS |
-| `backend/app/api/v1/__init__.py` | Register shopify_webhook + zendesk_webhook + monday_webhook routers |
-| `backend/app/services/integration_bridge.py` | Add 12 Shopify + 12 Zendesk + 10 Monday bridge capabilities + Zendesk/Monday token refresh |
-| `backend/app/services/connectors/__init__.py` | Register ShopifyConnector + ZendeskConnector + MondayConnector |
-| `backend/app/services/connectors/manager.py` | Register ShopifyConnector + ZendeskConnector + MondayConnector in CONNECTOR_CLASSES |
+| `backend/app/config.py` | Add SHOPIFY_* + ZENDESK_* + MONDAY_* + TELEGRAM_* settings |
+| `backend/app/api/v1/integrations.py` | Add Shopify + Zendesk + Monday + Telegram to AVAILABLE_INTEGRATIONS; add Telegram to _NON_OAUTH_CONFIGS |
+| `backend/app/api/v1/__init__.py` | Register shopify_webhook + zendesk_webhook + monday_webhook + telegram_webhook routers |
+| `backend/app/services/integration_bridge.py` | Add 12 Shopify + 12 Zendesk + 10 Monday + 12 Telegram bridge capabilities + Zendesk/Monday token refresh |
+| `backend/app/services/connectors/__init__.py` | Register ShopifyConnector + ZendeskConnector + MondayConnector + TelegramConnector |
+| `backend/app/services/connectors/manager.py` | Register ShopifyConnector + ZendeskConnector + MondayConnector + TelegramConnector in CONNECTOR_CLASSES |
 | `backend/tests/test_cross_integration_workflow.py` | Update assertions for new capabilities |
 
 ---
@@ -525,6 +654,14 @@ Update `test_cross_integration_workflow.py`:
 - [ ] Token refresh via generic `_refresh_oauth_token()`
 - [ ] All 7 tests pass
 
+### Telegram
+- [ ] 12 Telegram actions working (messages, photos, documents, chat info, webhooks)
+- [ ] Telegram bridge capabilities: 12 total
+- [ ] Telegram connector: 12 actions
+- [ ] Bot token auth (no OAuth, same as Twilio)
+- [ ] Telegram webhook handler with secret token verification
+- [ ] All 7 tests pass
+
 ### Shared
 - [ ] ruff check passes
 - [ ] All existing tests still pass
@@ -540,8 +677,9 @@ Update `test_cross_integration_workflow.py`:
 | Shopify (new) | 12 | 12 |
 | Zendesk (new) | 12 | 12 |
 | Monday.com (new) | 10 | 10 |
-| **Batch 9 total** | **+34** | **+34** |
-| **Grand total (Batches 1-9)** | **228** | — |
+| Telegram (new) | 12 | 12 |
+| **Batch 9 total** | **+46** | **+46** |
+| **Grand total (Batches 1-9)** | **280** | — |
 
 ---
 
