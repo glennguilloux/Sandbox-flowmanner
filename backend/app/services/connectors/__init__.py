@@ -28,8 +28,10 @@ from .base import (
     RateLimitConfig,
     RateLimitExceeded,
 )
+from .confluence_connector import ConfluenceConnector
 from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
+from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
 from .jira_connector import JiraConnector
@@ -45,6 +47,7 @@ __all__ = [
     "AuthType",
     "AuthenticationError",
     "BaseConnector",
+    "ConfluenceConnector",
     "ConnectorConfig",
     "ConnectorError",
     "ConnectorManager",
@@ -52,6 +55,7 @@ __all__ = [
     "ConnectorStatus",
     "DiscordConnector",
     "EmailConnector",
+    "FigmaConnector",
     "GitHubConnector",
     "GoogleConnector",
     "JiraConnector",
@@ -76,6 +80,8 @@ CONNECTOR_TYPES = {
     "google": GoogleConnector,
     "notion": NotionConnector,
     "jira": JiraConnector,
+    "confluence": ConfluenceConnector,
+    "figma": FigmaConnector,
     "linear": LinearConnector,
     "sentry": SentryConnector,
     "vercel": VercelConnector,

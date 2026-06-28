@@ -15,8 +15,10 @@ from .base import (
     ConnectorResponse,
     ConnectorStatus,
 )
+from .confluence_connector import ConfluenceConnector
 from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
+from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
 from .jira_connector import JiraConnector
@@ -50,6 +52,8 @@ class ConnectorManager:
         "google": GoogleConnector,
         "notion": NotionConnector,
         "jira": JiraConnector,
+        "confluence": ConfluenceConnector,
+        "figma": FigmaConnector,
         "linear": LinearConnector,
         "sentry": SentryConnector,
         "vercel": VercelConnector,

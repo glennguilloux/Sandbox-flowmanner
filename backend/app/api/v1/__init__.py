@@ -101,6 +101,9 @@ sentry_webhook_router = _import_router("sentry_webhook")
 vercel_webhook_router = _import_router("vercel_webhook")
 jira_oauth_router = _import_router("jira_oauth", tier=RouterTier.OPTIONAL)
 jira_webhook_router = _import_router("jira_webhook")
+confluence_oauth_router = _import_router("confluence_oauth", tier=RouterTier.OPTIONAL)
+confluence_webhook_router = _import_router("confluence_webhook")
+figma_webhook_router = _import_router("figma_webhook")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -219,6 +222,9 @@ for _name, _router in [
     ("vercel", vercel_webhook_router),
     ("jira-oauth", jira_oauth_router),
     ("jira", jira_webhook_router),
+    ("confluence-oauth", confluence_oauth_router),
+    ("confluence", confluence_webhook_router),
+    ("figma", figma_webhook_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),

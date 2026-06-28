@@ -188,6 +188,22 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="oauth2",
     ),
+    Integration(
+        slug="confluence",
+        name="Confluence",
+        description="Knowledge base and wiki management. Create, update, and search pages, manage spaces, and automate documentation workflows with AI agent integration.",
+        category="productivity",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="figma",
+        name="Figma",
+        description="Design file access and collaboration. Read files, list comments, post feedback, track versions, and bridge design-to-dev workflows with AI agent integration.",
+        category="design",
+        icon_url="",
+        auth_type="oauth2",
+    ),
 ]
 
 
@@ -362,6 +378,14 @@ async def oauth_authorize(
         redirect_uri = redirect_uri.replace(
             f"/api/integrations/jira/oauth/callback",
             "/api/jira/oauth/callback",
+        )
+        params["redirect_uri"] = redirect_uri
+
+    # Confluence uses a custom OAuth callback (same Atlassian 3LO site discovery as Jira)
+    if slug == "confluence":
+        redirect_uri = redirect_uri.replace(
+            "/api/integrations/confluence/oauth/callback",
+            "/api/confluence/oauth/callback",
         )
         params["redirect_uri"] = redirect_uri
 

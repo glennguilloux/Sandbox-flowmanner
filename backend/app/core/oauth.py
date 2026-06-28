@@ -114,6 +114,34 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
         scopes=["read:jira-work", "write:jira-work", "read:jira-user"],
         extra_auth_params={"audience": "api.atlassian.com", "prompt": "consent"},
     ),
+    "confluence": OAuthProviderConfig(
+        slug="confluence",
+        name="Confluence",
+        authorize_url="https://auth.atlassian.com/authorize",
+        token_url="https://auth.atlassian.com/oauth/token",
+        client_id_env="CONFLUENCE_OAUTH_CLIENT_ID",
+        client_secret_env="CONFLUENCE_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "read:confluence-content.all",
+            "write:confluence-content",
+            "read:confluence-space.summary",
+        ],
+        extra_auth_params={"audience": "api.atlassian.com", "prompt": "consent"},
+    ),
+    "figma": OAuthProviderConfig(
+        slug="figma",
+        name="Figma",
+        authorize_url="https://www.figma.com/oauth",
+        token_url="https://www.figma.com/api/oauth/token",
+        client_id_env="FIGMA_OAUTH_CLIENT_ID",
+        client_secret_env="FIGMA_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "file_content:read",
+            "file_comments:read",
+            "file_comments:write",
+            "file_versions:read",
+        ],
+    ),
 }
 
 

@@ -461,6 +461,133 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"board_id": "integer"},
         },
     ],
+    "confluence": [
+        {
+            "id": "get_me",
+            "name": "Get Confluence User",
+            "description": "Get authenticated Confluence user info",
+            "params": {},
+        },
+        {
+            "id": "list_spaces",
+            "name": "List Confluence Spaces",
+            "description": "List Confluence spaces",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_space",
+            "name": "Get Confluence Space",
+            "description": "Get space details",
+            "params": {"space_id": "string"},
+        },
+        {
+            "id": "get_page",
+            "name": "Get Confluence Page",
+            "description": "Get page details with body",
+            "params": {"page_id": "string"},
+        },
+        {
+            "id": "create_page",
+            "name": "Create Confluence Page",
+            "description": "Create a new page in a Confluence space",
+            "params": {
+                "space_id": "string",
+                "title": "string",
+                "body": "string",
+                "parent_id": "string",
+            },
+        },
+        {
+            "id": "update_page",
+            "name": "Update Confluence Page",
+            "description": "Update page content (auto-increments version)",
+            "params": {
+                "page_id": "string",
+                "title": "string",
+                "body": "string",
+            },
+        },
+        {
+            "id": "search_content",
+            "name": "Search Confluence Content",
+            "description": "Search content with CQL query",
+            "params": {"cql": "string", "limit": "integer"},
+        },
+        {
+            "id": "list_page_children",
+            "name": "List Confluence Page Children",
+            "description": "List sub-pages of a page",
+            "params": {"page_id": "string", "limit": "integer"},
+        },
+        {
+            "id": "add_comment",
+            "name": "Add Confluence Comment",
+            "description": "Add a comment to a Confluence page",
+            "params": {"page_id": "string", "body": "string"},
+        },
+        {
+            "id": "list_attachments",
+            "name": "List Confluence Attachments",
+            "description": "List attachments on a page",
+            "params": {"page_id": "string", "limit": "integer"},
+        },
+        {
+            "id": "add_labels",
+            "name": "Add Confluence Labels",
+            "description": "Add labels to a Confluence page",
+            "params": {"page_id": "string", "labels": "array"},
+        },
+    ],
+    "figma": [
+        {
+            "id": "get_me",
+            "name": "Get Figma User",
+            "description": "Get authenticated Figma user info",
+            "params": {},
+        },
+        {
+            "id": "get_file",
+            "name": "Get Figma File",
+            "description": "Get file details (nodes, styles, components)",
+            "params": {"file_key": "string"},
+        },
+        {
+            "id": "get_file_nodes",
+            "name": "Get Figma File Nodes",
+            "description": "Get specific nodes from a file",
+            "params": {"file_key": "string", "node_ids": "array"},
+        },
+        {
+            "id": "list_comments",
+            "name": "List Figma Comments",
+            "description": "List comments on a Figma file",
+            "params": {"file_key": "string"},
+        },
+        {
+            "id": "post_comment",
+            "name": "Post Figma Comment",
+            "description": "Add a comment to a Figma file",
+            "params": {"file_key": "string", "message": "string"},
+        },
+        {
+            "id": "get_file_versions",
+            "name": "Get Figma File Versions",
+            "description": "Get version history of a file",
+            "params": {"file_key": "string"},
+        },
+        {
+            "id": "list_team_projects",
+            "name": "List Figma Team Projects",
+            "description": "List projects for a Figma team",
+            "params": {"team_id": "string"},
+        },
+        {
+            "id": "list_project_files",
+            "name": "List Figma Project Files",
+            "description": "List files in a Figma project",
+            "params": {"project_id": "string"},
+        },
+    ],
     "google": [
         # Drive
         {
@@ -879,7 +1006,7 @@ class IntegrationBridge:
         # ── Auto-refresh expired Jira (Atlassian) OAuth tokens ──
         if slug == "jira" and conn.encrypted_refresh_token:
             try:
-                new_token = await self._refresh_jira_token(decrypt_token(conn.encrypted_refresh_token))
+                new_token = await self._refresh_oauth_token("jira", decrypt_token(conn.encrypted_refresh_token))
                 if new_token:
                     conn.encrypted_access_token = encrypt_token(new_token["access_token"])
                     if new_token.get("refresh_token"):
@@ -901,12 +1028,62 @@ class IntegrationBridge:
                 logger.warning("Failed to refresh Jira token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
 
-        # ── Jira: extract cloudId from account_id ──────────────
+        # ── Auto-refresh expired Confluence (Atlassian) OAuth tokens ──
+        if slug == "confluence" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("confluence", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Confluence token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Confluence token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired Figma OAuth tokens ──────────────
+        if slug == "figma" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("figma", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Figma token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Figma token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Jira + Confluence: extract cloudId from account_id ──
         extra_auth_config: dict[str, str] = {}
-        if slug == "jira":
+        if slug in ("jira", "confluence"):
             cloud_id = conn.account_id
             if not cloud_id:
-                logger.warning("No cloudId for user %s Jira connection", user_id)
+                logger.warning("No cloudId for user %s %s connection", user_id, slug)
                 return None
             extra_auth_config["cloud_id"] = cloud_id
 
@@ -999,16 +1176,18 @@ class IntegrationBridge:
         return resp.json()
 
     @staticmethod
-    async def _refresh_jira_token(refresh_token: str) -> dict[str, Any] | None:
+    async def _refresh_oauth_token(slug: str, refresh_token: str) -> dict[str, Any] | None:
         """
-        Exchange a Jira (Atlassian) refresh token for a fresh access token.
+        Generic OAuth2 refresh — works for any provider that uses the standard
+        `grant_type=refresh_token` flow at the same token_url.
 
+        Used by Jira, Confluence, Figma, and future standard OAuth2 providers.
         Returns {'access_token': ..., 'expires_in': ..., 'refresh_token': ...}
         or None on failure.
         """
-        provider = OAUTH_PROVIDERS.get("jira")
+        provider = OAUTH_PROVIDERS.get(slug)
         if not provider or not provider.is_configured:
-            logger.warning("Jira OAuth provider not configured — cannot refresh token")
+            logger.warning("OAuth provider '%s' not configured — cannot refresh token", slug)
             return None
 
         data = {
@@ -1027,7 +1206,8 @@ class IntegrationBridge:
 
         if resp.status_code != 200:
             logger.warning(
-                "Jira token refresh failed: %s %s",
+                "%s token refresh failed: %s %s",
+                slug,
                 resp.status_code,
                 resp.text[:200],
             )

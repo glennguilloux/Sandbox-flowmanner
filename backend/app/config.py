@@ -103,6 +103,16 @@ class Settings(BaseSettings):
     JIRA_OAUTH_CLIENT_SECRET: str = ""
     JIRA_WEBHOOK_SECRET: str = ""
 
+    # Confluence integration
+    CONFLUENCE_OAUTH_CLIENT_ID: str = ""
+    CONFLUENCE_OAUTH_CLIENT_SECRET: str = ""
+    CONFLUENCE_WEBHOOK_SECRET: str = ""
+
+    # Figma integration
+    FIGMA_OAUTH_CLIENT_ID: str = ""
+    FIGMA_OAUTH_CLIENT_SECRET: str = ""
+    FIGMA_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 
