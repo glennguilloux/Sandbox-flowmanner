@@ -1,9 +1,9 @@
-# Exit Audit — Tier 1 Integrations Batch 2 (Vercel + Jira)
+# Exit Audit — Tier 1 Integrations Batch 2 (Vercel + Jira) + Batch 3 Plan
 
 **Date:** June 28, 2026
-**Session focus:** Implement Vercel + Jira integrations (Batch 2) + verify Batch 1 completeness
+**Session focus:** Implement Vercel + Jira integrations (Batch 2) + verify Batch 1 completeness + write Batch 3 plan (Confluence + Figma)
 **Machine:** homelab (172.16.1.1)
-**Commits:** `d5c4ac3` on `origin/main` (backend)
+**Commits:** `d5c4ac3` (Batch 2 code), `dc2647f` (exit audit) on `origin/main` (backend)
 
 ---
 
@@ -208,12 +208,12 @@ Total                                   35 passed in 0.35s
 
 ## Next Session Should Start With
 
-1. **Push the frontend Batch 2 icons** — Need to add `SiVercel` and `SiJira` (or custom SVGs) to `ICON_MAP` in the frontend, then commit and push. The frontend repo at `/home/glenn/FlowmannerV2-frontend/` still only has `b945a76` (Batch 1 icons) unpushed.
-2. **Push the frontend commit** — `cd /home/glenn/FlowmannerV2-frontend && git push origin master` (commit `b945a76` is local-only)
-3. **Create Vercel OAuth app** — https://vercel.com/dashboard/settings/integrations → set redirect to `https://flowmanner.com/api/integrations/vercel/oauth/callback`
-4. **Create Jira OAuth app** — https://developer.atlassian.com/console/myapps/ → set redirect to `https://flowmanner.com/api/jira/oauth/callback` → add permissions `read:jira-work`, `write:jira-work`, `read:jira-user`
-5. **Add OAuth credentials to `.env`** — `VERCEL_OAUTH_CLIENT_ID`, `VERCEL_OAUTH_CLIENT_SECRET`, `JIRA_OAUTH_CLIENT_ID`, `JIRA_OAUTH_CLIENT_SECRET`
-6. **Consider writing the Batch 3 plan** — All 4 Tier 1 integrations (Linear, Sentry, Vercel, Jira) are now complete. Next tier could include: Confluence (natural pair with Jira, same Atlassian OAuth), Figma, Slack OAuth (already has bot token), or GitHub OAuth.
+1. **Read the Batch 3 plan:** `.sisyphus/plans/PLAN-tier1-integrations-batch3.md`
+2. **Start with Confluence (Part A)** — reuses Jira's Atlassian OAuth 3LO, same site discovery, same ADF format. Fastest build ever (~1 week).
+3. **Then Figma (Part B)** — standard OAuth2 with quirks (HTTP Basic token exchange, separate refresh endpoint). ~1.5 weeks.
+4. **Push the frontend commit** — `cd /home/glenn/FlowmannerV2-frontend && git push origin master` (commit `b945a76` is local-only, Batch 1 icons)
+5. **Add Batch 2 frontend icons** — Need to add `SiVercel` and `SiJira` (or custom SVGs) to `ICON_MAP` in the frontend.
+6. **Create OAuth apps** — Vercel (https://vercel.com/dashboard/settings/integrations), Jira (https://developer.atlassian.com/console/myapps/), Confluence (same Atlassian console), Figma (https://figma.com/developers/apps).
 
 ---
 
@@ -240,12 +240,14 @@ Total                                   35 passed in 0.35s
 | Item | Value |
 |------|-------|
 | Backend image | `workflows-backend:latest` (rebuilt 2026-06-28) |
-| Backend commit | `d5c4ac3` on `origin/main` |
+| Backend commit | `dc2647f` on `origin/main` (latest: exit audit) |
 | Frontend commit | `b945a76` local-only (Batch 1 icons, not pushed) |
 | All containers healthy | ✅ backend, celery-worker, celery-beat, workflow-postgres, workflow-redis, workflow-qdrant, workflow-rabbitmq, jaeger, searxng, workflows-static |
-| Vercel OAuth credentials | NOT set (needs OAuth app creation) |
-| Jira OAuth credentials | NOT set (needs OAuth app creation) |
+| Vercel OAuth credentials | NOT set (needs OAuth app creation at vercel.com/dashboard/settings/integrations) |
+| Jira OAuth credentials | NOT set (needs OAuth app creation at developer.atlassian.com/console/myapps/) |
 | Jira webhook secret | NOT set (optional, accepts unsigned when empty) |
 | Vercel webhook secret | NOT set (optional, accepts unsigned when empty) |
 | Linear OAuth credentials | NOT set (Linear platform bug — "GitHub user already exists") |
 | Sentry webhook secret | NOT set (optional, accepts unsigned when empty) |
+| Confluence OAuth credentials | NOT SET — deferred to Batch 3 |
+| Figma OAuth credentials | NOT SET — deferred to Batch 3 |
