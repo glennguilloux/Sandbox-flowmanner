@@ -901,13 +901,11 @@ async def send_message_to_llm(
     If user_base_url is provided, it overrides the resolved base_url for custom providers.
     For llamacpp/* models, any BYOK key is ignored (llama.cpp doesn't use API keys).
     """
-    await create_chat_message(db, thread_id, "user", content, user_id=user_id)
-    # Commit the user message immediately so the transaction is released.
-    # During the long LLM call (minutes with tool-calls), the connection
-    # would otherwise sit idle-in-transaction and get killed by PostgreSQL's
-    # idle_in_transaction_session_timeout.
-    await db.commit()
-
+    # --- Pre-LLM setup: resolve provider, BYOK lookup, build messages ---
+    # All DB work happens BEFORE saving/committing the user message so the
+    # session can be closed immediately after commit, preventing PostgreSQL's
+    # idle_in_transaction_session_timeout from killing the connection during
+    # the potentially multi-minute LLM call.
     raw_model = model_id or model_preference or _LLM_MODEL
     base_url, api_key, model = _resolve_provider(raw_model)
 
@@ -949,18 +947,26 @@ async def send_message_to_llm(
     breaker = get_circuit_breaker(provider_name)
     llm_start = time.time()
 
+    # Build messages and process all DB-dependent setup BEFORE saving user message.
+    openai_tools = _get_chat_openai_tools()
+    messages_for_llm = await _build_chat_messages(db, thread_id)
+    # Append the new user message — it isn't in DB history yet
+    messages_for_llm.append({"role": "user", "content": content})
+
+    if attachments:
+        messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
+
+    if web_search:
+        messages_for_llm = await _inject_web_search(messages_for_llm, content)
+
+    # Save user message, commit, and immediately close the session to prevent
+    # idle-in-transaction timeout during the LLM call
+    await create_chat_message(db, thread_id, "user", content, user_id=user_id)
+    await db.commit()
+    await db.close()
+
     try:
-        openai_tools = _get_chat_openai_tools()
-
         async with breaker.protect():
-            messages_for_llm = await _build_chat_messages(db, thread_id)
-
-            if attachments:
-                messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
-
-            if web_search:
-                messages_for_llm = await _inject_web_search(messages_for_llm, content)
-
             # ── Tool-calling loop (non-streaming) ───────────────────
             total_prompt_tokens = 0
             total_completion_tokens = 0
@@ -1050,17 +1056,12 @@ async def send_message_to_llm(
             success=True,
         )
 
+        # Session was closed before LLM call to prevent idle-in-transaction timeout.
+        # Always use fresh session for saving.
         try:
-            await create_chat_message(db, thread_id, "assistant", assistant_content)
-        except Exception as save_err:
-            # Catch broad Exception: asyncpg.InterfaceError, sqlalchemy.InterfaceError,
-            # OperationalError etc.  Validation/constraint errors will also fail on
-            # the fresh session, so the retry is safe (no silent data corruption).
-            logger.warning(
-                "Assistant message save failed on original session (%s), retrying with fresh session",
-                save_err,
-            )
             await create_chat_message_fresh_session(thread_id, "assistant", assistant_content)
+        except Exception as save_err:
+            logger.warning("Assistant message save failed (non-fatal): %s", save_err)
 
         try:
             from app.services.usage_service import get_usage_service
@@ -1164,13 +1165,7 @@ async def stream_message_to_llm(
     If user_base_url is provided, it overrides the resolved base_url for custom providers.
     For llamacpp/* models, any BYOK key is ignored (llama.cpp doesn't use API keys).
     """
-    await create_chat_message(db, thread_id, "user", content, user_id=user_id)
-    # Commit the user message immediately so the transaction is released.
-    # During long LLM streaming (minutes with tool-calls), the connection
-    # would otherwise sit idle-in-transaction and get killed by PostgreSQL's
-    # idle_in_transaction_session_timeout.
-    await db.commit()
-
+    # --- Pre-LLM setup: resolve provider, BYOK lookup, build messages ---
     collected_chunks = []
     raw_model = model_id or model_preference or _LLM_MODEL
     base_url, api_key, model = _resolve_provider(raw_model)
@@ -1209,53 +1204,58 @@ async def stream_message_to_llm(
     breaker = get_circuit_breaker(provider_name)
     llm_start = time.time()
 
-    try:
-        openai_tools = _get_chat_openai_tools()
+    # Build messages and process all DB-dependent setup BEFORE saving user message.
+    openai_tools = _get_chat_openai_tools()
+    messages_for_llm = await _build_chat_messages(db, thread_id)
+    # Append the new user message — it isn't in DB history yet
+    messages_for_llm.append({"role": "user", "content": content})
 
-        async with breaker.protect():
-            messages_for_llm = await _build_chat_messages(db, thread_id)
-
-            # ── T33 Stage 1: pre-LLM memory recall + injection ──────
-            # Guarded by (a) the feature flag, (b) the thread having a
-            # workspace_id (per plan §13 M4). A recall outage is logged
-            # and swallowed — the LLM call always proceeds.
-            memory_recall_claims: list[PersonalMemoryClaim] = []
-            if settings.CHAT_MEMORY_CITATIONS_ENABLED:
-                thread_for_recall = await get_chat_thread(db, thread_id)
-                if thread_for_recall and thread_for_recall.workspace_id:
-                    try:
-                        memory_recall_claims = await recall_for_chat(
-                            db,
-                            user_id=user_id,
-                            workspace_id=thread_for_recall.workspace_id,
-                            query=content,
-                        )
-                        if memory_recall_claims:
-                            messages_for_llm = _inject_memory_context(messages_for_llm, memory_recall_claims)
-                            logger.info(
-                                "stream_message_to_llm: injected %d memory claims for thread %s",
-                                len(memory_recall_claims),
-                                thread_id,
-                            )
-                    except Exception as recall_err:
-                        logger.warning(
-                            "stream_message_to_llm: memory recall failed for thread %s, continuing without context: %s",
-                            thread_id,
-                            recall_err,
-                        )
-                        memory_recall_claims = []
-                else:
+    # ── T33 Stage 1: pre-LLM memory recall + injection ──────
+    memory_recall_claims: list[PersonalMemoryClaim] = []
+    if settings.CHAT_MEMORY_CITATIONS_ENABLED:
+        thread_for_recall = await get_chat_thread(db, thread_id)
+        if thread_for_recall and thread_for_recall.workspace_id:
+            try:
+                memory_recall_claims = await recall_for_chat(
+                    db,
+                    user_id=user_id,
+                    workspace_id=thread_for_recall.workspace_id,
+                    query=content,
+                )
+                if memory_recall_claims:
+                    messages_for_llm = _inject_memory_context(messages_for_llm, memory_recall_claims)
                     logger.info(
-                        "stream_message_to_llm: skipping memory recall for thread %s (workspace_id is null)",
+                        "stream_message_to_llm: injected %d memory claims for thread %s",
+                        len(memory_recall_claims),
                         thread_id,
                     )
+            except Exception as recall_err:
+                logger.warning(
+                    "stream_message_to_llm: memory recall failed for thread %s, continuing without context: %s",
+                    thread_id,
+                    recall_err,
+                )
+                memory_recall_claims = []
+        else:
+            logger.info(
+                "stream_message_to_llm: skipping memory recall for thread %s (workspace_id is null)",
+                thread_id,
+            )
 
-            if attachments:
-                messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
+    if attachments:
+        messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
 
-            if web_search:
-                messages_for_llm = await _inject_web_search(messages_for_llm, content)
+    if web_search:
+        messages_for_llm = await _inject_web_search(messages_for_llm, content)
 
+    # Save user message, commit, and immediately close the session to prevent
+    # idle-in-transaction timeout during the LLM call
+    await create_chat_message(db, thread_id, "user", content, user_id=user_id)
+    await db.commit()
+    await db.close()
+
+    try:
+        async with breaker.protect():
             full_response = ""
             accumulated_prompt_tokens = 0
             accumulated_completion_tokens = 0
@@ -1444,31 +1444,30 @@ async def stream_message_to_llm(
             success=True,
         )
 
+        # Session was closed before LLM call to prevent idle-in-transaction timeout.
+        # Always use fresh session for saving.
+        assistant_msg: ChatMessage | None = None
         try:
-            assistant_msg = await create_chat_message(db, thread_id, "assistant", full_response)
-        except Exception as save_err:
-            # Catch broad Exception: asyncpg.InterfaceError, sqlalchemy.InterfaceError,
-            # OperationalError etc.  Validation/constraint errors will also fail on
-            # the fresh session, so the retry is safe (no silent data corruption).
-            logger.warning(
-                "stream: assistant message save failed on original session (%s), retrying with fresh session",
-                save_err,
-            )
             assistant_msg = await create_chat_message_fresh_session(thread_id, "assistant", full_response)
+        except Exception as save_err:
+            logger.warning("stream: assistant message save failed (non-fatal): %s", save_err)
 
         # ── T33 Stage 1: emit memory_recall_used events for cited claims ──
         # Emitted AFTER the assistant message is persisted so the frontend
-        # can attach the recall metadata to the right message.
-        for claim in memory_recall_claims:
-            yield json.dumps(build_recall_used_event(claim, message_id=str(assistant_msg.id)))
+        # can attach the recall metadata to the right message. Skipped when
+        # the save failed because there's no message_id to attach to.
+        if assistant_msg is not None:
+            for claim in memory_recall_claims:
+                yield json.dumps(build_recall_used_event(claim, message_id=str(assistant_msg.id)))
 
         # ── T33 Stage 2: emit memory_citation events for the chip UI ──
         # Same ordered list as the recall-used events above. The frontend
         # renders one <MemoryCitationChip> per memory_citation event.
         # The bracket label is built in the service (format_citation_label)
         # so the chip displays the locked format verbatim.
-        for claim in memory_recall_claims:
-            yield json.dumps(build_citation_event(claim, message_id=str(assistant_msg.id)))
+        if assistant_msg is not None:
+            for claim in memory_recall_claims:
+                yield json.dumps(build_citation_event(claim, message_id=str(assistant_msg.id)))
 
         try:
             from app.services.usage_service import get_usage_service
@@ -1488,7 +1487,7 @@ async def stream_message_to_llm(
             {
                 "type": "complete",
                 "full_response": full_response,
-                "message_id": assistant_msg.id,
+                "message_id": assistant_msg.id if assistant_msg is not None else None,
                 "model": model,
             }
         )
