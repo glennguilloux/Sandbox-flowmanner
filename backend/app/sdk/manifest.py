@@ -91,6 +91,20 @@ class PluginManifest(BaseModel):
         default=None,
         description="Minimum FlowManner platform version required",
     )
+    default_prompts: list[str] = Field(
+        default_factory=list,
+        description="Suggested prompts shown to the user after plugin install (max 3, each ≤ 200 chars)",
+    )
+
+    @field_validator("default_prompts")
+    @classmethod
+    def validate_default_prompts(cls, v: list[str]) -> list[str]:
+        if len(v) > 3:
+            raise ValueError("Maximum 3 default_prompts allowed")
+        for i, prompt in enumerate(v):
+            if len(prompt) > 200:
+                raise ValueError(f"default_prompts[{i}] exceeds 200 characters")
+        return v
 
     @field_validator("permissions")
     @classmethod

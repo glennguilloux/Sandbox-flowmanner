@@ -58,6 +58,7 @@ class PluginResponse(BaseModel):
     last_error: str | None = None
     permissions: list[str] = []
     node_types: list[dict[str, Any]] = []
+    default_prompts: list[str] = []
     created_at: str = ""
     updated_at: str = ""
 
@@ -126,6 +127,12 @@ def _to_plugin_response(p: InstalledPlugin) -> PluginResponse:
         with contextlib.suppress(json.JSONDecodeError, TypeError):
             node_types = json.loads(p.node_types_json)
 
+    default_prompts: list[str] = []
+    if p.manifest_json:
+        with contextlib.suppress(json.JSONDecodeError, TypeError):
+            manifest = json.loads(p.manifest_json)
+            default_prompts = manifest.get("default_prompts", [])
+
     return PluginResponse(
         id=p.id,
         name=p.name,
@@ -140,6 +147,7 @@ def _to_plugin_response(p: InstalledPlugin) -> PluginResponse:
         last_error=p.last_error,
         permissions=permissions,
         node_types=node_types,
+        default_prompts=default_prompts,
         created_at=p.created_at.isoformat() if p.created_at else "",
         updated_at=p.updated_at.isoformat() if p.updated_at else "",
     )

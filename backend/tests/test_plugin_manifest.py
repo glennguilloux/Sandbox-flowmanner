@@ -148,3 +148,59 @@ class TestPluginManifestMinimal:
         assert m.name == "json-transform"
         assert m.version == "1.0.0"
         assert len(m.node_types) == 1
+
+
+class TestPluginManifestDefaultPrompts:
+    """default_prompts field validation and defaults."""
+
+    def test_default_prompts_empty_by_default(self) -> None:
+        """default_prompts defaults to empty list."""
+        m = PluginManifest(name="test", version="1.0.0")
+        assert m.default_prompts == []
+
+    def test_default_prompts_valid(self) -> None:
+        """Up to 3 prompts, each ≤ 200 chars, are accepted."""
+        m = PluginManifest(
+            name="test",
+            version="1.0.0",
+            default_prompts=["Create a new issue", "List open PRs", "Search code"],
+        )
+        assert len(m.default_prompts) == 3
+
+    def test_default_prompts_max_3(self) -> None:
+        """More than 3 prompts are rejected."""
+        with pytest.raises(ValidationError, match="Maximum 3"):
+            PluginManifest(
+                name="test",
+                version="1.0.0",
+                default_prompts=["a", "b", "c", "d"],
+            )
+
+    def test_default_prompts_max_length_200(self) -> None:
+        """A prompt exceeding 200 characters is rejected."""
+        with pytest.raises(ValidationError, match="exceeds 200 characters"):
+            PluginManifest(
+                name="test",
+                version="1.0.0",
+                default_prompts=["x" * 201],
+            )
+
+    def test_default_prompts_exactly_200_chars(self) -> None:
+        """A prompt at exactly 200 characters is accepted."""
+        m = PluginManifest(
+            name="test",
+            version="1.0.0",
+            default_prompts=["x" * 200],
+        )
+        assert len(m.default_prompts[0]) == 200
+
+    def test_example_manifest_has_no_prompts(self) -> None:
+        """The shipped example manifest has no default_prompts (backward compat)."""
+        from pathlib import Path
+
+        import yaml
+
+        example = Path(__file__).resolve().parent.parent / "app" / "sdk" / "examples" / "flowmanner-plugin.yaml"
+        data = yaml.safe_load(example.read_text())
+        m = PluginManifest(**data)
+        assert m.default_prompts == []
