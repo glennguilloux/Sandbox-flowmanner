@@ -336,10 +336,12 @@ main() {
 
   if [[ "$CHECKS_FAIL" -gt 0 ]]; then
     log_error "pre-deploy-check FAILED — $CHECKS_FAIL check(s) failed."
+    echo "[PREFLIGHT: BLOCKED] $CHECKS_FAIL check(s) failed, $CHECKS_PASS passed. Review [FAIL] lines above for remediation steps."
     exit 1
   fi
 
   log_success "pre-deploy-check PASSED."
+  echo "[PREFLIGHT: READY] $CHECKS_PASS/$CHECKS_RUN checks passed."
   exit 0
 }
 

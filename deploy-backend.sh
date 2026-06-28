@@ -441,6 +441,7 @@ main() {
 
   if [ "$MIGRATE" = true ]; then
     log_info "Migrations: ENABLED"
+    echo "[ESCALATION REQUIRED: migrate] --migrate flag requires DB write access and may alter schema."
   fi
   echo ""
 
@@ -452,6 +453,15 @@ main() {
 
   # -- Normal deploy --
   run_precheck
+
+  # Emit sudo escalation token when precheck is skipped (--skip-precheck)
+  # so the operator/orchestrator still sees the warning.
+  if [[ "$SKIP_PRECHECK" == "true" ]] && [[ "${WG_CHECK:-}" != "skip" ]]; then
+    if ! sudo -n /usr/bin/wg show wg0 >/dev/null 2>&1; then
+      echo '[ESCALATION REQUIRED: sudo] WireGuard sudoers not configured. Run as root: echo "<user> ALL=(root) NOPASSWD: /usr/bin/wg show *" | sudo tee /etc/sudoers.d/flowmanner-deploy && sudo chmod 0440 /etc/sudoers.d/flowmanner-deploy'
+    fi
+  fi
+
   pre_deploy_health
   save_current_image
 

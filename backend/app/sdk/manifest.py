@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class NodeTypeInput(BaseModel):
@@ -54,6 +54,8 @@ class PluginManifest(BaseModel):
     - Marketplace listing metadata
     - Security review (permission declarations)
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str = Field(
         ...,
@@ -108,3 +110,17 @@ class PluginManifest(BaseModel):
                 raise ValueError(f"Duplicate node_type id: '{nt.id}'")
             seen.add(nt.id)
         return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_prohibited_fields(cls, data: Any) -> Any:
+        """Reject Codex-style manifest fields that FlowManner does not support."""
+        if isinstance(data, dict):
+            prohibited = {"mcpServers", "hooks", "skills", "apps"}
+            found = prohibited.intersection(data.keys())
+            if found:
+                raise ValueError(
+                    f"Prohibited fields in manifest: {sorted(found)}. "
+                    f"These are not supported by FlowManner's plugin system."
+                )
+        return data
