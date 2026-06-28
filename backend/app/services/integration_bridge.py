@@ -243,6 +243,24 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"database_id": "string", "filter": "object", "sorts": "array"},
         },
         {
+            "id": "get_database",
+            "name": "Get Notion Database",
+            "description": "Get a Notion database schema by ID",
+            "params": {"database_id": "string"},
+        },
+        {
+            "id": "create_database",
+            "name": "Create Notion Database",
+            "description": "Create a new Notion database under a page",
+            "params": {"parent": "object", "title": "array", "properties": "object"},
+        },
+        {
+            "id": "update_database",
+            "name": "Update Notion Database",
+            "description": "Update a Notion database schema (title, properties, description)",
+            "params": {"database_id": "string", "title": "array", "properties": "object"},
+        },
+        {
             "id": "get_page",
             "name": "Get Notion Page",
             "description": "Get the properties and content of a Notion page",
@@ -259,6 +277,12 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "name": "Update Notion Page",
             "description": "Update the properties or archive status of a Notion page",
             "params": {"page_id": "string", "properties": "object"},
+        },
+        {
+            "id": "delete_page",
+            "name": "Delete (Archive) Notion Page",
+            "description": "Archive a Notion page (soft delete)",
+            "params": {"page_id": "string"},
         },
         {
             "id": "get_block_children",
@@ -450,6 +474,36 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "name": "List Linear Teams",
             "description": "List all teams in the Linear workspace",
             "params": {},
+        },
+        {
+            "id": "list_projects",
+            "name": "List Linear Projects",
+            "description": "List projects for a Linear team",
+            "params": {"team_id": "string", "first": "integer"},
+        },
+        {
+            "id": "get_project",
+            "name": "Get Linear Project",
+            "description": "Get a Linear project by ID",
+            "params": {"project_id": "string"},
+        },
+        {
+            "id": "list_cycles",
+            "name": "List Linear Cycles",
+            "description": "List cycles for a Linear team",
+            "params": {"team_id": "string", "first": "integer"},
+        },
+        {
+            "id": "get_cycle",
+            "name": "Get Linear Cycle",
+            "description": "Get a Linear cycle by ID with its issues",
+            "params": {"cycle_id": "string"},
+        },
+        {
+            "id": "list_workflow_states",
+            "name": "List Linear Workflow States",
+            "description": "List workflow states for a Linear team (for issue status transitions)",
+            "params": {"team_id": "string"},
         },
     ],
     "vercel": [

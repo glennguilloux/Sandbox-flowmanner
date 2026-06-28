@@ -147,6 +147,25 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "list_pipelines" in gitlab_ids
     assert "retry_pipeline" in gitlab_ids
 
+    # Notion expansion: database writes + delete
+    notion_caps = _INTEGRATION_CAPABILITIES.get("notion", [])
+    assert len(notion_caps) >= 11
+    notion_ids = {c["id"] for c in notion_caps}
+    assert "get_database" in notion_ids
+    assert "create_database" in notion_ids
+    assert "update_database" in notion_ids
+    assert "delete_page" in notion_ids
+
+    # Linear expansion: projects, cycles, workflow states
+    linear_caps = _INTEGRATION_CAPABILITIES.get("linear", [])
+    assert len(linear_caps) >= 12
+    linear_ids = {c["id"] for c in linear_caps}
+    assert "list_projects" in linear_ids
+    assert "get_project" in linear_ids
+    assert "list_cycles" in linear_ids
+    assert "get_cycle" in linear_ids
+    assert "list_workflow_states" in linear_ids
+
 
 def test_all_connectors_registered_in_manager():
     """All Batch 1-4 connectors are registered in the ConnectorManager."""

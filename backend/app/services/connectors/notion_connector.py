@@ -49,9 +49,13 @@ class NotionConnector(BaseConnector):
         "search",
         "list_databases",
         "query_database",
+        "get_database",
+        "create_database",
+        "update_database",
         "get_page",
         "create_page",
         "update_page",
+        "delete_page",
         "get_block_children",
         "append_block_children",
     ]
@@ -101,9 +105,13 @@ class NotionConnector(BaseConnector):
             "search": self._search,
             "list_databases": self._list_databases,
             "query_database": self._query_database,
+            "get_database": self._get_database,
+            "create_database": self._create_database,
+            "update_database": self._update_database,
             "get_page": self._get_page,
             "create_page": self._create_page,
             "update_page": self._update_page,
+            "delete_page": self._delete_page,
             "get_block_children": self._get_block_children,
             "append_block_children": self._append_block_children,
         }
@@ -188,6 +196,101 @@ class NotionConnector(BaseConnector):
         return await self._execute_with_retry(
             "POST",
             f"databases/{database_id}/query",
+            json_data=payload,
+        )
+
+    async def _get_database(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Get a database schema by ID."""
+        database_id = params.get("database_id")
+        if not database_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: database_id",
+                status_code=400,
+            )
+
+        return await self._execute_with_retry(
+            "GET",
+            f"databases/{database_id}",
+        )
+
+    async def _create_database(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Create a new Notion database."""
+        parent = params.get("parent")
+        title = params.get("title")
+        properties = params.get("properties")
+
+        if not parent:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: parent (e.g. {'page_id': '...'})",
+                status_code=400,
+            )
+        if not title:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: title (array of rich text objects)",
+                status_code=400,
+            )
+        if not properties:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: properties (database property schema)",
+                status_code=400,
+            )
+
+        payload: dict[str, Any] = {
+            "parent": parent,
+            "title": title,
+            "properties": properties,
+        }
+        if params.get("icon"):
+            payload["icon"] = params["icon"]
+        if params.get("cover"):
+            payload["cover"] = params["cover"]
+        if params.get("description"):
+            payload["description"] = params["description"]
+
+        return await self._execute_with_retry(
+            "POST",
+            "databases",
+            json_data=payload,
+        )
+
+    async def _update_database(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Update a Notion database schema (title, properties, description)."""
+        database_id = params.get("database_id")
+        if not database_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: database_id",
+                status_code=400,
+            )
+
+        payload: dict[str, Any] = {}
+        if params.get("title"):
+            payload["title"] = params["title"]
+        if params.get("properties"):
+            payload["properties"] = params["properties"]
+        if params.get("description"):
+            payload["description"] = params["description"]
+        if params.get("icon"):
+            payload["icon"] = params["icon"]
+        if params.get("cover"):
+            payload["cover"] = params["cover"]
+        if params.get("archived") is not None:
+            payload["archived"] = params["archived"]
+
+        if not payload:
+            return ConnectorResponse(
+                success=False,
+                error="No update fields provided",
+                status_code=400,
+            )
+
+        return await self._execute_with_retry(
+            "PATCH",
+            f"databases/{database_id}",
             json_data=payload,
         )
 
@@ -276,6 +379,22 @@ class NotionConnector(BaseConnector):
             "PATCH",
             f"pages/{page_id}",
             json_data=payload,
+        )
+
+    async def _delete_page(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Archive (delete) a Notion page. Notion uses archived=true instead of hard delete."""
+        page_id = params.get("page_id")
+        if not page_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: page_id",
+                status_code=400,
+            )
+
+        return await self._execute_with_retry(
+            "PATCH",
+            f"pages/{page_id}",
+            json_data={"archived": True},
         )
 
     # ═══════════════════════════════════════════════════════════════

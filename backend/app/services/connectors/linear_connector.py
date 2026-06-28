@@ -56,6 +56,11 @@ class LinearConnector(BaseConnector):
         "list_issues",
         "add_comment",
         "list_teams",
+        "list_projects",
+        "get_project",
+        "list_cycles",
+        "get_cycle",
+        "list_workflow_states",
     ]
 
     def __init__(self, config: ConnectorConfig):
@@ -72,7 +77,7 @@ class LinearConnector(BaseConnector):
                 config.auth_config["key_location"] = "header"
 
         super().__init__(config)
-        self._linear_client = None
+        self._linear_client: Any = None
         self._authenticated_team: str | None = None
 
     @property
@@ -118,6 +123,11 @@ class LinearConnector(BaseConnector):
             "list_issues": self._list_issues,
             "add_comment": self._add_comment,
             "list_teams": self._list_teams,
+            "list_projects": self._list_projects,
+            "get_project": self._get_project,
+            "list_cycles": self._list_cycles,
+            "get_cycle": self._get_cycle,
+            "list_workflow_states": self._list_workflow_states,
         }
 
         handler = action_handlers.get(action)
@@ -299,6 +309,262 @@ class LinearConnector(BaseConnector):
             return ConnectorResponse(
                 success=False,
                 error=f"Failed to list issues: {e}",
+                status_code=500,
+            )
+
+    # ═══════════════════════════════════════════════════════════════
+    #  Projects
+    # ═══════════════════════════════════════════════════════════════
+
+    async def _list_projects(self, params: dict[str, Any]) -> ConnectorResponse:
+        """List projects for a team."""
+        team_id = params.get("team_id") or settings.LINEAR_TEAM_ID
+        if not team_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: team_id (or set LINEAR_TEAM_ID)",
+                status_code=400,
+            )
+
+        try:
+            client = self._linear_client
+            query = """
+            query TeamProjects($teamId: ID!, $first: Int!) {
+                team(id: $teamId) {
+                    projects(first: $first, orderBy: updatedAt) {
+                        nodes {
+                            id
+                            name
+                            description
+                            state
+                            url
+                            progress
+                            startDate
+                            targetDate
+                            lead { id name }
+                            createdAt
+                            updatedAt
+                        }
+                    }
+                }
+            }
+            """
+            result = await client._execute(  # type: ignore[attr-defined]
+                query,
+                {"teamId": team_id, "first": params.get("first", 20)},
+            )
+            projects = result.get("team", {}).get("projects", {}).get("nodes", [])
+            return ConnectorResponse(
+                success=True,
+                data={"projects": projects, "total": len(projects)},
+                status_code=200,
+            )
+        except Exception as e:
+            return ConnectorResponse(
+                success=False,
+                error=f"Failed to list projects: {e}",
+                status_code=500,
+            )
+
+    async def _get_project(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Get a project by ID."""
+        project_id = params.get("project_id")
+        if not project_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: project_id",
+                status_code=400,
+            )
+
+        try:
+            client = self._linear_client
+            query = """
+            query Project($id: String!) {
+                project(id: $id) {
+                    id
+                    name
+                    description
+                    state
+                    url
+                    progress
+                    startDate
+                    targetDate
+                    lead { id name }
+                    teams { nodes { id name } }
+                    members { nodes { id name } }
+                    createdAt
+                    updatedAt
+                }
+            }
+            """
+            result = await client._execute(  # type: ignore[attr-defined]
+                query,
+                {"id": project_id},
+            )
+            project = result.get("project")
+            if not project:
+                return ConnectorResponse(success=False, error="Project not found", status_code=404)
+            return ConnectorResponse(success=True, data=project, status_code=200)
+        except Exception as e:
+            return ConnectorResponse(
+                success=False,
+                error=f"Failed to get project: {e}",
+                status_code=500,
+            )
+
+    # ═══════════════════════════════════════════════════════════════
+    #  Cycles
+    # ═══════════════════════════════════════════════════════════════
+
+    async def _list_cycles(self, params: dict[str, Any]) -> ConnectorResponse:
+        """List cycles for a team."""
+        team_id = params.get("team_id") or settings.LINEAR_TEAM_ID
+        if not team_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: team_id (or set LINEAR_TEAM_ID)",
+                status_code=400,
+            )
+
+        try:
+            client = self._linear_client
+            query = """
+            query TeamCycles($teamId: ID!, $first: Int!) {
+                team(id: $teamId) {
+                    cycles(first: $first, orderBy: createdAt) {
+                        nodes {
+                            id
+                            number
+                            name
+                            description
+                            startsAt
+                            endsAt
+                            completedAt
+                            progress
+                            url
+                            createdAt
+                        }
+                    }
+                }
+            }
+            """
+            result = await client._execute(  # type: ignore[attr-defined]
+                query,
+                {"teamId": team_id, "first": params.get("first", 20)},
+            )
+            cycles = result.get("team", {}).get("cycles", {}).get("nodes", [])
+            return ConnectorResponse(
+                success=True,
+                data={"cycles": cycles, "total": len(cycles)},
+                status_code=200,
+            )
+        except Exception as e:
+            return ConnectorResponse(
+                success=False,
+                error=f"Failed to list cycles: {e}",
+                status_code=500,
+            )
+
+    async def _get_cycle(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Get a cycle by ID."""
+        cycle_id = params.get("cycle_id")
+        if not cycle_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: cycle_id",
+                status_code=400,
+            )
+
+        try:
+            client = self._linear_client
+            query = """
+            query Cycle($id: String!) {
+                cycle(id: $id) {
+                    id
+                    number
+                    name
+                    description
+                    startsAt
+                    endsAt
+                    completedAt
+                    progress
+                    url
+                    team { id name }
+                    issues(first: 50) {
+                        nodes {
+                            id
+                            title
+                            identifier
+                            state { name }
+                            priority
+                            assignee { name }
+                        }
+                    }
+                    createdAt
+                }
+            }
+            """
+            result = await client._execute(  # type: ignore[attr-defined]
+                query,
+                {"id": cycle_id},
+            )
+            cycle = result.get("cycle")
+            if not cycle:
+                return ConnectorResponse(success=False, error="Cycle not found", status_code=404)
+            return ConnectorResponse(success=True, data=cycle, status_code=200)
+        except Exception as e:
+            return ConnectorResponse(
+                success=False,
+                error=f"Failed to get cycle: {e}",
+                status_code=500,
+            )
+
+    # ═══════════════════════════════════════════════════════════════
+    #  Workflow States
+    # ═══════════════════════════════════════════════════════════════
+
+    async def _list_workflow_states(self, params: dict[str, Any]) -> ConnectorResponse:
+        """List workflow states for a team."""
+        team_id = params.get("team_id") or settings.LINEAR_TEAM_ID
+        if not team_id:
+            return ConnectorResponse(
+                success=False,
+                error="Missing required param: team_id (or set LINEAR_TEAM_ID)",
+                status_code=400,
+            )
+
+        try:
+            client = self._linear_client
+            query = """
+            query WorkflowStates($teamId: ID!) {
+                team(id: $teamId) {
+                    states {
+                        nodes {
+                            id
+                            name
+                            type
+                            color
+                            position
+                            description
+                        }
+                    }
+                }
+            }
+            """
+            result = await client._execute(  # type: ignore[attr-defined]
+                query,
+                {"teamId": team_id},
+            )
+            states = result.get("team", {}).get("states", {}).get("nodes", [])
+            return ConnectorResponse(
+                success=True,
+                data={"states": states, "total": len(states)},
+                status_code=200,
+            )
+        except Exception as e:
+            return ConnectorResponse(
+                success=False,
+                error=f"Failed to list workflow states: {e}",
                 status_code=500,
             )
 
