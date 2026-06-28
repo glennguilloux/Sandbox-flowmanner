@@ -242,9 +242,7 @@ async def general_error_handler(request: Request, exc: Exception):
             )
         )
     except Exception as notify_err:  # pragma: no cover — defensive
-        structlog.get_logger().warning(
-            "Failed to enqueue 5xx ntfy alert", error=str(notify_err)
-        )
+        structlog.get_logger().warning("Failed to enqueue 5xx ntfy alert", error=str(notify_err))
 
     return JSONResponse(
         status_code=500,
@@ -324,36 +322,36 @@ REDOC_DARK_CSS = """
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui():
     """Serve Swagger UI with dark theme styling."""
-    return HTMLResponse(
-        content=get_swagger_ui_html(
-            openapi_url=app.openapi_url,
-            title=f"{settings.APP_NAME} -- Swagger UI",
-            swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
-            swagger_ui_parameters={
-                "deepLinking": True,
-                "displayRequestDuration": True,
-                "filter": True,
-                "persistAuthorization": True,
-                "syntaxHighlight.theme": "monokai",
-                "tryItOutEnabled": True,
-            },
-            custom_css=SWAGGER_DARK_CSS,
-        ).body
+    html = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{settings.APP_NAME} -- Swagger UI",
+        swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
+        swagger_ui_parameters={
+            "deepLinking": True,
+            "displayRequestDuration": True,
+            "filter": True,
+            "persistAuthorization": True,
+            "syntaxHighlight.theme": "monokai",
+            "tryItOutEnabled": True,
+        },
     )
+    # Inject dark theme CSS (custom_css param not available in FastAPI 0.115)
+    body = html.body.decode().replace("</head>", f"{SWAGGER_DARK_CSS}</head>")
+    return HTMLResponse(content=body)
 
 
 @app.get("/redoc", include_in_schema=False)
 async def custom_redoc():
     """Serve Redoc documentation with dark theme styling."""
-    return HTMLResponse(
-        content=get_redoc_html(
-            openapi_url=app.openapi_url,
-            title=f"{settings.APP_NAME} -- API Reference",
-            redoc_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
-            with_google_fonts=False,
-            custom_css=REDOC_DARK_CSS,
-        ).body
+    html = get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=f"{settings.APP_NAME} -- API Reference",
+        redoc_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
+        with_google_fonts=False,
     )
+    # Inject dark theme CSS (custom_css param not available in FastAPI 0.115)
+    body = html.body.decode().replace("</head>", f"{REDOC_DARK_CSS}</head>")
+    return HTMLResponse(content=body)
 
 
 app.include_router(health_router)
@@ -426,7 +424,7 @@ try:
 
     setup_telemetry(app, engine=db_engine)
 except Exception as e:
-    logging.getLogger(__name__).warning(f"Telemetry setup failed: {e}")
+    logging.getLogger(__name__).warning("Telemetry setup failed: %s", e)
 
 
 @app.get("/api/stats")
@@ -539,7 +537,7 @@ def _resilient_openapi():
             skipped.append(f"(... and more, giving up)")
             break
         try:
-            get_openapi(title="t", version="v", routes=ok_routes + [route])
+            get_openapi(title="t", version="v", routes=[*ok_routes, route])
             ok_routes.append(route)
         except Exception:
             skipped.append(route.path)
