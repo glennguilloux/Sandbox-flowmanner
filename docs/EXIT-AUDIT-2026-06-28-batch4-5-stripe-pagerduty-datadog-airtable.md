@@ -7,6 +7,12 @@
 
 ## WHAT CHANGED (one bullet per file, what + why)
 
+### Frontend — Modified files (3)
+
+- `src/app/[locale]/integrations/integrations-page-content.tsx`: Added SiStripe, SiPagerduty, SiDatadog, SiAirtable imports and ICON_MAP entries (14 total icons)
+- `src/app/[locale]/integrations/browse/integration-marketplace-content.tsx`: Added all 6 new icon imports (SiLinear, SiSentry were also missing) and ICON_MAP entries
+- `src/components/integrations/IntegrationOnboardingWizard.tsx`: Added SiStripe, SiPagerduty, SiDatadog, SiAirtable imports and ICON_MAP entries
+
 ### Backend — New files (22)
 
 **Batch 4 — Stripe (13 actions):**
@@ -94,6 +100,10 @@ No issues found. Implementation correctly follows existing patterns.
 
 6. **Pre-deploy health check transient failure** — During Batch 5 deploy, `curl` returned HTTP 000 despite container being healthy. Container was already running new image from the rebuild. Verified health manually.
 
+7. **Frontend ICON_MAP SiLinear/SiSentry imports accidentally removed** — The Python script that added new Batch 4+5 icon imports ran `content.replace('SiNotion, SiLinear, SiSentry,', 'SiNotion,')` to fix a mangled line, but this removed `SiLinear` and `SiSentry` from the imports in `integrations-page-content.tsx`. The subsequent re-add logic failed because it tried to match `SiNotion,\n  SiVercel,` (multiline) with single-line `replace()`. Required a second fix pass using `re.search()` on the actual import block. Two deploy failures (TypeScript "Cannot find name 'SiLinear'") before the fix landed.
+
+8. **Frontend deploy takes 3 retries** — First deploy: mangled marketplace import → TS error. Second deploy: missing SiLinear/SiSentry imports in file 1 → TS error. Third deploy: all imports correct → build succeeded. Lesson: verify ALL 14 icon imports are present in ALL 3 files before deploying.
+
 ---
 
 ## KEY DESIGN DECISIONS
@@ -127,7 +137,7 @@ docs: update exit audit with swagger fix + deploy status
 
 ## NEXT SESSION HANDOFF
 
-> **Batches 4+5 (Stripe, PagerDuty, Datadog, Airtable) are fully implemented, tested, committed, pushed, and deployed.** Backend is healthy at `http://127.0.0.1:8000/api/health` (200). The next agent should:
+> **Batches 4+5 are fully implemented, frontend icons deployed, Batch 6 plan written.** Both backend and frontend are healthy and deployed. The next agent should:
 >
 > 1. **Set up OAuth apps** — Glenn needs to create OAuth apps for all 4 services and add env vars to `/opt/flowmanner/.env`:
 >    - Stripe: Platform client_id (`ca_...`) + secret key (`sk_...`) + webhook secret (`whsec_...`) at https://dashboard.stripe.com/connect/apps
@@ -135,14 +145,13 @@ docs: update exit audit with swagger fix + deploy status
 >    - Datadog: OAuth app at https://app.datadoghq.com/account/settings#integrations
 >    - Airtable: OAuth integration at https://airtable.com/developers/web
 >
-> 2. **Deploy frontend** — Add `SiStripe`, `SiPagerduty`, `SiDatadog`, `SiAirtable` to ICON_MAP in frontend files (same pattern as Batch 3). Then `bash /opt/flowmanner/deploy-frontend.sh`.
->
-> 3. **Consider Batch 6 candidates** — GitHub expansion (Actions, Releases), Slack expansion (Block Kit, Modals), or new integrations (Intercom, ClickUp, Asana).
+> 2. **Implement Batch 6** — Plan at `plans/PLAN-tier1-integrations-batch6.md`. GitHub expansion (7→18 actions), Slack expansion (4→11 actions), Intercom (new, 10 actions). GitHub/Slack expansions are cheap (no new OAuth/webhook/router).
 >
 > **Gotchas:**
 > - Stripe's `client_id` is the platform's Connect client_id (starts with `ca_`), NOT the API key. The `client_secret` is the platform's secret key (`sk_...`).
 > - The `celery-beat` container naming conflict during deploy is a recurring Docker issue. If `deploy-backend.sh` fails on this, restart only the backend: `cd /opt/flowmanner && docker compose up -d --no-deps --force-recreate backend`.
 > - Airtable has very strict rate limits (5 req/s per base). The connector is configured conservatively.
+> - **Frontend editing lesson:** When using Python `str.replace()` on TypeScript files, be careful that the pattern doesn't match in both the import block AND the ICON_MAP. Use `re.search()` on the actual import block for reliable multi-line edits. Always verify all imports are present before deploying.
 
 ---
 
@@ -156,19 +165,31 @@ docs: update exit audit with swagger fix + deploy status
 | 2 | Jira | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 3 | Confluence | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 3 | Figma | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 4 | Stripe | ✅ | ✅ (8 new) | ❌ needed | ✅ `d1713fe` | ✅ |
-| 4 | PagerDuty | ✅ | ✅ (7 new) | ❌ needed | ✅ `d1713fe` | ✅ |
-| 5 | Datadog | ✅ | ✅ (7 new) | ❌ needed | ✅ `f67ba29` | ✅ |
-| 5 | Airtable | ✅ | ✅ (7 new) | ❌ needed | ✅ `f67ba29` | ✅ |
+| 4 | Stripe | ✅ | ✅ (8 new) | ✅ (this session) | ✅ `d1713fe` | ✅ |
+| 4 | PagerDuty | ✅ | ✅ (7 new) | ✅ (this session) | ✅ `d1713fe` | ✅ |
+| 5 | Datadog | ✅ | ✅ (7 new) | ✅ (this session) | ✅ `f67ba29` | ✅ |
+| 5 | Airtable | ✅ | ✅ (7 new) | ✅ (this session) | ✅ `f67ba29` | ✅ |
 
 ---
 
 ## COMMITS THIS SESSION
 
+### Backend (origin/main)
+
 | Hash | Message | Files |
 |------|---------|-------|
 | `d1713fe` | `feat(integrations): add Stripe + PagerDuty integrations (Batch 4)` | 21 files, +1793 |
 | `f67ba29` | `feat(integrations): add Datadog + Airtable integrations (Batch 5)` | 20 files, +1456 |
+| `2949de2` | `docs: exit audit for Batch 4+5` | 1 file, +197 |
+| `560d2ba` | `docs: Batch 6 plan — GitHub expansion, Slack expansion, Intercom` | 1 file, +363 |
+
+### Frontend (/home/glenn/FlowmannerV2-frontend/)
+
+| Hash | Message | Files |
+|------|---------|-------|
+| `a00128f` | `feat(integrations): add Stripe, PagerDuty, Datadog, Airtable icons to ICON_MAP` | 3 files, +41/-2 |
+| `fc8dfb7` | `fix(frontend): clean up ICON_MAP imports, add all Batch 4+5 icons` | 2 files, +4/-2 |
+| `ac85314` | `fix(frontend): restore missing SiLinear/SiSentry imports + add Batch 4+5 icons` | 1 file, +2 |
 
 ---
 
