@@ -260,6 +260,30 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="oauth2",
     ),
+    Integration(
+        slug="clickup",
+        name="ClickUp",
+        description="Project management platform. Manage workspaces, spaces, folders, lists, tasks, and comments with AI agent integration.",
+        category="productivity",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="hubspot",
+        name="HubSpot",
+        description="CRM platform. Manage contacts, companies, deals, tickets, and search with AI agent integration.",
+        category="productivity",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="twilio",
+        name="Twilio",
+        description="SMS and voice communication platform. Send messages, make calls, manage phone numbers, recordings, and usage with AI agent integration.",
+        category="communication",
+        icon_url="",
+        auth_type="api_key",
+    ),
 ]
 
 

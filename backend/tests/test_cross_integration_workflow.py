@@ -166,6 +166,41 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "get_cycle" in linear_ids
     assert "list_workflow_states" in linear_ids
 
+    # ClickUp: project management (Batch 8)
+    clickup_caps = _INTEGRATION_CAPABILITIES.get("clickup", [])
+    assert len(clickup_caps) >= 12
+    clickup_ids = {c["id"] for c in clickup_caps}
+    assert "create_task" in clickup_ids
+    assert "list_tasks" in clickup_ids
+    assert "get_task" in clickup_ids
+    assert "update_task" in clickup_ids
+    assert "list_workspaces" in clickup_ids
+    assert "list_spaces" in clickup_ids
+    assert "add_comment" in clickup_ids
+
+    # HubSpot: CRM platform (Batch 8)
+    hubspot_caps = _INTEGRATION_CAPABILITIES.get("hubspot", [])
+    assert len(hubspot_caps) >= 12
+    hubspot_ids = {c["id"] for c in hubspot_caps}
+    assert "create_contact" in hubspot_ids
+    assert "list_contacts" in hubspot_ids
+    assert "update_contact" in hubspot_ids
+    assert "search_contacts" in hubspot_ids
+    assert "create_deal" in hubspot_ids
+    assert "list_deals" in hubspot_ids
+    assert "list_companies" in hubspot_ids
+
+    # Twilio: SMS/Voice communication (Batch 8)
+    twilio_caps = _INTEGRATION_CAPABILITIES.get("twilio", [])
+    assert len(twilio_caps) >= 10
+    twilio_ids = {c["id"] for c in twilio_caps}
+    assert "send_message" in twilio_ids
+    assert "list_messages" in twilio_ids
+    assert "make_call" in twilio_ids
+    assert "list_calls" in twilio_ids
+    assert "list_phone_numbers" in twilio_ids
+    assert "get_usage" in twilio_ids
+
 
 def test_all_connectors_registered_in_manager():
     """All Batch 1-4 connectors are registered in the ConnectorManager."""
@@ -185,6 +220,9 @@ def test_all_connectors_registered_in_manager():
     assert manager.get_connector_class("intercom") is not None
     assert manager.get_connector_class("asana") is not None
     assert manager.get_connector_class("gitlab") is not None
+    assert manager.get_connector_class("clickup") is not None
+    assert manager.get_connector_class("hubspot") is not None
+    assert manager.get_connector_class("twilio") is not None
 
 
 def test_all_connectors_registered_in_init():
@@ -204,3 +242,6 @@ def test_all_connectors_registered_in_init():
     assert "intercom" in CONNECTOR_TYPES
     assert "asana" in CONNECTOR_TYPES
     assert "gitlab" in CONNECTOR_TYPES
+    assert "clickup" in CONNECTOR_TYPES
+    assert "hubspot" in CONNECTOR_TYPES
+    assert "twilio" in CONNECTOR_TYPES

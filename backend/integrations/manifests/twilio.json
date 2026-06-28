@@ -1,0 +1,32 @@
+{
+  "slug": "twilio",
+  "name": "Twilio",
+  "description": "SMS and voice communication platform. Send messages, make calls, manage phone numbers, recordings, and usage with AI agent integration.",
+  "category": "communication",
+  "auth_type": "api_key",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "get_account", "description": "Get Twilio account info" },
+    { "name": "list_messages", "description": "List Twilio SMS/MMS messages" },
+    { "name": "send_message", "description": "Send an SMS/MMS via Twilio" },
+    { "name": "list_calls", "description": "List Twilio calls" },
+    { "name": "get_call", "description": "Get Twilio call details" },
+    { "name": "make_call", "description": "Make an outbound call via Twilio" },
+    { "name": "list_phone_numbers", "description": "List purchased Twilio phone numbers" },
+    { "name": "get_recording", "description": "Get a Twilio call recording" },
+    { "name": "list_recordings", "description": "List Twilio call recordings" },
+    { "name": "get_usage", "description": "Get Twilio usage and billing records" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.twilio.com/2010-04-01/Accounts",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/twilio",
+  "version": "1.0.0"
+}

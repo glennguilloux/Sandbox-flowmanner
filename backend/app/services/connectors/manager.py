@@ -17,6 +17,7 @@ from .base import (
     ConnectorResponse,
     ConnectorStatus,
 )
+from .clickup_connector import ClickUpConnector
 from .confluence_connector import ConfluenceConnector
 from .datadog_connector import DatadogConnector
 from .discord_connector import DiscordConnector
@@ -25,6 +26,7 @@ from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
 from .gitlab_connector import GitLabConnector
 from .google_connector import GoogleConnector
+from .hubspot_connector import HubSpotConnector
 from .intercom_connector import IntercomConnector
 from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
@@ -33,6 +35,7 @@ from .pagerduty_connector import PagerDutyConnector
 from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
 from .stripe_connector import StripeConnector
+from .twilio_connector import TwilioConnector
 from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
 
@@ -63,13 +66,16 @@ class ConnectorManager:
         "jira": JiraConnector,
         "confluence": ConfluenceConnector,
         "figma": FigmaConnector,
+        "hubspot": HubSpotConnector,
         "linear": LinearConnector,
         "airtable": AirtableConnector,
         "asana": AsanaConnector,
+        "clickup": ClickUpConnector,
         "datadog": DatadogConnector,
         "pagerduty": PagerDutyConnector,
         "sentry": SentryConnector,
         "stripe": StripeConnector,
+        "twilio": TwilioConnector,
         "vercel": VercelConnector,
     }
 

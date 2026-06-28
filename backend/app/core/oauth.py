@@ -229,6 +229,33 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
         client_secret_env="GITLAB_OAUTH_CLIENT_SECRET",
         scopes=["api"],
     ),
+    "clickup": OAuthProviderConfig(
+        slug="clickup",
+        name="ClickUp",
+        authorize_url="https://app.clickup.com/api",
+        token_url="https://api.clickup.com/api/v2/oauth/token",
+        client_id_env="CLICKUP_OAUTH_CLIENT_ID",
+        client_secret_env="CLICKUP_OAUTH_CLIENT_SECRET",
+        scopes=[],  # ClickUp has no scopes — user authorizes per-workspace
+    ),
+    "hubspot": OAuthProviderConfig(
+        slug="hubspot",
+        name="HubSpot",
+        authorize_url="https://app.hubspot.com/oauth/authorize",
+        token_url="https://api.hubapi.com/oauth/v1/token",
+        client_id_env="HUBSPOT_OAUTH_CLIENT_ID",
+        client_secret_env="HUBSPOT_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "crm.objects.contacts.read",
+            "crm.objects.contacts.write",
+            "crm.objects.companies.read",
+            "crm.objects.companies.write",
+            "crm.objects.deals.read",
+            "crm.objects.deals.write",
+            "crm.objects.owners.read",
+            "tickets",
+        ],
+    ),
 }
 
 

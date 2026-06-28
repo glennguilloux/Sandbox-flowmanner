@@ -148,6 +148,22 @@ class Settings(BaseSettings):
     GITLAB_OAUTH_CLIENT_SECRET: str = ""
     GITLAB_WEBHOOK_SECRET: str = ""
 
+    # ClickUp integration
+    CLICKUP_OAUTH_CLIENT_ID: str = ""
+    CLICKUP_OAUTH_CLIENT_SECRET: str = ""
+    CLICKUP_WEBHOOK_SECRET: str = ""
+
+    # HubSpot integration
+    HUBSPOT_OAUTH_CLIENT_ID: str = ""
+    HUBSPOT_OAUTH_CLIENT_SECRET: str = ""
+    HUBSPOT_WEBHOOK_SECRET: str = ""
+
+    # Twilio integration
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_API_KEY_SID: str = ""
+    TWILIO_API_KEY_SECRET: str = ""
+    TWILIO_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

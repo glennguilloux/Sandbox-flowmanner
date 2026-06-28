@@ -1269,6 +1269,228 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"query": "string"},
         },
     ],
+    "clickup": [
+        {
+            "id": "get_user",
+            "name": "Get ClickUp User",
+            "description": "Get authenticated ClickUp user info",
+            "params": {},
+        },
+        {
+            "id": "list_workspaces",
+            "name": "List ClickUp Workspaces",
+            "description": "List user's ClickUp workspaces (teams)",
+            "params": {},
+        },
+        {
+            "id": "list_spaces",
+            "name": "List ClickUp Spaces",
+            "description": "List spaces in a ClickUp workspace",
+            "params": {"team_id": "string"},
+        },
+        {
+            "id": "list_folders",
+            "name": "List ClickUp Folders",
+            "description": "List folders in a ClickUp space",
+            "params": {"space_id": "string"},
+        },
+        {
+            "id": "list_lists",
+            "name": "List ClickUp Lists",
+            "description": "List lists in a ClickUp folder",
+            "params": {"folder_id": "string"},
+        },
+        {
+            "id": "list_tasks",
+            "name": "List ClickUp Tasks",
+            "description": "List tasks in a ClickUp list",
+            "params": {"list_id": "string", "page": "integer", "order_by": "string"},
+        },
+        {
+            "id": "get_task",
+            "name": "Get ClickUp Task",
+            "description": "Get ClickUp task details",
+            "params": {"task_id": "string"},
+        },
+        {
+            "id": "create_task",
+            "name": "Create ClickUp Task",
+            "description": "Create a new ClickUp task",
+            "params": {
+                "list_id": "string",
+                "name": "string",
+                "description": "string",
+                "priority": "integer",
+                "status": "string",
+            },
+        },
+        {
+            "id": "update_task",
+            "name": "Update ClickUp Task",
+            "description": "Update a ClickUp task",
+            "params": {
+                "task_id": "string",
+                "name": "string",
+                "description": "string",
+                "status": "string",
+                "priority": "integer",
+            },
+        },
+        {
+            "id": "get_comments",
+            "name": "Get ClickUp Task Comments",
+            "description": "Get comments on a ClickUp task",
+            "params": {"task_id": "string"},
+        },
+        {
+            "id": "add_comment",
+            "name": "Add ClickUp Task Comment",
+            "description": "Add a comment to a ClickUp task",
+            "params": {"task_id": "string", "comment_text": "string"},
+        },
+        {
+            "id": "list_time_entries",
+            "name": "List ClickUp Time Entries",
+            "description": "List time entries for a ClickUp workspace",
+            "params": {"team_id": "string"},
+        },
+    ],
+    "hubspot": [
+        {
+            "id": "get_owner",
+            "name": "Get HubSpot Owner",
+            "description": "Get HubSpot owner info (credential validation)",
+            "params": {},
+        },
+        {
+            "id": "list_contacts",
+            "name": "List HubSpot Contacts",
+            "description": "List HubSpot contacts with pagination",
+            "params": {"limit": "integer", "after": "string"},
+        },
+        {
+            "id": "get_contact",
+            "name": "Get HubSpot Contact",
+            "description": "Get HubSpot contact details",
+            "params": {"contact_id": "string"},
+        },
+        {
+            "id": "create_contact",
+            "name": "Create HubSpot Contact",
+            "description": "Create a new HubSpot contact",
+            "params": {"properties": "object"},
+        },
+        {
+            "id": "update_contact",
+            "name": "Update HubSpot Contact",
+            "description": "Update a HubSpot contact",
+            "params": {"contact_id": "string", "properties": "object"},
+        },
+        {
+            "id": "list_companies",
+            "name": "List HubSpot Companies",
+            "description": "List HubSpot companies",
+            "params": {"limit": "integer", "after": "string"},
+        },
+        {
+            "id": "get_company",
+            "name": "Get HubSpot Company",
+            "description": "Get HubSpot company details",
+            "params": {"company_id": "string"},
+        },
+        {
+            "id": "list_deals",
+            "name": "List HubSpot Deals",
+            "description": "List HubSpot deals",
+            "params": {"limit": "integer", "after": "string"},
+        },
+        {
+            "id": "get_deal",
+            "name": "Get HubSpot Deal",
+            "description": "Get HubSpot deal details",
+            "params": {"deal_id": "string"},
+        },
+        {
+            "id": "create_deal",
+            "name": "Create HubSpot Deal",
+            "description": "Create a new HubSpot deal",
+            "params": {"properties": "object"},
+        },
+        {
+            "id": "search_contacts",
+            "name": "Search HubSpot Contacts",
+            "description": "Search HubSpot contacts by query",
+            "params": {"query": "string", "limit": "integer"},
+        },
+        {
+            "id": "list_tickets",
+            "name": "List HubSpot Tickets",
+            "description": "List HubSpot support tickets",
+            "params": {"limit": "integer", "after": "string"},
+        },
+    ],
+    "twilio": [
+        {
+            "id": "get_account",
+            "name": "Get Twilio Account",
+            "description": "Get Twilio account info",
+            "params": {},
+        },
+        {
+            "id": "list_messages",
+            "name": "List Twilio Messages",
+            "description": "List Twilio SMS/MMS messages",
+            "params": {"to": "string", "from": "string", "page_size": "integer"},
+        },
+        {
+            "id": "send_message",
+            "name": "Send Twilio SMS",
+            "description": "Send an SMS/MMS via Twilio",
+            "params": {"to": "string", "from": "string", "body": "string"},
+        },
+        {
+            "id": "list_calls",
+            "name": "List Twilio Calls",
+            "description": "List Twilio calls",
+            "params": {"to": "string", "from": "string", "page_size": "integer"},
+        },
+        {
+            "id": "get_call",
+            "name": "Get Twilio Call",
+            "description": "Get Twilio call details",
+            "params": {"call_sid": "string"},
+        },
+        {
+            "id": "make_call",
+            "name": "Make Twilio Call",
+            "description": "Make an outbound call via Twilio",
+            "params": {"to": "string", "from": "string", "url": "string", "twiml": "string"},
+        },
+        {
+            "id": "list_phone_numbers",
+            "name": "List Twilio Phone Numbers",
+            "description": "List purchased Twilio phone numbers",
+            "params": {},
+        },
+        {
+            "id": "get_recording",
+            "name": "Get Twilio Recording",
+            "description": "Get a Twilio call recording",
+            "params": {"recording_sid": "string"},
+        },
+        {
+            "id": "list_recordings",
+            "name": "List Twilio Recordings",
+            "description": "List Twilio call recordings",
+            "params": {"call_sid": "string"},
+        },
+        {
+            "id": "get_usage",
+            "name": "Get Twilio Usage",
+            "description": "Get Twilio usage and billing records",
+            "params": {},
+        },
+    ],
     "google": [
         # Drive
         {
@@ -1371,6 +1593,11 @@ _NON_OAUTH_CONFIGS: dict[str, dict[str, Any]] = {
         "name": "sentry-instance",
         "auth_type": "bearer_token",
         "label": "Sentry API token",
+    },
+    "twilio": {
+        "name": "twilio-instance",
+        "auth_type": "api_key",
+        "label": "Twilio API Key SID + Secret",
     },
 }
 
@@ -1908,6 +2135,35 @@ class IntegrationBridge:
             except Exception as e:
                 logger.warning("Failed to refresh GitLab token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired HubSpot OAuth tokens ────────────
+        # Critical: HubSpot refresh tokens may rotate on each refresh.
+        if slug == "hubspot" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("hubspot", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed HubSpot token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh HubSpot token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # Note: ClickUp tokens do NOT expire — no refresh needed.
+        # Note: Twilio uses API Key auth — non-OAuth, skipped above.
 
         # ── Jira + Confluence: extract cloudId from account_id ──
         extra_auth_config: dict[str, str] = {}

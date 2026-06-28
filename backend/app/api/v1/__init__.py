@@ -112,6 +112,9 @@ airtable_webhook_router = _import_router("airtable_webhook")
 intercom_webhook_router = _import_router("intercom_webhook")
 asana_webhook_router = _import_router("asana_webhook")
 gitlab_webhook_router = _import_router("gitlab_webhook")
+clickup_webhook_router = _import_router("clickup_webhook")
+hubspot_webhook_router = _import_router("hubspot_webhook")
+twilio_webhook_router = _import_router("twilio_webhook")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -241,6 +244,9 @@ for _name, _router in [
     ("intercom", intercom_webhook_router),
     ("asana", asana_webhook_router),
     ("gitlab", gitlab_webhook_router),
+    ("clickup", clickup_webhook_router),
+    ("hubspot", hubspot_webhook_router),
+    ("twilio", twilio_webhook_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),
