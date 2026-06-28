@@ -1,0 +1,35 @@
+{
+  "slug": "stripe",
+  "name": "Stripe",
+  "description": "Payment and billing platform. Manage charges, customers, invoices, subscriptions, and revenue data with AI agent integration.",
+  "category": "development",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "get_account", "description": "Get connected Stripe account info" },
+    { "name": "list_charges", "description": "List charges" },
+    { "name": "get_charge", "description": "Get charge details" },
+    { "name": "list_customers", "description": "List customers" },
+    { "name": "get_customer", "description": "Get customer details" },
+    { "name": "list_invoices", "description": "List invoices" },
+    { "name": "get_invoice", "description": "Get invoice details" },
+    { "name": "list_subscriptions", "description": "List subscriptions" },
+    { "name": "get_subscription", "description": "Get subscription details" },
+    { "name": "list_products", "description": "List products" },
+    { "name": "list_prices", "description": "List prices" },
+    { "name": "get_balance", "description": "Get current balance" },
+    { "name": "create_payment_link", "description": "Create a payment link" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.stripe.com/v1/balance",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/stripe",
+  "version": "1.0.0"
+}

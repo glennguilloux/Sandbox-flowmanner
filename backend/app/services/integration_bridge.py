@@ -588,6 +588,160 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"project_id": "string"},
         },
     ],
+    "stripe": [
+        {
+            "id": "get_account",
+            "name": "Get Stripe Account",
+            "description": "Get connected Stripe account info",
+            "params": {},
+        },
+        {
+            "id": "list_charges",
+            "name": "List Stripe Charges",
+            "description": "List charges (paginated)",
+            "params": {"limit": "integer", "starting_after": "string"},
+        },
+        {
+            "id": "get_charge",
+            "name": "Get Stripe Charge",
+            "description": "Get charge details",
+            "params": {"charge_id": "string"},
+        },
+        {
+            "id": "list_customers",
+            "name": "List Stripe Customers",
+            "description": "List customers (paginated)",
+            "params": {"limit": "integer", "starting_after": "string"},
+        },
+        {
+            "id": "get_customer",
+            "name": "Get Stripe Customer",
+            "description": "Get customer details",
+            "params": {"customer_id": "string"},
+        },
+        {
+            "id": "list_invoices",
+            "name": "List Stripe Invoices",
+            "description": "List invoices (paginated)",
+            "params": {"limit": "integer", "starting_after": "string"},
+        },
+        {
+            "id": "get_invoice",
+            "name": "Get Stripe Invoice",
+            "description": "Get invoice details",
+            "params": {"invoice_id": "string"},
+        },
+        {
+            "id": "list_subscriptions",
+            "name": "List Stripe Subscriptions",
+            "description": "List subscriptions (paginated)",
+            "params": {"limit": "integer", "status": "string"},
+        },
+        {
+            "id": "get_subscription",
+            "name": "Get Stripe Subscription",
+            "description": "Get subscription details",
+            "params": {"subscription_id": "string"},
+        },
+        {
+            "id": "list_products",
+            "name": "List Stripe Products",
+            "description": "List products (paginated)",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "list_prices",
+            "name": "List Stripe Prices",
+            "description": "List prices, optionally filtered by product",
+            "params": {"product": "string", "limit": "integer"},
+        },
+        {
+            "id": "get_balance",
+            "name": "Get Stripe Balance",
+            "description": "Get current Stripe balance",
+            "params": {},
+        },
+        {
+            "id": "create_payment_link",
+            "name": "Create Stripe Payment Link",
+            "description": "Create a checkout payment link",
+            "params": {"line_items": "array"},
+        },
+    ],
+    "pagerduty": [
+        {
+            "id": "get_me",
+            "name": "Get PagerDuty User",
+            "description": "Get authenticated PagerDuty user info",
+            "params": {},
+        },
+        {
+            "id": "list_incidents",
+            "name": "List PagerDuty Incidents",
+            "description": "List incidents, optionally filtered by status and urgency",
+            "params": {"limit": "integer", "statuses": "array", "urgencies": "array"},
+        },
+        {
+            "id": "get_incident",
+            "name": "Get PagerDuty Incident",
+            "description": "Get incident details",
+            "params": {"incident_id": "string"},
+        },
+        {
+            "id": "create_incident",
+            "name": "Create PagerDuty Incident",
+            "description": "Create a new incident",
+            "params": {"title": "string", "service_id": "string", "urgency": "string", "body": "string"},
+        },
+        {
+            "id": "update_incident",
+            "name": "Update PagerDuty Incident",
+            "description": "Update incident (acknowledge, resolve, add note)",
+            "params": {"incident_id": "string", "status": "string", "note": "string"},
+        },
+        {
+            "id": "list_services",
+            "name": "List PagerDuty Services",
+            "description": "List PagerDuty services",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_service",
+            "name": "Get PagerDuty Service",
+            "description": "Get service details",
+            "params": {"service_id": "string"},
+        },
+        {
+            "id": "list_schedules",
+            "name": "List PagerDuty Schedules",
+            "description": "List on-call schedules",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_schedule",
+            "name": "Get PagerDuty Schedule",
+            "description": "Get schedule details",
+            "params": {"schedule_id": "string"},
+        },
+        {
+            "id": "list_escalation_policies",
+            "name": "List PagerDuty Escalation Policies",
+            "description": "List escalation policies",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "list_users",
+            "name": "List PagerDuty Users",
+            "description": "List PagerDuty users",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_user",
+            "name": "Get PagerDuty User",
+            "description": "Get user details",
+            "params": {"user_id": "string"},
+        },
+    ],
     "google": [
         # Drive
         {
@@ -1076,6 +1230,56 @@ class IntegrationBridge:
                     )
             except Exception as e:
                 logger.warning("Failed to refresh Figma token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired Stripe OAuth tokens ──────────────
+        if slug == "stripe" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("stripe", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Stripe token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Stripe token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired PagerDuty OAuth tokens ────────────
+        if slug == "pagerduty" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("pagerduty", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed PagerDuty token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh PagerDuty token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
 
         # ── Jira + Confluence: extract cloudId from account_id ──

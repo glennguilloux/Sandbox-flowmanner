@@ -113,6 +113,16 @@ class Settings(BaseSettings):
     FIGMA_OAUTH_CLIENT_SECRET: str = ""
     FIGMA_WEBHOOK_SECRET: str = ""
 
+    # Stripe integration
+    STRIPE_OAUTH_CLIENT_ID: str = ""  # Platform client_id (ca_...)
+    STRIPE_OAUTH_CLIENT_SECRET: str = ""  # Platform secret key (sk_...)
+    STRIPE_WEBHOOK_SECRET: str = ""  # Webhook endpoint signing secret (whsec_...)
+
+    # PagerDuty integration
+    PAGERDUTY_OAUTH_CLIENT_ID: str = ""
+    PAGERDUTY_OAUTH_CLIENT_SECRET: str = ""
+    PAGERDUTY_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

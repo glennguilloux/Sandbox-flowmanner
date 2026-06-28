@@ -142,6 +142,30 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
             "file_versions:read",
         ],
     ),
+    "stripe": OAuthProviderConfig(
+        slug="stripe",
+        name="Stripe",
+        authorize_url="https://connect.stripe.com/oauth/authorize",
+        token_url="https://connect.stripe.com/oauth/token",
+        client_id_env="STRIPE_OAUTH_CLIENT_ID",
+        client_secret_env="STRIPE_OAUTH_CLIENT_SECRET",
+        scopes=["read_write"],
+    ),
+    "pagerduty": OAuthProviderConfig(
+        slug="pagerduty",
+        name="PagerDuty",
+        authorize_url="https://identity.pagerduty.com/oauth/authorize",
+        token_url="https://identity.pagerduty.com/oauth/token",
+        client_id_env="PAGERDUTY_OAUTH_CLIENT_ID",
+        client_secret_env="PAGERDUTY_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "incidents.read",
+            "incidents.write",
+            "services.read",
+            "schedules.read",
+            "escalation_policies.read",
+        ],
+    ),
 }
 
 

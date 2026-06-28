@@ -24,8 +24,10 @@ from .google_connector import GoogleConnector
 from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
 from .notion_connector import NotionConnector
+from .pagerduty_connector import PagerDutyConnector
 from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
+from .stripe_connector import StripeConnector
 from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
 
@@ -55,7 +57,9 @@ class ConnectorManager:
         "confluence": ConfluenceConnector,
         "figma": FigmaConnector,
         "linear": LinearConnector,
+        "pagerduty": PagerDutyConnector,
         "sentry": SentryConnector,
+        "stripe": StripeConnector,
         "vercel": VercelConnector,
     }
 

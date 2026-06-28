@@ -58,9 +58,25 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "list_comments" in figma_ids
     assert "post_comment" in figma_ids
 
+    # Stripe: billing/payments + revenue impact
+    stripe_caps = _INTEGRATION_CAPABILITIES.get("stripe", [])
+    assert len(stripe_caps) >= 13
+    stripe_ids = {c["id"] for c in stripe_caps}
+    assert "list_charges" in stripe_ids
+    assert "get_balance" in stripe_ids
+    assert "create_payment_link" in stripe_ids
+
+    # PagerDuty: incident management + on-call
+    pagerduty_caps = _INTEGRATION_CAPABILITIES.get("pagerduty", [])
+    assert len(pagerduty_caps) >= 12
+    pagerduty_ids = {c["id"] for c in pagerduty_caps}
+    assert "create_incident" in pagerduty_ids
+    assert "list_incidents" in pagerduty_ids
+    assert "update_incident" in pagerduty_ids
+
 
 def test_all_connectors_registered_in_manager():
-    """All Batch 1-3 connectors are registered in the ConnectorManager."""
+    """All Batch 1-4 connectors are registered in the ConnectorManager."""
     from app.services.connectors.manager import ConnectorManager
 
     manager = ConnectorManager()
@@ -70,10 +86,12 @@ def test_all_connectors_registered_in_manager():
     assert manager.get_connector_class("vercel") is not None
     assert manager.get_connector_class("confluence") is not None
     assert manager.get_connector_class("figma") is not None
+    assert manager.get_connector_class("stripe") is not None
+    assert manager.get_connector_class("pagerduty") is not None
 
 
 def test_all_connectors_registered_in_init():
-    """All Batch 1-3 connectors are registered in CONNECTOR_TYPES."""
+    """All Batch 1-4 connectors are registered in CONNECTOR_TYPES."""
     from app.services.connectors import CONNECTOR_TYPES
 
     assert "sentry" in CONNECTOR_TYPES
@@ -82,3 +100,5 @@ def test_all_connectors_registered_in_init():
     assert "vercel" in CONNECTOR_TYPES
     assert "confluence" in CONNECTOR_TYPES
     assert "figma" in CONNECTOR_TYPES
+    assert "stripe" in CONNECTOR_TYPES
+    assert "pagerduty" in CONNECTOR_TYPES

@@ -104,6 +104,9 @@ jira_webhook_router = _import_router("jira_webhook")
 confluence_oauth_router = _import_router("confluence_oauth", tier=RouterTier.OPTIONAL)
 confluence_webhook_router = _import_router("confluence_webhook")
 figma_webhook_router = _import_router("figma_webhook")
+stripe_oauth_router = _import_router("stripe_oauth", tier=RouterTier.OPTIONAL)
+stripe_webhook_router = _import_router("stripe_webhook")
+pagerduty_webhook_router = _import_router("pagerduty_webhook")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -225,6 +228,9 @@ for _name, _router in [
     ("confluence-oauth", confluence_oauth_router),
     ("confluence", confluence_webhook_router),
     ("figma", figma_webhook_router),
+    ("stripe-oauth", stripe_oauth_router),
+    ("stripe", stripe_webhook_router),
+    ("pagerduty", pagerduty_webhook_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),

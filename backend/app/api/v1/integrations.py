@@ -204,6 +204,22 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="oauth2",
     ),
+    Integration(
+        slug="stripe",
+        name="Stripe",
+        description="Payment and billing platform. Manage charges, customers, invoices, subscriptions, and revenue data with AI agent integration.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="pagerduty",
+        name="PagerDuty",
+        description="Incident management and on-call platform. Create, triage, and resolve incidents, manage services, schedules, and escalation policies with AI agent integration.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
 ]
 
 
@@ -386,6 +402,14 @@ async def oauth_authorize(
         redirect_uri = redirect_uri.replace(
             "/api/integrations/confluence/oauth/callback",
             "/api/confluence/oauth/callback",
+        )
+        params["redirect_uri"] = redirect_uri
+
+    # Stripe uses a custom OAuth callback (stripe_user_id extraction)
+    if slug == "stripe":
+        redirect_uri = redirect_uri.replace(
+            "/api/integrations/stripe/oauth/callback",
+            "/api/stripe/oauth/callback",
         )
         params["redirect_uri"] = redirect_uri
 

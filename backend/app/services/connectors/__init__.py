@@ -38,8 +38,10 @@ from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
 from .manager import ConnectorManager
 from .notion_connector import NotionConnector
+from .pagerduty_connector import PagerDutyConnector
 from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
+from .stripe_connector import StripeConnector
 from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
 
@@ -61,10 +63,12 @@ __all__ = [
     "JiraConnector",
     "LinearConnector",
     "NotionConnector",
+    "PagerDutyConnector",
     "RateLimitConfig",
     "RateLimitExceeded",
     "SentryConnector",
     "SlackConnector",
+    "StripeConnector",
     "VercelConnector",
     "WebhookConnector",
     "get_connector_manager",
@@ -83,7 +87,9 @@ CONNECTOR_TYPES = {
     "confluence": ConfluenceConnector,
     "figma": FigmaConnector,
     "linear": LinearConnector,
+    "pagerduty": PagerDutyConnector,
     "sentry": SentryConnector,
+    "stripe": StripeConnector,
     "vercel": VercelConnector,
 }
 
