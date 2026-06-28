@@ -1,0 +1,32 @@
+{
+  "slug": "asana",
+  "name": "Asana",
+  "description": "Project management platform. Manage projects, tasks, and sections with AI agent integration.",
+  "category": "productivity",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "get_me", "description": "Get authenticated Asana user info" },
+    { "name": "list_workspaces", "description": "List user's Asana workspaces" },
+    { "name": "list_projects", "description": "List Asana projects" },
+    { "name": "get_project", "description": "Get Asana project details" },
+    { "name": "list_tasks", "description": "List Asana tasks" },
+    { "name": "get_task", "description": "Get Asana task details" },
+    { "name": "create_task", "description": "Create a new Asana task" },
+    { "name": "update_task", "description": "Update an Asana task" },
+    { "name": "complete_task", "description": "Mark an Asana task as completed" },
+    { "name": "list_sections", "description": "List sections in an Asana project" }
+  ],
+  "health_check": {
+    "endpoint": "https://app.asana.com/api/1.0/users/me",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/asana",
+  "version": "1.0.0"
+}

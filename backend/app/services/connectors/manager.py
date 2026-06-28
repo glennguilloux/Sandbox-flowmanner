@@ -10,6 +10,7 @@ import logging
 from typing import Any
 
 from .airtable_connector import AirtableConnector
+from .asana_connector import AsanaConnector
 from .base import (
     BaseConnector,
     ConnectorConfig,
@@ -22,6 +23,7 @@ from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
 from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
+from .gitlab_connector import GitLabConnector
 from .google_connector import GoogleConnector
 from .intercom_connector import IntercomConnector
 from .jira_connector import JiraConnector
@@ -54,6 +56,7 @@ class ConnectorManager:
         "email": EmailConnector,
         "webhook": WebhookConnector,
         "github": GitHubConnector,
+        "gitlab": GitLabConnector,
         "google": GoogleConnector,
         "intercom": IntercomConnector,
         "notion": NotionConnector,
@@ -62,6 +65,7 @@ class ConnectorManager:
         "figma": FigmaConnector,
         "linear": LinearConnector,
         "airtable": AirtableConnector,
+        "asana": AsanaConnector,
         "datadog": DatadogConnector,
         "pagerduty": PagerDutyConnector,
         "sentry": SentryConnector,

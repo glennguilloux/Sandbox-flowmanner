@@ -18,6 +18,7 @@ Usage:
 from typing import Optional
 
 from .airtable_connector import AirtableConnector
+from .asana_connector import AsanaConnector
 from .base import (
     AuthenticationError,
     AuthType,
@@ -35,6 +36,7 @@ from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
 from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
+from .gitlab_connector import GitLabConnector
 from .google_connector import GoogleConnector
 from .intercom_connector import IntercomConnector
 from .jira_connector import JiraConnector
@@ -50,6 +52,7 @@ from .webhook_connector import WebhookConnector
 
 __all__ = [
     "AirtableConnector",
+    "AsanaConnector",
     "AuthType",
     "AuthenticationError",
     "BaseConnector",
@@ -64,6 +67,7 @@ __all__ = [
     "EmailConnector",
     "FigmaConnector",
     "GitHubConnector",
+    "GitLabConnector",
     "GoogleConnector",
     "IntercomConnector",
     "JiraConnector",
@@ -87,6 +91,7 @@ CONNECTOR_TYPES = {
     "email": EmailConnector,
     "webhook": WebhookConnector,
     "github": GitHubConnector,
+    "gitlab": GitLabConnector,
     "google": GoogleConnector,
     "intercom": IntercomConnector,
     "notion": NotionConnector,
@@ -95,6 +100,7 @@ CONNECTOR_TYPES = {
     "figma": FigmaConnector,
     "linear": LinearConnector,
     "airtable": AirtableConnector,
+    "asana": AsanaConnector,
     "datadog": DatadogConnector,
     "pagerduty": PagerDutyConnector,
     "sentry": SentryConnector,

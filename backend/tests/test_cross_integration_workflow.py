@@ -126,6 +126,27 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "search_contacts" in intercom_ids
     assert "list_companies" in intercom_ids
 
+    # Asana: project management + task automation
+    asana_caps = _INTEGRATION_CAPABILITIES.get("asana", [])
+    assert len(asana_caps) >= 10
+    asana_ids = {c["id"] for c in asana_caps}
+    assert "create_task" in asana_ids
+    assert "list_tasks" in asana_ids
+    assert "complete_task" in asana_ids
+    assert "list_projects" in asana_ids
+    assert "list_sections" in asana_ids
+
+    # GitLab: DevOps platform (MRs, issues, pipelines)
+    gitlab_caps = _INTEGRATION_CAPABILITIES.get("gitlab", [])
+    assert len(gitlab_caps) >= 14
+    gitlab_ids = {c["id"] for c in gitlab_caps}
+    assert "create_merge_request" in gitlab_ids
+    assert "merge_merge_request" in gitlab_ids
+    assert "approve_merge_request" in gitlab_ids
+    assert "create_issue" in gitlab_ids
+    assert "list_pipelines" in gitlab_ids
+    assert "retry_pipeline" in gitlab_ids
+
 
 def test_all_connectors_registered_in_manager():
     """All Batch 1-4 connectors are registered in the ConnectorManager."""
@@ -143,6 +164,8 @@ def test_all_connectors_registered_in_manager():
     assert manager.get_connector_class("datadog") is not None
     assert manager.get_connector_class("airtable") is not None
     assert manager.get_connector_class("intercom") is not None
+    assert manager.get_connector_class("asana") is not None
+    assert manager.get_connector_class("gitlab") is not None
 
 
 def test_all_connectors_registered_in_init():
@@ -160,3 +183,5 @@ def test_all_connectors_registered_in_init():
     assert "datadog" in CONNECTOR_TYPES
     assert "airtable" in CONNECTOR_TYPES
     assert "intercom" in CONNECTOR_TYPES
+    assert "asana" in CONNECTOR_TYPES
+    assert "gitlab" in CONNECTOR_TYPES

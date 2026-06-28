@@ -138,6 +138,16 @@ class Settings(BaseSettings):
     INTERCOM_OAUTH_CLIENT_SECRET: str = ""
     INTERCOM_WEBHOOK_SECRET: str = ""
 
+    # Asana integration
+    ASANA_OAUTH_CLIENT_ID: str = ""
+    ASANA_OAUTH_CLIENT_SECRET: str = ""
+    ASANA_WEBHOOK_SECRET: str = ""
+
+    # GitLab integration
+    GITLAB_OAUTH_CLIENT_ID: str = ""
+    GITLAB_OAUTH_CLIENT_SECRET: str = ""
+    GITLAB_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

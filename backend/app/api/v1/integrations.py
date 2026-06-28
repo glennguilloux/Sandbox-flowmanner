@@ -244,6 +244,22 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="oauth2",
     ),
+    Integration(
+        slug="asana",
+        name="Asana",
+        description="Project management platform. Manage projects, tasks, and sections with AI agent integration.",
+        category="productivity",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="gitlab",
+        name="GitLab",
+        description="Full DevOps platform. Manage projects, merge requests, issues, pipelines, and releases with AI agent integration.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
 ]
 
 

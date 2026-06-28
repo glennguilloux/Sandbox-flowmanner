@@ -211,6 +211,24 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
             "Read admins",
         ],
     ),
+    "asana": OAuthProviderConfig(
+        slug="asana",
+        name="Asana",
+        authorize_url="https://app.asana.com/-/oauth_authorize",
+        token_url="https://app.asana.com/-/oauth_token",
+        client_id_env="ASANA_OAUTH_CLIENT_ID",
+        client_secret_env="ASANA_OAUTH_CLIENT_SECRET",
+        scopes=[],  # Asana uses "default" scope — no specific scopes needed
+    ),
+    "gitlab": OAuthProviderConfig(
+        slug="gitlab",
+        name="GitLab",
+        authorize_url="https://gitlab.com/oauth/authorize",
+        token_url="https://gitlab.com/oauth/token",
+        client_id_env="GITLAB_OAUTH_CLIENT_ID",
+        client_secret_env="GITLAB_OAUTH_CLIENT_SECRET",
+        scopes=["api"],
+    ),
 }
 
 

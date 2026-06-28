@@ -992,6 +992,167 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"base_id": "string", "table_id": "string", "record_id": "string"},
         },
     ],
+    "asana": [
+        {
+            "id": "get_me",
+            "name": "Get Asana User",
+            "description": "Get authenticated Asana user info",
+            "params": {},
+        },
+        {
+            "id": "list_workspaces",
+            "name": "List Asana Workspaces",
+            "description": "List user's Asana workspaces",
+            "params": {},
+        },
+        {
+            "id": "list_projects",
+            "name": "List Asana Projects",
+            "description": "List Asana projects, optionally filtered by workspace",
+            "params": {"workspace": "string"},
+        },
+        {
+            "id": "get_project",
+            "name": "Get Asana Project",
+            "description": "Get Asana project details",
+            "params": {"project_gid": "string"},
+        },
+        {
+            "id": "list_tasks",
+            "name": "List Asana Tasks",
+            "description": "List Asana tasks with optional filters",
+            "params": {"project": "string", "assignee": "string", "workspace": "string"},
+        },
+        {
+            "id": "get_task",
+            "name": "Get Asana Task",
+            "description": "Get Asana task details",
+            "params": {"task_gid": "string"},
+        },
+        {
+            "id": "create_task",
+            "name": "Create Asana Task",
+            "description": "Create a new Asana task",
+            "params": {
+                "name": "string",
+                "projects": "array",
+                "notes": "string",
+                "assignee": "string",
+                "due_on": "string",
+            },
+        },
+        {
+            "id": "update_task",
+            "name": "Update Asana Task",
+            "description": "Update an existing Asana task",
+            "params": {
+                "task_gid": "string",
+                "name": "string",
+                "notes": "string",
+                "assignee": "string",
+                "due_on": "string",
+                "completed": "boolean",
+            },
+        },
+        {
+            "id": "complete_task",
+            "name": "Complete Asana Task",
+            "description": "Mark an Asana task as completed",
+            "params": {"task_gid": "string"},
+        },
+        {
+            "id": "list_sections",
+            "name": "List Asana Sections",
+            "description": "List sections in an Asana project",
+            "params": {"project_gid": "string"},
+        },
+    ],
+    "gitlab": [
+        {
+            "id": "get_me",
+            "name": "Get GitLab User",
+            "description": "Get authenticated GitLab user info",
+            "params": {},
+        },
+        {
+            "id": "list_projects",
+            "name": "List GitLab Projects",
+            "description": "List GitLab projects filtered by membership",
+            "params": {"page": "integer", "per_page": "integer"},
+        },
+        {
+            "id": "get_project",
+            "name": "Get GitLab Project",
+            "description": "Get GitLab project details",
+            "params": {"project_id": "string"},
+        },
+        {
+            "id": "list_merge_requests",
+            "name": "List GitLab Merge Requests",
+            "description": "List merge requests for a project",
+            "params": {"project_id": "string", "state": "string"},
+        },
+        {
+            "id": "get_merge_request",
+            "name": "Get GitLab Merge Request",
+            "description": "Get merge request details",
+            "params": {"project_id": "string", "mr_iid": "integer"},
+        },
+        {
+            "id": "create_merge_request",
+            "name": "Create GitLab Merge Request",
+            "description": "Create a new merge request",
+            "params": {"project_id": "string", "source_branch": "string", "target_branch": "string", "title": "string"},
+        },
+        {
+            "id": "merge_merge_request",
+            "name": "Merge GitLab Merge Request",
+            "description": "Merge a merge request",
+            "params": {"project_id": "string", "mr_iid": "integer"},
+        },
+        {
+            "id": "approve_merge_request",
+            "name": "Approve GitLab Merge Request",
+            "description": "Approve a merge request",
+            "params": {"project_id": "string", "mr_iid": "integer"},
+        },
+        {
+            "id": "list_issues",
+            "name": "List GitLab Issues",
+            "description": "List issues for a project",
+            "params": {"project_id": "string", "state": "string"},
+        },
+        {
+            "id": "get_issue",
+            "name": "Get GitLab Issue",
+            "description": "Get issue details",
+            "params": {"project_id": "string", "issue_iid": "integer"},
+        },
+        {
+            "id": "create_issue",
+            "name": "Create GitLab Issue",
+            "description": "Create a new issue",
+            "params": {"project_id": "string", "title": "string", "description": "string"},
+        },
+        {
+            "id": "add_issue_note",
+            "name": "Add GitLab Issue Comment",
+            "description": "Add a comment to an issue",
+            "params": {"project_id": "string", "issue_iid": "integer", "body": "string"},
+        },
+        {
+            "id": "list_pipelines",
+            "name": "List GitLab Pipelines",
+            "description": "List pipelines for a project",
+            "params": {"project_id": "string", "status": "string"},
+        },
+        {
+            "id": "retry_pipeline",
+            "name": "Retry GitLab Pipeline",
+            "description": "Retry a failed pipeline",
+            "params": {"project_id": "string", "pipeline_id": "integer"},
+        },
+    ],
     "intercom": [
         {
             "id": "get_admin",
@@ -1642,6 +1803,56 @@ class IntegrationBridge:
                     )
             except Exception as e:
                 logger.warning("Failed to refresh Airtable token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired Asana OAuth tokens ──────────────
+        if slug == "asana" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("asana", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Asana token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Asana token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired GitLab OAuth tokens ──────────────
+        if slug == "gitlab" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("gitlab", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed GitLab token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh GitLab token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
 
         # ── Jira + Confluence: extract cloudId from account_id ──
