@@ -85,6 +85,13 @@ class Settings(BaseSettings):
     LINEAR_API_KEY: str = ""
     LINEAR_WEBHOOK_SECRET: str = ""
     LINEAR_TEAM_ID: str = ""
+    LINEAR_OAUTH_CLIENT_ID: str = ""
+    LINEAR_OAUTH_CLIENT_SECRET: str = ""
+
+    # Sentry user-facing integration (separate from internal SDK monitoring)
+    SENTRY_WEBHOOK_SECRET: str = ""
+    SENTRY_USER_OAUTH_CLIENT_ID: str = ""
+    SENTRY_USER_OAUTH_CLIENT_SECRET: str = ""
 
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""

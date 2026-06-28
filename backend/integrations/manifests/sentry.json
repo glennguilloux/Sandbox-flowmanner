@@ -1,0 +1,34 @@
+{
+  "slug": "sentry",
+  "name": "Sentry",
+  "description": "Error monitoring and performance tracking. Receive error alerts, triage issues, analyze stack traces, and trigger debugging agents automatically.",
+  "category": "development",
+  "auth_type": "api_key",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "list_organizations", "description": "List accessible Sentry organizations" },
+    { "name": "list_projects", "description": "List projects in a Sentry organization" },
+    { "name": "list_issues", "description": "List error issues" },
+    { "name": "get_issue", "description": "Get issue details" },
+    { "name": "get_latest_event", "description": "Get the latest event with full stack trace" },
+    { "name": "resolve_issue", "description": "Mark an issue as resolved" },
+    { "name": "ignore_issue", "description": "Mark an issue as ignored" },
+    { "name": "list_releases", "description": "List releases" }
+  ],
+  "health_check": {
+    "endpoint": "https://sentry.io/api/0/",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": true,
+    "demo_actions": [
+      { "label": "List organizations", "action": "list_organizations", "description": "Show your Sentry organizations" },
+      { "label": "List recent issues", "action": "list_issues", "description": "Show recent error issues" }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/sentry",
+  "version": "1.0.0"
+}

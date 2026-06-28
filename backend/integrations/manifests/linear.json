@@ -1,0 +1,33 @@
+{
+  "slug": "linear",
+  "name": "Linear",
+  "description": "Issue tracking and project management for engineering teams. Create, update, and track issues with AI agent automation.",
+  "category": "development",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "create_issue", "description": "Create a new issue in a Linear team" },
+    { "name": "update_issue", "description": "Update an existing issue (title, status, priority)" },
+    { "name": "get_issue", "description": "Get a Linear issue by ID or identifier (e.g., TEAM-123)" },
+    { "name": "list_issues", "description": "List issues for a Linear team" },
+    { "name": "search_issues", "description": "Search for Linear issues by identifier" },
+    { "name": "add_comment", "description": "Add a comment to a Linear issue" },
+    { "name": "list_teams", "description": "List all teams in the Linear workspace" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.linear.app/graphql",
+    "method": "POST",
+    "expected_status": 200,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": true,
+    "demo_actions": [
+      { "label": "List teams", "action": "list_teams", "description": "Show teams in your Linear workspace" },
+      { "label": "List issues", "action": "list_issues", "description": "Show recent issues for your team" }
+    ]
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/linear",
+  "version": "1.0.0"
+}

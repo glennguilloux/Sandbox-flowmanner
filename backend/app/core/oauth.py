@@ -86,6 +86,15 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
         client_secret_env="NOTION_OAUTH_CLIENT_SECRET",
         scopes=[],
     ),
+    "linear": OAuthProviderConfig(
+        slug="linear",
+        name="Linear",
+        authorize_url="https://linear.app/oauth/authorize",
+        token_url="https://api.linear.app/oauth/token",
+        client_id_env="LINEAR_OAUTH_CLIENT_ID",
+        client_secret_env="LINEAR_OAUTH_CLIENT_SECRET",
+        scopes=["read", "write"],
+    ),
 }
 
 

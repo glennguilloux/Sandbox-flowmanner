@@ -234,6 +234,56 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"guild_id": "string", "name": "string", "type": "integer"},
         },
     ],
+    "sentry": [
+        {
+            "id": "list_organizations",
+            "name": "List Sentry Organizations",
+            "description": "List Sentry organizations accessible to the connected account",
+            "params": {},
+        },
+        {
+            "id": "list_projects",
+            "name": "List Sentry Projects",
+            "description": "List projects in a Sentry organization",
+            "params": {"org_slug": "string"},
+        },
+        {
+            "id": "list_issues",
+            "name": "List Sentry Issues",
+            "description": "List error issues in a Sentry organization/project",
+            "params": {"org_slug": "string", "query": "string", "limit": "integer"},
+        },
+        {
+            "id": "get_issue",
+            "name": "Get Sentry Issue",
+            "description": "Get details of a specific Sentry issue",
+            "params": {"issue_id": "string"},
+        },
+        {
+            "id": "get_latest_event",
+            "name": "Get Sentry Latest Event",
+            "description": "Get the latest event (with stack trace) for a Sentry issue",
+            "params": {"issue_id": "string"},
+        },
+        {
+            "id": "resolve_issue",
+            "name": "Resolve Sentry Issue",
+            "description": "Mark a Sentry issue as resolved",
+            "params": {"issue_id": "string"},
+        },
+        {
+            "id": "ignore_issue",
+            "name": "Ignore Sentry Issue",
+            "description": "Mark a Sentry issue as ignored",
+            "params": {"issue_id": "string"},
+        },
+        {
+            "id": "list_releases",
+            "name": "List Sentry Releases",
+            "description": "List releases in a Sentry organization",
+            "params": {"org_slug": "string"},
+        },
+    ],
     "linear": [
         {
             "id": "create_issue",
@@ -385,6 +435,11 @@ _NON_OAUTH_CONFIGS: dict[str, dict[str, Any]] = {
         "name": "apiflow-instance",
         "auth_type": "api_key",
         "label": "Apiflow API key + instance URL",
+    },
+    "sentry": {
+        "name": "sentry-instance",
+        "auth_type": "bearer_token",
+        "label": "Sentry API token",
     },
 }
 

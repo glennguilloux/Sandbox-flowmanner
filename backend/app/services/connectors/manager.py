@@ -21,6 +21,7 @@ from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
 from .linear_connector import LinearConnector
 from .notion_connector import NotionConnector
+from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
 from .webhook_connector import WebhookConnector
 
@@ -47,6 +48,7 @@ class ConnectorManager:
         "google": GoogleConnector,
         "notion": NotionConnector,
         "linear": LinearConnector,
+        "sentry": SentryConnector,
     }
 
     def __init__(self):

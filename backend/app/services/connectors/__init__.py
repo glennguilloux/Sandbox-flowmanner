@@ -35,17 +35,16 @@ from .google_connector import GoogleConnector
 from .linear_connector import LinearConnector
 from .manager import ConnectorManager
 from .notion_connector import NotionConnector
+from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
 from .webhook_connector import WebhookConnector
 
 __all__ = [
     "AuthType",
     "AuthenticationError",
-    # Base classes
     "BaseConnector",
     "ConnectorConfig",
     "ConnectorError",
-    # Manager
     "ConnectorManager",
     "ConnectorResponse",
     "ConnectorStatus",
@@ -57,7 +56,7 @@ __all__ = [
     "NotionConnector",
     "RateLimitConfig",
     "RateLimitExceeded",
-    # Connectors
+    "SentryConnector",
     "SlackConnector",
     "WebhookConnector",
     "get_connector_manager",
@@ -73,6 +72,7 @@ CONNECTOR_TYPES = {
     "google": GoogleConnector,
     "notion": NotionConnector,
     "linear": LinearConnector,
+    "sentry": SentryConnector,
 }
 
 

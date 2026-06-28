@@ -156,6 +156,22 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="api_key",
     ),
+    Integration(
+        slug="linear",
+        name="Linear",
+        description="Issue tracking and project management for engineering teams. Create, update, and track issues with AI agent automation.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="sentry",
+        name="Sentry",
+        description="Error monitoring and performance tracking. Receive error alerts, triage issues, analyze stack traces, and trigger debugging agents automatically.",
+        category="development",
+        icon_url="",
+        auth_type="api_key",
+    ),
 ]
 
 
@@ -241,6 +257,11 @@ async def connect_integration(
         if body.api_key:
             encrypted_key = encrypt_token(body.api_key)
         account_name = body.instance_url
+
+    if slug == "sentry" and body:
+        if body.api_key:
+            encrypted_key = encrypt_token(body.api_key)
+        account_name = body.instance_url or "sentry.io"
 
     conn = IntegrationConnection(
         id=str(uuid4()),

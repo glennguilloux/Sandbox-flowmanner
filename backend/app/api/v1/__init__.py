@@ -97,6 +97,7 @@ activity_router = _import_router("workspace_activity")
 messages_router = _import_router("workspace_messages")
 tools_router = _import_router("tools")
 linear_router = _import_router("linear")
+sentry_webhook_router = _import_router("sentry_webhook")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -211,6 +212,7 @@ for _name, _router in [
     ("workspaces", messages_router),
     ("web-search", web_search_enhanced_router),
     ("linear", linear_router),
+    ("sentry", sentry_webhook_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),
