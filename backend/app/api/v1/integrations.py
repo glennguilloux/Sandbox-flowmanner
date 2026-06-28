@@ -172,6 +172,22 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="api_key",
     ),
+    Integration(
+        slug="vercel",
+        name="Vercel",
+        description="Deployment monitoring and management. Track deployments, monitor build status, trigger rollbacks, and manage domains for your Vercel projects.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="jira",
+        name="Jira",
+        description="Enterprise issue tracking and project management. Create, update, and search issues, manage sprints, and automate triage workflows with AI agent integration.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
 ]
 
 
@@ -340,6 +356,14 @@ async def oauth_authorize(
         params["scope"] = " ".join(provider.scopes)
     if provider.extra_auth_params:
         params.update(provider.extra_auth_params)
+
+    # Jira uses a custom OAuth callback (site discovery step)
+    if slug == "jira":
+        redirect_uri = redirect_uri.replace(
+            f"/api/integrations/jira/oauth/callback",
+            "/api/jira/oauth/callback",
+        )
+        params["redirect_uri"] = redirect_uri
 
     authorize_url = f"{provider.authorize_url}?{urlencode(params)}"
     return RedirectResponse(url=authorize_url, status_code=302)

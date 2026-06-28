@@ -338,6 +338,129 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {},
         },
     ],
+    "vercel": [
+        {
+            "id": "get_me",
+            "name": "Get Vercel User",
+            "description": "Get authenticated Vercel user info",
+            "params": {},
+        },
+        {
+            "id": "list_projects",
+            "name": "List Vercel Projects",
+            "description": "List Vercel projects",
+            "params": {"limit": "integer"},
+        },
+        {
+            "id": "get_project",
+            "name": "Get Vercel Project",
+            "description": "Get project details",
+            "params": {"project_id": "string"},
+        },
+        {
+            "id": "list_deployments",
+            "name": "List Vercel Deployments",
+            "description": "List deployments, optionally filtered by project",
+            "params": {"project_id": "string", "limit": "integer"},
+        },
+        {
+            "id": "get_deployment",
+            "name": "Get Vercel Deployment",
+            "description": "Get deployment details (status, URL, build info)",
+            "params": {"deployment_id": "string"},
+        },
+        {
+            "id": "cancel_deployment",
+            "name": "Cancel Vercel Deployment",
+            "description": "Cancel a running deployment",
+            "params": {"deployment_id": "string"},
+        },
+        {
+            "id": "redeploy",
+            "name": "Redeploy Vercel Project",
+            "description": "Trigger a redeployment from an existing deployment",
+            "params": {"deployment_id": "string", "target": "string"},
+        },
+        {
+            "id": "get_deployment_logs",
+            "name": "Get Deployment Logs",
+            "description": "Get build events and logs for a deployment",
+            "params": {"deployment_id": "string"},
+        },
+        {
+            "id": "list_domains",
+            "name": "List Vercel Domains",
+            "description": "List domains for a Vercel project",
+            "params": {"project_id": "string"},
+        },
+    ],
+    "jira": [
+        {
+            "id": "list_projects",
+            "name": "List Jira Projects",
+            "description": "List all Jira projects",
+            "params": {},
+        },
+        {
+            "id": "get_project",
+            "name": "Get Jira Project",
+            "description": "Get Jira project details",
+            "params": {"project_key": "string"},
+        },
+        {
+            "id": "search_issues",
+            "name": "Search Jira Issues",
+            "description": "Search issues with JQL query",
+            "params": {"jql": "string", "max_results": "integer"},
+        },
+        {
+            "id": "get_issue",
+            "name": "Get Jira Issue",
+            "description": "Get Jira issue details",
+            "params": {"issue_key": "string"},
+        },
+        {
+            "id": "create_issue",
+            "name": "Create Jira Issue",
+            "description": "Create a new Jira issue (description auto-converted to ADF)",
+            "params": {
+                "project_key": "string",
+                "summary": "string",
+                "issue_type": "string",
+                "description": "string",
+            },
+        },
+        {
+            "id": "update_issue",
+            "name": "Update Jira Issue",
+            "description": "Update Jira issue fields",
+            "params": {"issue_key": "string", "fields": "object"},
+        },
+        {
+            "id": "add_comment",
+            "name": "Add Jira Comment",
+            "description": "Add a comment to a Jira issue (auto-converted to ADF)",
+            "params": {"issue_key": "string", "body": "string"},
+        },
+        {
+            "id": "transition_issue",
+            "name": "Transition Jira Issue",
+            "description": "Change issue status via transition",
+            "params": {"issue_key": "string", "transition_id": "string"},
+        },
+        {
+            "id": "list_boards",
+            "name": "List Jira Boards",
+            "description": "List Scrum/Kanban boards",
+            "params": {},
+        },
+        {
+            "id": "list_sprints",
+            "name": "List Jira Sprints",
+            "description": "List sprints for a board",
+            "params": {"board_id": "integer"},
+        },
+    ],
     "google": [
         # Drive
         {
@@ -753,12 +876,47 @@ class IntegrationBridge:
                 logger.warning("Failed to refresh Google token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
 
+        # ── Auto-refresh expired Jira (Atlassian) OAuth tokens ──
+        if slug == "jira" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_jira_token(decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Jira token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Jira token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Jira: extract cloudId from account_id ──────────────
+        extra_auth_config: dict[str, str] = {}
+        if slug == "jira":
+            cloud_id = conn.account_id
+            if not cloud_id:
+                logger.warning("No cloudId for user %s Jira connection", user_id)
+                return None
+            extra_auth_config["cloud_id"] = cloud_id
+
         # Create connector config with the (possibly refreshed) decrypted token
+        auth_config: dict[str, Any] = {"access_token": access_token, **extra_auth_config}
         config = ConnectorConfig(
             name=f"{slug}-user-{user_id}",
             connector_type=slug,
             auth_type=AuthType.OAUTH2,
-            auth_config={"access_token": access_token},
+            auth_config=auth_config,
         )
 
         manager = ConnectorManager()
@@ -833,6 +991,43 @@ class IntegrationBridge:
         if resp.status_code != 200:
             logger.warning(
                 "Google token refresh failed: %s %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return None
+
+        return resp.json()
+
+    @staticmethod
+    async def _refresh_jira_token(refresh_token: str) -> dict[str, Any] | None:
+        """
+        Exchange a Jira (Atlassian) refresh token for a fresh access token.
+
+        Returns {'access_token': ..., 'expires_in': ..., 'refresh_token': ...}
+        or None on failure.
+        """
+        provider = OAUTH_PROVIDERS.get("jira")
+        if not provider or not provider.is_configured:
+            logger.warning("Jira OAuth provider not configured — cannot refresh token")
+            return None
+
+        data = {
+            "client_id": provider.client_id,
+            "client_secret": provider.client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                provider.token_url,
+                data=data,
+                headers={"Accept": "application/json"},
+            )
+
+        if resp.status_code != 200:
+            logger.warning(
+                "Jira token refresh failed: %s %s",
                 resp.status_code,
                 resp.text[:200],
             )

@@ -1,0 +1,32 @@
+{
+  "slug": "jira",
+  "name": "Jira",
+  "description": "Enterprise issue tracking and project management. Create, update, and search issues, manage sprints, and automate triage workflows with AI agent integration.",
+  "category": "development",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "list_projects", "description": "List Jira projects" },
+    { "name": "get_project", "description": "Get project details" },
+    { "name": "search_issues", "description": "Search issues with JQL" },
+    { "name": "get_issue", "description": "Get issue details" },
+    { "name": "create_issue", "description": "Create a new issue" },
+    { "name": "update_issue", "description": "Update issue fields" },
+    { "name": "add_comment", "description": "Add a comment to an issue" },
+    { "name": "transition_issue", "description": "Change issue status" },
+    { "name": "list_boards", "description": "List Scrum/Kanban boards" },
+    { "name": "list_sprints", "description": "List sprints for a board" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.atlassian.com/ex/jira/rest/api/3/myself",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/jira",
+  "version": "1.0.0"
+}

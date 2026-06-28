@@ -93,6 +93,16 @@ class Settings(BaseSettings):
     SENTRY_USER_OAUTH_CLIENT_ID: str = ""
     SENTRY_USER_OAUTH_CLIENT_SECRET: str = ""
 
+    # Vercel integration
+    VERCEL_OAUTH_CLIENT_ID: str = ""
+    VERCEL_OAUTH_CLIENT_SECRET: str = ""
+    VERCEL_WEBHOOK_SECRET: str = ""
+
+    # Jira integration
+    JIRA_OAUTH_CLIENT_ID: str = ""
+    JIRA_OAUTH_CLIENT_SECRET: str = ""
+    JIRA_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

@@ -19,10 +19,12 @@ from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
 from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
+from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
 from .notion_connector import NotionConnector
 from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
+from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
 
 logger = logging.getLogger(__name__)
@@ -47,8 +49,10 @@ class ConnectorManager:
         "github": GitHubConnector,
         "google": GoogleConnector,
         "notion": NotionConnector,
+        "jira": JiraConnector,
         "linear": LinearConnector,
         "sentry": SentryConnector,
+        "vercel": VercelConnector,
     }
 
     def __init__(self):

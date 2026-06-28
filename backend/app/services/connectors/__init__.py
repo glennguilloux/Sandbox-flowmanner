@@ -32,11 +32,13 @@ from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
 from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
+from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
 from .manager import ConnectorManager
 from .notion_connector import NotionConnector
 from .sentry_connector import SentryConnector
 from .slack_connector import SlackConnector
+from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
 
 __all__ = [
@@ -52,12 +54,14 @@ __all__ = [
     "EmailConnector",
     "GitHubConnector",
     "GoogleConnector",
+    "JiraConnector",
     "LinearConnector",
     "NotionConnector",
     "RateLimitConfig",
     "RateLimitExceeded",
     "SentryConnector",
     "SlackConnector",
+    "VercelConnector",
     "WebhookConnector",
     "get_connector_manager",
 ]
@@ -71,8 +75,10 @@ CONNECTOR_TYPES = {
     "github": GitHubConnector,
     "google": GoogleConnector,
     "notion": NotionConnector,
+    "jira": JiraConnector,
     "linear": LinearConnector,
     "sentry": SentryConnector,
+    "vercel": VercelConnector,
 }
 
 

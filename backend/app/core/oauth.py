@@ -95,6 +95,25 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
         client_secret_env="LINEAR_OAUTH_CLIENT_SECRET",
         scopes=["read", "write"],
     ),
+    "vercel": OAuthProviderConfig(
+        slug="vercel",
+        name="Vercel",
+        authorize_url="https://vercel.com/oauth/authorize",
+        token_url="https://vercel.com/oauth/token",
+        client_id_env="VERCEL_OAUTH_CLIENT_ID",
+        client_secret_env="VERCEL_OAUTH_CLIENT_SECRET",
+        scopes=["user", "projects", "deployments"],
+    ),
+    "jira": OAuthProviderConfig(
+        slug="jira",
+        name="Jira",
+        authorize_url="https://auth.atlassian.com/authorize",
+        token_url="https://auth.atlassian.com/oauth/token",
+        client_id_env="JIRA_OAUTH_CLIENT_ID",
+        client_secret_env="JIRA_OAUTH_CLIENT_SECRET",
+        scopes=["read:jira-work", "write:jira-work", "read:jira-user"],
+        extra_auth_params={"audience": "api.atlassian.com", "prompt": "consent"},
+    ),
 }
 
 
