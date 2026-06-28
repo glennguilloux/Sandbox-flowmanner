@@ -23,6 +23,7 @@ from .email_connector import EmailConnector
 from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
+from .intercom_connector import IntercomConnector
 from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
 from .notion_connector import NotionConnector
@@ -54,6 +55,7 @@ class ConnectorManager:
         "webhook": WebhookConnector,
         "github": GitHubConnector,
         "google": GoogleConnector,
+        "intercom": IntercomConnector,
         "notion": NotionConnector,
         "jira": JiraConnector,
         "confluence": ConfluenceConnector,

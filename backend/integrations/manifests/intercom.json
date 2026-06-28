@@ -1,0 +1,32 @@
+{
+  "slug": "intercom",
+  "name": "Intercom",
+  "description": "Customer messaging platform. Manage conversations, contacts, and companies with AI agent integration.",
+  "category": "communication",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "get_admin", "description": "Get authenticated Intercom admin info" },
+    { "name": "list_conversations", "description": "List conversations" },
+    { "name": "get_conversation", "description": "Get conversation details" },
+    { "name": "reply_to_conversation", "description": "Reply to a conversation" },
+    { "name": "list_contacts", "description": "List contacts" },
+    { "name": "get_contact", "description": "Get contact details" },
+    { "name": "list_companies", "description": "List companies" },
+    { "name": "list_teams", "description": "List teams" },
+    { "name": "list_tags", "description": "List tags" },
+    { "name": "search_contacts", "description": "Search contacts" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.intercom.io/admins/me",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/intercom",
+  "version": "1.0.0"
+}

@@ -197,6 +197,20 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
             "schema.bases:read",
         ],
     ),
+    "intercom": OAuthProviderConfig(
+        slug="intercom",
+        name="Intercom",
+        authorize_url="https://app.intercom.com/oauth",
+        token_url="https://api.intercom.io/auth/eagle/token",
+        client_id_env="INTERCOM_OAUTH_CLIENT_ID",
+        client_secret_env="INTERCOM_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "Read and list users",
+            "Write conversations",
+            "Read conversations",
+            "Read admins",
+        ],
+    ),
 }
 
 

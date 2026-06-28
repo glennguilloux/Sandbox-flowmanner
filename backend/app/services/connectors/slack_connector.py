@@ -48,10 +48,13 @@ class SlackConnector(BaseConnector):
         "send_ephemeral",
         "update_message",
         "delete_message",
+        "reply_to_thread",
+        "get_thread_replies",
         "get_channel_history",
         "list_channels",
         "list_users",
         "get_user_info",
+        "get_user_profile",
         "create_channel",
         "archive_channel",
         "add_reaction",
@@ -122,10 +125,13 @@ class SlackConnector(BaseConnector):
             "send_ephemeral": self._send_ephemeral,
             "update_message": self._update_message,
             "delete_message": self._delete_message,
+            "reply_to_thread": self._reply_to_thread,
+            "get_thread_replies": self._get_thread_replies,
             "get_channel_history": self._get_channel_history,
             "list_channels": self._list_channels,
             "list_users": self._list_users,
             "get_user_info": self._get_user_info,
+            "get_user_profile": self._get_user_info,
             "create_channel": self._create_channel,
             "archive_channel": self._archive_channel,
             "add_reaction": self._add_reaction,
@@ -242,6 +248,49 @@ class SlackConnector(BaseConnector):
             )
 
         return await self._slack_request("POST", "chat.delete", json_data={"channel": channel, "ts": ts})
+
+    async def _reply_to_thread(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Reply to an existing thread"""
+        channel = params.get("channel")
+        thread_ts = params.get("thread_ts")
+        text = params.get("text")
+
+        if not all([channel, thread_ts, text]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: channel, thread_ts, and text",
+                status_code=400,
+            )
+
+        payload: dict[str, Any] = {
+            "channel": channel,
+            "text": text,
+            "thread_ts": thread_ts,
+        }
+        if params.get("reply_broadcast"):
+            payload["reply_broadcast"] = params["reply_broadcast"]
+
+        return await self._slack_request("POST", "chat.postMessage", json_data=payload)
+
+    async def _get_thread_replies(self, params: dict[str, Any]) -> ConnectorResponse:
+        """Get replies in a thread"""
+        channel = params.get("channel")
+        ts = params.get("ts")
+
+        if not all([channel, ts]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: channel and ts",
+                status_code=400,
+            )
+
+        query_params: dict[str, Any] = {"channel": channel, "ts": ts}
+        if params.get("limit"):
+            query_params["limit"] = params["limit"]
+        if params.get("cursor"):
+            query_params["cursor"] = params["cursor"]
+
+        return await self._slack_request("GET", "conversations.replies", params=query_params)
 
     async def _get_channel_history(self, params: dict[str, Any]) -> ConnectorResponse:
         """Get messages from a channel"""

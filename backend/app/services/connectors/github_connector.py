@@ -51,6 +51,7 @@ class GitHubConnector(BaseConnector):
         "get_issue",
         "update_issue",
         "close_issue",
+        "add_issue_comment",
         "create_pr",
         "list_prs",
         "get_pr",
@@ -64,6 +65,13 @@ class GitHubConnector(BaseConnector):
         "get_file_contents",
         "create_comment",
         "list_comments",
+        "list_workflows",
+        "list_workflow_runs",
+        "get_workflow_run",
+        "rerun_workflow",
+        "list_deployments",
+        "create_release",
+        "list_discussions",
     ]
 
     def __init__(self, config: ConnectorConfig):
@@ -110,6 +118,7 @@ class GitHubConnector(BaseConnector):
             "get_issue": self._get_issue,
             "update_issue": self._update_issue,
             "close_issue": self._close_issue,
+            "add_issue_comment": self._add_issue_comment,
             "create_pr": self._create_pr,
             "list_prs": self._list_prs,
             "get_pr": self._get_pr,
@@ -123,6 +132,13 @@ class GitHubConnector(BaseConnector):
             "get_file_contents": self._get_file_contents,
             "create_comment": self._create_comment,
             "list_comments": self._list_comments,
+            "list_workflows": self._list_workflows,
+            "list_workflow_runs": self._list_workflow_runs,
+            "get_workflow_run": self._get_workflow_run,
+            "rerun_workflow": self._rerun_workflow,
+            "list_deployments": self._list_deployments,
+            "create_release": self._create_release,
+            "list_discussions": self._list_discussions,
         }
 
         handler = action_handlers.get(action)
@@ -255,6 +271,25 @@ class GitHubConnector(BaseConnector):
             "PATCH",
             f"repos/{owner}/{repo}/issues/{issue_number}",
             json_data={"state": "closed"},
+        )
+
+    async def _add_issue_comment(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+        issue_number = params.get("issue_number")
+        body = params.get("body")
+
+        if not all([owner, repo, issue_number, body]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner, repo, issue_number, and body",
+                status_code=400,
+            )
+
+        return await self._execute_with_retry(
+            "POST",
+            f"repos/{owner}/{repo}/issues/{issue_number}/comments",
+            json_data={"body": body},
         )
 
     # ── Pull Request Actions ────────────────────────────────────────
@@ -458,6 +493,180 @@ class GitHubConnector(BaseConnector):
             "GET",
             "search/repositories",
             params=query_params,
+        )
+
+    # ── GitHub Actions (CI/CD) ────────────────────────────────────
+
+    async def _list_workflows(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+
+        if not all([owner, repo]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner and repo",
+                status_code=400,
+            )
+
+        query_params: dict[str, Any] = {}
+        if params.get("per_page"):
+            query_params["per_page"] = params["per_page"]
+
+        return await self._execute_with_retry(
+            "GET",
+            f"repos/{owner}/{repo}/actions/workflows",
+            params=query_params,
+        )
+
+    async def _list_workflow_runs(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+
+        if not all([owner, repo]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner and repo",
+                status_code=400,
+            )
+
+        query_params: dict[str, Any] = {}
+        if params.get("per_page"):
+            query_params["per_page"] = params["per_page"]
+        if params.get("page"):
+            query_params["page"] = params["page"]
+
+        return await self._execute_with_retry(
+            "GET",
+            f"repos/{owner}/{repo}/actions/runs",
+            params=query_params,
+        )
+
+    async def _get_workflow_run(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+        run_id = params.get("run_id")
+
+        if not all([owner, repo, run_id]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner, repo, and run_id",
+                status_code=400,
+            )
+
+        return await self._execute_with_retry(
+            "GET",
+            f"repos/{owner}/{repo}/actions/runs/{run_id}",
+        )
+
+    async def _rerun_workflow(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+        run_id = params.get("run_id")
+
+        if not all([owner, repo, run_id]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner, repo, and run_id",
+                status_code=400,
+            )
+
+        return await self._execute_with_retry(
+            "POST",
+            f"repos/{owner}/{repo}/actions/runs/{run_id}/rerun",
+        )
+
+    # ── Deployment Actions ──────────────────────────────────────────
+
+    async def _list_deployments(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+
+        if not all([owner, repo]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner and repo",
+                status_code=400,
+            )
+
+        query_params: dict[str, Any] = {}
+        if params.get("per_page"):
+            query_params["per_page"] = params["per_page"]
+
+        return await self._execute_with_retry(
+            "GET",
+            f"repos/{owner}/{repo}/deployments",
+            params=query_params,
+        )
+
+    # ── Release Actions ─────────────────────────────────────────────
+
+    async def _create_release(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+        tag_name = params.get("tag_name")
+
+        if not all([owner, repo, tag_name]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner, repo, and tag_name",
+                status_code=400,
+            )
+
+        payload: dict[str, Any] = {"tag_name": tag_name}
+        if params.get("name"):
+            payload["name"] = params["name"]
+        if params.get("body"):
+            payload["body"] = params["body"]
+        if params.get("draft") is not None:
+            payload["draft"] = params["draft"]
+        if params.get("prerelease") is not None:
+            payload["prerelease"] = params["prerelease"]
+
+        return await self._execute_with_retry(
+            "POST",
+            f"repos/{owner}/{repo}/releases",
+            json_data=payload,
+        )
+
+    # ── Discussion Actions (GraphQL) ────────────────────────────────
+
+    async def _list_discussions(self, params: dict[str, Any]) -> ConnectorResponse:
+        owner = params.get("owner")
+        repo = params.get("repo")
+        first = params.get("first", 10)
+
+        if not all([owner, repo]):
+            return ConnectorResponse(
+                success=False,
+                error="Missing required params: owner and repo",
+                status_code=400,
+            )
+
+        query = """
+        query($owner: String!, $repo: String!, $first: Int!) {
+          repository(owner: $owner, name: $repo) {
+            discussions(first: $first) {
+              nodes {
+                id
+                title
+                url
+                createdAt
+                author { login }
+                category { name }
+                comments { totalCount }
+              }
+            }
+          }
+        }
+        """
+
+        return await self._execute_with_retry(
+            "POST",
+            "graphql",
+            json_data={
+                "query": query,
+                "variables": {"owner": owner, "repo": repo, "first": first},
+            },
         )
 
     # ── User Actions ────────────────────────────────────────────────

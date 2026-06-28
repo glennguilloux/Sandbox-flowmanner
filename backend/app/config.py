@@ -133,6 +133,11 @@ class Settings(BaseSettings):
     AIRTABLE_OAUTH_CLIENT_SECRET: str = ""
     AIRTABLE_WEBHOOK_SECRET: str = ""
 
+    # Intercom integration
+    INTERCOM_OAUTH_CLIENT_ID: str = ""
+    INTERCOM_OAUTH_CLIENT_SECRET: str = ""
+    INTERCOM_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

@@ -29,7 +29,7 @@ def _make_mock_response(status: int, body: dict | list | str, headers: dict | No
     resp.ok = 200 <= status < 300
 
     async def _json():
-        if isinstance(body, (dict, list)):
+        if isinstance(body, dict | list):
             return body
         return json.loads(body)
 
@@ -100,9 +100,9 @@ def test_constructor_defaults():
 
 
 def test_available_actions_count():
-    """Slack connector has 14 actions."""
+    """Slack connector has 17 actions."""
     connector = SlackConnector(_make_config())
-    assert len(connector.available_actions) == 14
+    assert len(connector.available_actions) == 17
 
 
 @pytest.mark.asyncio

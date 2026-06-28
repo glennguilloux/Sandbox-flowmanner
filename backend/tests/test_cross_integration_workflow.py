@@ -90,6 +90,42 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "create_record" in airtable_ids
     assert "list_bases" in airtable_ids
 
+    # GitHub expansion: Actions, Deployments, Releases, Discussions
+    github_caps = _INTEGRATION_CAPABILITIES.get("github", [])
+    assert len(github_caps) >= 18
+    github_ids = {c["id"] for c in github_caps}
+    assert "list_workflows" in github_ids
+    assert "list_workflow_runs" in github_ids
+    assert "get_workflow_run" in github_ids
+    assert "rerun_workflow" in github_ids
+    assert "list_deployments" in github_ids
+    assert "create_release" in github_ids
+    assert "list_discussions" in github_ids
+    assert "get_issue" in github_ids
+    assert "merge_pr" in github_ids
+
+    # Slack expansion: threads, reactions, files
+    slack_caps = _INTEGRATION_CAPABILITIES.get("slack", [])
+    assert len(slack_caps) >= 11
+    slack_ids = {c["id"] for c in slack_caps}
+    assert "update_message" in slack_ids
+    assert "delete_message" in slack_ids
+    assert "reply_to_thread" in slack_ids
+    assert "get_thread_replies" in slack_ids
+    assert "add_reaction" in slack_ids
+    assert "upload_file" in slack_ids
+    assert "get_user_profile" in slack_ids
+
+    # Intercom: customer messaging platform
+    intercom_caps = _INTEGRATION_CAPABILITIES.get("intercom", [])
+    assert len(intercom_caps) >= 10
+    intercom_ids = {c["id"] for c in intercom_caps}
+    assert "list_conversations" in intercom_ids
+    assert "reply_to_conversation" in intercom_ids
+    assert "list_contacts" in intercom_ids
+    assert "search_contacts" in intercom_ids
+    assert "list_companies" in intercom_ids
+
 
 def test_all_connectors_registered_in_manager():
     """All Batch 1-4 connectors are registered in the ConnectorManager."""
@@ -106,6 +142,7 @@ def test_all_connectors_registered_in_manager():
     assert manager.get_connector_class("pagerduty") is not None
     assert manager.get_connector_class("datadog") is not None
     assert manager.get_connector_class("airtable") is not None
+    assert manager.get_connector_class("intercom") is not None
 
 
 def test_all_connectors_registered_in_init():
@@ -122,3 +159,4 @@ def test_all_connectors_registered_in_init():
     assert "pagerduty" in CONNECTOR_TYPES
     assert "datadog" in CONNECTOR_TYPES
     assert "airtable" in CONNECTOR_TYPES
+    assert "intercom" in CONNECTOR_TYPES

@@ -36,6 +36,7 @@ from .email_connector import EmailConnector
 from .figma_connector import FigmaConnector
 from .github_connector import GitHubConnector
 from .google_connector import GoogleConnector
+from .intercom_connector import IntercomConnector
 from .jira_connector import JiraConnector
 from .linear_connector import LinearConnector
 from .manager import ConnectorManager
@@ -48,6 +49,7 @@ from .vercel_connector import VercelConnector
 from .webhook_connector import WebhookConnector
 
 __all__ = [
+    "AirtableConnector",
     "AuthType",
     "AuthenticationError",
     "BaseConnector",
@@ -57,15 +59,15 @@ __all__ = [
     "ConnectorManager",
     "ConnectorResponse",
     "ConnectorStatus",
+    "DatadogConnector",
     "DiscordConnector",
     "EmailConnector",
     "FigmaConnector",
     "GitHubConnector",
     "GoogleConnector",
+    "IntercomConnector",
     "JiraConnector",
     "LinearConnector",
-    "AirtableConnector",
-    "DatadogConnector",
     "NotionConnector",
     "PagerDutyConnector",
     "RateLimitConfig",
@@ -86,6 +88,7 @@ CONNECTOR_TYPES = {
     "webhook": WebhookConnector,
     "github": GitHubConnector,
     "google": GoogleConnector,
+    "intercom": IntercomConnector,
     "notion": NotionConnector,
     "jira": JiraConnector,
     "confluence": ConfluenceConnector,

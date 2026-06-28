@@ -236,6 +236,14 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="oauth2",
     ),
+    Integration(
+        slug="intercom",
+        name="Intercom",
+        description="Customer messaging platform. Manage conversations, contacts, and companies with AI agent integration.",
+        category="communication",
+        icon_url="",
+        auth_type="oauth2",
+    ),
 ]
 
 
