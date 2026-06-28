@@ -123,6 +123,16 @@ class Settings(BaseSettings):
     PAGERDUTY_OAUTH_CLIENT_SECRET: str = ""
     PAGERDUTY_WEBHOOK_SECRET: str = ""
 
+    # Datadog integration
+    DATADOG_OAUTH_CLIENT_ID: str = ""
+    DATADOG_OAUTH_CLIENT_SECRET: str = ""
+    DATADOG_WEBHOOK_SECRET: str = ""
+
+    # Airtable integration
+    AIRTABLE_OAUTH_CLIENT_ID: str = ""
+    AIRTABLE_OAUTH_CLIENT_SECRET: str = ""
+    AIRTABLE_WEBHOOK_SECRET: str = ""
+
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
 

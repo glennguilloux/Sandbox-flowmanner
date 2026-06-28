@@ -1,0 +1,34 @@
+{
+  "slug": "datadog",
+  "name": "Datadog",
+  "description": "Monitoring and observability platform. Manage monitors, incidents, dashboards, metrics, and events with AI agent integration.",
+  "category": "development",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "get_current_user", "description": "Get authenticated Datadog user info" },
+    { "name": "list_monitors", "description": "List all monitors" },
+    { "name": "get_monitor", "description": "Get monitor details" },
+    { "name": "list_incidents", "description": "List incidents" },
+    { "name": "get_incident", "description": "Get incident details" },
+    { "name": "create_incident", "description": "Create a new incident" },
+    { "name": "update_incident", "description": "Update incident (title, severity, state)" },
+    { "name": "list_dashboards", "description": "List all dashboards" },
+    { "name": "get_dashboard", "description": "Get dashboard details" },
+    { "name": "list_metrics", "description": "List available metrics" },
+    { "name": "query_metrics", "description": "Query metrics over a time range" },
+    { "name": "list_events", "description": "List events in a time range" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.datadoghq.com/api/v2/current_user",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/datadog",
+  "version": "1.0.0"
+}

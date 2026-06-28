@@ -742,6 +742,142 @@ _INTEGRATION_CAPABILITIES: dict[str, list[dict[str, Any]]] = {
             "params": {"user_id": "string"},
         },
     ],
+    "datadog": [
+        {
+            "id": "get_current_user",
+            "name": "Get Datadog User",
+            "description": "Get authenticated Datadog user info",
+            "params": {},
+        },
+        {
+            "id": "list_monitors",
+            "name": "List Datadog Monitors",
+            "description": "List all monitors, optionally filtered by tags",
+            "params": {"monitor_tags": "string", "page_size": "integer"},
+        },
+        {
+            "id": "get_monitor",
+            "name": "Get Datadog Monitor",
+            "description": "Get monitor details",
+            "params": {"monitor_id": "integer"},
+        },
+        {
+            "id": "list_incidents",
+            "name": "List Datadog Incidents",
+            "description": "List incidents",
+            "params": {"page_size": "integer"},
+        },
+        {
+            "id": "get_incident",
+            "name": "Get Datadog Incident",
+            "description": "Get incident details",
+            "params": {"incident_id": "string"},
+        },
+        {
+            "id": "create_incident",
+            "name": "Create Datadog Incident",
+            "description": "Create a new incident",
+            "params": {"title": "string", "severity": "string"},
+        },
+        {
+            "id": "update_incident",
+            "name": "Update Datadog Incident",
+            "description": "Update incident (title, severity, state)",
+            "params": {"incident_id": "string", "title": "string", "severity": "string", "state": "string"},
+        },
+        {
+            "id": "list_dashboards",
+            "name": "List Datadog Dashboards",
+            "description": "List all dashboards",
+            "params": {},
+        },
+        {
+            "id": "get_dashboard",
+            "name": "Get Datadog Dashboard",
+            "description": "Get dashboard details",
+            "params": {"dashboard_id": "string"},
+        },
+        {
+            "id": "list_metrics",
+            "name": "List Datadog Metrics",
+            "description": "List available metric names",
+            "params": {},
+        },
+        {
+            "id": "query_metrics",
+            "name": "Query Datadog Metrics",
+            "description": "Query metrics over a time range",
+            "params": {"query": "string", "from_time": "integer", "to_time": "integer"},
+        },
+        {
+            "id": "list_events",
+            "name": "List Datadog Events",
+            "description": "List events in a time range",
+            "params": {"start": "integer", "end": "integer", "tags": "string"},
+        },
+    ],
+    "airtable": [
+        {
+            "id": "list_bases",
+            "name": "List Airtable Bases",
+            "description": "List all accessible bases",
+            "params": {},
+        },
+        {
+            "id": "get_base",
+            "name": "Get Airtable Base",
+            "description": "Get base details",
+            "params": {"base_id": "string"},
+        },
+        {
+            "id": "list_tables",
+            "name": "List Airtable Tables",
+            "description": "List tables in a base",
+            "params": {"base_id": "string"},
+        },
+        {
+            "id": "get_table",
+            "name": "Get Airtable Table",
+            "description": "Get table schema",
+            "params": {"base_id": "string", "table_id": "string"},
+        },
+        {
+            "id": "list_records",
+            "name": "List Airtable Records",
+            "description": "List records in a table with optional filters",
+            "params": {
+                "base_id": "string",
+                "table_id": "string",
+                "max_records": "integer",
+                "view": "string",
+                "filter_by_formula": "string",
+            },
+        },
+        {
+            "id": "get_record",
+            "name": "Get Airtable Record",
+            "description": "Get a single record",
+            "params": {"base_id": "string", "table_id": "string", "record_id": "string"},
+        },
+        {
+            "id": "create_record",
+            "name": "Create Airtable Record",
+            "description": "Create a record in a table",
+            "params": {"base_id": "string", "table_id": "string", "fields": "object"},
+        },
+        {
+            "id": "update_record",
+            "name": "Update Airtable Record",
+            "description": "Update a record",
+            "params": {"base_id": "string", "table_id": "string", "record_id": "string", "fields": "object"},
+        },
+        {
+            "id": "delete_record",
+            "name": "Delete Airtable Record",
+            "description": "Delete a record",
+            "params": {"base_id": "string", "table_id": "string", "record_id": "string"},
+        },
+    ],
     "google": [
         # Drive
         {
@@ -1280,6 +1416,56 @@ class IntegrationBridge:
                     )
             except Exception as e:
                 logger.warning("Failed to refresh PagerDuty token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired Datadog OAuth tokens ──────────────
+        if slug == "datadog" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("datadog", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Datadog token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Datadog token for user %s: %s", user_id, e)
+                # Fall through — try the existing token anyway in case it's still valid
+
+        # ── Auto-refresh expired Airtable OAuth tokens ─────────────
+        if slug == "airtable" and conn.encrypted_refresh_token:
+            try:
+                new_token = await self._refresh_oauth_token("airtable", decrypt_token(conn.encrypted_refresh_token))
+                if new_token:
+                    conn.encrypted_access_token = encrypt_token(new_token["access_token"])
+                    if new_token.get("refresh_token"):
+                        conn.encrypted_refresh_token = encrypt_token(new_token["refresh_token"])
+                    if new_token.get("expires_in"):
+                        from datetime import timedelta
+
+                        conn.expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+                            seconds=int(new_token["expires_in"])
+                        )
+                    await db.commit()
+                    access_token = new_token["access_token"]
+                    logger.info(
+                        "Refreshed Airtable token for user %s (expires in %ss)",
+                        user_id,
+                        new_token.get("expires_in", "?"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to refresh Airtable token for user %s: %s", user_id, e)
                 # Fall through — try the existing token anyway in case it's still valid
 
         # ── Jira + Confluence: extract cloudId from account_id ──

@@ -220,6 +220,22 @@ AVAILABLE_INTEGRATIONS = [
         icon_url="",
         auth_type="oauth2",
     ),
+    Integration(
+        slug="datadog",
+        name="Datadog",
+        description="Monitoring and observability platform. Manage monitors, incidents, dashboards, metrics, and events with AI agent integration.",
+        category="development",
+        icon_url="",
+        auth_type="oauth2",
+    ),
+    Integration(
+        slug="airtable",
+        name="Airtable",
+        description="Low-code database platform. Manage bases, tables, and records with AI agent integration for database-driven workflows.",
+        category="productivity",
+        icon_url="",
+        auth_type="oauth2",
+    ),
 ]
 
 

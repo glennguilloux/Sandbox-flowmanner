@@ -107,6 +107,8 @@ figma_webhook_router = _import_router("figma_webhook")
 stripe_oauth_router = _import_router("stripe_oauth", tier=RouterTier.OPTIONAL)
 stripe_webhook_router = _import_router("stripe_webhook")
 pagerduty_webhook_router = _import_router("pagerduty_webhook")
+datadog_webhook_router = _import_router("datadog_webhook")
+airtable_webhook_router = _import_router("airtable_webhook")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -231,6 +233,8 @@ for _name, _router in [
     ("stripe-oauth", stripe_oauth_router),
     ("stripe", stripe_webhook_router),
     ("pagerduty", pagerduty_webhook_router),
+    ("datadog", datadog_webhook_router),
+    ("airtable", airtable_webhook_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),

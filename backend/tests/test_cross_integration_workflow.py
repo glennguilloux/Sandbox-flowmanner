@@ -74,6 +74,22 @@ def test_sentry_linear_jira_vercel_confluence_figma_tools_all_discoverable():
     assert "list_incidents" in pagerduty_ids
     assert "update_incident" in pagerduty_ids
 
+    # Datadog: monitoring + observability
+    datadog_caps = _INTEGRATION_CAPABILITIES.get("datadog", [])
+    assert len(datadog_caps) >= 12
+    datadog_ids = {c["id"] for c in datadog_caps}
+    assert "list_monitors" in datadog_ids
+    assert "query_metrics" in datadog_ids
+    assert "list_events" in datadog_ids
+
+    # Airtable: database workflows
+    airtable_caps = _INTEGRATION_CAPABILITIES.get("airtable", [])
+    assert len(airtable_caps) >= 9
+    airtable_ids = {c["id"] for c in airtable_caps}
+    assert "list_records" in airtable_ids
+    assert "create_record" in airtable_ids
+    assert "list_bases" in airtable_ids
+
 
 def test_all_connectors_registered_in_manager():
     """All Batch 1-4 connectors are registered in the ConnectorManager."""
@@ -88,6 +104,8 @@ def test_all_connectors_registered_in_manager():
     assert manager.get_connector_class("figma") is not None
     assert manager.get_connector_class("stripe") is not None
     assert manager.get_connector_class("pagerduty") is not None
+    assert manager.get_connector_class("datadog") is not None
+    assert manager.get_connector_class("airtable") is not None
 
 
 def test_all_connectors_registered_in_init():
@@ -102,3 +120,5 @@ def test_all_connectors_registered_in_init():
     assert "figma" in CONNECTOR_TYPES
     assert "stripe" in CONNECTOR_TYPES
     assert "pagerduty" in CONNECTOR_TYPES
+    assert "datadog" in CONNECTOR_TYPES
+    assert "airtable" in CONNECTOR_TYPES

@@ -1,0 +1,31 @@
+{
+  "slug": "airtable",
+  "name": "Airtable",
+  "description": "Low-code database platform. Manage bases, tables, and records with AI agent integration for database-driven workflows.",
+  "category": "productivity",
+  "auth_type": "oauth2",
+  "icon_url": "",
+  "capabilities": [
+    { "name": "list_bases", "description": "List all accessible bases" },
+    { "name": "get_base", "description": "Get base details" },
+    { "name": "list_tables", "description": "List tables in a base" },
+    { "name": "get_table", "description": "Get table schema" },
+    { "name": "list_records", "description": "List records in a table" },
+    { "name": "get_record", "description": "Get a single record" },
+    { "name": "create_record", "description": "Create a record" },
+    { "name": "update_record", "description": "Update a record" },
+    { "name": "delete_record", "description": "Delete a record" }
+  ],
+  "health_check": {
+    "endpoint": "https://api.airtable.com/v0/meta/bases",
+    "method": "GET",
+    "expected_status": 401,
+    "timeout_seconds": 10
+  },
+  "playground": {
+    "enabled": false
+  },
+  "trust_level": "verified",
+  "docs_url": "https://flowmanner.com/docs/integrations/airtable",
+  "version": "1.0.0"
+}

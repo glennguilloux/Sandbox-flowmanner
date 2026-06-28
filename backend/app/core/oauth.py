@@ -166,6 +166,37 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
             "escalation_policies.read",
         ],
     ),
+    "datadog": OAuthProviderConfig(
+        slug="datadog",
+        name="Datadog",
+        authorize_url="https://app.datadoghq.com/oauth2/v1/authorize",
+        token_url="https://app.datadoghq.com/oauth2/v1/token",
+        client_id_env="DATADOG_OAUTH_CLIENT_ID",
+        client_secret_env="DATADOG_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "dashboards_read",
+            "dashboards_write",
+            "monitors_read",
+            "monitors_write",
+            "metrics_read",
+            "events_read",
+            "incidents_read",
+            "incidents_write",
+        ],
+    ),
+    "airtable": OAuthProviderConfig(
+        slug="airtable",
+        name="Airtable",
+        authorize_url="https://airtable.com/oauth2/v1/authorize",
+        token_url="https://airtable.com/oauth2/v1/token",
+        client_id_env="AIRTABLE_OAUTH_CLIENT_ID",
+        client_secret_env="AIRTABLE_OAUTH_CLIENT_SECRET",
+        scopes=[
+            "data.records:read",
+            "data.records:write",
+            "schema.bases:read",
+        ],
+    ),
 }
 
 

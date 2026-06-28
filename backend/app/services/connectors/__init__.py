@@ -17,6 +17,7 @@ Usage:
 
 from typing import Optional
 
+from .airtable_connector import AirtableConnector
 from .base import (
     AuthenticationError,
     AuthType,
@@ -29,6 +30,7 @@ from .base import (
     RateLimitExceeded,
 )
 from .confluence_connector import ConfluenceConnector
+from .datadog_connector import DatadogConnector
 from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
 from .figma_connector import FigmaConnector
@@ -62,6 +64,8 @@ __all__ = [
     "GoogleConnector",
     "JiraConnector",
     "LinearConnector",
+    "AirtableConnector",
+    "DatadogConnector",
     "NotionConnector",
     "PagerDutyConnector",
     "RateLimitConfig",
@@ -87,6 +91,8 @@ CONNECTOR_TYPES = {
     "confluence": ConfluenceConnector,
     "figma": FigmaConnector,
     "linear": LinearConnector,
+    "airtable": AirtableConnector,
+    "datadog": DatadogConnector,
     "pagerduty": PagerDutyConnector,
     "sentry": SentryConnector,
     "stripe": StripeConnector,

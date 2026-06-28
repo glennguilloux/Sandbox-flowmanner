@@ -9,6 +9,7 @@ import asyncio
 import logging
 from typing import Any
 
+from .airtable_connector import AirtableConnector
 from .base import (
     BaseConnector,
     ConnectorConfig,
@@ -16,6 +17,7 @@ from .base import (
     ConnectorStatus,
 )
 from .confluence_connector import ConfluenceConnector
+from .datadog_connector import DatadogConnector
 from .discord_connector import DiscordConnector
 from .email_connector import EmailConnector
 from .figma_connector import FigmaConnector
@@ -57,6 +59,8 @@ class ConnectorManager:
         "confluence": ConfluenceConnector,
         "figma": FigmaConnector,
         "linear": LinearConnector,
+        "airtable": AirtableConnector,
+        "datadog": DatadogConnector,
         "pagerduty": PagerDutyConnector,
         "sentry": SentryConnector,
         "stripe": StripeConnector,
