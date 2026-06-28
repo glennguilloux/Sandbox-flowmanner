@@ -23,7 +23,7 @@
 - `backend/tests/test_confluence_integration.py`: 9 wiring tests for Confluence integration
 - `backend/tests/test_figma_integration.py`: 7 wiring tests for Figma integration
 
-### Backend — Modified files (8)
+### Backend — Modified files (9)
 
 - `backend/app/core/oauth.py`: Added Confluence (Atlassian 3LO) + Figma (standard OAuth2) OAuthProviderConfig entries
 - `backend/app/config.py`: Added CONFLUENCE_* and FIGMA_* settings (6 new env vars)
@@ -33,6 +33,7 @@
 - `backend/app/api/v1/integrations.py`: Added Confluence + Figma to AVAILABLE_INTEGRATIONS; added Confluence redirect override for custom OAuth callback
 - `backend/app/api/v1/__init__.py`: Registered confluence_oauth, confluence_webhook, figma_webhook routers
 - `backend/tests/test_cross_integration_workflow.py`: Updated to test all 6 Batch 1-3 integrations (added confluence_caps >= 11, figma_caps >= 8)
+- `backend/app/main_fastapi.py`: Fixed swagger/redoc dark theme — `custom_css` param not supported in FastAPI 0.115.6, switched to HTML injection; fixed pre-existing lint (G004 f-string logging, RUF005 list concat)
 
 ### Backend — New file (plan)
 
@@ -108,6 +109,10 @@ All checks passed!
 
 5. **Frontend stray import lines** — sed-based edits created stray import lines in 2 of 3 frontend files. Fixed with Python-based line-level editing.
 
+6. **Swagger UI crash (`custom_css` not supported in FastAPI 0.115.6)** — `get_swagger_ui_html()` and `get_redoc_html()` were called with `custom_css=` parameter that doesn't exist in the installed FastAPI version. Caused backend container to crash on startup (TypeError), which blocked deploys (pre-deploy health check got HTTP 000). Fixed by injecting dark CSS via `html.body.decode().replace("</head>", css)`. Committed as `5f24cd2`.
+
+7. **Pre-existing lint issues in main_fastapi.py** — G004 (f-string in logging) and RUF005 (list concatenation). Fixed alongside the swagger UI fix.
+
 ---
 
 ## KEY DESIGN DECISIONS
@@ -125,45 +130,31 @@ All checks passed!
 ## STATUS
 
 ```
-$ git status --short backend/
- M backend/app/api/v1/__init__.py
- M backend/app/api/v1/integrations.py
- M backend/app/config.py
- M backend/app/core/oauth.py
- M backend/app/services/connectors/__init__.py
- M backend/app/services/connectors/manager.py
- M backend/app/services/integration_bridge.py
- M backend/tests/test_cross_integration_workflow.py
-?? backend/app/api/v1/confluence_oauth.py
-?? backend/app/api/v1/confluence_webhook.py
-?? backend/app/api/v1/figma_webhook.py
-?? backend/app/services/confluence/
-?? backend/app/services/connectors/confluence_connector.py
-?? backend/app/services/connectors/figma_connector.py
-?? backend/app/services/figma/
-?? backend/integrations/manifests/confluence.json
-?? backend/integrations/manifests/figma.json
-?? backend/tests/test_confluence_integration.py
-?? backend/tests/test_figma_integration.py
+$ git status
+On branch main
+Your branch is up to date with 'origin/main'.
+nothing to commit, working tree clean
+
+$ git log --oneline -3
+5f24cd2 fix(api): use HTML injection for swagger dark theme - custom_css not in FastAPI 0.115
+86e991c feat(integrations): add Confluence + Figma integrations - Batch 3
+84b1bbd docs: update exit audit with Batch 3 plan handoff
 ```
 
 ---
 
 ## NEXT SESSION HANDOFF
 
-> **Batch 3 (Confluence + Figma) is fully implemented and tested but NOT committed or deployed.** All 19 new tests pass, ruff lint is clean, TypeScript compiles clean. The next agent should:
+> **Batch 3 (Confluence + Figma) is fully implemented, tested, committed, pushed, and deployed.** Backend is healthy at `http://127.0.0.1:8000/api/health` (200). Swagger UI at `/docs` works with dark theme (200). The next agent should:
 >
-> 1. **Commit + push** the Batch 3 backend changes to origin/main
-> 2. **Deploy backend** via `bash /opt/flowmanner/deploy-backend.sh`
-> 3. **Commit + push** the frontend icon changes in `/home/glenn/FlowmannerV2-frontend/`
-> 4. **Deploy frontend** via `bash /opt/flowmanner/deploy-frontend.sh`
-> 5. **Optionally** begin Batch 4 implementation (Stripe + PagerDuty) — plan is at `.sisyphus/plans/PLAN-tier1-integrations-batch4.md`
+> 1. **Deploy frontend** — commit + push frontend icon changes in `/home/glenn/FlowmannerV2-frontend/`, then `bash /opt/flowmanner/deploy-frontend.sh`
+> 2. **Set up OAuth apps** — Glenn needs to create Confluence OAuth app (Atlassian Developer Console) and Figma OAuth app (Figma Developer settings), then add env vars to `/opt/flowmanner/.env`
+> 3. **Begin Batch 4** — Stripe + PagerDuty implementation. Plan at `.sisyphus/plans/PLAN-tier1-integrations-batch4.md`. Has a question for Glenn about Stripe scope (`read_write` vs `read_only`).
 >
 > **Gotchas:**
 > - Frontend source is at `/home/glenn/FlowmannerV2-frontend/` — NOT in the git repo at `/opt/flowmanner/`. Frontend changes need to be committed separately.
-> - The Batch 4 plan has a question for Glenn about Stripe scope (`read_write` vs `read_only`) — confirm before implementing.
-> - Confluence and Figma OAuth apps need to be created by Glenn in the Atlassian Developer Console and Figma Developer settings respectively. The env vars (`CONFLUENCE_OAUTH_CLIENT_ID`, `FIGMA_OAUTH_CLIENT_ID`, etc.) need to be set in `/opt/flowmanner/.env` before the integrations can be used.
 > - The generic `_refresh_oauth_token()` in `integration_bridge.py` replaces the old `_refresh_jira_token()` — verify Jira token refresh still works after deploy.
+> - The swagger UI crash (`custom_css` not in FastAPI 0.115) was a pre-existing bug that blocked deploys when the backend was down. Fixed in `5f24cd2`. The `--skip-precheck` flag exists on `deploy-backend.sh` if the pre-deploy health check blocks on a known-down backend.
 
 ---
 
@@ -175,17 +166,26 @@ $ git status --short backend/
 | 1 | Sentry | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 2 | Vercel | ✅ | ✅ | ✅ (this session) | ✅ | ✅ |
 | 2 | Jira | ✅ | ✅ | ✅ (this session) | ✅ | ✅ |
-| 3 | Confluence | ✅ | ✅ (9 new) | ✅ (this session) | ❌ | ❌ |
-| 3 | Figma | ✅ | ✅ (7 new) | ✅ (this session) | ❌ | ❌ |
+| 3 | Confluence | ✅ | ✅ (9 new) | ✅ (this session) | ✅ `86e991c` | ✅ |
+| 3 | Figma | ✅ | ✅ (7 new) | ✅ (this session) | ✅ `86e991c` | ✅ |
 | 4 | Stripe | 📋 planned | — | — | — | — |
 | 4 | PagerDuty | 📋 planned | — | — | — | — |
 
 ---
 
+## COMMITS THIS SESSION
+
+| Hash | Message | Files |
+|------|---------|-------|
+| `86e991c` | `feat(integrations): add Confluence + Figma integrations - Batch 3` | 22 files, +1752/-13 |
+| `5f24cd2` | `fix(api): use HTML injection for swagger dark theme - custom_css not in FastAPI 0.115` | 1 file, +26/-28 |
+
+---
+
 ## FILES THIS AGENT DID NOT TOUCH BUT EXIST
 
-- Untracked: None outside of the Batch 3 new files listed above
+- Untracked: None — git status is clean
 - Deleted: None
-- Frontend changes in `/home/glenn/FlowmannerV2-frontend/` are uncommitted (3 files modified)
+- Frontend changes in `/home/glenn/FlowmannerV2-frontend/` are uncommitted (3 files modified) — needs separate deploy
 
 ---
