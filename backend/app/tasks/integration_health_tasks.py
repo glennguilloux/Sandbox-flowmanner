@@ -23,6 +23,16 @@ logger = logging.getLogger(__name__)
 _last_cleanup_date: dict[str, object] = {"date": None}
 
 
+# ── Engine lifecycle for prefork workers ──────────────────────────────
+# Celery prefork workers fork from the parent process, inheriting the
+# async engine's connection pool.  Those connections are bound to the
+# parent's event loop and crash with "Task attached to a different loop"
+# when used on a fresh event loop in the child.  We work around this by
+# disposing the engine at the start of every task run, purging stale
+# connections so they are re-created on the current event loop.
+from app.database import engine as _async_engine
+
+
 def _run_async(coro):
     """Run an async coroutine from a sync Celery task."""
     loop = asyncio.new_event_loop()
@@ -48,6 +58,9 @@ def run_integration_health_checks(self) -> dict[str, str]:
     from app.services.integration_manifest_service import manifest_service
 
     async def _run() -> dict[str, str]:
+        # Dispose stale connections inherited from the fork parent's event loop
+        await _async_engine.dispose()
+
         health_checks = manifest_service.get_all_health_checks()
         if not health_checks:
             logger.warning("No integration health checks found in manifests")

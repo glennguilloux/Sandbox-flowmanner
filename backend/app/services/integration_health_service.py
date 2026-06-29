@@ -9,6 +9,7 @@ The Celery beat task ``integration_health_check_all`` calls
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 from datetime import UTC, datetime
@@ -147,6 +148,10 @@ class IntegrationHealthService:
             except Exception as exc:
                 logger.error("Health check failed for %s: %s", slug, exc)
                 results[slug] = HealthResult(status="unknown", error_message=str(exc))
+                # Rollback the session so subsequent health checks don't cascade
+                # with PendingRollbackError
+                with contextlib.suppress(Exception):
+                    await self.db.rollback()
         return results
 
     async def get_latest_status(self, slug: str) -> IntegrationHealthRecord | None:
