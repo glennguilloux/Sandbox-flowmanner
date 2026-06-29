@@ -14,24 +14,29 @@
 
 | File | Δ | Description |
 |------|---|-------------|
-| `src/app/.../graphs/[id]/executions/page-client.tsx` | +25/-25 | Renamed `executionId` → `runId` in `fetchDetail`, fixed `input_data` extraction, extracted `fetchNodeStatesForRun` helper |
-| `src/hooks/__tests__/useExecutionPoll.test.ts` | +330 | 12 test cases for v2 events polling (created in prior session, committed here) |
+| `src/app/.../graphs/[id]/executions/page-client.tsx` | +59/-19 | Renamed `executionId` → `runId` in `fetchDetail`, renamed `workflow_id` → `blueprint_id` on `Execution` interface, fixed `input_data` extraction, extracted `fetchNodeStatesForRun` helper |
+| `src/hooks/__tests__/useExecutionPoll.test.ts` | +370 | 12 test cases for v2 events polling (created in prior session, committed here) |
 
 ---
 
 ## WHAT WAS IMPLEMENTED
 
-### 1. Renamed `executionId` → `runId` for clarity
+### 1. Renamed `workflow_id` → `blueprint_id` on `Execution` interface
+- `Execution` interface field changed from `workflow_id: string` to `blueprint_id: string | null`
+- All mapping sites use `r.blueprint_id ?? null` instead of `r.workflow_id`
+- Aligns with the broader graphs→blueprints terminology migration
+
+### 2. Renamed `executionId` → `runId` for clarity
 - `fetchDetail` parameter renamed from `executionId` to `runId` — matches what `fetchRun()` and `fetchRunEvents()` expect
 - All internal references within the function updated
 - New `fetchNodeStatesForRun` helper also uses `runId`
 
-### 2. Fixed `input_data` extraction
+### 3. Fixed `input_data` extraction
 - **Before:** `((run.snapshot as Record<string, unknown>)?.input_data as Record<string, unknown>) ?? null`
 - **After:** `run.input_data ?? null`
 - The `Run` interface has `input_data` as a direct field — no need to dig through `snapshot`
 
-### 3. Extracted nested events fetch into helper
+### 4. Extracted nested events fetch into helper
 - Created `fetchNodeStatesForRun(runId)` — an async helper that fetches events and extracts node states
 - Uses clean `filter`/`map` pipeline instead of imperative for-loop
 - Internal try/catch returns `[]` on failure (best-effort)
@@ -98,9 +103,9 @@ npx vitest run src/hooks/__tests__/useExecutionPoll.test.ts
 
 | Metric | Value |
 |--------|-------|
-| Files modified | 1 (`page-client.tsx`) |
-| Files committed | 2 (includes `useExecutionPoll.test.ts` from prior session) |
-| Lines changed | ~50 in `page-client.tsx` |
+| Files modified | 2 (page-client.tsx + useExecutionPoll.test.ts) |
+| Files committed | 2 |
+| Lines changed | +59/-19 in `page-client.tsx`, +370 in test file |
 | Tests | 12/12 pass |
 | Code review iterations | 1 |
 | TypeScript errors | 0 |
