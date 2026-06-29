@@ -150,10 +150,14 @@ class TestToolRouterGate:
 
 
 class TestConfigSetting:
-    def test_default_is_false(self):
-        """FLOWMANNER_CROSS_MISSION_MEMORY defaults to False (off)."""
+    def test_default_is_true(self):
+        """FLOWMANNER_CROSS_MISSION_MEMORY defaults to True (on).
+
+        Enabled 2026-06-29 as part of the personal-memory-in-chat
+        integration (Gap 1).  Previously defaulted to False.
+        """
         from app.config import Settings
 
-        # Settings without env override should default to False
+        # Settings without env override should default to True
         s = Settings()
-        assert s.FLOWMANNER_CROSS_MISSION_MEMORY is False
+        assert s.FLOWMANNER_CROSS_MISSION_MEMORY is True

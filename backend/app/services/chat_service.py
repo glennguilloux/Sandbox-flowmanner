@@ -24,6 +24,10 @@ from app.services.memory_citation_service import (
     format_memory_block,
     recall_for_chat,
 )
+from app.services.personal_memory_extractor import (
+    PersonalMemoryExtractor,
+    RegexPersonalMemoryExtractor,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -881,6 +885,238 @@ def _inject_memory_context(
     return messages
 
 
+async def _maybe_extract_memory_claims(
+    *,
+    db: AsyncSession,
+    thread_id: int,
+    user_id: int,
+    user_message: str,
+    assistant_response: str,
+) -> None:
+    """Fire-and-forget: extract personal-memory claims from a chat exchange.
+
+    Called after the assistant response is persisted.  Opens a *fresh*
+    DB session so it can run independently of the caller's session
+    lifecycle (the caller's session is typically closed before the
+    LLM call to avoid idle-in-transaction timeout).
+
+    Guardrails:
+    * Gated by ``FLOWMANNER_CROSS_MISSION_MEMORY`` feature flag.
+    * Skipped when the conversation is paused.
+    * Defensive filter drops sensitive/restricted/private claims.
+    * Capped at 5 claims per exchange.
+    * Errors are swallowed — never breaks the chat.
+    """
+    if not settings.FLOWMANNER_CROSS_MISSION_MEMORY:
+        return
+
+    import asyncio
+
+    try:
+        from app.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as fresh_db:
+            # Need workspace_id from the thread.
+            thread = await get_chat_thread(fresh_db, thread_id)
+            if thread is None or not thread.workspace_id:
+                return
+
+            workspace_id = thread.workspace_id
+
+            # ── Check pause toggle ──────────────────────────────────
+            from app.services.memory_extraction_pause_service import (
+                MemoryExtractionPauseService,
+            )
+
+            pause_svc = MemoryExtractionPauseService(fresh_db)
+            if await pause_svc.is_paused(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                conversation_id=str(thread_id),
+            ):
+                logger.info(
+                    "memory_extraction: skipped for thread %s (paused)",
+                    thread_id,
+                )
+                return
+
+            # ── Run extractor ───────────────────────────────────────
+            # Attempt LLM-based extraction first (via ModelRouter +
+            # PersonalMemoryExtractor) with a 5-second timeout.  If the
+            # LLM is unavailable, slow, or returns garbage, fall back
+            # to the deterministic regex extractor.
+            combined_text = f"User: {user_message}\n\nAssistant: {assistant_response}"
+
+            regex_fallback = RegexPersonalMemoryExtractor()
+            claims: list = []
+            _extraction_source = "empty"
+            try:
+                from app.services.model_router import get_model_router
+
+                llm_extractor = PersonalMemoryExtractor(
+                    get_model_router=get_model_router,
+                )
+                claims, source = await asyncio.wait_for(
+                    llm_extractor.extract_with_fallback(
+                        user_id=user_id,
+                        workspace_id=workspace_id,
+                        text=combined_text,
+                        max_claims=5,
+                    ),
+                    timeout=5.0,
+                )
+                if claims:
+                    _extraction_source = "llm"
+                    logger.info(
+                        "memory_extraction: LLM extractor returned %d claims " "(source=%s) for thread %s",
+                        len(claims),
+                        source,
+                        thread_id,
+                    )
+                else:
+                    # LLM succeeded but produced nothing — try regex
+                    claims = regex_fallback.extract(combined_text)
+                    _extraction_source = "regex_fallback_empty"
+                    if claims:
+                        logger.info(
+                            "memory_extraction: LLM returned 0 claims; " "regex fallback found %d for thread %s",
+                            len(claims),
+                            thread_id,
+                        )
+            except TimeoutError:
+                logger.info(
+                    "memory_extraction: LLM extraction timed out for " "thread %s; falling back to regex",
+                    thread_id,
+                )
+                claims = regex_fallback.extract(combined_text)
+                _extraction_source = "regex_fallback_timeout"
+            except Exception as llm_err:
+                logger.info(
+                    "memory_extraction: LLM extraction failed for " "thread %s (%s); falling back to regex",
+                    thread_id,
+                    llm_err,
+                )
+                claims = regex_fallback.extract(combined_text)
+                _extraction_source = "regex_fallback_error"
+
+            if not claims:
+                logger.debug(
+                    "memory_extraction: no claims extracted for thread %s",
+                    thread_id,
+                )
+                return
+
+            # ── Defensive filter ────────────────────────────────────
+            # Drop sensitive/restricted claims and private-scope claims.
+            # CandidateClaim has no ``sensitivity`` field (it is a
+            # lightweight DTO), so we fall back to ``claim_type`` as a
+            # belt-and-suspenders check.
+            _EXCLUDED_SENSITIVITIES = frozenset({"sensitive", "restricted"})
+            _EXCLUDED_SCOPES = frozenset({"private"})
+
+            safe_claims = [
+                c
+                for c in claims
+                if getattr(c, "sensitivity", "normal") not in _EXCLUDED_SENSITIVITIES
+                and c.claim_type not in _EXCLUDED_SENSITIVITIES
+                and c.scope not in _EXCLUDED_SCOPES
+            ]
+
+            if not safe_claims:
+                logger.info(
+                    "memory_extraction: all %d claims filtered for thread %s",
+                    len(claims),
+                    thread_id,
+                )
+                return
+
+            # ── Persist claims ──────────────────────────────────────
+            # Solo workspaces → direct write (no approval needed).
+            # Team workspaces (multi-member, >30 days) → stage for
+            # user approval via BackgroundReviewService.
+            from app.models.workspace_models import Workspace
+            from app.services.memory.background_review_service import (
+                BackgroundReviewService,
+                compute_write_approval,
+            )
+            from app.services.personal_memory_service import PersonalMemoryService
+
+            # Fetch workspace to determine approval path.
+            ws_row = (
+                await fresh_db.execute(select(Workspace).where(Workspace.id == workspace_id))
+            ).scalar_one_or_none()
+            needs_approval = compute_write_approval(ws_row)
+
+            pm_service = PersonalMemoryService(fresh_db)
+            review_service = BackgroundReviewService()
+            persisted = 0
+            staged = 0
+            for claim in safe_claims:
+                try:
+                    if needs_approval:
+                        # Stage for user approval
+                        content_str = f"{claim.subject} {claim.predicate}: " f"{json.dumps(claim.object, default=str)}"
+                        pw_id = await review_service.stage_pending_write(
+                            fresh_db,
+                            workspace_id=workspace_id,
+                            user_id=user_id,
+                            mission_id=None,
+                            action="add",
+                            content=content_str,
+                        )
+                        if pw_id:
+                            staged += 1
+                    else:
+                        # Direct write
+                        await pm_service.create(
+                            user_id=user_id,
+                            workspace_id=workspace_id,
+                            subject=claim.subject,
+                            predicate=claim.predicate,
+                            object=claim.object,
+                            claim_type=claim.claim_type,
+                            scope=claim.scope,
+                            source_type="conversation",
+                            confidence=claim.confidence,
+                        )
+                        persisted += 1
+                except Exception as create_err:
+                    logger.warning(
+                        "memory_extraction: claim persist failed: %s",
+                        create_err,
+                    )
+
+            await fresh_db.commit()
+
+            # ── Record extraction metrics ───────────────────────────
+            from app.core.metrics import record_memory_extraction
+
+            record_memory_extraction(
+                source=_extraction_source,
+                claims_extracted=len(claims),
+                claims_persisted=persisted,
+                claims_staged=staged,
+            )
+
+            logger.info(
+                "memory_extraction: persisted=%d staged=%d/%d raw=%d "
+                "claims for thread %s (needs_approval=%s source=%s)",
+                persisted,
+                staged,
+                len(safe_claims),
+                len(claims),
+                thread_id,
+                needs_approval,
+                _extraction_source,
+            )
+    except Exception as exc:
+        logger.warning(
+            "memory_extraction: hook failed for thread %s (non-fatal): %s",
+            thread_id,
+            exc,
+        )
+
+
 async def send_message_to_llm(
     db: AsyncSession,
     thread_id: int,
@@ -1076,6 +1312,19 @@ async def send_message_to_llm(
             )
         except Exception as ue:
             logger.warning("Usage recording failed (non-fatal): %s", ue)
+
+        # ── Fire-and-forget memory extraction ───────────────────────
+        import asyncio
+
+        asyncio.create_task(
+            _maybe_extract_memory_claims(
+                db=db,
+                thread_id=thread_id,
+                user_id=user_id,
+                user_message=content,
+                assistant_response=assistant_content,
+            )
+        )
 
         return {
             "success": True,
@@ -1468,6 +1717,22 @@ async def stream_message_to_llm(
         if assistant_msg is not None:
             for claim in memory_recall_claims:
                 yield json.dumps(build_citation_event(claim, message_id=str(assistant_msg.id)))
+
+        # ── Gap 1: fire-and-forget memory extraction ────────────────
+        # Extract personal-memory claims from this exchange in the
+        # background.  Uses a fresh DB session so it is independent of
+        # the caller's (already-closed) session.
+        import asyncio
+
+        asyncio.create_task(
+            _maybe_extract_memory_claims(
+                db=db,
+                thread_id=thread_id,
+                user_id=user_id,
+                user_message=content,
+                assistant_response=full_response,
+            )
+        )
 
         try:
             from app.services.usage_service import get_usage_service

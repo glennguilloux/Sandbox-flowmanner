@@ -277,7 +277,7 @@ class Settings(BaseSettings):
     # candidate (model eats individual agent memory by late 2027).
     # Gated behind this flag so it can be re-enabled for the DRR experiment
     # or if cross-mission recall proves valuable.
-    FLOWMANNER_CROSS_MISSION_MEMORY: bool = False
+    FLOWMANNER_CROSS_MISSION_MEMORY: bool = True
 
     @property
     def cors_origins_list(self) -> list[str]:

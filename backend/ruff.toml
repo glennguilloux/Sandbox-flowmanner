@@ -62,3 +62,7 @@ ignore = [
 "app/api/v2/schema.py" = []
 # Path is used at runtime in test fixtures, not just type annotations
 "tests/test_integration_manifest_service.py" = ["TCH003"]
+# Test files import pytest for fixtures and runtime assertions — moving
+# into TYPE_CHECKING blocks would be noisy and break monkeypatch types.
+"tests/test_chat_memory_extraction.py" = ["TCH002"]
+"tests/test_memory_flywheel_integration.py" = ["TCH002"]

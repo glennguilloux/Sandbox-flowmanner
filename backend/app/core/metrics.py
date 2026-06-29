@@ -191,6 +191,46 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
         model_fallback_success.labels(provider=provider).inc()
 
 
+# ─── Memory Extraction Metrics ─────────────────────────────────────
+
+memory_extraction_total = Counter(
+    "flowmanner_memory_extraction_total",
+    "Total memory extraction attempts from chat exchanges",
+    ["source"],
+)
+
+memory_extraction_claims_total = Counter(
+    "flowmanner_memory_extraction_claims_total",
+    "Total claims extracted from chat exchanges",
+    ["source", "disposition"],
+)
+
+
+def record_memory_extraction(
+    *,
+    source: str,
+    claims_extracted: int = 0,
+    claims_persisted: int = 0,
+    claims_staged: int = 0,
+) -> None:
+    """Record a memory extraction attempt.
+
+    ``source`` is one of: ``llm``, ``regex``, ``regex_fallback_empty``,
+    ``regex_fallback_timeout``, ``regex_fallback_error``, ``empty``.
+    """
+    memory_extraction_total.labels(source=source).inc()
+    if claims_persisted > 0:
+        memory_extraction_claims_total.labels(source=source, disposition="persisted").inc(claims_persisted)
+    if claims_staged > 0:
+        memory_extraction_claims_total.labels(source=source, disposition="staged").inc(claims_staged)
+    # Everything that was extracted but not persisted or staged is
+    # counted as "filtered" — this includes defensive-filter drops
+    # AND individual create/stage failures.
+    claims_lost = claims_extracted - claims_persisted - claims_staged
+    if claims_lost > 0:
+        memory_extraction_claims_total.labels(source=source, disposition="filtered").inc(claims_lost)
+
+
 def record_mission_success(duration_seconds: float, tokens: int = 0) -> None:
     mission_total.labels(status="success").inc()
     mission_duration.observe(duration_seconds)
