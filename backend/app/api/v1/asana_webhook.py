@@ -67,4 +67,31 @@ async def asana_webhook(request: Request):
             resource.get("gid", "unknown"),
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            for evt in events:
+                action = evt.get("action", "unknown")
+                resource = evt.get("resource", {})
+                resource_type = resource.get("resource_type", "unknown")
+                try:
+                    await emit_integration_event(
+                        db=event_db,
+                        source="asana",
+                        event_type=f"{resource_type}.{action}",
+                        payload={
+                            "action": action,
+                            "resource_type": resource_type,
+                            "resource_gid": resource.get("gid"),
+                        },
+                    )
+                except Exception:
+                    logger.warning("Asana event router failed for %s.%s", resource_type, action, exc_info=True)
+            await event_db.commit()
+    except Exception:
+        logger.warning("Asana event router session failed", exc_info=True)
+
     return {"status": "ok", "events": len(events)}

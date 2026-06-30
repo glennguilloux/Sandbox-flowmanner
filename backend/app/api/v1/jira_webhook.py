@@ -46,4 +46,24 @@ async def jira_webhook(request: Request):
     elif webhook_event == "jira:issue_deleted":
         logger.info("Jira issue deleted: %s", issue.get("key", "unknown"))
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="jira",
+                event_type=webhook_event,
+                payload={
+                    "webhook_event": webhook_event,
+                    "issue_key": issue.get("key"),
+                    "summary": issue.get("fields", {}).get("summary"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Jira event router failed for %s", webhook_event, exc_info=True)
+
     return {"status": "ok", "webhook_event": webhook_event}

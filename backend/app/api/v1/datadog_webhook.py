@@ -60,4 +60,24 @@ async def datadog_webhook(request: Request):
         title,
     )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="datadog",
+                event_type=event_type,
+                payload={
+                    "event_type": event_type,
+                    "title": title,
+                    "alert_type": event.get("alert_type"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Datadog event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "event_type": event_type}

@@ -57,4 +57,28 @@ async def vercel_webhook(request: Request):
             deployment.get("url", "unknown"),
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    deployment = event.get("payload", {}).get("deployment", {})
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="vercel",
+                event_type=event_type,
+                payload={
+                    "event_type": event_type,
+                    "deployment_id": deployment.get("id"),
+                    "project": deployment.get("name"),
+                    "url": deployment.get("url"),
+                    "meta": event.get("payload", {}).get("meta"),
+                },
+                delivery_id=event.get("id"),
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Vercel event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "event_type": event_type}

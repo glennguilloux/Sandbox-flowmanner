@@ -55,6 +55,9 @@ async def pagerduty_webhook(request: Request):
     # PagerDuty V3 webhooks send an array of events
     events = event if isinstance(event, list) else [event]
 
+    # Collect events for the event router.
+    event_payloads: list[dict] = []
+
     for evt in events:
         event_type = evt.get("event", {}).get("event_type", evt.get("type", "unknown"))
         logger.info("PagerDuty webhook received: %s", event_type)
@@ -69,5 +72,31 @@ async def pagerduty_webhook(request: Request):
                 incident.get("title", "no title"),
                 incident.get("status", "unknown"),
             )
+            event_payloads.append(
+                {
+                    "event_type": event_type,
+                    "incident_id": incident.get("id"),
+                    "title": incident.get("title"),
+                    "status": incident.get("status"),
+                    "urgency": incident.get("urgency"),
+                }
+            )
+
+    # Route through the event router → trigger system → UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    for ep in event_payloads:
+        try:
+            async with AsyncSessionLocal() as event_db:
+                await emit_integration_event(
+                    db=event_db,
+                    source="pagerduty",
+                    event_type=ep["event_type"],
+                    payload=ep,
+                )
+                await event_db.commit()
+        except Exception:
+            logger.warning("PagerDuty event router failed for %s", ep["event_type"], exc_info=True)
 
     return {"status": "ok", "events_processed": len(events)}

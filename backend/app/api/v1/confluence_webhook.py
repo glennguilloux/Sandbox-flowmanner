@@ -56,4 +56,24 @@ async def confluence_webhook(request: Request):
             attachment.get("title", "unknown"),
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="confluence",
+                event_type=webhook_event,
+                payload={
+                    "webhook_event": webhook_event,
+                    "page_title": event.get("page", {}).get("title"),
+                    "page_id": event.get("page", {}).get("id"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Confluence event router failed for %s", webhook_event, exc_info=True)
+
     return {"status": "ok", "webhook_event": webhook_event}

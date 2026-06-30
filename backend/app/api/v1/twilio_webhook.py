@@ -77,5 +77,47 @@ async def twilio_webhook(request: Request):
     else:
         logger.info("Twilio webhook: unknown event type, params=%s", list(params.keys()))
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    twilio_event_type = "unknown"
+    twilio_payload: dict = {}
+    if message_sid:
+        twilio_event_type = f"message.{params.get('MessageStatus', 'unknown')}"
+        twilio_payload = {
+            "message_sid": message_sid,
+            "status": params.get("MessageStatus"),
+            "from": params.get("From"),
+            "to": params.get("To"),
+        }
+    elif call_sid:
+        twilio_event_type = f"call.{params.get('CallStatus', 'unknown')}"
+        twilio_payload = {
+            "call_sid": call_sid,
+            "status": params.get("CallStatus"),
+            "from": params.get("From"),
+            "to": params.get("To"),
+        }
+    elif recording_sid:
+        twilio_event_type = "recording.completed"
+        twilio_payload = {"recording_sid": recording_sid}
+
+    # Use the Twilio SID as the delivery_id for idempotency
+    twilio_delivery_id = message_sid or call_sid or recording_sid
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="twilio",
+                event_type=twilio_event_type,
+                payload=twilio_payload,
+                delivery_id=twilio_delivery_id,
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Twilio event router failed for %s", twilio_event_type, exc_info=True)
+
     # Twilio expects TwiML response (empty is fine)
     return PlainTextResponse("", status_code=200)

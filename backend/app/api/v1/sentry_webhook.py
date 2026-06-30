@@ -57,7 +57,7 @@ def _verify_sentry_webhook(body: bytes, signature: str | None) -> bool:
 @router.post("/webhook")
 async def sentry_webhook(
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
 ):
     """Receive webhook events from Sentry."""
     body = await request.body()
@@ -93,13 +93,13 @@ async def sentry_webhook(
     # 4. Agent notifies the team
 
     if action in ("created", "regression"):
-        await _handle_new_or_regressed_error(db, issue)
+        await _handle_new_or_regressed_error(issue, action)
 
     return {"status": "ok", "action": action}
 
 
-async def _handle_new_or_regressed_error(db: AsyncSession, issue: dict[str, Any]):
-    """Process a new or regressed Sentry error → trigger agent workflow."""
+async def _handle_new_or_regressed_error(issue: dict[str, Any], action: str):
+    """Process a new or regressed Sentry error → fire matching triggers."""
     issue_id = issue.get("id")
     title = issue.get("title", "Unknown error")
     culprit = issue.get("culprit", "")
@@ -113,6 +113,26 @@ async def _handle_new_or_regressed_error(db: AsyncSession, issue: dict[str, Any]
         issue_id,
     )
 
-    # TODO: Trigger agent workflow when the agent-trigger infrastructure is ready.
-    # For now, just log it. The agent can also poll for issues proactively
-    # via the sentry_list_issues tool.
+    # Route through the event router → trigger system → UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    event_type = f"issue.{action}"
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="sentry",
+                event_type=event_type,
+                payload={
+                    "issue_id": issue_id,
+                    "title": title,
+                    "culprit": culprit,
+                    "level": level,
+                    "action": action,
+                },
+                delivery_id=f"{issue_id}:{action}" if issue_id and action else None,
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Sentry event router failed for %s", event_type, exc_info=True)

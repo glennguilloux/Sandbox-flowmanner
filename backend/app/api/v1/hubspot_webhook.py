@@ -70,4 +70,30 @@ async def hubspot_webhook(request: Request):
             object_id,
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            for evt in events:
+                subscription_type = evt.get("subscriptionType", "unknown")
+                try:
+                    await emit_integration_event(
+                        db=event_db,
+                        source="hubspot",
+                        event_type=subscription_type,
+                        payload={
+                            "subscription_type": subscription_type,
+                            "object_id": evt.get("objectId"),
+                            "object_type": evt.get("objectType"),
+                            "portal_id": evt.get("portalId"),
+                        },
+                    )
+                except Exception:
+                    logger.warning("HubSpot event router failed for %s", subscription_type, exc_info=True)
+            await event_db.commit()
+    except Exception:
+        logger.warning("HubSpot event router session failed", exc_info=True)
+
     return {"status": "ok", "events": len(events)}

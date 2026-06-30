@@ -102,4 +102,29 @@ async def stripe_webhook(request: Request):
             data_object.get("status", "unknown"),
         )
 
+    # Route through the event router → trigger system → UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="stripe",
+                event_type=event_type,
+                payload={
+                    "event_id": event.get("id"),
+                    "object_id": data_object.get("id"),
+                    "amount": data_object.get("amount"),
+                    "currency": data_object.get("currency"),
+                    "customer": data_object.get("customer"),
+                    "status": data_object.get("status"),
+                },
+                raw_body=event,
+                delivery_id=event.get("id"),
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Stripe event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "event_type": event_type}

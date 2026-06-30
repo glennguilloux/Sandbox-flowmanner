@@ -62,4 +62,24 @@ async def clickup_webhook(request: Request):
         task.get("name", "unknown"),
     )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="clickup",
+                event_type=event_type,
+                payload={
+                    "event": event_type,
+                    "task_id": task.get("id"),
+                    "task_name": task.get("name"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("ClickUp event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "event": event_type}

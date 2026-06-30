@@ -31,4 +31,24 @@ async def monday_webhook(request: Request):
     event_type = payload.get("event", {}).get("type", "unknown")
     logger.info("Monday.com webhook: type=%s", event_type)
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="monday",
+                event_type=event_type,
+                payload={
+                    "type": event_type,
+                    "board_id": payload.get("event", {}).get("boardId"),
+                    "pulse_id": payload.get("event", {}).get("pulseId"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Monday event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "type": event_type}

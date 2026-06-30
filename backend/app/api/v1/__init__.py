@@ -118,7 +118,10 @@ twilio_webhook_router = _import_router("twilio_webhook")
 shopify_webhook_router = _import_router("shopify_webhook")
 zendesk_webhook_router = _import_router("zendesk_webhook")
 monday_webhook_router = _import_router("monday_webhook")
+github_webhook_router = _import_router("github_webhook")
+slack_webhook_router = _import_router("slack_webhook")
 telegram_webhook_router = _import_router("telegram_webhook")
+external_events_router = _import_router("external_events")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
@@ -157,17 +160,17 @@ integrations_onboarding_router = _import_router("integrations_onboarding", tier=
 marketplace_router = _import_router("marketplace", tier=RouterTier.OPTIONAL)
 newsletter_router = _import_router("newsletter", tier=RouterTier.OPTIONAL)
 
-web_search_enhanced_router = None
+web_search_enhanced_router = None  # type: ignore[no-redef]
 try:
-    from app.services.web_search.web_search_routes_enhanced import (
+    from app.services.web_search.web_search_routes_enhanced import (  # type: ignore[no-redef]
         router as web_search_enhanced_router,
     )
 except Exception as e:
     logger.warning("Skipping enhanced web search router: %s", e)
 
-notification_router = None
+notification_router = None  # type: ignore[no-redef]
 try:
-    from app.services.notification_service import (
+    from app.services.notification_service import (  # type: ignore[no-redef]
         router as notification_router,
     )
 except Exception as e:
@@ -254,7 +257,10 @@ for _name, _router in [
     ("shopify", shopify_webhook_router),
     ("zendesk", zendesk_webhook_router),
     ("monday", monday_webhook_router),
+    ("github", github_webhook_router),
+    ("slack", slack_webhook_router),
     ("telegram", telegram_webhook_router),
+    ("external-events", external_events_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),

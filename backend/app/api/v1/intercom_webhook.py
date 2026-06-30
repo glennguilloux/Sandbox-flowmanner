@@ -73,4 +73,24 @@ async def intercom_webhook(request: Request):
             data.get("id", "unknown"),
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="intercom",
+                event_type=topic,
+                payload={
+                    "type": event_type,
+                    "topic": topic,
+                    "item_id": data.get("id"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Intercom event router failed for %s", topic, exc_info=True)
+
     return {"status": "ok", "topic": topic}

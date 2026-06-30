@@ -42,4 +42,24 @@ async def figma_webhook(request: Request):
     elif event_type == "LIBRARY_PUBLISH":
         logger.info("Figma library published")
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="figma",
+                event_type=event_type,
+                payload={
+                    "event_type": event_type,
+                    "file_name": event.get("file_name"),
+                    "file_key": event.get("file_key"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Figma event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "event_type": event_type}

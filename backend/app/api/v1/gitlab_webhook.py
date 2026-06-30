@@ -65,4 +65,24 @@ async def gitlab_webhook(request: Request):
             note.get("noteable_type", "?"),
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="gitlab",
+                event_type=object_kind,
+                payload={
+                    "object_kind": object_kind,
+                    "project": event.get("project", {}).get("path_with_namespace"),
+                    "user": event.get("user", {}).get("username"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("GitLab event router failed for %s", object_kind, exc_info=True)
+
     return {"status": "ok", "object_kind": object_kind}

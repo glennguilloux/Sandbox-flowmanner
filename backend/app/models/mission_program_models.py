@@ -21,12 +21,9 @@ Design notes (see plan §T1):
 
 from __future__ import annotations
 
+from datetime import datetime  # noqa: TCH003
 from enum import Enum, nonmember
-from typing import TYPE_CHECKING
 from uuid import uuid4
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,

@@ -45,4 +45,23 @@ async def shopify_webhook(
 
     logger.info("Shopify webhook: topic=%s shop=%s", event_type, shop)
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="shopify",
+                event_type=event_type,
+                payload={
+                    "topic": event_type,
+                    "shop": shop,
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Shopify event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "topic": event_type, "shop": shop}

@@ -41,4 +41,24 @@ async def zendesk_webhook(
     event_type = payload.get("type", "unknown")
     logger.info("Zendesk webhook: type=%s", event_type)
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="zendesk",
+                event_type=event_type,
+                payload={
+                    "type": event_type,
+                    "ticket_id": payload.get("ticket", {}).get("id"),
+                    "ticket_subject": payload.get("ticket", {}).get("subject"),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Zendesk event router failed for %s", event_type, exc_info=True)
+
     return {"status": "ok", "type": event_type}

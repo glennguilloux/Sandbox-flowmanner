@@ -70,4 +70,23 @@ async def airtable_webhook(request: Request):
             deleted,
         )
 
+    # Route through the event router -> trigger system -> UnifiedExecutor.
+    from app.database import AsyncSessionLocal
+    from app.services.event_router import emit_integration_event
+
+    try:
+        async with AsyncSessionLocal() as event_db:
+            await emit_integration_event(
+                db=event_db,
+                source="airtable",
+                event_type="base.change",
+                payload={
+                    "webhook_id": webhook_id,
+                    "changed_tables": list(changed_tables.keys()),
+                },
+            )
+            await event_db.commit()
+    except Exception:
+        logger.warning("Airtable event router failed for %s", webhook_id, exc_info=True)
+
     return {"status": "ok", "webhook_id": webhook_id}
