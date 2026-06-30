@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
@@ -74,7 +75,7 @@ class TestSSEStreamEndpointExists:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.api.v1.chat.require_chat_thread_access",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -96,7 +97,7 @@ class TestSSEEventFormat:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.api.v1.chat.require_chat_thread_access",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -119,7 +120,7 @@ class TestSSEEventFormat:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.api.v1.chat.require_chat_thread_access",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -143,7 +144,7 @@ class TestSSEEventFormat:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.api.v1.chat.require_chat_thread_access",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
@@ -162,10 +163,9 @@ class TestSSEEventFormat:
 
 class TestSSEAuthAndOwnership:
     def test_returns_404_for_thread_owned_by_other_user(self, auth_client):
-        thread = _make_thread(user_id=999)
         with patch(
-            "app.services.chat_service.get_chat_thread",
-            new=AsyncMock(return_value=thread),
+            "app.api.v1.chat.require_chat_thread_access",
+            new=AsyncMock(side_effect=HTTPException(status_code=status.HTTP_404_NOT_FOUND)),
         ):
             response = auth_client.post(
                 "/api/chat/threads/42/chat/stream",
@@ -178,7 +178,7 @@ class TestSSEAuthAndOwnership:
         thread = _make_thread(user_id=1)
         with (
             patch(
-                "app.api.v1.chat.get_chat_thread",
+                "app.api.v1.chat.require_chat_thread_access",
                 new=AsyncMock(return_value=thread),
             ),
             patch(
