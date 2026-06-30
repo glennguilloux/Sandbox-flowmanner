@@ -33,9 +33,24 @@ os.environ["USE_NEW_READS"] = "0"
 # See that module for the full rationale and the canonical list of
 # popped env vars. Both this conftest and ``backend/app/tests/conftest.py``
 # call ``pop_config_overrides()`` to keep the guard logic in one place.
+import socket as _socket
+
+_real_db_url = os.environ.get("DATABASE_URL")
+
 from app.testing._env_guard import pop_config_overrides
 
 pop_config_overrides()
+
+# If running inside Docker with a reachable PostgreSQL, restore DATABASE_URL
+# so that _pg.py integration tests can connect to the real database.
+# Outside Docker (host execution), PostgreSQL is unreachable and _pg.py
+# tests are auto-skipped by pytest_collection_modifyitems below.
+try:
+    with _socket.create_connection(("workflow-postgres", 5432), timeout=2):
+        if _real_db_url:
+            os.environ["DATABASE_URL"] = _real_db_url
+except (OSError, TimeoutError):
+    pass  # Not in Docker — _pg.py tests will be auto-skipped
 
 # ---------------------------------------------------------------------------
 # 2. Mock redis globally BEFORE any imports that use it

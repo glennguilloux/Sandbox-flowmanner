@@ -39,11 +39,16 @@ from app.services.integration_bridge import (
 
 pytestmark = pytest.mark.integration
 
-# ── Override DATABASE_URL to use localhost ─────────────────────────────────
-# The app's settings use Docker hostname "workflow-postgres", but tests run on
-# the host.  Swap in "localhost" while keeping the same credentials + db name.
+# ── Database URL resolution ────────────────────────────────────────────────
+# Inside Docker, PostgreSQL is at workflow-postgres:5432 — use settings directly.
+# On the host, port 5432 is mapped to localhost — swap the hostname.
+import socket as _socket
 
-_TEST_DATABASE_URL = settings.DATABASE_URL.replace("workflow-postgres", "localhost")
+try:
+    _socket.create_connection(("workflow-postgres", 5432), timeout=2).close()
+    _TEST_DATABASE_URL = settings.DATABASE_URL
+except (OSError, TimeoutError):
+    _TEST_DATABASE_URL = settings.DATABASE_URL.replace("workflow-postgres", "localhost")
 
 # NullPool: each async session gets a fresh connection, avoiding asyncpg
 # "another operation is in progress" errors from connection reuse across tests.

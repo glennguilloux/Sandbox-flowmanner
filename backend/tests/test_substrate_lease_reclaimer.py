@@ -37,7 +37,6 @@ from app.services.substrate.lease_reclaimer import (
 )
 from app.services.substrate.leases import LeaseRecord
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 CHAOS_HELPER = os.path.join(os.path.dirname(__file__), "_helpers", "chaos_lease_holder.py")
@@ -49,20 +48,30 @@ _TEST_DB_URL: str | None = None
 
 
 def _get_test_db_url() -> str:
-    """Return a DATABASE_URL reachable from the test host (localhost:5432)."""
+    """Return a DATABASE_URL reachable from the test environment.
+
+    Inside Docker, PostgreSQL is at workflow-postgres:5432 — use settings.DATABASE_URL directly.
+    On the host, port 5432 is mapped to localhost — swap the hostname.
+    """
     global _TEST_DB_URL
     if _TEST_DB_URL is None:
-        import re
+        import socket as _socket
 
         from app.config import settings
 
-        # Replace the hostname in the authority part of the URL.
-        # Handles both 'postgres' and 'workflow-postgres' hostnames.
-        _TEST_DB_URL = re.sub(
-            r"@[^/:]+(:\d+)",
-            r"@localhost\1",
-            settings.DATABASE_URL,
-        )
+        # Check if we're inside Docker (workflow-postgres reachable)
+        try:
+            with _socket.create_connection(("workflow-postgres", 5432), timeout=2):
+                _TEST_DB_URL = settings.DATABASE_URL
+        except (OSError, TimeoutError):
+            import re
+
+            # On the host — replace Docker hostname with localhost
+            _TEST_DB_URL = re.sub(
+                r"@[^/:]+(:\d+)",
+                r"@localhost\1",
+                settings.DATABASE_URL,
+            )
     return _TEST_DB_URL
 
 
@@ -106,9 +115,7 @@ async def db():
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     engine = create_async_engine(_get_test_db_url(), pool_pre_ping=True)
-    session_factory = async_sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
     async with session_factory() as session:
         yield session
@@ -217,17 +224,18 @@ class TestReclaimOne:
         event_log = MagicMock()
         event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
 
-        with patch(
-            "app.services.substrate.lease_reclaimer.try_claim_lease",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch(
-            "app.services.substrate.lease_reclaimer.release_lease",
-            new_callable=AsyncMock,
+        with (
+            patch(
+                "app.services.substrate.lease_reclaimer.try_claim_lease",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "app.services.substrate.lease_reclaimer.release_lease",
+                new_callable=AsyncMock,
+            ),
         ):
-            result = asyncio.run(
-                reclaim_one(db, lease, "reclaimer-test", event_log=event_log)
-            )
+            result = asyncio.run(reclaim_one(db, lease, "reclaimer-test", event_log=event_log))
 
         assert result is True
         # Verify LEASE_RELEASED event with reason="reclaimed".
@@ -253,9 +261,7 @@ class TestReclaimOne:
             new_callable=AsyncMock,
             return_value=False,
         ):
-            result = asyncio.run(
-                reclaim_one(db, lease, "reclaimer-test", event_log=event_log)
-            )
+            result = asyncio.run(reclaim_one(db, lease, "reclaimer-test", event_log=event_log))
 
         assert result is False
         event_log.append.assert_not_called()
@@ -300,11 +306,10 @@ class TestLeaseReclaimerLoop:
 class TestReclaimerDisabledFlag:
     def test_disabled_flag_skips_start(self):
         """When FLOWMANNER_LEASE_RECLAIMER_ENABLED=false, no thread is started."""
-        with patch(
-            "app.config.settings.FLOWMANNER_LEASE_RECLAIMER_ENABLED", False
-        ), patch(
-            "app.services.substrate.lease_reclaimer.start_reclaimer"
-        ) as mock_start:
+        with (
+            patch("app.config.settings.FLOWMANNER_LEASE_RECLAIMER_ENABLED", False),
+            patch("app.services.substrate.lease_reclaimer.start_reclaimer") as mock_start,
+        ):
             from app.config import settings
 
             if settings.FLOWMANNER_LEASE_RECLAIMER_ENABLED:
@@ -377,8 +382,7 @@ class TestReclaimerIntegration:
         event_log.append.assert_called_once()
         events = event_log.append.call_args[0][2]
         assert any(
-            e.get("type") == SubstrateEventType.LEASE_RELEASED
-            and e.get("payload", {}).get("reason") == "reclaimed"
+            e.get("type") == SubstrateEventType.LEASE_RELEASED and e.get("payload", {}).get("reason") == "reclaimed"
             for e in events
         )
 
@@ -388,9 +392,7 @@ class TestReclaimerIntegration:
 # ═══════════════════════════════════════════════════════════════════
 
 
-def _spawn_chaos_subprocess(
-    worker_id: str, run_id: str, ttl_seconds: int
-) -> subprocess.Popen:
+def _spawn_chaos_subprocess(worker_id: str, run_id: str, ttl_seconds: int) -> subprocess.Popen:
     """Spawn a chaos subprocess, wait for it to claim, then SIGKILL it.
 
     The helper acquires a lease, prints "OK", then blocks on stdin.
@@ -435,9 +437,7 @@ async def _fresh_db():
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     engine = create_async_engine(_get_test_db_url(), pool_pre_ping=True)
-    factory = async_sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     return factory(), engine
 
 
@@ -470,10 +470,7 @@ class TestChaosReclaimer:
             # Verify the lease exists (subprocess acquired it).
             row = (
                 await session.execute(
-                    text(
-                        "SELECT 1 FROM substrate_worker_leases "
-                        "WHERE run_id = :rid AND worker_id = :wid"
-                    ),
+                    text("SELECT 1 FROM substrate_worker_leases " "WHERE run_id = :rid AND worker_id = :wid"),
                     {"rid": chaos_run_id, "wid": chaos_worker_id},
                 )
             ).fetchone()
@@ -523,9 +520,7 @@ class TestChaosReclaimer:
             # 6. Verify the LEASE_RELEASED event.
             event_log.append.assert_called_once()
             events = event_log.append.call_args[0][2]
-            lease_events = [
-                e for e in events if e.get("type") == SubstrateEventType.LEASE_RELEASED
-            ]
+            lease_events = [e for e in events if e.get("type") == SubstrateEventType.LEASE_RELEASED]
             assert len(lease_events) == 1
             payload = lease_events[0]["payload"]
             assert payload["reason"] == "reclaimed"
