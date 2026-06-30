@@ -2051,6 +2051,7 @@
         "mission_type": "VARCHAR(50)",
         "monthly_budget_usd": "DOUBLE",
         "name": "VARCHAR(255)",
+        "next_fire_at": "DATETIME",
         "per_run_budget_usd": "DOUBLE",
         "status": "VARCHAR(20)",
         "trigger_config": "JSONB",
@@ -2069,6 +2070,7 @@
         ]
       ],
       "indexes": [
+        "ix_mission_programs_next_fire_at",
         "ix_mission_programs_status",
         "ix_mission_programs_user_id",
         "ix_mission_programs_workspace_id"
