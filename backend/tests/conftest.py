@@ -233,6 +233,12 @@ def mock_db_session(mock_db):
 
 
 @pytest.fixture
+def db_session(mock_db_session):
+    """Alias for tests that request ``db_session`` instead of ``mock_db_session``."""
+    return mock_db_session
+
+
+@pytest.fixture
 def sample_user():
     """Mock user with all v3-accessible attributes."""
     from datetime import datetime, timezone

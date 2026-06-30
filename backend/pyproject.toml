@@ -4,6 +4,7 @@ testpaths = ["tests"]
 addopts = [
     "--ignore=tests/smoke",
     "--ignore=tests/chaos",
+    "-p", "no:flask",
 ]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",

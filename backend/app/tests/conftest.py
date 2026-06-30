@@ -113,6 +113,12 @@ def mock_db_session():
 
 
 @pytest.fixture
+def db_session(mock_db_session):
+    """Alias for tests that request ``db_session`` instead of ``mock_db_session``."""
+    return mock_db_session
+
+
+@pytest.fixture
 def sample_user():
     """Standard test user as SimpleNamespace (supports attribute access)."""
     return SimpleNamespace(
