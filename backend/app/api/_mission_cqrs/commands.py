@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from sqlalchemy import select
 
@@ -27,8 +28,10 @@ from app.schemas.mission import (
     MissionImprovementResponse,
     MissionLogCreate,
     MissionTaskCreate,
+    MissionTaskResponse,
     MissionTaskUpdate,
     MissionUpdate,
+    SelectPlanCandidateRequest,
 )
 from app.services.mission_cache import invalidate_mission_cache, invalidate_user_caches
 from app.services.mission_errors import (
@@ -68,6 +71,69 @@ if TYPE_CHECKING:
     from app.models.user import User
 
     from .audit import AuditService
+
+
+async def _rebuild_tasks_from_candidate(
+    session: AsyncSession,
+    mission_id: uuid.UUID,
+    plan_id: str,
+) -> list[MissionTask] | None:
+    """Delete existing PENDING tasks for a mission and rebuild them from
+    a MissionPlanCandidate.tasks_json row.  Returns the new task list, or
+    None if no candidate row matched.
+
+    Caller owns the transaction.  No commit() inside this function.
+    """
+    from app.models.mission_advanced_models import MissionPlanCandidate
+
+    cand_row = (
+        (
+            await session.execute(
+                select(MissionPlanCandidate).where(
+                    MissionPlanCandidate.mission_id == str(mission_id),
+                    MissionPlanCandidate.plan_id == plan_id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if cand_row is None:
+        return None
+
+    task_defs = cand_row.tasks_json
+    if not isinstance(task_defs, list):
+        return None
+
+    # Delete PENDING tasks only — preserve completed/running/failed history.
+    existing = await get_mission_tasks(session, mission_id)
+    for t in existing:
+        if t.status == MissionTaskStatus.PENDING:
+            await session.delete(t)
+    await session.flush()
+
+    new_tasks: list[MissionTask] = []
+    for idx, task_def in enumerate(task_defs):
+        if not isinstance(task_def, dict):
+            continue
+        new_task = MissionTask(
+            id=str(uuid4()),
+            mission_id=str(mission_id),
+            title=task_def.get("title", f"Task {idx + 1}"),
+            description=task_def.get("description", ""),
+            task_type=task_def.get("task_type", "llm"),
+            order_index=idx,
+            dependencies=task_def.get("dependencies", []),
+            input_data=task_def.get("input_data"),
+            assigned_agent_id=task_def.get("assigned_agent_id"),
+            assigned_model=task_def.get("assigned_model"),
+            status=MissionTaskStatus.PENDING,
+            max_retries=task_def.get("max_retries", 3),
+        )
+        session.add(new_task)
+        new_tasks.append(new_task)
+    await session.flush()
+    return new_tasks
 
 
 class MissionCommandHandlers(CommandHandlerBase):
@@ -288,6 +354,86 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         return await self.wrap_command(_op)
 
+    async def select_plan_candidate(
+        self,
+        user: User,
+        mission_id: uuid.UUID,
+        payload: SelectPlanCandidateRequest,
+    ) -> list[MissionTaskResponse]:
+        """Pre-select a non-default plan candidate. Rebuilds MissionTask
+        rows from MissionPlanCandidate.tasks_json so the next execute call
+        uses the chosen plan.  No-op execution-wise — the actual run is the
+        caller's job.
+
+        Returns 404 if no candidate matches. Wrapped in wrap_command() so
+        the task rebuild is atomic with the plan_metadata bookkeeping.
+        """
+        await require_mission_access(self.session, mission_id, user.id)
+
+        async def _op():
+            # Verify candidate exists FIRST so callers get a clean 404,
+            # not a half-rebuilt mission.
+            cand_check = await _rebuild_tasks_from_candidate(self.session, mission_id, payload.plan_id)
+            if cand_check is None:
+                raise MissionNotFoundError(f"No plan candidate '{payload.plan_id}' for mission {mission_id}")
+            new_tasks = cand_check
+
+            # Stash the override in mission.plan["plan_selection"] so
+            # downstream tooling can tell auto-pick apart from explicit
+            # user override.
+            plan_meta = {}
+            mission_row = (
+                (await self.session.execute(select(Mission).where(Mission.id == str(mission_id)))).scalars().first()
+            )
+            if mission_row is not None and isinstance(mission_row.plan, dict):
+                plan_meta = dict(mission_row.plan)
+            plan_meta.setdefault("plan_selection", {})
+            plan_meta["plan_selection"]["override_id"] = payload.plan_id
+            if mission_row is not None:
+                mission_row.plan = plan_meta
+
+            # Emit plan_override_selected substrate event (best-effort).
+            try:
+                from app.models.substrate_models import SubstrateEventType
+                from app.services.substrate.event_log import get_event_log
+
+                await get_event_log().append(
+                    self.session,
+                    str(mission_id),
+                    [
+                        {
+                            "type": SubstrateEventType.PLAN_OVERRIDE_SELECTED,
+                            "payload": {
+                                "override_id": payload.plan_id,
+                                "actor_id": str(user.id),
+                                "task_count": len(new_tasks),
+                            },
+                            "actor": "user",
+                            "mission_id": str(mission_id),
+                        }
+                    ],
+                )
+            except Exception as ev_err:
+                logger.debug("plan_override_selected_event_failed: %s", ev_err)
+
+            # Audit log (best-effort, like the rest of the command handlers).
+            if self.audit is not None:
+                self.audit.mission_updated(
+                    mission_id=mission_id,
+                    actor_id=user.id,
+                    old_status="select_plan_candidate",
+                    new_status="select_plan_candidate",
+                    request_id=self._request_id,
+                    override_plan_id=payload.plan_id,
+                    task_count=len(new_tasks),
+                )
+
+            _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
+            return new_tasks
+
+        tasks = await self.wrap_command(_op)
+        return [MissionTaskResponse.model_validate(t) for t in tasks]
+
     # ── Logs ─────────────────────────────────────────────────────────────────
 
     async def create_log(self, user: User, mission_id: uuid.UUID, payload: MissionLogCreate) -> MissionLog:
@@ -344,7 +490,26 @@ class MissionCommandHandlers(CommandHandlerBase):
             from app.services.substrate.executor import get_unified_executor
 
             unified = get_unified_executor()
-            tasks = await get_mission_tasks(self.session, mission_id)
+
+            # Round-trip: honor MissionExecuteRequest.selected_plan_id
+            # by rebuilding the task list from the chosen candidate
+            # before the substrate UnifiedExecutor runs.  An unknown
+            # plan_id is logged + skipped (we never fail execution
+            # because of a missing override).
+            tasks = None
+            if payload is not None and getattr(payload, "selected_plan_id", None):
+                rebuilt = await _rebuild_tasks_from_candidate(self.session, mission_id, payload.selected_plan_id)
+                if rebuilt is None:
+                    logger.warning(
+                        "execute_mission_selected_plan_id_not_found mission_id=%s selected_plan_id=%s",
+                        str(mission_id),
+                        payload.selected_plan_id,
+                    )
+                else:
+                    tasks = rebuilt
+            if tasks is None:
+                tasks = await get_mission_tasks(self.session, mission_id)
+
             workflow = mission_to_workflow(mission, tasks)
             strategy_result = await unified.execute(self.session, workflow)
             result = {
@@ -471,6 +636,18 @@ class MissionCommandHandlers(CommandHandlerBase):
         #   3. Dispatch to Celery (durable, retryable) instead of fire-and-forget
         mission = await require_mission_access(self.session, mission_id, user.id)
 
+        # Round-trip hook — accept selected_plan_id so the Celery worker
+        # dispatches against the rebuilt task list.  Unknown IDs log and
+        # fall through.
+        if payload is not None and getattr(payload, "selected_plan_id", None):
+            rebuilt = await _rebuild_tasks_from_candidate(self.session, mission_id, payload.selected_plan_id)
+            if rebuilt is None:
+                logger.warning(
+                    "execute_async_selected_plan_id_not_found mission_id=%s selected_plan_id=%s",
+                    str(mission_id),
+                    payload.selected_plan_id,
+                )
+
         # Phase 8.4: Check subscription tier limits before queueing
         limit_check = await check_mission_execute_allowed(
             self.session,
@@ -509,8 +686,8 @@ class MissionCommandHandlers(CommandHandlerBase):
             dispatch_mission_execution(str(mission_id), user.id)
         except Exception:
             # Fallback: use UnifiedExecutor in a background task
-            logger = __import__("structlog").get_logger(__name__)
-            logger.warning("celery_dispatch_failed_fallback", mission_id=str(mission_id))
+            _fallback_log = __import__("structlog").get_logger(__name__)
+            _fallback_log.warning("celery_dispatch_failed_fallback", mission_id=str(mission_id))
 
             async def _run_execution():
                 from app.database import AsyncSessionLocal
@@ -993,8 +1170,6 @@ class MissionCommandHandlers(CommandHandlerBase):
         #   flush to obtain mission.id for FK references, bulk-add child
         #   tasks, then single commit + refresh. (Could be refactored into
         #   wrap_command if the refresh were moved to the caller.)
-        from uuid import uuid4
-
         result = await self.session.execute(select(MissionTemplate).where(MissionTemplate.id == str(template_id)))
         template = result.scalars().first()
         if template is None:

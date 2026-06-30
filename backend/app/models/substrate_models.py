@@ -138,6 +138,7 @@ class SubstrateEventType:
 
     # Cost-aware plan selection
     PLAN_SELECTED = "plan.selected"
+    PLAN_OVERRIDE_SELECTED = "plan.override_selected"
 
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"

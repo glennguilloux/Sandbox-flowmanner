@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -23,9 +22,12 @@ from app.schemas.mission import (
     MissionTaskResponse,
     MissionTaskUpdate,
     MissionUpdate,
+    SelectPlanCandidateRequest,
 )
 
 if TYPE_CHECKING:
+    import uuid
+
     from app.api._mission_cqrs.commands import MissionCommandHandlers
     from app.api._mission_cqrs.queries import MissionQueryHandlers
     from app.models.user import User
@@ -232,6 +234,18 @@ async def execute_mission_async(
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
     return await c.execute_async(user, mission_id, payload)
+
+
+@router.post("/{mission_id}/select-plan")
+async def select_plan_candidate(
+    mission_id: uuid.UUID,
+    payload: SelectPlanCandidateRequest,
+    user: User = Depends(get_current_user),
+    c: MissionCommandHandlers = Depends(get_mission_commands),
+):
+    """Pre-select a non-default plan candidate. v1 mirror of v2 route."""
+    tasks = await c.select_plan_candidate(user, mission_id, payload)
+    return [t.model_dump() for t in tasks]
 
 
 # ── Status / Streaming ────────────────────────────────────────────────────────

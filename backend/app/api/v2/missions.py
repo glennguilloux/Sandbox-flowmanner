@@ -30,6 +30,7 @@ from app.schemas.mission import (
     MissionTaskUpdate,
     MissionUpdate,
     PlanCandidateResponse,
+    SelectPlanCandidateRequest,
 )
 
 if TYPE_CHECKING:
@@ -243,6 +244,31 @@ async def list_plan_candidates(
     """
     candidates = await q.list_plan_candidates(user.id, mission_id)
     return ok([c.model_dump() for c in candidates])
+
+
+@router.post("/{mission_id}/select-plan")
+async def select_plan_candidate(
+    mission_id: uuid.UUID,
+    payload: SelectPlanCandidateRequest,
+    user: User = Depends(get_current_user),
+    c: MissionCommandHandlers = Depends(get_mission_commands),
+    _idem: Any = Depends(idempotency()),
+    _rate: Any = Depends(rate_limit("mission:plan_select")),
+):
+    """Pre-select a non-default plan candidate. Rebuilds the mission's
+    task list from the chosen candidate's tasks_json.  The actual
+    execution happens via the existing execute / execute-async
+    endpoints — this just stages the choice.
+
+    POST body: ``{\"plan_id\": \"heuristic_v1\"}``
+    Returns: ``[MissionTaskResponse]`` — the rebuilt task list.
+    """
+    if isinstance(_idem, JSONResponse):
+        return _idem
+    if isinstance(_rate, JSONResponse):
+        return _rate
+    tasks = await c.select_plan_candidate(user, mission_id, payload)
+    return ok([t.model_dump() for t in tasks])
 
 
 # ── Planning (CQRS DI) ────────────────────────────────────────────────────────

@@ -133,6 +133,20 @@ class MissionExecuteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     model_preference: str | None = None
+    selected_plan_id: str | None = None
+
+
+class SelectPlanCandidateRequest(BaseModel):
+    """Body for POST /api/v2/missions/{id}/select-plan.
+
+    Lets a user pre-select a non-default candidate before execution.
+    The chosen plan_id must match a row in mission_plan_candidates
+    for the mission; otherwise 404.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    plan_id: str
 
 
 class MissionExecutionStatus(BaseModel):
