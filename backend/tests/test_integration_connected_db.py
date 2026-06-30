@@ -77,7 +77,7 @@ def _clear_non_oauth_env(monkeypatch):
 # ── Skip if database isn't reachable ───────────────────────────────────────
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def _check_database():
     """Skip the entire test module if the database isn't reachable."""
     # Use a dedicated event loop to avoid interfering with pytest-asyncio's loop
@@ -343,7 +343,7 @@ class TestRealDBNonOAuth:
         data = response.json()
         slugs = [e["slug"] for e in data["connected"]]
         assert "linear" in slugs, f"linear missing from {slugs}"
-        linear = [e for e in data["connected"] if e["slug"] == "linear"][0]
+        linear = next(e for e in data["connected"] if e["slug"] == "linear")
         assert linear["auth_type"] == "api_key"
         assert linear["account_name"] == _NON_OAUTH_CONFIGS["linear"]["name"]
         assert linear["account_id"] is None
@@ -362,7 +362,7 @@ class TestRealDBNonOAuth:
         data = response.json()
         slugs = [e["slug"] for e in data["connected"]]
         assert "discord" in slugs, f"discord missing from {slugs}"
-        discord = [e for e in data["connected"] if e["slug"] == "discord"][0]
+        discord = next(e for e in data["connected"] if e["slug"] == "discord")
         assert discord["auth_type"] == "bearer_token"
         assert discord["account_id"] is None
 

@@ -109,6 +109,7 @@ auth_rl_module._rate_limiter = None  # reset singleton so it doesn't try Redis
 # ---------------------------------------------------------------------------
 # 6. Now safe to import FastAPI app and routers
 # ---------------------------------------------------------------------------
+import socket
 from datetime import UTC
 
 import pytest
@@ -236,6 +237,52 @@ def mock_db_session(mock_db):
 def db_session(mock_db_session):
     """Alias for tests that request ``db_session`` instead of ``mock_db_session``."""
     return mock_db_session
+
+
+# ===========================================================================
+# Auto-skip tests marked ``requires_postgres`` when DB is unreachable
+# ===========================================================================
+
+_PG_HOST = "workflow-postgres"
+_PG_PORT = 5432
+_PG_REACHABLE: bool | None = None  # lazily cached on first collection
+
+
+def _check_postgres() -> bool:
+    """Return True if PostgreSQL is reachable within 2s."""
+    global _PG_REACHABLE
+    if _PG_REACHABLE is not None:
+        return _PG_REACHABLE
+    try:
+        with socket.create_connection((_PG_HOST, _PG_PORT), timeout=2):
+            _PG_REACHABLE = True
+    except (OSError, TimeoutError):
+        _PG_REACHABLE = False
+    return _PG_REACHABLE
+
+
+def _needs_postgres(item: pytest.Item) -> bool:
+    """Return True if a test item needs a live PostgreSQL connection.
+
+    Matches tests that are explicitly marked ``requires_postgres`` or live in
+    files with a ``_pg`` suffix (the project convention for real-DB tests).
+    """
+    if item.get_closest_marker("requires_postgres"):
+        return True
+    # Convention: files ending in ``_pg.py`` require live PostgreSQL
+    nodeid = item.nodeid  # e.g. "tests/test_foo_pg.py::TestClass::test_bar"
+    filename = nodeid.split("::")[0]
+    return filename.endswith("_pg.py")
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Auto-skip ``requires_postgres`` tests when PostgreSQL is unreachable."""
+    if _check_postgres():
+        return  # DB is reachable
+    skip_reason = "PostgreSQL unreachable — skipping requires_postgres tests"
+    for item in items:
+        if _needs_postgres(item):
+            item.add_marker(pytest.mark.skip(reason=skip_reason))
 
 
 @pytest.fixture

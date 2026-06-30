@@ -78,7 +78,7 @@ def _patch_database(monkeypatch):
 # ── Skip if database isn't reachable ───────────────────────────────────────
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def _check_database():
     loop = asyncio.new_event_loop()
     try:
@@ -358,9 +358,9 @@ class TestSubGraphExecution:
         execution_id = exec_resp.json()["id"]
 
         result = _wait_for_execution(client, workflow_id, execution_id)
-        assert result["status"] == "completed", (
-            f"Expected completed, got {result['status']}. Error: {result.get('error_message', 'none')}"
-        )
+        assert (
+            result["status"] == "completed"
+        ), f"Expected completed, got {result['status']}. Error: {result.get('error_message', 'none')}"
 
         # Verify: task-1, log-1, end-1 should have outputs
         output_data = result.get("output_data") or {}
@@ -370,9 +370,9 @@ class TestSubGraphExecution:
             assert outputs[nid].get("success") is not False, f"Node {nid} failed: {outputs[nid].get('error')}"
 
         # start-1 should NOT be in outputs
-        assert "start-1" not in outputs, (
-            f"start-1 should not have executed in subgraph mode, but it appears in outputs: {list(outputs.keys())}"
-        )
+        assert (
+            "start-1" not in outputs
+        ), f"start-1 should not have executed in subgraph mode, but it appears in outputs: {list(outputs.keys())}"
 
     def test_subgraph_from_log_only_log_and_end_execute(self, real_db_client):
         """Subgraph from log-1: only log and end execute."""
@@ -452,11 +452,11 @@ class TestEdgeCases:
         # The execution completes but the nonexistent node produces an error output
         outputs = (result.get("output_data") or {}).get("outputs", {})
         assert len(outputs) == 1, f"Expected 1 output with error for nonexistent start node, got {len(outputs)}"
-        node_output = list(outputs.values())[0]
+        node_output = next(iter(outputs.values()))
         assert node_output.get("success") is False, f"Expected node failure, got: {node_output}"
-        assert "not found" in node_output.get("error", "").lower(), (
-            f"Expected 'not found' error, got: {node_output.get('error')}"
-        )
+        assert (
+            "not found" in node_output.get("error", "").lower()
+        ), f"Expected 'not found' error, got: {node_output.get('error')}"
 
     def test_create_workflow_without_nodes(self, real_db_client):
         """Workflow with empty graph_definition should still be creatable."""

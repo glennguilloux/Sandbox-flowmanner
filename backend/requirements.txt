@@ -94,6 +94,10 @@ coverage>=7.4,<8
 faker>=23.0,<25
 responses>=0.24,<1
 
+# Optional dependencies used by tools/audio tests
+pydub>=0.25,<1
+aiosqlite>=0.20,<1
+
 # Code Quality
 black==24.3.0
 flake8==7.0.0

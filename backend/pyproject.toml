@@ -19,6 +19,7 @@ markers = [
     "sanity_frontend: sanity tests for the frontend area",
     "regression: regression tests; defend against a specific past bug (§5)",
     "flaky: quarantined flaky test; does not block merge (§10.4)",
+    "requires_postgres: needs a live PostgreSQL connection (auto-skipped when unreachable)",
 ]
 
 # ── mypy ─────────────────────────────────────────────────────────────────────
