@@ -19,22 +19,28 @@ from app.main_fastapi import app
 from app.models.graph import GraphExecution, GraphWorkflow
 from app.models.user import User
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.requires_postgres]
 
 
 # ── Test user fixture ──────────────────────────────────────────
 
-TEST_USER = {
-    "id": 99999,
-    "email": "integration-test@flowmanner.com",
-    "name": "Integration Test",
-    "role": "pro",
-}
+from types import SimpleNamespace
+
+TEST_USER = SimpleNamespace(
+    id=99999,
+    email="integration-test@flowmanner.com",
+    full_name="Integration Test",
+    name="Integration Test",
+    role="pro",
+    is_active=True,
+    is_admin=False,
+    is_superuser=False,
+)
 
 
 @pytest_asyncio.fixture
 async def test_user():
-    """Return a mock user dict for dependency override."""
+    """Return a mock user object for dependency override."""
     return TEST_USER
 
 
@@ -50,7 +56,7 @@ async def client(test_user):
 
     async def override_get_db():
         # Use the app's default session for real DB access
-        from app.db.session import AsyncSessionLocal
+        from app.database import AsyncSessionLocal
 
         async with AsyncSessionLocal() as session:
             yield session

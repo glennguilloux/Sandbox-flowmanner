@@ -107,7 +107,7 @@ def test_constructor_defaults():
 
 def test_available_actions_count():
     connector = LinearConnector(_make_config())
-    assert len(connector.available_actions) == 7
+    assert len(connector.available_actions) == 12
 
 
 @pytest.mark.asyncio

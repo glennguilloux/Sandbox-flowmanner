@@ -17,7 +17,7 @@ from app.services.improvement.knowledge_graph import (
     NodeType,
 )
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.requires_postgres]
 
 
 # ── helpers ────────────────────────────────────────────────────────────

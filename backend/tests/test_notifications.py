@@ -248,20 +248,28 @@ def test_vapid_public_key(test_client):
 # ── Auth Required Tests ─────────────────────────────────────────────────────
 
 
-def test_notifications_require_auth(test_client):
+def test_notifications_require_auth():
     """All notification endpoints return 401 without auth."""
-    endpoints = [
-        ("GET", f"{PREFIX}/"),
-        ("GET", f"{PREFIX}/unread-count"),
-        ("POST", f"{PREFIX}/1/read"),
-        ("POST", f"{PREFIX}/read-all"),
-        ("DELETE", f"{PREFIX}/1"),
-        ("POST", f"{PREFIX}/push/subscribe"),
-        ("POST", f"{PREFIX}/push/unsubscribe"),
-    ]
-    for method, path in endpoints:
-        response = test_client.request(method, path)
-        assert response.status_code == 401, f"Expected 401 for {method} {path}, got {response.status_code}"
+    # Create a fresh TestClient WITHOUT auth overrides
+    from fastapi.testclient import TestClient as _TC
+
+    from app.main_fastapi import app as _real_app
+
+    with _TC(_real_app, raise_server_exceptions=False) as unauth_client:
+        endpoints = [
+            ("GET", f"{PREFIX}/"),
+            ("GET", f"{PREFIX}/unread-count"),
+            ("POST", f"{PREFIX}/1/read"),
+            ("POST", f"{PREFIX}/read-all"),
+            ("DELETE", f"{PREFIX}/1"),
+            ("POST", f"{PREFIX}/push/subscribe"),
+            ("POST", f"{PREFIX}/push/unsubscribe"),
+        ]
+        for method, path in endpoints:
+            response = unauth_client.request(method, path)
+            assert (
+                response.status_code == 401
+            ), f"Expected 401 for {method} {path}, got {response.status_code}: {response.text[:200]}"
 
 
 # ── Settings Tests ──────────────────────────────────────────────────────────

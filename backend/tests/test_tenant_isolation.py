@@ -419,6 +419,16 @@ async def test_cqrs_create_mission_passes_workspace_id():
     session.refresh = AsyncMock()
     session.commit = AsyncMock()
 
+    # Configure execute to return a proper result mock so resolve_user_tier
+    # can iterate its chain (.first(), .scalar_one_or_none(), etc.) without
+    # hitting AsyncMock coroutine issues.
+    _result = MagicMock()
+    _result.first.return_value = None
+    _result.scalar_one_or_none.return_value = None
+    _result.scalars.return_value.all.return_value = []
+    _result.scalar.return_value = 0
+    session.execute = AsyncMock(return_value=_result)
+
     handler = MissionCommandHandlers(session)
     user = MagicMock(id=1)
 
@@ -901,10 +911,7 @@ async def test_roles_assign_uses_wid_not_tid():
     tree = ast.parse(source)
 
     # Walk the AST looking for Name nodes with id='tid'
-    tid_references = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and node.id == "tid":
-            tid_references.append(node)
+    tid_references = [node for node in ast.walk(tree) if isinstance(node, ast.Name) and node.id == "tid"]
 
     _assert(
         len(tid_references) == 0,

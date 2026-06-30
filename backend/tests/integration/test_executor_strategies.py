@@ -260,7 +260,14 @@ def _make_mock_event_log():
             _events.append(mock_event)
         return _events[-len(events) :]
 
+    async def _get_events(db, run_id, event_type=None, **kwargs):
+        """Filter stored events by event_type if provided."""
+        if event_type is not None:
+            return [e for e in _events if e.type == event_type]
+        return list(_events)
+
     el.append = AsyncMock(side_effect=_append)
+    el.get_events = AsyncMock(side_effect=_get_events)
     el._events = _events
     return el
 
@@ -1668,7 +1675,7 @@ class TestGraphStrategy:
 
         assert result.success is True
         # Only n2 and n4 are reachable from n2 (n1 and n3 excluded)
-        executed_ids = {c for c in result.completed_nodes}
+        executed_ids = set(result.completed_nodes)
         assert "n2" in executed_ids
         assert "n4" in executed_ids
         assert "n1" not in executed_ids

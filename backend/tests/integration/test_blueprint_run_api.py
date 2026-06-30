@@ -527,7 +527,7 @@ class TestListRuns:
         run_list = [_run(blueprint_id=bp_id, status="completed") for _ in range(2)]
 
         with patch("app.api._blueprint_cqrs.queries.RunService") as MockSvc:
-            MockSvc.return_value.list = AsyncMock(return_value=(run_list, 2))
+            MockSvc.return_value.list_runs = AsyncMock(return_value=(run_list, 2))
 
             resp = client.get("/api/v2/runs?page=1&per_page=10")
 
@@ -540,12 +540,12 @@ class TestListRuns:
         bp_id = str(uuid4())
 
         with patch("app.api._blueprint_cqrs.queries.RunService") as MockSvc:
-            MockSvc.return_value.list = AsyncMock(return_value=([], 0))
+            MockSvc.return_value.list_runs = AsyncMock(return_value=([], 0))
 
             resp = client.get(f"/api/v2/runs?blueprint_id={bp_id}")
 
         assert resp.status_code == 200
-        call_kwargs = MockSvc.return_value.list.call_args
+        call_kwargs = MockSvc.return_value.list_runs.call_args
         assert call_kwargs.kwargs.get("blueprint_id") == bp_id or call_kwargs[1].get("blueprint_id") == bp_id
 
 
@@ -860,7 +860,7 @@ class TestFullApiLifecycle:
 
         # Step 6: List runs
         with patch("app.api._blueprint_cqrs.queries.RunService") as MockSvc:
-            MockSvc.return_value.list = AsyncMock(return_value=([run_obj], 1))
+            MockSvc.return_value.list_runs = AsyncMock(return_value=([run_obj], 1))
             resp = client.get(f"/api/v2/runs?blueprint_id={bp_id}")
         assert resp.status_code == 200
         assert resp.json()["data"]["total"] == 1

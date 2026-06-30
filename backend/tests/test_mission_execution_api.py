@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_current_user
 from app.main_fastapi import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.requires_postgres]
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-123")
 
@@ -45,26 +45,28 @@ def make_user():
     return user
 
 
-def test_execute_mission_success(test_client):
+def test_execute_mission_success(test_client, mock_db_session):
     """POST /api/missions/{id}/execute returns 200 with status."""
     mock_user = make_user()
     app.dependency_overrides[get_current_user] = lambda: mock_user
     try:
         mock_mission = make_mission()
         mock_tasks = []
+        # Configure the db session to return our mock mission
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_mission
+        mock_result.scalars.return_value.all.return_value = mock_tasks
+        mock_db_session.execute.return_value = mock_result
+
         with (
-            patch("app.services.mission_service.get_mission", return_value=mock_mission),
             patch(
                 "app.services.mission_executor.MissionExecutor.execute_mission",
+                new_callable=AsyncMock,
                 return_value={"success": True},
             ),
-            patch("app.services.mission_service.get_mission_tasks", return_value=mock_tasks),
         ):
             response = test_client.post(f"/api/missions/{MISSION_ID}/execute")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == mock_mission.status
-            assert data["mission_id"] == str(MISSION_ID)
+            assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 

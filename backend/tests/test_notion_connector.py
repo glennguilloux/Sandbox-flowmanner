@@ -29,7 +29,7 @@ def _make_mock_response(status: int, body: dict | str, headers: dict | None = No
     resp.ok = 200 <= status < 300
 
     async def _json():
-        if isinstance(body, (dict, list)):
+        if isinstance(body, dict | list):
             return body
         return json.loads(body)
 
@@ -98,7 +98,7 @@ def test_constructor_defaults():
 
 def test_available_actions_count():
     connector = NotionConnector(_make_config())
-    assert len(connector.available_actions) == 8
+    assert len(connector.available_actions) == 12
 
 
 @pytest.mark.asyncio

@@ -13,7 +13,7 @@ import pytest
 from app.services.swarm.lease_integration import HandoffLeaseIntegration
 
 
-@pytest.mark.integration
+@pytest.mark.requires_postgres
 class TestHandoffLeaseIntegration:
     """Integration tests for lease lifecycle during handoffs.
 
@@ -88,8 +88,10 @@ class TestHandoffLeaseTransferUnit:
         db = MagicMock()
         li = HandoffLeaseIntegration(db, worker_id="worker-1")
 
-        with patch.object(li, "release", new=AsyncMock()) as mock_release, \
-             patch.object(li, "_claim_for_worker", new=AsyncMock()) as mock_claim:
+        with (
+            patch.object(li, "release", new=AsyncMock()) as mock_release,
+            patch.object(li, "_claim_for_worker", new=AsyncMock()) as mock_claim,
+        ):
             await li.transfer("h-001", "agent-1", "agent-2")
 
         mock_release.assert_awaited_once_with("h-001")
@@ -104,11 +106,11 @@ class TestHandoffLeaseTransferUnit:
         db = MagicMock()
         li = HandoffLeaseIntegration(db, worker_id="worker-1")
 
-        with patch.object(li, "release", new=AsyncMock()) as mock_release, \
-             patch.object(li, "_claim_for_worker", new=AsyncMock()) as mock_claim:
-            await li.transfer(
-                "h-001", "agent-1", "agent-2", new_worker_id="worker-2"
-            )
+        with (
+            patch.object(li, "release", new=AsyncMock()) as mock_release,
+            patch.object(li, "_claim_for_worker", new=AsyncMock()) as mock_claim,
+        ):
+            await li.transfer("h-001", "agent-1", "agent-2", new_worker_id="worker-2")
 
         mock_release.assert_awaited_once_with("h-001")
         # _claim_for_worker called with the NEW worker_id

@@ -20,11 +20,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-# When tests are copied into the backend image they live under /app/tests,
-# so the project root is /app, not /backend.
-if not (REPO_ROOT / "backend" / "app").exists():
-    REPO_ROOT = Path("/app")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# parents[1] = backend/ dir on homelab, /app in Docker.
+# Both layouts place scripts/ directly under this root.
 BACKFILL_SCRIPT = REPO_ROOT / "scripts" / "backfill_blueprints_runs.py"
 
 

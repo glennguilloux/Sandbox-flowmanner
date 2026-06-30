@@ -103,13 +103,15 @@ class TestHydrateToolsFromDB:
         mock_factory.__aenter__ = AsyncMock(return_value=mock_session)
         mock_factory.__aexit__ = AsyncMock(return_value=False)
 
+        mock_registry_instance = MagicMock()
+        mock_registry_instance.hydrate_from_db = AsyncMock(return_value=1)
+
         with (
             patch("app.database.AsyncSessionLocal", return_value=mock_factory),
             patch("app.lifespan._resolve_handler_ref") as mock_resolve,
-            patch("app.tools.base.get_tool_registry") as mock_registry,
+            patch("app.tools.base.get_tool_registry", return_value=mock_registry_instance),
         ):
             mock_resolve.return_value = MagicMock  # A class that can be instantiated
-            mock_registry.return_value = MagicMock()
 
             from app.lifespan import _hydrate_tools_from_db
 
@@ -178,12 +180,13 @@ class TestHydrateCapabilitiesFromDB:
         mock_factory.__aenter__ = AsyncMock(return_value=mock_session)
         mock_factory.__aexit__ = AsyncMock(return_value=False)
 
+        mock_cap_registry = MagicMock()
+        mock_cap_registry.hydrate_from_db = AsyncMock(return_value=1)
+
         with (
             patch("app.database.AsyncSessionLocal", return_value=mock_factory),
-            patch("app.services.nexus.capability_registry.get_capability_registry") as mock_registry,
+            patch("app.services.nexus.capability_registry.get_capability_registry", return_value=mock_cap_registry),
         ):
-            mock_registry.return_value = MagicMock()
-
             from app.lifespan import _hydrate_capabilities_from_db
 
             result = await _hydrate_capabilities_from_db()

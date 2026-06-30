@@ -45,12 +45,11 @@ pop_config_overrides()
 # so that _pg.py integration tests can connect to the real database.
 # Outside Docker (host execution), PostgreSQL is unreachable and _pg.py
 # tests are auto-skipped by pytest_collection_modifyitems below.
-try:
-    with _socket.create_connection(("workflow-postgres", 5432), timeout=2):
-        if _real_db_url:
-            os.environ["DATABASE_URL"] = _real_db_url
-except (OSError, TimeoutError):
-    pass  # Not in Docker — _pg.py tests will be auto-skipped
+from contextlib import suppress as _suppress
+
+with _suppress(OSError, TimeoutError), _socket.create_connection(("workflow-postgres", 5432), timeout=2):
+    if _real_db_url:
+        os.environ["DATABASE_URL"] = _real_db_url  # Not in Docker — _pg.py tests will be auto-skipped
 
 # ---------------------------------------------------------------------------
 # 2. Mock redis globally BEFORE any imports that use it
@@ -135,6 +134,7 @@ from fastapi.testclient import TestClient
 from app.api.v1.agent import router as agent_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.mission import router as mission_router
 from app.api.v1.swarm import router as swarm_router
 from app.api.v1.swarm_protocol import router as protocol_router
 from app.main_fastapi import (
@@ -157,12 +157,20 @@ def test_app():
     """
     app = FastAPI()
 
+    # Include notification router if available
+    _notification_router = None
+    with _suppress(Exception):
+        from app.services.notification_service import router as _notification_router
+
     api_router = APIRouter(prefix="/api")
     api_router.include_router(auth_router)
     api_router.include_router(swarm_router)
     api_router.include_router(protocol_router, prefix="/swarm")
     api_router.include_router(dashboard_router)
     api_router.include_router(agent_router)
+    api_router.include_router(mission_router)
+    if _notification_router is not None:
+        api_router.include_router(_notification_router, prefix="/users/me")
     app.include_router(api_router)
 
     return app
@@ -171,7 +179,15 @@ def test_app():
 @pytest.fixture
 def mock_db():
     """Mock async database session."""
-    return AsyncMock()
+    db = AsyncMock()
+    # Pre-configure execute to return a result mock with common methods
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = []
+    result_mock.scalar.return_value = 0
+    result_mock.scalar_one_or_none.return_value = None
+    result_mock.first.return_value = None
+    db.execute = AsyncMock(return_value=result_mock)
+    return db
 
 
 @pytest.fixture

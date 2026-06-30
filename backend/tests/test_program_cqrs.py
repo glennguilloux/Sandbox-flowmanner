@@ -36,7 +36,6 @@ from app.services.mission_program_service import (
     ProgramValidationError,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # map_program_infra_error — infrastructure-to-domain error mapping
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -166,12 +165,12 @@ def _build_mock_service(mocker, **side_effects):
         else:
             am.return_value = value
         setattr(service, method_name, am)
-    cls_mock_commands = mocker.patch(
-        "app.api._program_cqrs.commands.MissionProgramService", return_value=service
-    )
-    cls_mock_queries = mocker.patch(
-        "app.api._program_cqrs.queries.MissionProgramService", return_value=service
-    )
+    # Also set common aliases: the query handler calls service.list_programs()
+    # but some tests pass `list=` for the service.list_programs method.
+    if hasattr(service, "list") and not hasattr(service, "list_programs"):
+        service.list_programs = service.list
+    cls_mock_commands = mocker.patch("app.api._program_cqrs.commands.MissionProgramService", return_value=service)
+    cls_mock_queries = mocker.patch("app.api._program_cqrs.queries.MissionProgramService", return_value=service)
     # Stash the patched classes for tests that need them.
     service._cls_mock_commands = cls_mock_commands
     service._cls_mock_queries = cls_mock_queries
@@ -198,10 +197,10 @@ def _fake_program(**overrides):
         "base_context_files": overrides.get("base_context_files", {}),
         "base_context_urls": overrides.get("base_context_urls", {}),
         "trigger_config": overrides.get("trigger_config", {"type": "manual"}),
-        "learning_brief": overrides.get("learning_brief", None),
+        "learning_brief": overrides.get("learning_brief"),
         "status": overrides.get("status", "active"),
-        "per_run_budget_usd": overrides.get("per_run_budget_usd", None),
-        "monthly_budget_usd": overrides.get("monthly_budget_usd", None),
+        "per_run_budget_usd": overrides.get("per_run_budget_usd"),
+        "monthly_budget_usd": overrides.get("monthly_budget_usd"),
     }
     return MissionProgram(**kwargs)
 
@@ -220,9 +219,7 @@ class TestProgramCommandHandlersAudit:
         audit = MagicMock()  # plain MagicMock — allow attr assignment
 
         handlers = ProgramCommandHandlers(session, audit=audit)
-        await handlers.create_program(
-            user=user, workspace_id="ws-1", payload=MagicMock(name="payload")
-        )
+        await handlers.create_program(user=user, workspace_id="ws-1", payload=MagicMock(name="payload"))
 
         # The service was constructed with the audit (proving it's wired).
         from app.api._program_cqrs import commands as cmds
@@ -232,9 +229,7 @@ class TestProgramCommandHandlersAudit:
         service.create.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_create_program_audit_injected_into_service(
-        self, mocker, user, session
-    ):
+    async def test_create_program_audit_injected_into_service(self, mocker, user, session):
         """The handler's audit object is passed to the MissionProgramService
         constructor — proving the audit hook is wired for every create."""
         program = _fake_program()
@@ -243,9 +238,7 @@ class TestProgramCommandHandlersAudit:
         audit.program_created = MagicMock()
 
         handlers = ProgramCommandHandlers(session, audit=audit)
-        await handlers.create_program(
-            user=user, workspace_id="ws-1", payload=MagicMock(name="payload")
-        )
+        await handlers.create_program(user=user, workspace_id="ws-1", payload=MagicMock(name="payload"))
         # Verify the service was constructed with the handler's audit.
         from app.api._program_cqrs import commands as cmds
 
@@ -275,9 +268,7 @@ class TestProgramCommandHandlersSoftDelete:
 
 class TestProgramCommandHandlersFireAndConsolidate:
     @pytest.mark.asyncio
-    async def test_fire_program_threads_idempotency_key_into_audit(
-        self, mocker, user, session
-    ):
+    async def test_fire_program_threads_idempotency_key_into_audit(self, mocker, user, session):
         """(e) ``fire_program`` passes ``idempotency_key`` through to the
         audit event (idempotency is enforced at the HTTP layer; the audit
         is the audit log)."""
@@ -296,9 +287,7 @@ class TestProgramCommandHandlersFireAndConsolidate:
         service = _build_mock_service(mocker, fire_program=run)
         audit = MagicMock()
 
-        handlers = ProgramCommandHandlers(
-            session, audit=audit, request_id="req-fire-1"
-        )
+        handlers = ProgramCommandHandlers(session, audit=audit, request_id="req-fire-1")
         await handlers.fire_program(
             user=user,
             program_id=program_id,
@@ -345,33 +334,23 @@ class TestProgramCommandHandlersUserNotes:
         audit = MagicMock()
         handlers = ProgramCommandHandlers(session, audit=audit)
 
-        await handlers.update_user_notes(
-            user=user, program_id=program.id, notes="hello"
-        )
+        await handlers.update_user_notes(user=user, program_id=program.id, notes="hello")
 
-        service.update_user_notes.assert_awaited_once_with(
-            user.id, program.id, "hello"
-        )
+        service.update_user_notes.assert_awaited_once_with(user.id, program.id, "hello")
 
 
 class TestProgramQueryHandlersWorkspaceFilter:
     @pytest.mark.asyncio
-    async def test_list_programs_filters_by_workspace_id(
-        self, mocker, session
-    ):
+    async def test_list_programs_filters_by_workspace_id(self, mocker, session):
         """(c) ``list_programs`` passes ``workspace_id`` through to the
         service's ``list`` method."""
         program = _fake_program()
-        service = _build_mock_service(mocker, list=([program], 1))
+        service = _build_mock_service(mocker, list_programs=([program], 1))
         handlers = ProgramQueryHandlers(session)
 
-        items, total = await handlers.list_programs(
-            user_id=42, workspace_id="ws-9", page=1, per_page=20
-        )
+        items, total = await handlers.list_programs(user_id=42, workspace_id="ws-9", page=1, per_page=20)
 
-        service.list.assert_awaited_once_with(
-            user_id=42, workspace_id="ws-9", page=1, per_page=20
-        )
+        service.list_programs.assert_awaited_once_with(user_id=42, workspace_id="ws-9", page=1, per_page=20)
         assert total == 1
         assert len(items) == 1
 
@@ -379,28 +358,20 @@ class TestProgramQueryHandlersWorkspaceFilter:
     async def test_list_programs_workspace_id_none(self, mocker, session):
         """``workspace_id=None`` means "all workspaces the user can see"."""
         program = _fake_program()
-        service = _build_mock_service(mocker, list=([program], 1))
+        service = _build_mock_service(mocker, list_programs=([program], 1))
         handlers = ProgramQueryHandlers(session)
 
-        await handlers.list_programs(
-            user_id=42, workspace_id=None, page=1, per_page=20
-        )
+        await handlers.list_programs(user_id=42, workspace_id=None, page=1, per_page=20)
 
-        service.list.assert_awaited_once_with(
-            user_id=42, workspace_id=None, page=1, per_page=20
-        )
+        service.list_programs.assert_awaited_once_with(user_id=42, workspace_id=None, page=1, per_page=20)
 
 
 class TestProgramQueryHandlersForbidden:
     @pytest.mark.asyncio
-    async def test_get_program_raises_forbidden_for_non_member(
-        self, mocker, user, session
-    ):
+    async def test_get_program_raises_forbidden_for_non_member(self, mocker, user, session):
         """(d) ``get_program`` raises ``ProgramForbidden`` when the service
         rejects the user (not owner, not workspace member)."""
-        service = _build_mock_service(
-            mocker, get=ProgramForbidden("user is not owner or workspace member")
-        )
+        service = _build_mock_service(mocker, get=ProgramForbidden("user is not owner or workspace member"))
         handlers = ProgramQueryHandlers(session)
 
         with pytest.raises(ProgramForbidden):

@@ -283,11 +283,16 @@ class TestStreamingToolLoop:
                 new_callable=AsyncMock,
                 return_value=mock_msg,
             ),
+            patch(
+                "app.services.chat_service.create_chat_message_fresh_session",
+                new_callable=AsyncMock,
+                return_value=mock_msg,
+            ),
             patch("app.services.chat_service.AsyncOpenAI", return_value=mock_client),
         ):
             events = []
             async for event in stream_message_to_llm(mock_db, thread_id=1, content="Hi", user_id=1):
-                events.append(json.loads(event))
+                events.append(json.loads(event))  # noqa: PERF401  # async for — no comprehension available
 
         token_events = [e for e in events if e["type"] == "token"]
         assert len(token_events) == 1
@@ -382,7 +387,7 @@ class TestStreamingToolLoop:
         ):
             events = []
             async for event in stream_message_to_llm(mock_db, thread_id=1, content="Build a landing page", user_id=1):
-                events.append(json.loads(event))
+                events.append(json.loads(event))  # noqa: PERF401  # async for — no comprehension available
 
         # Verify tool call events
         start_events = [e for e in events if e["type"] == "tool_call_start"]
@@ -486,7 +491,7 @@ class TestStreamingToolLoop:
         ):
             events = []
             async for event in stream_message_to_llm(mock_db, 1, "Build page", 1):
-                events.append(json.loads(event))
+                events.append(json.loads(event))  # noqa: PERF401  # async for — no comprehension available
 
         starts = [e for e in events if e["type"] == "tool_call_start"]
         assert len(starts) == 2
