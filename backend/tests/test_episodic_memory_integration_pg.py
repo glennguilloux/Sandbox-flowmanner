@@ -9,6 +9,7 @@ Requires: running PostgreSQL with the episodic_memory_001 migration applied.
 
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 import pytest
@@ -17,6 +18,17 @@ from app.database import AsyncSessionLocal
 
 # Skip all tests in this module if PG is unreachable
 pytestmark = pytest.mark.integration
+
+
+# ── Session-scoped event loop ──────────────────────────────────────
+# AsyncSessionLocal's engine is created at import time.  A session-scoped
+# loop keeps the engine and tests on the same loop, avoiding
+# "Event loop is closed" errors from asyncpg.
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
 
 class TestEpisodeTableSchema:
