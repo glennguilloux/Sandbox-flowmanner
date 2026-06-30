@@ -153,8 +153,11 @@ class TestCostAwarePlanSelectionE2E:
             and isinstance(c[0][2], list)
             and any(e.get("type") == "plan.selected" for e in c[0][2] if isinstance(e, dict))
         ]
-        # Event may have been emitted (depends on mock wiring)
-        # At minimum, the planning should have succeeded
+        assert len(plan_selected_events) == 1, f"Expected 1 plan_selected event, got {len(plan_selected_events)}"
+        # Verify the event payload contains winner info
+        event_payload = plan_selected_events[0][0][2][0]["payload"]
+        assert "winner_id" in event_payload
+        assert "ranked_ids" in event_payload
 
     @pytest.mark.asyncio
     async def test_off_mode_uses_single_shot(self):
