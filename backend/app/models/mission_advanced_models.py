@@ -1,8 +1,9 @@
-"""Mission advanced models: templates, node groups, versions."""
+"""Mission advanced models: templates, node groups, versions, plan candidates."""
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -86,3 +87,39 @@ class MissionVersion(Base, TimestampMixin):
             "tasks_snapshot": self.tasks_snapshot,
             "constraints": self.constraints,
         }
+
+
+class MissionPlanCandidate(Base, TimestampMixin):
+    """Persisted plan candidate from cost-aware plan selection.
+
+    Each row represents one candidate plan generated during the K-Plan
+    selection process.  The winning candidate has ``rank=1``.
+
+    Created by :mod:`app.services.plan_selection` when
+    ``BUDGET_AWARE_PLAN_SELECTION`` is ``"on"`` or ``"auto"``.
+    """
+
+    __tablename__ = "mission_plan_candidates"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
+    mission_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("missions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    plan_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    generation_strategy: Mapped[str] = mapped_column(String(50), nullable=False)
+    tasks_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    estimated_cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    estimated_latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    estimated_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    quality_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    risk_flags: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )

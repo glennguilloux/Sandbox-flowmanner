@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PLACEHOLDER_SECRETS = {"change-me-in-production", "changeme", "secret", "password"}
@@ -292,6 +294,11 @@ class Settings(BaseSettings):
     # Gated behind this flag so it can be re-enabled for the DRR experiment
     # or if cross-mission recall proves valuable.
     FLOWMANNER_CROSS_MISSION_MEMORY: bool = True
+
+    # Cost-aware plan selection (K-Plan Scored Pick)
+    BUDGET_AWARE_PLAN_SELECTION: Literal["off", "on", "auto"] = "off"
+    PLAN_SELECTION_K: int = 3
+    PLAN_SELECTION_MIN_QUALITY: float = 0.6
 
     @property
     def cors_origins_list(self) -> list[str]:

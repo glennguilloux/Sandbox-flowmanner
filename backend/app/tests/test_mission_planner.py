@@ -592,7 +592,10 @@ class TestMissionPlannerConstructor:
         from app.services.mission_planner import MissionPlanner
 
         mock_cost = MagicMock()
-        mock_router = lambda: "fake-router"
+
+        def mock_router():
+            return "fake-router"
+
         mock_log = AsyncMock()
         mock_trans = AsyncMock()
 
@@ -607,3 +610,84 @@ class TestMissionPlannerConstructor:
         assert planner._get_model_router() == "fake-router"
         assert planner._log is mock_log
         assert planner._transition_status is mock_trans
+
+
+# ── Plan selection regression: BUDGET_AWARE_PLAN_SELECTION=off ──────────────
+
+
+class TestPlanSelectionOffRegression:
+    """With BUDGET_AWARE_PLAN_SELECTION=off, behavior is identical to today."""
+
+    @pytest.mark.asyncio
+    async def test_off_mode_uses_single_shot_path(self):
+        """When plan selection is off, _generate_plan is called directly."""
+        from app.services.mission_planner import MissionPlanner
+
+        planner = MissionPlanner(
+            log_callback=AsyncMock(),
+            transition_callback=AsyncMock(),
+        )
+        mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_db.add = MagicMock()
+
+        mock_mission = MagicMock()
+        mock_mission.id = "mission-regression"
+        mock_mission.title = "Regression Test"
+        mock_mission.description = "Verify off mode"
+        mock_mission.mission_type = "general"
+        mock_mission.user_id = 1
+        mock_mission.constraints = {}
+        mock_mission.status = "pending"
+
+        mock_mission_result = MagicMock()
+        mock_mission_result.scalars().first.return_value = mock_mission
+
+        mock_existing_result = MagicMock()
+        mock_existing_result.scalars().first.return_value = None
+
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                mock_mission_result,
+                mock_existing_result,
+            ]
+        )
+
+        with patch("app.services.mission_planner.settings") as mock_settings:
+            mock_settings.BUDGET_AWARE_PLAN_SELECTION = "off"
+            mock_settings.MISSION_PLAN_TEMPERATURE = 0.7
+            mock_settings.MISSION_PLAN_MAX_TOKENS = 2000
+            mock_settings.MISSION_DEFAULT_MAX_RETRIES = 3
+            mock_settings.MISSION_LLM_REQUEST_TIMEOUT = 60.0
+
+            with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
+                mock_session.return_value.__aenter__.return_value = mock_db
+                mock_session.return_value.__aexit__.return_value = None
+
+                with patch.object(
+                    planner,
+                    "_generate_plan",
+                    AsyncMock(
+                        return_value=[
+                            {
+                                "title": "Task 1",
+                                "description": "Do it",
+                                "task_type": "llm",
+                                "dependencies": [],
+                            }
+                        ]
+                    ),
+                ) as mock_gen:
+                    result = await planner.plan_mission("mission-regression")
+
+        # Same behavior as today
+        assert result["success"] is True
+        assert result["task_count"] == 1
+        assert mock_gen.called
+        # No MissionPlanCandidate rows
+        candidate_adds = [
+            c
+            for c in mock_db.add.call_args_list
+            if hasattr(c[0][0], "__tablename__") and getattr(c[0][0], "__tablename__", "") == "mission_plan_candidates"
+        ]
+        assert len(candidate_adds) == 0

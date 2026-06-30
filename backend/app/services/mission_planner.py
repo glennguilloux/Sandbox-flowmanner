@@ -34,6 +34,9 @@ from app.models.mission_models import (
 )
 from app.services.mission_errors import PermanentMissionError, RetryableMissionError
 
+# Late-bound to avoid circular imports — plan_selection imports MissionPlanner
+# at the top level, so we import it lazily inside the method that uses it.
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,9 +91,7 @@ class MissionPlanner:
         # T21: late-binding callable (per services/AGENTS.md rule 2).
         # Returns None when no service is registered — the section is
         # silently omitted in that case.
-        self._get_personal_memory_service = (
-            get_personal_memory_service or (lambda: None)
-        )
+        self._get_personal_memory_service = get_personal_memory_service or (lambda: None)
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -166,72 +167,78 @@ class MissionPlanner:
                 # Async (recall is async); wrapped in try/except inside
                 # ``_fetch_personal_memory_claims`` so a service failure
                 # NEVER derails the planning call.
-                personal_memory_claims = await self._fetch_personal_memory_claims(
-                    mission
-                )
+                personal_memory_claims = await self._fetch_personal_memory_claims(mission)
 
-                # Build prompt for LLM
-                prompt = self._build_plan_prompt(
-                    mission, personal_memory_claims=personal_memory_claims
-                )
+                # ── Plan generation: single-shot or K-plan selection ──────
+                plan_mode = getattr(settings, "BUDGET_AWARE_PLAN_SELECTION", "off")
 
-                # Inject learning context from past similar missions
-                try:
-                    from app.services.learning_service import get_learning_service
-
-                    learning_svc = get_learning_service()
-                    if learning_svc:
-                        learning_ctx = await learning_svc.inject_into_planner_context(
-                            task_description=f"{mission.title} {mission.description or ''}",
-                            mission_type=mission.mission_type,
-                        )
-                        if learning_ctx and learning_ctx.get("has_historical_data"):
-                            prompt += (
-                                f"\n\nHistorical context from similar past missions:\n"
-                                f"- {learning_ctx.get('context_summary', '')}\n"
-                            )
-                            if learning_ctx.get("recommended_model"):
-                                prompt += f"- Recommended model: {learning_ctx['recommended_model']}\n"
-                            if learning_ctx.get("success_patterns"):
-                                prompt += "- Success patterns:\n"
-                                for sp in learning_ctx["success_patterns"][:3]:
-                                    prompt += f"  * {sp}\n"
-                            prompt += "Use this historical context to improve your planning.\n"
-                            await self._log(
-                                db,
-                                mission.id,
-                                None,
-                                "info",
-                                "Injected learning context into planner",
-                            )
-                except Exception as learn_err:
-                    logger.debug("Learning context injection skipped: %s", learn_err)
-
-                # Call LLM to generate plan
-                plan_tasks = await self._generate_plan(
-                    prompt,
-                    db=db,
-                    user_id=mission.user_id,
-                    mission_id=str(mission_id),
-                )
-
-                if not plan_tasks:
-                    # Fallback: create a single default task
-                    plan_tasks = [
-                        {
-                            "title": f"Execute: {mission.title}",
-                            "description": mission.description or "Execute the mission",
-                            "task_type": "llm",
-                            "dependencies": [],
-                        }
-                    ]
-                    await self._log(
-                        db,
-                        mission.id,
-                        None,
-                        "warning",
-                        "LLM planning failed, using default task",
+                if plan_mode in ("on", "auto"):
+                    # K-plan selection path — generate_plan_candidates builds
+                    # its own prompt internally, so we skip the prompt build here.
+                    plan_tasks = await self._plan_with_selection(
+                        db=db,
+                        mission=mission,
+                        mission_id=mission_id,
                     )
+                else:
+                    # Original single-shot path ("off" or unset) — zero behavior change
+                    prompt = self._build_plan_prompt(mission, personal_memory_claims=personal_memory_claims)
+
+                    # Inject learning context from past similar missions
+                    try:
+                        from app.services.learning_service import get_learning_service
+
+                        learning_svc = get_learning_service()
+                        if learning_svc:
+                            learning_ctx = await learning_svc.inject_into_planner_context(
+                                task_description=f"{mission.title} {mission.description or ''}",
+                                mission_type=mission.mission_type,
+                            )
+                            if learning_ctx and learning_ctx.get("has_historical_data"):
+                                prompt += (
+                                    f"\n\nHistorical context from similar past missions:\n"
+                                    f"- {learning_ctx.get('context_summary', '')}\n"
+                                )
+                                if learning_ctx.get("recommended_model"):
+                                    prompt += f"- Recommended model: {learning_ctx['recommended_model']}\n"
+                                if learning_ctx.get("success_patterns"):
+                                    prompt += "- Success patterns:\n"
+                                    for sp in learning_ctx["success_patterns"][:3]:
+                                        prompt += f"  * {sp}\n"
+                                prompt += "Use this historical context to improve your planning.\n"
+                                await self._log(
+                                    db,
+                                    mission.id,
+                                    None,
+                                    "info",
+                                    "Injected learning context into planner",
+                                )
+                    except Exception as learn_err:
+                        logger.debug("Learning context injection skipped: %s", learn_err)
+
+                    plan_tasks = await self._generate_plan(
+                        prompt,
+                        db=db,
+                        user_id=mission.user_id,
+                        mission_id=str(mission_id),
+                    )
+
+                    if not plan_tasks:
+                        plan_tasks = [
+                            {
+                                "title": f"Execute: {mission.title}",
+                                "description": mission.description or "Execute the mission",
+                                "task_type": "llm",
+                                "dependencies": [],
+                            }
+                        ]
+                        await self._log(
+                            db,
+                            mission.id,
+                            None,
+                            "warning",
+                            "LLM planning failed, using default task",
+                        )
 
                 # Create MissionTask records
                 for idx, task_def in enumerate(plan_tasks):
@@ -250,11 +257,17 @@ class MissionPlanner:
                     )
                     db.add(task)
 
-                # Update mission with plan and status
-                mission.plan = {
-                    "tasks": plan_tasks,
-                    "generated_at": datetime.now(UTC).isoformat(),
-                }
+                # Update mission with plan and status.
+                # Preserve plan_selection metadata if it was set by
+                # _plan_with_selection (it lives in mission.plan already).
+                plan_data = mission.plan or {}
+                plan_data.update(
+                    {
+                        "tasks": plan_tasks,
+                        "generated_at": datetime.now(UTC).isoformat(),
+                    }
+                )
+                mission.plan = plan_data
                 await self._transition_status(
                     db,
                     mission,
@@ -292,6 +305,178 @@ class MissionPlanner:
                     level="error",
                 )
                 return {"success": False, "error": str(e)}
+
+    # ── K-Plan Selection Integration ─────────────────────────────────────────
+
+    async def _plan_with_selection(
+        self,
+        *,
+        db,
+        mission,
+        mission_id: UUID,
+    ) -> list[dict[str, Any]]:
+        """Generate K plan candidates, score, select a winner, and persist.
+
+        Called when ``settings.BUDGET_AWARE_PLAN_SELECTION`` is ``"on"``
+        or ``"auto"``.  Falls back to the single-shot path if anything
+        goes wrong (the mission must never fail due to plan selection).
+
+        Args:
+            db: AsyncSession for DB operations (no commits — caller owns TX).
+            mission: Mission ORM instance.
+            mission_id: UUID of the mission.
+
+        Returns:
+            List of task dicts from the winning candidate.
+        """
+        from app.models.mission_advanced_models import MissionPlanCandidate
+        from app.models.substrate_models import SubstrateEventType
+        from app.services.plan_selection.plan_generator import generate_plan_candidates
+        from app.services.plan_selection.plan_selector import select_plan
+        from app.services.substrate.event_log import get_event_log
+
+        k = getattr(settings, "PLAN_SELECTION_K", 3)
+        min_quality = getattr(settings, "PLAN_SELECTION_MIN_QUALITY", 0.6)
+        mode = getattr(settings, "BUDGET_AWARE_PLAN_SELECTION", "auto")
+
+        try:
+            # 1. Generate K candidates
+            candidates = await generate_plan_candidates(
+                mission,
+                k=k,
+                get_model_router=self._get_model_router,
+                cost_tracker=self.cost_tracker,
+                db=db,
+            )
+
+            if not candidates:
+                raise RuntimeError("No candidates generated")
+
+            # 2. Select winner
+            policy = "min_cost" if mode == "on" else "balanced"
+            winner, sorted_candidates = await select_plan(
+                candidates,
+                policy=policy,
+                min_quality_threshold=min_quality,
+            )
+
+            # 3. Persist all candidates to MissionPlanCandidate table
+            for rank_idx, cand in enumerate(sorted_candidates):
+                row = MissionPlanCandidate(
+                    id=str(uuid4()),
+                    mission_id=str(mission_id),
+                    plan_id=cand.plan_id,
+                    generation_strategy=cand.generation_strategy,
+                    tasks_json=cand.tasks,
+                    estimated_cost_usd=cand.estimated_cost_usd,
+                    estimated_latency_ms=cand.estimated_latency_ms,
+                    estimated_tokens=cand.estimated_tokens,
+                    quality_score=cand.quality_score,
+                    risk_flags=cand.risk_flags,
+                    rationale=cand.rationale,
+                    rank=rank_idx + 1,  # 1-based; 1 = winner
+                )
+                db.add(row)
+
+            # 4. Attach selection metadata to mission.plan (JSONB column)
+            #    — stored here so it survives alongside the plan itself.
+            plan_meta = mission.plan or {}
+            plan_meta["plan_selection"] = {
+                "winner_id": winner.plan_id,
+                "mode": mode,
+                "policy": policy,
+                "candidate_count": len(candidates),
+                "ranked_ids": [c.plan_id for c in sorted_candidates],
+            }
+            mission.plan = plan_meta
+
+            # 5. Emit plan_selected substrate event
+            #    (non-critical — wrapped in try/except)
+            try:
+                run_id = str(mission_id)
+                cost_saved = (
+                    sorted_candidates[-1].estimated_cost_usd - winner.estimated_cost_usd
+                    if len(sorted_candidates) > 1
+                    else 0.0
+                )
+                best_quality = sorted_candidates[0].quality_score if sorted_candidates else 0.0
+                quality_delta = winner.quality_score - best_quality if len(sorted_candidates) > 1 else 0.0
+
+                event_log = get_event_log()
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.PLAN_SELECTED,
+                            "payload": {
+                                "winner_id": winner.plan_id,
+                                "ranked_ids": [c.plan_id for c in sorted_candidates],
+                                "rationale": winner.rationale,
+                                "cost_saved_usd": round(cost_saved, 6),
+                                "quality_delta": round(quality_delta, 4),
+                                "mode": mode,
+                                "policy": policy,
+                            },
+                            "actor": "mission_planner",
+                            "mission_id": str(mission_id),
+                        }
+                    ],
+                )
+            except Exception as event_err:
+                logger.debug("Failed to emit plan_selected event: %s", event_err)
+
+            # 6. Log the selection
+            await self._log(
+                db,
+                mission.id,
+                None,
+                "info",
+                f"Plan selection: picked {winner.plan_id} (score={winner.quality_score:.3f}, "
+                f"cost=${winner.estimated_cost_usd:.4f}) from {len(candidates)} candidates",
+                extra_data={
+                    "actor": "mission_planner",
+                    "plan_selection": True,
+                    "winner_id": winner.plan_id,
+                    "candidate_count": len(candidates),
+                },
+            )
+
+            return winner.tasks
+
+        except Exception as e:
+            # Fallback: if plan selection fails for ANY reason, fall back to
+            # the single-shot path.  The mission must never fail due to plan
+            # selection being broken.
+            logger.warning(
+                "Plan selection failed (%s), falling back to single-shot: %s",
+                type(e).__name__,
+                e,
+            )
+            await self._log(
+                db,
+                mission.id,
+                None,
+                "warning",
+                f"Plan selection failed, falling back to single-shot: {e}",
+            )
+            prompt = self._build_plan_prompt(mission)
+            plan_tasks = await self._generate_plan(
+                prompt,
+                db=db,
+                user_id=mission.user_id,
+                mission_id=str(mission_id),
+            )
+            if not plan_tasks:
+                plan_tasks = [
+                    {
+                        "title": f"Execute: {mission.title}",
+                        "description": mission.description or "Execute the mission",
+                        "task_type": "llm",
+                        "dependencies": [],
+                    }
+                ]
+            return plan_tasks
 
     # ── Prompt Building ────────────────────────────────────────────────────
 
@@ -357,9 +542,7 @@ class MissionPlanner:
         # T21: inject personal-memory context if any claims were pre-fetched.
         # The section is rendered by ``_render_personal_memory_section`` and
         # omitted (returns "") when the filtered list is empty.
-        personal_section = self._render_personal_memory_section(
-            personal_memory_claims
-        )
+        personal_section = self._render_personal_memory_section(personal_memory_claims)
         if personal_section:
             parts.append("")
             parts.append(personal_section)
@@ -516,9 +699,7 @@ class MissionPlanner:
         return str(obj)
 
     @classmethod
-    def _render_personal_memory_section(
-        cls, claims: list | None
-    ) -> str:
+    def _render_personal_memory_section(cls, claims: list | None) -> str:
         """Render a pre-fetched list of personal-memory claims into a
         ``DATA ONLY`` delimited prompt section.
 
@@ -559,8 +740,7 @@ class MissionPlanner:
         eligible = [
             c
             for c in claims
-            if getattr(c, "sensitivity", "normal") != "restricted"
-            and getattr(c, "scope", "personal") != "private"
+            if getattr(c, "sensitivity", "normal") != "restricted" and getattr(c, "scope", "personal") != "private"
         ]
         if not eligible:
             return ""

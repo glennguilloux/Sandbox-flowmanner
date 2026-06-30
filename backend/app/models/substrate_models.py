@@ -136,6 +136,9 @@ class SubstrateEventType:
     SELF_CORRECTION_COMPLETED = "self_correction.completed"
     SELF_CORRECTION_ABORTED = "self_correction.aborted"
 
+    # Cost-aware plan selection
+    PLAN_SELECTED = "plan.selected"
+
     # Phase 3: Sandbox events
     SANDBOX_CREATED = "sandbox.created"
     SANDBOX_FILES_WRITTEN = "sandbox.files_written"
