@@ -1,8 +1,8 @@
 # EXIT AUDIT — 2026-06-30 — Event Bus + Trigger Pipeline: Push, Deploy & Verify
 
-**Agent:** Buffy (Codebuff)
+**Agent:** Hermes (MiniMax-M3) + Buffy (Codebuff)
 **Date:** 2026-06-30
-**Scope:** Push 4 event-bus commits to origin, deploy backend with migrations, deploy frontend, verify production health.
+**Scope:** Push 4 event-bus commits to origin, deploy backend with migrations, deploy frontend, verify production health. Add Slack alerting env var.
 
 ---
 
@@ -63,16 +63,14 @@ $ curl -s -o /dev/null -w '%{http_code}' https://flowmanner.com
 
 ---
 
-## ALERTING ENV VARS — NOT YET CONFIGURED
+## ALERTING ENV VARS
 
-The event bus failure alerts need these env vars in `/opt/flowmanner/.env`:
+| Var | Status | Value source |
+|-----|--------|--------------|
+| `SLACK_ALERT_WEBHOOK_URL` | ✅ Configured this session | Glenn (added 2026-06-30) |
+| `PAGERDUTY_ALERT_ROUTING_KEY` | ⏭️ Skipped — not needed at this time | Glenn (decided to skip) |
 
-```
-SLACK_ALERT_WEBHOOK_URL=<your-slack-webhook-url>
-PAGERDUTY_ALERT_ROUTING_KEY=<your-pagerduty-routing-key>
-```
-
-**Both are currently absent.** Glenn must add real values. Without them, the `failure_alert_consumer` will skip Slack/PagerDuty notifications (fire-and-forget, no crash — but no alerts either).
+Without `SLACK_ALERT_WEBHOOK_URL`, the `failure_alert_consumer` would have silently skipped Slack notifications (fire-and-forget, no crash — but no alerts either). Now live.
 
 ---
 
@@ -194,7 +192,7 @@ e3d6841 feat(event-bus): wire 18 integration webhooks to event bus
 - ✅ Working tree clean, 0 commits ahead of origin
 
 **Remaining / follow-up work:**
-1. **Alerting env vars** — `SLACK_ALERT_WEBHOOK_URL` and `PAGERDUTY_ALERT_ROUTING_KEY` are absent from `/opt/flowmanner/.env`. Glenn must add real values for failure alerts to fire.
+1. ~~**Alerting env vars**~~ — ✅ Resolved this session. `SLACK_ALERT_WEBHOOK_URL` added; PagerDuty skipped.
 2. **Pre-existing test failures** — 156 failures + 79 errors are fixture/setup issues (FastAPI `response_class` attribute, missing `db_session` fixture). Not caused by this session. Investigate and fix in a dedicated session.
 3. **Dashboard visualizations** — The `error_rates` and `by_event_type` data from the stats API are not yet charted on the frontend. Could add error rate sparkline or event type donut chart.
 
