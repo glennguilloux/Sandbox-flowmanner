@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -28,6 +27,7 @@ from app.schemas.mission import (
     MissionLogResponse,
     MissionResponse,
     MissionTaskResponse,
+    PlanCandidateResponse,
 )
 from app.services.mission_analytics import (
     get_failure_analysis,
@@ -69,6 +69,9 @@ from .compat import (
     list_missions_from_blueprints,
     use_new_reads,
 )
+
+if TYPE_CHECKING:
+    import uuid
 
 
 @dataclass(slots=True)
@@ -534,6 +537,25 @@ class MissionQueryHandlers(QueryHandlerBase):
         except Exception:
             logger.debug("cache_set_improvements_failed", exc_info=True)
         return result
+
+    # ── Plan Candidates ──────────────────────────────────────────────────────
+
+    async def list_plan_candidates(self, user_id: int, mission_id: uuid.UUID) -> list[PlanCandidateResponse]:
+        """Return ranked plan candidates for a mission (cost-aware plan selection)."""
+        await self.get_mission(user_id, mission_id)  # ownership check
+
+        from sqlalchemy import select
+
+        from app.models.mission_advanced_models import MissionPlanCandidate
+
+        stmt = (
+            select(MissionPlanCandidate)
+            .where(MissionPlanCandidate.mission_id == str(mission_id))
+            .order_by(MissionPlanCandidate.rank.asc())
+        )
+        result = await self.session.execute(stmt)
+        candidates = result.scalars().all()
+        return [PlanCandidateResponse.from_model(c) for c in candidates]
 
     # ── Analytics ────────────────────────────────────────────────────────────
 

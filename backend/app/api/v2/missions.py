@@ -5,7 +5,6 @@ Cross-cutting concerns: idempotency, per-user rate limiting, auditing.
 
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -30,9 +29,12 @@ from app.schemas.mission import (
     MissionTaskResponse,
     MissionTaskUpdate,
     MissionUpdate,
+    PlanCandidateResponse,
 )
 
 if TYPE_CHECKING:
+    import uuid
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.api._mission_cqrs.commands import MissionCommandHandlers
@@ -222,6 +224,25 @@ async def create_log(
     c: MissionCommandHandlers = Depends(get_mission_commands),
 ):
     return ok(MissionLogResponse.model_validate(await c.create_log(user, mission_id, payload)).model_dump())
+
+
+# ── Plan Candidates (CQRS DI) ─────────────────────────────────────────────────
+
+
+@router.get("/{mission_id}/plan-candidates")
+@router.get("/{mission_id}/plan-candidates/")
+async def list_plan_candidates(
+    mission_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    q: MissionQueryHandlers = Depends(get_mission_queries),
+):
+    """Return ranked plan candidates for a mission.
+
+    Only populated when ``BUDGET_AWARE_PLAN_SELECTION`` is ``on`` or ``auto``
+    and the mission has been planned with K-plan selection enabled.
+    """
+    candidates = await q.list_plan_candidates(user.id, mission_id)
+    return ok([c.model_dump() for c in candidates])
 
 
 # ── Planning (CQRS DI) ────────────────────────────────────────────────────────

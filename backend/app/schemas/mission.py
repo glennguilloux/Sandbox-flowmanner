@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.mission_models import MissionStatus, MissionTaskStatus
+if TYPE_CHECKING:
+    import uuid
+    from datetime import datetime
+
+    from app.models.mission_models import MissionStatus, MissionTaskStatus
 
 
 class MissionCreate(BaseModel):
@@ -185,6 +187,45 @@ class MissionListResult(BaseModel):
 
     missions: list[MissionResponse]
     total: int
+
+
+class PlanCandidateResponse(BaseModel):
+    """Response model for a single plan candidate from cost-aware plan selection."""
+
+    id: uuid.UUID
+    mission_id: uuid.UUID
+    plan_id: str
+    generation_strategy: str
+    tasks: list[dict[str, Any]]
+    estimated_cost_usd: float
+    estimated_latency_ms: int
+    estimated_tokens: int
+    quality_score: float
+    risk_flags: list[str]
+    rationale: str
+    rank: int
+    created_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_model(cls, model: Any) -> PlanCandidateResponse:
+        """Build from MissionPlanCandidate ORM model, mapping tasks_json → tasks."""
+        return cls(
+            id=model.id,
+            mission_id=model.mission_id,
+            plan_id=model.plan_id,
+            generation_strategy=model.generation_strategy,
+            tasks=model.tasks_json,
+            estimated_cost_usd=model.estimated_cost_usd,
+            estimated_latency_ms=model.estimated_latency_ms,
+            estimated_tokens=model.estimated_tokens,
+            quality_score=model.quality_score,
+            risk_flags=model.risk_flags,
+            rationale=model.rationale,
+            rank=model.rank,
+            created_at=model.created_at,
+        )
 
 
 class MissionAnalyticsResult(BaseModel):
