@@ -18,6 +18,7 @@
 | `tests/test_chat_streaming.py` | Modified | Updated 5 stale mock targets from `app.api.v1.chat.get_chat_thread` to `app.api.v1.chat.require_chat_thread_access`. Fixed 404 ownership test to use `HTTPException` side_effect instead of returning wrong-user thread. |
 | `tests/test_integration_connected_db.py` | Modified | Made `_check_database` fixture `autouse=True` (was defined but never triggered). Fixed 2 RUF015 lint violations (`list(...)[0]` → `next(...)`). |
 | `tests/test_integration_graph_execution.py` | Modified | Made `_check_database` fixture `autouse=True`. Fixed 1 RUF015 lint violation. |
+| `tests/test_cost_engine.py` | Modified | Configured `db.execute` mock in `workspace_cost` test to return result with `.all()` → `[]` (was bare `AsyncMock` returning a coroutine). |
 
 ---
 
@@ -59,6 +60,18 @@ Tests patched `app.api.v1.chat.get_chat_thread` but `chat.py` uses `require_chat
 
 **Fix:** Updated all mock paths to `require_chat_thread_access`. Made 404 test use `HTTPException` side_effect.
 
+### 6. `workspace_cost` test — bare `AsyncMock` (1 failure → 0)
+
+The `test_returns_empty_not_implemented` test created a bare `AsyncMock(spec=AsyncSession)` without configuring `db.execute`. When `workspace_cost` called `await db.execute(stmt)` followed by `result.all()`, the AsyncMock's default `.all()` returned a coroutine instead of an iterable.
+
+**Fix:** Configured `db.execute = AsyncMock(return_value=result_mock)` where `result_mock.all.return_value = []`, matching the pattern used by all other tests in the file.
+
+### 6. `workspace_cost` test — bare `AsyncMock` (1 failure → 0)
+
+The `test_returns_empty_not_implemented` test created a bare `AsyncMock(spec=AsyncSession)` without configuring `db.execute`. When `workspace_cost` called `await db.execute(stmt)` followed by `result.all()`, the AsyncMock's default `.all()` returned a coroutine instead of an iterable.
+
+**Fix:** Configured `db.execute = AsyncMock(return_value=result_mock)` where `result_mock.all.return_value = []`, matching the pattern used by all other tests in the file.
+
 ---
 
 ## TESTS RUN + RESULT
@@ -68,16 +81,16 @@ Tests patched `app.api.v1.chat.get_chat_thread` but `chat.py` uses `require_chat
 ```
 $ cd /opt/flowmanner && docker compose exec backend python -m pytest --tb=no -q
 
-3613 passed, 157 failed, 144 skipped, 186 warnings in 44.80s
+3614 passed, 156 failed, 144 skipped, 185 warnings in 44.80s
 ```
 
-### Before vs After (cumulative across all 3 fix commits)
+### Before vs After (cumulative across all fix commits)
 
 | Metric | Before | After | Change |
 |--------|--------|-------|--------|
 | Errors | 79 | **0** | **-79** |
-| Passed | 3553 | 3613 | **+60** |
-| Failed | 156 | 157 | +1 (former error now runs as assertion) |
+| Passed | 3553 | 3614 | **+61** |
+| Failed | 156 | 156 | 0 |
 | Skipped | 126 | 144 | +18 (properly skipped integration tests) |
 
 ### Pre-commit
@@ -95,7 +108,7 @@ All checks passed.
 
 ```
 On branch main
-Your branch is ahead of 'origin/main' by 4 commits.
+Your branch is ahead of 'origin/main' by 6 commits.
   (use "git push" to publish your local commits)
 
 nothing to commit, working tree clean
@@ -104,6 +117,8 @@ nothing to commit, working tree clean
 ### `git fetch origin && git log --oneline origin/main..main`
 
 ```
+c2f5ced fix(tests): configure db.execute mock in workspace_cost test
+6ccdadc docs: exit audit for test infrastructure fix session
 3f57b63 fix(tests): update stale mock targets in test_chat_streaming.py
 1076d14 fix(tests): add pydub/aiosqlite deps; auto-skip integration tests when DB unreachable
 bb47c3b fix(tests): block pytest-flask plugin; add db_session fixture alias
@@ -129,17 +144,17 @@ INFO  [alembic.runtime.migration] Will assume transactional DDL.
 - ✅ Added `pydub` + `aiosqlite` deps (36 failures → 0)
 - ✅ Made integration test `_check_database` fixtures autouse (17 errors → 0)
 - ✅ Fixed stale chat streaming mock targets (5 failures → 0)
-- ✅ All 4 commits unpushed, ready for review
+- ✅ Fixed `workspace_cost` AsyncMock misuse (1 failure → 0)
+- ✅ All 6 commits unpushed, ready for review
 
 **Remaining / follow-up work:**
-1. **Push 4 commits** to origin and rebuild backend image (`bash /opt/flowmanner/deploy-backend.sh`)
-2. **157 remaining failures** are genuine assertion issues (not fixture/infra):
+1. **Push 6 commits** to origin and rebuild backend image (`bash /opt/flowmanner/deploy-backend.sh`)
+2. **156 remaining failures** are genuine assertion issues (not fixture/infra):
    - Some need `ffmpeg` installed in the container for audio conversion tests
-   - Some are stale mocks in other test files (test_cost_engine.py AsyncMock misuse, etc.)
+   - Some are stale mocks in other test files
    - Some are integration tests that need real LLM endpoints
-3. **`test_cost_engine.py`** — `workspace_cost()` iterates a coroutine from AsyncMock (1 failure). Fix: mock `execute` to return a result, not a coroutine.
-4. **aiosqlite in production image** — Currently added to production `requirements.txt` but only used by tests. Consider moving to a test-requirements extras group.
-5. **`pydub` needs `ffmpeg`** — The 10 audio format converter tests pass import-level checks but fail at runtime without `ffmpeg`/`ffprobe` installed in the container.
+3. **aiosqlite in production image** — Currently added to production `requirements.txt` but only used by tests. Consider moving to a test-requirements extras group.
+4. **`pydub` needs `ffmpeg`** — The 10 audio format converter tests pass import-level checks but fail at runtime without `ffmpeg`/`ffprobe` installed in the container.
 
 ---
 
