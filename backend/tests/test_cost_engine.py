@@ -181,6 +181,9 @@ class TestWorkspaceCost:
     async def test_returns_empty_not_implemented(self):
         engine = CostAttributionEngine()
         db = AsyncMock(spec=AsyncSession)
+        result_mock = MagicMock()
+        result_mock.all.return_value = []
+        db.execute = AsyncMock(return_value=result_mock)
         costs = await engine.workspace_cost(db, year=2026, month=6)
         assert costs == {}
 
