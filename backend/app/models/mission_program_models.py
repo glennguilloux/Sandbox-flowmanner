@@ -22,10 +22,15 @@ Design notes (see plan §T1):
 from __future__ import annotations
 
 from enum import Enum, nonmember
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     Double,
     ForeignKey,
     Integer,
@@ -36,7 +41,6 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base, TimestampMixin
-
 
 # ── Enums ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +61,7 @@ class ProgramStatus(str, Enum):
     # WRAPPED in enum.nonmember() to prevent Python 3.11+ Enum metaclass
     # from treating _TRANSITIONS as a regular enum member (which would
     # corrupt iteration, by-class lookup, and CHECK constraint generation).
-    _TRANSITIONS: dict["ProgramStatus", set["ProgramStatus"]] = nonmember(
+    _TRANSITIONS: dict[ProgramStatus, set[ProgramStatus]] = nonmember(  # type: ignore[assignment]
         {
             ACTIVE: {PAUSED, ARCHIVED},  # type: ignore[arg-type, dict-item]
             PAUSED: {ACTIVE, ARCHIVED},  # type: ignore[arg-type, dict-item]
@@ -76,7 +80,7 @@ class ProgramStatus(str, Enum):
         # "active" in business sense: status is ACTIVE specifically.
         return self == ProgramStatus.ACTIVE
 
-    def can_transition_to(self, target: "ProgramStatus") -> bool:
+    def can_transition_to(self, target: ProgramStatus) -> bool:
         """Return True if transitioning from self to target is valid."""
         allowed = self._TRANSITIONS.get(self, set())
         return target in allowed
@@ -98,7 +102,7 @@ class ProgramRunStatus(str, Enum):
 
     # Valid transitions from each state. See _TRANSITIONS note on
     # ProgramStatus for why this is wrapped in nonmember().
-    _TRANSITIONS: dict["ProgramRunStatus", set["ProgramRunStatus"]] = nonmember(
+    _TRANSITIONS: dict[ProgramRunStatus, set[ProgramRunStatus]] = nonmember(  # type: ignore[assignment]
         {
             RUNNING: {COMPLETED, FAILED, ABORTED},  # type: ignore[arg-type, dict-item]
             COMPLETED: set(),  # type: ignore[arg-type, dict-item]  # terminal
@@ -117,7 +121,7 @@ class ProgramRunStatus(str, Enum):
         """Return True if the run is currently in flight (not terminal)."""
         return not self.is_terminal
 
-    def can_transition_to(self, target: "ProgramRunStatus") -> bool:
+    def can_transition_to(self, target: ProgramRunStatus) -> bool:
         """Return True if transitioning from self to target is valid."""
         allowed = self._TRANSITIONS.get(self, set())
         return target in allowed
@@ -223,6 +227,9 @@ class MissionProgram(Base, TimestampMixin):
     # Per-run + monthly budget caps (USD). Independent of workspace budget.
     per_run_budget_usd: Mapped[float | None] = mapped_column(Double, nullable=True)
     monthly_budget_usd: Mapped[float | None] = mapped_column(Double, nullable=True)
+
+    # Cron scheduling: next computed fire time (mirrors MissionTrigger.next_fire_at).
+    next_fire_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
 
 class ProgramRun(Base, TimestampMixin):

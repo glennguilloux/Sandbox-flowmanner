@@ -20,9 +20,12 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from app.database import AsyncSessionLocal
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +114,7 @@ class TriggerBridge:
                 if fired:
                     logger.info("TriggerBridge dispatched %d cron trigger(s)", fired)
         except Exception as e:
-            logger.error("TriggerBridge polling tick failed: %s", e, exc_info=True)
+            logger.exception("TriggerBridge polling tick failed: %s", e)
         # Path 2: MissionProgram cron fires (T9). Failures are isolated
         # so the legacy path above is never blocked.
         try:
@@ -124,38 +127,45 @@ class TriggerBridge:
                         len(program_run_ids),
                     )
         except Exception as e:
-            logger.error(
-                "TriggerBridge program dispatch failed: %s", e, exc_info=True
-            )
+            logger.exception("TriggerBridge program dispatch failed: %s", e)
 
     async def _dispatch_program_fires(self, db) -> list:
-        """Find active MissionProgram rows with cron triggers and dispatch
+        """Find active MissionProgram rows with due cron triggers and dispatch
         them via ``MissionProgramService.fire_program``.
+
+        Uses ``next_fire_at`` (added in migration 20260629_prog_next_fire)
+        for proper cron-expression matching.  After each successful fire,
+        computes the next fire time via ``croniter`` and persists it on the
+        program row — same pattern as ``trigger_service.process_cron_triggers``.
 
         Returns a list of new ``ProgramRun.id`` UUIDs. The caller is
         responsible for committing the session.
-
-        NOTE: simplified — this implementation fires ALL active programs
-        whose ``trigger_config.type == "cron"`` on every tick. In
-        production (T15) this will be replaced by proper cron-expression
-        matching using a cron parser. For the wiring smoke test this is
-        sufficient: it proves the dispatch path works end-to-end.
         """
         # Lazy imports — keeps the bridge lightweight and avoids cycles.
-        from uuid import UUID
+        from datetime import UTC, datetime
+        from typing import Any
+        from uuid import UUID  # noqa: TCH003
 
-        from sqlalchemy import select
+        from croniter import croniter
+        from sqlalchemy import and_, select
 
         from app.models.mission_program_models import MissionProgram
         from app.services.mission_program_service import (
             MissionProgramService,
         )
 
+        now = datetime.now(UTC)
+
+        # Only fetch programs whose next_fire_at has arrived.
         programs = list(
             (
                 await db.execute(
                     select(MissionProgram).where(
-                        MissionProgram.status == "active"
+                        and_(
+                            MissionProgram.status == "active",
+                            MissionProgram.next_fire_at != None,
+                            MissionProgram.next_fire_at <= now,
+                        )
                     )
                 )
             )
@@ -168,6 +178,38 @@ class TriggerBridge:
             cfg = program.trigger_config or {}
             if cfg.get("type") != "cron":
                 continue
+
+            # Compute next fire time before dispatching (so even if the
+            # fire fails, we don't re-fire immediately on the next tick).
+            expression = cfg.get("expression")
+            timezone_str = cfg.get("timezone", "UTC")
+            if expression:
+                try:
+                    from zoneinfo import ZoneInfo
+
+                    tz: Any = ZoneInfo(timezone_str)
+                except Exception:
+                    tz = UTC
+
+                try:
+                    cron = croniter(expression, now)
+                    next_fire = cron.get_next(datetime)
+                    if next_fire.tzinfo is None:
+                        next_fire = next_fire.replace(tzinfo=UTC)
+                    program.next_fire_at = next_fire
+                except (ValueError, KeyError) as exc:
+                    # Invalid cron expression — clear next_fire_at and log.
+                    logger.warning(
+                        "Invalid cron expression '%s' for program %s: %s",
+                        expression,
+                        program.id,
+                        exc,
+                    )
+                    program.next_fire_at = None
+            else:
+                # No expression — clear next_fire_at so we don't re-fire.
+                program.next_fire_at = None
+
             try:
                 service = MissionProgramService(db)
                 run = await service.fire_program(

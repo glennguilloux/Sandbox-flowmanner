@@ -134,6 +134,11 @@ class MissionProgramService:
 
     async def create(self, user_id: int, workspace_id: str, payload: ProgramCreate) -> MissionProgram:
         """Insert a new program. Status defaults to ``"active"``."""
+        trigger_cfg = (
+            payload.trigger_config.model_dump()
+            if hasattr(payload.trigger_config, "model_dump")
+            else payload.trigger_config
+        )
         program = MissionProgram(
             user_id=user_id,
             workspace_id=workspace_id,
@@ -143,16 +148,18 @@ class MissionProgramService:
             base_constraints=payload.base_constraints,
             base_context_files=payload.base_context_files,
             base_context_urls=payload.base_context_urls,
-            trigger_config=(
-                payload.trigger_config.model_dump()
-                if hasattr(payload.trigger_config, "model_dump")
-                else payload.trigger_config
-            ),
+            trigger_config=trigger_cfg,
             status="active",
             learning_brief=None,
             per_run_budget_usd=payload.per_run_budget_usd,
             monthly_budget_usd=payload.monthly_budget_usd,
         )
+        # Compute next_fire_at for cron programs (T15 fix).
+        if trigger_cfg and trigger_cfg.get("type") == "cron" and trigger_cfg.get("expression"):
+            program.next_fire_at = self._compute_next_fire(
+                trigger_cfg["expression"],
+                trigger_cfg.get("timezone", "UTC"),
+            )
         self.db.add(program)
         await self.db.flush()
         await self.db.refresh(program)
@@ -216,6 +223,7 @@ class MissionProgramService:
             raise ProgramTransitionConflict("cannot update an archived program")
 
         data = patch.model_dump(exclude_unset=True)
+        trigger_config_changed = False
         for field, value in data.items():
             if field == "status":
                 try:
@@ -227,7 +235,20 @@ class MissionProgramService:
                     raise ProgramTransitionConflict(f"cannot transition {current.value} -> {target.value}")
             if field == "trigger_config" and value is not None and hasattr(value, "model_dump"):
                 value = value.model_dump()
+            if field == "trigger_config":
+                trigger_config_changed = True
             setattr(program, field, value)
+
+        # Recompute next_fire_at if trigger_config changed.
+        if trigger_config_changed:
+            cfg = program.trigger_config or {}
+            if cfg.get("type") == "cron" and cfg.get("expression"):
+                program.next_fire_at = self._compute_next_fire(
+                    cfg["expression"],
+                    cfg.get("timezone", "UTC"),
+                )
+            else:
+                program.next_fire_at = None
 
         await self.db.flush()
         await self.db.refresh(program)
@@ -852,6 +873,31 @@ class MissionProgramService:
             )
         ).scalar_one_or_none()
         return member is not None
+
+    @staticmethod
+    def _compute_next_fire(expression: str, timezone_str: str = "UTC") -> datetime | None:
+        """Compute the next fire time from a cron expression.
+
+        Same logic as ``trigger_service._compute_next_fire`` — uses
+        ``croniter`` to evaluate the expression against the current time.
+        """
+        from typing import Any
+
+        from croniter import croniter
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            tz: Any = ZoneInfo(timezone_str)
+        except Exception:
+            tz = UTC
+
+        now = datetime.now(tz)
+        cron = croniter(expression, now)
+        next_fire = cron.get_next(datetime)
+        if next_fire.tzinfo is None:
+            next_fire = next_fire.replace(tzinfo=UTC)
+        return next_fire
 
     def _safe_audit(self, method_name: str, **kwargs: Any) -> None:
         """Call ``self.audit.<method_name>(**kwargs)``; swallow + log failures.

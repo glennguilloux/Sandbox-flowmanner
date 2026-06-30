@@ -236,29 +236,45 @@ async def fire_trigger(db: AsyncSession, trigger: MissionTrigger, payload: dict 
 
 
 async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: str):
-    """Background task to execute a mission triggered by cron/webhook."""
+    """Background task to execute a mission triggered by cron/webhook.
+
+    H5.1: Routes through UnifiedExecutor for durable execution, replay,
+    budget enforcement, and capability tokens.
+    """
     from app.database import AsyncSessionLocal
-    from app.services.mission_executor import MissionExecutor
+    from app.models.mission_models import Mission
+    from app.services.substrate.adapters import mission_to_workflow
+    from app.services.substrate.executor import get_unified_executor
 
     start_time = time.monotonic()
     async with AsyncSessionLocal() as db:
         try:
-            executor = MissionExecutor()
-            result = await executor.execute_mission(mission_id)  # type: ignore[arg-type]
+            # Load the mission ORM object
+            mission = await db.get(Mission, mission_id)
+            if not mission:
+                raise ValueError(f"Mission {mission_id} not found")
+
+            # Convert to unified Workflow and execute through substrate
+            workflow = mission_to_workflow(mission, tasks=[])
+            executor = get_unified_executor()
+            result = await executor.execute(db, workflow)
             duration_ms = int((time.monotonic() - start_time) * 1000)
 
             # Update log
             log = await db.get(TriggerLog, log_id)
             if log:
-                log.status = "success"
+                log.status = "success" if getattr(result, "success", False) else "failure"
                 log.duration_ms = duration_ms
                 log.mission_run_id = mission_id
+                if not getattr(result, "success", False):
+                    log.error_message = str(getattr(result, "error", ""))[:1000]
             await db.commit()
             logger.info(
-                "Trigger %s fired mission %s successfully in %sms",
+                "Trigger %s fired mission %s via UnifiedExecutor in %sms (success=%s)",
                 trigger_id,
                 mission_id,
                 duration_ms,
+                getattr(result, "success", None),
             )
         except Exception as e:
             duration_ms = int((time.monotonic() - start_time) * 1000)
@@ -325,10 +341,12 @@ async def process_cron_triggers(db: AsyncSession) -> int:
 
 def _compute_next_fire(cron_expression: str, timezone_str: str) -> datetime | None:
     """Compute the next fire time from a cron expression."""
+    from typing import Any
+
     try:
         from zoneinfo import ZoneInfo
 
-        tz = ZoneInfo(timezone_str)
+        tz: Any = ZoneInfo(timezone_str)
     except Exception:
         tz = UTC
 
