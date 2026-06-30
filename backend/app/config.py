@@ -179,9 +179,23 @@ class Settings(BaseSettings):
     MONDAY_OAUTH_CLIENT_SECRET: str = ""
     MONDAY_WEBHOOK_SECRET: str = ""
 
+    # GitHub integration
+    GITHUB_OAUTH_CLIENT_ID: str = ""
+    GITHUB_OAUTH_CLIENT_SECRET: str = ""
+    GITHUB_WEBHOOK_SECRET: str = ""
+
+    # Slack integration
+    SLACK_OAUTH_CLIENT_ID: str = ""
+    SLACK_OAUTH_CLIENT_SECRET: str = ""
+    SLACK_SIGNING_SECRET: str = ""
+
     # Telegram integration
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_WEBHOOK_SECRET: str = ""
+
+    # Event bus failure alerting (Slack + PagerDuty)
+    SLACK_ALERT_WEBHOOK_URL: str = ""  # Slack incoming webhook URL for failure alerts
+    PAGERDUTY_ALERT_ROUTING_KEY: str = ""  # PagerDuty Events API v2 routing key for failure alerts
 
     # Discord integration
     DISCORD_BOT_TOKEN: str = ""
