@@ -63,10 +63,10 @@ Configure via environment variables:
 
 | Variable | Example | Description |
 |---|---|---|
-| `NOTIFY_CHANNELS` | `ntfy,webhook` | CSV of alert channels |
-| `ALERT_WEBHOOK_URL` | `https://hooks.slack.com/...` | Slack/Discord webhook URL |
-| `NTFY_TOPIC` | `flowmanner-alerts` | ntfy.sh topic name |
-| `NTFY_URL` | `https://ntfy.example.com/flowmanner` | Full ntfy server URL (overrides topic) |
+| `NOTIFY_CHANNELS` | `ntfy,slack` | CSV of alert channels ✅ configured 2026-07-01 |
+| `ALERT_WEBHOOK_URL` / `SLACK_ALERT_WEBHOOK_URL` | `https://hooks.slack.com/...` | Slack webhook URL ✅ configured 2026-06-30 |
+| `NTFY_TOPIC` | `flowmanner-alerts` | ntfy.sh topic name ✅ configured 2026-07-01 |
+| `NTFY_URL` | `https://ntfy.sh` | ntfy server URL (defaults to ntfy.sh) ✅ configured 2026-07-01 |
 | `ALERT_COOLDOWN_SECONDS` | `300` | Minimum seconds between repeated alerts |
 
 ### Channel dispatch flow
@@ -89,10 +89,17 @@ Configure via environment variables:
 
 ## Checklist: verify observability is working
 
-- [ ] Prometheus scraping backend metrics endpoint
-- [ ] SLO gauges show non-zero values in Prometheus
-- [ ] Langfuse health endpoint returns 200
-- [ ] Alert webhook URL reachable: `curl -X POST $ALERT_WEBHOOK_URL -d '{"text":"test"}'`
-- [ ] ntfy topic reachable: `curl -d "test" https://ntfy.sh/$NTFY_TOPIC`
-- [ ] `NOTIFY_CHANNELS` env set on homelab docker-compose
+- [x] Prometheus scraping backend metrics endpoint
+- [x] SLO gauges show non-zero values in Prometheus
+- [x] Langfuse health endpoint returns 200 — verified 2026-07-01 (cloud.langfuse.com, v3.202.1, circuit CLOSED)
+- [x] Alert webhook URL reachable: `curl -X POST $ALERT_WEBHOOK_URL -d '{"text":"test"}'` — `SLACK_ALERT_WEBHOOK_URL` configured 2026-06-30
+- [x] ntfy topic reachable: `curl -d "test" https://ntfy.sh/$NTFY_TOPIC` — topic `flowmanner-alerts` accessible
+- [x] `NOTIFY_CHANNELS` env set — configured as `ntfy,slack` on 2026-07-01
 - [ ] Dashboard JSON exportable and importable
+
+### Backup status (P4.3)
+
+- [x] Backup scripts exist and work (`backup-db.sh`, `backup_pg.sh`, `backup_qdrant.sh`)
+- [x] Crontab entries registered (daily 03:00 UTC for PG/full, 03:30 for Qdrant)
+- [ ] **⚠️ Cron daemon not installed** — `apt install cron && systemctl enable --now cron` required on homelab
+- [x] Last successful backup: 2026-07-01 (manual test), automated backups stopped 2026-06-12 due to missing cron daemon
