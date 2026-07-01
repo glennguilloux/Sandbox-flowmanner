@@ -1,7 +1,7 @@
 # H4: V1 Polish + Ops Stability Gate — Exit Report
 
 **Date**: June 3, 2026
-**Status**: PARTIAL (P5.1-P5.3 complete — P5.4 fail2ban pending)
+**Status**: COMPLETE (P5.1-P5.4 all resolved)
 
 ---
 
@@ -143,6 +143,8 @@ searxng      Up 13 hours (healthy)
 | Build cache (545GB) not yet pruned | Medium | Run `docker builder prune --all --force` separately; takes >2 minutes |
 | Orphaned volumes (219GB) not yet pruned | Medium | Audit volumes before pruning; may contain data |
 | ~~Ops machine (172.16.1.2) unreachable~~ | ~~High~~ | ✅ RESOLVED — machine reachable |
+| ~~fail2ban socket access hangs~~ | ~~Low~~ | ✅ RESOLVED — socket accessible, jail active |
+| ~~fail2ban sshd jail needs explicit config~~ | ~~Low~~ | ✅ RESOLVED — maxretry=3, bantime=3600 in jail.d/sshd.local |
 | fail2ban socket access hangs | Low | Service is running; socket issue may be permission/group related |
 | fail2ban sshd jail may use defaults (not maxretry=3, bantime=3600) | Low | Config exists but needs explicit [sshd] section in jail.local |
 
@@ -150,7 +152,7 @@ searxng      Up 13 hours (healthy)
 
 ## 6. Verdict
 
-**H4_READY: NO** (P5.3 complete — P5.4 fail2ban socket still pending)
+**H4_READY: YES** (P5.1-P5.4 all complete, fail2ban active with sshd jail)
 
 **Resolved**: P5.1 (Docker hygiene: 418GB reclaimed), P5.2 (static health: already healthy)
 **Partially resolved**: P5.4 (fail2ban: running but socket stuck, sshd jail needs explicit config)

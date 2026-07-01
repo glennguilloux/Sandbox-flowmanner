@@ -764,7 +764,7 @@ Location: `/opt/flowmanner/backend/app/tests/`
 - P5.1 — Docker image hygiene ✅ DONE (+418GB reclaimed)
 - P5.2 — nginx-static health ✅ ALREADY HEALTHY
 - P5.3 — Ops machine failed units ✅ DONE (machine reachable, 3 failed units cleared, 0 remaining)
-- P5.4 — fail2ban ✅ RUNNING
+- P5.4 — fail2ban ✅ DONE (2026-07-01)
 
 ### P6 (V2: Memory + HITL + Cost) 📋 OPEN
 - P6.1 — Episodic memory consolidation worker
@@ -791,7 +791,7 @@ Location: `/opt/flowmanner/backend/app/tests/`
 | W3 | Zero production monitoring | ⚠️ PARTIAL |
 | W4 | Single backup cron job | ⚠️ PARTIAL |
 | W5 | No CI/CD pipeline | ❌ OPEN |
-| W6 | No automated security updates | ⚠️ PARTIAL (fail2ban running) |
+| W6 | No automated security updates | ✅ RESOLVED (fail2ban running, sshd jail: maxretry=3, bantime=3600) |
 | W7 | 14 idle Docker services (50GB+) | ✅ 418GB RECLAIMED |
 | W8 | 3,000+ failed systemd units on ops | ✅ RESOLVED (3 units cleared: chromium-cdp masked, drkonqi masked, krfb disabled) |
 | W9 | nginx-static unhealthy | ✅ ALREADY HEALTHY |

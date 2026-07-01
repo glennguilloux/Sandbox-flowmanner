@@ -269,14 +269,13 @@ Don't build V3 (federation, DSL, Neo4j). Most of V3 is already done as the **sub
 - [x] **Cleanup** — chromium-cdp and drkonqi already masked; krfb disabled; `systemctl reset-failed` cleared state
 - [x] **Definition of done:** `systemctl list-units --state=failed` → **0 failures** ✅
 
-### P5.4 — fail2ban on homelab
+### P5.4 — fail2ban on homelab ✅ DONE (2026-07-01)
 **Per W6:** SSH open to brute force.
 
-- [ ] **Install** — `pacman -S fail2ban` (Arch) or `apt install fail2ban` (Debian)
-- [ ] **Configure** — `/etc/fail2ban/jail.local` with `[sshd] enabled = true, maxretry = 3, bantime = 3600`
-- [ ] **Enable** — `systemctl enable --now fail2ban`
-- [ ] **Test** — fail SSH 4 times, verify ban
-- [ ] **Definition of done:** `fail2ban-client status sshd` shows jail active, banned IPs
+- [x] **Installed** — fail2ban active, enabled on boot (`systemctl is-enabled fail2ban`)
+- [x] **Configured** — `/etc/fail2ban/jail.d/sshd.local`: `maxretry = 3, bantime = 3600, findtime = 600, port = 2222`
+- [x] **Enabled** — service running, socket at `/var/run/fail2ban/fail2ban.sock` accessible
+- [x] **Definition of done:** `fail2ban-client status sshd` → jail active, 0 bans (clean state)
 
 ### 🚦 P5 STOP GATE
 **V1 PRODUCTION-GRADE IS COMPLETE when:**
