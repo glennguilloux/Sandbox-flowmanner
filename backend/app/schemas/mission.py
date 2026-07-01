@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import uuid  # noqa: TCH003  # Pydantic v2 needs uuid at runtime to resolve uuid.UUID in annotations
+from datetime import (
+    datetime,  # noqa: TCH003  # Pydantic v2 needs datetime at runtime to resolve datetime in annotations
+)
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
-    import uuid
-    from datetime import datetime
-
     from app.models.mission_models import MissionStatus, MissionTaskStatus
 
 
