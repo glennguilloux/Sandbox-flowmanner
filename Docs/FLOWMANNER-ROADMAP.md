@@ -261,13 +261,13 @@ Don't build V3 (federation, DSL, Neo4j). Most of V3 is already done as the **sub
 - [ ] **Verify** — `docker compose ps` shows `(healthy)` for nginx-static
 - [ ] **Definition of done:** `docker compose ps` shows all services `(healthy)` or `(running)` with no `(unhealthy)`
 
-### P5.3 — Kill 3,000+ failed systemd units on ops machine
+### P5.3 — Kill 3,000+ failed systemd units on ops machine ✅ DONE (2026-07-01)
 **Per W8:** Qt platform plugin crashes in restart loop.
 
-- [ ] **Identify culprit** — `journalctl -p err -b | head -50` on ops machine (172.16.1.2)
-- [ ] **Stop the unit** — `systemctl stop <culprit> && systemctl disable <culprit>`
-- [ ] **Mask if persistent** — `systemctl mask <culprit>` to prevent restart
-- [ ] **Definition of done:** `systemctl list-units --state=failed` shows ≤5 failures (the normal noise level)
+- [x] Machine connectivity verified (2026-07-01)
+- [x] **Identify culprit** — 3 units: chromium-cdp (missing binary), krfb + drkonqi (Qt plugin crash, no display)
+- [x] **Cleanup** — chromium-cdp and drkonqi already masked; krfb disabled; `systemctl reset-failed` cleared state
+- [x] **Definition of done:** `systemctl list-units --state=failed` → **0 failures** ✅
 
 ### P5.4 — fail2ban on homelab
 **Per W6:** SSH open to brute force.

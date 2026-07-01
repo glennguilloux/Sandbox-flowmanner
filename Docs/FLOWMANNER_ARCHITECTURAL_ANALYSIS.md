@@ -87,7 +87,7 @@ The philosophy is coherent. The execution has gaps. Below is the systematic audi
 | W5 | **No CI/CD pipeline** | Deployments are manual bash scripts. No automated testing before deploy. | HIGH |
 | W6 | **No automated security updates** | Investigation: pacman security updates not automated. SSH open to brute force (no fail2ban on homelab). | HIGH |
 | W7 | **14 Docker services pulled but never started** | ollama, agent-zero, anythingllm, litellm, n8n, comfyui-3d, traefik, rabbitmq, celery, adminer, redis-commander — 50GB+ of images sitting idle. | MEDIUM |
-| W8 | **3,000+ failed systemd units on ops machine** | Qt platform plugin crashes in an auto-restart loop. | MEDIUM |
+| W8 | **3,000+ failed systemd units on ops machine** | ✅ RESOLVED (2026-07-01): 3 units cleared — chromium-cdp masked, drkonqi masked, krfb disabled. 0 failed units remaining. | ~~MEDIUM~~ ✅ |
 | W9 | **nginx-static container unhealthy** | Running but failing health checks. | MEDIUM |
 | W10 | **WireGuard as single point of failure** | If the tunnel goes down, the entire API surface is unreachable. No fallback routing. | MEDIUM |
 
@@ -392,35 +392,35 @@ agent:
   name: "Code Review Agent"
   version: "3.0.0"
   publisher: "flowmanner-official"
-  
+
   personality:
     tone: "direct"
     expertise: ["code review", "security analysis", "performance optimization"]
     constraints:
       - "Never approve code that introduces SQL injection"
       - "Always suggest tests for new functionality"
-  
+
   capabilities:
     tools: [github.read_file, github.create_review, git.diff]
     models: [deepseek-chat, claude-3-opus]  # Ordered by preference
     max_tool_calls_per_mission: 20
-    
+
   memory:
     episodic:
       retention_days: 90
       consolidation_strategy: "summarize_then_forget"
     semantic:
       domains: ["code_patterns", "security_vulnerabilities", "performance_anti_patterns"]
-  
+
   human_in_the_loop:
     approval_required_for: [github.merge_pr, github.delete_branch]
     clarification_threshold: 0.7  # Ask human if confidence < 70%
     escalation_on: [test_failure, security_violation, timeout]
-  
+
   pricing:
     per_mission_usd: 0.50
     revenue_share: 0.70  # Creator gets 70%
-  
+
   evaluation:
     test_suite: "code-reviewer-evals"
     min_pass_rate: 0.85
@@ -430,7 +430,7 @@ mission:
   id: review-pull-request
   name: "Review Pull Request"
   description: "Comprehensive code review with security analysis"
-  
+
   decomposition:
     strategy: "recursive"
     max_depth: 3
@@ -439,12 +439,12 @@ mission:
       - style_review
       - test_coverage_check
       - dependency_audit
-  
+
   agents:
     primary: code-reviewer
     reviewers: [security-expert, performance-expert]  # Swarm review
     arbiter: human  # Final decision by human
-  
+
   circuit_breakers:
     max_cost_usd: 2.00
     max_duration_seconds: 300

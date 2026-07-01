@@ -1,7 +1,7 @@
 # H4: V1 Polish + Ops Stability Gate — Exit Report
 
 **Date**: June 3, 2026
-**Status**: PARTIAL (P5.3 BLOCKED — ops machine unreachable)
+**Status**: PARTIAL (P5.1-P5.3 complete — P5.4 fail2ban pending)
 
 ---
 
@@ -25,9 +25,15 @@ docker system df
 docker inspect workflows-static | jq '.[0].State.Health'
 docker compose ps
 df -h /
-ssh glenn@172.16.1.2 "systemctl list-units --state=failed --no-pager"  # timed out
-ssh multica 'hostname'  # timed out
+ssh glenn@172.16.1.2 "systemctl list-units --state=failed --no-pager"  # timed out (Jun 3)
+ssh multica 'hostname'  # timed out (Jun 3)
 fail2ban-client status  # permission denied (need root)
+
+# P5.3 cleanup (2026-07-01)
+ssh -o ConnectTimeout=10 glenn@172.16.1.2 'systemctl list-units --state=failed --no-pager'
+# 3 failed units found: chromium-cdp.service, krfb.service, drkonqi-coredump-processor@
+systemctl reset-failed   # cleared failed state
+# chromium-cdp already masked, drkonqi already masked, krfb disabled
 ```
 
 ### Cleanup
@@ -72,12 +78,18 @@ docker rmi test-sandbox-v4:latest test-sandbox-v3:latest ... comfyui-nvidia-dock
 
 | Attempt | Result |
 |---|---|
-| `ssh glenn@172.16.1.2` | Connection timed out |
-| `ping 172.16.1.2` | 100% packet loss |
-| `ssh multica` (ProxyJump homelab) | Connection timed out |
-| `ssh -J root@74.208.115.142 root@172.16.1.2` | Connection timed out |
+| `ssh glenn@172.16.1.2` (Jun 3) | Connection timed out |
+| `ping 172.16.1.2` (Jun 3) | 100% packet loss |
+| `ssh -o ConnectTimeout=10 glenn@172.16.1.2` (Jul 1) | ✅ Connected |
+| `systemctl list-units --state=failed` (Jul 1) | 3 units: chromium-cdp, krfb, drkonqi |
+| `systemctl reset-failed` (Jul 1) | ✅ Cleared (sudo required) |
 
-**BLOCKED** — ops machine (172.16.1.2) is unreachable via all methods (direct, ProxyJump, SSH config alias). The machine may be powered off or have network issues. No destructive action attempted.
+**RESOLVED** — ops machine (172.16.1.2) is reachable. 3 failed units found and cleared:
+- `chromium-cdp.service` — `/usr/bin/chromium` not found → **already masked**
+- `drkonqi-coredump-processor@.service` — Qt platform plugin crash → **already masked**
+- `krfb.service` — Qt platform plugin crash (no display) → **disabled**
+
+Final state: `systemctl list-units --state=failed` → **0 failed units**
 
 ### P5.4 — fail2ban Hardening
 
@@ -130,7 +142,7 @@ searxng      Up 13 hours (healthy)
 |---|---|---|
 | Build cache (545GB) not yet pruned | Medium | Run `docker builder prune --all --force` separately; takes >2 minutes |
 | Orphaned volumes (219GB) not yet pruned | Medium | Audit volumes before pruning; may contain data |
-| Ops machine (172.16.1.2) unreachable | High | Needs physical access or out-of-band investigation |
+| ~~Ops machine (172.16.1.2) unreachable~~ | ~~High~~ | ✅ RESOLVED — machine reachable |
 | fail2ban socket access hangs | Low | Service is running; socket issue may be permission/group related |
 | fail2ban sshd jail may use defaults (not maxretry=3, bantime=3600) | Low | Config exists but needs explicit [sshd] section in jail.local |
 
@@ -138,13 +150,13 @@ searxng      Up 13 hours (healthy)
 
 ## 6. Verdict
 
-**H4_READY: NO** (P5.3 BLOCKED — ops machine unreachable)
+**H4_READY: NO** (P5.3 complete — P5.4 fail2ban socket still pending)
 
 **Resolved**: P5.1 (Docker hygiene: 418GB reclaimed), P5.2 (static health: already healthy)
 **Partially resolved**: P5.4 (fail2ban: running but socket stuck, sshd jail needs explicit config)
-**Blocked**: P5.3 (ops machine unreachable via all methods)
+**Resolved**: P5.3 (ops machine reachable, 3 failed units cleared, 0 remaining)
 
 ### Next Steps for completion
-1. Investigate ops machine (172.16.1.2) — physical check, out-of-band access, or network diagnostics
+1. ~~P5.3 Ops machine~~ ✅ RESOLVED — reachable, 3 failed units cleared
 2. Prune build cache and volumes: `docker builder prune --all --force && docker volume prune --force`
 3. Fix fail2ban socket and add explicit `[sshd]` jail with `maxretry=3`, `bantime=3600`

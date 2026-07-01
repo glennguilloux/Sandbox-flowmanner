@@ -72,7 +72,7 @@
 |---------|-----------|--------|------|-------|
 | **Homelab** | 176.141.9.146 | 10.99.0.3 / 172.16.1.1 | Backend, DBs, LLM | Arch, i7-11700K, 62GB RAM, 2×RTX 5060 Ti (32GB VRAM), 1.9TB disk |
 | **VPS** | 74.208.115.142 | 10.99.0.1 (WG) | Frontend, Nginx, SSL | IONOS US, Debian 13 |
-| **Ops/Dev** | — | 172.16.1.2 | Dev workstation, deploy trigger | Currently unreachable (offline) |
+| **Ops/Dev** | — | 172.16.1.2 | Dev workstation, deploy trigger | ✅ Reachable |
 
 ### Network Flow
 ```
@@ -654,7 +654,7 @@ Dispatch → Research → Draft → Debate → Review → Consensus → Synthesi
 
 ### Deployment Workflow (Manual)
 ```
-Developer edits on Homelab → 
+Developer edits on Homelab →
   Frontend: `bash /opt/flowmanner/deploy-frontend.sh` (~4 min)
     → rsync to VPS → docker compose build → docker compose up → nginx restart
   Backend: `bash /opt/flowmanner/deploy-backend.sh` (~2 min)
@@ -763,7 +763,7 @@ Location: `/opt/flowmanner/backend/app/tests/`
 ### P5 (V1 Polish) — ✅ Mostly Complete (P5.3 BLOCKED)
 - P5.1 — Docker image hygiene ✅ DONE (+418GB reclaimed)
 - P5.2 — nginx-static health ✅ ALREADY HEALTHY
-- P5.3 — Ops machine failed units ❌ BLOCKED (machine unreachable)
+- P5.3 — Ops machine failed units ✅ DONE (machine reachable, 3 failed units cleared, 0 remaining)
 - P5.4 — fail2ban ✅ RUNNING
 
 ### P6 (V2: Memory + HITL + Cost) 📋 OPEN
@@ -793,7 +793,7 @@ Location: `/opt/flowmanner/backend/app/tests/`
 | W5 | No CI/CD pipeline | ❌ OPEN |
 | W6 | No automated security updates | ⚠️ PARTIAL (fail2ban running) |
 | W7 | 14 idle Docker services (50GB+) | ✅ 418GB RECLAIMED |
-| W8 | 3,000+ failed systemd units on ops | ❌ BLOCKED (machine offline) |
+| W8 | 3,000+ failed systemd units on ops | ✅ RESOLVED (3 units cleared: chromium-cdp masked, drkonqi masked, krfb disabled) |
 | W9 | nginx-static unhealthy | ✅ ALREADY HEALTHY |
 | W10 | WireGuard as single point of failure | ❌ OPEN |
 
