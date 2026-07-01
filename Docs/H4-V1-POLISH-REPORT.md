@@ -145,8 +145,8 @@ searxng      Up 13 hours (healthy)
 | ~~Ops machine (172.16.1.2) unreachable~~ | ~~High~~ | ✅ RESOLVED — machine reachable |
 | ~~fail2ban socket access hangs~~ | ~~Low~~ | ✅ RESOLVED — socket accessible, jail active |
 | ~~fail2ban sshd jail needs explicit config~~ | ~~Low~~ | ✅ RESOLVED — maxretry=3, bantime=3600 in jail.d/sshd.local |
-| fail2ban socket access hangs | Low | Service is running; socket issue may be permission/group related |
-| fail2ban sshd jail may use defaults (not maxretry=3, bantime=3600) | Low | Config exists but needs explicit [sshd] section in jail.local |
+| ~~fail2ban socket access hangs~~ | ~~Low~~ | ✅ RESOLVED — socket at /var/run/fail2ban/fail2ban.sock accessible |
+| ~~fail2ban sshd jail needs explicit config~~ | ~~Low~~ | ✅ RESOLVED — jail.d/sshd.local: maxretry=3, bantime=3600, findtime=600, port=2222 |
 
 ---
 
@@ -155,10 +155,11 @@ searxng      Up 13 hours (healthy)
 **H4_READY: YES** (P5.1-P5.4 all complete, fail2ban active with sshd jail)
 
 **Resolved**: P5.1 (Docker hygiene: 418GB reclaimed), P5.2 (static health: already healthy)
-**Partially resolved**: P5.4 (fail2ban: running but socket stuck, sshd jail needs explicit config)
+**Resolved**: P5.4 (fail2ban: active, sshd jail configured with maxretry=3, bantime=3600, socket accessible)
 **Resolved**: P5.3 (ops machine reachable, 3 failed units cleared, 0 remaining)
 
 ### Next Steps for completion
 1. ~~P5.3 Ops machine~~ ✅ RESOLVED — reachable, 3 failed units cleared
-2. Prune build cache and volumes: `docker builder prune --all --force && docker volume prune --force`
-3. Fix fail2ban socket and add explicit `[sshd]` jail with `maxretry=3`, `bantime=3600`
+2. ~~P5.4 fail2ban~~ ✅ RESOLVED — sshd jail active (maxretry=3, bantime=3600)
+2. ~~Prune build cache and volumes~~ ✅ RESOLVED — 28GB reclaimed (build cache 20GB + volumes 7GB)
+3. ~~Fix fail2ban~~ ✅ RESOLVED

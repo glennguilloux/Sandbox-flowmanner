@@ -86,9 +86,9 @@ The philosophy is coherent. The execution has gaps. Below is the systematic audi
 | W4 | **Single backup cron job** | Only langfuse-backup.sh runs. No DB dumps, no volume backups, no config backups. | HIGH |
 | W5 | **No CI/CD pipeline** | Deployments are manual bash scripts. No automated testing before deploy. | HIGH |
 | W6 | **No automated security updates** | ✅ RESOLVED (2026-07-01): fail2ban active, sshd jail configured (maxretry=3, bantime=3600, port=2222). | ~~HIGH~~ ✅ |
-| W7 | **14 Docker services pulled but never started** | ollama, agent-zero, anythingllm, litellm, n8n, comfyui-3d, traefik, rabbitmq, celery, adminer, redis-commander — 50GB+ of images sitting idle. | MEDIUM |
+| W7 | **14 Docker services pulled but never started** | ✅ RESOLVED (2026-07-01): 418GB reclaimed via P5.1 + 28GB additional cleanup (build cache + volumes). | ~~MEDIUM~~ ✅ |
 | W8 | **3,000+ failed systemd units on ops machine** | ✅ RESOLVED (2026-07-01): 3 units cleared — chromium-cdp masked, drkonqi masked, krfb disabled. 0 failed units remaining. | ~~MEDIUM~~ ✅ |
-| W9 | **nginx-static container unhealthy** | Running but failing health checks. | MEDIUM |
+| W9 | **nginx-static container unhealthy** | ✅ RESOLVED (P5.2): Container was already healthy at time of audit. | ~~MEDIUM~~ ✅ |
 | W10 | **WireGuard as single point of failure** | If the tunnel goes down, the entire API surface is unreachable. No fallback routing. | MEDIUM |
 
 ### B. Architectural Weaknesses
