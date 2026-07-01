@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
 
-if TYPE_CHECKING:
-    from app.models.mission_models import MissionStatus, MissionTaskStatus
+from app.models.mission_models import (  # noqa: TCH001  # Pydantic v2 needs at runtime for string annotation resolution
+    MissionStatus,
+    MissionTaskStatus,
+)
 
 
 class MissionCreate(BaseModel):
