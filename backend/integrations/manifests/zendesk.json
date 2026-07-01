@@ -1,22 +1,74 @@
 {
-    "slug": "zendesk",
-    "name": "Zendesk",
-    "description": "Customer support ticketing platform. Manage tickets, users, search, organizations, groups, comments, and metrics with AI agent integration.",
-    "category": "support",
-    "icon_url": "",
-    "auth_type": "oauth2",
-    "capabilities": [
-        {"id": "get_me", "name": "Get Zendesk User", "description": "Get current user info"},
-        {"id": "list_tickets", "name": "List Zendesk Tickets", "description": "List tickets"},
-        {"id": "get_ticket", "name": "Get Zendesk Ticket", "description": "Get ticket details"},
-        {"id": "create_ticket", "name": "Create Zendesk Ticket", "description": "Create a ticket"},
-        {"id": "update_ticket", "name": "Update Zendesk Ticket", "description": "Update a ticket"},
-        {"id": "list_users", "name": "List Zendesk Users", "description": "List users"},
-        {"id": "get_user", "name": "Get Zendesk User", "description": "Get user details"},
-        {"id": "search_tickets", "name": "Search Zendesk Tickets", "description": "Search tickets"},
-        {"id": "list_organizations", "name": "List Zendesk Organizations", "description": "List organizations"},
-        {"id": "list_groups", "name": "List Zendesk Groups", "description": "List agent groups"},
-        {"id": "add_ticket_comment", "name": "Add Zendesk Ticket Comment", "description": "Add a comment to a ticket"},
-        {"id": "list_ticket_metrics", "name": "List Zendesk Ticket Metrics", "description": "List ticket metrics"}
-    ]
+  "slug": "zendesk",
+  "name": "Zendesk",
+  "description": "Customer support ticketing platform. Manage tickets, users, search, organizations, groups, comments, and metrics with AI agent integration.",
+  "category": "support",
+  "icon_url": "",
+  "auth_type": "oauth2",
+  "capabilities": [
+    {
+      "id": "get_me",
+      "name": "Get Zendesk User",
+      "description": "Get current user info"
+    },
+    {
+      "id": "list_tickets",
+      "name": "List Zendesk Tickets",
+      "description": "List tickets"
+    },
+    {
+      "id": "get_ticket",
+      "name": "Get Zendesk Ticket",
+      "description": "Get ticket details"
+    },
+    {
+      "id": "create_ticket",
+      "name": "Create Zendesk Ticket",
+      "description": "Create a ticket"
+    },
+    {
+      "id": "update_ticket",
+      "name": "Update Zendesk Ticket",
+      "description": "Update a ticket"
+    },
+    {
+      "id": "list_users",
+      "name": "List Zendesk Users",
+      "description": "List users"
+    },
+    {
+      "id": "get_user",
+      "name": "Get Zendesk User",
+      "description": "Get user details"
+    },
+    {
+      "id": "search_tickets",
+      "name": "Search Zendesk Tickets",
+      "description": "Search tickets"
+    },
+    {
+      "id": "list_organizations",
+      "name": "List Zendesk Organizations",
+      "description": "List organizations"
+    },
+    {
+      "id": "list_groups",
+      "name": "List Zendesk Groups",
+      "description": "List agent groups"
+    },
+    {
+      "id": "add_ticket_comment",
+      "name": "Add Zendesk Ticket Comment",
+      "description": "Add a comment to a ticket"
+    },
+    {
+      "id": "list_ticket_metrics",
+      "name": "List Zendesk Ticket Metrics",
+      "description": "List ticket metrics"
+    }
+  ],
+  "playground": {
+    "demo_actions": [],
+    "enabled": true
+  }
 }

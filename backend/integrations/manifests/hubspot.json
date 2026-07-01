@@ -6,18 +6,54 @@
   "auth_type": "oauth2",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_owner", "description": "Get HubSpot owner info (credential validation)" },
-    { "name": "list_contacts", "description": "List HubSpot contacts" },
-    { "name": "get_contact", "description": "Get HubSpot contact details" },
-    { "name": "create_contact", "description": "Create a new HubSpot contact" },
-    { "name": "update_contact", "description": "Update a HubSpot contact" },
-    { "name": "list_companies", "description": "List HubSpot companies" },
-    { "name": "get_company", "description": "Get HubSpot company details" },
-    { "name": "list_deals", "description": "List HubSpot deals" },
-    { "name": "get_deal", "description": "Get HubSpot deal details" },
-    { "name": "create_deal", "description": "Create a new HubSpot deal" },
-    { "name": "search_contacts", "description": "Search HubSpot contacts by query" },
-    { "name": "list_tickets", "description": "List HubSpot support tickets" }
+    {
+      "name": "get_owner",
+      "description": "Get HubSpot owner info (credential validation)"
+    },
+    {
+      "name": "list_contacts",
+      "description": "List HubSpot contacts"
+    },
+    {
+      "name": "get_contact",
+      "description": "Get HubSpot contact details"
+    },
+    {
+      "name": "create_contact",
+      "description": "Create a new HubSpot contact"
+    },
+    {
+      "name": "update_contact",
+      "description": "Update a HubSpot contact"
+    },
+    {
+      "name": "list_companies",
+      "description": "List HubSpot companies"
+    },
+    {
+      "name": "get_company",
+      "description": "Get HubSpot company details"
+    },
+    {
+      "name": "list_deals",
+      "description": "List HubSpot deals"
+    },
+    {
+      "name": "get_deal",
+      "description": "Get HubSpot deal details"
+    },
+    {
+      "name": "create_deal",
+      "description": "Create a new HubSpot deal"
+    },
+    {
+      "name": "search_contacts",
+      "description": "Search HubSpot contacts by query"
+    },
+    {
+      "name": "list_tickets",
+      "description": "List HubSpot support tickets"
+    }
   ],
   "health_check": {
     "endpoint": "https://api.hubapi.com/crm/v3/owners?limit=1",
@@ -26,7 +62,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/hubspot",

@@ -6,17 +6,50 @@
   "auth_type": "oauth2",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_me", "description": "Get authenticated Confluence user info" },
-    { "name": "list_spaces", "description": "List Confluence spaces" },
-    { "name": "get_space", "description": "Get space details" },
-    { "name": "get_page", "description": "Get page details with body" },
-    { "name": "create_page", "description": "Create a new page" },
-    { "name": "update_page", "description": "Update page content" },
-    { "name": "search_content", "description": "Search content with CQL" },
-    { "name": "list_page_children", "description": "List sub-pages" },
-    { "name": "add_comment", "description": "Add a comment to a page" },
-    { "name": "list_attachments", "description": "List page attachments" },
-    { "name": "add_labels", "description": "Add labels to a page" }
+    {
+      "name": "get_me",
+      "description": "Get authenticated Confluence user info"
+    },
+    {
+      "name": "list_spaces",
+      "description": "List Confluence spaces"
+    },
+    {
+      "name": "get_space",
+      "description": "Get space details"
+    },
+    {
+      "name": "get_page",
+      "description": "Get page details with body"
+    },
+    {
+      "name": "create_page",
+      "description": "Create a new page"
+    },
+    {
+      "name": "update_page",
+      "description": "Update page content"
+    },
+    {
+      "name": "search_content",
+      "description": "Search content with CQL"
+    },
+    {
+      "name": "list_page_children",
+      "description": "List sub-pages"
+    },
+    {
+      "name": "add_comment",
+      "description": "Add a comment to a page"
+    },
+    {
+      "name": "list_attachments",
+      "description": "List page attachments"
+    },
+    {
+      "name": "add_labels",
+      "description": "Add labels to a page"
+    }
   ],
   "health_check": {
     "endpoint": "https://api.atlassian.com/ex/confluence/rest/api/space",
@@ -25,7 +58,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/confluence",

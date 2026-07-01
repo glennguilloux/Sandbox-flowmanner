@@ -6,18 +6,54 @@
   "auth_type": "oauth2",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_user", "description": "Get authenticated ClickUp user info" },
-    { "name": "list_workspaces", "description": "List user's ClickUp workspaces" },
-    { "name": "list_spaces", "description": "List spaces in a ClickUp workspace" },
-    { "name": "list_folders", "description": "List folders in a ClickUp space" },
-    { "name": "list_lists", "description": "List lists in a ClickUp folder" },
-    { "name": "list_tasks", "description": "List tasks in a ClickUp list" },
-    { "name": "get_task", "description": "Get ClickUp task details" },
-    { "name": "create_task", "description": "Create a new ClickUp task" },
-    { "name": "update_task", "description": "Update a ClickUp task" },
-    { "name": "get_comments", "description": "Get comments on a ClickUp task" },
-    { "name": "add_comment", "description": "Add a comment to a ClickUp task" },
-    { "name": "list_time_entries", "description": "List time entries for a ClickUp workspace" }
+    {
+      "name": "get_user",
+      "description": "Get authenticated ClickUp user info"
+    },
+    {
+      "name": "list_workspaces",
+      "description": "List user's ClickUp workspaces"
+    },
+    {
+      "name": "list_spaces",
+      "description": "List spaces in a ClickUp workspace"
+    },
+    {
+      "name": "list_folders",
+      "description": "List folders in a ClickUp space"
+    },
+    {
+      "name": "list_lists",
+      "description": "List lists in a ClickUp folder"
+    },
+    {
+      "name": "list_tasks",
+      "description": "List tasks in a ClickUp list"
+    },
+    {
+      "name": "get_task",
+      "description": "Get ClickUp task details"
+    },
+    {
+      "name": "create_task",
+      "description": "Create a new ClickUp task"
+    },
+    {
+      "name": "update_task",
+      "description": "Update a ClickUp task"
+    },
+    {
+      "name": "get_comments",
+      "description": "Get comments on a ClickUp task"
+    },
+    {
+      "name": "add_comment",
+      "description": "Add a comment to a ClickUp task"
+    },
+    {
+      "name": "list_time_entries",
+      "description": "List time entries for a ClickUp workspace"
+    }
   ],
   "health_check": {
     "endpoint": "https://api.clickup.com/api/v2/user",
@@ -26,7 +62,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/clickup",

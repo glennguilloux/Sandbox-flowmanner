@@ -6,16 +6,46 @@
   "auth_type": "api_key",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_account", "description": "Get Twilio account info" },
-    { "name": "list_messages", "description": "List Twilio SMS/MMS messages" },
-    { "name": "send_message", "description": "Send an SMS/MMS via Twilio" },
-    { "name": "list_calls", "description": "List Twilio calls" },
-    { "name": "get_call", "description": "Get Twilio call details" },
-    { "name": "make_call", "description": "Make an outbound call via Twilio" },
-    { "name": "list_phone_numbers", "description": "List purchased Twilio phone numbers" },
-    { "name": "get_recording", "description": "Get a Twilio call recording" },
-    { "name": "list_recordings", "description": "List Twilio call recordings" },
-    { "name": "get_usage", "description": "Get Twilio usage and billing records" }
+    {
+      "name": "get_account",
+      "description": "Get Twilio account info"
+    },
+    {
+      "name": "list_messages",
+      "description": "List Twilio SMS/MMS messages"
+    },
+    {
+      "name": "send_message",
+      "description": "Send an SMS/MMS via Twilio"
+    },
+    {
+      "name": "list_calls",
+      "description": "List Twilio calls"
+    },
+    {
+      "name": "get_call",
+      "description": "Get Twilio call details"
+    },
+    {
+      "name": "make_call",
+      "description": "Make an outbound call via Twilio"
+    },
+    {
+      "name": "list_phone_numbers",
+      "description": "List purchased Twilio phone numbers"
+    },
+    {
+      "name": "get_recording",
+      "description": "Get a Twilio call recording"
+    },
+    {
+      "name": "list_recordings",
+      "description": "List Twilio call recordings"
+    },
+    {
+      "name": "get_usage",
+      "description": "Get Twilio usage and billing records"
+    }
   ],
   "health_check": {
     "endpoint": "https://api.twilio.com/2010-04-01/Accounts",
@@ -24,7 +54,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/twilio",

@@ -1,22 +1,74 @@
 {
-    "slug": "shopify",
-    "name": "Shopify",
-    "description": "E-commerce platform. Manage products, orders, customers, inventory, and webhooks with AI agent integration.",
-    "category": "ecommerce",
-    "icon_url": "",
-    "auth_type": "oauth2",
-    "capabilities": [
-        {"id": "get_shop", "name": "Get Shopify Shop", "description": "Get shop info (credential validation)"},
-        {"id": "list_products", "name": "List Shopify Products", "description": "List products"},
-        {"id": "get_product", "name": "Get Shopify Product", "description": "Get product details"},
-        {"id": "create_product", "name": "Create Shopify Product", "description": "Create a product"},
-        {"id": "list_orders", "name": "List Shopify Orders", "description": "List orders"},
-        {"id": "get_order", "name": "Get Shopify Order", "description": "Get order details"},
-        {"id": "update_order", "name": "Update Shopify Order", "description": "Update an order"},
-        {"id": "list_customers", "name": "List Shopify Customers", "description": "List customers"},
-        {"id": "get_customer", "name": "Get Shopify Customer", "description": "Get customer details"},
-        {"id": "list_inventory_levels", "name": "List Shopify Inventory Levels", "description": "List inventory levels"},
-        {"id": "create_webhook", "name": "Create Shopify Webhook", "description": "Create a webhook"},
-        {"id": "list_transactions", "name": "List Shopify Transactions", "description": "List payment transactions"}
-    ]
+  "slug": "shopify",
+  "name": "Shopify",
+  "description": "E-commerce platform. Manage products, orders, customers, inventory, and webhooks with AI agent integration.",
+  "category": "ecommerce",
+  "icon_url": "",
+  "auth_type": "oauth2",
+  "capabilities": [
+    {
+      "id": "get_shop",
+      "name": "Get Shopify Shop",
+      "description": "Get shop info (credential validation)"
+    },
+    {
+      "id": "list_products",
+      "name": "List Shopify Products",
+      "description": "List products"
+    },
+    {
+      "id": "get_product",
+      "name": "Get Shopify Product",
+      "description": "Get product details"
+    },
+    {
+      "id": "create_product",
+      "name": "Create Shopify Product",
+      "description": "Create a product"
+    },
+    {
+      "id": "list_orders",
+      "name": "List Shopify Orders",
+      "description": "List orders"
+    },
+    {
+      "id": "get_order",
+      "name": "Get Shopify Order",
+      "description": "Get order details"
+    },
+    {
+      "id": "update_order",
+      "name": "Update Shopify Order",
+      "description": "Update an order"
+    },
+    {
+      "id": "list_customers",
+      "name": "List Shopify Customers",
+      "description": "List customers"
+    },
+    {
+      "id": "get_customer",
+      "name": "Get Shopify Customer",
+      "description": "Get customer details"
+    },
+    {
+      "id": "list_inventory_levels",
+      "name": "List Shopify Inventory Levels",
+      "description": "List inventory levels"
+    },
+    {
+      "id": "create_webhook",
+      "name": "Create Shopify Webhook",
+      "description": "Create a webhook"
+    },
+    {
+      "id": "list_transactions",
+      "name": "List Shopify Transactions",
+      "description": "List payment transactions"
+    }
+  ],
+  "playground": {
+    "demo_actions": [],
+    "enabled": true
+  }
 }

@@ -6,18 +6,54 @@
   "auth_type": "oauth2",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_me", "description": "Get authenticated PagerDuty user info" },
-    { "name": "list_incidents", "description": "List incidents" },
-    { "name": "get_incident", "description": "Get incident details" },
-    { "name": "create_incident", "description": "Create a new incident" },
-    { "name": "update_incident", "description": "Update incident (acknowledge, resolve, add note)" },
-    { "name": "list_services", "description": "List services" },
-    { "name": "get_service", "description": "Get service details" },
-    { "name": "list_schedules", "description": "List on-call schedules" },
-    { "name": "get_schedule", "description": "Get schedule details" },
-    { "name": "list_escalation_policies", "description": "List escalation policies" },
-    { "name": "list_users", "description": "List users" },
-    { "name": "get_user", "description": "Get user details" }
+    {
+      "name": "get_me",
+      "description": "Get authenticated PagerDuty user info"
+    },
+    {
+      "name": "list_incidents",
+      "description": "List incidents"
+    },
+    {
+      "name": "get_incident",
+      "description": "Get incident details"
+    },
+    {
+      "name": "create_incident",
+      "description": "Create a new incident"
+    },
+    {
+      "name": "update_incident",
+      "description": "Update incident (acknowledge, resolve, add note)"
+    },
+    {
+      "name": "list_services",
+      "description": "List services"
+    },
+    {
+      "name": "get_service",
+      "description": "Get service details"
+    },
+    {
+      "name": "list_schedules",
+      "description": "List on-call schedules"
+    },
+    {
+      "name": "get_schedule",
+      "description": "Get schedule details"
+    },
+    {
+      "name": "list_escalation_policies",
+      "description": "List escalation policies"
+    },
+    {
+      "name": "list_users",
+      "description": "List users"
+    },
+    {
+      "name": "get_user",
+      "description": "Get user details"
+    }
   ],
   "health_check": {
     "endpoint": "https://api.pagerduty.com/users/me",
@@ -26,7 +62,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/pagerduty",

@@ -6,14 +6,38 @@
   "auth_type": "oauth2",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_me", "description": "Get authenticated Figma user info" },
-    { "name": "get_file", "description": "Get file details" },
-    { "name": "get_file_nodes", "description": "Get specific nodes from a file" },
-    { "name": "list_comments", "description": "List comments on a file" },
-    { "name": "post_comment", "description": "Add a comment to a file" },
-    { "name": "get_file_versions", "description": "Get version history" },
-    { "name": "list_team_projects", "description": "List projects for a team" },
-    { "name": "list_project_files", "description": "List files in a project" }
+    {
+      "name": "get_me",
+      "description": "Get authenticated Figma user info"
+    },
+    {
+      "name": "get_file",
+      "description": "Get file details"
+    },
+    {
+      "name": "get_file_nodes",
+      "description": "Get specific nodes from a file"
+    },
+    {
+      "name": "list_comments",
+      "description": "List comments on a file"
+    },
+    {
+      "name": "post_comment",
+      "description": "Add a comment to a file"
+    },
+    {
+      "name": "get_file_versions",
+      "description": "Get version history"
+    },
+    {
+      "name": "list_team_projects",
+      "description": "List projects for a team"
+    },
+    {
+      "name": "list_project_files",
+      "description": "List files in a project"
+    }
   ],
   "health_check": {
     "endpoint": "https://api.figma.com/v1/me",
@@ -22,7 +46,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/figma",

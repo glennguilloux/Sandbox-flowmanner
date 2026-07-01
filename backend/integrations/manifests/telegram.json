@@ -1,22 +1,74 @@
 {
-    "slug": "telegram",
-    "name": "Telegram",
-    "description": "Messaging platform via Bot API. Send messages, photos, documents, manage chats, pin messages, and configure webhooks with AI agent integration.",
-    "category": "communication",
-    "icon_url": "",
-    "auth_type": "api_key",
-    "capabilities": [
-        {"id": "get_me", "name": "Get Telegram Bot Info", "description": "Get bot info (credential validation)"},
-        {"id": "send_message", "name": "Send Telegram Message", "description": "Send a text message to a chat"},
-        {"id": "send_photo", "name": "Send Telegram Photo", "description": "Send a photo (URL or file_id)"},
-        {"id": "send_document", "name": "Send Telegram Document", "description": "Send a file/document"},
-        {"id": "edit_message", "name": "Edit Telegram Message", "description": "Edit a previously sent message"},
-        {"id": "delete_message", "name": "Delete Telegram Message", "description": "Delete a message"},
-        {"id": "forward_message", "name": "Forward Telegram Message", "description": "Forward a message to another chat"},
-        {"id": "get_chat", "name": "Get Telegram Chat Info", "description": "Get chat info"},
-        {"id": "get_chat_member", "name": "Get Telegram Chat Member", "description": "Get info about a chat member"},
-        {"id": "pin_message", "name": "Pin Telegram Message", "description": "Pin a message in a chat"},
-        {"id": "set_webhook", "name": "Set Telegram Webhook", "description": "Configure webhook URL for bot updates"},
-        {"id": "get_updates", "name": "Get Telegram Updates", "description": "Poll for updates (alternative to webhook)"}
-    ]
+  "slug": "telegram",
+  "name": "Telegram",
+  "description": "Messaging platform via Bot API. Send messages, photos, documents, manage chats, pin messages, and configure webhooks with AI agent integration.",
+  "category": "communication",
+  "icon_url": "",
+  "auth_type": "api_key",
+  "capabilities": [
+    {
+      "id": "get_me",
+      "name": "Get Telegram Bot Info",
+      "description": "Get bot info (credential validation)"
+    },
+    {
+      "id": "send_message",
+      "name": "Send Telegram Message",
+      "description": "Send a text message to a chat"
+    },
+    {
+      "id": "send_photo",
+      "name": "Send Telegram Photo",
+      "description": "Send a photo (URL or file_id)"
+    },
+    {
+      "id": "send_document",
+      "name": "Send Telegram Document",
+      "description": "Send a file/document"
+    },
+    {
+      "id": "edit_message",
+      "name": "Edit Telegram Message",
+      "description": "Edit a previously sent message"
+    },
+    {
+      "id": "delete_message",
+      "name": "Delete Telegram Message",
+      "description": "Delete a message"
+    },
+    {
+      "id": "forward_message",
+      "name": "Forward Telegram Message",
+      "description": "Forward a message to another chat"
+    },
+    {
+      "id": "get_chat",
+      "name": "Get Telegram Chat Info",
+      "description": "Get chat info"
+    },
+    {
+      "id": "get_chat_member",
+      "name": "Get Telegram Chat Member",
+      "description": "Get info about a chat member"
+    },
+    {
+      "id": "pin_message",
+      "name": "Pin Telegram Message",
+      "description": "Pin a message in a chat"
+    },
+    {
+      "id": "set_webhook",
+      "name": "Set Telegram Webhook",
+      "description": "Configure webhook URL for bot updates"
+    },
+    {
+      "id": "get_updates",
+      "name": "Get Telegram Updates",
+      "description": "Poll for updates (alternative to webhook)"
+    }
+  ],
+  "playground": {
+    "demo_actions": [],
+    "enabled": true
+  }
 }

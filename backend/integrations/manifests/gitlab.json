@@ -6,20 +6,62 @@
   "auth_type": "oauth2",
   "icon_url": "",
   "capabilities": [
-    { "name": "get_me", "description": "Get authenticated GitLab user info" },
-    { "name": "list_projects", "description": "List GitLab projects" },
-    { "name": "get_project", "description": "Get GitLab project details" },
-    { "name": "list_merge_requests", "description": "List GitLab merge requests" },
-    { "name": "get_merge_request", "description": "Get GitLab merge request details" },
-    { "name": "create_merge_request", "description": "Create a GitLab merge request" },
-    { "name": "merge_merge_request", "description": "Merge a GitLab merge request" },
-    { "name": "approve_merge_request", "description": "Approve a GitLab merge request" },
-    { "name": "list_issues", "description": "List GitLab issues" },
-    { "name": "get_issue", "description": "Get GitLab issue details" },
-    { "name": "create_issue", "description": "Create a GitLab issue" },
-    { "name": "add_issue_note", "description": "Add a comment to a GitLab issue" },
-    { "name": "list_pipelines", "description": "List GitLab pipelines" },
-    { "name": "retry_pipeline", "description": "Retry a failed GitLab pipeline" }
+    {
+      "name": "get_me",
+      "description": "Get authenticated GitLab user info"
+    },
+    {
+      "name": "list_projects",
+      "description": "List GitLab projects"
+    },
+    {
+      "name": "get_project",
+      "description": "Get GitLab project details"
+    },
+    {
+      "name": "list_merge_requests",
+      "description": "List GitLab merge requests"
+    },
+    {
+      "name": "get_merge_request",
+      "description": "Get GitLab merge request details"
+    },
+    {
+      "name": "create_merge_request",
+      "description": "Create a GitLab merge request"
+    },
+    {
+      "name": "merge_merge_request",
+      "description": "Merge a GitLab merge request"
+    },
+    {
+      "name": "approve_merge_request",
+      "description": "Approve a GitLab merge request"
+    },
+    {
+      "name": "list_issues",
+      "description": "List GitLab issues"
+    },
+    {
+      "name": "get_issue",
+      "description": "Get GitLab issue details"
+    },
+    {
+      "name": "create_issue",
+      "description": "Create a GitLab issue"
+    },
+    {
+      "name": "add_issue_note",
+      "description": "Add a comment to a GitLab issue"
+    },
+    {
+      "name": "list_pipelines",
+      "description": "List GitLab pipelines"
+    },
+    {
+      "name": "retry_pipeline",
+      "description": "Retry a failed GitLab pipeline"
+    }
   ],
   "health_check": {
     "endpoint": "https://gitlab.com/api/v4/user",
@@ -28,7 +70,8 @@
     "timeout_seconds": 10
   },
   "playground": {
-    "enabled": false
+    "enabled": false,
+    "demo_actions": []
   },
   "trust_level": "verified",
   "docs_url": "https://flowmanner.com/docs/integrations/gitlab",
