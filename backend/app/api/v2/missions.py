@@ -5,6 +5,7 @@ Cross-cutting concerns: idempotency, per-user rate limiting, auditing.
 
 from __future__ import annotations
 
+import uuid  # noqa: TCH003  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -34,8 +35,6 @@ from app.schemas.mission import (
 )
 
 if TYPE_CHECKING:
-    import uuid
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.api._mission_cqrs.commands import MissionCommandHandlers

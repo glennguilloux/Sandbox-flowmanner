@@ -9,6 +9,7 @@ from uuid import uuid4
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
+import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
 from typing import TYPE_CHECKING
 
 from app.models.mission_advanced_models import MissionTemplate
@@ -64,8 +65,6 @@ from .compat import (
 )
 
 if TYPE_CHECKING:
-    import uuid
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
