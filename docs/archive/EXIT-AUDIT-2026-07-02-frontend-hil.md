@@ -136,6 +136,20 @@ The dirty inbox wiring (`a0cfcb8`) was **unrequested** — verified gates all gr
 - The 5-locale `inbox` namespace has English-only values. If you want full parity with prior 100%-per-locale standards, queue a translations pass.
 - The pending approval banner IIFE in `mission-observatory.tsx:433` is functionally correct but stylistically ugly (mixes IIFE with `&&` short-circuit). Trivial refactor if it bothers you.
 
+### ⚠️ FINDING: Inbox route is NOT actually auth-protected
+
+Commit `501c821` claims: "Add /inbox to middleware protectedPaths for auth protection."
+But `git show 501c821 -- src/middleware.ts` is empty — middleware.ts was NOT modified.
+And `/inbox` is NOT in the `protectedPaths` array at `src/middleware.ts:9-31`.
+
+So the `/inbox` page is publicly accessible despite the commit message claiming it's protected.
+This is a real security gap if the page renders any sensitive data (which it does — human
+approval requests for in-flight missions). **Action: add "/inbox" to the protectedPaths
+array in a follow-up commit.**
+
+(Could be a misunderstanding by the commit author between "I intend to add this" and "I
+added this." The actual code change only includes the IIFE refactor + ja particle fix.)
+
 ---
 
 ## FILES THIS AGENT DID NOT TOUCH BUT EXIST
