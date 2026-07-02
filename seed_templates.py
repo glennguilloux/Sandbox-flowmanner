@@ -637,6 +637,187 @@ TEMPLATES = [
             ),
         ],
     ),
+    make_template(
+        name="Code Review Agent",
+        description="Paste a GitHub PR URL and get structured code review feedback. "
+        "The agent clones the repo, analyzes the diff, checks for bugs, "
+        "style issues, and security concerns — then asks for your approval "
+        "before posting the review.",
+        category="Software Engineering",
+        icon="GitPullRequest",
+        priority="high",
+        flow_steps=[
+            dict(
+                id="start-cr",
+                type="start",
+                position={"x": 250, "y": 250},
+                data={"label": "Start", "nodeType": "start"},
+                edges_out=[{"target_id": "task-analyze-cr"}],
+            ),
+            dict(
+                id="task-analyze-cr",
+                type="task",
+                position={"x": 450, "y": 250},
+                data={
+                    "label": "Analyze PR Diff",
+                    "nodeType": "task",
+                    "description": "Clone the repository, fetch the PR diff, and identify changed files.",
+                    "agent": "code-reviewer",
+                    "timeout": 120,
+                    "maxRetries": 1,
+                },
+                edges_out=[{"target_id": "task-review-cr"}],
+            ),
+            dict(
+                id="task-review-cr",
+                type="task",
+                position={"x": 650, "y": 250},
+                data={
+                    "label": "Review Code Quality",
+                    "nodeType": "task",
+                    "description": "Analyze code for bugs, security issues, style violations, and best practices. "
+                    "Generate structured feedback with severity levels.",
+                    "agent": "code-reviewer",
+                    "timeout": 180,
+                    "maxRetries": 1,
+                },
+                edges_out=[{"target_id": "approval-cr"}],
+            ),
+            dict(
+                id="approval-cr",
+                type="approval",
+                position={"x": 850, "y": 250},
+                data={
+                    "label": "Approve Review",
+                    "nodeType": "approval",
+                    "description": "Review the generated feedback before posting to GitHub.",
+                    "approverRole": "developer",
+                    "approvalTimeout": 24,
+                    "escalationPolicy": "auto-approve",
+                },
+                edges_out=[{"target_id": "task-post-cr"}],
+            ),
+            dict(
+                id="task-post-cr",
+                type="task",
+                position={"x": 1050, "y": 250},
+                data={
+                    "label": "Post Review",
+                    "nodeType": "task",
+                    "description": "Post the approved review as a comment on the GitHub PR.",
+                    "agent": "code-reviewer",
+                    "timeout": 60,
+                    "maxRetries": 2,
+                },
+                edges_out=[{"target_id": "end-cr"}],
+            ),
+            dict(
+                id="end-cr",
+                type="end",
+                position={"x": 1250, "y": 250},
+                data={"label": "Done", "nodeType": "end"},
+                edges_out=[],
+            ),
+        ],
+    ),
+    # ── Hero Template: Research Report ────────────────────────────
+    make_template(
+        name="Research Report",
+        description="Enter a topic and the agent researches it across multiple sources, "
+        "synthesizes findings into a structured report, and asks for your approval "
+        "before publishing. Perfect for competitive analysis, market research, "
+        "or technical deep-dives.",
+        category="Research & Analysis",
+        icon="BookOpen",
+        priority="high",
+        flow_steps=[
+            dict(
+                id="start-rr",
+                type="start",
+                position={"x": 250, "y": 250},
+                data={"label": "Start", "nodeType": "start"},
+                edges_out=[{"target_id": "task-plan-rr"}],
+            ),
+            dict(
+                id="task-plan-rr",
+                type="task",
+                position={"x": 450, "y": 250},
+                data={
+                    "label": "Plan Research",
+                    "nodeType": "task",
+                    "description": "Break down the topic into key questions and identify sources to investigate.",
+                    "agent": "research-analyst",
+                    "timeout": 60,
+                    "maxRetries": 1,
+                },
+                edges_out=[{"target_id": "task-search-rr"}],
+            ),
+            dict(
+                id="task-search-rr",
+                type="task",
+                position={"x": 650, "y": 250},
+                data={
+                    "label": "Search & Gather",
+                    "nodeType": "task",
+                    "description": "Search the web, fetch articles, and extract key findings from multiple sources.",
+                    "agent": "research-analyst",
+                    "timeout": 180,
+                    "maxRetries": 2,
+                },
+                edges_out=[{"target_id": "task-synth-rr"}],
+            ),
+            dict(
+                id="task-synth-rr",
+                type="task",
+                position={"x": 850, "y": 250},
+                data={
+                    "label": "Synthesize Report",
+                    "nodeType": "task",
+                    "description": "Combine findings into a structured report with executive summary, "
+                    "key insights, and recommendations.",
+                    "agent": "research-analyst",
+                    "timeout": 120,
+                    "maxRetries": 1,
+                },
+                edges_out=[{"target_id": "approval-rr"}],
+            ),
+            dict(
+                id="approval-rr",
+                type="approval",
+                position={"x": 1050, "y": 250},
+                data={
+                    "label": "Review Report",
+                    "nodeType": "approval",
+                    "description": "Review the synthesized report before publishing.",
+                    "approverRole": "editor",
+                    "approvalTimeout": 48,
+                    "escalationPolicy": "escalate",
+                },
+                edges_out=[{"target_id": "task-publish-rr"}],
+            ),
+            dict(
+                id="task-publish-rr",
+                type="task",
+                position={"x": 1250, "y": 250},
+                data={
+                    "label": "Publish Report",
+                    "nodeType": "task",
+                    "description": "Publish the approved report to the workspace knowledge base.",
+                    "agent": "research-analyst",
+                    "timeout": 60,
+                    "maxRetries": 1,
+                },
+                edges_out=[{"target_id": "end-rr"}],
+            ),
+            dict(
+                id="end-rr",
+                type="end",
+                position={"x": 1450, "y": 250},
+                data={"label": "Done", "nodeType": "end"},
+                edges_out=[],
+            ),
+        ],
+    ),
 ]
 
 
