@@ -1,0 +1,38 @@
+# LLM Model Configuration — used by llm-model-manager daemon
+# Edit this file to add new models. Each model defines its GGUF path and
+# llama-server launch flags (including speculative decoding settings).
+
+models:
+  qwen3.6-27b-mtp:
+    display_name: "Qwen3.6-27B (MTP)"
+    model_path: /mnt/apps/models/mtp/Qwen3.6-27B-Q5_K_M-mtp.gguf
+    ctx_size: 32768
+    gpu_layers: 99
+    flash_attn: on
+    parallel: 1
+    # MTP speculative decoding (requires MTP-baked GGUF)
+    spec_type: draft-mtp
+    spec_draft_n_max: 3
+    spec_p_min: 0.75
+    description: "Dense 27B with built-in MTP draft heads (~2x speedup)"
+    architecture: qwen35
+    quantization: Q5_K_M
+
+  ornith-1.0-35b:
+    display_name: "Ornith-1.0-35B (MoE)"
+    model_path: /mnt/apps/llama.cpp-mtp/deepreinforce-ai_Ornith-1.0-35B-Q5_K_M.gguf
+    ctx_size: 32768
+    gpu_layers: 99
+    flash_attn: on
+    parallel: 1
+    # No MTP heads in this GGUF — use n-gram speculation instead
+    spec_type: ngram-simple
+    spec_ngram_simple_size_n: 12
+    spec_ngram_simple_size_m: 48
+    spec_ngram_simple_min_hits: 1
+    description: "35B MoE, ~3B active per token. Runs like 3B, thinks like 27B."
+    architecture: qwen35moe
+    quantization: Q5_K_M
+
+# Which model is currently active (managed by the daemon — do not edit manually)
+# active_model: qwen3.6-27b-mtp
