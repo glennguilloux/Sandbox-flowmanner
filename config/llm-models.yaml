@@ -36,3 +36,18 @@ models:
 
 # Which model is currently active (managed by the daemon — do not edit manually)
 # active_model: qwen3.6-27b-mtp
+
+  qwopus3.6-35b-a3b-coder-mtp:
+    display_name: "Qwopus3.6-35B-A3B (Coder MTP)"
+    model_path: /mnt/apps/llama.cpp-mtp/Qwopus3.6-35B-A3B-Coder-MTP-Q5_K_M.gguf
+    ctx_size: 32768
+    gpu_layers: 99
+    flash_attn: on
+    parallel: 1
+    # MTP speculative decoding (requires MTP-baked GGUF)
+    spec_type: draft-mtp
+    spec_draft_n_max: 3
+    spec_p_min: 0.75
+    description: "Coder-specialized 35B-A3B MoE with MTP draft heads. Architecture matches Qwen3.6 35B-A3B but tuned for code generation."
+    architecture: qwen36moe
+    quantization: Q5_K_M
