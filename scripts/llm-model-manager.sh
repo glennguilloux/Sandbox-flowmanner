@@ -162,7 +162,7 @@ parts = [
     '--port', '11434',
     '--ctx-size', str(m.get('ctx_size', 32768)),
     '--gpu-layers', str(m.get('gpu_layers', 99)),
-    '--flash-attn', m.get('flash_attn', 'on'),
+    '--flash-attn', 'on' if m.get('flash_attn', True) in (True, 'on', 'yes', 1) else 'off',
     '--parallel', str(m.get('parallel', 1)),
     '--cont-batching',
     '--log-file', '/var/log/llama-server.log',
@@ -172,8 +172,9 @@ if spec_type and spec_type != 'none':
     parts += ['--spec-type', spec_type]
     if 'spec_draft_n_max' in m:
         parts += ['--spec-draft-n-max', str(m['spec_draft_n_max'])]
-    if 'spec_p_min' in m:
-        parts += ['--spec-p-min', str(m['spec_p_min'])]
+    # NOTE: --spec-p-min was removed in newer llama.cpp builds.
+    # The build at /mnt/apps/llama.cpp-mtp (b45b455e) does not support it.
+    # If you need p-min gating, use --override-kv or sampling params instead.
     if 'spec_ngram_simple_size_n' in m:
         parts += ['--spec-ngram-simple-size-n', str(m['spec_ngram_simple_size_n'])]
     if 'spec_ngram_simple_size_m' in m:
