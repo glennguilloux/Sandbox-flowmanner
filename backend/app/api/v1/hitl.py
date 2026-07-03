@@ -359,6 +359,54 @@ async def clarify_item(
     return HITLService._item_to_dict(resolved)
 
 
+# ── SSE Stream (real-time inbox updates) ──────────────────────────
+
+
+@router.get("/stream")
+async def inbox_stream(
+    token: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE endpoint for real-time HITL inbox updates.
+
+    Accepts token as query parameter for EventSource compatibility.
+    Subscribes to the user's Redis notification channel and forwards
+    only HITL inbox events (interrupt_raised, interrupt_resolved).
+
+    Uses hitl_inbox_sse_stream which filters for inbox-specific events
+    and sends them with event type 'hitl_inbox'.
+    """
+    from fastapi.responses import StreamingResponse
+
+    # Validate token
+    if not token:
+        raise _error_response(401, "TOKEN_REQUIRED", "Token required")
+
+    try:
+        from app.api.v1.auth import decode_access_token
+
+        user_id_str = decode_access_token(token)
+        if not user_id_str:
+            raise _error_response(401, "INVALID_TOKEN", "Invalid token")
+        user_id = int(user_id_str)
+    except HTTPException:
+        raise
+    except Exception:
+        raise _error_response(401, "INVALID_TOKEN", "Invalid token")
+
+    from app.services.sse_service import hitl_inbox_sse_stream
+
+    return StreamingResponse(
+        hitl_inbox_sse_stream(user_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 # ── Executor signal helpers ─────────────────────────────────────────
 
 
