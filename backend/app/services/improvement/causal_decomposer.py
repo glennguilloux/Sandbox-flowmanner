@@ -696,10 +696,10 @@ class CausalDecomposer:
                     ctx = FailureContext(
                         failure_type=failure_type,
                         severity=FailureSeverity.MEDIUM,
-                        context_data={
-                            "improvement_id": imp.id,
-                            "detail": imp.failure_context,
-                        },
+                        error_message=imp.failure_context or "",
+                        timestamp=datetime.now(UTC),
+                        latency_ms=0.0,
+                        failure_id=str(imp.id) if imp.id else None,
                     )
                     contexts.append(ctx)
 

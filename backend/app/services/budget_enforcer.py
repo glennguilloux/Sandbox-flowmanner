@@ -99,8 +99,8 @@ class PricingTable:
         if entry is None:
             entry = self._pricing["default"]
 
-        input_cost = (prompt_tokens / 1_000_000) * entry["input"]
-        output_cost = (completion_tokens / 1_000_000) * entry["output"]
+        input_cost = (prompt_tokens / 1_000_000) * float(entry["input"])
+        output_cost = (completion_tokens / 1_000_000) * float(entry["output"])
 
         return Decimal(str(round(input_cost + output_cost, 8)))
 
@@ -110,7 +110,7 @@ class PricingTable:
         if entry is None:
             model_key = model_id.split("/")[-1] if "/" in model_id else model_id
             entry = self._pricing.get(model_key)
-        return entry["provider"] if entry else "unknown"
+        return str(entry["provider"]) if entry else "unknown"
 
     def refresh(self) -> None:
         """Refresh pricing from a JSON config file.
