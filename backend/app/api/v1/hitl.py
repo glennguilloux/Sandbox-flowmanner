@@ -365,7 +365,6 @@ async def clarify_item(
 @router.get("/stream")
 async def inbox_stream(
     token: str = "",
-    db: AsyncSession = Depends(get_db),
 ):
     """SSE endpoint for real-time HITL inbox updates.
 
