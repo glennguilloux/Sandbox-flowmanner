@@ -4,10 +4,6 @@ import json
 import logging
 from typing import Any
 
-import httpx
-
-from app.config import settings
-
 logger = logging.getLogger(__name__)
 
 JUDGE_SYSTEM_PROMPT = """You are an expert evaluator of LLM outputs. You will be given:
@@ -37,17 +33,16 @@ Respond with ONLY valid JSON in this exact format:
 
 
 class LLMJudge:
-    """Score LLM outputs using rubric-based evaluation via an LLM."""
+    """Score LLM outputs using rubric-based evaluation via an LLM.
 
-    def __init__(
-        self,
-        api_base: str | None = None,
-        api_key: str | None = None,
-        model: str | None = None,
-    ):
-        self.api_base = api_base or settings.LLM_API_BASE
-        self.api_key = api_key or settings.LLM_API_KEY
-        self.model = model or settings.LLM_MODEL_NAME
+    All LLM calls are routed through BudgetEnforcer for cost tracking
+    and circuit breaking (substrate guarantee #4).
+    """
+
+    def __init__(self, model: str | None = None):
+        from app.config import settings as _settings
+
+        self.model = model or _settings.LLM_MODEL_NAME
 
     async def score(
         self,
@@ -89,29 +84,23 @@ class LLMJudge:
         return results
 
     async def _call_llm(self, user_content: str) -> str:
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
-        payload = {
-            "model": self.model,
-            "messages": [
+        from app.services.budget_enforcer import get_budget_enforcer
+
+        enforcer = get_budget_enforcer()
+        response = await enforcer.call_simple(
+            model_id=self.model,
+            messages=[
                 {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
             ],
-            "temperature": 0.1,
-            "max_tokens": 1024,
-        }
+            temperature=0.1,
+            max_tokens=1024,
+        )
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                f"{self.api_base}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+        if not response.get("success", False):
+            raise RuntimeError(f"LLM judge call failed: {response.get('error', 'unknown')}")
+
+        return response.get("response", response.get("content", ""))
 
     def _parse_response(self, raw: str, rubric: dict[str, Any]) -> dict[str, Any]:
         # Strip markdown code fences if present

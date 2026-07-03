@@ -9,7 +9,6 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,31 +69,33 @@ class EvaluationRunner:
             await self.db.flush()
             return eval_run
 
-        # Create Langfuse trace for this eval run
         langfuse_trace_id = str(uuid.uuid4())
         eval_run.langfuse_trace_id = langfuse_trace_id
 
         run_start = time.perf_counter()
 
-        try:
-            from app.services.langfuse_service import get_langfuse_service
+        # Create Langfuse trace only when Langfuse is enabled
+        langfuse = None
+        if settings.LANGFUSE_ENABLED:
+            try:
+                from app.services.langfuse_service import get_langfuse_service
 
-            langfuse = get_langfuse_service()
-            if langfuse.enabled:
-                langfuse.trace(
-                    trace_id=langfuse_trace_id,
-                    name=f"eval_run:{model_name}",
-                    user_id="system",
-                    metadata={
-                        "dataset_id": dataset_id,
-                        "model_name": model_name,
-                        "config_hash": config_hash,
-                        "test_case_count": len(test_cases),
-                    },
-                    tags=["evaluation", model_name],
-                )
-        except Exception as e:
-            logger.debug("Langfuse trace creation skipped: %s", e)
+                langfuse = get_langfuse_service()
+                if langfuse.enabled:
+                    langfuse.trace(
+                        trace_id=langfuse_trace_id,
+                        name=f"eval_run:{model_name}",
+                        user_id="system",
+                        metadata={
+                            "dataset_id": dataset_id,
+                            "model_name": model_name,
+                            "config_hash": config_hash,
+                            "test_case_count": len(test_cases),
+                        },
+                        tags=["evaluation", model_name],
+                    )
+            except Exception as e:
+                logger.debug("Langfuse trace creation skipped: %s", e)
 
         try:
             # Run model against test cases with concurrency limit
@@ -170,20 +171,20 @@ class EvaluationRunner:
                 status="completed",
             )
 
-            # Push score to Langfuse
-            try:
-                if langfuse.enabled:
+            # Push score to Langfuse (only when enabled)
+            if langfuse and langfuse.enabled:
+                try:
                     langfuse.score_trace(
                         trace_id=langfuse_trace_id,
                         name="eval_aggregate_score",
                         value=round(aggregate, 2),
                         comment=f"Eval run {eval_run.id}: {len(all_scores)} cases scored",
                     )
-            except Exception as e:
-                logger.debug("Langfuse score push skipped: %s", e)
+                except Exception as e:
+                    logger.debug("Langfuse score push skipped: %s", e)
 
         except Exception as e:
-            logger.error("Evaluation run failed: %s", e, exc_info=True)
+            logger.exception("Evaluation run failed")
             eval_run.status = "failed"
             eval_run.error_message = str(e)
             eval_run.completed_at = datetime.now(UTC)
@@ -260,31 +261,25 @@ class EvaluationRunner:
         system_prompt: str | None = None,
         temperature: float = 0.7,
     ) -> str:
+        from app.services.budget_enforcer import get_budget_enforcer
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.LLM_API_KEY}",
-        }
-        payload = {
-            "model": model_name,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": 2048,
-        }
+        enforcer = get_budget_enforcer()
+        response = await enforcer.call_simple(
+            model_id=model_name,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=2048,
+        )
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{settings.LLM_API_BASE}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+        if not response.get("success", False):
+            raise RuntimeError(f"Eval model call failed: {response.get('error', 'unknown')}")
+
+        return response.get("response", response.get("content", ""))
 
     @staticmethod
     def _compute_config_hash(config: dict[str, Any]) -> str:

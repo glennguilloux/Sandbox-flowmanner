@@ -46,7 +46,7 @@ services:
       APP_ENV: development
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      OTLP_ENDPOINT: http://jaeger:4318
+      # OTLP_ENDPOINT: http://jaeger:4318  # DISABLED 2026-07-03 — Glenn not using Jaeger
       OTEL_SERVICE_NAME: workflow-backend-dev
     env_file:
       - .env

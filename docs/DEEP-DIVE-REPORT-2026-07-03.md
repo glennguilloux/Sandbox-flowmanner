@@ -460,21 +460,21 @@ The pitch: **"FlowManner is the self-hosted alternative to LangChain + n8n + Lin
 ## Open Questions for Glenn
 
 1. **Is the Blueprint+Run model intended to fully replace Mission?** If yes, when do you want to end the dual-write? If no, what's the long-term role of each model?
-
+Not intended deepseek did start the work on the blue print too early!
 2. **Do you have real users in non-English locales (de, es, fr, ja)?** If not, dropping to English-only would remove a significant maintenance tax on every UI change.
-
+Keep all languages
 3. **Are the 21 webhook integrations actually receiving traffic?** Or are they "available but unused"? If unused, consider keeping signature verification but removing the per-integration routers (use a generic webhook router instead).
-
+yes of course then use a generic webhook router instead
 4. **Is the improvement loop actually running in production?** The `on_mission_complete` hook fires `improvement_loop_v2.on_mission_complete()` — is this enabled? If it's generating noise without signal, cutting Phases 3–6 would save ~7,000 LOC.
-
+Be carefull here, needs big investigation first
 5. **What's the target user for FlowManner?** Developer (self-hosted LangChain alternative)? Team (AI-powered n8n)? Individual (personal AI assistant)? The answer determines which of the ~70 unwired endpoints to prioritize.
-
+5 / 10
 6. **Are extensions and plugins the same thing?** The roadmap flags this as an open question. `plugins.py` (853 lines) and `extensions.py` are separate backend systems. The frontend has a static extensions page. Decide: merge or keep separate?
-
+Please deep-dive in it first before merging
 7. **Do you want to keep Jaeger and Langfuse, or consolidate to structlog + Prometheus + Sentry?** Five observability systems is a lot for one person. If you're actively using Jaeger traces and Langfuse LLM traces, keep them. If not, they're overhead.
-
+I am not using any of those two
 8. **Should the Sentry webhook accept unsigned payloads?** Sentry webhooks don't include HMAC signatures by default. In production, this means anyone who knows the webhook URL can send fake Sentry alerts. Is this acceptable, or should you configure a Sentry webhook signing secret?
-
+configure a Sentry webhook signing secret
 ---
 
 ## Implementation Status

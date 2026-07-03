@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_SECRET_KEY: str = ""
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
-    LANGFUSE_ENABLED: bool = False
+    LANGFUSE_ENABLED: bool = False  # Glenn: "I am not using Langfuse" — disabled 2026-07-03
     LANGFUSE_SAMPLING_RATE: float = 0.1
     LANGFUSE_FLUSH_INTERVAL: int = 30
 
@@ -333,6 +333,10 @@ class Settings(BaseSettings):
             )
         if not self.AUTH_V3_COOKIE_SECURE:
             bad.append("AUTH_V3_COOKIE_SECURE must be true in production (HTTPS-only cookies)")
+        if not self.SENTRY_WEBHOOK_SECRET or len(self.SENTRY_WEBHOOK_SECRET) < 16:
+            bad.append(
+                "SENTRY_WEBHOOK_SECRET must be set (>=16 chars) in production to prevent unsigned webhook acceptance"
+            )
         if bad:
             raise RuntimeError("FATAL: Production secrets not configured:\n" + "\n".join(bad))
 

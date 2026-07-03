@@ -457,12 +457,12 @@ STRATEGY_MAP: dict[FailureType, list[ImprovementStrategy]] = {
         ImprovementStrategy(
             strategy_type=StrategyType.SWITCH_TO_CAPABLE_MODEL,
             knob=KnobType.MODEL_ROUTING,
-            knob_value={"model": "gpt-4", "reason": "reduced_hallucination"},
-            description="Switch to more capable model with better grounding",
+            knob_value={"model": "qwen3.6-27b-mtp", "reason": "reduced_hallucination"},
+            description="Switch to primary local model with better grounding",
             estimated_impact=0.30,
             risk_level=RiskLevel.HIGH,
             confidence=0.6,
-            rollback_value={"model": "gpt-3.5-turbo"},
+            rollback_value={"model": "qwen3.6-27b-mtp"},
             applicable_failure_types=[FailureType.LLM_HALLUCINATION],
         ),
     ],
@@ -482,14 +482,14 @@ STRATEGY_MAP: dict[FailureType, list[ImprovementStrategy]] = {
             strategy_type=StrategyType.SWITCH_TO_CAPABLE_MODEL,
             knob=KnobType.MODEL_ROUTING,
             knob_value={
-                "model": "claude-3-opus",
+                "model": "qwopus3.6-35b-a3b-coder-mtp",
                 "reason": "better_instruction_following",
             },
-            description="Switch to model with better instruction following",
+            description="Switch to coder model with better instruction following",
             estimated_impact=0.25,
             risk_level=RiskLevel.HIGH,
             confidence=0.6,
-            rollback_value={"model": "gpt-3.5-turbo"},
+            rollback_value={"model": "qwen3.6-27b-mtp"},
             applicable_failure_types=[FailureType.LLM_REFUSAL],
         ),
     ],
@@ -532,12 +532,12 @@ STRATEGY_MAP: dict[FailureType, list[ImprovementStrategy]] = {
         ImprovementStrategy(
             strategy_type=StrategyType.SWITCH_TO_CAPABLE_MODEL,
             knob=KnobType.MODEL_ROUTING,
-            knob_value={"model": "gpt-4-32k", "reason": "larger_context_window"},
+            knob_value={"model": "qwopus3.6-35b-a3b-coder-mtp", "reason": "larger_context_window"},
             description="Switch to model with larger context window",
             estimated_impact=0.35,
             risk_level=RiskLevel.HIGH,
             confidence=0.75,
-            rollback_value={"model": "gpt-3.5-turbo"},
+            rollback_value={"model": "qwen3.6-27b-mtp"},
             applicable_failure_types=[FailureType.CONTEXT_OVERFLOW],
         ),
     ],
@@ -757,7 +757,7 @@ class CausalDecomposer:
         seen_knobs = set()
         selected_strategies = []
 
-        for strategy, count, score in candidate_strategies:
+        for strategy, _count, _score in candidate_strategies:
             if strategy.knob not in seen_knobs:
                 seen_knobs.add(strategy.knob)
                 selected_strategies.append(strategy)

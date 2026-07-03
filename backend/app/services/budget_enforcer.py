@@ -62,6 +62,9 @@ DEFAULT_PRICING: dict[str, dict[str, float | str]] = {
     # Local (free)
     "vllm-qwen3-14b-chat": {"input": 0.0, "output": 0.0, "provider": "local"},
     "llamacpp-qwen3.6-27b": {"input": 0.0, "output": 0.0, "provider": "local"},
+    "qwen3.6-27b-mtp": {"input": 0.0, "output": 0.0, "provider": "local"},
+    "qwopus3.6-35b-a3b-coder-mtp": {"input": 0.0, "output": 0.0, "provider": "local"},
+    "ornith-1.0-35b": {"input": 0.0, "output": 0.0, "provider": "local"},
     # Fallback
     "default": {"input": 0.50, "output": 2.00, "provider": "unknown"},
 }
@@ -270,9 +273,7 @@ class BudgetEnforcer:
             try:
                 from app.services.substrate.provider_fallback import resolve_provider
 
-                actual_provider = await resolve_provider(
-                    db_session, workspace_id, model_id, check_circuit_breaker=True
-                )
+                actual_provider = await resolve_provider(db_session, workspace_id, model_id, check_circuit_breaker=True)
             except Exception as cb_err:
                 # CB check failure must never block LLM calls — log and continue
                 logger.debug("Provider resolution skipped: %s", cb_err)
@@ -573,6 +574,36 @@ class BudgetEnforcer:
                 )
         except Exception as e:
             logger.debug("Failed to record budget event to substrate: %s", e)
+
+    async def call_simple(
+        self,
+        *,
+        model_id: str,
+        messages: list[dict[str, Any]],
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Convenience wrapper for one-off LLM calls (eval, judge, etc.).
+
+        Creates a generous one-shot Budget so callers don't need to manage
+        budget lifecycle.  Still enforces cost tracking and circuit breaking.
+        """
+        from app.models.capability_models import Budget
+
+        budget = Budget(
+            max_cost_usd=Decimal("10.00"),
+            max_wall_time_seconds=300,
+            max_iterations=100,
+        )
+        return await self.call(
+            budget=budget,
+            model_id=model_id,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            user_id=user_id,
+        )
 
 
 # ── Singleton ──────────────────────────────────────────────────────

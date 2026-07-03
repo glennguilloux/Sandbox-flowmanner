@@ -217,25 +217,6 @@ services:
     mem_limit: 512m
     mem_reservation: 128m
 
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: jaeger
-    restart: unless-stopped
-    networks:
-      workflows-web:
-        ipv4_address: 10.0.4.7
-    ports:
-      - "127.0.0.1:16686:16686"
-      - "127.0.0.1:4318:4318"
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:16686"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
   backend:
     image: ${BACKEND_IMAGE:-workflows-backend:restored}
     container_name: backend
@@ -248,7 +229,7 @@ services:
     env_file:
       - .env
     environment:
-      OTLP_ENDPOINT: http://jaeger:4318
+      # OTLP_ENDPOINT: http://jaeger:4318  # DISABLED 2026-07-03 — Glenn not using Jaeger
       OTEL_SERVICE_NAME: workflow-backend
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
