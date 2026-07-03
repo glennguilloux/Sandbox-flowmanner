@@ -187,7 +187,7 @@ from app.models.memory_extraction_pause_models import MemoryExtractionPause
 from app.models.memory_models import MemoryEntry, PendingWrite
 
 # Mission versioning (Phase 3.1 — already existed, now normalized)
-from app.models.mission_advanced_models import MissionVersion
+from app.models.mission_advanced_models import MissionPlanCandidate, MissionVersion
 
 # Mission models
 from app.models.mission_models import (

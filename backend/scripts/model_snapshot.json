@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 147,
+  "model_count": 148,
   "tables": [
     {
       "columns": {
@@ -2037,6 +2037,35 @@
         "ix_mission_logs_timestamp"
       ],
       "name": "mission_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "estimated_cost_usd": "FLOAT",
+        "estimated_latency_ms": "INTEGER",
+        "estimated_tokens": "INTEGER",
+        "generation_strategy": "VARCHAR(50)",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "plan_id": "VARCHAR(100)",
+        "quality_score": "FLOAT",
+        "rank": "INTEGER",
+        "rationale": "TEXT",
+        "risk_flags": "JSONB",
+        "tasks_json": "JSONB",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_plan_candidates_mission_id"
+      ],
+      "name": "mission_plan_candidates",
       "unique_constraints": []
     },
     {
