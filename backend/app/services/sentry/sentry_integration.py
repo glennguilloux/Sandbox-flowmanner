@@ -7,8 +7,10 @@ with the existing ObservabilityService for unified error tracking.
 
 import logging
 import os
+import socket
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -25,7 +27,7 @@ CeleryIntegration = None
 SamplingContext = None
 
 try:
-    import sentry_sdk
+    import sentry_sdk  # type: ignore[no-redef]
 
     SENTRY_AVAILABLE = True
 except ImportError:
@@ -33,23 +35,23 @@ except ImportError:
 
 if SENTRY_AVAILABLE:
     try:
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.fastapi import FastApiIntegration  # type: ignore[no-redef]
     except ImportError:
         logger.debug("sentry-sdk FastApiIntegration not available")
     try:
-        from sentry_sdk.integrations.redis import RedisIntegration
+        from sentry_sdk.integrations.redis import RedisIntegration  # type: ignore[no-redef]
     except ImportError:
         logger.debug("sentry-sdk RedisIntegration not available")
     try:
-        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration  # type: ignore[no-redef]
     except ImportError:
         logger.debug("sentry-sdk SqlalchemyIntegration not available")
     try:
-        from sentry_sdk.integrations.celery import CeleryIntegration
+        from sentry_sdk.integrations.celery import CeleryIntegration  # type: ignore[no-redef]
     except ImportError:
         logger.debug("sentry-sdk CeleryIntegration not available")
     try:
-        from sentry_sdk.tracing import SamplingContext
+        from sentry_sdk.tracing import SamplingContext  # type: ignore[no-redef]
     except ImportError:
         logger.debug("sentry-sdk SamplingContext not available")
 
@@ -144,6 +146,22 @@ class SentryIntegration:
         if self._initialized:
             logger.debug("Sentry already initialized")
             return True
+
+        # Validate DNS resolution for the Sentry ingest host.
+        # If the container has no outbound DNS (common in Docker networks),
+        # fail fast with a single log line instead of letting urllib3 spam
+        # retries every cycle.
+        try:
+            hostname = urlparse(self.config.dsn).hostname
+            if hostname:
+                socket.getaddrinfo(hostname, 443)
+        except socket.gaierror as e:
+            logger.warning(
+                "Sentry DSN host %s cannot be resolved (%s) — disabling Sentry error tracking",
+                hostname,
+                e,
+            )
+            return False
 
         try:
             # Configure integrations (only include those available in this sentry-sdk version)
