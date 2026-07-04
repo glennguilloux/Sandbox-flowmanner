@@ -28,7 +28,7 @@ This is the local contract for everything under `backend/app/services/`. The ser
 | Evaluation / LLM-as-judge | `evaluation/` (see §19) |
 | Billing / subscriptions | `paypal_service`, `subscription_service` (see §20) |
 | LangGraph (stateful workflow agent) | `langgraph/` (see §21) |
-| LangChain (legacy wrappers) | `langchain/` (see §22) |
+| LangChain (shared tools) | `langchain/tools/` (see §22) |
 
 ## Local Contracts
 
@@ -256,9 +256,9 @@ The sandboxd HTTP client lives at `app/integrations/sandboxd_client.py`, not in 
 - `langgraph/auth.py` + `auth_fastapi.py` — Auth shim.
 - `langgraph/tool_handlers/` — `base_handler.py`, `registry.py`, `integration_handler.py`, `comfyui_handler.py`, `n8n_handler.py`.
 
-### 22. LangChain cluster
+### 22. LangChain tools cluster
 
-`langchain/` — legacy LangChain wrappers. `simple_agent.py` + `unified_agent.py` are the entry points. The `tools/` subpackage has production tools (`comfyui_agent_tool_prod`, `n8n_agent_tool_prod`, `workflow_catalog_tool_prod`). New code should target the substrate or `langgraph/`, not this.
+`langchain/tools/` — shared production tool definitions used by `langgraph/agent.py` and `governance/controlflow/agent.py`. Contains `comfyui_agent_tool_prod`, `n8n_agent_tool_prod`, `workflow_catalog_tool_prod`. The legacy `simple_agent.py` and `unified_agent.py` wrappers were removed (2026-07-04) as they had no external consumers.
 
 ## Verification
 
