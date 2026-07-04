@@ -50,14 +50,32 @@ async def test_user():
 @pytest_asyncio.fixture
 async def client(test_user):
     """Create an async TestClient with auth bypassed."""
+    from app.database import AsyncSessionLocal
+
+    # Ensure the test user exists in the database (FK constraint on workflows.user_id)
+    async with AsyncSessionLocal() as setup_session:
+        from sqlalchemy import select
+
+        existing = await setup_session.execute(select(User).where(User.id == test_user.id))
+        if not existing.scalar_one_or_none():
+            setup_session.add(
+                User(
+                    id=test_user.id,
+                    email=test_user.email,
+                    full_name=test_user.full_name,
+                    hashed_password="not-a-real-hash",
+                    role=test_user.role,
+                    is_active=test_user.is_active,
+                    is_admin=test_user.is_admin,
+                )
+            )
+            await setup_session.commit()
 
     async def override_get_current_user():
         return test_user
 
     async def override_get_db():
         # Use the app's default session for real DB access
-        from app.database import AsyncSessionLocal
-
         async with AsyncSessionLocal() as session:
             yield session
 
@@ -71,6 +89,13 @@ async def client(test_user):
     # Cleanup overrides
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_db, None)
+
+    # Clean up the test user
+    async with AsyncSessionLocal() as teardown_session:
+        from sqlalchemy import delete
+
+        await teardown_session.execute(delete(User).where(User.id == test_user.id))
+        await teardown_session.commit()
 
 
 # ── Workflow definition ────────────────────────────────────────
