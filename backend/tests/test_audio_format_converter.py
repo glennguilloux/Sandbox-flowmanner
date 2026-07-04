@@ -307,9 +307,12 @@ class TestToolMetadata:
         assert "mp3" in _SUPPORTED_FORMATS
         assert "wav" in _SUPPORTED_FORMATS
         assert "flac" in _SUPPORTED_FORMATS
-        # Each format has (codec, bitrate, extension)
-        for fmt, (codec, bitrate, ext) in _SUPPORTED_FORMATS.items():
+        # Each format has (codec, bitrate, extension, ffmpeg_format_override)
+        for _fmt, entry in _SUPPORTED_FORMATS.items():
+            ext = entry[2]
+            ffmpeg_fmt = entry[3]
             assert ext.startswith(".")
+            assert ffmpeg_fmt is None or isinstance(ffmpeg_fmt, str)
 
 
 # ── Edge Cases ────────────────────────────────────────────────────────

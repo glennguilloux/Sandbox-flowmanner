@@ -38,7 +38,7 @@ _SUPPORTED_FORMATS: dict[str, tuple[str, str, str, str | None]] = {
     "aac": ("aac", "192k", ".aac", "adts"),
     "m4a": ("aac", "192k", ".m4a", "ipod"),
     "opus": ("libopus", "96k", ".opus", None),
-    "wma": ("wmav2", "128k", ".wma", None),
+    "wma": ("wmav2", "128k", ".wma", "asf"),
 }
 
 
