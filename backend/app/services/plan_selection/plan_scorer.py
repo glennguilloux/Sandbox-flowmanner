@@ -141,12 +141,12 @@ def score_plan(candidate: PlanCandidate) -> float:
     """
     score = 0.70  # base quality
 
-    # ── Cost penalty (-0.30 max) ─────────────────────────────────────────
-    # Normalize cost: assume $0.01 is "cheap" and $1.00 is "expensive"
-    # Cheaper plans get LESS penalty (higher score)
-    cost = candidate.estimated_cost_usd
-    cost_penalty = min(cost / 1.0, 1.0) * 0.30
-    score -= cost_penalty
+    # ── Cost penalty (token + latency, -0.50 max combined) ───────────────
+    # Local LLM (llama.cpp) is free, so dollar cost is meaningless.
+    # Penalize token count and latency instead.
+    token_penalty = min(candidate.estimated_tokens / 100_000, 1.0) * 0.30
+    latency_penalty = min(candidate.estimated_latency_ms / 60_000, 1.0) * 0.20
+    score -= token_penalty + latency_penalty
 
     # ── Risk flags penalty (-0.10 per flag, capped at -0.30) ────────────
     risk_count = len(candidate.risk_flags)

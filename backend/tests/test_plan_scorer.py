@@ -106,17 +106,20 @@ class TestScorePlan:
         assert 0.0 <= score <= 1.0
 
     def test_lower_cost_higher_score(self):
+        """Plans with fewer tokens and lower latency score higher."""
         cheap = PlanCandidate(
             plan_id="cheap",
             generation_strategy="heuristic",
             tasks=[],
-            estimated_cost_usd=0.0,
+            estimated_tokens=1_000,
+            estimated_latency_ms=500,
         )
         expensive = PlanCandidate(
             plan_id="expensive",
             generation_strategy="llm_persona",
             tasks=[],
-            estimated_cost_usd=0.50,
+            estimated_tokens=80_000,
+            estimated_latency_ms=45_000,
         )
         assert score_plan(cheap) > score_plan(expensive)
 
