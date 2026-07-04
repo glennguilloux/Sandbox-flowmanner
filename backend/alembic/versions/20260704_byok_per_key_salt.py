@@ -41,10 +41,15 @@ def upgrade() -> None:
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
     conn = op.get_bind()
-    if conn is None:
-        # Offline SQL render mode — no live DB connection.
-        # This migration performs data-level re-encryption which cannot
-        # be expressed as static SQL.  Skip gracefully.
+
+    # Detect offline SQL render mode: in --sql mode, op.get_bind() returns
+    # a non-None mock connection but conn.execute() returns None because
+    # no actual queries are executed.  This migration performs data-level
+    # re-encryption which cannot be expressed as static SQL.
+    _test_result = conn.execute(
+        sa.text("SELECT id, encrypted_key FROM user_api_keys WHERE encrypted_key IS NOT NULL")
+    )
+    if _test_result is None:
         print("  BYOK re-encryption: skipped (offline mode)")
         return
 
@@ -73,9 +78,7 @@ def upgrade() -> None:
     legacy_fernet = Fernet(_derive_key(legacy_salt))
 
     # Fetch all rows with non-null encrypted_key
-    rows = conn.execute(
-        sa.text("SELECT id, encrypted_key FROM user_api_keys WHERE encrypted_key IS NOT NULL")
-    ).fetchall()
+    rows = _test_result.fetchall()
 
     migrated = 0
     skipped = 0
