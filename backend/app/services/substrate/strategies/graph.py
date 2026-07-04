@@ -46,7 +46,7 @@ class GraphStrategy(ExecutionStrategy):
 
         for edge in workflow.edges:
             if edge.source not in node_ids:
-                errors.append(f"Edge source '{edge.source}' not found")
+                errors.append(f"Edge source '{edge.source}' not found")  # noqa: PERF401
 
         return errors
 

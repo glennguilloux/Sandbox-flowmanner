@@ -41,6 +41,8 @@ PHASES = [
 
 
 class PipelineStrategy(ExecutionStrategy):
+    DEPRECATED = True  # 0% success with 27B model per strategy profiling 2026-07-04
+    EXPERIMENTAL = True
     """7-phase pipeline strategy with review retry loop."""
 
     def can_handle(self, workflow_type: WorkflowType) -> bool:
@@ -52,15 +54,15 @@ class PipelineStrategy(ExecutionStrategy):
         if not workflow.nodes:
             errors.append("Pipeline workflow must have at least 1 node")
 
-        for node in workflow.nodes:
-            if node.type != NodeType.PHASE_GATE:
-                errors.append(f"Pipeline node '{node.id}' must be PHASE_GATE, got {node.type.value}")
+        errors.extend(
+            f"Pipeline node '{node.id}' must be PHASE_GATE, got {node.type.value}"
+            for node in workflow.nodes
+            if node.type != NodeType.PHASE_GATE
+        )
 
         # Validate that all required phases have nodes
         phase_configs = {n.config.get("phase") for n in workflow.nodes}
-        for phase in PHASES:
-            if phase not in phase_configs:
-                errors.append(f"Pipeline missing required phase: '{phase}'")
+        errors.extend(f"Pipeline missing required phase: '{phase}'" for phase in PHASES if phase not in phase_configs)
 
         return errors
 

@@ -1,0 +1,71 @@
+{
+  "timestamp": 1783194222.0,
+  "model": "Qwen3.6-27B-Q5_K_M-mtp",
+  "attempts_per_strategy": 1,
+  "notes": "Profiling used minimal single-node workflows. Complex strategies (swarm, pipeline, meta, langgraph) failed validation because they require specific node structures (FAN_OUT/FAN_IN, PHASE_GATE, SUB_WORKFLOW, graph_name). Simple strategies (solo, dag, graph) executed successfully with real LLM calls.",
+  "results": {
+    "solo": {
+      "success_rate": 1.0,
+      "successes": 1,
+      "attempts": 1,
+      "avg_latency_ms": 1521,
+      "avg_tokens": 15,
+      "total_tokens": 15,
+      "errors": []
+    },
+    "dag": {
+      "success_rate": 1.0,
+      "successes": 1,
+      "attempts": 1,
+      "avg_latency_ms": 994,
+      "avg_tokens": 15,
+      "total_tokens": 15,
+      "errors": []
+    },
+    "graph": {
+      "success_rate": 1.0,
+      "successes": 1,
+      "attempts": 1,
+      "avg_latency_ms": 1155,
+      "avg_tokens": 15,
+      "total_tokens": 15,
+      "errors": []
+    },
+    "swarm": {
+      "success_rate": 0.0,
+      "successes": 0,
+      "attempts": 1,
+      "avg_latency_ms": 6,
+      "avg_tokens": 0,
+      "total_tokens": 0,
+      "errors": ["Validation failed: Swarm workflow requires at least 1 FAN_OUT node; Swarm workflow requires at least 1 FAN_IN node"]
+    },
+    "pipeline": {
+      "success_rate": 0.0,
+      "successes": 0,
+      "attempts": 1,
+      "avg_latency_ms": 8,
+      "avg_tokens": 0,
+      "total_tokens": 0,
+      "errors": ["Validation failed: Pipeline node must be PHASE_GATE, got llm_call; Pipeline missing required phases: dispatch, research, draft, debate, consensus, synthesis, review"]
+    },
+    "meta": {
+      "success_rate": 0.0,
+      "successes": 0,
+      "attempts": 1,
+      "avg_latency_ms": 6,
+      "avg_tokens": 0,
+      "total_tokens": 0,
+      "errors": ["Validation failed: Meta workflow requires at least 1 SUB_WORKFLOW node"]
+    },
+    "langgraph": {
+      "success_rate": 0.0,
+      "successes": 0,
+      "attempts": 1,
+      "avg_latency_ms": 6,
+      "avg_tokens": 0,
+      "total_tokens": 0,
+      "errors": ["Validation failed: LangGraph node missing 'graph_name' in config"]
+    }
+  }
+}

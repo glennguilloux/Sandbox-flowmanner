@@ -119,6 +119,15 @@ class UnifiedExecutor:
         strategy = self._strategies.get(workflow_type)
         if strategy is None:
             raise ValueError(f"No strategy registered for workflow type: {workflow_type}")
+        # Gate experimental strategies behind STRATEGY_EXPERIMENTAL env var
+        if getattr(strategy, "EXPERIMENTAL", False):
+            from app.config import settings
+
+            if not settings.STRATEGY_EXPERIMENTAL:
+                raise ValueError(
+                    f"Strategy '{workflow_type.value}' is experimental and disabled. "
+                    f"Set STRATEGY_EXPERIMENTAL=true in .env to enable it."
+                )
         return strategy
 
     # ── Public API ──────────────────────────────────────────────────

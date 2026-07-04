@@ -295,6 +295,11 @@ class Settings(BaseSettings):
     # or if cross-mission recall proves valuable.
     FLOWMANNER_CROSS_MISSION_MEMORY: bool = True
 
+    # Strategy gating — experimental strategies (swarm, pipeline, meta, langgraph)
+    # Set to True to enable strategies that require complex workflow structures.
+    # Per strategy profiling 2026-07-04, these failed validation with simple workflows.
+    STRATEGY_EXPERIMENTAL: bool = False
+
     # Cost-aware plan selection (K-Plan Scored Pick)
     BUDGET_AWARE_PLAN_SELECTION: Literal["off", "on", "auto"] = "off"
     PLAN_SELECTION_K: int = 3

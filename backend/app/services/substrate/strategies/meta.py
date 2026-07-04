@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class MetaStrategy(ExecutionStrategy):
+    DEPRECATED = True  # 0% success with 27B model per strategy profiling 2026-07-04
+    EXPERIMENTAL = True
     """Recursive meta-execution with failure analysis and depth clamping."""
 
     def can_handle(self, workflow_type: WorkflowType) -> bool:

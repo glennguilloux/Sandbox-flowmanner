@@ -39,6 +39,9 @@ SYNTHESIZE_PROMPT = """You are a synthesis expert. Combine multiple agent output
 class SwarmStrategy(ExecutionStrategy):
     """Multi-agent swarm strategy — decompose, dispatch, synthesize."""
 
+    DEPRECATED = True  # 0% success with 27B model per strategy profiling 2026-07-04
+    EXPERIMENTAL = True
+
     def can_handle(self, workflow_type: WorkflowType) -> bool:
         return workflow_type == WorkflowType.SWARM
 
