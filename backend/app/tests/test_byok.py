@@ -141,7 +141,7 @@ async def test_delete_api_key():
 
 
 def test_encrypt_decrypt_api_key():
-    """Test encryption utility."""
+    """Test encryption utility — v2 per-key-salt format."""
     from app.utils.encryption import decrypt_api_key, encrypt_api_key
 
     original_key = "sk-test123456789"
@@ -149,7 +149,67 @@ def test_encrypt_decrypt_api_key():
     decrypted = decrypt_api_key(encrypted)
 
     assert decrypted == original_key
-    assert encrypted != original_key
+    assert encrypted.startswith("v2:"), "New encryptions must use v2 format"
+    # Random salt means two encryptions of the same plaintext differ
+    encrypted2 = encrypt_api_key(original_key)
+    assert encrypted != encrypted2, "Per-key salt must produce different ciphertexts"
+    assert decrypt_api_key(encrypted2) == original_key
+
+
+def test_decrypt_legacy_v1_key():
+    """Test that v1 (legacy hardcoded-salt) keys can still be decrypted."""
+    import base64
+
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+    from app.utils import encryption as enc_module
+
+    # Simulate a v1 key using the legacy hardcoded salt
+    secret = "test-secret-key-for-byok"
+    legacy_salt = b"flowmanner-salt-"
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=legacy_salt, iterations=100_000)
+    legacy_key = base64.urlsafe_b64encode(kdf.derive(secret.encode()))
+    fernet = Fernet(legacy_key)
+    plaintext = "sk-legacy-v1-key-value"
+    v1_encrypted = base64.urlsafe_b64encode(fernet.encrypt(plaintext.encode())).decode()
+
+    # decrypt_api_key should handle v1 format transparently
+    from unittest.mock import patch
+
+    mock_settings = type("S", (), {"ENCRYPTION_KEY": secret, "SECRET_KEY": secret})()
+    with patch.object(enc_module, "settings", mock_settings):
+        result = enc_module.decrypt_api_key(v1_encrypted)
+    assert result == plaintext
+
+
+def test_re_encrypt_api_key():
+    """Test re_encrypt upgrades v1 to v2 format."""
+    import base64
+
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+    from app.utils import encryption as enc_module
+
+    secret = "test-secret-key-for-byok"
+    legacy_salt = b"flowmanner-salt-"
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=legacy_salt, iterations=100_000)
+    legacy_key = base64.urlsafe_b64encode(kdf.derive(secret.encode()))
+    fernet = Fernet(legacy_key)
+    plaintext = "sk-re-encrypt-test"
+    v1_encrypted = base64.urlsafe_b64encode(fernet.encrypt(plaintext.encode())).decode()
+
+    mock_settings = type("S", (), {"ENCRYPTION_KEY": secret, "SECRET_KEY": secret})()
+    with patch.object(enc_module, "settings", mock_settings):
+        v2_encrypted = enc_module.re_encrypt_api_key(v1_encrypted)
+
+    assert v2_encrypted.startswith("v2:"), "re_encrypt must produce v2 format"
+    assert v2_encrypted != v1_encrypted
+    with patch.object(enc_module, "settings", mock_settings):
+        assert enc_module.decrypt_api_key(v2_encrypted) == plaintext
 
 
 def test_validate_provider():
