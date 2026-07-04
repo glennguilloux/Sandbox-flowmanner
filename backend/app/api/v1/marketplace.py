@@ -503,23 +503,15 @@ async def install_listing(
     plugin_id = None
 
     # Clone workflow artifact into workspace
+    # NOTE: Graph workflow support removed — graph tables no longer exist.
+    # To re-enable, add a new workflow model under the substrate architecture.
     if listing.artifact_type == "workflow" and listing.artifact_id:
-        from app.models.graph import GraphWorkflow
-        from app.services.graph_service import get_graph_workflow
-
-        source_wf = await get_graph_workflow(db, listing.artifact_id)
-        if source_wf:
-            new_wf = GraphWorkflow(
-                id=str(uuid4()),
-                name=f"{source_wf.name} (from marketplace)",
-                description=source_wf.description,
-                graph_definition=source_wf.graph_definition,
-                user_id=user.id,
-                workspace_id=workspace_id,
-            )
-            db.add(new_wf)
-            await db.flush()
-            cloned_entity_id = new_wf.id
+        logger.warning(
+            "marketplace_workflow_clone_skipped listing_id=%s artifact_id=%s — "
+            "graph tables removed; workflow install is a no-op",
+            listing_id,
+            listing.artifact_id,
+        )
 
     # Install plugin artifact via PluginRuntime (Phase 9.3)
     if listing.artifact_type == "plugin":
@@ -724,19 +716,18 @@ async def get_reviews(
         .offset((page - 1) * per_page)
         .limit(per_page)
     )
-    reviews = []
-    for r in result.scalars().all():
-        reviews.append(
-            ReviewResponse(
-                id=r.id,
-                listing_id=r.listing_id,
-                user_id=r.user_id,
-                rating=r.rating,
-                title=getattr(r, "title", None),
-                comment=r.comment,
-                created_at=r.created_at.isoformat() if r.created_at else "",
-            )
+    reviews = [
+        ReviewResponse(
+            id=r.id,
+            listing_id=r.listing_id,
+            user_id=r.user_id,
+            rating=r.rating,
+            title=getattr(r, "title", None),
+            comment=r.comment,
+            created_at=r.created_at.isoformat() if r.created_at else "",
         )
+        for r in result.scalars().all()
+    ]
 
     return {
         "reviews": reviews,

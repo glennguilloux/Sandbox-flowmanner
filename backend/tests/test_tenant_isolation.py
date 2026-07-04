@@ -296,51 +296,6 @@ async def test_create_mission_default_no_workspace():
     )
 
 
-# ── Test: Graph service workspace filtering ──────────────────────────────────
-
-
-async def test_create_graph_workflow_sets_workspace_id():
-    """create_graph_workflow should set workspace_id."""
-    from app.services.graph_service import create_graph_workflow
-
-    ws_id = "ws-graph-test"
-    added_objects = []
-
-    db = AsyncMock()
-    db.add = lambda obj: added_objects.append(obj)
-    db.flush = AsyncMock()
-    db.refresh = AsyncMock()
-
-    result = await create_graph_workflow(db, 1, "test", {}, workspace_id=ws_id)
-
-    _assert(
-        added_objects[0].workspace_id == ws_id,
-        "create_graph_workflow sets workspace_id",
-    )
-
-
-async def test_list_graph_workflows_workspace_filter():
-    """list_graph_workflows should filter by workspace_id when provided."""
-    from app.services.graph_service import list_graph_workflows
-
-    ws_id = "ws-graph-list"
-
-    call_args = []
-
-    db = AsyncMock()
-
-    async def mock_execute(stmt):
-        call_args.append(str(stmt))
-        if len(call_args) <= 1:
-            return FakeResult(scalar_val=3)
-        return FakeResult(items=[MagicMock(), MagicMock(), MagicMock()])
-
-    db.execute = mock_execute
-
-    items, total = await list_graph_workflows(db, 1, workspace_id=ws_id)
-    _assert(total == 3, "list_graph_workflows with workspace_id returns correct count")
-
-
 # ── Test: Chat service workspace filtering ───────────────────────────────────
 
 
@@ -464,155 +419,6 @@ async def test_cqrs_list_missions_passes_workspace_id():
     handler = MissionQueryHandlers(session)
     result = await handler.list_missions(1, 1, 20, workspace_id=ws_id)
     _assert(result.total == 0, "CQRS list_missions with workspace_id executes without error")
-
-
-# ── Test: Graph access workspace isolation ─────────────────────────────────
-
-
-class FakeWorkflow:
-    """Simulates a GraphWorkflow ORM object."""
-
-    def __init__(self, id=None, user_id=1, workspace_id=None, name="Test Workflow"):
-        self.id = id or str(uuid.uuid4())
-        self.user_id = user_id
-        self.workspace_id = workspace_id
-        self.name = name
-        self.created_at = datetime.now(UTC)
-
-
-async def test_require_graph_access_workspace_member():
-    """require_graph_access should allow access when user is a workspace member."""
-    from fastapi import HTTPException
-
-    from app.services.graph_service import require_graph_access
-
-    ws_id = "ws-graph-access"
-    workflow = FakeWorkflow(workspace_id=ws_id)
-
-    db = AsyncMock()
-    call_count = [0]
-
-    async def mock_execute(stmt):
-        call_count[0] += 1
-        if call_count[0] == 1:
-            # get_graph_workflow: return the workflow
-            return FakeResult(items=[workflow], scalar_val=workflow)
-        else:
-            # WorkspaceMember check: return a member
-            return FakeResult(items=[FakeWorkspaceMember(ws_id, 1)])
-
-    db.execute = mock_execute
-
-    result = await require_graph_access(db, workflow.id, user_id=1)
-    _assert(result.id == workflow.id, "require_graph_access allows workspace member")
-
-
-async def test_require_graph_access_non_member_denied():
-    """require_graph_access should deny access when user is not a workspace member."""
-    from app.services.graph_service import require_graph_access
-    from app.services.mission_errors import GraphNotFoundError
-
-    ws_id = "ws-graph-denied"
-    workflow = FakeWorkflow(workspace_id=ws_id, user_id=999)
-
-    db = AsyncMock()
-    call_count = [0]
-
-    async def mock_execute(stmt):
-        call_count[0] += 1
-        if call_count[0] == 1:
-            return FakeResult(items=[workflow], scalar_val=workflow)
-        else:
-            # WorkspaceMember check: no membership found
-            return FakeResult(items=[], scalar_val=None)
-
-    db.execute = mock_execute
-
-    try:
-        await require_graph_access(db, workflow.id, user_id=1)
-        _assert(False, "require_graph_access should have raised GraphNotFoundError")
-    except GraphNotFoundError:
-        _assert(True, "require_graph_access denies non-member with GraphNotFoundError")
-
-
-async def test_require_graph_access_fallback_to_user_id():
-    """require_graph_access should fall back to user_id when workflow has no workspace_id."""
-    from app.services.graph_service import require_graph_access
-
-    workflow = FakeWorkflow(user_id=42, workspace_id=None)
-
-    db = AsyncMock()
-
-    async def mock_execute(stmt):
-        return FakeResult(items=[workflow], scalar_val=workflow)
-
-    db.execute = mock_execute
-
-    result = await require_graph_access(db, workflow.id, user_id=42)
-    _assert(
-        result.id == workflow.id,
-        "require_graph_access allows owner when no workspace_id",
-    )
-
-
-async def test_require_graph_access_wrong_user_denied():
-    """require_graph_access should deny access when user_id doesn't match and no workspace."""
-    from app.services.graph_service import require_graph_access
-    from app.services.mission_errors import GraphNotFoundError
-
-    workflow = FakeWorkflow(user_id=42, workspace_id=None)
-
-    db = AsyncMock()
-
-    async def mock_execute(stmt):
-        return FakeResult(items=[workflow], scalar_val=workflow)
-
-    db.execute = mock_execute
-
-    try:
-        await require_graph_access(db, workflow.id, user_id=999)
-        _assert(False, "require_graph_access should have raised GraphNotFoundError")
-    except GraphNotFoundError:
-        _assert(True, "require_graph_access denies wrong user with GraphNotFoundError")
-
-
-async def test_require_graph_access_missing_workflow():
-    """require_graph_access should raise GraphNotFoundError when workflow doesn't exist."""
-    from app.services.graph_service import require_graph_access
-    from app.services.mission_errors import GraphNotFoundError
-
-    db = AsyncMock()
-
-    async def mock_execute(stmt):
-        return FakeResult(items=[], scalar_val=None)
-
-    db.execute = mock_execute
-
-    try:
-        await require_graph_access(db, "nonexistent-id", user_id=1)
-        _assert(False, "require_graph_access should have raised GraphNotFoundError")
-    except GraphNotFoundError:
-        _assert(True, "require_graph_access raises GraphNotFoundError for missing workflow")
-
-
-async def test_list_graph_workflows_fallback_to_user():
-    """list_graph_workflows should fall back to user_id when no workspace_id."""
-    from app.services.graph_service import list_graph_workflows
-
-    call_args = []
-
-    db = AsyncMock()
-
-    async def mock_execute(stmt):
-        call_args.append(str(stmt))
-        if len(call_args) <= 1:
-            return FakeResult(scalar_val=2)
-        return FakeResult(items=[MagicMock(), MagicMock()])
-
-    db.execute = mock_execute
-
-    items, total = await list_graph_workflows(db, 42, workspace_id=None)
-    _assert(total == 2, "list_graph_workflows without workspace_id falls back to user_id")
 
 
 # ── Test: Chat access workspace isolation ───────────────────────────────────
@@ -972,14 +778,6 @@ async def main():
             ],
         ),
         (
-            "Graph service workspace filtering",
-            [
-                test_create_graph_workflow_sets_workspace_id,
-                test_list_graph_workflows_workspace_filter,
-                test_list_graph_workflows_fallback_to_user,
-            ],
-        ),
-        (
             "Chat access workspace isolation",
             [
                 test_require_chat_thread_access_workspace_member,
@@ -987,16 +785,6 @@ async def main():
                 test_require_chat_thread_access_fallback_to_user_id,
                 test_require_chat_thread_access_wrong_user_denied,
                 test_require_chat_thread_access_missing_thread,
-            ],
-        ),
-        (
-            "Graph access workspace isolation",
-            [
-                test_require_graph_access_workspace_member,
-                test_require_graph_access_non_member_denied,
-                test_require_graph_access_fallback_to_user_id,
-                test_require_graph_access_wrong_user_denied,
-                test_require_graph_access_missing_workflow,
             ],
         ),
         (

@@ -53,7 +53,6 @@ auth_router = _import_router("auth", tier=RouterTier.CRITICAL)
 users_router = _import_router("users", tier=RouterTier.CRITICAL)
 mission_router = _import_router("mission", tier=RouterTier.CRITICAL)
 chat_router = _import_router("chat", tier=RouterTier.CRITICAL)
-graph_router = _import_router("graph", tier=RouterTier.CRITICAL)
 browser_router = _import_router("browser", tier=RouterTier.CRITICAL)
 
 # ── STANDARD routers: warn if missing ───────────────────────────────
@@ -67,12 +66,10 @@ byok_router = _import_router("byok")
 dashboard_router = _import_router("dashboard")
 file_router = _import_router("file")
 files_router_obj = _import_router("file", "files_router")
-flow_compat_router = _import_router("flow_compat")
 llm_router = _import_router("llm")
 llm_advanced_router = _import_router("llm_advanced")
 memory_router = _import_router("memory")
 mission_advanced_router = _import_router("mission_advanced_routes")
-mission_decomposition_router = _import_router("mission_decomposition_routes")
 oidc_router = _import_router("oidc")
 onboarding_router = _import_router("onboarding")
 delegations_router = _import_router("delegations")
@@ -193,15 +190,12 @@ for _name, _router in [
     ("community", community_router),
     ("file", file_router),
     ("files", files_router_obj),
-    ("flow_compat", flow_compat_router),
-    ("graph", graph_router),
     ("domain_agents", domain_agents_router),
     ("llm", llm_router),
     ("llm_advanced", llm_advanced_router),
     ("memory", memory_router),
     ("mission", mission_router),
     ("mission_advanced", mission_advanced_router),
-    ("mission_decomposition", mission_decomposition_router),
     ("oidc", oidc_router),
     ("delegations", delegations_router),
     ("roles", roles_router),
@@ -293,8 +287,6 @@ for _name, _router in [
         _prefix = None
         if _name == "swarm_protocol":
             _prefix = "/swarm"
-        elif _name == "flow_compat":
-            _prefix = "/flow"
         elif _name == "llm":
             _prefix = "/ai"
         elif _name == "analytics":

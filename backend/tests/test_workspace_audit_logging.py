@@ -3,8 +3,9 @@
 Verifies that structured log messages and audit DB writes fire on:
 1. get_workspace_id: denied workspace resolution (no membership)
 2. require_mission_access: workspace membership denial + owner mismatch
-3. require_graph_access: workspace membership denial + owner mismatch
-4. require_chat_thread_access: workspace membership denial + owner mismatch
+3. require_chat_thread_access: workspace membership denial + owner mismatch
+
+NOTE: Graph access tests removed — graph_service was deleted in Phase 2 Step 3.
 """
 
 from __future__ import annotations
@@ -184,10 +185,12 @@ class TestRequireMissionAccessAudit:
 
         db = AsyncMock()
 
-        with patch("app.services.mission_service.get_mission", return_value=mission):
-            with caplog.at_level(logging.WARNING):
-                with pytest.raises(MissionNotFoundError):
-                    await require_mission_access(db, "m-456", user_id=99)
+        with (
+            patch("app.services.mission_service.get_mission", return_value=mission),
+            caplog.at_level(logging.WARNING),
+            pytest.raises(MissionNotFoundError),
+        ):
+            await require_mission_access(db, "m-456", user_id=99)
 
         assert any("entity_access_denied" in r.message for r in caplog.records)
         assert any("reason=owner_mismatch" in r.message for r in caplog.records)
@@ -222,84 +225,8 @@ class TestRequireMissionAccessAudit:
 # ──────────────────────────────────────────────────────────────
 
 
-class TestRequireGraphAccessAudit:
-    """require_graph_access should log on workspace denial and owner mismatch."""
-
-    @pytest.mark.asyncio
-    async def test_workspace_denial_logs_warning(self, caplog):
-        from unittest.mock import MagicMock
-
-        from app.services.graph_service import require_graph_access
-        from app.services.mission_errors import GraphNotFoundError
-
-        workflow = MagicMock()
-        workflow.workspace_id = "ws-graph-1"
-        workflow.user_id = 10
-
-        db = AsyncMock()
-
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
-            mock_result = MagicMock()
-            mock_result.scalar_one_or_none.return_value = None
-            db.execute = AsyncMock(return_value=mock_result)
-
-            with caplog.at_level(logging.WARNING), pytest.raises(GraphNotFoundError):
-                await require_graph_access(db, "wf-abc", user_id=99)
-
-        assert any("entity_access_denied" in r.message for r in caplog.records)
-        assert any("entity_type=workflow" in r.message for r in caplog.records)
-        assert any("entity_id=wf-abc" in r.message for r in caplog.records)
-        assert any("reason=no_membership" in r.message for r in caplog.records)
-
-    @pytest.mark.asyncio
-    async def test_owner_mismatch_logs_warning(self, caplog):
-        from unittest.mock import MagicMock
-
-        from app.services.graph_service import require_graph_access
-        from app.services.mission_errors import GraphNotFoundError
-
-        workflow = MagicMock()
-        workflow.workspace_id = None
-        workflow.user_id = 10
-
-        db = AsyncMock()
-
-        with (
-            patch("app.services.graph_service.get_graph_workflow", return_value=workflow),
-            caplog.at_level(logging.WARNING),
-            pytest.raises(GraphNotFoundError),
-        ):
-            await require_graph_access(db, "wf-def", user_id=99)
-
-        assert any("entity_access_denied" in r.message for r in caplog.records)
-        assert any("reason=owner_mismatch" in r.message for r in caplog.records)
-
-    @pytest.mark.asyncio
-    async def test_valid_access_no_audit_log(self, caplog):
-        from unittest.mock import MagicMock
-
-        from app.services.graph_service import require_graph_access
-
-        workflow = MagicMock()
-        workflow.workspace_id = "ws-ok"
-        workflow.user_id = 10
-
-        db = AsyncMock()
-
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
-            mock_result = MagicMock()
-            mock_result.scalar_one_or_none.return_value = MagicMock()
-            db.execute = AsyncMock(return_value=mock_result)
-
-            with caplog.at_level(logging.WARNING):
-                result = await require_graph_access(db, "wf-ghi", user_id=10)
-
-        assert result is workflow
-        assert not any("entity_access_denied" in r.message for r in caplog.records)
-
-
 # ──────────────────────────────────────────────────────────────
-# 4. require_chat_thread_access — workspace denial + owner mismatch
+# 3. require_chat_thread_access (graph tests removed — graph_service deleted) — workspace denial + owner mismatch
 # ──────────────────────────────────────────────────────────────
 
 
@@ -346,12 +273,14 @@ class TestRequireChatThreadAccessAudit:
 
         db = AsyncMock()
 
-        with patch("app.services.chat_service.get_chat_thread", return_value=thread):
-            with caplog.at_level(logging.WARNING):
-                from fastapi import HTTPException
+        with (
+            patch("app.services.chat_service.get_chat_thread", return_value=thread),
+            caplog.at_level(logging.WARNING),
+        ):
+            from fastapi import HTTPException
 
-                with pytest.raises(HTTPException):
-                    await require_chat_thread_access(db, 42, user_id=99)
+            with pytest.raises(HTTPException):
+                await require_chat_thread_access(db, 42, user_id=99)
 
         assert any("entity_access_denied" in r.message for r in caplog.records)
         assert any("reason=owner_mismatch" in r.message for r in caplog.records)
@@ -402,7 +331,6 @@ class TestAuditLogFormatConsistency:
 
         from app.api.deps import get_workspace_id
         from app.services.chat_service import require_chat_thread_access
-        from app.services.graph_service import require_graph_access
         from app.services.mission_service import require_mission_access
 
         db = AsyncMock()

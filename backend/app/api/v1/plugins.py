@@ -473,10 +473,12 @@ async def execute_plugin(
         },
     }
 
-    # Build a minimal context
-    from app.services.graph_executor import ExecutionContext
+    # Build a minimal context — the old ExecutionContext from graph_executor
+    # has been removed (graph tables don't exist).  MagicMock works as a
+    # duck-typed dict-like context for plugin test execution.
+    from unittest.mock import MagicMock
 
-    context = ExecutionContext()
+    context = MagicMock()
 
     try:
         handler_result = await handler.execute(mock_node, context, None)

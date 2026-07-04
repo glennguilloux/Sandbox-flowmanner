@@ -165,44 +165,6 @@ async def manual_fire(
     }
 
 
-@router.post("/{trigger_id}/fire-graph")
-async def fire_graph(
-    trigger_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Fire a trigger that executes a graph workflow instead of a mission."""
-    trigger = await svc.get_trigger(db, trigger_id, user.id)
-    if not trigger:
-        raise _not_found()
-
-    # Check if trigger has a graph workflow configured
-    config = trigger.config or {}
-    graph_workflow_id = config.get("graph_workflow_id")
-    if not graph_workflow_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Trigger not configured for graph execution. Set graph_workflow_id in trigger config.",
-        )
-
-    from app.services.graph_service import execute_graph_workflow
-
-    execution = await execute_graph_workflow(
-        db,
-        graph_workflow_id,
-        user.id,
-        input_data={"trigger_id": str(trigger.id), "source": "trigger"},
-    )
-    await db.commit()
-
-    return {
-        "trigger_id": str(trigger.id),
-        "graph_workflow_id": str(graph_workflow_id),
-        "execution_id": str(execution.id),
-        "status": "fired",
-    }
-
-
 @router.get("/{trigger_id}/logs", response_model=TriggerLogListResponse)
 async def get_trigger_logs(
     trigger_id: str,

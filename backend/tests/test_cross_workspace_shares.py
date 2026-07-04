@@ -368,40 +368,6 @@ class TestAccessCheckCrossWorkspaceIntegration:
             assert any("entity_access_denied" in r.message for r in caplog.records)
 
     @pytest.mark.asyncio
-    async def test_graph_access_cross_workspace_granted(self):
-        from app.services.graph_service import require_graph_access
-
-        workflow = MagicMock()
-        workflow.workspace_id = "ws-owner"
-        workflow.user_id = 10
-
-        db = AsyncMock()
-        call_count = 0
-
-        async def mock_execute(stmt):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return MagicMock(scalar_one_or_none=MagicMock(return_value=None))
-            if call_count == 2:
-                mock_r = MagicMock()
-                mock_r.all.return_value = [("ws-other",)]
-                return mock_r
-            if call_count == 3:
-                return MagicMock(scalar_one_or_none=MagicMock(return_value=MagicMock()))
-            if call_count == 4:
-                grant = MagicMock()
-                grant.permission = "read"
-                return MagicMock(scalar_one_or_none=MagicMock(return_value=grant))
-            return MagicMock(scalar_one_or_none=MagicMock(return_value=None))
-
-        db.execute = AsyncMock(side_effect=mock_execute)
-
-        with patch("app.services.graph_service.get_graph_workflow", return_value=workflow):
-            result = await require_graph_access(db, "wf-1", user_id=99)
-            assert result is workflow
-
-    @pytest.mark.asyncio
     async def test_chat_access_cross_workspace_granted(self):
         from app.services.chat_service import require_chat_thread_access
 
