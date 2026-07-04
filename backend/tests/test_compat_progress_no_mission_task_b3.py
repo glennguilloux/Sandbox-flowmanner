@@ -23,8 +23,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-COMPAT = REPO_ROOT / "backend" / "app" / "api" / "_mission_cqrs" / "compat.py"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+COMPAT = BACKEND_ROOT / "app" / "api" / "_mission_cqrs" / "compat.py"
 
 
 def _extract_active_missions_from_blueprints_body() -> str:
