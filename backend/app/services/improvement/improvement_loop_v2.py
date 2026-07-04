@@ -73,6 +73,24 @@ class ImprovementLoopV2:
                 exc,
             )
 
+        # AutoMem Phase 2: scaffold review (fire-and-forget, best-effort)
+        # Triggered after every mission completion. The task itself checks
+        # whether enough traces have accumulated before calling the meta-LLM.
+        try:
+            import os
+
+            agent_id = os.environ.get("FLOWMANNER_DEFAULT_AGENT", "")
+            if agent_id:
+                from app.tasks.meta_review_tasks import review_scaffold
+
+                asyncio.create_task(self._dispatch_scaffold_review(review_scaffold, agent_id, mission_id))
+        except Exception as exc:
+            logger.debug(
+                "Scaffold review dispatch unavailable for mission=%s: %s",
+                mission_id,
+                exc,
+            )
+
     async def _dispatch_background_review(
         self,
         review_mission: Any,
@@ -84,6 +102,22 @@ class ImprovementLoopV2:
         except Exception as exc:
             logger.debug(
                 "Background review enqueue failed for mission=%s: %s",
+                mission_id,
+                exc,
+            )
+
+    async def _dispatch_scaffold_review(
+        self,
+        review_scaffold: Any,
+        agent_id: str,
+        mission_id: str,
+    ) -> None:
+        """Fire-and-forget wrapper for ``review_scaffold.delay``."""
+        try:
+            review_scaffold.delay(agent_id)
+        except Exception as exc:
+            logger.debug(
+                "Scaffold review enqueue failed for mission=%s: %s",
                 mission_id,
                 exc,
             )
