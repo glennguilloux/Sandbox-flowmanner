@@ -74,13 +74,14 @@ class ImprovementLoopV2:
             )
 
         # AutoMem Phase 2: scaffold review (fire-and-forget, best-effort)
-        # Triggered after every mission completion. The task itself checks
-        # whether enough traces have accumulated before calling the meta-LLM.
+        # Only fires when FLOWMANNER_META_REVIEW_ENABLED is set to "1".
+        # The task itself checks whether enough traces have accumulated
+        # before calling the meta-LLM.
         try:
             import os
 
-            agent_id = os.environ.get("FLOWMANNER_DEFAULT_AGENT", "")
-            if agent_id:
+            if os.environ.get("FLOWMANNER_META_REVIEW_ENABLED", "") == "1":
+                agent_id = os.environ.get("FLOWMANNER_DEFAULT_AGENT", "default")
                 from app.tasks.meta_review_tasks import review_scaffold
 
                 asyncio.create_task(self._dispatch_scaffold_review(review_scaffold, agent_id, mission_id))

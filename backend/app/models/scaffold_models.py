@@ -123,6 +123,11 @@ class ScaffoldProposal(Base, TimestampMixin):
         default=0,
         comment="Number of episode traces used for this review",
     )
+    rejection_reason: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Reason for rejection, set by admin on reject",
+    )
     meta_model: Mapped[str] = mapped_column(
         String(100),
         nullable=False,

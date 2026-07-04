@@ -188,6 +188,7 @@ async def reject_proposal(
         )
 
     proposal.status = ScaffoldProposalStatus.REJECTED
+    proposal.rejection_reason = body.reason or None
     proposal.reviewed_at = datetime.now(UTC)
     proposal.reviewed_by = user.id
     await db.commit()
@@ -301,6 +302,7 @@ def _proposal_to_dict(p: ScaffoldProposal, *, include_prompt: bool = False) -> d
         "meta_model": p.meta_model,
         "current_prompt_hash": p.current_prompt_hash,
         "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
+        "rejection_reason": p.rejection_reason,
         "applied_at": p.applied_at.isoformat() if p.applied_at else None,
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
