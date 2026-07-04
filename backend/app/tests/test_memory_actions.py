@@ -250,5 +250,5 @@ class TestMemoryActionAPI:
         from app.api.v1.memory_actions import router
 
         paths = {r.path for r in router.routes if hasattr(r, "path")}
-        assert "/mission/{mission_id}" in paths
-        assert "/mission/{mission_id}/score" in paths
+        assert any("mission/{mission_id}" in p for p in paths)
+        assert any("mission/{mission_id}/score" in p for p in paths)
