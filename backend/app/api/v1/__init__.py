@@ -130,7 +130,6 @@ observability_router = _import_router("observability")
 rate_limits_router = _import_router("rate_limits")
 evaluation_router = _import_router("evaluation")
 agent_capabilities_router = _import_router("agent_capabilities")
-swarm_router = _import_router("swarm")
 swarm_protocol_router = _import_router("swarm_protocol")
 rag_router = _import_router("rag")
 sandbox_router = _import_router("sandbox")
@@ -271,7 +270,6 @@ for _name, _router in [
     ("rate-limits", rate_limits_router),
     ("evaluation", evaluation_router),
     ("agent-capabilities", agent_capabilities_router),
-    ("swarm", swarm_router),
     ("swarm_protocol", swarm_protocol_router),
     ("rag", rag_router),
     ("sandbox", sandbox_router),

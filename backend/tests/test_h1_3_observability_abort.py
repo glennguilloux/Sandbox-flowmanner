@@ -7,8 +7,7 @@ Tests:
 3. All mission status paths in execute_mission go through _transition_status
 4. _tool_report_generator records LLM calls
 5. abort_mission API endpoint writes structured log entries
-6. Swarm orchestrator logs status transitions
-7. Mission.status transitions are append-only in the log
+6. Mission.status transitions are append-only in the log
 """
 
 import os
@@ -241,65 +240,3 @@ class TestAbortSignal:
             "manual_intervention",
         }
         assert reasons == required, f"Missing reasons: {required - reasons}"
-
-
-class TestSwarmOrchestratorObservability:
-    """H1.3: Swarm orchestrator must log status transitions."""
-
-    def test_swarm_orchestrator_has_transition_method(self):
-        """SwarmOrchestrator must have _transition_execution_status."""
-        from app.services.swarm.orchestrator import SwarmOrchestrator
-
-        assert hasattr(
-            SwarmOrchestrator, "_transition_execution_status"
-        ), "SwarmOrchestrator is missing _transition_execution_status"
-
-    @pytest.mark.asyncio
-    async def test_transition_execution_status_logs(self):
-        """_transition_execution_status must log and update status."""
-        from app.services.swarm.orchestrator import SwarmOrchestrator
-
-        mock_db = AsyncMock()
-        mock_db.commit = AsyncMock()
-
-        mock_execution = MagicMock()
-        mock_execution.id = str(uuid4())
-        mock_execution.status = "decomposing"
-
-        orchestrator = SwarmOrchestrator(mock_db)
-
-        with patch("app.services.swarm.orchestrator.logger") as mock_logger:
-            await orchestrator._transition_execution_status(mock_execution, "running", cause="Test transition")
-
-        assert mock_execution.status == "running"
-        mock_logger.info.assert_called()
-
-
-class TestLlamaModelEdgeCase:
-    """H1.3 regression: ensure the hard validation from H1.1 doesn't break swarm."""
-
-    @pytest.mark.asyncio
-    async def test_swarm_llm_recording_uses_llm_call_record(self):
-        """Swarm LLM calls must use LLMCallRecord table."""
-        from app.services.swarm.orchestrator import SwarmOrchestrator
-
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-
-        orchestrator = SwarmOrchestrator(mock_db)
-
-        await orchestrator._record_swarm_llm_call(
-            model_id="test-model",
-            provider="test-provider",
-            prompt_tokens=10,
-            completion_tokens=20,
-            latency_ms=100,
-            success=True,
-        )
-
-        # Should have added an LLMCallRecord to the DB
-        args = mock_db.add.call_args_list
-        from app.models.llm_call_record import LLMCallRecord
-
-        records = [a[0][0] for a in args if isinstance(a[0][0], LLMCallRecord)]
-        assert len(records) >= 1, "Swarm LLM call must create an LLMCallRecord"

@@ -135,7 +135,6 @@ from app.api.v1.agent import router as agent_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.mission import router as mission_router
-from app.api.v1.swarm import router as swarm_router
 from app.api.v1.swarm_protocol import router as protocol_router
 from app.main_fastapi import (
     app as _real_app,
@@ -164,7 +163,6 @@ def test_app():
 
     api_router = APIRouter(prefix="/api")
     api_router.include_router(auth_router)
-    api_router.include_router(swarm_router)
     api_router.include_router(protocol_router, prefix="/swarm")
     api_router.include_router(dashboard_router)
     api_router.include_router(agent_router)
