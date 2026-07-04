@@ -27,8 +27,10 @@ BACKEND_IMAGE="workflows-backend:restored"
 BACKEND_CONTAINER="backend"
 COMPOSE_DIR="/opt/flowmanner"
 HEALTH_URL="http://localhost:8000/health"
-HEALTH_CHECK_RETRIES=15
-HEALTH_CHECK_DELAY=3
+# Env-overridable: set DEPLOY_HEALTH_RETRIES / DEPLOY_HEALTH_BACKOFF_S to tune.
+# Default 20×5s = 100s window — covers cold-start embedding model load (~19s).
+HEALTH_CHECK_RETRIES=${DEPLOY_HEALTH_RETRIES:-20}
+HEALTH_CHECK_DELAY=${DEPLOY_HEALTH_BACKOFF_S:-5}
 
 # All three containers share the BACKEND_IMAGE and run code from the
 # same /app/ tree baked at build time.  Whenever the image changes, all
@@ -380,7 +382,7 @@ build_and_deploy() {
   # fires alembic against a container that Docker reports as "up" but
   # whose DB connection isn't established yet, causing alembic to
   # silently no-op and the head verification to fail.
-  check_health "$HEALTH_URL" "Backend (post-recreate readiness)" 10 3
+  check_health "$HEALTH_URL" "Backend (post-recreate readiness)" "$HEALTH_CHECK_RETRIES" "$HEALTH_CHECK_DELAY"
 
   log_success "Backend + celery containers recreated"
 }
