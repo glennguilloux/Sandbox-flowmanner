@@ -367,6 +367,26 @@ check-sdk: ## CI hook — regenerate SDKs and fail if they differ from committed
 		echo -e "$(YELLOW)   Run 'make generate-ts-sdk' and commit in frontend repo manually.$(RESET)"; \
 	fi
 
+
+# ============================================================
+# Load Testing (k6)
+# ============================================================
+
+.PHONY: load-test load-test-mission load-test-chat load-test-dashboard
+
+load-test: load-test-mission load-test-chat load-test-dashboard ## Run all k6 load tests
+
+load-test-mission: ## k6: mission create + fetch + list (5 VUs, 2m)
+	@echo "$(CYAN)Running mission load test...$(NC)"
+	@BASE_URL=http://localhost:8000 k6 run tests/load/mission-create.js
+
+load-test-chat: ## k6: chat thread + message (3 VUs, 1.5m)
+	@echo "$(CYAN)Running chat load test...$(NC)"
+	@BASE_URL=http://localhost:8000 k6 run tests/load/chat-message.js
+
+load-test-dashboard: ## k6: dashboard API parallel load (10 VUs, 3m)
+	@echo "$(CYAN)Running dashboard load test...$(NC)"
+	@BASE_URL=http://localhost:8000 k6 run tests/load/dashboard-load.js
 # ============================================================
 # Help
 # ============================================================

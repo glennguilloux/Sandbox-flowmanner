@@ -46,6 +46,16 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+def _provider_from_model(model_id: str) -> str | None:
+    """Extract the provider prefix from a model ID (e.g. ``deepseek/v4`` → ``deepseek``)."""
+    if "/" not in model_id:
+        return None
+    prefix = model_id.split("/", 1)[0].lower()
+    # Normalize common aliases
+    _ALIASES = {"openai_compatible": "openai"}
+    return _ALIASES.get(prefix, prefix)
+
+
 class LeaseLostError(Exception):
     """Raised when the heartbeat detects a stolen lease mid-execution."""
 
@@ -596,25 +606,84 @@ class UnifiedExecutor:
         run_id: str | None = None,
         mission_id: str | None = None,
         task_id: str | None = None,
+        workspace_id: str | None = None,
     ) -> dict[str, Any]:
         """Make an LLM call through the budget enforcer.
 
         This is the ONLY LLM call path in the unified executor.
         All strategies MUST use this method for LLM calls.
+
+        When ``workspace_id`` is provided and the substrate circuit breaker
+        is enabled, the call is gated by the per-(workspace, provider)
+        circuit breaker in ``app.services.substrate.circuit_breaker``.
         """
         from app.services.budget_enforcer import get_budget_enforcer
 
+        # ── Substrate circuit breaker (per-workspace+provider) ──────────
+        provider_id = _provider_from_model(model_id)
+        cb_allowed = True
+        if workspace_id and provider_id and db_session is not None:
+            try:
+                from app.config import settings as _settings
+                from app.services.substrate.circuit_breaker import (
+                    CircuitBreakerOpen,
+                    check_and_allow,
+                )
+                from app.services.substrate.circuit_breaker import (
+                    record_failure as cb_record_failure,
+                )
+                from app.services.substrate.circuit_breaker import (
+                    record_success as cb_record_success,
+                )
+
+                if getattr(_settings, "FLOWMANNER_CIRCUIT_BREAKER_ENABLED", True):
+                    cb_result = await check_and_allow(db_session, workspace_id, provider_id)
+                    if not cb_result.allowed:
+                        logger.warning(
+                            "Substrate CB open for %s/%s: %s",
+                            workspace_id,
+                            provider_id,
+                            cb_result.reason,
+                        )
+                        raise CircuitBreakerOpen(provider_id, cb_result.retry_after_seconds)
+                    # Will record success/failure after the call
+                    cb_allowed = True
+            except CircuitBreakerOpen:
+                raise
+            except Exception as exc:
+                logger.debug("Substrate CB check failed (fail-open): %s", exc)
+
         enforcer = get_budget_enforcer()
-        return await enforcer.call(
-            budget=budget,
-            model_id=model_id,
-            messages=messages,
-            user_id=user_id,
-            db_session=db_session,
-            run_id=run_id,
-            mission_id=mission_id,
-            task_id=task_id,
-        )
+        try:
+            result = await enforcer.call(
+                budget=budget,
+                model_id=model_id,
+                messages=messages,
+                user_id=user_id,
+                db_session=db_session,
+                run_id=run_id,
+                mission_id=mission_id,
+                task_id=task_id,
+            )
+            # Record success with substrate CB
+            if cb_allowed and workspace_id and provider_id and db_session is not None:
+                try:
+                    from app.services.substrate.circuit_breaker import record_success as _cb_ok
+
+                    await _cb_ok(db_session, workspace_id, provider_id)
+                except Exception:
+                    pass
+            return result
+        except Exception:
+            # Record failure with substrate CB
+            if cb_allowed and workspace_id and provider_id and db_session is not None:
+                try:
+                    from app.services.substrate.circuit_breaker import record_failure as _cb_fail
+
+                    await _cb_fail(db_session, workspace_id, provider_id)
+                except Exception:
+                    pass
+            raise
 
     # ── Internal helpers ────────────────────────────────────────────
 
