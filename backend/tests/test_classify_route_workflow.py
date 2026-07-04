@@ -90,10 +90,16 @@ async def client(test_user):
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_db, None)
 
-    # Clean up the test user
+    # Clean up test data: delete workflows first, then the user (FK dependency)
     async with AsyncSessionLocal() as teardown_session:
-        from sqlalchemy import delete
+        from sqlalchemy import delete, select
 
+        await teardown_session.execute(delete(GraphExecution).where(
+            GraphExecution.workflow_id.in_(
+                select(GraphWorkflow.id).where(GraphWorkflow.user_id == test_user.id)
+            )
+        ))
+        await teardown_session.execute(delete(GraphWorkflow).where(GraphWorkflow.user_id == test_user.id))
         await teardown_session.execute(delete(User).where(User.id == test_user.id))
         await teardown_session.commit()
 
