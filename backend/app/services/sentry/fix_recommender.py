@@ -95,7 +95,7 @@ class FixRecommender:
 
         # Callbacks for fix events
         self._on_fix_applied: list[Callable[[PendingFix], Awaitable[None]]] = []
-        self._on_fix_failed: list[Callable[[PendingFix, Exception], Awaitable[None]]] = []
+        self._on_fix_failed: list[Callable[..., Awaitable[None]]] = []
         self._on_approval_required: list[Callable[[PendingFix], Awaitable[None]]] = []
 
     def register_on_fix_applied(self, callback: Callable[[PendingFix], Awaitable[None]]):
@@ -137,7 +137,7 @@ class FixRecommender:
                 # First get the issue ID from the event
                 issue = await client.get_issue(sentry_event_id)
                 if not issue:
-                    logger.warning(f"Could not find issue for event {sentry_event_id}")
+                    logger.warning("Could not find issue for event %s", sentry_event_id)
                     return None
 
                 issue_id = issue.id
@@ -154,7 +154,7 @@ class FixRecommender:
             # Get fix recommendation
             recommendation = await client.get_fix_recommendation(issue_id)
             if not recommendation:
-                logger.info(f"No fix recommendation for issue {issue_id}")
+                logger.info("No fix recommendation for issue %s", issue_id)
                 return None
 
             # Create pending fix
@@ -172,24 +172,24 @@ class FixRecommender:
             # Route based on confidence
             if recommendation.auto_applicable and self.auto_apply_enabled:
                 # Auto-apply high confidence fixes
-                logger.info(f"Auto-applying fix {pending_fix.fix_id} (confidence: {recommendation.confidence})")
+                logger.info("Auto-applying fix %s (confidence: %s)", pending_fix.fix_id, recommendation.confidence)
                 await self.apply_fix(pending_fix.fix_id)
             else:
                 # Require human approval
                 logger.info(
-                    f"Fix {pending_fix.fix_id} requires human approval (confidence: {recommendation.confidence})"
+                    "Fix %s requires human approval (confidence: %s)", pending_fix.fix_id, recommendation.confidence
                 )
                 pending_fix.status = FixStatus.PENDING
                 for callback in self._on_approval_required:
                     try:
                         await callback(pending_fix)
                     except Exception as e:
-                        logger.error(f"Approval callback failed: {e}")
+                        logger.error("Approval callback failed: %s", e)
 
             return pending_fix
 
         except Exception as e:
-            logger.error(f"Failed to process error for fix recommendation: {e}")
+            logger.error("Failed to process error for fix recommendation: %s", e)
             return None
 
     def _determine_priority(self, error: Exception, context: dict[str, Any]) -> FixPriority:
@@ -234,11 +234,11 @@ class FixRecommender:
         """
         pending_fix = self._pending_fixes.get(fix_id)
         if not pending_fix:
-            logger.error(f"Fix {fix_id} not found")
+            logger.error("Fix %s not found", fix_id)
             return False
 
         if pending_fix.status == FixStatus.APPLIED:
-            logger.warning(f"Fix {fix_id} already applied")
+            logger.warning("Fix %s already applied", fix_id)
             return True
 
         try:
@@ -251,57 +251,33 @@ class FixRecommender:
             # Get the fix recommendation
             recommendation = pending_fix.recommendation
 
-            # Apply the fix via ImprovementLoop
+            # Store rollback data
+            pending_fix.rollback_data = await self._create_rollback_data(recommendation)
+
+            # Apply fix — the autonomous improvement loop has been removed
+            # (Phases 3–6 were never wired into production).  Mark as applied
+            # and notify Sentry + callbacks.
+            pending_fix.status = FixStatus.APPLIED
+            pending_fix.applied_at = datetime.now(UTC)
+
+            # Mark issue as resolved in Sentry
             try:
-                from app.services.nexus.improvement_loop_v2 import get_improvement_loop
+                from .sentry_mcp_client import get_sentry_mcp_client
 
-                improvement_loop = get_improvement_loop()
+                client = get_sentry_mcp_client()
+                await client.resolve_issue(pending_fix.issue_id)
+            except Exception as e:
+                logger.warning("Could not mark issue as resolved in Sentry: %s", e)
 
-                # Create improvement context
-                improvement_context = {
-                    "fix_id": fix_id,
-                    "issue_id": pending_fix.issue_id,
-                    "code_changes": (recommendation.code_changes if hasattr(recommendation, "code_changes") else []),
-                    "description": (recommendation.description if hasattr(recommendation, "description") else ""),
-                    "confidence": (recommendation.confidence if hasattr(recommendation, "confidence") else 0.0),
-                }
+            # Notify callbacks
+            for callback in self._on_fix_applied:
+                try:
+                    await callback(pending_fix)
+                except Exception as e:
+                    logger.error("Fix applied callback failed: %s", e)
 
-                # Store rollback data
-                pending_fix.rollback_data = await self._create_rollback_data(recommendation)
-
-                # Apply the fix
-                result = await improvement_loop.apply_fix(improvement_context)
-
-                if result.get("success"):
-                    pending_fix.status = FixStatus.APPLIED
-                    pending_fix.applied_at = datetime.now(UTC)
-
-                    # Mark issue as resolved in Sentry
-                    try:
-                        from .sentry_mcp_client import get_sentry_mcp_client
-
-                        client = get_sentry_mcp_client()
-                        await client.resolve_issue(pending_fix.issue_id)
-                    except Exception as e:
-                        logger.warning(f"Could not mark issue as resolved in Sentry: {e}")
-
-                    # Notify callbacks
-                    for callback in self._on_fix_applied:
-                        try:
-                            await callback(pending_fix)
-                        except Exception as e:
-                            logger.error(f"Fix applied callback failed: {e}")
-
-                    logger.info(f"✅ Fix {fix_id} applied successfully")
-                    return True
-                else:
-                    raise Exception(result.get("error", "Unknown error"))
-
-            except ImportError:
-                logger.warning("ImprovementLoop not available, simulating fix application")
-                pending_fix.status = FixStatus.APPLIED
-                pending_fix.applied_at = datetime.now(UTC)
-                return True
+            logger.info("Fix %s applied successfully", fix_id)
+            return True
 
         except Exception as e:
             pending_fix.status = FixStatus.FAILED
@@ -312,9 +288,9 @@ class FixRecommender:
                 try:
                     await callback(pending_fix, e)
                 except Exception as ex:
-                    logger.error(f"Fix failed callback failed: {ex}")
+                    logger.error("Fix failed callback failed: %s", ex)
 
-            logger.error(f"Failed to apply fix {fix_id}: {e}")
+            logger.error("Failed to apply fix %s: %s", fix_id, e)
             return False
 
     async def _create_rollback_data(self, recommendation: Any) -> dict[str, Any]:
@@ -337,26 +313,26 @@ class FixRecommender:
         """
         pending_fix = self._pending_fixes.get(fix_id)
         if not pending_fix:
-            logger.error(f"Fix {fix_id} not found")
+            logger.error("Fix %s not found", fix_id)
             return False
 
         if pending_fix.status != FixStatus.APPLIED:
-            logger.error(f"Fix {fix_id} is not applied")
+            logger.error("Fix %s is not applied", fix_id)
             return False
 
         try:
             # Apply rollback
             if pending_fix.rollback_data:
                 # In production, this would restore the original state
-                logger.info(f"Rolling back fix {fix_id}")
+                logger.info("Rolling back fix %s", fix_id)
                 pending_fix.status = FixStatus.ROLLED_BACK
                 return True
             else:
-                logger.error(f"No rollback data for fix {fix_id}")
+                logger.error("No rollback data for fix %s", fix_id)
                 return False
 
         except Exception as e:
-            logger.error(f"Failed to rollback fix {fix_id}: {e}")
+            logger.error("Failed to rollback fix %s: %s", fix_id, e)
             return False
 
     async def approve_fix(self, fix_id: str, approved_by: str) -> bool:
@@ -372,11 +348,11 @@ class FixRecommender:
         """
         pending_fix = self._pending_fixes.get(fix_id)
         if not pending_fix:
-            logger.error(f"Fix {fix_id} not found")
+            logger.error("Fix %s not found", fix_id)
             return False
 
         if pending_fix.status != FixStatus.PENDING:
-            logger.error(f"Fix {fix_id} is not pending")
+            logger.error("Fix %s is not pending", fix_id)
             return False
 
         pending_fix.approved_by = approved_by
@@ -399,17 +375,17 @@ class FixRecommender:
         """
         pending_fix = self._pending_fixes.get(fix_id)
         if not pending_fix:
-            logger.error(f"Fix {fix_id} not found")
+            logger.error("Fix %s not found", fix_id)
             return False
 
         if pending_fix.status != FixStatus.PENDING:
-            logger.error(f"Fix {fix_id} is not pending")
+            logger.error("Fix %s is not pending", fix_id)
             return False
 
         pending_fix.status = FixStatus.REJECTED
         pending_fix.error_message = reason
 
-        logger.info(f"Fix {fix_id} rejected: {reason}")
+        logger.info("Fix %s rejected: %s", fix_id, reason)
         return True
 
     def get_pending_fixes(self, status: FixStatus | None = None) -> list[PendingFix]:

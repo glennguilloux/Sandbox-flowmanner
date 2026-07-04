@@ -1,15 +1,22 @@
 """
-Autonomous Self-Improvement System
+Autonomous Self-Improvement System — Slim Version.
 
-This package implements a comprehensive autonomous self-improvement architecture.
-Imports are wrapped in try/except to allow partial functionality.
+Phases 3–6 (hypothesis testing, knob management, success learning,
+strategy evolution, metrics collection, alerting) have been removed.
+They were never wired into production — 107 missions ran with zero
+improvement data recorded.
+
+What remains:
+- Phase 1 (failure_types): failure classification and telemetry
+- Phase 2 (causal_decomposer): failure-to-strategy mapping
+- Dispatch layer (improvement_loop_v2): background review Celery task
 """
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Phase 1: Foundation
+# Phase 1: Foundation — failure classification
 try:
     from .failure_types import (
         FailureContext,
@@ -28,7 +35,7 @@ except ImportError as e:
     capture_failure_telemetry = None  # type: ignore[misc]
     get_failure_telemetry = None  # type: ignore[misc]
 
-# Phase 2: Causal Understanding
+# Phase 2: Causal Understanding — failure-to-strategy mapping
 try:
     from .causal_decomposer import (
         CausalDecomposer,
@@ -49,126 +56,17 @@ except ImportError as e:
     CausalDecomposer = None  # type: ignore[misc]
     get_causal_decomposer = None  # type: ignore[misc]
 
-try:
-    from .knob_manager import (
-        ImprovementKnob,
-        KnobAdjustment,
-        KnobManager,
-        get_knob_manager,
-    )
-except ImportError as e:
-    logger.warning("Failed to import knob_manager: %s", e)
-    ImprovementKnob = None  # type: ignore[misc]
-    KnobAdjustment = None  # type: ignore[misc]
-    KnobManager = None  # type: ignore[misc]
-    get_knob_manager = None  # type: ignore[misc]
-
-try:
-    from .improvement_models import (
-        AppliedImprovement,
-        FailureContextModel,
-        ImprovementMetrics,
-        ImprovementSession,
-    )
-except ImportError as e:
-    logger.warning("Failed to import improvement_models: %s", e)
-    AppliedImprovement = None  # type: ignore[misc]
-    FailureContextModel = None  # type: ignore[misc]
-    ImprovementSession = None  # type: ignore[misc]
-    ImprovementMetrics = None  # type: ignore[misc]
-
-# Phase 3: Verification
-try:
-    from .hypothesis_tester import (
-        HypothesisState,
-        HypothesisTest,
-        HypothesisTester,
-        RollbackTrigger,
-        SafetyConstraint,
-        TestResult,
-        TestType,
-        get_hypothesis_tester,
-    )
-except ImportError as e:
-    logger.warning("Failed to import hypothesis_tester: %s", e)
-    HypothesisState = None  # type: ignore[misc]
-    TestType = None  # type: ignore[misc]
-    RollbackTrigger = None  # type: ignore[misc]
-    HypothesisTest = None  # type: ignore[misc]
-    TestResult = None  # type: ignore[misc]
-    SafetyConstraint = None  # type: ignore[misc]
-    HypothesisTester = None  # type: ignore[misc]
-    get_hypothesis_tester = None  # type: ignore[misc]
-
-# Phase 4: Synthesis
+# Dispatch layer — background review Celery task
 try:
     from .improvement_loop_v2 import (
-        ImprovementKnowledge,
         ImprovementLoopV2,
-        ImprovementSessionData,
-        SessionState,
         get_improvement_loop,
         initialize_improvement_loop,
     )
 except ImportError as e:
     logger.warning("Failed to import improvement_loop_v2: %s", e)
-    SessionState = None  # type: ignore[misc]
-    ImprovementSessionData = None  # type: ignore[misc]
-    ImprovementKnowledge = None  # type: ignore[misc]
     ImprovementLoopV2 = None  # type: ignore[misc]
     get_improvement_loop = None  # type: ignore[misc]
     initialize_improvement_loop = None  # type: ignore[misc]
 
-# Phase 5: Production Integration
-try:
-    from .metrics_collector import (
-        MetricPoint,
-        MetricsCollector,
-        MetricType,
-        get_metrics_collector,
-    )
-except ImportError as e:
-    logger.warning("Failed to import metrics_collector: %s", e)
-    MetricType = None  # type: ignore[misc]
-    MetricPoint = None  # type: ignore[misc]
-    MetricsCollector = None  # type: ignore[misc]
-    get_metrics_collector = None  # type: ignore[misc]
-
-try:
-    from .failure_repository import (
-        FailureRepository,
-        get_failure_repository,
-    )
-except ImportError as e:
-    logger.warning("Failed to import failure_repository: %s", e)
-    FailureRepository = None  # type: ignore[misc]
-    get_failure_repository = None  # type: ignore[misc]
-
-try:
-    from .alerting import (
-        Alert,
-        AlertingSystem,
-        AlertSeverity,
-        get_alerting_system,
-    )
-except ImportError as e:
-    logger.warning("Failed to import alerting: %s", e)
-    AlertSeverity = None  # type: ignore[misc]
-    Alert = None  # type: ignore[misc]
-    AlertingSystem = None  # type: ignore[misc]
-    get_alerting_system = None  # type: ignore[misc]
-
-# Phase 6: Advanced Learning
-try:
-    from .success_learner import (
-        SuccessLearner,
-        SuccessPattern,
-        get_success_learner,
-    )
-except ImportError as e:
-    logger.warning("Failed to import success_learner: %s", e)
-    SuccessPattern = None  # type: ignore[misc]
-    SuccessLearner = None  # type: ignore[misc]
-    get_success_learner = None  # type: ignore[misc]
-
-logger.info("Improvement module loaded with graceful degradation")
+logger.info("Improvement module loaded (slim version — Phases 1–2 + dispatch)")
