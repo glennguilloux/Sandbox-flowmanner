@@ -23,29 +23,23 @@
 - **Backend**: `p99_latency_ms` added to PluginResponse model and `_to_plugin_response` helper
 - **Dead code removed**: `extensions-page-content.tsx`, `ExtensionCard.tsx`, `extensions` i18n namespace, 3 unused `pluginManager` keys
 
-### What's NOT committed yet
-All changes are **uncommitted** in two repos:
+### Commit & Deploy Status
+✅ **All changes committed, pushed, and deployed.**
 
-**Backend** (`/opt/flowmanner`):
-- `backend/app/api/v1/plugins.py` — `p99_latency_ms` field addition
-
-**Frontend** (`/home/glenn/FlowmannerV2-frontend`):
-- 11 modified files + 2 deleted files (see exit audit for full list)
+- **Backend** commit `b935faa` — `p99_latency_ms` field + exit audit + handoff docs → pushed to `origin/main` → deployed via `deploy-backend.sh`
+- **Frontend** commit `b200a30` — plugin manager UI enhancements + extensions redirect (13 files, +403/-356) → pushed to `origin/master` → deployed via `deploy-frontend.sh`
 
 ### Validation state
 - Frontend: TypeScript clean ✅, 878/878 tests passing ✅
 - Backend: 443 tests passing ✅, 1 pre-existing failure (`test_audio_format_converter`)
 - Backend health: HTTP 200 ✅
+- All containers healthy ✅
 
 ---
 
-## ⚠️ First Actions for Next Session
+## First Actions for Next Session
 
-### 1. Commit and deploy frontend changes
-The frontend has 13 files changed (11 modified, 2 deleted) that need committing in `FlowmannerV2-frontend` and deploying via `deploy-frontend.sh`. The backend has 1 file changed that needs committing in `/opt/flowmanner`.
-
-### 2. Commit and deploy backend change
-The `p99_latency_ms` field addition in `plugins.py` needs committing and deploying via `deploy-backend.sh`. This is backwards-compatible (optional field, defaults to None).
+No commit/deploy needed — all changes are live. See Remaining Roadmap Items below.
 
 ---
 
@@ -72,25 +66,26 @@ The `p99_latency_ms` field addition in `plugins.py` needs committing and deployi
 
 ---
 
-## Remaining Roadmap Items (from previous handoffs)
+## Remaining Roadmap Items
 
-1. **Deploy frontend** — inbox nav entry + SSE hook + plugin manager changes all need deploying
-2. **B2b (Tool Routing Inspector)** — already complete, verified in previous session
-3. **Deprecated `/api/extensions` endpoint** — backend endpoint still exists but frontend no longer uses it; consider removing
-4. **Plugin manager click-outside handler** — node type popover only closes via X button or chip toggle
-5. **`test_audio_format_converter` failure** — pre-existing, investigate separately
+1. **Deprecated `/api/extensions` endpoint** — backend endpoint still exists but frontend no longer uses it; consider removing
+2. **Plugin manager click-outside handler** — node type popover only closes via X button or chip toggle
+3. **`test_audio_format_converter` failure** — pre-existing, investigate separately
 
 ---
 
-## Container Status (as of session end)
+## Container Status (as of deploy)
 
 | Container | Status |
 |-----------|--------|
-| backend | ✅ Running (10h) |
-| celery-beat | ✅ Running (10h) |
-| celery-worker | ✅ Running (10h) |
-| jaeger | ✅ Running (3d) |
-| workflow-postgres | ✅ Running (3d) |
-| workflow-qdrant | ✅ Running (3d) |
-| workflow-rabbitmq | ✅ Running (3d) |
-| workflow-redis | ✅ Running (3d) |
+| backend | ✅ Running (healthy) |
+| celery-beat | ✅ Running (healthy) |
+| celery-worker | ✅ Running (healthy) |
+| jaeger | ✅ Running (healthy) |
+| searxng | ✅ Running (healthy) |
+| workflow-postgres | ✅ Running (healthy) |
+| workflow-qdrant | ✅ Running (healthy) |
+| workflow-rabbitmq | ✅ Running (healthy) |
+| workflow-redis | ✅ Running (healthy) |
+| frontend | ✅ Running (deployed) |
+| nginx | ✅ Running (deployed) |
