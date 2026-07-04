@@ -27,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
-# NOTE: marketplace.py handles user-generated workflow listings (publish, install, rate).
-# Integrations handles first-party service connections (Slack, GitHub, etc.). No overlap.
+# Integrations handles first-party service connections (Slack, GitHub, etc.).
 
 # ── Feature-flag gate for manifest-driven integrations ───────────────────
 # (flag caching now shared via _is_flag_enabled below)

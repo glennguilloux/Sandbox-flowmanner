@@ -132,7 +132,6 @@ agent_personalities_router = _import_router("agent_personalities", tier=RouterTi
 
 integrations_router = _import_router("integrations", tier=RouterTier.OPTIONAL)
 integrations_onboarding_router = _import_router("integrations_onboarding", tier=RouterTier.OPTIONAL)
-marketplace_router = _import_router("marketplace", tier=RouterTier.OPTIONAL)
 newsletter_router = _import_router("newsletter", tier=RouterTier.OPTIONAL)
 
 web_search_enhanced_router = None  # type: ignore[no-redef]
@@ -188,7 +187,6 @@ for _name, _router in [
     ("admin", admin_router),
     ("integrations", integrations_router),
     ("integrations-onboarding", integrations_onboarding_router),
-    ("marketplace", marketplace_router),
     # Security routers
     ("2fa", two_fa_router),
     ("sessions", sessions_router),

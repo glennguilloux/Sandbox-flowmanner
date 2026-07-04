@@ -24,8 +24,8 @@ The `__init__.py` imports every router with one of three tiers (see `RouterTier`
 | Tier | Failure mode | Routers |
 |------|--------------|---------|
 | `CRITICAL` | `logger.critical()` + `raise` (fails startup) | `auth`, `users`, `mission`, `chat`, `graph`, `browser` |
-| `STANDARD` | `logger.warning()` (warns, continues) | All routers not listed below |
-| `OPTIONAL` | `logger.info()` (expected to be absent in some deployments) | `playground`, `admin_sandboxes`, `agent_personalities`, `community`, `integrations`, `marketplace`, `newsletter` |
+| `STANDARD` | `logger.warning()` (warns, continues) | All routers not listed below |    | `OPTIONAL` | `logger.info()` (expected to be absent in some deployments) | `playground`, `admin_sandboxes`, `agent_personalities`, `community`, `integrations`, `newsletter` |
+
 
 A few routers are imported inline with `try/except` because they live outside the v1 directory:
 
@@ -130,7 +130,6 @@ Grouped by responsibility. **Bold** = has migration status worth tracking. Numbe
 | Router | Prefix | Notes |
 |--------|--------|-------|
 | `integrations.py` | `/integrations` | OPTIONAL. |
-| `marketplace.py` | `/marketplace` | OPTIONAL. |
 | `linear.py` | `/linear` | Linear sync API. |
 | `community.py` | `/community` | OPTIONAL. |
 | `newsletter.py` | `/newsletter` | OPTIONAL. |
@@ -194,7 +193,7 @@ The remaining ~70 routers are CRUD endpoints that don't touch any executor. They
 - Workspace routers (`workspace`, `workspace_activity`, `workspace_messages`, `workspace_shares`, `presence_api`)
 - File + search + tools (`file`, `search`, `tools`, `data_export`, `feature_flags`)
 - Analytics + observability (`analytics`, `stats`, `dashboard`, `observability`, `reliability`, `rate_limits`, `usage`)
-- Integrations + external (`integrations`, `marketplace`, `linear`, `community`, `newsletter`, `byok`, `api_keys`, `subscription`, `cost_attribution`, `webhooks`, `changelog`, `roadmap`, `votes`)
+- Integrations + external (`integrations`, `linear`, `community`, `newsletter`, `byok`, `api_keys`, `subscription`, `cost_attribution`, `webhooks`, `changelog`, `roadmap`, `votes`)
 - HITL + circuit breaker + admin (`hitl`, `circuit_breaker`, `admin`, `admin_sandboxes`, `playground`)
 - AI service routers (`chat`, `io`, `sandbox`, `sandbox_preview`, `browser`, `agent`, `agent_registry`, `agent_capabilities`, `agent_personalities`, `llm`, `llm_advanced`, `rag`, `evaluation`, `memory`)
 - Templates + triggers + webhooks (`templates`, `triggers`, `webhooks`)
