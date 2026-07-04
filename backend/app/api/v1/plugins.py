@@ -56,6 +56,7 @@ class PluginResponse(BaseModel):
     error_count: int = 0
     last_executed_at: str | None = None
     last_error: str | None = None
+    p99_latency_ms: float | None = None
     permissions: list[str] = []
     node_types: list[dict[str, Any]] = []
     default_prompts: list[str] = []
