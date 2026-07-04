@@ -414,9 +414,6 @@ except ImportError:
     logging.getLogger(__name__).warning("strawberry-graphql not installed — GraphQL endpoint disabled")
 
 # Extensions / Plugin API — registered independently of GraphQL
-from app.api.v1.extensions import router as extensions_router
-
-app.include_router(extensions_router, prefix="/api")
 
 # OpenTelemetry — opt-in via OTLP_ENDPOINT env var
 try:

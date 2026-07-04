@@ -122,7 +122,6 @@ from app.models.evaluation_models import (
     GoldenDataset,
     GoldenTestCase,
 )
-from app.models.extension import Extension
 from app.models.feedback_models import FeedbackPattern, FeedbackReport
 
 # Workflow models (consolidated from GraphWorkflow + Flow, H4.2)
