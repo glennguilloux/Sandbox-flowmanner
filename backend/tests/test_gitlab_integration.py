@@ -79,11 +79,11 @@ def test_gitlab_bridge_capabilities():
 
 def test_gitlab_webhook_router_exists():
     """GitLab webhook router is importable."""
-    from app.api.v1.gitlab_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/gitlab/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_gitlab_connector_importable():

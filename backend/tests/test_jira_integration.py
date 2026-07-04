@@ -60,11 +60,11 @@ def test_jira_bridge_capabilities():
 
 def test_jira_webhook_router_exists():
     """Jira webhook router is importable with correct paths."""
-    from app.api.v1.jira_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     paths = [r.path for r in router.routes]  # type: ignore[union-attr]
-    assert "/jira/webhook" in paths
+    assert "/{provider}/webhook" in paths
 
 
 def test_jira_oauth_callback_router_exists():

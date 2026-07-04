@@ -73,11 +73,11 @@ def test_shopify_bridge_capabilities():
 
 def test_shopify_webhook_router_exists():
     """Shopify webhook router is importable."""
-    from app.api.v1.shopify_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/shopify/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_shopify_connector_importable():

@@ -301,16 +301,6 @@ async def add_key(
     workspace_id: str | None = Depends(get_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    # Phase 8.4: Check subscription tier allows API key generation
-    from app.services.subscription_service import check_api_key_allowed
-
-    limit_check = await check_api_key_allowed(db, user.id, workspace_id)
-    if not limit_check.allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=limit_check.reason,
-        )
-
     from app.utils.encryption import encrypt_api_key
 
     api_key = data.get("api_key") or data.get("key", "")

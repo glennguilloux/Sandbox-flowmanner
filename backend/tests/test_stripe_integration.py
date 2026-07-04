@@ -78,12 +78,12 @@ def test_stripe_bridge_capabilities():
 
 def test_stripe_webhook_router_exists():
     """Stripe webhook router is importable."""
-    from app.api.v1.stripe_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     # Verify the webhook route is defined
     routes = [r.path for r in router.routes]
-    assert "/stripe/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_stripe_oauth_callback_router_exists():

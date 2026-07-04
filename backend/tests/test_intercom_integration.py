@@ -74,11 +74,11 @@ def test_intercom_bridge_capabilities():
 
 def test_intercom_webhook_router_exists():
     """Intercom webhook router is importable."""
-    from app.api.v1.intercom_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/intercom/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_intercom_connector_importable():

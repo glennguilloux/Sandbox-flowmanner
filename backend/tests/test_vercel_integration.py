@@ -54,11 +54,11 @@ def test_vercel_bridge_capabilities():
 
 def test_vercel_webhook_router_exists():
     """Vercel webhook router is importable with correct paths."""
-    from app.api.v1.vercel_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     paths = [r.path for r in router.routes]  # type: ignore[union-attr]
-    assert "/vercel/webhook" in paths
+    assert "/{provider}/webhook" in paths
 
 
 def test_vercel_connector_importable():

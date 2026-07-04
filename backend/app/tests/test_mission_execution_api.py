@@ -77,10 +77,6 @@ def test_execute_mission_success(test_client):
                 return_value=mock_mission,
             ),
             patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                return_value=MagicMock(allowed=True),
-            ),
-            patch(
                 "app.services.substrate.executor.get_unified_executor",
                 return_value=mock_unified,
             ),
@@ -152,10 +148,6 @@ def test_execute_async_mission(test_client):
                 "app.api._mission_cqrs.commands.require_mission_access",
                 new_callable=AsyncMock,
                 return_value=mock_mission,
-            ),
-            patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                return_value=MagicMock(allowed=True),
             ),
             patch(
                 "app.services.mission_service.get_mission_tasks",

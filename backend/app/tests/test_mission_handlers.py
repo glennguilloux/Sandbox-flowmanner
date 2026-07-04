@@ -192,20 +192,14 @@ class TestHandleCreateMission:
     @pytest.mark.asyncio
     async def test_creates_with_defaults(self):
         from app.api._mission_cqrs.commands import MissionCommandHandlers
-        from app.services.subscription_service import LimitCheckResult
 
         mock_created = make_mission()
         mock_create = AsyncMock(return_value=mock_created)
-        mock_limit = LimitCheckResult(allowed=True)
         with (
             patch("app.api._mission_cqrs.commands.create_mission", new=mock_create),
             patch(
                 "app.api._mission_cqrs.commands.invalidate_user_caches",
                 new=AsyncMock(return_value=None),
-            ),
-            patch(
-                "app.services.subscription_service.check_mission_create_allowed",
-                new=AsyncMock(return_value=mock_limit),
             ),
         ):
             payload = SimpleNamespace(
@@ -643,12 +637,10 @@ class TestHandleExecuteMission:
     @pytest.mark.asyncio
     async def test_executes_and_returns_status(self):
         from app.api._mission_cqrs.commands import MissionCommandHandlers
-        from app.services.subscription_service import LimitCheckResult
 
         mock_mission = make_mission()
         mock_exec = MagicMock()
         mock_exec.execute_mission = AsyncMock(return_value={"success": True})
-        mock_limit = LimitCheckResult(allowed=True)
 
         # Mock require_mission_access to return mission directly, plus all execution deps
         mock_unified = MagicMock()
@@ -677,10 +669,6 @@ class TestHandleExecuteMission:
                 new=AsyncMock(return_value=None),
             ),
             patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                new=AsyncMock(return_value=mock_limit),
-            ),
-            patch(
                 "app.services.substrate.executor.get_unified_executor",
                 return_value=mock_unified,
             ),
@@ -699,12 +687,10 @@ class TestHandleExecuteAsync:
     async def test_queues_and_returns_status(self):
         from app.api._mission_cqrs.commands import MissionCommandHandlers
         from app.models.mission_models import MissionStatus
-        from app.services.subscription_service import LimitCheckResult
 
         mock_db = AsyncMock()
         mock_db.commit = AsyncMock()
         mock_db.add = MagicMock()
-        mock_limit = LimitCheckResult(allowed=True)
 
         mock_mission = make_mission()
         with (
@@ -719,10 +705,6 @@ class TestHandleExecuteAsync:
             patch(
                 "app.tasks.mission_execution.dispatch_mission_execution",
                 new=MagicMock(),
-            ),
-            patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                new=AsyncMock(return_value=mock_limit),
             ),
         ):
             handler = MissionCommandHandlers(mock_db)

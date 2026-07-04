@@ -77,11 +77,11 @@ def test_hubspot_bridge_capabilities():
 
 def test_hubspot_webhook_router_exists():
     """HubSpot webhook router is importable."""
-    from app.api.v1.hubspot_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/hubspot/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_hubspot_connector_importable():

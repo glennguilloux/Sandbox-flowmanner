@@ -1948,11 +1948,6 @@ class TestDualWriteIntegration:
                 new_callable=AsyncMock,
                 return_value=mission_result,
             ),
-            patch(
-                "app.services.subscription_service.check_mission_create_allowed",
-                new_callable=AsyncMock,
-                return_value=MagicMock(allowed=True),
-            ),
             patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
         ):
             payload = MagicMock(
@@ -2043,11 +2038,6 @@ class TestDualWriteIntegration:
                 "app.api._mission_cqrs.commands.require_mission_access",
                 new_callable=AsyncMock,
                 return_value=mission,
-            ),
-            patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                new_callable=AsyncMock,
-                return_value=MagicMock(allowed=True),
             ),
             patch("app.services.substrate.executor.get_unified_executor") as mock_get_exec,
             patch(
@@ -2143,11 +2133,6 @@ class TestDualWriteIntegration:
                 new_callable=AsyncMock,
                 return_value=mission,
             ),
-            patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                new_callable=AsyncMock,
-                return_value=MagicMock(allowed=True),
-            ),
             patch("app.services.substrate.executor.get_unified_executor") as mock_get_exec,
             patch(
                 "app.services.substrate.adapters.mission_to_workflow",
@@ -2239,11 +2224,6 @@ class TestDualWriteIntegration:
                 "app.api._mission_cqrs.commands.require_mission_access",
                 new_callable=AsyncMock,
                 return_value=mission,
-            ),
-            patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                new_callable=AsyncMock,
-                return_value=MagicMock(allowed=True),
             ),
             patch("app.services.substrate.executor.get_unified_executor") as mock_get_exec,
             patch(

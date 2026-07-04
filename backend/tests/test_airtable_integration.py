@@ -75,11 +75,11 @@ def test_airtable_bridge_capabilities():
 
 def test_airtable_webhook_router_exists():
     """Airtable webhook router is importable."""
-    from app.api.v1.airtable_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/airtable/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_airtable_connector_importable():

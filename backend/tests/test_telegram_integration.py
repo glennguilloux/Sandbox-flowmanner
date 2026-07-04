@@ -62,11 +62,11 @@ def test_telegram_bridge_capabilities():
 
 def test_telegram_webhook_router_exists():
     """Telegram webhook router is importable."""
-    from app.api.v1.telegram_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/telegram/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_telegram_connector_importable():

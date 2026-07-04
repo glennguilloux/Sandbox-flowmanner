@@ -76,11 +76,11 @@ def test_clickup_bridge_capabilities():
 
 def test_clickup_webhook_router_exists():
     """ClickUp webhook router is importable."""
-    from app.api.v1.clickup_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/clickup/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_clickup_connector_importable():

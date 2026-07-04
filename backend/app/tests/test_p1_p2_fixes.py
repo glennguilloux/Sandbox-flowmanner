@@ -242,8 +242,6 @@ class TestCommandHandlerRequestId:
 
     @pytest.mark.asyncio
     async def test_create_mission_passes_request_id_to_audit(self, session, user, mocker):
-        from app.services.subscription_service import LimitCheckResult
-
         audit_mock = MagicMock()
         audit_mock.mission_created = MagicMock()
         mocker.patch(
@@ -251,11 +249,6 @@ class TestCommandHandlerRequestId:
             new=AsyncMock(return_value=_mission()),
         )
         mocker.patch("app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock())
-        mocker.patch(
-            "app.services.subscription_service.check_mission_create_allowed",
-            new=AsyncMock(return_value=LimitCheckResult(allowed=True)),
-        )
-
         handler = MissionCommandHandlers(session, audit=audit_mock, request_id="req-99")
         payload = MagicMock(title="T", description="", mission_type="g", priority="m")
         await handler.create_mission(user, payload)
@@ -267,7 +260,6 @@ class TestCommandHandlerRequestId:
     @pytest.mark.asyncio
     async def test_audit_called_sync_not_async(self, session, user, mocker):
         """Verify audit methods are called synchronously (not awaited)."""
-        from app.services.subscription_service import LimitCheckResult
 
         audit_mock = MagicMock()
         mocker.patch(
@@ -275,11 +267,6 @@ class TestCommandHandlerRequestId:
             new=AsyncMock(return_value=_mission()),
         )
         mocker.patch("app.api._mission_cqrs.commands.invalidate_user_caches", new=AsyncMock())
-        mocker.patch(
-            "app.services.subscription_service.check_mission_create_allowed",
-            new=AsyncMock(return_value=LimitCheckResult(allowed=True)),
-        )
-
         handler = MissionCommandHandlers(session, audit=audit_mock)
         payload = MagicMock(title="T", description="", mission_type="g", priority="m")
         await handler.create_mission(user, payload)

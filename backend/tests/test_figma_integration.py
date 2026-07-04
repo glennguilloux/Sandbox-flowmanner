@@ -59,11 +59,11 @@ def test_figma_bridge_capabilities():
 
 def test_figma_webhook_router_exists():
     """Figma webhook router is importable with correct paths."""
-    from app.api.v1.figma_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     paths = [r.path for r in router.routes]  # type: ignore[union-attr]
-    assert "/figma/webhook" in paths
+    assert "/{provider}/webhook" in paths
 
 
 def test_figma_connector_importable():

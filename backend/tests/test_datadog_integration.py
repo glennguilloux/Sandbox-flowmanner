@@ -78,11 +78,11 @@ def test_datadog_bridge_capabilities():
 
 def test_datadog_webhook_router_exists():
     """Datadog webhook router is importable."""
-    from app.api.v1.datadog_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/datadog/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_datadog_connector_importable():

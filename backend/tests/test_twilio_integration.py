@@ -60,11 +60,11 @@ def test_twilio_bridge_capabilities():
 
 def test_twilio_webhook_router_exists():
     """Twilio webhook router is importable."""
-    from app.api.v1.twilio_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/twilio/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_twilio_connector_importable():

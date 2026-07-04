@@ -71,11 +71,11 @@ def test_monday_bridge_capabilities():
 
 def test_monday_webhook_router_exists():
     """Monday webhook router is importable."""
-    from app.api.v1.monday_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/monday/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_monday_connector_importable():

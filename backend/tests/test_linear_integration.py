@@ -45,12 +45,12 @@ def test_linear_bridge_capabilities():
 
 def test_linear_webhook_router_exists():
     """Linear webhook router is importable."""
-    from app.api.v1.linear import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     # Verify the webhook endpoint is registered
     paths = [r.path for r in router.routes]  # type: ignore[union-attr]
-    assert "/linear/webhook" in paths
+    assert "/{provider}/webhook" in paths
 
 
 def test_linear_connector_importable():

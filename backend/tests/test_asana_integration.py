@@ -74,11 +74,11 @@ def test_asana_bridge_capabilities():
 
 def test_asana_webhook_router_exists():
     """Asana webhook router is importable."""
-    from app.api.v1.asana_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/asana/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_asana_connector_importable():

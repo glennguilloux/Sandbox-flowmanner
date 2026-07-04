@@ -76,14 +76,12 @@ delegations_router = _import_router("delegations")
 roles_router = _import_router("roles")
 feedback_router = _import_router("feedback_routes")
 orchestration_router = _import_router("orchestration")
-subscription_router = _import_router("subscription")
 usage_router = _import_router("usage")
 reliability_router = _import_router("reliability")
 webhook_router = _import_router("webhooks")
 templates_router = _import_router("templates")
 trigger_router = _import_router("triggers")
-roadmap_router = _import_router("roadmap")
-votes_router = _import_router("votes")
+
 admin_router = _import_router("admin")
 stats_router = _import_router("stats")
 workspace_router = _import_router("workspace", "workspace_router")
@@ -93,36 +91,17 @@ presence_router = _import_router("presence_api")
 activity_router = _import_router("workspace_activity")
 messages_router = _import_router("workspace_messages")
 tools_router = _import_router("tools")
-linear_router = _import_router("linear")
-sentry_webhook_router = _import_router("sentry_webhook")
-vercel_webhook_router = _import_router("vercel_webhook")
+# Consolidated provider webhook router (replaces 22 individual *_webhook.py files)
+integration_webhooks_router = _import_router("integration_webhooks")
+# Keep OAuth routers separate (they are NOT webhooks)
 jira_oauth_router = _import_router("jira_oauth", tier=RouterTier.OPTIONAL)
-jira_webhook_router = _import_router("jira_webhook")
 confluence_oauth_router = _import_router("confluence_oauth", tier=RouterTier.OPTIONAL)
-confluence_webhook_router = _import_router("confluence_webhook")
-figma_webhook_router = _import_router("figma_webhook")
 stripe_oauth_router = _import_router("stripe_oauth", tier=RouterTier.OPTIONAL)
-stripe_webhook_router = _import_router("stripe_webhook")
-pagerduty_webhook_router = _import_router("pagerduty_webhook")
-datadog_webhook_router = _import_router("datadog_webhook")
-airtable_webhook_router = _import_router("airtable_webhook")
-intercom_webhook_router = _import_router("intercom_webhook")
-asana_webhook_router = _import_router("asana_webhook")
-gitlab_webhook_router = _import_router("gitlab_webhook")
-clickup_webhook_router = _import_router("clickup_webhook")
-hubspot_webhook_router = _import_router("hubspot_webhook")
-twilio_webhook_router = _import_router("twilio_webhook")
-shopify_webhook_router = _import_router("shopify_webhook")
-zendesk_webhook_router = _import_router("zendesk_webhook")
-monday_webhook_router = _import_router("monday_webhook")
-github_webhook_router = _import_router("github_webhook")
-slack_webhook_router = _import_router("slack_webhook")
-telegram_webhook_router = _import_router("telegram_webhook")
 external_events_router = _import_router("external_events")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
 feature_flags_router = _import_router("feature_flags")
-changelog_router = _import_router("changelog")
+
 observability_router = _import_router("observability")
 rate_limits_router = _import_router("rate_limits")
 evaluation_router = _import_router("evaluation")
@@ -137,7 +116,7 @@ io_router = _import_router("io")
 sessions_router = _import_router("sessions")
 audit_log_router = _import_router("audit_log")
 two_fa_router = _import_router("two_fa")
-domain_agents_router = _import_router("domain_agents")
+
 workspace_shares_router = _import_router("workspace_shares")
 hitl_router = _import_router("hitl")
 circuit_breaker_router = _import_router("circuit_breaker")
@@ -150,7 +129,7 @@ depth_events_router = _import_router("depth", "events_router")
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
 agent_personalities_router = _import_router("agent_personalities", tier=RouterTier.OPTIONAL)
 
-community_router = _import_router("community", tier=RouterTier.OPTIONAL)
+
 integrations_router = _import_router("integrations", tier=RouterTier.OPTIONAL)
 integrations_onboarding_router = _import_router("integrations_onboarding", tier=RouterTier.OPTIONAL)
 marketplace_router = _import_router("marketplace", tier=RouterTier.OPTIONAL)
@@ -187,10 +166,8 @@ for _name, _router in [
     ("analytics", analytics_router),
     ("stats", stats_router),
     ("chat", chat_router),
-    ("community", community_router),
     ("file", file_router),
     ("files", files_router_obj),
-    ("domain_agents", domain_agents_router),
     ("llm", llm_router),
     ("llm_advanced", llm_advanced_router),
     ("memory", memory_router),
@@ -201,7 +178,6 @@ for _name, _router in [
     ("roles", roles_router),
     ("feedback", feedback_router),
     ("orchestration", orchestration_router),
-    ("subscription", subscription_router),
     ("byok", byok_router),
     ("webhooks", webhook_router),
     ("templates", templates_router),
@@ -209,8 +185,6 @@ for _name, _router in [
     ("reliability", reliability_router),
     ("usage", usage_router),
     ("dashboard", dashboard_router),
-    ("roadmap", roadmap_router),
-    ("votes", votes_router),
     ("admin", admin_router),
     ("integrations", integrations_router),
     ("integrations-onboarding", integrations_onboarding_router),
@@ -228,38 +202,16 @@ for _name, _router in [
     ("workspaces", activity_router),
     ("workspaces", messages_router),
     ("web-search", web_search_enhanced_router),
-    ("linear", linear_router),
-    ("sentry", sentry_webhook_router),
-    ("vercel", vercel_webhook_router),
+    # OAuth routers (separate from webhooks)
     ("jira-oauth", jira_oauth_router),
-    ("jira", jira_webhook_router),
     ("confluence-oauth", confluence_oauth_router),
-    ("confluence", confluence_webhook_router),
-    ("figma", figma_webhook_router),
     ("stripe-oauth", stripe_oauth_router),
-    ("stripe", stripe_webhook_router),
-    ("pagerduty", pagerduty_webhook_router),
-    ("datadog", datadog_webhook_router),
-    ("airtable", airtable_webhook_router),
-    ("intercom", intercom_webhook_router),
-    ("asana", asana_webhook_router),
-    ("gitlab", gitlab_webhook_router),
-    ("clickup", clickup_webhook_router),
-    ("hubspot", hubspot_webhook_router),
-    ("twilio", twilio_webhook_router),
-    ("shopify", shopify_webhook_router),
-    ("zendesk", zendesk_webhook_router),
-    ("monday", monday_webhook_router),
-    ("github", github_webhook_router),
-    ("slack", slack_webhook_router),
-    ("telegram", telegram_webhook_router),
     ("external-events", external_events_router),
     ("newsletter", newsletter_router),
     ("tools", tools_router),
     ("search", search_router),
     ("data-export", data_export_router),
     ("feature-flags", feature_flags_router),
-    ("changelog", changelog_router),
     ("observability", observability_router),
     ("rate-limits", rate_limits_router),
     ("evaluation", evaluation_router),
@@ -299,3 +251,8 @@ for _name, _router in [
             api_v1_router.include_router(_router, prefix=_prefix)
         else:
             api_v1_router.include_router(_router)
+
+# Provider webhooks registered without prefix so routes resolve to
+# /api/{provider}/webhook — matching the original individual files.
+if integration_webhooks_router:
+    api_v1_router.include_router(integration_webhooks_router)

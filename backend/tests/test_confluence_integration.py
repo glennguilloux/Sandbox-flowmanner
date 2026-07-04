@@ -65,11 +65,11 @@ def test_confluence_bridge_capabilities():
 
 def test_confluence_webhook_router_exists():
     """Confluence webhook router is importable with correct paths."""
-    from app.api.v1.confluence_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     paths = [r.path for r in router.routes]  # type: ignore[union-attr]
-    assert "/confluence/webhook" in paths
+    assert "/{provider}/webhook" in paths
 
 
 def test_confluence_oauth_callback_router_exists():

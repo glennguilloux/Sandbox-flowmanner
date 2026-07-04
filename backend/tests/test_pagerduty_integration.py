@@ -78,11 +78,11 @@ def test_pagerduty_bridge_capabilities():
 
 def test_pagerduty_webhook_router_exists():
     """PagerDuty webhook router is importable."""
-    from app.api.v1.pagerduty_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     routes = [r.path for r in router.routes]
-    assert "/pagerduty/webhook" in routes
+    assert "/{provider}/webhook" in routes
 
 
 def test_pagerduty_connector_importable():

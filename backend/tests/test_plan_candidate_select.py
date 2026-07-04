@@ -361,10 +361,6 @@ class TestExecuteInlineHooks:
                 AsyncMock(return_value=mock_mission),
             ),
             patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                AsyncMock(return_value=MagicMock(allowed=True)),
-            ),
-            patch(
                 "app.api._mission_cqrs.commands._rebuild_tasks_from_candidate",
                 AsyncMock(return_value=None),
             ),
@@ -468,10 +464,6 @@ class TestExecuteInlineHooks:
                 AsyncMock(return_value=mock_mission),
             ),
             patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                AsyncMock(return_value=MagicMock(allowed=True)),
-            ),
-            patch(
                 "app.api._mission_cqrs.commands._rebuild_tasks_from_candidate",
                 side_effect=_mock_rebuild,
             ),
@@ -553,10 +545,6 @@ class TestExecuteInlineHooks:
             patch(
                 "app.api._mission_cqrs.commands.require_mission_access",
                 AsyncMock(return_value=mock_mission),
-            ),
-            patch(
-                "app.services.subscription_service.check_mission_execute_allowed",
-                AsyncMock(return_value=MagicMock(allowed=True)),
             ),
             patch(
                 "app.api._mission_cqrs.commands._rebuild_tasks_from_candidate",

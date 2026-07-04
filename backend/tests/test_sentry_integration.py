@@ -41,11 +41,11 @@ def test_sentry_connector_importable():
 
 def test_sentry_webhook_router_exists():
     """Sentry webhook router is importable with correct paths."""
-    from app.api.v1.sentry_webhook import router
+    from app.api.v1.integration_webhooks import router
 
     assert router is not None
     paths = [r.path for r in router.routes]  # type: ignore[union-attr]
-    assert "/sentry/webhook" in paths
+    assert "/{provider}/webhook" in paths
 
 
 def test_sentry_bridge_capabilities():

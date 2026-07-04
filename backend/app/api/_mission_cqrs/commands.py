@@ -149,15 +149,6 @@ class MissionCommandHandlers(CommandHandlerBase):
     # ── Create ───────────────────────────────────────────────────────────────
 
     async def create_mission(self, user: User, payload: MissionCreate, workspace_id: str | None = None):
-        from app.services.subscription_service import check_mission_create_allowed
-
-        # Phase 8.4: Check subscription tier limits before creating
-        limit_check = await check_mission_create_allowed(self.session, user.id, workspace_id)
-        if not limit_check.allowed:
-            from app.services.mission_errors import MissionValidationError
-
-            raise MissionValidationError(limit_check.reason)
-
         async def _op():
             result = await create_mission(
                 self.session,
@@ -470,20 +461,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         mission_id: uuid.UUID,
         payload: MissionExecuteRequest | None = None,
     ) -> MissionExecutionStatus:
-        from app.services.subscription_service import check_mission_execute_allowed
-
         mission = await require_mission_access(self.session, mission_id, user.id)
-
-        # Phase 8.4: Check subscription tier limits before executing
-        limit_check = await check_mission_execute_allowed(
-            self.session,
-            user.id,
-            mission.workspace_id,
-        )
-        if not limit_check.allowed:
-            from app.services.mission_errors import MissionValidationError
-
-            raise MissionValidationError(limit_check.reason)
 
         old_status = mission.status.value if hasattr(mission.status, "value") else mission.status
 
@@ -631,8 +609,6 @@ class MissionCommandHandlers(CommandHandlerBase):
         mission_id: uuid.UUID,
         payload: MissionExecuteRequest | None = None,
     ) -> MissionExecutionStatus:
-        from app.services.subscription_service import check_mission_execute_allowed
-
         # NOTE: not wrapped in wrap_command — multi-commit flow:
         #   1. commit status → QUEUED so the background task sees it
         #   2. commit transition log separately
@@ -650,17 +626,6 @@ class MissionCommandHandlers(CommandHandlerBase):
                     str(mission_id),
                     payload.selected_plan_id,
                 )
-
-        # Phase 8.4: Check subscription tier limits before queueing
-        limit_check = await check_mission_execute_allowed(
-            self.session,
-            user.id,
-            mission.workspace_id,
-        )
-        if not limit_check.allowed:
-            from app.services.mission_errors import MissionValidationError
-
-            raise MissionValidationError(limit_check.reason)
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.QUEUED
