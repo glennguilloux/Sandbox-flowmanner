@@ -27,16 +27,18 @@ logger = logging.getLogger(__name__)
 CONVERTER_TIMEOUT = int(os.getenv("AUDIO_CONVERTER_TIMEOUT", "120"))
 MAX_FILE_SIZE_MB = int(os.getenv("AUDIO_CONVERTER_MAX_MB", "500"))
 
-# Format → (ffmpeg codec name, default bitrate, typical extension)
-_SUPPORTED_FORMATS: dict[str, tuple[str, str, str]] = {
-    "mp3": ("libmp3lame", "192k", ".mp3"),
-    "wav": ("pcm_s16le", "", ".wav"),
-    "flac": ("flac", "", ".flac"),
-    "ogg": ("libvorbis", "128k", ".ogg"),
-    "aac": ("aac", "192k", ".aac"),
-    "m4a": ("aac", "192k", ".m4a"),
-    "opus": ("libopus", "96k", ".opus"),
-    "wma": ("wmav2", "128k", ".wma"),
+# Format → (ffmpeg codec name, default bitrate, typical extension, ffmpeg output format)
+# The 4th element overrides the container format passed to ffmpeg when it
+# differs from the logical format name (e.g. "aac" → "adts", "m4a" → "ipod").
+_SUPPORTED_FORMATS: dict[str, tuple[str, str, str, str | None]] = {
+    "mp3": ("libmp3lame", "192k", ".mp3", None),
+    "wav": ("pcm_s16le", "", ".wav", None),
+    "flac": ("flac", "", ".flac", None),
+    "ogg": ("libvorbis", "128k", ".ogg", None),
+    "aac": ("aac", "192k", ".aac", "adts"),
+    "m4a": ("aac", "192k", ".m4a", "ipod"),
+    "opus": ("libopus", "96k", ".opus", None),
+    "wma": ("wmav2", "128k", ".wma", None),
 }
 
 
@@ -185,8 +187,8 @@ class AudioFormatConverterTool(BaseTool):
                 audio = audio.set_channels(2)
 
             # Export to target format
-            codec, default_bitrate, _ = _SUPPORTED_FORMATS[target]
-            export_kwargs: dict[str, Any] = {"format": target}
+            codec, default_bitrate, _, ffmpeg_fmt = _SUPPORTED_FORMATS[target]
+            export_kwargs: dict[str, Any] = {"format": ffmpeg_fmt or target}
             if codec:
                 export_kwargs["codec"] = codec
             bitrate = validated.bitrate or default_bitrate
