@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 148,
+  "model_count": 147,
   "tables": [
     {
       "columns": {
@@ -1056,25 +1056,6 @@
         "ix_execution_events_execution_id"
       ],
       "name": "execution_events",
-      "unique_constraints": []
-    },
-    {
-      "columns": {
-        "author": "VARCHAR(255)",
-        "config": "JSON",
-        "created_at": "DATETIME",
-        "description": "TEXT",
-        "id": "VARCHAR(36)",
-        "manifest": "JSON",
-        "name": "VARCHAR(255)",
-        "status": "VARCHAR(20)",
-        "updated_at": "DATETIME",
-        "version": "VARCHAR(50)",
-        "workspace_id": "VARCHAR"
-      },
-      "foreign_keys": [],
-      "indexes": [],
-      "name": "extensions",
       "unique_constraints": []
     },
     {
