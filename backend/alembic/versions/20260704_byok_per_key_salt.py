@@ -41,6 +41,12 @@ def upgrade() -> None:
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
     conn = op.get_bind()
+    if conn is None:
+        # Offline SQL render mode — no live DB connection.
+        # This migration performs data-level re-encryption which cannot
+        # be expressed as static SQL.  Skip gracefully.
+        print("  BYOK re-encryption: skipped (offline mode)")
+        return
 
     # Use the SAME secret source as app/utils/encryption.py:
     #   getattr(settings, "ENCRYPTION_KEY", None) or settings.SECRET_KEY
