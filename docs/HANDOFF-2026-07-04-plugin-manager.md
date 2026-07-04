@@ -1,8 +1,8 @@
-# Handoff — 2026-07-04 Plugin Manager Session
+# Handoff — 2026-07-04 Plugin Manager + Cleanup Session
 
 **Agent:** Buffy (Codebuff)
 **Date:** 2026-07-04
-**Session focus:** Plugin Manager UI (B2c) wiring + enhancements
+**Session focus:** Plugin Manager UI (B2c) wiring + enhancements + audio fix + deprecated code removal
 
 ---
 
@@ -16,22 +16,32 @@
   - Reject reason dialog (inline textarea, Enter/Escape)
   - Scan findings detail (severity badges, file:line)
   - p99 latency display
-  - Node type detail popover (inputs/outputs schema)
+  - Node type detail popover with click-outside dismiss
   - Test execution state scoped per plugin (no stale data)
   - All hardcoded strings internationalized
   - 20 new i18n keys in all 5 locales
 - **Backend**: `p99_latency_ms` added to PluginResponse model and `_to_plugin_response` helper
 - **Dead code removed**: `extensions-page-content.tsx`, `ExtensionCard.tsx`, `extensions` i18n namespace, 3 unused `pluginManager` keys
+- **Deprecated `/api/extensions` endpoint removed**: 4 files deleted (API, model, schema, tests), router registration + model import removed from `main_fastapi.py` and `models/__init__.py`. Alembic migration kept for chain integrity. (466 lines deleted)
+- **Audio format converter fixed**: FFmpeg `aac`/`m4a`/`wma` encoding now uses correct output containers (`adts`/`ipod`/`asf`). Extended `_SUPPORTED_FORMATS` to 4-tuples with optional FFmpeg format override. Test updated for new tuple shape.
+- **Audio test linting**: All 9 ruff warnings resolved (B017, PT011, SIM102, PERF102, PT012)
 
 ### Commit & Deploy Status
 ✅ **All changes committed, pushed, and deployed.**
 
-- **Backend** commit `b935faa` — `p99_latency_ms` field + exit audit + handoff docs → pushed to `origin/main` → deployed via `deploy-backend.sh`
-- **Frontend** commit `b200a30` — plugin manager UI enhancements + extensions redirect (13 files, +403/-356) → pushed to `origin/master` → deployed via `deploy-frontend.sh`
+| Repo | Commit | Summary |
+|------|--------|---------|
+| Backend | `b935faa` | `p99_latency_ms` field + exit audit + handoff docs |
+| Frontend | `b200a30` | Plugin manager UI enhancements + extensions redirect |
+| Frontend | `92c77a5` | Click-outside handler for node type popover |
+| Backend | `761d8dd` | Fix aac/m4a/wma FFmpeg output format encoding |
+| Backend | `5355bc7` | Resolve ruff linting warnings in audio test file |
+| Backend | `e084adb` | Remove deprecated `/api/extensions` endpoint |
+| Backend | `faa51a4` | Update handoff doc — all changes committed/deployed |
 
 ### Validation state
 - Frontend: TypeScript clean ✅, 878/878 tests passing ✅
-- Backend: 443 tests passing ✅, 1 pre-existing failure (`test_audio_format_converter`)
+- Backend: 443/443 tests passing ✅ (audio format converter fix resolved the pre-existing failure)
 - Backend health: HTTP 200 ✅
 - All containers healthy ✅
 
@@ -64,13 +74,17 @@ No commit/deploy needed — all changes are live. See Remaining Roadmap Items be
 - `extensions` namespace removed (redirect replaces the page)
 - `nav.extensions` label preserved (now points to `/plugins`)
 
----
+---## Remaining Roadmap Items
 
-## Remaining Roadmap Items
+All 3 items from the initial handoff have been completed:
+- ~~Deprecated `/api/extensions` endpoint~~ → Removed (`e084adb`)
+- ~~Click-outside handler~~ → Implemented (`92c77a5`)
+- ~~`test_audio_format_converter` failure~~ → Fixed (`761d8dd`)
 
-1. **Deprecated `/api/extensions` endpoint** — backend endpoint still exists but frontend no longer uses it; consider removing
-2. **Plugin manager click-outside handler** — node type popover only closes via X button or chip toggle
-3. **`test_audio_format_converter` failure** — pre-existing, investigate separately
+**Potential next items:**
+1. **Drop `extensions` DB table** — table left in place during removal; safe to drop manually (`DROP TABLE IF EXISTS extensions;`)
+2. **Regenerate `openapi.json`** — may still list removed `/api/extensions` endpoints
+3. **Plugin Manager further polish** — bulk actions, plugin version comparison, dependency graph visualization
 
 ---
 
