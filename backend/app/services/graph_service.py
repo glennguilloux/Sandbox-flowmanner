@@ -442,6 +442,7 @@ async def _execute_graph_async(
             workflow = await get_graph_workflow(db, workflow_id)
             if workflow is None:
                 await fail_execution(db, execution_id, "Workflow not found")
+                await db.commit()
                 return
 
             execution = await get_graph_execution(db, execution_id)
@@ -449,6 +450,7 @@ async def _execute_graph_async(
                 return
 
             await update_execution_status(db, execution_id, "running")
+            await db.commit()
 
             from app.services.graph_executor import GraphInterpreter
 
@@ -457,6 +459,8 @@ async def _execute_graph_async(
             result = await interpreter.execute(start_node_id=start_node_id)
 
             await complete_execution(db, execution_id, result)
+            await db.commit()
         except Exception as e:
             logger.error("Graph execution failed: %s", e, exc_info=True)
             await fail_execution(db, execution_id, str(e))
+            await db.commit()

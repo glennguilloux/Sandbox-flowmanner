@@ -12,7 +12,7 @@ Tests:
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.main_fastapi import app
@@ -51,19 +51,11 @@ async def test_user():
 async def client(test_user):
     """Create an async TestClient with auth bypassed."""
     from sqlalchemy import delete, select
-    from sqlalchemy.pool import NullPool
 
-    from app.database import engine as global_engine
-
-    # Create a test-local engine with NullPool so connections are not reused
-    # across event loops (pytest-asyncio creates a new loop per test).
-    test_engine = create_async_engine(global_engine.url, poolclass=NullPool)
-    TestSessionLocal = async_sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    from app.database import AsyncSessionLocal
 
     # Ensure the test user exists in the database (FK constraint on workflows.user_id)
-    async with TestSessionLocal() as setup_session:
+    async with AsyncSessionLocal() as setup_session:
         existing = await setup_session.execute(select(User).where(User.id == test_user.id))
         if not existing.scalar_one_or_none():
             setup_session.add(
@@ -84,7 +76,7 @@ async def client(test_user):
 
     async def override_get_db():
         # Match real get_db: auto-commit on success, rollback on error
-        async with TestSessionLocal() as session:
+        async with AsyncSessionLocal() as session:
             try:
                 yield session
                 await session.commit()
@@ -104,7 +96,7 @@ async def client(test_user):
     app.dependency_overrides.pop(get_db, None)
 
     # Clean up test data: delete workflows first, then the user (FK dependency)
-    async with TestSessionLocal() as teardown_session:
+    async with AsyncSessionLocal() as teardown_session:
         await teardown_session.execute(delete(GraphExecution).where(
             GraphExecution.workflow_id.in_(
                 select(GraphWorkflow.id).where(GraphWorkflow.user_id == test_user.id)
@@ -113,8 +105,6 @@ async def client(test_user):
         await teardown_session.execute(delete(GraphWorkflow).where(GraphWorkflow.user_id == test_user.id))
         await teardown_session.execute(delete(User).where(User.id == test_user.id))
         await teardown_session.commit()
-
-    await test_engine.dispose()
 
 
 # ── Workflow definition ────────────────────────────────────────
