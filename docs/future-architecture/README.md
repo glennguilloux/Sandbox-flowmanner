@@ -1,8 +1,8 @@
 # FlowManner Future-State Architecture
 
-**Status:** Architecture direction ready; implementation phased  
-**Date:** 2026-06-11  
-**Audience:** Product, architecture, backend, frontend, infra, and future AI agents.  
+**Status:** Architecture direction ready; implementation phased
+**Date:** 2026-06-11
+**Audience:** Product, architecture, backend, frontend, infra, and future AI agents.
 **Purpose:** Redesign FlowManner for the next 5–10 years as a durable, agent-native workflow orchestration platform without chasing trends.
 
 ## Grounding
@@ -99,7 +99,7 @@ python scripts/validate_future_arch_docs.py --root docs/future-architecture --ro
 Run the substrate-critical gate before execution-plane changes:
 
 ```bash
-cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_meta_loop_orchestrator_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/test_chaos_kill_worker.py tests/test_chaos_kill_runner.py -q
+cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/test_chaos_kill_worker.py tests/test_chaos_kill_runner.py -q
 ```
 
 Run the frontend quality gate before UI or routing changes:

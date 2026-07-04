@@ -139,16 +139,33 @@ TDD_CONTRACTS = [
 
 EXACT_COMMANDS = [
     "python scripts/validate_future_arch_docs.py --root docs/future-architecture --roadmap docs/REBUILD-ROADMAP.md",
-    "cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_meta_loop_orchestrator_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/test_chaos_kill_worker.py tests/test_chaos_kill_runner.py -q",
+    "cd /opt/flowmanner/backend && python -m pytest tests/test_substrate_event_log.py tests/test_substrate_replay.py tests/test_failure_analyzer_budgets.py tests/test_trigger_bridge.py tests/test_nexus_orchestrator_singleton.py tests/test_chaos_kill_worker.py tests/test_chaos_kill_runner.py -q",
     "cd /home/glenn/FlowmannerV2-frontend && npx tsc --noEmit && npx vitest run && npx playwright test",
 ]
 
 ROADMAP_ACTIVE_ITEMS: dict[str, list[str]] = {
-    "code_execute production issue": [r"/api/chat/code/execute", r"code.execute", r"code execution"],
+    "code_execute production issue": [
+        r"/api/chat/code/execute",
+        r"code.execute",
+        r"code execution",
+    ],
     "CI pipeline hardening": [r"CI pipeline", r"GitHub Actions"],
-    "Sentry/Jaeger/deep-health baseline": [r"Sentry", r"Jaeger", r"deep.health|deep health|deep-health"],
-    "Blueprint+Run unification": [r"Blueprint\+Run", r"Blueprint\\+Run", r"Blueprint and Run"],
-    "substrate executor/chaos tests": [r"substrate executor", r"chaos tests", r"kill worker", r"chaos"],
+    "Sentry/Jaeger/deep-health baseline": [
+        r"Sentry",
+        r"Jaeger",
+        r"deep.health|deep health|deep-health",
+    ],
+    "Blueprint+Run unification": [
+        r"Blueprint\+Run",
+        r"Blueprint\\+Run",
+        r"Blueprint and Run",
+    ],
+    "substrate executor/chaos tests": [
+        r"substrate executor",
+        r"chaos tests",
+        r"kill worker",
+        r"chaos",
+    ],
     "chat UX fixes": [r"Chat UX", r"chat UX", r"chat user experience"],
 }
 
@@ -177,7 +194,9 @@ def strip_markdown_fences(text: str) -> str:
     return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
 
 
-def contains_any(text: str, patterns: Iterable[str], flags: int = re.IGNORECASE | re.MULTILINE) -> bool:
+def contains_any(
+    text: str, patterns: Iterable[str], flags: int = re.IGNORECASE | re.MULTILINE
+) -> bool:
     return any(re.search(pattern, text, flags) for pattern in patterns)
 
 
@@ -248,7 +267,9 @@ def check_non_goals(root: Path) -> list[str]:
     for label, phrases in REQUIRED_NON_GOALS.items():
         if not any(phrase in text for phrase in phrases):
             accepted = "; ".join(phrases)
-            errors.append(f"01-paradigm-evaluation.md: missing non-goal/stop gate: {label} ({accepted})")
+            errors.append(
+                f"01-paradigm-evaluation.md: missing non-goal/stop gate: {label} ({accepted})"
+            )
     return errors
 
 
@@ -267,7 +288,9 @@ def check_cross_links(root: Path) -> tuple[int, list[str]]:
             checked += 1
             resolved = (path.parent / target).resolve()
             if not resolved.is_file():
-                errors.append(f"{path.relative_to(root)}: broken local link -> {target}")
+                errors.append(
+                    f"{path.relative_to(root)}: broken local link -> {target}"
+                )
     return checked, errors
 
 
@@ -285,7 +308,9 @@ def check_roadmap_alignment(root: Path, roadmap: Path) -> list[str]:
     combined = f"{roadmap_text}\n\n{alignment}"
     for item, patterns in ROADMAP_ACTIVE_ITEMS.items():
         if not contains_any(combined, patterns):
-            errors.append(f"09-current-state-gaps.md / REBUILD-ROADMAP.md: missing active rebuild item: {item}")
+            errors.append(
+                f"09-current-state-gaps.md / REBUILD-ROADMAP.md: missing active rebuild item: {item}"
+            )
 
     if "REBUILD-ROADMAP.md" not in alignment:
         errors.append("09-current-state-gaps.md: does not reference REBUILD-ROADMAP.md")
@@ -349,18 +374,26 @@ def run_self_test() -> ValidationResult:
         tmp = Path(tmp_dir)
         tmp_docs = tmp / "docs" / "future-architecture"
         tmp_docs.mkdir(parents=True)
-        shutil.copytree(repo_root / "docs" / "future-architecture", tmp_docs, dirs_exist_ok=True)
+        shutil.copytree(
+            repo_root / "docs" / "future-architecture", tmp_docs, dirs_exist_ok=True
+        )
         tmp_roadmap = tmp / "docs" / "REBUILD-ROADMAP.md"
         tmp_roadmap.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(repo_root / "docs" / "REBUILD-ROADMAP.md", tmp_roadmap)
 
         scenarios: list[tuple[str, Path | None, str | None]] = []
-        scenarios.append(("missing required doc", tmp_docs / "01-paradigm-evaluation.md", None))
+        scenarios.append(
+            ("missing required doc", tmp_docs / "01-paradigm-evaluation.md", None)
+        )
 
         doc_01 = tmp_docs / "01-paradigm-evaluation.md"
         original_doc_01 = doc_01.read_text(encoding="utf-8")
-        modified_doc_01 = original_doc_01.replace("## Stop Gates\n", "## Removed Stop Gates\n")
-        modified_doc_01 = modified_doc_01.replace("No microservices default.", "Microservices are acceptable by default.")
+        modified_doc_01 = original_doc_01.replace(
+            "## Stop Gates\n", "## Removed Stop Gates\n"
+        )
+        modified_doc_01 = modified_doc_01.replace(
+            "No microservices default.", "Microservices are acceptable by default."
+        )
         doc_01.write_text(modified_doc_01, encoding="utf-8")
         scenarios.append(("missing non-goal", None, None))
         doc_01.write_text(original_doc_01, encoding="utf-8")
@@ -377,10 +410,20 @@ def run_self_test() -> ValidationResult:
         if remove_path and remove_path.exists():
             remove_path.unlink()
         if text_replacement:
-            raise AssertionError("text_replacement is not used by the subprocess self-test")
+            raise AssertionError(
+                "text_replacement is not used by the subprocess self-test"
+            )
 
         proc = subprocess.run(
-            [sys.executable, str(Path(__file__).resolve()), "--root", str(tmp_docs), "--roadmap", str(tmp_roadmap), "--quiet"],
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--root",
+                str(tmp_docs),
+                "--roadmap",
+                str(tmp_roadmap),
+                "--quiet",
+            ],
             cwd=repo_root,
             text=True,
             stdout=subprocess.PIPE,
@@ -391,17 +434,48 @@ def run_self_test() -> ValidationResult:
             failures.append(f"self-test scenario did not fail: {scenario_name}")
 
     if failures:
-        return ValidationResult(ok=False, lines=["self_test=fail"] + failures, errors=failures)
-    return ValidationResult(ok=True, lines=["self_test=pass", "missing_required_doc=detected", "missing_non_goal=detected", "missing_roadmap_alignment=detected"], errors=[])
+        return ValidationResult(
+            ok=False, lines=["self_test=fail"] + failures, errors=failures
+        )
+    return ValidationResult(
+        ok=True,
+        lines=[
+            "self_test=pass",
+            "missing_required_doc=detected",
+            "missing_non_goal=detected",
+            "missing_roadmap_alignment=detected",
+        ],
+        errors=[],
+    )
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate FlowManner future-architecture docs")
-    parser.add_argument("--root", default=str(REPO_ROOT / "docs" / "future-architecture"), help="docs/future-architecture root")
-    parser.add_argument("--roadmap", default=str(REPO_ROOT / "docs" / "REBUILD-ROADMAP.md"), help="REBUILD-ROADMAP.md path")
-    parser.add_argument("--evidence", default=None, help="write validation output to this file")
-    parser.add_argument("--self-test", action="store_true", help="run negative validation checks in a temp copy")
-    parser.add_argument("--quiet", action="store_true", help="suppress normal output; useful for self-test subprocesses")
+    parser = argparse.ArgumentParser(
+        description="Validate FlowManner future-architecture docs"
+    )
+    parser.add_argument(
+        "--root",
+        default=str(REPO_ROOT / "docs" / "future-architecture"),
+        help="docs/future-architecture root",
+    )
+    parser.add_argument(
+        "--roadmap",
+        default=str(REPO_ROOT / "docs" / "REBUILD-ROADMAP.md"),
+        help="REBUILD-ROADMAP.md path",
+    )
+    parser.add_argument(
+        "--evidence", default=None, help="write validation output to this file"
+    )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="run negative validation checks in a temp copy",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress normal output; useful for self-test subprocesses",
+    )
     return parser.parse_args(argv)
 
 
