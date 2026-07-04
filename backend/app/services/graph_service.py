@@ -249,6 +249,13 @@ async def execute_graph_workflow(
     await db.flush()
     await db.refresh(execution)
 
+    # Commit the execution row before firing the background task so that
+    # the background task's separate session can see it (FK constraint on
+    # workflow_states.execution_id → workflow_executions.id).  This is also
+    # more correct in production: the execution should be persisted before
+    # an independent async task starts modifying it.
+    await db.commit()
+
     # Launch background execution
     asyncio.create_task(_execute_graph_async(None, execution.id, str(workflow_id), user_id, input_data))
 
@@ -461,6 +468,6 @@ async def _execute_graph_async(
             await complete_execution(db, execution_id, result)
             await db.commit()
         except Exception as e:
-            logger.error("Graph execution failed: %s", e, exc_info=True)
+            logger.exception("Graph execution failed: %s", e)
             await fail_execution(db, execution_id, str(e))
             await db.commit()

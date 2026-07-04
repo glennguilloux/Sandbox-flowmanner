@@ -171,7 +171,7 @@ class GraphInterpreter:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for node_id, result in zip(layer, results, strict=False):
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     logger.error("Node %s failed: %s", node_id, result)
                     all_outputs[node_id] = {
                         "success": False,
@@ -255,7 +255,7 @@ class GraphInterpreter:
 
                 plugin_handler = get_plugin_runtime().get_handler(node_type)
                 if plugin_handler is not None:
-                    handler = plugin_handler
+                    handler = plugin_handler  # type: ignore[assignment]
             except Exception as _e:
                 logger.debug("PluginRuntime lookup failed for '%s': %s", node_type, _e)
 
@@ -272,11 +272,12 @@ class GraphInterpreter:
         return await handler.execute(node, self.context, self)
 
     async def _record_state(self, node_id: str, output: dict) -> None:
+        node_status = "failed" if isinstance(output, dict) and not output.get("success", True) else "completed"
         state = GraphState(
             id=str(uuid4()),
             execution_id=self.execution.id,
             workflow_id=self.workflow.id,
-            state_data={"node_id": node_id, "output": output},
+            state_data={"node_id": node_id, "output": output, "status": node_status},
         )
         self.db.add(state)
         await self.db.flush()

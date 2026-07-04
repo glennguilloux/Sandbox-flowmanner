@@ -127,9 +127,10 @@ class TaskNodeHandler(BaseNodeHandler):
             from app.services.llm_router import ModelRouter
 
             router = ModelRouter()
+            messages = [{"role": "user", "content": description}]
             result = await asyncio.wait_for(
                 router.route_request(
-                    prompt=description,
+                    messages,
                     model_preference=model_pref,
                 ),
                 timeout=timeout,
@@ -263,7 +264,7 @@ class ParallelNodeHandler(BaseNodeHandler):
             )
             branch_outputs = {}
             for task in done:
-                result = task.result()
+                result: dict[str, Any] = task.result()  # type: ignore[assignment]
                 # Use the first result
                 branch_outputs[downstream_ids[0]] = result
                 break
@@ -271,8 +272,8 @@ class ParallelNodeHandler(BaseNodeHandler):
             # Wait for all branches
             results = await asyncio.gather(*branch_coros, return_exceptions=True)
             branch_outputs = {}
-            for did, result in zip(downstream_ids, results, strict=False):
-                if isinstance(result, Exception):
+            for did, result in zip(downstream_ids, results, strict=False):  # type: ignore[assignment]
+                if isinstance(result, BaseException):
                     branch_outputs[did] = {"success": False, "error": str(result)}
                 else:
                     branch_outputs[did] = result
@@ -416,7 +417,7 @@ class TransformNodeHandler(BaseNodeHandler):
 
         try:
             if transform_type == "template":
-                result = self._apply_template(str(expression), context)
+                result: Any = self._apply_template(str(expression), context)
             elif transform_type == "jq":
                 result = self._apply_jq(str(expression), context)
             else:
@@ -440,7 +441,7 @@ class TransformNodeHandler(BaseNodeHandler):
 
     def _apply_jq(self, expression: str, context: Any) -> Any:
         parts = expression.strip().lstrip(".").split(".")
-        obj = context._data
+        obj: Any = context._data
         for p in parts:
             if p and isinstance(obj, dict):
                 obj = obj.get(p)
