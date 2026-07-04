@@ -53,7 +53,7 @@ class LangGraphStrategy(ExecutionStrategy):
 
         return errors
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self,
         workflow: Workflow,
         context: dict[str, Any],
@@ -104,6 +104,45 @@ class LangGraphStrategy(ExecutionStrategy):
             error=f"{len(failed)} nodes failed" if failed else None,
         )
 
+    # ── Graph registry (lazy-loaded) ─────────────────────────────────────────
+    _GRAPH_REGISTRY: dict[str, Any] = {}
+
+    async def _get_graph(self, graph_name: str) -> Any | None:
+        """Resolve a graph by name from the registry.
+
+        Supports:
+        - ``governance`` — the ControlFlow governance agent graph
+        - ``llm:*`` — any graph registered in llm_langgraph agent registry
+        - Direct graph names — looked up in the llm_langgraph agent registry
+
+        Returns the compiled LangGraph graph, or ``None`` if not found.
+        """
+        if graph_name in self._GRAPH_REGISTRY:
+            return self._GRAPH_REGISTRY[graph_name]
+
+        graph = None
+        try:
+            if graph_name == "governance":
+                from app.governance.controlflow.agent import get_agent
+
+                agent = get_agent()
+                graph = agent.graph  # type: ignore[assignment]
+            else:
+                from app.services.llm_langgraph.agent import get_agent as get_llm_agent
+
+                agent = get_llm_agent()  # type: ignore[assignment]
+                if hasattr(agent, "get_graph"):
+                    graph = agent.get_graph(graph_name)
+                elif hasattr(agent, "graph"):
+                    graph = agent.graph
+        except Exception as e:
+            logger.debug("Failed to resolve graph '%s': %s", graph_name, e)
+            return None
+
+        if graph is not None:
+            self._GRAPH_REGISTRY[graph_name] = graph
+        return graph
+
     async def _execute_langgraph_node(
         self,
         node: Any,
@@ -113,20 +152,34 @@ class LangGraphStrategy(ExecutionStrategy):
         run_id: str,
         workflow: Workflow,
     ) -> dict[str, Any]:
-        """Execute a LangGraph node natively.
+        """Execute a LangGraph node natively via the graph registry.
 
-        Falls back to the shared node executor if the LangGraph module
-        is not available or the graph is not found.
+        Looks up the graph by ``node.config['graph_name']`` and invokes
+        it with ``ainvoke()``.  Returns an error dict if the graph is
+        not found or invocation fails — the caller (``execute``) falls
+        back to the shared node executor in that case.
         """
         try:
-            from app.services.langgraph.agent import LangGraphAgent
+            graph_name = node.config.get("graph_name", "unknown")
+            graph = await self._get_graph(graph_name)
+            if graph is None:
+                return {
+                    "success": False,
+                    "error": f"Graph '{graph_name}' not found — using shared executor",
+                }
 
-            # In production, this would look up the graph by name in node.config
-            # and invoke it through LangGraph's StateGraph API.
+            # Invoke the graph natively
+            result = await graph.ainvoke(
+                {"messages": [{"role": "user", "content": node.input or ""}]},
+                config={"configurable": {"thread_id": f"substrate_{run_id}_{node.id}"}},
+            )
+
             return {
-                "success": False,
-                "error": "LangGraph native execution not yet wired — use shared executor",
+                "success": True,
+                "result": result,
+                "tokens": 0,
+                "cost": 0.0,
             }
-        except ImportError:
-            logger.debug("LangGraph module not available, using shared executor")
-            return {"success": False, "error": "LangGraph module not available"}
+        except Exception as e:
+            logger.warning("LangGraph native execution failed for node %s: %s", node.id, e)
+            return {"success": False, "error": str(e)}

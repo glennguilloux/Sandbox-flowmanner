@@ -114,9 +114,9 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
             if not self._agent:
                 # Try to import and create agent
                 try:
-                    from app.services.langgraph.agent import get_agent
+                    from app.services.llm_langgraph.agent import get_agent
 
-                    self._agent = get_agent()
+                    self._agent = get_agent()  # type: ignore[assignment]
                 except ImportError:
                     return AgentResponse(
                         content="LangGraph agent not available",
@@ -124,31 +124,24 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                         metadata={"error": "agent_not_initialized"},
                     )
 
-            # Process through LangGraph
-            result = await self._agent.ainvoke(  # type: ignore[attr-defined]
-                {"messages": [{"role": "user", "content": message.content}]},
-                config=self._config,
+            # Process through llm_langgraph agent (.run() API)
+            result = self._agent.run(  # type: ignore[attr-defined]
+                message.content,
+                context=self._config,
             )
 
             # Extract response
             if isinstance(result, dict):
-                messages = result.get("messages", [])
-                last_message = messages[-1] if messages else None
-
-                if last_message:
-                    content = getattr(last_message, "content", str(last_message))
-                    tool_calls = []
-
-                    # Extract tool calls if present
-                    if hasattr(last_message, "tool_calls"):
-                        tool_calls = [{"name": tc["name"], "args": tc["args"]} for tc in last_message.tool_calls]
-
-                    return AgentResponse(
-                        content=content,
-                        success=True,
-                        tool_calls=tool_calls,
-                        metadata={"agent_type": "langgraph"},
-                    )
+                content = result.get("response", result.get("messages", ""))
+                if isinstance(content, list):
+                    last = content[-1] if content else {}
+                    content = getattr(last, "content", str(last))
+                return AgentResponse(
+                    content=str(content),
+                    success=result.get("status", "ok") == "ok",
+                    tokens_used=result.get("usage", {}).get("total_tokens", 0),
+                    metadata={"agent_type": "langgraph", "model_id": result.get("model_id", "")},
+                )
 
             return AgentResponse(content=str(result), success=True, metadata={"agent_type": "langgraph"})
 
@@ -160,32 +153,31 @@ class LangGraphAgentWrapper(A2AAgentWrapper):
                 metadata={"error": str(e)},
             )
 
-    async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:
+    async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:  # type: ignore[override]
         """Stream response from LangGraph agent"""
         try:
             if not self._agent:
                 try:
-                    from app.services.langgraph.agent import get_agent
+                    from app.services.llm_langgraph.agent import get_agent
 
-                    self._agent = get_agent()
+                    self._agent = get_agent()  # type: ignore[assignment]
                 except ImportError:
                     yield "LangGraph agent not available"
                     return
 
-            async for event in self._agent.astream(  # type: ignore[attr-defined]
-                {"messages": [{"role": "user", "content": message.content}]},
-                config=self._config,
-            ):
-                if isinstance(event, dict):
-                    for value in event.values():
-                        if hasattr(value, "content"):
-                            yield value.content
-                        elif isinstance(value, dict) and "content" in value:
-                            yield value["content"]
-                        else:
-                            yield str(value)
-                else:
-                    yield str(event)
+            # llm_langgraph agent uses .run() (sync) — yield the full result
+            result = self._agent.run(  # type: ignore[attr-defined]
+                message.content,
+                context=self._config,
+            )
+            if isinstance(result, dict):
+                content = result.get("response", str(result))
+                if isinstance(content, list):
+                    last = content[-1] if content else {}
+                    content = getattr(last, "content", str(last))
+                yield str(content)
+            else:
+                yield str(result)
 
         except Exception as e:
             logger.error("LangGraph streaming error: %s", e)
@@ -284,7 +276,7 @@ class MetaLoopAgentWrapper(A2AAgentWrapper):
                 metadata={"error": str(e)},
             )
 
-    async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:
+    async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:  # type: ignore[override]
         """Stream MetaLoop phases"""
         try:
             metaloop = self._get_metaloop()
@@ -424,7 +416,7 @@ class NexusOrchestratorWrapper(A2AAgentWrapper):
                 metadata={"error": str(e)},
             )
 
-    async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:
+    async def stream_response(self, message: A2AMessage) -> AsyncIterator[str]:  # type: ignore[override]
         """Stream Nexus execution progress"""
         try:
             orchestrator = self._get_orchestrator()
@@ -471,7 +463,7 @@ def create_agent_wrapper(agent_type: str, **kwargs) -> A2AAgentWrapper:
     if not wrapper_class:
         raise ValueError(f"Unknown agent type: {agent_type}. Available: {list(wrappers.keys())}")
 
-    return wrapper_class(**kwargs)
+    return wrapper_class(**kwargs)  # type: ignore[abstract]
 
 
 # Register default agents

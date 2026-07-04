@@ -343,7 +343,8 @@ class TestExecuteLangGraphNode:
 
         assert result["success"] is False
         assert (
-            "not available" in result["error"].lower()
+            "not found" in result["error"].lower()
+            or "not available" in result["error"].lower()
             or "import" in result["error"].lower()
             or "module" in result["error"].lower()
         )
@@ -381,4 +382,4 @@ class TestExecuteLangGraphNode:
             )
 
         assert result["success"] is False
-        assert "not yet wired" in result["error"].lower() or "shared executor" in result["error"].lower()
+        assert "not found" in result["error"].lower() or "shared executor" in result["error"].lower()

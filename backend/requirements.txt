@@ -23,11 +23,11 @@ pyotp>=2.9.0
 qrcode[pil]>=7.4
 
 # LLM & AI
-langchain-core==0.1.52
-langchain==0.1.20
-langgraph==0.0.40
-langchain-community==0.0.38
-langchain-openai==0.0.8
+langchain-core>=0.2.0,<1.0
+langchain>=0.2.0,<1.0
+langgraph>=0.2.0,<1.0
+langchain-community>=0.2.0,<1.0
+langchain-openai>=0.1.0,<1.0
 openai==1.68.2
 tiktoken==0.5.2
 sentence-transformers==2.6.1

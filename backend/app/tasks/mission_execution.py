@@ -25,7 +25,6 @@ from app.models.mission_models import (
     MissionStatus,
     MissionTaskStatus,
 )
-from app.services.mission_executor import MissionExecutor
 from app.services.mission_service import get_mission_tasks
 
 logger = structlog.get_logger(__name__)
@@ -104,9 +103,18 @@ class ExecuteMissionTask(Task):
                 session.add(log)
                 await session.commit()
 
-                # Execute
-                executor = MissionExecutor()
-                exec_result = await executor.execute_mission(uuid.UUID(mission_id))
+                # Execute via UnifiedExecutor
+                from app.services.substrate.adapters import mission_to_workflow
+                from app.services.substrate.executor import get_unified_executor
+
+                tasks = await get_mission_tasks(session, uuid.UUID(mission_id))
+                workflow = mission_to_workflow(mission, tasks)
+                strategy_result = await get_unified_executor().execute(session, workflow)
+                exec_result = {
+                    "success": strategy_result.success,
+                    "status": strategy_result.status,
+                    "error": strategy_result.error,
+                }
 
                 # Finalize
                 await session.refresh(mission)
@@ -161,7 +169,7 @@ class ExecuteMissionTask(Task):
                             fail_session.add(fail_log)
                             await fail_session.commit()
                 except Exception as inner:
-                    logger.error("mission_execute_async_failure_log_failed", exc_info=True)
+                    logger.exception("mission_execute_async_failure_log_failed")
 
                 # Retry with backoff
                 countdown = self.default_retry_delay * (2**self.request.retries)

@@ -421,14 +421,6 @@ class TestApprovalFlow:
 
         assert HITLManager.approval_required_for("read_data", confidence=0.9) is False
 
-    def test_mission_executor_has_hitl_wiring(self):
-        """Verify mission_executor imports HITLManager at module level."""
-        from app.services.mission_executor import MissionExecutor
-
-        executor = MissionExecutor()
-        # HITLManager is wired in execute_mission, not in __init__
-        assert not hasattr(executor, "hitl_manager") or executor.hitl_manager is None
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Schema Consistency Tests

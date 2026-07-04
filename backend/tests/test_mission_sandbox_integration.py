@@ -25,16 +25,6 @@ class TestMissionSandboxWiring:
         assert hasattr(svc, "purge_sandbox")
 
     @pytest.mark.asyncio
-    async def test_sandbox_created_on_mission_execute(self):
-        """SandboxService.ensure_sandbox_for_mission called when mission transitions to EXECUTING."""
-        from app.services.mission_executor import MissionExecutor
-
-        executor = MissionExecutor()
-
-        # Verify the executor has the execute_mission method
-        assert hasattr(executor, "execute_mission")
-
-    @pytest.mark.asyncio
     async def test_sandbox_reaped_on_mission_complete(self):
         """SandboxService.reap_sandbox called on terminal state."""
         from app.services.sandbox_service import SandboxService
@@ -131,8 +121,8 @@ class TestSandboxdConfigSettings:
 
         # SANDBOXD_API_URL may be overridden by .env (e.g. host.docker.internal)
         # so just verify it's a valid URL with a scheme
-        assert settings.SANDBOXD_API_URL.startswith("http"), (
-            f"SANDBOXD_API_URL should be an HTTP URL, got: {settings.SANDBOXD_API_URL}"
-        )
+        assert settings.SANDBOXD_API_URL.startswith(
+            "http"
+        ), f"SANDBOXD_API_URL should be an HTTP URL, got: {settings.SANDBOXD_API_URL}"
         assert settings.SANDBOXD_ENABLED is True
         assert settings.SANDBOXD_DEFAULT_TEMPLATE == "python-img"

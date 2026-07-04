@@ -60,11 +60,18 @@ def test_execute_mission_success(test_client, mock_db_session):
 
         with (
             patch(
-                "app.services.mission_executor.MissionExecutor.execute_mission",
+                "app.services.substrate.executor.UnifiedExecutor.execute",
                 new_callable=AsyncMock,
-                return_value={"success": True},
-            ),
+            ) as mock_unified_execute,
         ):
+            mock_strategy_result = MagicMock()
+            mock_strategy_result.success = True
+            mock_strategy_result.status = "completed"
+            mock_strategy_result.completed_nodes = []
+            mock_strategy_result.failed_nodes = []
+            mock_strategy_result.data = {}
+            mock_strategy_result.error = None
+            mock_unified_execute.return_value = mock_strategy_result
             response = test_client.post(f"/api/missions/{MISSION_ID}/execute")
             assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
     finally:

@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, START, StateGraph
 
 from .state import (
     AgentState,
@@ -65,11 +65,11 @@ class ControlFlowAgent:
         self.tool_handlers: dict[str, Callable] = {}
         self._initialize_default_handlers()
 
-        # Build the graph
-        self.graph = self._build_graph()
-
-        # Checkpointer for state persistence
+        # Checkpointer for state persistence (created before graph build)
         self.checkpointer = MemorySaver()
+
+        # Build the graph (pass checkpointer to compile)
+        self.graph = self._build_graph()
 
         logger.info("ControlFlow agent initialized with WorkerHandler")
 
@@ -117,7 +117,7 @@ class ControlFlowAgent:
         workflow.add_node("generate_response", self._generate_response_node)
 
         # Add edges
-        workflow.set_entry_point("process_input")
+        workflow.add_edge(START, "process_input")
         workflow.add_edge("process_input", "convert_to_tools")
         workflow.add_conditional_edges(
             "convert_to_tools",
@@ -140,7 +140,7 @@ class ControlFlowAgent:
         workflow.add_edge("execute_tools", "generate_response")
         workflow.add_edge("generate_response", END)
 
-        return workflow.compile()
+        return workflow.compile(checkpointer=self.checkpointer)
 
     async def process_message(
         self,
@@ -347,7 +347,7 @@ class ControlFlowAgent:
             tool = state["pending_tools"][0]
             approval_id = f"approval_{uuid.uuid4().hex[:16]}"
 
-            state["current_approval_request"] = {
+            state["current_approval_request"] = {  # type: ignore[typeddict-item]
                 "approval_id": approval_id,
                 "tool_execution": tool,
                 "created_at": datetime.now(UTC).isoformat(),
@@ -378,7 +378,7 @@ class ControlFlowAgent:
         for tool in state["pending_tools"]:
             if tool["status"] in ["pending", "approved"]:
                 # Execute tool
-                result = await self._execute_tool(state, tool)  # type: ignore[arg-type]
+                result = self._execute_tool(state, tool)  # type: ignore[arg-type]
 
                 # Update tool execution
                 if result["success"]:
@@ -444,7 +444,7 @@ class ControlFlowAgent:
 
         # Execute handler
         try:
-            result = handler(state, parameters)
+            result = handler(state, parameters)  # type: ignore[misc]
             return result
         except Exception as e:
             logger.error("Tool execution failed: %s", e)

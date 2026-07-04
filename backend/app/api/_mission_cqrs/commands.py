@@ -40,7 +40,7 @@ from app.services.mission_errors import (
     MissionTransitionConflictError,
     MissionValidationError,
 )
-from app.services.mission_executor import MissionExecutor
+from app.services.mission_planner import MissionPlanner
 from app.services.mission_service import (
     create_mission,
     create_mission_log,
@@ -449,8 +449,12 @@ class MissionCommandHandlers(CommandHandlerBase):
         mission = await require_mission_access(self.session, mission_id, user.id)
 
         async def _op():
-            executor = MissionExecutor()
-            result = await executor.plan_mission(mission_id)
+            from app.services.llm_router import ModelRouter
+
+            planner = MissionPlanner(
+                get_model_router=lambda: ModelRouter(user_id=str(user.id)),
+            )
+            result = await planner.plan_mission(mission_id)
             if not result.get("success"):
                 raise MissionValidationError(result.get("error", "Planning failed"))
             tasks = await get_mission_tasks(self.session, mission_id)
@@ -1019,8 +1023,12 @@ class MissionCommandHandlers(CommandHandlerBase):
         self.session.add(log)
         await self.session.commit()
 
-        executor = MissionExecutor()
-        plan_result = await executor.plan_mission(mission_id)
+        from app.services.llm_router import ModelRouter
+
+        planner = MissionPlanner(
+            get_model_router=lambda: ModelRouter(user_id=str(user.id)),
+        )
+        plan_result = await planner.plan_mission(mission_id)
         if not plan_result.get("success"):
             raise MissionValidationError(plan_result.get("error", "Re-planning failed"))
 
