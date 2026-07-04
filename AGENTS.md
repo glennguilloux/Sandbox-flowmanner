@@ -51,21 +51,13 @@ Internet → VPS (Nginx :443) ──┬── /* ──→ frontend:3000 (Next.j
                                ├── /api/auth/* ──→ frontend:3000 (NextAuth)
                                └── /ws ──→ WireGuard ──→ Homelab:8000 (WebSocket)
 
-Homelab services: PostgreSQL, Redis, Qdrant, RabbitMQ, Celery, Jaeger, llama.cpp
+Homelab services: PostgreSQL, Redis, Qdrant, RabbitMQ, Celery, llama.cpp
 ```
 
 ## ⚠️ Active Warnings (read first — applies to ALL machines)
 
 The following items are in-flight or broken. Read the linked files before recommending any deploy or auth-related work:
 
-- ~~**Sandbox preview auth chain**~~ ✅ **RESOLVED.** Fixed and deployed 2026-06-10 across 3 commits:
-  - `4d8e04d` — UUID-vs-JWT bug fixed in `sandbox_preview.py` (added `_is_jwt()` heuristic + DB lookup for UUID cookies via `get_refresh_token()`)
-  - `800b670` — ToolResult field name fix in `io.py` (code execute 422 → working)
-  - `cd70bb6` — Auth chain completed (`auth.py` `_auth_response()` helper, `auth_cookies.py` cookie path widened to `/`)
-  - Frontend: `auth.ts` session callback exposes `refreshToken` for `/api/auth/preview-cookie` route
-  - 14 new tests in `test_sandbox_preview_auth.py`, all passing
-  - Audit: [`.hermes/plans/SANDBOX-PREVIEW-401-DEEPSEEK-AUDIT.md`](.hermes/plans/SANDBOX-PREVIEW-401-DEEPSEEK-AUDIT.md)
-  - Fix plan: [`.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md`](.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md)
-  - Roadmap: archived to `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md` (sandbox chain row was ✅ DONE)
-- **`docs/REBUILD-ROADMAP.md` is ARCHIVED 2026-06-12.** Current rebuild plan: **`.sisyphus/plans/q2-q3-agentic-workflow.md`** (Q2-Q3 agentic workflow capabilities, skeleton awaiting Opus). REBUILD-ROADMAP preserved in `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md`.
+- ~~**Sandbox preview auth chain**~~ ✅ RESOLVED 2026-06-10 — see `.hermes/plans/SANDBOX-PREVIEW-FIX-DEEPSEEK-PLAN.md`.
+- ~~**REBUILD-ROADMAP.md**~~ ✅ ARCHIVED. Preserved at `.sisyphus/plans/OLD/REBUILD-ROADMAP-2026-06-12.md`. Current active plan: `.sisyphus/plans/frontend-wiring-roadmap.md`.
 - **Memory stores are PER-MACHINE.** The agentmemory MCP store at `~/.agentmemory/data/state_store.db` is local to the machine where the agent runs. Do not assume a memory you saved on homelab is visible on ops (172.16.1.2) or VPS (74.208.115.142). For cross-instance context, rely on docs/AGENTS.md, not memory.

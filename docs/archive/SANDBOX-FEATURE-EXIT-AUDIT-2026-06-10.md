@@ -1,8 +1,8 @@
 # Sandbox Feature — Exit Audit & Handoff
 
-**Date:** 2026-06-10  
-**Session scope:** Phases 1–4 of the sandbox fix plan (container survival, tool schemas, file APIs, system prompt)  
-**Test status:** 69/69 passing, 0 failures  
+**Date:** 2026-06-10
+**Session scope:** Phases 1–4 of the sandbox fix plan (container survival, tool schemas, file APIs, system prompt)
+**Test status:** 69/69 passing, 0 failures
 **Source plan:** `.hermes/plans/SANDBOX-FEATURE-ROOT-CAUSE-PLAN.md`
 
 ---

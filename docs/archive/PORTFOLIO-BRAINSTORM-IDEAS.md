@@ -1,6 +1,6 @@
 # Portfolio Strategic Options — Brainstorm
 
-**Date:** June 5, 2026  
+**Date:** June 5, 2026
 **Scope:** What can `glennguilloux.com` become? Not just Flowmanner promotion — the whole portfolio's identity, monetization, and architecture.
 
 ---

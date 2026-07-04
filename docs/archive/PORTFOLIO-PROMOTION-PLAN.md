@@ -1,7 +1,7 @@
 # Flowmanner × Portfolio Promotion Plan
 
-**Date:** June 5, 2026  
-**Last Updated:** June 5, 2026  
+**Date:** June 5, 2026
+**Last Updated:** June 5, 2026
 **Goal:** Drive traffic from Glenn's portfolio site (glennguilloux.com) to Flowmanner, establish credibility, and convert visitors into waitlist signups or demo users.
 
 ---

@@ -78,12 +78,12 @@ import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
-  
+
   // Read NextAuth session token from existing cookie
-  const sessionToken = 
+  const sessionToken =
     request.cookies.get("__Secure-next-auth.session-token")?.value ||
     request.cookies.get("next-auth.session-token")?.value
-  
+
   if (sessionToken && !request.cookies.get("refresh_token")) {
     try {
       // Decode the NextAuth JWT to extract refresh_token
@@ -105,7 +105,7 @@ export async function middleware(request: NextRequest) {
       // Token decode failed — skip
     }
   }
-  
+
   return response
 }
 
@@ -136,11 +136,11 @@ export const config = {
    // src/app/api/auth/preview-cookie/route.ts
    import { auth } from "@/auth"
    import { NextResponse } from "next/server"
-   
+
    export async function GET() {
      const session = await auth()
      const response = NextResponse.json({ ok: true })
-     
+
      if ((session as any)?.refresh_token) {
        response.cookies.set("refresh_token", (session as any).refresh_token, {
          httpOnly: true, secure: true, sameSite: "strict",
@@ -197,7 +197,7 @@ Instead of a separate tab/window, embed the sandbox preview in an iframe within 
 
 ```typescript
 // Dashboard component
-<iframe 
+<iframe
   src={`https://s-${sandboxId}-3000.preview.flowmanner.com/#token=${accessToken}`}
   sandbox="allow-scripts allow-same-origin"
 />
@@ -307,4 +307,3 @@ Expose sandbox workspace files in the FlowManner file browser. Let users:
 - [ ] Phase 3.1: embed preview in FlowManner dashboard via `<iframe src="...?token=...">`.
 - [ ] Phase 3.2: one-click sandbox from chat agent.
 - [ ] Approach A: middleware-based cookie mirror (only if B proves too slow).
-
