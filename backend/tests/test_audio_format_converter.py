@@ -17,6 +17,7 @@ import struct
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ class TestInputValidation:
     async def test_sample_rate_below_min_rejected(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError, match="greater than or equal"):
             AudioFormatConverterInput(data="Zm9v", target_format="wav", sample_rate=1000)
 
     @pytest.mark.asyncio
@@ -132,7 +133,7 @@ class TestInputValidation:
     async def test_channels_out_of_range_rejected(self, converter):
         from app.tools.audio_format_converter import AudioFormatConverterInput
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError, match="less than or equal"):
             AudioFormatConverterInput(data="Zm9v", target_format="wav", channels=3)
 
 
@@ -266,10 +267,9 @@ class TestFormatConversion:
                     "target_format": fmt,
                 }
             )
-            if not r.success:
+            if not r.success and ("error code: 234" in str(r.error) or "encoder" in str(r.error).lower()):
                 # Skip formats needing encoders not installed (ffmpeg error 234)
-                if "error code: 234" in str(r.error) or "encoder" in str(r.error).lower():
-                    continue
+                continue
             assert r.success, f"Format {fmt} failed: {r.error}"
             assert r.result["output_format"] == fmt
 
@@ -308,7 +308,7 @@ class TestToolMetadata:
         assert "wav" in _SUPPORTED_FORMATS
         assert "flac" in _SUPPORTED_FORMATS
         # Each format has (codec, bitrate, extension, ffmpeg_format_override)
-        for _fmt, entry in _SUPPORTED_FORMATS.items():
+        for entry in _SUPPORTED_FORMATS.values():
             ext = entry[2]
             ffmpeg_fmt = entry[3]
             assert ext.startswith(".")
@@ -343,9 +343,9 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_missing_target_format(self, converter):
-        with pytest.raises(Exception):
-            from app.tools.audio_format_converter import AudioFormatConverterInput
+        from app.tools.audio_format_converter import AudioFormatConverterInput
 
+        with pytest.raises(ValidationError, match="target_format"):
             AudioFormatConverterInput(data="Zm9v")
 
     @pytest.mark.asyncio
