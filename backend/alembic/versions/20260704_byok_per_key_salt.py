@@ -42,17 +42,18 @@ def upgrade() -> None:
 
     conn = op.get_bind()
 
-    aes_key = os.environ.get("AES_ENCRYPTION_KEY", "")
-    if not aes_key:
-        # Attempt to read from the app's .env via the settings module
-        # (works when running inside the backend container)
-        try:
-            from app.config import settings  # type: ignore[import-untyped]
-            aes_key = settings.AES_ENCRYPTION_KEY
-        except Exception:
+    # Use the SAME secret source as app/utils/encryption.py:
+    #   getattr(settings, "ENCRYPTION_KEY", None) or settings.SECRET_KEY
+    # NOT AES_ENCRYPTION_KEY (that's a different config var).
+    try:
+        from app.config import settings  # type: ignore[import-untyped]
+        secret = getattr(settings, "ENCRYPTION_KEY", None) or settings.SECRET_KEY
+    except Exception:
+        secret = os.environ.get("ENCRYPTION_KEY", "") or os.environ.get("SECRET_KEY", "")
+        if not secret:
             raise RuntimeError(
-                "AES_ENCRYPTION_KEY must be set in the environment for "
-                "the BYOK re-encryption migration"
+                "Could not determine encryption secret: "
+                "ENCRYPTION_KEY/SECRET_KEY not in env or app config"
             )
 
     legacy_salt = b"flowmanner-salt-"
@@ -61,7 +62,7 @@ def upgrade() -> None:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100_000
         )
-        return base64.urlsafe_b64encode(kdf.derive(aes_key.encode()))
+        return base64.urlsafe_b64encode(kdf.derive(secret.encode()))
 
     legacy_fernet = Fernet(_derive_key(legacy_salt))
 
@@ -121,13 +122,14 @@ def downgrade() -> None:
 
     conn = op.get_bind()
 
-    aes_key = os.environ.get("AES_ENCRYPTION_KEY", "")
-    if not aes_key:
-        try:
-            from app.config import settings  # type: ignore[import-untyped]
-            aes_key = settings.AES_ENCRYPTION_KEY
-        except Exception:
-            raise RuntimeError("AES_ENCRYPTION_KEY must be set for downgrade")
+    # Same secret source as the upgrade (and encryption.py)
+    try:
+        from app.config import settings  # type: ignore[import-untyped]
+        secret = getattr(settings, "ENCRYPTION_KEY", None) or settings.SECRET_KEY
+    except Exception:
+        secret = os.environ.get("ENCRYPTION_KEY", "") or os.environ.get("SECRET_KEY", "")
+        if not secret:
+            raise RuntimeError("Could not determine encryption secret for downgrade")
 
     legacy_salt = b"flowmanner-salt-"
 
@@ -135,7 +137,7 @@ def downgrade() -> None:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100_000
         )
-        return base64.urlsafe_b64encode(kdf.derive(aes_key.encode()))
+        return base64.urlsafe_b64encode(kdf.derive(secret.encode()))
 
     legacy_fernet = Fernet(_derive_key(legacy_salt))
 
