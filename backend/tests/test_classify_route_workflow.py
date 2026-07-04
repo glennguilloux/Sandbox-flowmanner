@@ -50,12 +50,20 @@ async def test_user():
 @pytest_asyncio.fixture
 async def client(test_user):
     """Create an async TestClient with auth bypassed."""
-    from app.database import AsyncSessionLocal
+    from sqlalchemy import delete, select
+    from sqlalchemy.pool import NullPool
+
+    from app.database import engine as global_engine
+
+    # Create a test-local engine with NullPool so connections are not reused
+    # across event loops (pytest-asyncio creates a new loop per test).
+    test_engine = create_async_engine(global_engine.url, poolclass=NullPool)
+    TestSessionLocal = async_sessionmaker(
+        bind=test_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     # Ensure the test user exists in the database (FK constraint on workflows.user_id)
-    async with AsyncSessionLocal() as setup_session:
-        from sqlalchemy import select
-
+    async with TestSessionLocal() as setup_session:
         existing = await setup_session.execute(select(User).where(User.id == test_user.id))
         if not existing.scalar_one_or_none():
             setup_session.add(
@@ -75,9 +83,14 @@ async def client(test_user):
         return test_user
 
     async def override_get_db():
-        # Use the app's default session for real DB access
-        async with AsyncSessionLocal() as session:
-            yield session
+        # Match real get_db: auto-commit on success, rollback on error
+        async with TestSessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_db] = override_get_db
@@ -91,9 +104,7 @@ async def client(test_user):
     app.dependency_overrides.pop(get_db, None)
 
     # Clean up test data: delete workflows first, then the user (FK dependency)
-    async with AsyncSessionLocal() as teardown_session:
-        from sqlalchemy import delete, select
-
+    async with TestSessionLocal() as teardown_session:
         await teardown_session.execute(delete(GraphExecution).where(
             GraphExecution.workflow_id.in_(
                 select(GraphWorkflow.id).where(GraphWorkflow.user_id == test_user.id)
@@ -102,6 +113,8 @@ async def client(test_user):
         await teardown_session.execute(delete(GraphWorkflow).where(GraphWorkflow.user_id == test_user.id))
         await teardown_session.execute(delete(User).where(User.id == test_user.id))
         await teardown_session.commit()
+
+    await test_engine.dispose()
 
 
 # ── Workflow definition ────────────────────────────────────────
