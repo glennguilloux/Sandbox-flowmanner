@@ -16,11 +16,13 @@ depends_on = None
 
 def upgrade() -> None:
     # Audit logs — ORDER BY created_at DESC is the primary query pattern
-    op.create_index(
-        "ix_audit_logs_created_at", "audit_logs", ["created_at"]
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs (created_at)"
     )
     # Audit logs — user activity lookups (filter by user_id)
-    op.create_index("ix_audit_logs_user_id", "audit_logs", ["user_id"])
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_audit_logs_user_id ON audit_logs (user_id)"
+    )
 
 
 def downgrade() -> None:
