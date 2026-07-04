@@ -12,6 +12,8 @@ from typing import Any
 
 import redis
 
+from app.core.metrics import record_cache_hit, record_cache_miss
+
 logger = logging.getLogger(__name__)
 
 
@@ -91,8 +93,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if cached:
+                record_cache_hit("redis_workflow")
                 return json.loads(cached)
 
+            record_cache_miss("redis_workflow")
             return None
 
         except Exception as e:
@@ -143,8 +147,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if not cached:
+                record_cache_miss("redis_workflow_list")
                 return []
 
+            record_cache_hit("redis_workflow_list")
             workflow_ids = json.loads(cached)
             workflows = []
 
@@ -197,8 +203,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if cached:
+                record_cache_hit("redis_workflow")
                 return json.loads(cached)
 
+            record_cache_miss("redis_workflow")
             return None
 
         except Exception as e:
@@ -282,8 +290,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if cached:
+                record_cache_hit("redis_workflow")
                 return json.loads(cached)
 
+            record_cache_miss("redis_workflow")
             return None
 
         except Exception as e:
@@ -334,8 +344,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if not cached:
+                record_cache_miss("redis_workflow_list")
                 return []
 
+            record_cache_hit("redis_workflow_list")
             import_ids = json.loads(cached)
             imported_workflows = []
 
@@ -433,6 +445,10 @@ class WorkflowCache:
                 except Exception:
                     logger.debug("Failed to parse cached change event")
 
+            if changes:
+                record_cache_hit("redis_workflow_changes")
+            else:
+                record_cache_miss("redis_workflow_changes")
             return changes
 
         except Exception as e:
@@ -486,8 +502,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if cached:
+                record_cache_hit("redis_n8n")
                 return json.loads(cached)
 
+            record_cache_miss("redis_n8n")
             return None
 
         except Exception as e:
@@ -538,8 +556,10 @@ class WorkflowCache:
             cached = self.client.get(key)
 
             if not cached:
+                record_cache_miss("redis_n8n_list")
                 return []
 
+            record_cache_hit("redis_n8n_list")
             workflow_ids = json.loads(cached)
             workflows = []
 

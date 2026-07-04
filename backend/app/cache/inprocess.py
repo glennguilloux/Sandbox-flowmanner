@@ -7,6 +7,8 @@ from collections.abc import Callable
 
 from cachetools import TTLCache
 
+from app.core.metrics import record_cache_hit, record_cache_miss
+
 logger = logging.getLogger(__name__)
 
 # Caches for different data categories
@@ -24,7 +26,9 @@ def cached_feature_flags(func: Callable) -> Callable:
         key = "feature_flags_all"
         result = _feature_flags_cache.get(key)
         if result is not None:
+            record_cache_hit("feature_flags")
             return result
+        record_cache_miss("feature_flags")
         result = await func(*args, **kwargs)
         _feature_flags_cache[key] = result
         return result
@@ -41,7 +45,9 @@ def cached_agent_templates(func: Callable) -> Callable:
         cache_key = f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
         result = _agent_templates_cache.get(cache_key)
         if result is not None:
+            record_cache_hit("agent_templates")
             return result
+        record_cache_miss("agent_templates")
         result = func(*args, **kwargs)
         _agent_templates_cache[cache_key] = result
         return result
@@ -57,7 +63,9 @@ def cached_config(func: Callable) -> Callable:
         key = f"config:{func.__name__}"
         result = _config_cache.get(key)
         if result is not None:
+            record_cache_hit("config")
             return result
+        record_cache_miss("config")
         result = await func(*args, **kwargs)
         _config_cache[key] = result
         return result
@@ -65,7 +73,7 @@ def cached_config(func: Callable) -> Callable:
     return wrapper
 
 
-def cached(ttl: int = 120, maxsize: int = 64) -> Callable:
+def cached(ttl: int = 120, maxsize: int = 64, cache_name: str = "generic") -> Callable:
     """Generic cache decorator with configurable TTL."""
     _cache = TTLCache(maxsize=maxsize, ttl=ttl)
 
@@ -75,7 +83,9 @@ def cached(ttl: int = 120, maxsize: int = 64) -> Callable:
             cache_key = f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
             result = _cache.get(cache_key)
             if result is not None:
+                record_cache_hit(cache_name)
                 return result
+            record_cache_miss(cache_name)
             result = await func(*args, **kwargs)
             _cache[cache_key] = result
             return result
@@ -85,7 +95,9 @@ def cached(ttl: int = 120, maxsize: int = 64) -> Callable:
             cache_key = f"{func.__name__}:{hashlib.md5(str((args, kwargs)).encode()).hexdigest()}"
             result = _cache.get(cache_key)
             if result is not None:
+                record_cache_hit(cache_name)
                 return result
+            record_cache_miss(cache_name)
             result = func(*args, **kwargs)
             _cache[cache_key] = result
             return result
