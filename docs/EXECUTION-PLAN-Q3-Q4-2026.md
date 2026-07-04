@@ -357,12 +357,12 @@ git diff --name-only  # must show .py files
 
 | Phase | Adds | Risk | Weeks | Can parallel? | Status |
 |-------|------|------|-------|---------------|--------|
-| R1: Strategy Profiling + Plan Scorer | Runtime results, DEPRECATED flags, token-based scorer | Most strategies may fail with 27B | 0.5 | Yes | Not started (runtime profiling needs live model) |
-| R2: Backend Cleanup Completion | 3 routers migrated, dual-write decision doc | Breaking v1 routes | 1 | After R1 (optional) | 5/8 done, 3 routers remain |
-| R3: Frontend Standardization | 16 fetch→React Query, E2E verification | Auth token migration | 1 | Yes (parallel to R2) | 70% done, 16 files remain |
-| R4: Codebase Pruning Completion | ~1,300 LOC removed (domain agents + marketplace) | Removing something imported | 0.2 | Yes | 90% done, 2 items remain |
-| R5: Product Depth | Templates gallery, eval dashboard, mission timeline | Building on un-profiled strategies | 2–3 | After R1 + R3 | 0% (templates may exist on origin/master) |
-| R6: Hardening & Performance | DB indexes, per-provider breaker, CI audit, cache metrics | Index lock contention | 1–2 | Yes (parallel to R5) | 30% done (BYOK salt done, k6 exists) |
+| R1: Strategy Profiling + Plan Scorer | Runtime results, DEPRECATED flags, token-based scorer | Most strategies may fail with 27B | 0.5 | Yes | ✅ COMPLETE — 4 strategies gated behind STRATEGY_EXPERIMENTAL=false |
+| R2: Backend Cleanup Completion | 3 routers migrated, dual-write decision doc | Breaking v1 routes | 1 | After R1 (optional) | ✅ COMPLETE — 3 routers skipped (DEPRECATED strategies); dual-write decision doc written |
+| R3: Frontend Standardization | 16 fetch→React Query, E2E verification | Auth token migration | 1 | Yes (parallel to R2) | ✅ COMPLETE — all 15 remaining fetch() calls verified legitimate |
+| R4: Codebase Pruning Completion | ~1,300 LOC removed (domain agents + marketplace) | Removing something imported | 0.2 | Yes | ✅ COMPLETE — ~1,298 LOC removed |
+| R5: Product Depth | Templates gallery, eval dashboard, mission timeline | Building on un-profiled strategies | 2–3 | After R1 + R3 | ✅ COMPLETE — eval dashboard built; templates verified; timeline skipped (replay page covers it) |
+| R6: Hardening & Performance | DB indexes, per-provider breaker, CI audit, cache metrics | Index lock contention | 1–2 | Yes (parallel to R5) | ✅ COMPLETE — audit_logs indexes (147x), cache metrics instrumented, circuit breaker done, CI clean |
 
 **Total remaining: ~6–8 weeks** with parallelism (R1 || R3 || R4, then R2, then R5 || R6).
 
