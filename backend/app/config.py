@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "workflows-backend"
     SECRET_KEY: str = "change-me-in-production"
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/workflows"
+    DATABASE_URL: str = "postgresql+asyncpg://flowmanner:flowmanner_dev_password@localhost:5432/flowmanner"
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     DATABASE_POOL_TIMEOUT: int = 10
