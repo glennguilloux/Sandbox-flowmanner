@@ -78,7 +78,6 @@ Grouped by responsibility. **Bold** = has migration status worth tracking. Numbe
 | `agent_registry.py` | `/agent-registry` | Runtime agent registry. |
 | `agent_capabilities.py` | `/agent-capabilities` | Agent capabilities API. |
 | `agent_personalities.py` | `/agent-personalities` | OPTIONAL. |
-| `domain_agents.py` | `/domain` | Domain-specialized agents. |
 | `llm.py` | `/ai` (via `__init__.py` prefix override) | LLM inference API. |
 | `llm_advanced.py` | `/llm-advanced` | Advanced LLM features. |
 | `rag.py` | `/v1/rag` | RAG API. |
@@ -197,7 +196,7 @@ The remaining ~70 routers are CRUD endpoints that don't touch any executor. They
 - Analytics + observability (`analytics`, `stats`, `dashboard`, `observability`, `reliability`, `rate_limits`, `usage`)
 - Integrations + external (`integrations`, `marketplace`, `linear`, `community`, `newsletter`, `byok`, `api_keys`, `subscription`, `cost_attribution`, `webhooks`, `changelog`, `roadmap`, `votes`)
 - HITL + circuit breaker + admin (`hitl`, `circuit_breaker`, `admin`, `admin_sandboxes`, `playground`)
-- AI service routers (`chat`, `io`, `sandbox`, `sandbox_preview`, `browser`, `agent`, `agent_registry`, `agent_capabilities`, `agent_personalities`, `domain_agents`, `llm`, `llm_advanced`, `rag`, `evaluation`, `memory`)
+- AI service routers (`chat`, `io`, `sandbox`, `sandbox_preview`, `browser`, `agent`, `agent_registry`, `agent_capabilities`, `agent_personalities`, `llm`, `llm_advanced`, `rag`, `evaluation`, `memory`)
 - Templates + triggers + webhooks (`templates`, `triggers`, `webhooks`)
 - Sandbox + admin-sandboxes (`sandbox`, `admin_sandboxes`, `playground`)
 
