@@ -21,8 +21,6 @@ from sqlalchemy import case, func, select
 from app.models.blueprint_models import Blueprint, Run
 from app.schemas.mission import MissionResponse
 
-from .base import _run_with_retry
-
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -412,125 +410,6 @@ async def active_missions_from_blueprints(
         )
 
     return response, len(response)
-
-
-# ── Dual-write helpers (fire-and-forget, own sessions) ──────────────────────
-
-
-def _mission_status_to_run_status(mission_status: str) -> str:
-    """Map MissionStatus value → RunStatus value.
-
-    MissionStatus has states ("running", "planning", "planned", "approved")
-    that don't exist in RunStatus.  This maps them to the closest RunStatus
-    equivalent so the Run table always stores valid RunStatus values.
-    """
-    _MAP = {
-        "running": "executing",
-        "planning": "pending",
-        "planned": "pending",
-        "approved": "completed",
-    }
-    return _MAP.get(mission_status, mission_status)
-
-
-async def dual_write_sync_run_status(
-    mission_id: str,
-    user_id: int,
-    status: str,
-    error_message: str | None = None,
-    completed_at: datetime | None = None,
-) -> None:
-    """Update the latest Run status for a mission's linked Blueprint.
-
-    Called as fire-and-forget after mission status mutations.
-    Opens its own session to avoid interfering with the main transaction.
-    Accepts MissionStatus values and maps them to RunStatus internally.
-    Uses retry with exponential backoff for transient DB failures.
-    """
-    from app.database import AsyncSessionLocal
-
-    async def _op():
-        async with AsyncSessionLocal() as db:
-            bp = await _find_blueprint(db, mission_id)
-            if bp is None:
-                return  # No linked Blueprint — dual-write not active yet
-            run = await _get_latest_run(db, str(bp.id))
-            if run is None:
-                return  # No Run yet
-            run.status = _mission_status_to_run_status(status)
-            if error_message is not None:
-                run.error_message = error_message
-            if completed_at is not None:
-                run.completed_at = completed_at
-            await db.commit()
-
-    await _run_with_retry(
-        _op,
-        operation="sync_run_status",
-        mission_id=mission_id,
-        user_id=user_id,
-        target_status=status,
-    )
-
-
-async def dual_write_sync_blueprint(
-    mission_id: str,
-    user_id: int,
-    **kwargs: Any,
-) -> None:
-    """Update Blueprint fields (title, description, etc.) for a mission.
-
-    Called as fire-and-forget after mission update mutations.
-    Uses retry with exponential backoff for transient DB failures.
-    """
-    from app.database import AsyncSessionLocal
-
-    async def _op():
-        async with AsyncSessionLocal() as db:
-            bp = await _find_blueprint(db, mission_id)
-            if bp is None:
-                return
-            for key, value in kwargs.items():
-                if value is not None and hasattr(bp, key):
-                    setattr(bp, key, value)
-            bp.updated_at = datetime.now(UTC)
-            await db.commit()
-
-    await _run_with_retry(
-        _op,
-        operation="sync_blueprint",
-        mission_id=mission_id,
-        user_id=user_id,
-        fields=list(kwargs.keys()),
-    )
-
-
-async def dual_write_soft_delete_blueprint(
-    mission_id: str,
-    user_id: int,
-) -> None:
-    """Soft-delete the Blueprint linked to a mission.
-
-    Called as fire-and-forget after mission deletion.
-    Uses retry with exponential backoff for transient DB failures.
-    """
-    from app.database import AsyncSessionLocal
-
-    async def _op():
-        async with AsyncSessionLocal() as db:
-            bp = await _find_blueprint(db, mission_id)
-            if bp is None:
-                return
-            bp.deleted_at = datetime.now(UTC)
-            bp.deleted_by = user_id
-            await db.commit()
-
-    await _run_with_retry(
-        _op,
-        operation="soft_delete_blueprint",
-        mission_id=mission_id,
-        user_id=user_id,
-    )
 
 
 # ── MissionShim: Mission-compatible object for ORM callers ───────────────

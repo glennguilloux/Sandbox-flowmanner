@@ -91,7 +91,6 @@ async def metrics_summary():
         "missions": {},
         "cache": {"hits": 0, "misses": 0},
         "circuit_breakers": {},
-        "dual_write": {"failures": {}},
     }
 
     for line in lines:
@@ -132,16 +131,6 @@ async def metrics_summary():
 
             elif metric_name == "flowmanner_cache_misses_total":
                 summary["cache"]["misses"] += value
-
-            elif metric_name == "flowmanner_dual_write_failures_total":
-                label_str = line.split("{")[1].split("}")[0] if "{" in line else ""
-                site = ""
-                for label in label_str.split(","):
-                    k, v = label.split("=")
-                    if k == "site":
-                        site = v.strip('"')
-                if site:
-                    summary["dual_write"]["failures"][site] = value
 
             elif metric_name == "circuit_breaker_state":
                 dep = line.split('dependency="')[1].split('"')[0]

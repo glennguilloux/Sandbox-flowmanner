@@ -120,6 +120,9 @@ class SubstrateEventType:
     # Q2-Q3 Chunk 3: Tool routing events
     TOOL_ROUTE_DECIDED = "tool_route.decided"
 
+    # AutoMem Phase 1: Memory action events
+    MEMORY_ACTION_RECORDED = "memory_action.recorded"
+
     # Q2-Q3 Chunk 4: Adaptive reasoning depth events
     DEPTH_DECIDED = "depth.decided"
 

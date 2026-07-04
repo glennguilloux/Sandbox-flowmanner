@@ -41,7 +41,19 @@ class EmbeddingService:
         try:
             raw = await redis.get(await self._cache_key(text))
             if raw:
+                try:
+                    from app.core.metrics import record_cache_hit
+
+                    record_cache_hit("embedding_cache")
+                except Exception:
+                    pass
                 return json.loads(raw)
+            try:
+                from app.core.metrics import record_cache_miss
+
+                record_cache_miss("embedding_cache")
+            except Exception:
+                pass
         except Exception:
             logger.debug("embedding_cache_get_failed", exc_info=True)
         return None

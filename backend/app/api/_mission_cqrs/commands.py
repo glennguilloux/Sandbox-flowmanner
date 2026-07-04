@@ -55,13 +55,7 @@ from app.services.self_improvement import SelfImprovementEngine
 from .base import (
     CommandHandlerBase,
     _make_execution_status,
-    _run_with_retry,
     _schedule_fire_and_forget,
-)
-from .compat import (
-    dual_write_soft_delete_blueprint,
-    dual_write_sync_blueprint,
-    dual_write_sync_run_status,
 )
 
 if TYPE_CHECKING:
@@ -171,35 +165,6 @@ class MissionCommandHandlers(CommandHandlerBase):
             # Fire-and-forget cache invalidation (failure logged)
             _schedule_fire_and_forget(invalidate_user_caches(user.id))
 
-            # Phase 10.1 DUAL-WRITE: Also create a Blueprint (fire-and-forget)
-            # Runs AFTER the main mission is committed to avoid rollback on errors.
-            async def _dual_write_blueprint():
-                from app.database import AsyncSessionLocal
-                from app.services.blueprint_service import BlueprintService
-
-                async def _op():
-                    async with AsyncSessionLocal() as bp_db:
-                        bp_svc = BlueprintService(bp_db)
-                        await bp_svc.create(
-                            user_id=user.id,
-                            blueprint_id=str(result.id),
-                            title=payload.title,
-                            description=payload.description or "",
-                            blueprint_type=payload.mission_type or "solo",
-                            workspace_id=workspace_id,
-                            definition={"_source_mission_id": str(result.id)},
-                        )
-                        await bp_db.commit()
-
-                await _run_with_retry(
-                    _op,
-                    operation="create_blueprint",
-                    mission_id=str(result.id),
-                    user_id=user.id,
-                )
-
-            _schedule_fire_and_forget(_dual_write_blueprint())
-
             return result
 
         return await self.wrap_command(_op)
@@ -236,28 +201,6 @@ class MissionCommandHandlers(CommandHandlerBase):
                     request_id=self._request_id,
                 )
             _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
-
-            # Dual-write: sync status/title/description to Blueprint+Run
-            _schedule_fire_and_forget(
-                dual_write_sync_run_status(
-                    str(mission_id),
-                    user.id,
-                    new_status,
-                )
-            )
-            sync_fields: dict = {}
-            if payload.title is not None:
-                sync_fields["title"] = payload.title
-            if payload.description is not None:
-                sync_fields["description"] = payload.description
-            if sync_fields:
-                _schedule_fire_and_forget(
-                    dual_write_sync_blueprint(
-                        str(mission_id),
-                        user.id,
-                        **sync_fields,
-                    )
-                )
             return updated
 
         return await self.wrap_command(_op)
@@ -279,14 +222,6 @@ class MissionCommandHandlers(CommandHandlerBase):
             # Invalidate both user-wide list caches and per-mission caches
             _schedule_fire_and_forget(invalidate_user_caches(user.id))
             _schedule_fire_and_forget(invalidate_mission_cache(user.id, str(mission_id)))
-
-            # Dual-write: soft-delete linked Blueprint
-            _schedule_fire_and_forget(
-                dual_write_soft_delete_blueprint(
-                    str(mission_id),
-                    user.id,
-                )
-            )
 
         await self.wrap_command(_op)
 
@@ -501,60 +436,6 @@ class MissionCommandHandlers(CommandHandlerBase):
                 "results": strategy_result.data,
                 "error": strategy_result.error,
             }
-
-            # Phase 10.1 DUAL-WRITE: Also create a Run (fire-and-forget)
-            async def _dual_write_run():
-                from app.database import AsyncSessionLocal
-                from app.services.run_service import RunService
-
-                async def _op():
-                    async with AsyncSessionLocal() as run_db:
-                        # Find the linked blueprint by source_mission_id
-                        from sqlalchemy import select as _sel
-
-                        from app.models.blueprint_models import Blueprint
-
-                        bp_result = await run_db.execute(
-                            _sel(Blueprint).where(
-                                Blueprint.definition["_source_mission_id"].astext == str(mission_id),
-                                Blueprint.deleted_at.is_(None),
-                            )
-                        )
-                        bp = bp_result.scalars().first()
-                        if bp is None:
-                            logger.debug(
-                                "No linked blueprint for mission %s — skipping run dual-write",
-                                mission_id,
-                            )
-                            return
-                        run_svc = RunService(run_db)
-                        run = await run_svc.create_from_blueprint(
-                            blueprint_id=str(bp.id),
-                            user_id=user.id,
-                        )
-                        # Copy execution results from StrategyResult
-                        run.started_at = datetime.now(UTC)
-                        run.status = strategy_result.status
-                        run.total_tokens = strategy_result.total_tokens
-                        run.total_cost_usd = strategy_result.total_cost_usd
-                        run.error_message = strategy_result.error
-                        run.output_data = strategy_result.data if strategy_result.success else None
-                        if strategy_result.status in (
-                            "completed",
-                            "failed",
-                            "aborted",
-                        ):
-                            run.completed_at = datetime.now(UTC)
-                        await run_db.commit()
-
-                await _run_with_retry(
-                    _op,
-                    operation="create_run",
-                    mission_id=str(mission_id),
-                    user_id=user.id,
-                )
-
-            _schedule_fire_and_forget(_dual_write_run())
 
             # Track analytics event (fire-and-forget)
             try:
@@ -819,17 +700,6 @@ class MissionCommandHandlers(CommandHandlerBase):
             except Exception:
                 logger.debug("analytics_abort_track_failed", exc_info=True)
 
-        # Dual-write: sync abort status to Run
-        _schedule_fire_and_forget(
-            dual_write_sync_run_status(
-                str(mission_id),
-                user.id,
-                "aborted",
-                error_message=f"Aborted: {abort_reason.value}",
-                completed_at=datetime.now(UTC),
-            )
-        )
-
         tasks = await get_mission_tasks(self.session, mission_id)
         return MissionExecutionStatus(
             mission_id=mission_id,
@@ -890,15 +760,6 @@ class MissionCommandHandlers(CommandHandlerBase):
         self.session.add(log)
         await self.session.commit()
 
-        # Dual-write: sync pause status to Run
-        _schedule_fire_and_forget(
-            dual_write_sync_run_status(
-                str(mission_id),
-                user.id,
-                "paused",
-            )
-        )
-
         tasks = await get_mission_tasks(self.session, mission_id)
         return _make_execution_status(mission, tasks)
 
@@ -937,15 +798,6 @@ class MissionCommandHandlers(CommandHandlerBase):
         )
         self.session.add(log)
         await self.session.commit()
-
-        # Dual-write: sync resume status to Run
-        _schedule_fire_and_forget(
-            dual_write_sync_run_status(
-                str(mission_id),
-                user.id,
-                "queued",
-            )
-        )
 
         tasks = await get_mission_tasks(self.session, mission_id)
         return _make_execution_status(mission, tasks)
@@ -996,16 +848,6 @@ class MissionCommandHandlers(CommandHandlerBase):
         plan_result = await planner.plan_mission(mission_id)
         if not plan_result.get("success"):
             raise MissionValidationError(plan_result.get("error", "Re-planning failed"))
-
-        # Dual-write: sync retry status to Run
-        _schedule_fire_and_forget(
-            dual_write_sync_run_status(
-                str(mission_id),
-                user.id,
-                "pending",
-                error_message=None,
-            )
-        )
 
         tasks = await get_mission_tasks(self.session, mission_id)
         return _make_execution_status(mission, tasks)
@@ -1114,19 +956,6 @@ class MissionCommandHandlers(CommandHandlerBase):
             )
 
         await self.session.commit()
-
-        # Dual-write: sync abort status to Runs for all aborted missions
-        for r in results:
-            if r.get("aborted"):
-                _schedule_fire_and_forget(
-                    dual_write_sync_run_status(
-                        r["mission_id"],  # type: ignore[arg-type]
-                        user.id,
-                        "aborted",
-                        error_message=f"Batch aborted: {abort_reason.value}",
-                        completed_at=datetime.now(UTC),
-                    )
-                )
 
         return {
             "total_requested": len(mission_ids),

@@ -124,6 +124,7 @@ cost_attribution_router = _import_router("cost_attribution")
 plugins_router = _import_router("plugins")
 episodic_memory_router = _import_router("episodic_memory")
 tool_routing_router = _import_router("tool_routing")
+memory_actions_router = _import_router("memory_actions")
 depth_router = _import_router("depth")
 depth_events_router = _import_router("depth", "events_router")
 # ── OPTIONAL routers: info-only if missing ──────────────────────────
@@ -230,6 +231,7 @@ for _name, _router in [
     ("agent-personalities", agent_personalities_router),
     ("episodes", episodic_memory_router),
     ("tool-routing", tool_routing_router),
+    ("memory-actions", memory_actions_router),
     ("depth", depth_router),
     ("depth-events", depth_events_router),
 ]:

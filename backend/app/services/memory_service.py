@@ -80,7 +80,19 @@ class MemoryService:
             if redis is not None:
                 raw = await redis.get(key)
                 if raw is not None:
+                    try:
+                        from app.core.metrics import record_cache_hit
+
+                        record_cache_hit("memory_service")
+                    except Exception:
+                        pass
                     return json.loads(raw)
+                try:
+                    from app.core.metrics import record_cache_miss
+
+                    record_cache_miss("memory_service")
+                except Exception:
+                    pass
         except Exception:
             pass
         return _MISSING
