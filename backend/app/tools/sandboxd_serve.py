@@ -147,6 +147,15 @@ class SandboxdServeTool(BaseTool):
             raw_preview_url = f"http://s-{sandbox_id}-{port}.preview.localhost"
             preview_url = rewrite_sandboxd_url(raw_preview_url)
 
+            # ── Debug: trace tool-side URL construction ─────────────
+            logger.debug(
+                "sandboxd_serve: sandbox=%s port=%s raw_url=%r → preview_url=%r",
+                sandbox_id,
+                port,
+                raw_preview_url,
+                preview_url,
+            )
+
             return ToolResult.success_result(
                 tool_id=self.tool_id,
                 result={

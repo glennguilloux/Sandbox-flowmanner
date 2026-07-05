@@ -66,3 +66,7 @@ ignore = [
 # into TYPE_CHECKING blocks would be noisy and break monkeypatch types.
 "tests/test_chat_memory_extraction.py" = ["TCH002"]
 "tests/test_memory_flywheel_integration.py" = ["TCH002"]
+# Request is a FastAPI runtime dependency — cannot move to TYPE_CHECKING
+"app/api/v1/sandbox_preview.py" = ["TCH002"]
+# AsyncIterator used in return annotation; harmless at top level
+"app/integrations/sandboxd_client.py" = ["TCH003"]

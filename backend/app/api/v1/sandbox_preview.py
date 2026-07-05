@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import time
 import uuid
 from datetime import UTC, datetime
@@ -189,6 +190,36 @@ async def get_preview_url(
     # sandboxd_preview.py so the tool and API always agree.
     raw_url = preview.get("url")
     public_url = rewrite_sandboxd_url(raw_url) if raw_url else None
+
+    # ── Debug: trace preview URL port mismatch (hypothesis 1) ──────
+    # sandboxd may return a preview URL with port 8080 (template
+    # default) instead of 8081 (our http.server).  Log the full
+    # chain so we can see exactly what sandboxd reports vs what we
+    # return to the frontend.
+    _raw_port_match = re.search(r"-(\d+)\.preview", raw_url or "")
+    _raw_port = _raw_port_match.group(1) if _raw_port_match else "(none)"
+    _pub_port_match = re.search(r"-(\d+)\.preview", public_url or "")
+    _pub_port = _pub_port_match.group(1) if _pub_port_match else "(none)"
+    logger.debug(
+        "sandbox_preview [%s]: sandboxd_raw_url=%r raw_port=%s "
+        "→ public_url=%r pub_port=%s  "
+        "(sandboxd_preview_obj=%s)",
+        sandbox_id,
+        raw_url,
+        _raw_port,
+        public_url,
+        _pub_port,
+        preview,
+    )
+    if _raw_port not in ("8081", "(none)"):
+        logger.warning(
+            "sandbox_preview [%s]: sandboxd returned NON-8081 port %s "
+            "in preview URL: %r — this is the likely root cause of "
+            "the port mismatch",
+            sandbox_id,
+            _raw_port,
+            raw_url,
+        )
 
     return SandboxPreviewResponse(
         sandbox_id=sandbox_id,

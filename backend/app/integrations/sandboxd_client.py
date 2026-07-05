@@ -47,13 +47,25 @@ def rewrite_sandboxd_url(url: str, domain: str | None = None) -> str:
         host = match.group(1).split(":")[0]
         subdomain = re.sub(r"\.preview.*$", "", host)
         if effective_domain:
-            return f"https://{subdomain}.{effective_domain}"
+            result = f"https://{subdomain}.{effective_domain}"
+            # ── Debug: trace port through rewrite ──────────────────
+            _port_match = re.search(r"-(\d+)\.preview", url)
+            _port = _port_match.group(1) if _port_match else "(none)"
+            logger.debug(
+                "rewrite_sandboxd_url: %r → %r (extracted_port=%s, domain=%s)",
+                url,
+                result,
+                _port,
+                effective_domain,
+            )
+            return result
 
     # Fallback: string replacement for .preview.localhost
     if effective_domain and ".preview.localhost" in url:
         url = url.replace(".preview.localhost", f".{effective_domain}")
     if url.startswith("http://") and effective_domain and effective_domain in url:
         url = "https://" + url[len("http://") :]
+    logger.debug("rewrite_sandboxd_url (fallback): → %r", url)
     return url
 
 
@@ -164,6 +176,30 @@ class SandboxdClient:
         # Normalize state → status
         if "state" in data and "status" not in data:
             data["status"] = data["state"]
+
+        # ── Debug: trace raw sandboxd preview response ─────────────
+        _preview = data.get("preview") or {}
+        _raw_preview_url = _preview.get("url", "")
+        _port_m = re.search(r"-(\d+)\.preview", _raw_preview_url)
+        _port = _port_m.group(1) if _port_m else "(none)"
+        logger.debug(
+            "SandboxdClient.get(%s): status=%s preview.status=%s " "preview.url=%r preview_port=%s",
+            sandbox_id,
+            data.get("status"),
+            _preview.get("status"),
+            _raw_preview_url,
+            _port,
+        )
+        if _port not in ("8081", "(none)"):
+            logger.warning(
+                "SandboxdClient.get(%s): sandboxd returned port %s "
+                "(not 8081) in preview.url=%r — this will be "
+                "forwarded to the frontend as-is",
+                sandbox_id,
+                _port,
+                _raw_preview_url,
+            )
+
         return data
 
     async def get_internal(self, sandbox_id: str) -> dict[str, Any]:
