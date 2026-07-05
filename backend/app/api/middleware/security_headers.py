@@ -11,8 +11,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
 
-        # Prevent clickjacking
-        response.headers["X-Frame-Options"] = "DENY"
+        path = request.url.path
+
+        # Skip iframe-blocking headers for the Traefik forward-auth endpoint.
+        # Traefik returns the auth response (including headers) to the client
+        # on 401.  If we set frame-ancestors 'none' on that response, the
+        # browser silently blocks the sandbox preview iframe — producing a
+        # blank page with no error.  Exempting this path lets the browser
+        # render the 401 body (or the sandbox content on 200).
+        is_forward_auth = path == "/api/sandbox/forward-auth"
+
+        # Prevent clickjacking (skip for forward-auth to allow iframe embedding)
+        if not is_forward_auth:
+            response.headers["X-Frame-Options"] = "DENY"
 
         # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -31,6 +42,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
 
         # Content Security Policy
+        # Allow iframe embedding for the forward-auth endpoint so Traefik's
+        # 401 response can be rendered inside the sandbox preview iframe.
+        frame_ancestors = "'self' https://*.flowmanner.com" if is_forward_auth else "'none'"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "
@@ -38,7 +52,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "img-src 'self' data: https:; "
             "font-src 'self'; "
             "connect-src 'self'; "
-            "frame-ancestors 'none'; "
+            f"frame-ancestors {frame_ancestors}; "
             "base-uri 'self'; "
             "form-action 'self'; "
             "object-src 'none'; "

@@ -14,11 +14,12 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from starlette.requests import Request  # noqa: TC002 — needed at runtime for FastAPI DI
+from starlette.requests import Request
 from starlette.responses import Response
 
 from app.api.deps import get_current_user
@@ -263,7 +264,18 @@ async def _authenticate_preview_request(req: Request) -> str | None:
     if not token:
         token = req.query_params.get("token")
 
-    # 3. Fall back to httpOnly cookies (v3 refresh_token + legacy fm_refresh_token)
+    # 3. Traefik ForwardAuth passes the original request URI in
+    #    X-Forwarded-Uri instead of as query params on the auth request.
+    #    Extract the token from there if not already found.
+    if not token:
+        forwarded_uri = req.headers.get("x-forwarded-uri", "")
+        if forwarded_uri:
+            parsed = parse_qs(urlparse(forwarded_uri).query)
+            token_list = parsed.get("token")
+            if token_list:
+                token = token_list[0]
+
+    # 4. Fall back to httpOnly cookies (v3 refresh_token + legacy fm_refresh_token)
     if not token:
         token = req.cookies.get("refresh_token") or req.cookies.get("fm_refresh_token")
 
