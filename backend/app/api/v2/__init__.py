@@ -99,4 +99,14 @@ from app.api.v2.tools import router as tools_router
 
 api_v2_router.include_router(tools_router)
 
+# Prompt Versioning (Phase 6) — versioned system prompts per workspace
+from app.api.v2.prompts import router as prompts_router
+
+api_v2_router.include_router(prompts_router)
+
+# Eval Run API (Phase 6) — trigger eval suites and view results
+from app.api.v2.eval_runs import router as eval_runs_router
+
+api_v2_router.include_router(eval_runs_router)
+
 logger.info("API v2 router initialized — %d sub-routers", len(api_v2_router.routes))
