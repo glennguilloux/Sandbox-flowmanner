@@ -276,7 +276,7 @@ class ExecutionRouter:
                 f"{self.base_url}/api/providers/chat/completions",
                 headers={"Authorization": f"Bearer {self.get_internal_token()}"},
                 json={
-                    "model": "deepseek-chat",
+                    "model": "deepseek-v4-flash",
                     "messages": [{"role": "user", "content": goal}],
                     "temperature": 0.7,
                     "max_tokens": 4000,

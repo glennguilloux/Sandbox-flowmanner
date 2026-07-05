@@ -873,7 +873,7 @@ class SubAgentRouterTool(BaseTool):
             agent_list = "\n".join(f"- {c['name']}: {c.get('description', 'No description')}" for c in candidates[:10])
             response = await enforcer.call(
                 budget=Budget(max_cost_usd=0.01),
-                model_id="deepseek-chat",
+                model_id="deepseek-v4-flash",
                 messages=[
                     {
                         "role": "system",
@@ -951,7 +951,7 @@ class TaskPlannerTool(BaseTool):
 
             response = await enforcer.call(
                 budget=Budget(max_cost_usd=0.02),
-                model_id="deepseek-chat",
+                model_id="deepseek-v4-flash",
                 messages=[
                     {
                         "role": "system",

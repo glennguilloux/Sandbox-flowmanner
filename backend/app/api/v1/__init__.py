@@ -100,6 +100,7 @@ stripe_oauth_router = _import_router("stripe_oauth", tier=RouterTier.OPTIONAL)
 external_events_router = _import_router("external_events")
 search_router = _import_router("search")
 data_export_router = _import_router("data_export")
+replay_export_router = _import_router("replay_export")
 feature_flags_router = _import_router("feature_flags")
 
 observability_router = _import_router("observability")
@@ -236,6 +237,7 @@ for _name, _router in [
     ("scaffolds", scaffolds_router),
     ("depth", depth_router),
     ("depth-events", depth_events_router),
+    ("replay-export", replay_export_router),
 ]:
     if _router:
         _prefix = None

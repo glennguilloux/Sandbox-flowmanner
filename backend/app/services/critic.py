@@ -41,8 +41,9 @@ import json
 import logging
 import re
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping
+from typing import Any
 
 from app.models.capability_models import Budget, BudgetExhausted
 
@@ -54,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 #: Default model. Cheap + fast; the critic is mostly JSON-shape work, not
 #: reasoning. Override per-instance via ``CriticAgent(model_id=...)``.
-CRITIC_DEFAULT_MODEL: str = "deepseek-chat"
+CRITIC_DEFAULT_MODEL: str = "deepseek-v4-flash"
 
 #: Default temperature. Low (0.2) so the critic is *deterministic* — the
 #: same (goal, plan, outcome) tuple should produce the same scores.
@@ -375,20 +376,14 @@ class _CriticAgentBase:
         # ``get_budget_enforcer`` re-export) is looked up *at call time*
         # so tests can ``patch("app.services.critic.get_budget_enforcer")``
         # and have the patch take effect on every ``.critique()`` call.
-        self._get_budget_enforcer_override: Callable[[], Any] | None = (
-            get_budget_enforcer
-        )
+        self._get_budget_enforcer_override: Callable[[], Any] | None = get_budget_enforcer
         self._budget: Budget = budget or Budget(max_cost_usd=CRITIC_DEFAULT_BUDGET_USD)
 
     # ── Prompt construction ──────────────────────────────────────────
 
     def _build_user_message(self, inp: CriticInput) -> str:
         """Render the user-role prompt for one critic run."""
-        ctx_str = (
-            json.dumps(inp.context, indent=2, default=str)
-            if inp.context
-            else "(none)"
-        )
+        ctx_str = json.dumps(inp.context, indent=2, default=str) if inp.context else "(none)"
         return CRITIC_USER_PROMPT_TEMPLATE.format(
             goal=inp.mission_goal,
             plan=_format_payload(inp.plan),
@@ -431,11 +426,7 @@ class _CriticAgentBase:
             score_alignment=_clamp_score(parsed.get("score_alignment")),
             score_safety=_clamp_score(parsed.get("score_safety")),
             score_completeness=_clamp_score(parsed.get("score_completeness")),
-            summary=(
-                str(parsed["summary"])
-                if parsed.get("summary") is not None
-                else None
-            ),
+            summary=(str(parsed["summary"]) if parsed.get("summary") is not None else None),
             misses=_coerce_list_of_str(parsed.get("misses")),
             risks=_coerce_list_of_str(parsed.get("risks")),
             improvements=_coerce_list_of_dict(parsed.get("improvements")),
@@ -641,8 +632,7 @@ class RedTeamAgent(_CriticAgentBase):
 # this name *at call time* (via Python's module globals), so patches
 # take effect without the production code needing to thread the
 # function through every call.
-from app.services.budget_enforcer import get_budget_enforcer  # noqa: E402
-
+from app.services.budget_enforcer import get_budget_enforcer
 
 __all__ = [
     "CRITIC_SYSTEM_PROMPT",

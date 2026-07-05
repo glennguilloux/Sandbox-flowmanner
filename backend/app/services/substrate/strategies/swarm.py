@@ -118,7 +118,7 @@ class SwarmStrategy(ExecutionStrategy):
         prompt = f"Original goal: {goal}\n\nAgent outputs:\n\n" + "\n\n---\n\n".join(outputs)
         synthesis = await executor.call_llm(
             budget=workflow.budget,
-            model_id="deepseek-chat",
+            model_id="deepseek-v4-flash",
             messages=[
                 {"role": "system", "content": SYNTHESIZE_PROMPT},
                 {"role": "user", "content": prompt},
@@ -150,7 +150,7 @@ class SwarmStrategy(ExecutionStrategy):
         prompt = f"Goal: {goal}\n\nDecompose into specific, parallelizable subtasks."
         response = await executor.call_llm(
             budget=workflow.budget,
-            model_id="deepseek-chat",
+            model_id="deepseek-v4-flash",
             messages=[
                 {"role": "system", "content": DECOMPOSE_PROMPT},
                 {"role": "user", "content": prompt},

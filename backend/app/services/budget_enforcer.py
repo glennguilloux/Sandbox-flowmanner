@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_PRICING: dict[str, dict[str, float | str]] = {
     # DeepSeek
     "deepseek-chat": {"input": 0.14, "output": 0.28, "provider": "deepseek"},
+    "deepseek-v4-flash": {"input": 0.14, "output": 0.28, "provider": "deepseek"},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
     # Anthropic
     "claude-3-5-sonnet": {"input": 3.00, "output": 15.00, "provider": "anthropic"},

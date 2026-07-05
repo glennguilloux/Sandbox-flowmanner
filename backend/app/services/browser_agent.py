@@ -133,7 +133,7 @@ class BrowserAgent:
             # Call LLM with per-iteration timeout
             route_kwargs = {
                 "messages": messages,
-                "model_preference": model or "deepseek-chat",
+                "model_preference": model or "deepseek-v4-flash",
                 "max_tokens": max_tokens or 1000,
                 "temperature": temperature if temperature is not None else 0.3,
             }

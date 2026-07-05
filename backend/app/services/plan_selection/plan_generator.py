@@ -159,7 +159,7 @@ async def _generate_plan_via_llm(
                 temperature=temperature,
                 max_tokens=settings.MISSION_PLAN_MAX_TOKENS,
             )
-            model_id = response.get("model", "deepseek-chat")
+            model_id = response.get("model", "deepseek-v4-flash")
             provider = response.get("provider", "unknown")
             cost_info = response.get("cost", {})
             prompt_tokens = cost_info.get("input_tokens", 0)

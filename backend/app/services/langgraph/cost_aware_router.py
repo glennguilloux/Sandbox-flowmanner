@@ -311,7 +311,7 @@ class CostAwareRouter:
             speed_score=0.6,
             max_context=128000,
         ),
-        "deepseek-chat": ModelCosts(
+        "deepseek-v4-flash": ModelCosts(
             0.14,
             0.28,
             is_local=False,

@@ -216,7 +216,7 @@ async def _llm_evaluate(text: str, style_guide: dict) -> EvaluationResult | None
                 {"role": "system", "content": _EVAL_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            model_preference="deepseek-chat",
+            model_preference="deepseek-v4-flash",
             max_tokens=1000,
             temperature=0.1,
         )
@@ -254,7 +254,7 @@ async def _llm_rewrite(text: str, style_guide: dict) -> RewriteResult | None:
                 {"role": "system", "content": _REWRITE_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            model_preference="deepseek-chat",
+            model_preference="deepseek-v4-flash",
             max_tokens=4000,
             temperature=0.3,
         )

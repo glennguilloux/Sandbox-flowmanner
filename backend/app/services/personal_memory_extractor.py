@@ -35,9 +35,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +48,8 @@ logger = logging.getLogger(__name__)
 # rejected at CandidateClaim construction time (defence in depth: the
 # DB CHECK constraints are the second line of defence).
 
-_VALID_CLAIM_TYPES: frozenset[str] = frozenset(
-    {"fact", "preference", "observation", "sensitive"}
-)
-_VALID_SCOPES: frozenset[str] = frozenset(
-    {"personal", "workspace", "program", "private"}
-)
+_VALID_CLAIM_TYPES: frozenset[str] = frozenset({"fact", "preference", "observation", "sensitive"})
+_VALID_SCOPES: frozenset[str] = frozenset({"personal", "workspace", "program", "private"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -100,23 +97,13 @@ class CandidateClaim:
 
     def __post_init__(self) -> None:
         if self.claim_type not in _VALID_CLAIM_TYPES:
-            raise ValueError(
-                f"invalid claim_type={self.claim_type!r}; "
-                f"must be one of {sorted(_VALID_CLAIM_TYPES)}"
-            )
+            raise ValueError(f"invalid claim_type={self.claim_type!r}; " f"must be one of {sorted(_VALID_CLAIM_TYPES)}")
         if self.scope not in _VALID_SCOPES:
-            raise ValueError(
-                f"invalid scope={self.scope!r}; "
-                f"must be one of {sorted(_VALID_SCOPES)}"
-            )
+            raise ValueError(f"invalid scope={self.scope!r}; " f"must be one of {sorted(_VALID_SCOPES)}")
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(
-                f"confidence must be in [0.0, 1.0]; got {self.confidence!r}"
-            )
+            raise ValueError(f"confidence must be in [0.0, 1.0]; got {self.confidence!r}")
         if not isinstance(self.object, dict):
-            raise ValueError(
-                f"object must be a dict (JSONB-shaped); got {type(self.object).__name__}"
-            )
+            raise ValueError(f"object must be a dict (JSONB-shaped); got {type(self.object).__name__}")
 
 
 class ExtractionSource(str, Enum):
@@ -142,42 +129,28 @@ class ExtractionSource(str, Enum):
 # PII patterns (intentionally broad — false positives are preferable to
 # missed PII for the personal-memory MVP).
 _PII_EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
-_PII_PHONE_RE = re.compile(
-    r"\b(?:\+?\d{1,3}[ .-]?)?(?:\(\d{2,4}\)[ .-]?)?\d{3}[ .-]?\d{3,4}[ .-]?\d{0,4}\b"
-)
+_PII_PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[ .-]?)?(?:\(\d{2,4}\)[ .-]?)?\d{3}[ .-]?\d{3,4}[ .-]?\d{0,4}\b")
 _PII_CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
 
 # Preference patterns.
-_PREF_PREFER_RE = re.compile(
-    r"\bI\s+prefer\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE
-)
-_PREF_LIKE_RE = re.compile(
-    r"\bI\s+(?:like|love)\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE
-)
+_PREF_PREFER_RE = re.compile(r"\bI\s+prefer\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE)
+_PREF_LIKE_RE = re.compile(r"\bI\s+(?:like|love)\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE)
 _PREF_DISLIKE_RE = re.compile(
     r"\bI\s+(?:don['']t\s+(?:like|love)|dislike|hate)\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)",
     re.IGNORECASE,
 )
-_PREF_AVOID_RE = re.compile(
-    r"\bI\s+avoid\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE
-)
+_PREF_AVOID_RE = re.compile(r"\bI\s+avoid\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE)
 
 # Identity patterns.
-_ID_NAME_RE = re.compile(
-    r"\bMy\s+name\s+is\s+(?P<value>[A-Z][\w'-]+)", re.IGNORECASE
-)
+_ID_NAME_RE = re.compile(r"\bMy\s+name\s+is\s+(?P<value>[A-Z][\w'-]+)", re.IGNORECASE)
 _ID_AM_RE = re.compile(
     r"\b(?:I['']m|I\s+am)\s+(?:a\s+)?(?P<value>[A-Za-z][\w\s/-]{1,40}?)(?:\s*[.;,]|$)",
     re.IGNORECASE,
 )
 
 # Project / workspace facts.
-_PROJ_WEUSE_RE = re.compile(
-    r"\bWe\s+use\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE
-)
-_PROJ_WEREUSING_RE = re.compile(
-    r"\bWe['']re\s+using\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE
-)
+_PROJ_WEUSE_RE = re.compile(r"\bWe\s+use\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE)
+_PROJ_WEREUSING_RE = re.compile(r"\bWe['']re\s+using\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)", re.IGNORECASE)
 _PROJ_OURPROJECT_RE = re.compile(
     r"\bOur\s+project(?:\s+is)?\s+(?P<value>[^.;,]+?)(?:\s*[.;,]|$)",
     re.IGNORECASE,
@@ -234,23 +207,16 @@ class RegexPersonalMemoryExtractor:
 
     # Each entry: (compiled regex, predicate, claim_type, scope, confidence)
     _PREF_PATTERNS = (
-        (_PREF_PREFER_RE, "prefers", "preference", "personal", 0.85,
-         "user said 'I prefer X'"),
-        (_PREF_LIKE_RE, "likes", "preference", "personal", 0.8,
-         "user said 'I like X'"),
-        (_PREF_DISLIKE_RE, "dislikes", "preference", "personal", 0.8,
-         "user said 'I don't like X'"),
-        (_PREF_AVOID_RE, "avoids", "preference", "personal", 0.75,
-         "user said 'I avoid X'"),
+        (_PREF_PREFER_RE, "prefers", "preference", "personal", 0.85, "user said 'I prefer X'"),
+        (_PREF_LIKE_RE, "likes", "preference", "personal", 0.8, "user said 'I like X'"),
+        (_PREF_DISLIKE_RE, "dislikes", "preference", "personal", 0.8, "user said 'I don't like X'"),
+        (_PREF_AVOID_RE, "avoids", "preference", "personal", 0.75, "user said 'I avoid X'"),
     )
 
     _IMPERATIVE_PATTERNS = (
-        (_IMP_DONT_RE, "do_not", "preference", "personal", 0.65,
-         "imperative 'Don't X'"),
-        (_IMP_NEVER_RE, "never", "preference", "personal", 0.6,
-         "imperative 'Never X'"),
-        (_IMP_ALWAYS_RE, "always", "preference", "personal", 0.6,
-         "imperative 'Always X'"),
+        (_IMP_DONT_RE, "do_not", "preference", "personal", 0.65, "imperative 'Don't X'"),
+        (_IMP_NEVER_RE, "never", "preference", "personal", 0.6, "imperative 'Never X'"),
+        (_IMP_ALWAYS_RE, "always", "preference", "personal", 0.6, "imperative 'Always X'"),
     )
 
     def extract(self, text: str) -> list[CandidateClaim]:
@@ -401,7 +367,7 @@ class RegexPersonalMemoryExtractor:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-_DEFAULT_MODEL_NAME = "deepseek-chat"
+_DEFAULT_MODEL_NAME = "deepseek-v4-flash"
 
 
 # Matches a JSON array inside a ```json ... ``` fence.
@@ -443,9 +409,7 @@ class PersonalMemoryExtractor:
         self._get_model_router = get_model_router or (lambda: None)
         self.model_name = model_name or _DEFAULT_MODEL_NAME
         self.fallback_extractor = (
-            fallback_extractor
-            if fallback_extractor is not None
-            else RegexPersonalMemoryExtractor()
+            fallback_extractor if fallback_extractor is not None else RegexPersonalMemoryExtractor()
         )
 
     # ── Public API ─────────────────────────────────────────────────────
@@ -467,15 +431,10 @@ class PersonalMemoryExtractor:
         """
         router = self._get_model_router()
         if router is None:
-            logger.debug(
-                "personal_memory.extract: no model_router available; "
-                "returning []"
-            )
+            logger.debug("personal_memory.extract: no model_router available; " "returning []")
             return []
 
-        messages = self._build_messages(
-            text=text, context=context, max_claims=max_claims
-        )
+        messages = self._build_messages(text=text, context=context, max_claims=max_claims)
         try:
             response = await router.route_request(
                 messages=messages,
@@ -486,19 +445,16 @@ class PersonalMemoryExtractor:
             )
         except Exception as exc:
             logger.warning(
-                "personal_memory.extract: LLM call failed user_id=%s "
-                "workspace_id=%s error=%s",
-                user_id, workspace_id, exc,
+                "personal_memory.extract: LLM call failed user_id=%s " "workspace_id=%s error=%s",
+                user_id,
+                workspace_id,
+                exc,
             )
             return []
 
         # The ModelRouter's dict shape varies across code paths
         # (sometimes ``response``, sometimes ``content``); accept both.
-        content = (
-            response.get("response")
-            or response.get("content")
-            or ""
-        )
+        content = response.get("response") or response.get("content") or ""
         if not content:
             return []
 
@@ -530,13 +486,9 @@ class PersonalMemoryExtractor:
         if router is None:
             # No router at all: just use the fallback.
             claims = self.fallback_extractor.extract(text)
-            return claims, (
-                ExtractionSource.FALLBACK if claims else ExtractionSource.EMPTY
-            )
+            return claims, (ExtractionSource.FALLBACK if claims else ExtractionSource.EMPTY)
 
-        messages = self._build_messages(
-            text=text, context=context, max_claims=max_claims
-        )
+        messages = self._build_messages(text=text, context=context, max_claims=max_claims)
         try:
             response = await router.route_request(
                 messages=messages,
@@ -549,18 +501,14 @@ class PersonalMemoryExtractor:
             logger.warning(
                 "personal_memory.extract_with_fallback: LLM call failed "
                 "user_id=%s workspace_id=%s error=%s; using regex fallback",
-                user_id, workspace_id, exc,
+                user_id,
+                workspace_id,
+                exc,
             )
             claims = self.fallback_extractor.extract(text)
-            return claims, (
-                ExtractionSource.FALLBACK if claims else ExtractionSource.EMPTY
-            )
+            return claims, (ExtractionSource.FALLBACK if claims else ExtractionSource.EMPTY)
 
-        content = (
-            response.get("response")
-            or response.get("content")
-            or ""
-        )
+        content = response.get("response") or response.get("content") or ""
         if not content:
             return [], ExtractionSource.EMPTY
 
@@ -593,9 +541,7 @@ class PersonalMemoryExtractor:
         # one place. (No f-strings here per the project convention.)
         return _SYSTEM_PROMPT_TEMPLATE.format(max_claims=max_claims)
 
-    def _build_user_prompt(
-        self, *, text: str, context: str | None, max_claims: int
-    ) -> str:
+    def _build_user_prompt(self, *, text: str, context: str | None, max_claims: int) -> str:
         """Build the user-role prompt (the chunk of text to extract from)."""
         if context:
             return (
@@ -603,14 +549,9 @@ class PersonalMemoryExtractor:
                 f"Extract up to {max_claims} personal-memory claims from "
                 f"the following text:\n\n{text}"
             )
-        return (
-            f"Extract up to {max_claims} personal-memory claims from the "
-            f"following text:\n\n{text}"
-        )
+        return f"Extract up to {max_claims} personal-memory claims from the " f"following text:\n\n{text}"
 
-    def _build_messages(
-        self, *, text: str, context: str | None, max_claims: int
-    ) -> list[dict[str, Any]]:
+    def _build_messages(self, *, text: str, context: str | None, max_claims: int) -> list[dict[str, Any]]:
         return [
             {
                 "role": "system",
@@ -618,9 +559,7 @@ class PersonalMemoryExtractor:
             },
             {
                 "role": "user",
-                "content": self._build_user_prompt(
-                    text=text, context=context, max_claims=max_claims
-                ),
+                "content": self._build_user_prompt(text=text, context=context, max_claims=max_claims),
             },
         ]
 
@@ -669,9 +608,7 @@ class PersonalMemoryExtractor:
 
     # ── Internal: DTO conversion ───────────────────────────────────────
 
-    def _items_to_claims(
-        self, raw_items: list[dict[str, Any]], *, max_claims: int
-    ) -> list[CandidateClaim]:
+    def _items_to_claims(self, raw_items: list[dict[str, Any]], *, max_claims: int) -> list[CandidateClaim]:
         """Convert raw LLM-output dicts into validated ``CandidateClaim``s.
 
         Truncates to ``max_claims`` (in case the LLM returns more).
@@ -684,9 +621,9 @@ class PersonalMemoryExtractor:
                 claims.append(self._item_to_claim(item))
             except (ValueError, TypeError) as exc:
                 logger.debug(
-                    "personal_memory.extract: skipping invalid LLM item "
-                    "error=%s item=%s",
-                    exc, item,
+                    "personal_memory.extract: skipping invalid LLM item " "error=%s item=%s",
+                    exc,
+                    item,
                 )
                 continue
         return claims

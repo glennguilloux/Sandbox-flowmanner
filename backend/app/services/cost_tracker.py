@@ -39,6 +39,7 @@ class CostTracker:
 
     COST_PER_1M_TOKENS: dict[str, float] = {
         "deepseek-chat": 0.14,
+        "deepseek-v4-flash": 0.14,
         "deepseek-reasoner": 0.55,
         "vllm-qwen3-14b-chat": 0.0,
         "openrouter-gemma-2-9b-free": 0.0,
@@ -190,6 +191,7 @@ class CostTracker:
 # ── Singleton ──────────────────────────────────────────────────────
 
 _cost_tracker: CostTracker | None = None
+
 
 def get_cost_tracker() -> CostTracker:
     """Get or create the CostTracker singleton."""

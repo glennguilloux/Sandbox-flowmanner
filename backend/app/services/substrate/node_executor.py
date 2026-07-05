@@ -491,7 +491,7 @@ class NodeExecutor:
 
         enforcer = get_budget_enforcer()
         prompt = node.config.get("prompt", node.description or node.title)
-        model_id = node.assigned_model or node.config.get("model_id", "deepseek-chat")
+        model_id = node.assigned_model or node.config.get("model_id", "deepseek-v4-flash")
 
         system_prompt = node.config.get("system_prompt")
         messages = []

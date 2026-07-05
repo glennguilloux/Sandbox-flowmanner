@@ -38,7 +38,7 @@ class AgentModelConfig:
     """Model configuration for the agent"""
 
     provider: str = "deepseek"
-    model_name: str = "deepseek-chat"
+    model_name: str = "deepseek-v4-flash"
     temperature: float = 0.7
     max_tokens: int = 4096
     system_prompt: str = ""

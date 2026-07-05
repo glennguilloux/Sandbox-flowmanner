@@ -295,7 +295,7 @@ class TaskExecutor:
         )
 
         start_time = time.monotonic()
-        model_id = "deepseek-chat"
+        model_id = "deepseek-v4-flash"
         provider = "deepseek"
         success = False
         error_msg = None
