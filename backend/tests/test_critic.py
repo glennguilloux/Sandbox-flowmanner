@@ -54,7 +54,6 @@ os.environ.setdefault(
 
 import pytest
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════
@@ -153,11 +152,10 @@ class TestCriticOutputDataclass:
         T25 (CriticOutput) — every column the persistence layer (T27)
         will read from CriticOutput must exist as a dataclass field.
         """
-        from app.services.critic import CriticOutput
-
         # Use the actual SQLAlchemy table column names as the source of truth.
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
+        from app.services.critic import CriticOutput
 
         critique_columns = set(Base.metadata.tables["critiques"].columns.keys())
         # Columns the persistence layer is allowed to fill from the
@@ -188,8 +186,7 @@ class TestCriticOutputDataclass:
         out = CriticOutput()
         for col in persistence_managed:
             assert hasattr(out, col), (
-                f"CriticOutput is missing a field for Critique.{col}; "
-                "T27 will fail to persist the agent's output."
+                f"CriticOutput is missing a field for Critique.{col}; " "T27 will fail to persist the agent's output."
             )
 
     def test_critic_output_to_critique_kwargs_is_a_mapping(self) -> None:
@@ -267,7 +264,7 @@ class TestCriticAgentConstruction:
 
         agent = CriticAgent()
         # The agent should expose the documented attributes.
-        assert agent.model_id == "deepseek-chat"
+        assert agent.model_id == "deepseek-v4-flash"
         assert isinstance(agent.temperature, float)
         assert isinstance(agent.max_tokens, int)
         assert agent.temperature > 0
@@ -288,7 +285,7 @@ class TestCriticAgentConstruction:
         """The module must expose the documented module-level constants."""
         from app.services import critic
 
-        assert critic.CRITIC_DEFAULT_MODEL == "deepseek-chat"
+        assert critic.CRITIC_DEFAULT_MODEL == "deepseek-v4-flash"
         assert critic.CRITIC_DEFAULT_TEMPERATURE == 0.2
         assert critic.CRITIC_DEFAULT_MAX_TOKENS == 2000
         assert isinstance(critic.CRITIC_SYSTEM_PROMPT, str)
@@ -322,9 +319,7 @@ class TestRedTeamAgentConstruction:
 
         agent = RedTeamAgent()
         # Spec: RedTeamAgent uses temperature >= 0.3 (more exploratory).
-        assert agent.temperature >= 0.3, (
-            f"RedTeamAgent.temperature must be >= 0.3 (was {agent.temperature})"
-        )
+        assert agent.temperature >= 0.3, f"RedTeamAgent.temperature must be >= 0.3 (was {agent.temperature})"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -443,9 +438,7 @@ class TestCriticAgentCritique:
             "alternatives": [],
         }
         prose = (
-            "Sure, here is the structured critique you asked for:\n\n"
-            f"{json_dumps(payload)}\n\n"
-            "Hope that helps!"
+            "Sure, here is the structured critique you asked for:\n\n" f"{json_dumps(payload)}\n\n" "Hope that helps!"
         )
         mock_enforcer = MagicMock()
         mock_enforcer.call = AsyncMock(
@@ -603,9 +596,7 @@ class TestCriticAgentCritique:
         from app.models.capability_models import Budget
 
         mock_budget = Budget(max_cost_usd="0.10")
-        mock_enforcer.call = AsyncMock(
-            side_effect=BudgetExhausted("cost exceeded", mock_budget)
-        )
+        mock_enforcer.call = AsyncMock(side_effect=BudgetExhausted("cost exceeded", mock_budget))
 
         with patch(
             "app.services.critic.get_budget_enforcer",

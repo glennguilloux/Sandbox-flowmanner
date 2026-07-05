@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 147,
+  "model_count": 148,
   "tables": [
     {
       "columns": {
@@ -4148,6 +4148,37 @@
           "entity_type",
           "source_workspace_id",
           "target_workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "granted_by": "INTEGER",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "tool_name": "VARCHAR(200)",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "granted_by",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_tool_allowlist_workspace_id"
+      ],
+      "name": "workspace_tool_allowlist",
+      "unique_constraints": [
+        [
+          "tool_name",
+          "workspace_id"
         ]
       ]
     },

@@ -41,16 +41,18 @@ class _AsyncIterator:
 class TestGetChatOpenaiTools:
     """Test _get_chat_openai_tools returns correct tool schemas."""
 
-    def test_returns_none_when_sandboxd_disabled(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_sandboxd_disabled(self):
         from app.services.chat_service import _get_chat_openai_tools
 
         with patch("app.services.chat_service.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = False
-            result = _get_chat_openai_tools()
+            result = await _get_chat_openai_tools()
 
         assert result is None
 
-    def test_returns_tools_when_sandboxd_enabled(self):
+    @pytest.mark.asyncio
+    async def test_returns_tools_when_sandboxd_enabled(self):
         from app.services.chat_service import _get_chat_openai_tools
 
         mock_tool = MagicMock()
@@ -68,13 +70,14 @@ class TestGetChatOpenaiTools:
             patch("app.tools.base.get_tool_registry", return_value=mock_registry),
         ):
             mock_settings.SANDBOXD_ENABLED = True
-            result = _get_chat_openai_tools()
+            result = await _get_chat_openai_tools()
 
         assert result is not None
         assert len(result) == 1
         assert result[0]["type"] == "function"
 
-    def test_filters_to_sandboxd_tools_only(self):
+    @pytest.mark.asyncio
+    async def test_filters_to_sandboxd_tools_only(self):
         from app.services.chat_service import _get_chat_openai_tools
 
         sandboxd_tool = MagicMock()
@@ -93,12 +96,13 @@ class TestGetChatOpenaiTools:
             patch("app.tools.base.get_tool_registry", return_value=mock_registry),
         ):
             mock_settings.SANDBOXD_ENABLED = True
-            result = _get_chat_openai_tools()
+            result = await _get_chat_openai_tools()
 
         assert result is not None
         assert len(result) == 1  # only sandboxd_preview
 
-    def test_returns_none_when_no_sandboxd_tools_registered(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_sandboxd_tools_registered(self):
         from app.services.chat_service import _get_chat_openai_tools
 
         other_tool = MagicMock()
@@ -113,7 +117,7 @@ class TestGetChatOpenaiTools:
             patch("app.tools.base.get_tool_registry", return_value=mock_registry),
         ):
             mock_settings.SANDBOXD_ENABLED = True
-            result = _get_chat_openai_tools()
+            result = await _get_chat_openai_tools()
 
         assert result is None
 
