@@ -1,0 +1,62 @@
+# Dockerfile.browser — Browser sandbox with live noVNC preview
+#
+# VNC chain (CORRECT — not the broken draft):
+#   Chromium (headless, remote-debugging-port=9222)
+#   → Xvfb (virtual framebuffer on display :99)
+#   → x11vnc (VNC server on :5900, bound to display :99)
+#   → websockify (translates VNC TCP → WebSocket, serves noVNC client on :6080)
+#   → noVNC JS client (in browser iframe)
+#
+# Build: docker build -t sandboxd-browser:latest -f sandboxd/Dockerfile.browser .
+# Run:   docker run -d -p 6080:6080 -p 9222:9222 sandboxd-browser:latest
+#
+# The noVNC web client is accessible at http://localhost:6080/vnc.html
+# CDP (Chrome DevTools Protocol) is on port 9222 (internal use by backend tool)
+
+FROM python:3.12-slim
+
+# Install system dependencies for Chromium + VNC stack
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Chromium dependencies
+    chromium \
+    chromium-sandbox \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    # VNC stack
+    xvfb \
+    x11vnc \
+    novnc \
+    websockify \
+    # Utilities
+    procps \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright Python SDK
+RUN pip install --no-cache-dir playwright
+
+# Pin Chromium path for Playwright to use the system-installed one
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+ENV DISPLAY=:99
+
+# Expose noVNC (6080) and CDP (9222)
+EXPOSE 6080 9222
+
+COPY sandboxd/browser-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

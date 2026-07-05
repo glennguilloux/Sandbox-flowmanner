@@ -1431,6 +1431,8 @@ def _get_chat_openai_tools() -> list[dict] | None:
             # Browser — read-only page navigation and content extraction
             "browser_navigate",
             "browser_extract",
+            # Phase 4: isolated browser sandbox with live noVNC preview
+            "browser_sandbox",
             # Linear — read-only issue listing/reading
             "linear_list_issues",
             "linear_get_issue",

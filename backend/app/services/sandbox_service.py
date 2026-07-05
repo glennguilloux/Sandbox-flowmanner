@@ -259,3 +259,75 @@ class SandboxService:
             return True
         except Exception:
             return False
+
+    # ── Browser sandbox (Phase 4) ─────────────────────────────────────
+
+    async def create_browser_sandbox(
+        self,
+        user_id: str,
+        *,
+        db=None,
+    ) -> dict[str, Any]:
+        """Create a browser sandbox container with noVNC preview.
+
+        Returns {sandbox_id, preview_url, status}.
+        Uses the sandboxd-browser template which starts Chromium + Xvfb +
+        x11vnc + websockify + noVNC (the correct VNC chain).
+        """
+        import secrets
+
+        from app.config import settings
+
+        token = secrets.token_urlsafe(8)
+        project_id = f"browser-{token}"
+
+        logger.info("Creating browser sandbox (project=%s, user=%s)", project_id, user_id)
+
+        result = await self._client.create(
+            project_id=project_id,
+            user_id=user_id,
+            template="sandboxd-browser",
+        )
+        sandbox_id = result["id"]
+
+        # Build the noVNC preview URL (port 6080)
+        preview_domain = settings.SANDBOXD_PREVIEW_DOMAIN
+        preview_url = f"https://s-{sandbox_id}-6080.{preview_domain}" if preview_domain else None
+
+        logger.info("Browser sandbox %s created, preview_url=%s", sandbox_id, preview_url)
+
+        return {
+            "sandbox_id": sandbox_id,
+            "preview_url": preview_url,
+            "status": result.get("status", "creating"),
+        }
+
+    async def get_browser_sandbox_status(
+        self,
+        sandbox_id: str,
+    ) -> dict[str, Any]:
+        """Get the status of a browser sandbox container."""
+        try:
+            info = await self._client.get(sandbox_id)
+            return {
+                "sandbox_id": sandbox_id,
+                "status": info.get("status", "unknown"),
+            }
+        except Exception as e:
+            logger.warning("Failed to get browser sandbox status: %s", e)
+            return {
+                "sandbox_id": sandbox_id,
+                "status": "unknown",
+                "error": str(e),
+            }
+
+    async def close_browser_sandbox(
+        self,
+        sandbox_id: str,
+    ) -> None:
+        """Destroy a browser sandbox container."""
+        try:
+            await self._client.delete(sandbox_id)
+            logger.info("Browser sandbox %s closed", sandbox_id)
+        except Exception as e:
+            logger.warning("Failed to close browser sandbox %s: %s", sandbox_id, e)
