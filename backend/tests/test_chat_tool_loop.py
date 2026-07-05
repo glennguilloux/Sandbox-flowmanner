@@ -283,6 +283,11 @@ class TestStreamingToolLoop:
                 return_value=[{"role": "user", "content": "Hi"}],
             ),
             patch(
+                "app.services.chat_service.get_chat_thread",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "app.services.chat_service.create_chat_message",
                 new_callable=AsyncMock,
                 return_value=mock_msg,
@@ -380,6 +385,11 @@ class TestStreamingToolLoop:
                 "app.services.chat_service._build_chat_messages",
                 new_callable=AsyncMock,
                 return_value=[{"role": "user", "content": "Build a landing page"}],
+            ),
+            patch(
+                "app.services.chat_service.get_chat_thread",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch(
                 "app.services.chat_service.create_chat_message",
@@ -486,6 +496,11 @@ class TestStreamingToolLoop:
                 return_value=[{"role": "user", "content": "Build page"}],
             ),
             patch(
+                "app.services.chat_service.get_chat_thread",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "app.services.chat_service.create_chat_message",
                 new_callable=AsyncMock,
                 return_value=mock_msg,
@@ -541,6 +556,11 @@ class TestNonStreamingToolLoop:
                 "app.services.chat_service._build_chat_messages",
                 new_callable=AsyncMock,
                 return_value=[{"role": "user", "content": "Hi"}],
+            ),
+            patch(
+                "app.services.chat_service.get_chat_thread",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock),
             patch("app.services.chat_service.AsyncOpenAI", return_value=mock_client),
@@ -624,6 +644,11 @@ class TestNonStreamingToolLoop:
                 "app.services.chat_service._build_chat_messages",
                 new_callable=AsyncMock,
                 return_value=[{"role": "user", "content": "Build a page"}],
+            ),
+            patch(
+                "app.services.chat_service.get_chat_thread",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch("app.services.chat_service.create_chat_message", new_callable=AsyncMock),
             patch("app.services.chat_service.AsyncOpenAI", return_value=mock_client),
