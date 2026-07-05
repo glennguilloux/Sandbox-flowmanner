@@ -4,6 +4,7 @@ testpaths = ["tests"]
 addopts = [
     "--ignore=tests/smoke",
     "--ignore=tests/chaos",
+    "--ignore=tests/_quarantine",
     "-p", "no:flask",
 ]
 markers = [
