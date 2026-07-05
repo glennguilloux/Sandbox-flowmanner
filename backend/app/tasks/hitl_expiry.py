@@ -23,22 +23,17 @@ logger = structlog.get_logger(__name__)
 def _run_async(coro):
     """Run an async coroutine from a sync Celery task context.
 
-    Celery prefork workers reuse a child process for many tasks. asyncpg
-    connections are bound to the event loop that created them, so the worker
-    must reuse one loop per child process instead of creating/closing a fresh
-    loop for every task.
+    Creates a fresh event loop per invocation so asyncpg connections are
+    always bound to the current loop.  The loop is closed in ``finally``
+    to avoid leaking file-descriptors across task retries.  Stale
+    connections inherited from the fork parent are purged by
+    ``await engine.dispose()`` inside the async coroutine.
     """
+    loop = asyncio.new_event_loop()
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    if loop.is_closed():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    return loop.run_until_complete(coro)
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 async def _expire_async() -> dict:
@@ -93,5 +88,5 @@ def expire_hitl_items(self):
         return result
     except Exception as exc:
         logger.error("hitl_expiry_task_failed", error=str(exc))
-        countdown = 30 * (2 ** self.request.retries)
+        countdown = 30 * (2**self.request.retries)
         raise self.retry(exc=exc, countdown=countdown)
