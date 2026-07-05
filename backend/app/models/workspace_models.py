@@ -235,6 +235,39 @@ class WorkspaceToolAllowlist(Base, TimestampMixin):
     granter: Mapped[User | None] = relationship("User", foreign_keys=[granted_by])
 
 
+_ALLOWLIST_CACHE_TTL = 300  # 5 minutes
+
+
+def _allowlist_cache_key(workspace_id: str) -> str:
+    return f"ws_allowlist:{workspace_id}"
+
+
+async def _get_allowlist_redis():
+    """Return an async Redis client, or None if unavailable."""
+    try:
+        import os
+
+        from redis.asyncio import from_url
+
+        url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        return from_url(url, decode_responses=True)
+    except Exception:
+        return None
+
+
+async def invalidate_workspace_tool_allowlist_cache(workspace_id: str) -> None:
+    """Delete the cached allowlist for a workspace.  Called after PUT /tools updates."""
+    rds = await _get_allowlist_redis()
+    if rds is None:
+        return
+    try:
+        await rds.delete(_allowlist_cache_key(workspace_id))
+    except Exception:
+        pass  # cache miss is fine
+    finally:
+        await rds.aclose()
+
+
 async def get_workspace_tool_allowlist(
     db: AsyncSession,
     workspace_id: str,
@@ -244,17 +277,52 @@ async def get_workspace_tool_allowlist(
     Returns ``None`` when no allowlist rows exist (all tools permitted).
     Returns a ``set[str]`` of tool names when the workspace has explicit entries.
     Only active (``is_active=True``) entries are included.
+
+    Results are cached in Redis for 5 minutes to avoid a DB query on every
+    chat message.  Cache is invalidated by ``invalidate_workspace_tool_allowlist_cache()``
+    when the allowlist is updated via the API.
     """
+    import json
+
     from sqlalchemy import select
 
-    result = await db.execute(
-        select(WorkspaceToolAllowlist.tool_name).where(
-            WorkspaceToolAllowlist.workspace_id == workspace_id,
-            WorkspaceToolAllowlist.is_active == True,
+    cache_key = _allowlist_cache_key(workspace_id)
+
+    # ── Single Redis connection for read + write ───────────────────
+    rds = await _get_allowlist_redis()
+    try:
+        # ── Try cache first ──────────────────────────────────────
+        if rds is not None:
+            try:
+                cached = await rds.get(cache_key)
+                if cached is not None:
+                    if cached == "__ALL__":
+                        return None  # all tools permitted
+                    return set(json.loads(cached))
+            except Exception:
+                pass  # cache miss → fall through to DB
+
+        # ── DB query ───────────────────────────────────────────
+        result = await db.execute(
+            select(WorkspaceToolAllowlist.tool_name).where(
+                WorkspaceToolAllowlist.workspace_id == workspace_id,
+                WorkspaceToolAllowlist.is_active == True,
+            )
         )
-    )
-    tools = set(result.scalars().all())
-    return tools if tools else None
+        tools = set(result.scalars().all())
+
+        # ── Populate cache (same connection) ───────────────────
+        if rds is not None:
+            try:
+                cache_val = "__ALL__" if not tools else json.dumps(sorted(tools))
+                await rds.setex(cache_key, _ALLOWLIST_CACHE_TTL, cache_val)
+            except Exception:
+                pass  # caching is best-effort
+
+        return tools if tools else None
+    finally:
+        if rds is not None:
+            await rds.aclose()
 
 
 class WorkspaceMessage(Base, TimestampMixin):

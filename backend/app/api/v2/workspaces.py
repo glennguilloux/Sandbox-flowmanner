@@ -432,6 +432,15 @@ async def update_workspace_tools(
             row.is_active = False
 
     await db.flush()
+
+    # Invalidate Redis cache so the next chat message sees the updated allowlist
+    try:
+        from app.models.workspace_models import invalidate_workspace_tool_allowlist_cache
+
+        await invalidate_workspace_tool_allowlist_cache(workspace_id)
+    except Exception:
+        pass  # cache invalidation is best-effort
+
     return ok({"enabled_tools": sorted(requested), "count": len(requested)})
 
 

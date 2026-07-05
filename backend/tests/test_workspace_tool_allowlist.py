@@ -101,6 +101,7 @@ class TestGetPermittedTools:
 
 class TestGetWorkspaceToolAllowlist:
     @pytest.mark.asyncio
+    @patch("app.models.workspace_models._get_allowlist_redis", new=AsyncMock(return_value=None))
     async def test_no_entries_returns_none(self):
         """When no allowlist rows exist, returns None (all tools permitted)."""
         from app.models.workspace_models import get_workspace_tool_allowlist
@@ -114,6 +115,7 @@ class TestGetWorkspaceToolAllowlist:
         assert result is None
 
     @pytest.mark.asyncio
+    @patch("app.models.workspace_models._get_allowlist_redis", new=AsyncMock(return_value=None))
     async def test_returns_active_tools(self):
         """Returns set of tool names for active entries."""
         from app.models.workspace_models import get_workspace_tool_allowlist
@@ -130,6 +132,7 @@ class TestGetWorkspaceToolAllowlist:
         assert result == {"sandboxd_preview", "web_search_enhanced"}
 
     @pytest.mark.asyncio
+    @patch("app.models.workspace_models._get_allowlist_redis", new=AsyncMock(return_value=None))
     async def test_empty_active_set_returns_none(self):
         """When the query returns empty list, returns None."""
         from app.models.workspace_models import get_workspace_tool_allowlist
