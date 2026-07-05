@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import get_current_user
 from app.api.v2.base import ok
+from app.core.auth_constants import ADMIN_ROLES
 from app.tools.base import get_tool_registry
 
 logger = logging.getLogger(__name__)
@@ -39,10 +40,10 @@ def _user_has_scopes(user: Any, required_scopes: list[str]) -> bool:
     # Check user.scopes attribute (set by JWT claims or session)
     user_scopes = set(getattr(user, "scopes", []) or [])
 
-    # Also include role-derived scopes for common admin roles
+    # Admin/owner roles bypass scope checks entirely (Phase 2: extracted to shared constants)
     role = getattr(user, "role", None)
-    if role in ("admin", "owner"):
-        return True  # Admin/owner roles have full access
+    if role in ADMIN_ROLES:
+        return True
 
     return all(s in user_scopes for s in required_scopes)
 

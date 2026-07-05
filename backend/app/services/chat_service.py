@@ -1189,6 +1189,19 @@ async def send_message_to_llm(
     # Append the new user message — it isn't in DB history yet
     messages_for_llm.append({"role": "user", "content": content})
 
+    # ── Phase 2: pre-compute user scopes for tool authorization ──────
+    _cached_user_scopes: set[str] | None = None
+    _cached_user_role: str | None = None
+    try:
+        from app.models.user import User as UserModel
+
+        _urow = (await db.execute(select(UserModel).where(UserModel.id == user_id))).scalar_one_or_none()
+        if _urow is not None:
+            _cached_user_scopes = set(getattr(_urow, "scopes", []) or [])
+            _cached_user_role = getattr(_urow, "role", None)
+    except Exception:
+        logger.debug("send_message_to_llm: scope pre-fetch failed (non-fatal)", exc_info=True)
+
     if attachments:
         messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
 
@@ -1248,7 +1261,13 @@ async def send_message_to_llm(
 
                     # Execute each tool and add results
                     for tc in assistant_message.tool_calls:
-                        tool_result = await _execute_tool_call(tc.function.name, tc.function.arguments, user_id=user_id)
+                        tool_result = await _execute_tool_call(
+                            tc.function.name,
+                            tc.function.arguments,
+                            user_id=user_id,
+                            _user_scopes=_cached_user_scopes,
+                            _user_role=_cached_user_role,
+                        )
                         messages_for_llm.append(
                             {
                                 "role": "tool",
@@ -1352,19 +1371,38 @@ async def send_message_to_llm(
 def _get_chat_openai_tools() -> list[dict] | None:
     """Return chat-safe tools in OpenAI function-calling format, or None if none available.
 
-    Phase 1 tool allowlist — intentionally small, non-destructive tools only.
-    Widened deliberately per ADR, not silently opened to all 110+ tools.
+    Phase 2 tool allowlist — widened from Phase 1 with documented additions.
 
-    Allowlist:
+    ADR-001: Tool Allowlist Expansion Strategy
+    -------------------------------------------
+    We expand the allowlist incrementally. Each addition must be:
+    1. Non-destructive or gated by workspace-level permissions
+    2. Documented with rationale below
+    3. Tested before widening further
+
+    Phase 1 tools (unchanged):
     - sandboxd_* (6 tools): sandbox preview/exec/file operations — gated by SANDBOXD_ENABLED
     - web_search_enhanced: web search (read-only, non-destructive)
     - rag_search: RAG retrieval (read-only, non-destructive)
     - memory_recall: memory service recall (read-only, non-destructive)
 
-    NOT exposed in Phase 1 (future phases):
-    - browser_* tools → Phase 4 (dedicated sandbox surface)
-    - linear_*, slack_*, stripe_*, github_manager write ops → Phase 2+ (needs workspace gating)
-    - Any tool with requires_auth=True + broad scopes and no workspace gating yet
+    Phase 2 additions (read-only or low-risk):
+    - browser_navigate: browse URLs — read-only, no side effects
+    - browser_extract: extract content from pages — read-only
+    - linear_list_issues: list Linear issues — read-only
+    - linear_get_issue: get single Linear issue — read-only
+    - slack_list_channels: list Slack channels — read-only
+    - slack_read_messages: read Slack messages — read-only
+    - github_list_repos: list GitHub repos — read-only
+    - github_get_repo: get repo details — read-only
+    - github_list_issues: list issues — read-only
+    - github_list_prs: list pull requests — read-only
+
+    NOT exposed (future phases — write ops or broad scopes):
+    - linear_create_issue, linear_update_issue → Phase 3 (needs workspace gating)
+    - slack_post_message → Phase 3 (write op)
+    - stripe_* → Phase 4 (financial)
+    - github_manager write ops (create_issue, merge_pr, etc.) → Phase 3
     """
     try:
         from app.tools.base import get_tool_registry
@@ -1388,7 +1426,25 @@ def _get_chat_openai_tools() -> list[dict] | None:
             "memory_recall",
         }
 
-        allowed_ids = safe_chat_ids
+        # Phase 2 additions: read-only tools from external services (ADR-001)
+        phase2_readonly_ids = {
+            # Browser — read-only page navigation and content extraction
+            "browser_navigate",
+            "browser_extract",
+            # Linear — read-only issue listing/reading
+            "linear_list_issues",
+            "linear_get_issue",
+            # Slack — read-only channel/message listing
+            "slack_list_channels",
+            "slack_read_messages",
+            # GitHub — read-only repo/issue/PR listing
+            "github_list_repos",
+            "github_get_repo",
+            "github_list_issues",
+            "github_list_prs",
+        }
+
+        allowed_ids = safe_chat_ids | phase2_readonly_ids
         if settings.SANDBOXD_ENABLED:
             allowed_ids = allowed_ids | sandboxd_ids
 
@@ -1404,6 +1460,8 @@ async def _execute_tool_call(
     arguments_json: str,
     user_id: int | None = None,
     workspace_id: str | None = None,
+    _user_scopes: set[str] | None = None,
+    _user_role: str | None = None,
 ) -> str:
     """Execute a single tool call via the registry and return the result as JSON.
 
@@ -1423,26 +1481,41 @@ async def _execute_tool_call(
         if tool is None:
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
 
-        # Phase 1: scope-based authorization check.
-        # Tools with required_scopes need the caller to hold those scopes.
-        # Chat context: Phase 1 allowlisted tools all have empty required_scopes
-        # (see _get_chat_openai_tools), so this gate rarely fires — it is
-        # defense-in-depth for when the allowlist widens in Phase 2+.
-        # Phase 5: full capability-token enforcement with workspace gating
-        # and cached user-scope resolution (no per-call DB lookup).
+        # Phase 2: scope-based authorization check with cached user scopes.
+        # If ``_user_scopes`` is provided (resolved once before the tool loop
+        # in stream_message_to_llm), use it for proper scope resolution.
+        # If not provided, fall back to admin-role bypass or blanket deny.
         if tool.metadata.required_scopes and user_id is not None:
-            logger.warning(
-                "Tool %s requires scopes %s — denying in chat context "
-                "(no cached scope resolution yet). Phase 5 will resolve.",
-                tool_name,
-                tool.metadata.required_scopes,
-            )
-            return json.dumps(
-                {
-                    "error": f"capability denied: tool '{tool_name}' requires scopes {tool.metadata.required_scopes} "
-                    f"which are not available in chat context (Phase 5 will add full scope resolution)"
-                }
-            )
+            from app.core.auth_constants import ADMIN_ROLES
+
+            # Admin/owner roles bypass scope checks
+            if _user_role and _user_role in ADMIN_ROLES:
+                pass  # full access
+            elif _user_scopes is not None:
+                missing = [s for s in tool.metadata.required_scopes if s not in _user_scopes]
+                if missing:
+                    logger.warning(
+                        "Tool %s requires scopes %s — user missing %s",
+                        tool_name,
+                        tool.metadata.required_scopes,
+                        missing,
+                    )
+                    return json.dumps(
+                        {
+                            "error": f"capability denied: tool '{tool_name}' requires scopes {tool.metadata.required_scopes} "
+                            f"(missing: {missing})"
+                        }
+                    )
+            else:
+                # No cached scopes available — deny as defense-in-depth
+                logger.warning(
+                    "Tool %s requires scopes %s — denying (no cached scopes).",
+                    tool_name,
+                    tool.metadata.required_scopes,
+                )
+                return json.dumps(
+                    {"error": f"capability denied: tool '{tool_name}' requires scopes {tool.metadata.required_scopes}"}
+                )
 
         args = json.loads(arguments_json) if arguments_json else {}
         result = await tool.execute(args)
@@ -1520,6 +1593,21 @@ async def stream_message_to_llm(
     messages_for_llm = await _build_chat_messages(db, thread_id)
     # Append the new user message — it isn't in DB history yet
     messages_for_llm.append({"role": "user", "content": content})
+
+    # ── Phase 2: pre-compute user scopes for tool authorization ──────
+    # Resolve once before the tool loop so _execute_tool_call doesn't
+    # need a DB lookup per tool invocation.
+    _cached_user_scopes: set[str] | None = None
+    _cached_user_role: str | None = None
+    try:
+        from app.models.user import User as UserModel
+
+        _urow = (await db.execute(select(UserModel).where(UserModel.id == user_id))).scalar_one_or_none()
+        if _urow is not None:
+            _cached_user_scopes = set(getattr(_urow, "scopes", []) or [])
+            _cached_user_role = getattr(_urow, "role", None)
+    except Exception:
+        logger.debug("stream_message_to_llm: scope pre-fetch failed (non-fatal)", exc_info=True)
 
     # ── T33 Stage 1: pre-LLM memory recall + injection ──────
     memory_recall_claims: list[PersonalMemoryClaim] = []
@@ -1671,7 +1759,13 @@ async def stream_message_to_llm(
                             }
                         )
 
-                        tool_result = await _execute_tool_call(tool_name, tool_args, user_id=user_id)
+                        tool_result = await _execute_tool_call(
+                            tool_name,
+                            tool_args,
+                            user_id=user_id,
+                            _user_scopes=_cached_user_scopes,
+                            _user_role=_cached_user_role,
+                        )
 
                         yield json.dumps(
                             {
