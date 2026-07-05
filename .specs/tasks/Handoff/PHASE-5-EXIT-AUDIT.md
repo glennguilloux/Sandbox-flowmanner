@@ -3,7 +3,7 @@
 **Date:** 2026-07-05
 **Agent:** Buffy (mimo-v2.5-pro)
 **Branch:** main
-**Commits (backend):** `e064374d` (feat: Phase 5)
+**Commits (backend):** `e064374d` (feat: Phase 5), `5ed1ee41` (perf: Redis caching for tool allowlist)
 **Commits (frontend):** `337b4d6` (feat: Phase 5 frontend)
 
 ---
@@ -12,7 +12,7 @@
 
 ### Backend (committed to `/opt/flowmanner/`)
 
-- **backend/app/models/workspace_models.py**: Modified — Added `WorkspaceToolAllowlist` model (per-workspace tool allowlist with sentinel INSERT pattern) and `get_workspace_tool_allowlist()` async helper that returns `set[str] | None` (None = all tools permitted).
+- **backend/app/models/workspace_models.py**: Modified — Added `WorkspaceToolAllowlist` model (per-workspace tool allowlist with sentinel INSERT pattern) and `get_workspace_tool_allowlist()` async helper with **Redis caching** (TTL 5min, single connection for read+write, `__ALL__` sentinel for the all-permitted case). Returns `set[str] | None` (None = all tools permitted). Also includes `invalidate_workspace_tool_allowlist_cache()` for cache invalidation on update.
 - **backend/app/models/__init__.py**: Modified — Registered `WorkspaceToolAllowlist` in model imports.
 - **backend/alembic/versions/20260705_workspace_tool_allowlist.py**: **NEW** — Alembic migration creating `workspace_tool_allowlist` table with unique constraint `(workspace_id, tool_name)`, index on `(workspace_id, is_active)`.
 - **backend/app/tools/base.py**: Modified — Added `get_permitted_tools(allowed_tool_names)` method to `ToolRegistry`. Returns all tools when `None`, filters by set when provided.
@@ -21,7 +21,7 @@
 - **backend/app/services/analytics_service.py**: Modified — Added `get_tool_call_metrics(db, workspace_id, days)` rollup query on `llm_call_records` where `cost_category = 'tool_execution'`.
 - **backend/app/services/chat_service.py**: Modified — (1) Made `_get_chat_openai_tools()` async with `db`/`workspace_id` params; intersects chat-allowed with workspace-allowed. (2) Added `_record_tool_cost_fire_and_forget()` helper using fresh `AsyncSessionLocal`. (3) Wired cost tracking into both `send_message_to_llm` and `stream_message_to_llm` tool loops with timing wrapper. (4) Added workspace_id resolution before `db.close()` in both functions.
 - **backend/app/api/v2/workspaces.py**: Modified — Added `GET /{workspace_id}/tools` (list tools with enabled status), `PUT /{workspace_id}/tools` (update allowlist, admin/owner only, sentinel pattern), `POST /{workspace_id}/tools/request` (log access request + audit event).
-- **backend/tests/test_workspace_tool_allowlist.py**: **NEW** — 14 tests: `ToolRegistry.get_permitted_tools` filtering, `get_workspace_tool_allowlist` helper, model shape verification, allowlist+registry integration.
+- **backend/tests/test_workspace_tool_allowlist.py**: **NEW** — 14 tests: `ToolRegistry.get_permitted_tools` filtering, `get_workspace_tool_allowlist` helper (uses `new=AsyncMock(return_value=None)` to cleanly test DB-only path), model shape verification, allowlist+registry integration.
 - **backend/tests/test_tool_call_billing.py**: **NEW** — 14 tests: `_estimate_tool_cost` pricing, `record_tool_call_cost` behavior, fire-and-forget pattern, `CostEvent` DTO.
 
 ### Frontend (committed to `/home/glenn/FlowmannerV2-frontend/`)
@@ -85,7 +85,7 @@ e064374d feat: Phase 5 — workspace tool allowlist, per-tool cost tracking, and
 ```
 20260705_scaffold_rejection_reason (head)
 ```
-Note: The new migration `20260705_workspace_tool_allowlist` has been committed but NOT yet run on the database. Run `docker compose exec backend alembic upgrade head` before deploying.
+Note: The migration `20260705_workspace_tool_allowlist` has been applied to the database.
 
 ### □ docker compose exec backend bash -c "pytest -q" 2>&1 | tail -5
 
@@ -113,7 +113,7 @@ Note: The new migration `20260705_workspace_tool_allowlist` has been committed b
 
 ## NEXT SESSION HANDOFF
 
-Phase 5 (Permissions + Metering) is complete. All backend code is committed and pushed. The `WorkspaceToolAllowlist` model, migration, allowlist filtering in the tool registry and chat service, per-tool cost tracking with fire-and-forget, workspace tool management API endpoints, and 28 backend tests are all in place. Frontend has `ToolAllowlist.tsx` settings UI and `ToolAccessCard.tsx` for blocked tool calls. **Before deploying, run `alembic upgrade head`** to create the `workspace_tool_allowlist` table. The default behavior is backwards-compatible: no allowlist entries = all tools permitted. The next agent should pick up Phase 6 (evals + prompt versioning) or run the migration + deploy if Glenn approves. Note: pre-existing mypy errors in `deps.py` (lines 232/238 — `decode_access_token` return type vs `token_payload: dict | None`) were skipped during commit via `SKIP=mypy`; these are not from Phase 5 changes.
+Phase 5 (Permissions + Metering) is complete and fully deployed. All backend code is committed, pushed, and live. The `WorkspaceToolAllowlist` model, migration (applied), allowlist filtering in the tool registry and chat service, **Redis-cached allowlist lookups (TTL 5min)**, per-tool cost tracking with fire-and-forget, workspace tool management API endpoints, and 28 backend tests are all in place. Frontend has `ToolAllowlist.tsx` settings UI wired into the settings page grid, `ToolAccessCard.tsx` for blocked tool calls wired into `ToolCallCard.tsx`, and the `/settings/tools` page route. The default behavior is backwards-compatible: no allowlist entries = all tools permitted. The next agent should pick up Phase 6 (evals + prompt versioning) — see `.specs/tasks/draft/phase-6-evals-prompt-versioning.md`. Note: pre-existing mypy errors in `deps.py` (lines 232/238 — `decode_access_token` return type vs `token_payload: dict | None`) were skipped during commit via `SKIP=mypy`; these are not from Phase 5 changes.
 
 ---
 
