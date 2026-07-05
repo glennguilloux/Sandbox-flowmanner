@@ -1,0 +1,4243 @@
+{
+  "alembic_version": "",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "model_count": 148,
+  "tables": [
+    {
+      "columns": {
+        "action_params": "JSON",
+        "agent_id": "VARCHAR(36)",
+        "condition": "JSON",
+        "created_at": "DATETIME",
+        "enabled": "BOOLEAN",
+        "id": "INTEGER",
+        "priority": "INTEGER",
+        "rule_id": "VARCHAR(36)",
+        "rule_type": "VARCHAR(100)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_adaptation_rules_agent_id",
+        "ix_adaptation_rules_rule_type"
+      ],
+      "name": "adaptation_rules",
+      "unique_constraints": [
+        [
+          "rule_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "confidence_score": "FLOAT",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "embedding_id": "VARCHAR(100)",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "name": "VARCHAR(255)",
+        "task_types": "JSONB",
+        "tools": "JSONB",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "agent_id",
+          "agents.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agent_capabilities_agent_id",
+        "ix_agent_capabilities_name"
+      ],
+      "name": "agent_capabilities",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "capability_id": "VARCHAR(36)",
+        "config_override": "JSONB",
+        "created_at": "DATETIME",
+        "enabled": "BOOLEAN",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "priority": "INTEGER",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "agent_id",
+          "agent_templates.template_id"
+        ],
+        [
+          "capability_id",
+          "capabilities_catalog.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agent_capability_bindings_agent_id",
+        "ix_agent_capability_bindings_capability_id"
+      ],
+      "name": "agent_capability_bindings",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(255)",
+        "content": "TEXT",
+        "content_type": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "metadata": "JSON",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_agent_memory_agent_id",
+        "ix_agent_memory_user_id"
+      ],
+      "name": "agent_memory",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "content": "TEXT",
+        "correlation_id": "VARCHAR(36)",
+        "created_at": "DATETIME",
+        "execution_id": "VARCHAR(36)",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "parent_message_id": "VARCHAR(36)",
+        "payload": "JSONB",
+        "priority": "INTEGER",
+        "recipient_id": "VARCHAR(255)",
+        "recipient_name": "VARCHAR(255)",
+        "sender_id": "VARCHAR(255)",
+        "sender_name": "VARCHAR(255)",
+        "status": "VARCHAR(20)",
+        "sub_type": "VARCHAR(50)",
+        "tags": "JSONB",
+        "type": "VARCHAR(20)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "parent_message_id",
+          "agent_messages.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agent_messages_correlation_id",
+        "ix_agent_messages_execution_id",
+        "ix_agent_messages_recipient_id",
+        "ix_agent_messages_sender_id",
+        "ix_agent_messages_status",
+        "ix_agent_messages_type"
+      ],
+      "name": "agent_messages",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(255)",
+        "agent_name": "VARCHAR(255)",
+        "agent_type": "VARCHAR(100)",
+        "capabilities": "JSON",
+        "created_at": "DATETIME",
+        "discovered_tools": "JSON",
+        "id": "VARCHAR(36)",
+        "metadata": "JSON",
+        "state": "VARCHAR(30)",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_agent_registrations_agent_id"
+      ],
+      "name": "agent_registrations",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "comment": "TEXT",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_approved": "BOOLEAN",
+        "rating": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_agent_reviews_agent_id",
+        "ix_agent_reviews_user_id"
+      ],
+      "name": "agent_reviews",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_type": "VARCHAR(50)",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "is_active": "BOOLEAN",
+        "model_config": "JSONB",
+        "name": "VARCHAR(255)",
+        "state": "VARCHAR(30)",
+        "system_prompt": "TEXT",
+        "template_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agent_templates_workspace_id"
+      ],
+      "name": "agent_templates",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "config_override": "JSONB",
+        "created_at": "DATETIME",
+        "enabled": "BOOLEAN",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "priority": "INTEGER",
+        "tool_id": "VARCHAR(36)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "agent_id",
+          "agent_templates.template_id"
+        ],
+        [
+          "tool_id",
+          "tools_catalog.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agent_tool_bindings_agent_id",
+        "ix_agent_tool_bindings_tool_id"
+      ],
+      "name": "agent_tool_bindings",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "change_summary": "TEXT",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "snapshot": "JSONB",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "agent_id",
+          "agents.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agent_versions_agent_id"
+      ],
+      "name": "agent_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "config": "TEXT",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "model_preference": "VARCHAR(255)",
+        "name": "VARCHAR(255)",
+        "owner_id": "VARCHAR(36)",
+        "state": "VARCHAR(30)",
+        "system_prompt": "TEXT",
+        "updated_at": "DATETIME",
+        "version": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_agents_workspace_id"
+      ],
+      "name": "agents",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "event_type": "VARCHAR(50)",
+        "id": "BIGINT",
+        "properties": "JSON",
+        "session_id": "VARCHAR",
+        "timestamp": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "analytics_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action": "VARCHAR(100)",
+        "action_details": "TEXT",
+        "created_at": "DATETIME",
+        "endpoint": "VARCHAR(255)",
+        "id": "VARCHAR(36)",
+        "ip_address": "VARCHAR(45)",
+        "method": "VARCHAR(10)",
+        "timestamp": "DATETIME",
+        "updated_at": "DATETIME",
+        "user_agent": "TEXT",
+        "user_email": "VARCHAR(255)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "audit_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "key_hash": "VARCHAR(64)",
+        "key_prefix": "VARCHAR(8)",
+        "last_used_at": "DATETIME",
+        "name": "VARCHAR(100)",
+        "scopes": "TEXT",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_api_keys_user",
+        "ix_auth_api_keys_user_id"
+      ],
+      "name": "auth_api_keys",
+      "unique_constraints": [
+        [
+          "key_hash"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "browser": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "device_name": "VARCHAR(255)",
+        "device_os": "VARCHAR(100)",
+        "expires_at": "DATETIME",
+        "family_generation": "INTEGER",
+        "family_id": "VARCHAR(36)",
+        "id": "VARCHAR(36)",
+        "ip_address": "VARCHAR(45)",
+        "is_active": "BOOLEAN",
+        "last_used_at": "DATETIME",
+        "location": "VARCHAR(255)",
+        "refresh_token_hash": "VARCHAR(64)",
+        "revoke_reason": "VARCHAR(100)",
+        "revoked_at": "DATETIME",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_auth_sessions_family_id",
+        "ix_auth_sessions_user_active",
+        "ix_auth_sessions_user_id"
+      ],
+      "name": "auth_sessions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "events": "TEXT",
+        "failure_count": "INTEGER",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "last_delivery_at": "DATETIME",
+        "last_failure_at": "DATETIME",
+        "secret": "VARCHAR(64)",
+        "url": "VARCHAR(2000)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_auth_webhook_subscriptions_workspace_id",
+        "ix_webhook_sub_workspace"
+      ],
+      "name": "auth_webhook_subscriptions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "blueprint_id": "UUID",
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "description": "TEXT",
+        "id": "UUID",
+        "snapshot": "JSONB",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "blueprint_id",
+          "blueprints.id"
+        ],
+        [
+          "created_by",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_blueprint_versions_blueprint_id"
+      ],
+      "name": "blueprint_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "blueprint_type": "VARCHAR(50)",
+        "category": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "definition": "JSONB",
+        "deleted_at": "DATETIME",
+        "deleted_by": "INTEGER",
+        "description": "TEXT",
+        "icon": "VARCHAR(50)",
+        "id": "UUID",
+        "input_schema": "JSONB",
+        "last_run_at": "DATETIME",
+        "output_schema": "JSONB",
+        "run_count": "INTEGER",
+        "status": "VARCHAR(20)",
+        "tags": "JSONB",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "version": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_blueprints_blueprint_type",
+        "ix_blueprints_deleted_at",
+        "ix_blueprints_status",
+        "ix_blueprints_title",
+        "ix_blueprints_user_id",
+        "ix_blueprints_workspace_id"
+      ],
+      "name": "blueprints",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "auth_policy": "JSONB",
+        "category": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "enabled": "BOOLEAN",
+        "handler_ref": "VARCHAR(500)",
+        "id": "VARCHAR(36)",
+        "input_schema": "JSONB",
+        "metadata": "JSONB",
+        "name": "VARCHAR(255)",
+        "output_schema": "JSONB",
+        "rate_limit": "INTEGER",
+        "slug": "VARCHAR(255)",
+        "source": "VARCHAR(50)",
+        "timeout_seconds": "INTEGER",
+        "updated_at": "DATETIME",
+        "version": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_capabilities_catalog_category",
+        "ix_capabilities_catalog_slug",
+        "ix_capabilities_catalog_workspace_id"
+      ],
+      "name": "capabilities_catalog",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "capability_id": "VARCHAR(36)",
+        "created_at": "DATETIME",
+        "dependency_type": "VARCHAR(20)",
+        "depends_on_id": "VARCHAR(36)",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "capability_id",
+          "capabilities_catalog.id"
+        ],
+        [
+          "depends_on_id",
+          "capabilities_catalog.id"
+        ]
+      ],
+      "indexes": [
+        "ix_capability_dependencies_capability_id",
+        "ix_capability_dependencies_depends_on_id"
+      ],
+      "name": "capability_dependencies",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "capability_id": "VARCHAR(36)",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "snapshot": "JSONB",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_capability_versions_capability_id"
+      ],
+      "name": "capability_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "parent_message_id": "INTEGER",
+        "parent_thread_id": "INTEGER",
+        "thread_id": "INTEGER",
+        "title": "VARCHAR(255)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "parent_message_id",
+          "chat_messages.id"
+        ],
+        [
+          "parent_thread_id",
+          "chat_threads.id"
+        ],
+        [
+          "thread_id",
+          "chat_threads.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_chat_branches_parent_thread_id",
+        "ix_chat_branches_thread_id",
+        "ix_chat_branches_user_id"
+      ],
+      "name": "chat_branches",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "chat_id": "INTEGER",
+        "filename": "VARCHAR(255)",
+        "id": "INTEGER",
+        "mime_type": "VARCHAR(100)",
+        "path": "VARCHAR(512)",
+        "size_bytes": "INTEGER",
+        "uploaded_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "chat_id",
+          "chat_threads.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "chat_files",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "name": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_chat_folders_user_id"
+      ],
+      "name": "chat_folders",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "attachments": "TEXT",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "edited_at": "DATETIME",
+        "id": "INTEGER",
+        "reactions": "TEXT",
+        "reasoning_steps": "TEXT",
+        "role": "VARCHAR(20)",
+        "thread_id": "INTEGER",
+        "tool_calls": "TEXT",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "thread_id",
+          "chat_threads.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_chat_messages_thread_id",
+        "ix_chat_messages_user_id"
+      ],
+      "name": "chat_messages",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "description": "TEXT",
+        "id": "INTEGER",
+        "max_tokens": "INTEGER",
+        "model": "VARCHAR(100)",
+        "name": "VARCHAR(255)",
+        "system_prompt": "TEXT",
+        "temperature": "FLOAT",
+        "workspace_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "created_by",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_chat_templates_workspace_id"
+      ],
+      "name": "chat_templates",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "folder_id": "INTEGER",
+        "id": "INTEGER",
+        "is_archived": "BOOLEAN",
+        "message_count": "INTEGER",
+        "metadata": "JSON",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "username": "VARCHAR(100)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "folder_id",
+          "chat_folders.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_chat_threads_folder_id",
+        "ix_chat_threads_user_id",
+        "ix_chat_threads_workspace_id"
+      ],
+      "name": "chat_threads",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "author_name": "VARCHAR(100)",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_deleted": "BOOLEAN",
+        "parent_id": "VARCHAR(36)",
+        "template_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "parent_id",
+          "community_comments.id"
+        ],
+        [
+          "template_id",
+          "community_templates.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_community_comments_parent_id",
+        "ix_community_comments_template_id"
+      ],
+      "name": "community_comments",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "author_id": "VARCHAR(36)",
+        "author_name": "VARCHAR(100)",
+        "category": "VARCHAR(50)",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "fork_count": "INTEGER",
+        "id": "VARCHAR(36)",
+        "is_featured": "BOOLEAN",
+        "rating": "FLOAT",
+        "rating_count": "INTEGER",
+        "tags": "TEXT",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "use_count": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "community_templates",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "capability_ids": "TEXT",
+        "composition_strategy": "VARCHAR(100)",
+        "config": "TEXT",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "name": "VARCHAR(255)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_composed_capabilities_name"
+      ],
+      "name": "composed_capabilities",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "alternatives": "JSONB",
+        "created_at": "DATETIME",
+        "critic_kind": "VARCHAR(30)",
+        "duration_ms": "INTEGER",
+        "id": "UUID",
+        "improvements": "JSONB",
+        "misses": "JSONB",
+        "mission_id": "UUID",
+        "model_id": "VARCHAR(100)",
+        "program_id": "UUID",
+        "raw_response": "JSONB",
+        "risks": "JSONB",
+        "score_alignment": "FLOAT",
+        "score_completeness": "FLOAT",
+        "score_overall": "FLOAT",
+        "score_safety": "FLOAT",
+        "summary": "TEXT",
+        "tokens_in": "INTEGER",
+        "tokens_out": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "program_id",
+          "mission_programs.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_critiques_critic_kind",
+        "ix_critiques_mission_id",
+        "ix_critiques_program_id",
+        "ix_critiques_user_id",
+        "ix_critiques_user_ws_created",
+        "ix_critiques_workspace_id"
+      ],
+      "name": "critiques",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "is_system": "BOOLEAN",
+        "name": "VARCHAR(100)",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "created_by",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_custom_roles_workspace_id",
+        "ix_custom_roles_ws"
+      ],
+      "name": "custom_roles",
+      "unique_constraints": [
+        [
+          "name",
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "endpoint_url": "VARCHAR(500)",
+        "headers": "JSON",
+        "id": "VARCHAR(36)",
+        "input_schema": "JSON",
+        "is_active": "BOOLEAN",
+        "is_public": "BOOLEAN",
+        "method": "VARCHAR(10)",
+        "name": "VARCHAR(255)",
+        "output_schema": "JSON",
+        "owner_id": "VARCHAR(36)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_custom_tools_name",
+        "ix_custom_tools_owner_id"
+      ],
+      "name": "custom_tools",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_a_id": "VARCHAR(255)",
+        "agent_b_id": "VARCHAR(255)",
+        "consensus_reached": "BOOLEAN",
+        "consensus_score": "FLOAT",
+        "consensus_synthesis": "TEXT",
+        "created_at": "DATETIME",
+        "criteria": "JSONB",
+        "debate_id": "VARCHAR(36)",
+        "id": "VARCHAR(36)",
+        "judge_id": "VARCHAR(255)",
+        "judge_reasoning": "TEXT",
+        "judge_score_a": "FLOAT",
+        "judge_score_b": "FLOAT",
+        "judge_verdict": "VARCHAR(50)",
+        "metadata": "JSONB",
+        "position_a": "TEXT",
+        "position_b": "TEXT",
+        "rebuttal_a": "TEXT",
+        "rebuttal_b": "TEXT",
+        "round_number": "INTEGER",
+        "status": "VARCHAR(20)",
+        "tokens_used": "INTEGER",
+        "topic": "TEXT",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_debate_rounds_debate_id",
+        "ix_debate_rounds_status"
+      ],
+      "name": "debate_rounds",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "cost_bucket": "VARCHAR(20)",
+        "created_at": "DATETIME",
+        "embedding_model": "VARCHAR(100)",
+        "hitl_outcome": "VARCHAR(20)",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "outcome": "VARCHAR(20)",
+        "qdrant_point_id": "VARCHAR(64)",
+        "retrieval_text": "TEXT",
+        "retrieval_vector": "TSVECTOR",
+        "step_type": "VARCHAR(100)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "UUID"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_episodes_mission",
+        "ix_episodes_mission_id",
+        "ix_episodes_tsvector",
+        "ix_episodes_user_id",
+        "ix_episodes_workspace_id",
+        "ix_episodes_ws_user_created"
+      ],
+      "name": "episodes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "attempted_agent_id": "VARCHAR(255)",
+        "attempted_agent_name": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "escalated_to_agent_id": "VARCHAR(255)",
+        "escalated_to_agent_name": "VARCHAR(255)",
+        "escalation_policy": "VARCHAR(50)",
+        "id": "VARCHAR(36)",
+        "level": "INTEGER",
+        "max_retries_per_level": "INTEGER",
+        "metadata": "JSONB",
+        "resolution_agent_id": "VARCHAR(255)",
+        "resolution_output": "TEXT",
+        "resolved": "BOOLEAN",
+        "retries_at_level": "INTEGER",
+        "status": "VARCHAR(20)",
+        "task_description": "TEXT",
+        "task_id": "VARCHAR(36)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_escalation_records_status",
+        "ix_escalation_records_task_id"
+      ],
+      "name": "escalation_records",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "aggregate_score": "FLOAT",
+        "completed_at": "DATETIME",
+        "created_at": "DATETIME",
+        "dataset_id": "VARCHAR(36)",
+        "error_message": "TEXT",
+        "id": "VARCHAR(36)",
+        "langfuse_trace_id": "VARCHAR(100)",
+        "model_config_hash": "VARCHAR(64)",
+        "model_name": "VARCHAR(100)",
+        "per_case_scores": "JSONB",
+        "scores_by_category": "JSONB",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "dataset_id",
+          "golden_datasets.id"
+        ]
+      ],
+      "indexes": [
+        "ix_eval_runs_dataset_id",
+        "ix_eval_runs_status"
+      ],
+      "name": "eval_runs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "event_type": "VARCHAR(50)",
+        "execution_id": "UUID",
+        "id": "VARCHAR(36)",
+        "level": "VARCHAR(20)",
+        "message": "TEXT",
+        "node_id": "VARCHAR(255)",
+        "payload": "JSONB",
+        "sequence": "INTEGER",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "execution_id",
+          "workflow_executions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_execution_events_event_type",
+        "ix_execution_events_execution_id"
+      ],
+      "name": "execution_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "enabled_globally": "BOOLEAN",
+        "id": "INTEGER",
+        "key": "VARCHAR(100)",
+        "name": "VARCHAR(200)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_feature_flags_key"
+      ],
+      "name": "feature_flags",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "example_mission_ids": "JSONB",
+        "frequency": "INTEGER",
+        "id": "UUID",
+        "pattern_type": "VARCHAR(50)",
+        "severity": "VARCHAR(20)",
+        "status": "VARCHAR(20)",
+        "suggested_fix": "TEXT",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_feedback_patterns_pattern_type",
+        "ix_feedback_patterns_user_id"
+      ],
+      "name": "feedback_patterns",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "efficiency_score": "FLOAT",
+        "error_summary": "JSONB",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "overall_score": "FLOAT",
+        "quality_score": "FLOAT",
+        "status": "VARCHAR(20)",
+        "strengths": "JSONB",
+        "suggestions": "JSONB",
+        "synthesis_mode": "VARCHAR(20)",
+        "task_analysis": "JSONB",
+        "token_efficiency": "JSONB",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "weaknesses": "JSONB"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_feedback_reports_mission_id",
+        "ix_feedback_reports_user_id"
+      ],
+      "name": "feedback_reports",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "category": "VARCHAR(50)",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "name": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_golden_datasets_category",
+        "ix_golden_datasets_name"
+      ],
+      "name": "golden_datasets",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "dataset_id": "VARCHAR(36)",
+        "difficulty": "VARCHAR(20)",
+        "expected_behavior": "TEXT",
+        "id": "VARCHAR(36)",
+        "input_prompt": "TEXT",
+        "rubric": "JSONB",
+        "tags": "JSONB",
+        "task_type": "VARCHAR(50)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "dataset_id",
+          "golden_datasets.id"
+        ]
+      ],
+      "indexes": [
+        "ix_golden_test_cases_dataset_id",
+        "ix_golden_test_cases_task_type"
+      ],
+      "name": "golden_test_cases",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "budget_remaining_usd": "NUMERIC(12, 6)",
+        "completed_at": "DATETIME",
+        "constraints": "JSONB",
+        "context": "JSONB",
+        "created_at": "DATETIME",
+        "depth_policy_state": "JSONB",
+        "execution_id": "VARCHAR(36)",
+        "from_agent_id": "VARCHAR(255)",
+        "from_agent_name": "VARCHAR(255)",
+        "goal": "TEXT",
+        "hitl_state": "JSONB",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "parent_handoff_id": "VARCHAR(36)",
+        "priority": "INTEGER",
+        "result": "TEXT",
+        "result_metadata": "JSONB",
+        "retrieved_context_ids": "JSONB",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "success_criteria": "JSONB",
+        "task_description": "TEXT",
+        "task_type": "VARCHAR(50)",
+        "to_agent_id": "VARCHAR(255)",
+        "to_agent_name": "VARCHAR(255)",
+        "tool_candidates": "JSONB",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "parent_handoff_id",
+          "handoff_records.id"
+        ]
+      ],
+      "indexes": [
+        "ix_handoff_records_execution_id",
+        "ix_handoff_records_from_agent_id",
+        "ix_handoff_records_status",
+        "ix_handoff_records_to_agent_id"
+      ],
+      "name": "handoff_records",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "auth_config_encrypted": "TEXT",
+        "auth_type": "VARCHAR(20)",
+        "base_url": "VARCHAR(2048)",
+        "created_at": "DATETIME",
+        "default_headers": "JSONB",
+        "id": "UUID",
+        "is_active": "BOOLEAN",
+        "max_retries": "INTEGER",
+        "name": "VARCHAR(255)",
+        "timeout_seconds": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_http_integration_configs_user_id"
+      ],
+      "name": "http_integration_configs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "duration_ms": "INTEGER",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "integration_id": "UUID",
+        "mission_id": "UUID",
+        "request_body_preview": "TEXT",
+        "request_headers": "JSONB",
+        "request_method": "VARCHAR(10)",
+        "request_url": "VARCHAR(4096)",
+        "response_body_preview": "TEXT",
+        "response_headers": "JSONB",
+        "response_status": "INTEGER",
+        "retry_count": "INTEGER",
+        "status": "VARCHAR(20)",
+        "task_id": "UUID",
+        "timestamp": "DATETIME",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "integration_id",
+          "http_integration_configs.id"
+        ],
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_http_integration_logs_integration_id",
+        "ix_http_integration_logs_mission_id",
+        "ix_http_integration_logs_timestamp"
+      ],
+      "name": "http_integration_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "cache_hits": "INTEGER",
+        "created_at": "DATETIME",
+        "endpoint": "VARCHAR(500)",
+        "error_message": "TEXT",
+        "expires_at": "DATETIME",
+        "id": "INTEGER",
+        "idempotency_key": "VARCHAR(255)",
+        "is_completed": "BOOLEAN",
+        "is_processing": "BOOLEAN",
+        "last_accessed_at": "DATETIME",
+        "method": "VARCHAR(10)",
+        "request_hash": "VARCHAR(64)",
+        "response_body": "JSON",
+        "response_headers": "JSON",
+        "response_status": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_idempotency_keys_expires_at",
+        "ix_idempotency_keys_idempotency_key",
+        "ix_idempotency_keys_user_id"
+      ],
+      "name": "idempotency_keys",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "endpoint": "VARCHAR(500)",
+        "id": "INTEGER",
+        "idempotency_key": "VARCHAR(255)",
+        "method": "VARCHAR(10)",
+        "request_id": "VARCHAR(255)",
+        "response_status": "INTEGER",
+        "response_time_ms": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "was_cached": "BOOLEAN"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_idempotency_request_logs_idempotency_key"
+      ],
+      "name": "idempotency_request_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "edge_type": "VARCHAR(50)",
+        "id": "VARCHAR(36)",
+        "properties": "JSONB",
+        "source_id": "VARCHAR(36)",
+        "target_id": "VARCHAR(36)",
+        "weight": "FLOAT"
+      },
+      "foreign_keys": [
+        [
+          "source_id",
+          "improvement_knowledge_nodes.id"
+        ],
+        [
+          "target_id",
+          "improvement_knowledge_nodes.id"
+        ]
+      ],
+      "indexes": [
+        "ix_improvement_knowledge_edges_source_id",
+        "ix_improvement_knowledge_edges_target_id"
+      ],
+      "name": "improvement_knowledge_edges",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "node_key": "VARCHAR(255)",
+        "node_type": "VARCHAR(50)",
+        "properties": "JSONB",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "improvement_knowledge_nodes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "context": "JSONB",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "expires_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "interrupt_type": "VARCHAR(30)",
+        "mission_id": "UUID",
+        "node_id": "VARCHAR(36)",
+        "proposed_action": "JSONB",
+        "resolution_note": "TEXT",
+        "resolution_payload": "JSONB",
+        "resolved_at": "DATETIME",
+        "resolved_by": "INTEGER",
+        "run_id": "VARCHAR(36)",
+        "status": "VARCHAR(20)",
+        "task_id": "VARCHAR(36)",
+        "title": "VARCHAR(500)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "resolved_by",
+          "users.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_inbox_items_interrupt_type",
+        "ix_inbox_items_mission_id",
+        "ix_inbox_items_run_id",
+        "ix_inbox_items_status",
+        "ix_inbox_items_user_id",
+        "ix_inbox_items_workspace_id"
+      ],
+      "name": "inbox_items",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "author": "VARCHAR(200)",
+        "config_json": "TEXT",
+        "crash_count": "INTEGER",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "error_count": "INTEGER",
+        "execution_count": "INTEGER",
+        "id": "VARCHAR(36)",
+        "install_path": "TEXT",
+        "last_error": "TEXT",
+        "last_executed_at": "DATETIME",
+        "last_health_check_at": "DATETIME",
+        "listing_id": "VARCHAR(36)",
+        "manifest_json": "TEXT",
+        "name": "VARCHAR(64)",
+        "node_types_json": "TEXT",
+        "p99_latency_ms": "FLOAT",
+        "permissions_json": "TEXT",
+        "rejection_reason": "TEXT",
+        "review_status": "VARCHAR(20)",
+        "reviewed_at": "DATETIME",
+        "reviewed_by": "VARCHAR(36)",
+        "scan_result_json": "TEXT",
+        "scan_risk_score": "INTEGER",
+        "source": "VARCHAR(50)",
+        "status": "VARCHAR(20)",
+        "updated_at": "DATETIME",
+        "version": "VARCHAR(20)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_installed_plugins_listing_id",
+        "ix_installed_plugins_name",
+        "ix_installed_plugins_review_status",
+        "ix_installed_plugins_status",
+        "ix_installed_plugins_workspace_id"
+      ],
+      "name": "installed_plugins",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "account_id": "VARCHAR(255)",
+        "account_name": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "encrypted_access_token": "TEXT",
+        "encrypted_refresh_token": "TEXT",
+        "expires_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "integration_slug": "VARCHAR(100)",
+        "is_active": "BOOLEAN",
+        "scopes": "TEXT",
+        "token_type": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_integration_connections_user_id"
+      ],
+      "name": "integration_connections",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "checked_at": "DATETIME",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "id": "VARCHAR(36)",
+        "integration_slug": "VARCHAR(100)",
+        "latency_ms": "INTEGER",
+        "status": "VARCHAR(20)",
+        "status_code": "INTEGER",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_integration_health_records_checked_at",
+        "ix_integration_health_records_integration_slug"
+      ],
+      "name": "integration_health_records",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "integration_slug": "VARCHAR(100)",
+        "resolved_at": "DATETIME",
+        "severity": "VARCHAR(20)",
+        "status": "VARCHAR(20)",
+        "title": "VARCHAR(200)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_integration_incidents_created_at",
+        "ix_integration_incidents_integration_slug"
+      ],
+      "name": "integration_incidents",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "id": "VARCHAR(36)",
+        "integration_slug": "VARCHAR(100)",
+        "latency_ms": "INTEGER",
+        "status": "VARCHAR(20)",
+        "status_code": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_integration_usage_logs_created_at",
+        "ix_integration_usage_logs_integration_slug",
+        "ix_integration_usage_logs_user_id"
+      ],
+      "name": "integration_usage_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "content": "JSON",
+        "created_at": "DATETIME",
+        "feedback_type": "VARCHAR(100)",
+        "id": "INTEGER",
+        "mission_id": "UUID",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_learning_feedback_agent_id",
+        "ix_learning_feedback_feedback_type"
+      ],
+      "name": "learning_feedback",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "completion_tokens": "INTEGER",
+        "cost_category": "VARCHAR(30)",
+        "cost_usd": "FLOAT",
+        "embedding_tokens": "INTEGER",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "latency_ms": "INTEGER",
+        "mission_id": "UUID",
+        "model_id": "VARCHAR(100)",
+        "prompt_tokens": "INTEGER",
+        "provider": "VARCHAR(50)",
+        "success": "BOOLEAN",
+        "task_id": "UUID",
+        "timestamp": "DATETIME",
+        "tool_name": "VARCHAR(100)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_llm_call_records_agent_id",
+        "ix_llm_call_records_cost_category",
+        "ix_llm_call_records_mission_id",
+        "ix_llm_call_records_model_id",
+        "ix_llm_call_records_success",
+        "ix_llm_call_records_timestamp",
+        "ix_llm_call_records_workspace_id"
+      ],
+      "name": "llm_call_records",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "level": "VARCHAR(20)",
+        "message": "TEXT",
+        "metadata_json": "TEXT",
+        "session_id": "VARCHAR(36)",
+        "source": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_log_entries_level",
+        "ix_log_entries_session_id",
+        "ix_log_entries_user_id"
+      ],
+      "name": "log_entries",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "listing_count": "INTEGER",
+        "name": "VARCHAR(255)",
+        "parent_id": "VARCHAR(36)",
+        "slug": "VARCHAR(255)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "marketplace_categories",
+      "unique_constraints": [
+        [
+          "name"
+        ],
+        [
+          "slug"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "artifact_id": "VARCHAR(36)",
+        "artifact_type": "VARCHAR(50)",
+        "artifact_version_id": "VARCHAR(36)",
+        "category_id": "VARCHAR(36)",
+        "config": "TEXT",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "download_count": "INTEGER",
+        "id": "VARCHAR(36)",
+        "integrations": "TEXT",
+        "is_published": "BOOLEAN",
+        "listing_type": "VARCHAR(50)",
+        "name": "VARCHAR(255)",
+        "owner_id": "VARCHAR(36)",
+        "price": "FLOAT",
+        "published_at": "DATETIME",
+        "rating": "FLOAT",
+        "review_count": "INTEGER",
+        "status": "VARCHAR(20)",
+        "tags": "TEXT",
+        "updated_at": "DATETIME",
+        "version": "VARCHAR(20)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_marketplace_listings_name",
+        "ix_marketplace_listings_owner_id",
+        "ix_marketplace_listings_workspace_id"
+      ],
+      "name": "marketplace_listings",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "comment": "TEXT",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_approved": "BOOLEAN",
+        "listing_id": "VARCHAR(36)",
+        "rating": "INTEGER",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_marketplace_reviews_listing_id",
+        "ix_marketplace_reviews_user_id"
+      ],
+      "name": "marketplace_reviews",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "checksum": "VARCHAR(64)",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "id": "VARCHAR(36)",
+        "last_materialized_at": "TIMESTAMP",
+        "metadata": "JSONB",
+        "object_id": "VARCHAR(36)",
+        "object_type": "VARCHAR(100)",
+        "status": "VARCHAR(50)",
+        "target": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_mat_state_object_type",
+        "ix_mat_state_object_type_id_target",
+        "ix_mat_state_status"
+      ],
+      "name": "materialization_state",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "embedding": "JSON",
+        "id": "UUID",
+        "metadata": "JSON",
+        "session_id": "UUID",
+        "source_mission_id": "VARCHAR(100)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "session_id",
+          "memory_sessions.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memories_session_id",
+        "ix_memories_user_id"
+      ],
+      "name": "memories",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "actor": "VARCHAR(20)",
+        "claim_id": "UUID",
+        "created_at": "DATETIME",
+        "details": "JSONB",
+        "event_type": "VARCHAR(20)",
+        "id": "UUID",
+        "source": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "claim_id",
+          "personal_memory_claims.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_correction_events_claim_id",
+        "ix_memory_correction_events_user_ws_created",
+        "ix_memory_correction_events_user_ws_event_type"
+      ],
+      "name": "memory_correction_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "claims_count": "INTEGER",
+        "claims_summary": "JSONB",
+        "created_at": "DATETIME",
+        "delivered_at": "DATETIME",
+        "delivery_channel": "VARCHAR(30)",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "recipient": "VARCHAR(255)",
+        "sent_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_digest_deliveries_delivery_channel",
+        "ix_memory_digest_deliveries_sent_at",
+        "ix_memory_digest_deliveries_status",
+        "ix_memory_digest_deliveries_user_id",
+        "ix_memory_digest_deliveries_user_ws_channel",
+        "ix_memory_digest_deliveries_user_ws_sent",
+        "ix_memory_digest_deliveries_workspace_id"
+      ],
+      "name": "memory_digest_deliveries",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(255)",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "importance": "FLOAT",
+        "key": "VARCHAR(500)",
+        "memory_type": "VARCHAR(100)",
+        "metadata": "JSONB",
+        "namespace": "VARCHAR(255)",
+        "session_id": "UUID",
+        "source_mission_id": "VARCHAR(100)",
+        "supersedes_id": "UUID",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_entries_agent_id",
+        "ix_memory_entries_agent_type",
+        "ix_memory_entries_namespace_key",
+        "ix_memory_entries_session_id",
+        "ix_memory_entries_user_id",
+        "ix_memory_entries_workspace_id"
+      ],
+      "name": "memory_entries",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "conversation_id": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "reason": "VARCHAR(500)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_extraction_pauses_conversation_id",
+        "ix_memory_extraction_pauses_expires_at",
+        "ix_memory_extraction_pauses_lookup",
+        "ix_memory_extraction_pauses_user_id",
+        "ix_memory_extraction_pauses_workspace_id"
+      ],
+      "name": "memory_extraction_pauses",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "UUID",
+        "title": "VARCHAR(500)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_memory_sessions_user_id"
+      ],
+      "name": "memory_sessions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "cost_accumulated_usd": "FLOAT",
+        "created_at": "DATETIME",
+        "destructive_actions": "JSONB",
+        "destructive_actions_require_approval": "BOOLEAN",
+        "id": "VARCHAR(36)",
+        "llm_calls_made": "INTEGER",
+        "max_cost_usd": "FLOAT",
+        "max_duration_seconds": "INTEGER",
+        "max_llm_calls": "INTEGER",
+        "max_tool_calls": "INTEGER",
+        "mission_id": "UUID",
+        "started_at": "DATETIME",
+        "state": "VARCHAR(20)",
+        "tool_calls_made": "INTEGER",
+        "trigger_count": "INTEGER",
+        "trigger_reason": "TEXT",
+        "triggered_at": "DATETIME",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_circuit_breakers_mission_id",
+        "ix_mission_circuit_breakers_state",
+        "ix_mission_circuit_breakers_workspace_id"
+      ],
+      "name": "mission_circuit_breakers",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "failure_context": "TEXT",
+        "failure_type": "VARCHAR(50)",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "priority": "VARCHAR(20)",
+        "status": "VARCHAR(20)",
+        "suggestion": "TEXT",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_improvements_mission_id"
+      ],
+      "name": "mission_improvements",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "data": "JSONB",
+        "id": "UUID",
+        "level": "VARCHAR(20)",
+        "message": "TEXT",
+        "mission_id": "UUID",
+        "task_id": "UUID",
+        "timestamp": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_logs_mission_id",
+        "ix_mission_logs_timestamp"
+      ],
+      "name": "mission_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "estimated_cost_usd": "FLOAT",
+        "estimated_latency_ms": "INTEGER",
+        "estimated_tokens": "INTEGER",
+        "generation_strategy": "VARCHAR(50)",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "plan_id": "VARCHAR(100)",
+        "quality_score": "FLOAT",
+        "rank": "INTEGER",
+        "rationale": "TEXT",
+        "risk_flags": "JSONB",
+        "tasks_json": "JSONB",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_plan_candidates_mission_id"
+      ],
+      "name": "mission_plan_candidates",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "base_constraints": "JSONB",
+        "base_context_files": "JSONB",
+        "base_context_urls": "JSONB",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "UUID",
+        "learning_brief": "JSONB",
+        "mission_type": "VARCHAR(50)",
+        "monthly_budget_usd": "DOUBLE",
+        "name": "VARCHAR(255)",
+        "next_fire_at": "DATETIME",
+        "per_run_budget_usd": "DOUBLE",
+        "status": "VARCHAR(20)",
+        "trigger_config": "JSONB",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_programs_next_fire_at",
+        "ix_mission_programs_status",
+        "ix_mission_programs_user_id",
+        "ix_mission_programs_workspace_id"
+      ],
+      "name": "mission_programs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "metadata": "JSONB",
+        "mission_id": "UUID",
+        "project_id": "VARCHAR(128)",
+        "purged_at": "DATETIME",
+        "sandbox_id": "VARCHAR(64)",
+        "status": "VARCHAR(20)",
+        "stopped_at": "DATETIME",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_sandboxes_mission_id",
+        "ix_mission_sandboxes_sandbox_id",
+        "ix_mission_sandboxes_status"
+      ],
+      "name": "mission_sandboxes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "approval_required": "BOOLEAN",
+        "assigned_agent_id": "UUID",
+        "assigned_model": "VARCHAR(100)",
+        "completed_at": "DATETIME",
+        "cost": "DOUBLE",
+        "created_at": "DATETIME",
+        "dependencies": "JSONB",
+        "description": "TEXT",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "input_data": "JSONB",
+        "max_retries": "INTEGER",
+        "mission_id": "UUID",
+        "next_retry_at": "DATETIME",
+        "order_index": "INTEGER",
+        "output_data": "JSONB",
+        "parent_task_id": "UUID",
+        "retry_count": "INTEGER",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "task_type": "VARCHAR(50)",
+        "timeout_seconds": "INTEGER",
+        "title": "VARCHAR(255)",
+        "tokens_used": "INTEGER",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "parent_task_id",
+          "mission_tasks.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_tasks_mission_id",
+        "ix_mission_tasks_status"
+      ],
+      "name": "mission_tasks",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "category": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "default_constraints": "JSONB",
+        "default_plan": "JSONB",
+        "default_tasks": "JSONB",
+        "description": "TEXT",
+        "expected_behaviors": "JSONB",
+        "icon": "VARCHAR(50)",
+        "id": "UUID",
+        "is_builtin": "BOOLEAN",
+        "is_public": "BOOLEAN",
+        "mission_type": "VARCHAR(50)",
+        "name": "VARCHAR(255)",
+        "priority": "VARCHAR(20)",
+        "rating": "FLOAT",
+        "tags": "JSONB",
+        "updated_at": "DATETIME",
+        "usage_count": "INTEGER",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "mission_templates",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "config": "JSONB",
+        "created_at": "DATETIME",
+        "cron_expression": "VARCHAR(100)",
+        "cron_timezone": "VARCHAR(50)",
+        "fire_count": "INTEGER",
+        "id": "UUID",
+        "is_deleted": "BOOLEAN",
+        "last_fired_at": "DATETIME",
+        "mission_id": "UUID",
+        "name": "VARCHAR(255)",
+        "next_fire_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "trigger_type": "VARCHAR(20)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "webhook_path": "VARCHAR(255)",
+        "webhook_secret": "VARCHAR(255)"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_triggers_next_fire_at",
+        "ix_mission_triggers_status",
+        "ix_mission_triggers_user_id"
+      ],
+      "name": "mission_triggers",
+      "unique_constraints": [
+        [
+          "webhook_path"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "change_summary": "TEXT",
+        "constraints": "JSONB",
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "description": "TEXT",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "mission_type": "VARCHAR(50)",
+        "plan": "JSONB",
+        "priority": "VARCHAR(20)",
+        "tasks_snapshot": "JSONB",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_versions_mission_id"
+      ],
+      "name": "mission_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "actual_cost": "DOUBLE",
+        "completed_at": "DATETIME",
+        "constraints": "JSONB",
+        "context_files": "JSONB",
+        "context_urls": "JSONB",
+        "created_at": "DATETIME",
+        "deleted_at": "DATETIME",
+        "deleted_by": "INTEGER",
+        "description": "TEXT",
+        "error_message": "TEXT",
+        "estimated_cost": "DOUBLE",
+        "fallback_strategy": "VARCHAR(50)",
+        "feedback_score": "INTEGER",
+        "feedback_text": "TEXT",
+        "id": "UUID",
+        "integration_config": "JSONB",
+        "mission_type": "VARCHAR(50)",
+        "output_files": "JSONB",
+        "parent_mission_id": "UUID",
+        "plan": "JSONB",
+        "priority": "VARCHAR(20)",
+        "results": "JSONB",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "title": "VARCHAR(255)",
+        "tokens_used": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "version": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "parent_mission_id",
+          "missions.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_missions_deleted_at",
+        "ix_missions_status",
+        "ix_missions_title",
+        "ix_missions_user_id",
+        "ix_missions_workspace_id"
+      ],
+      "name": "missions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "config": "JSONB",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "group_type": "VARCHAR(50)",
+        "id": "UUID",
+        "name": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "node_groups",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "digest_day_of_week": "INTEGER",
+        "digest_mode": "VARCHAR(20)",
+        "digest_time_utc": "VARCHAR(5)",
+        "email_address": "VARCHAR(255)",
+        "email_enabled": "BOOLEAN",
+        "event_mention": "BOOLEAN",
+        "event_mission_completed": "BOOLEAN",
+        "event_mission_failed": "BOOLEAN",
+        "event_system": "BOOLEAN",
+        "id": "INTEGER",
+        "in_app_enabled": "BOOLEAN",
+        "push_enabled": "BOOLEAN",
+        "push_enabled_channels": "VARCHAR",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_notification_settings_user_id"
+      ],
+      "name": "notification_settings",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "entity_id": "VARCHAR(50)",
+        "entity_type": "VARCHAR(50)",
+        "id": "INTEGER",
+        "is_read": "BOOLEAN",
+        "message": "TEXT",
+        "meta": "TEXT",
+        "notification_type": "VARCHAR(50)",
+        "read_at": "DATETIME",
+        "severity": "VARCHAR(20)",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_notifications_user_id"
+      ],
+      "name": "notifications",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "client_id": "VARCHAR(500)",
+        "client_secret_encrypted": "BLOB",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "issuer_url": "VARCHAR(500)",
+        "name": "VARCHAR(100)",
+        "provider_type": "VARCHAR(50)",
+        "scopes": "VARCHAR(500)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_oidc_provider_configs_workspace_id"
+      ],
+      "name": "oidc_provider_configs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "client_id": "VARCHAR(500)",
+        "client_secret": "VARCHAR(500)",
+        "created_at": "DATETIME",
+        "display_name": "VARCHAR(255)",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "issuer_url": "VARCHAR(500)",
+        "name": "VARCHAR(100)",
+        "scopes": "VARCHAR(500)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "oidc_providers",
+      "unique_constraints": [
+        [
+          "name"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "email_type": "VARCHAR(50)",
+        "id": "INTEGER",
+        "opened_at": "DATETIME",
+        "sent_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_onboarding_emails_user_id"
+      ],
+      "name": "onboarding_emails",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_count": "INTEGER",
+        "completed_at": "DATETIME",
+        "completed_count": "INTEGER",
+        "conflict_markers": "JSONB",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "goal": "TEXT",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "strategy": "VARCHAR(50)",
+        "synthesis": "TEXT",
+        "total_cost_usd": "FLOAT",
+        "total_tokens": "INTEGER",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_orchestrator_executions_status"
+      ],
+      "name": "orchestrator_executions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(36)",
+        "agent_name": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "depends_on": "JSONB",
+        "error_message": "TEXT",
+        "execution_id": "VARCHAR(36)",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "output": "TEXT",
+        "priority": "INTEGER",
+        "retry_count": "INTEGER",
+        "score": "FLOAT",
+        "status": "VARCHAR(20)",
+        "task_description": "TEXT",
+        "task_type": "VARCHAR(50)",
+        "tokens_used": "INTEGER",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "execution_id",
+          "orchestrator_executions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_orchestrator_tasks_execution_id",
+        "ix_orchestrator_tasks_status"
+      ],
+      "name": "orchestrator_tasks",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "currency": "VARCHAR(3)",
+        "id": "INTEGER",
+        "is_paid": "BOOLEAN",
+        "mission_id": "VARCHAR(36)",
+        "mission_volume": "INTEGER",
+        "paid_at": "DATETIME",
+        "partner_id": "INTEGER",
+        "period_month": "VARCHAR(7)",
+        "revenue_amount": "FLOAT",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "partner_id",
+          "partners.id"
+        ]
+      ],
+      "indexes": [
+        "ix_partner_revenues_mission_id",
+        "ix_partner_revenues_partner_id",
+        "ix_partner_revenues_period_month"
+      ],
+      "name": "partner_revenues",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "contact_email": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "name": "VARCHAR(200)",
+        "revenue_share_percent": "FLOAT",
+        "stripe_account_id": "VARCHAR(100)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_partners_contact_email"
+      ],
+      "name": "partners",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action": "VARCHAR(50)",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "metadata": "JSONB",
+        "mission_id": "UUID",
+        "old_text": "TEXT",
+        "reviewed_at": "DATETIME",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)",
+        "write_type": "VARCHAR(50)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_pending_writes_expires",
+        "ix_pending_writes_mission_id",
+        "ix_pending_writes_status",
+        "ix_pending_writes_status_pending",
+        "ix_pending_writes_user_id",
+        "ix_pending_writes_workspace_id"
+      ],
+      "name": "pending_writes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "claim_type": "VARCHAR(20)",
+        "confidence": "FLOAT",
+        "created_at": "DATETIME",
+        "deleted_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "importance": "FLOAT",
+        "last_used_at": "DATETIME",
+        "object": "JSONB",
+        "predicate": "VARCHAR(100)",
+        "scope": "VARCHAR(20)",
+        "sensitivity": "VARCHAR(20)",
+        "source_id": "UUID",
+        "source_type": "VARCHAR(30)",
+        "subject": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_personal_memory_claims_claim_type",
+        "ix_personal_memory_claims_deleted_at",
+        "ix_personal_memory_claims_scope",
+        "ix_personal_memory_claims_user_id",
+        "ix_personal_memory_claims_user_ws_deleted",
+        "ix_personal_memory_claims_workspace_id",
+        "ix_personal_memory_claims_workspace_scope"
+      ],
+      "name": "personal_memory_claims",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "anonymous_ip": "VARCHAR(45)",
+        "claimed_at": "DATETIME",
+        "created_at": "DATETIME",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "is_persistent": "BOOLEAN",
+        "last_active_at": "DATETIME",
+        "project_id": "VARCHAR(128)",
+        "sandbox_id": "VARCHAR(64)",
+        "session_token": "VARCHAR(128)",
+        "status": "VARCHAR(16)",
+        "template": "VARCHAR(64)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_playground_sandboxes_anonymous_ip",
+        "ix_playground_sandboxes_sandbox_id",
+        "ix_playground_sandboxes_session_token",
+        "ix_playground_sandboxes_user_id",
+        "ix_playground_sandboxes_workspace_id"
+      ],
+      "name": "playground_sandboxes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "cost_usd": "DOUBLE",
+        "created_at": "DATETIME",
+        "duration_seconds": "DOUBLE",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "outcome_summary": "TEXT",
+        "program_id": "UUID",
+        "status": "VARCHAR(20)",
+        "tokens_used": "INTEGER",
+        "trigger_payload": "JSONB",
+        "trigger_type": "VARCHAR(20)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ],
+        [
+          "program_id",
+          "mission_programs.id"
+        ]
+      ],
+      "indexes": [
+        "ix_program_runs_mission_id",
+        "ix_program_runs_program_id",
+        "ix_program_runs_status"
+      ],
+      "name": "program_runs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "auth_key": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "endpoint": "TEXT",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "p256dh_key": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "user_agent": "VARCHAR(255)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_push_subscriptions_user_id"
+      ],
+      "name": "push_subscriptions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "device_name": "VARCHAR(255)",
+        "expires_at": "DATETIME",
+        "family_generation": "INTEGER",
+        "family_id": "VARCHAR(36)",
+        "id": "INTEGER",
+        "ip_address": "VARCHAR(45)",
+        "is_revoked": "BOOLEAN",
+        "last_used_at": "DATETIME",
+        "location": "VARCHAR(255)",
+        "token": "VARCHAR(500)",
+        "user_agent": "VARCHAR(500)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_refresh_tokens_family_id",
+        "ix_refresh_tokens_token"
+      ],
+      "name": "refresh_tokens",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "parent_id": "UUID",
+        "roadmap_item_id": "UUID",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "user_name": "VARCHAR(128)"
+      },
+      "foreign_keys": [
+        [
+          "roadmap_item_id",
+          "roadmap_items.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "roadmap_comments",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "category": "VARCHAR(64)",
+        "created_at": "DATETIME",
+        "created_by": "VARCHAR(128)",
+        "description": "TEXT",
+        "id": "UUID",
+        "is_public": "BOOLEAN",
+        "sort_order": "INTEGER",
+        "status": "VARCHAR(32)",
+        "title": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "vote_count": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "roadmap_items",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "item_id": "UUID",
+        "user_id": "INTEGER",
+        "vote_type": "VARCHAR(8)"
+      },
+      "foreign_keys": [
+        [
+          "item_id",
+          "roadmap_items.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "roadmap_votes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "audit_notes": "TEXT",
+        "created_at": "DATETIME",
+        "delegatee_id": "INTEGER",
+        "delegator_id": "INTEGER",
+        "ends_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "reason": "TEXT",
+        "role_id": "VARCHAR(36)",
+        "starts_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "delegatee_id",
+          "users.id"
+        ],
+        [
+          "delegator_id",
+          "users.id"
+        ],
+        [
+          "role_id",
+          "custom_roles.id"
+        ]
+      ],
+      "indexes": [
+        "ix_delegations_active",
+        "ix_role_delegations_delegatee_id",
+        "ix_role_delegations_delegator_id",
+        "ix_role_delegations_role_id",
+        "ix_role_delegations_workspace_id"
+      ],
+      "name": "role_delegations",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "permission_key": "VARCHAR(200)",
+        "role_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "role_id",
+          "custom_roles.id"
+        ]
+      ],
+      "indexes": [
+        "ix_role_permissions_role_id"
+      ],
+      "name": "role_permissions",
+      "unique_constraints": [
+        [
+          "permission_key",
+          "role_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "blueprint_id": "UUID",
+        "budget_limit_usd": "FLOAT",
+        "completed_at": "DATETIME",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "input_data": "JSONB",
+        "meta": "JSONB",
+        "output_data": "JSONB",
+        "parent_run_id": "UUID",
+        "snapshot": "JSONB",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(20)",
+        "total_cost_usd": "FLOAT",
+        "total_tokens": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "blueprint_id",
+          "blueprints.id"
+        ],
+        [
+          "parent_run_id",
+          "runs.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_runs_blueprint_id",
+        "ix_runs_parent_run_id",
+        "ix_runs_status",
+        "ix_runs_workspace_id"
+      ],
+      "name": "runs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "expires_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "thread_id": "INTEGER",
+        "token": "VARCHAR(64)"
+      },
+      "foreign_keys": [
+        [
+          "created_by",
+          "users.id"
+        ],
+        [
+          "thread_id",
+          "chat_threads.id"
+        ]
+      ],
+      "indexes": [
+        "ix_shared_links_thread_id",
+        "ix_shared_links_token"
+      ],
+      "name": "shared_links",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "VARCHAR(500)",
+        "display_name": "VARCHAR(100)",
+        "has_api_access": "BOOLEAN",
+        "has_custom_models": "BOOLEAN",
+        "has_priority_support": "BOOLEAN",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "max_concurrent_missions": "INTEGER",
+        "missions_per_day": "INTEGER",
+        "missions_per_month": "INTEGER",
+        "name": "VARCHAR(50)",
+        "paypal_plan_id": "VARCHAR(100)",
+        "price_monthly": "FLOAT",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_subscription_tiers_name"
+      ],
+      "name": "subscription_tiers",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "actor": "VARCHAR(64)",
+        "blueprint_id": "UUID",
+        "causal_parent": "BIGINT",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "payload": "JSONB",
+        "run_id": "UUID",
+        "sequence": "BIGINT",
+        "task_id": "UUID",
+        "timestamp": "DATETIME",
+        "type": "VARCHAR(64)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_substrate_events_blueprint_id",
+        "ix_substrate_events_mission_id",
+        "ix_substrate_events_run_id",
+        "ix_substrate_events_sequence",
+        "ix_substrate_events_timestamp",
+        "ix_substrate_events_type"
+      ],
+      "name": "substrate_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_instance_id": "VARCHAR(64)",
+        "agent_template_id": "VARCHAR(36)",
+        "assigned_model": "VARCHAR(100)",
+        "capabilities": "JSON",
+        "config": "JSON",
+        "cost_tracking": "JSON",
+        "display_name": "VARCHAR(255)",
+        "id": "INTEGER",
+        "joined_at": "DATETIME",
+        "last_active_at": "DATETIME",
+        "load": "INTEGER",
+        "max_concurrent_tasks": "INTEGER",
+        "model_config": "JSON",
+        "performance_metrics": "JSON",
+        "rating_avg": "DOUBLE",
+        "rating_count": "INTEGER",
+        "role": "VARCHAR(50)",
+        "specializations": "JSON",
+        "status": "VARCHAR(50)",
+        "swarm_id": "VARCHAR(64)"
+      },
+      "foreign_keys": [
+        [
+          "agent_template_id",
+          "agent_templates.template_id"
+        ],
+        [
+          "swarm_id",
+          "swarm_profiles.swarm_id"
+        ]
+      ],
+      "indexes": [],
+      "name": "swarm_agents",
+      "unique_constraints": [
+        [
+          "agent_instance_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "VARCHAR(64)",
+        "initiator_agent_id": "VARCHAR(64)",
+        "proposal": "JSON",
+        "resolved_at": "DATETIME",
+        "result": "VARCHAR(50)",
+        "strategy_used": "VARCHAR(50)",
+        "swarm_id": "VARCHAR(64)",
+        "votes": "JSON"
+      },
+      "foreign_keys": [
+        [
+          "swarm_id",
+          "swarm_profiles.swarm_id"
+        ]
+      ],
+      "indexes": [],
+      "name": "swarm_consensus_rounds",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "consensus_config": "JSON",
+        "consensus_strategy": "VARCHAR(50)",
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "daily_limit": "DOUBLE",
+        "dissolved_at": "DATETIME",
+        "id": "INTEGER",
+        "monthly_limit": "DOUBLE",
+        "status": "VARCHAR(50)",
+        "swarm_id": "VARCHAR(64)",
+        "swarm_name": "VARCHAR(255)",
+        "task_description": "TEXT",
+        "task_type": "VARCHAR(100)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "created_by",
+          "users.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "swarm_profiles",
+      "unique_constraints": [
+        [
+          "swarm_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "assigned_agent_id": "VARCHAR(64)",
+        "assigned_at": "DATETIME",
+        "completed_at": "DATETIME",
+        "created_at": "DATETIME",
+        "dependencies": "JSON",
+        "error": "TEXT",
+        "id": "VARCHAR(64)",
+        "max_retries": "INTEGER",
+        "parent_task_id": "VARCHAR(64)",
+        "payload": "JSON",
+        "priority": "INTEGER",
+        "progress": "INTEGER",
+        "result": "JSON",
+        "retry_count": "INTEGER",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(50)",
+        "swarm_id": "VARCHAR(64)",
+        "task_type": "VARCHAR(50)"
+      },
+      "foreign_keys": [
+        [
+          "assigned_agent_id",
+          "swarm_agents.agent_instance_id"
+        ],
+        [
+          "parent_task_id",
+          "swarm_tasks.id"
+        ],
+        [
+          "swarm_id",
+          "swarm_profiles.swarm_id"
+        ]
+      ],
+      "indexes": [],
+      "name": "swarm_tasks",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "joined_at": "DATETIME",
+        "role": "VARCHAR(50)",
+        "team_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "team_id",
+          "teams.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_team_members_team_id",
+        "ix_team_members_user_id"
+      ],
+      "name": "team_members",
+      "unique_constraints": [
+        [
+          "team_id",
+          "user_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "name": "VARCHAR(200)",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_teams_workspace_id"
+      ],
+      "name": "teams",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "event_type": "VARCHAR(100)",
+        "id": "VARCHAR(36)",
+        "latency_ms": "FLOAT",
+        "metadata_json": "JSON",
+        "success": "BOOLEAN",
+        "tool_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_tool_analytics_tool_id"
+      ],
+      "name": "tool_analytics",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "chain_id": "VARCHAR(36)",
+        "created_at": "DATETIME",
+        "duration_ms": "INTEGER",
+        "error_message": "TEXT",
+        "id": "VARCHAR(36)",
+        "input_data": "JSON",
+        "output_data": "JSON",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "chain_id",
+          "tool_chains.id"
+        ]
+      ],
+      "indexes": [
+        "ix_tool_chain_executions_chain_id"
+      ],
+      "name": "tool_chain_executions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "name": "VARCHAR(255)",
+        "owner_id": "VARCHAR(36)",
+        "steps": "JSON",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_tool_chains_owner_id"
+      ],
+      "name": "tool_chains",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "permission": "VARCHAR(50)",
+        "tool_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_tool_permissions_tool_id",
+        "ix_tool_permissions_user_id"
+      ],
+      "name": "tool_permissions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "snapshot": "JSONB",
+        "tool_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_tool_versions_tool_id"
+      ],
+      "name": "tool_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "auth_policy": "JSONB",
+        "category": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "enabled": "BOOLEAN",
+        "handler_ref": "VARCHAR(500)",
+        "id": "VARCHAR(36)",
+        "input_schema": "JSONB",
+        "metadata": "JSONB",
+        "name": "VARCHAR(255)",
+        "output_schema": "JSONB",
+        "requires_auth": "BOOLEAN",
+        "slug": "VARCHAR(255)",
+        "source": "VARCHAR(50)",
+        "tags": "JSONB",
+        "tier": "INTEGER",
+        "timeout_seconds": "INTEGER",
+        "tool_type": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER",
+        "visibility": "VARCHAR(50)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_tools_catalog_category",
+        "ix_tools_catalog_slug",
+        "ix_tools_catalog_workspace_id"
+      ],
+      "name": "tools_catalog",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "confidence": "VARCHAR(50)",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "relation": "VARCHAR(100)",
+        "snapshot_id": "VARCHAR(36)",
+        "source_node_id": "VARCHAR(36)",
+        "target_node_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_topo_edges_snapshot",
+        "ix_topology_edges_snapshot_id"
+      ],
+      "name": "topology_edges",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "community_id": "INTEGER",
+        "confidence": "FLOAT",
+        "derived_from_agent_id": "VARCHAR(36)",
+        "derived_from_capability_id": "VARCHAR(36)",
+        "derived_from_workflow_id": "VARCHAR(36)",
+        "evidence": "JSONB",
+        "external_id": "VARCHAR(255)",
+        "id": "VARCHAR(36)",
+        "label": "VARCHAR(500)",
+        "metadata": "JSONB",
+        "node_type": "VARCHAR(100)",
+        "snapshot_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_topo_nodes_snapshot",
+        "ix_topology_nodes_snapshot_id"
+      ],
+      "name": "topology_nodes",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "community_count": "INTEGER",
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "edge_count": "INTEGER",
+        "id": "VARCHAR(36)",
+        "node_count": "INTEGER",
+        "snapshot_data": "JSONB",
+        "source": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "topology_snapshots",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "duration_ms": "INTEGER",
+        "error_message": "TEXT",
+        "fired_at": "DATETIME",
+        "id": "UUID",
+        "mission_run_id": "UUID",
+        "payload": "JSONB",
+        "status": "VARCHAR(20)",
+        "trigger_id": "UUID",
+        "trigger_type": "VARCHAR(20)",
+        "webhook_signature_valid": "BOOLEAN"
+      },
+      "foreign_keys": [
+        [
+          "trigger_id",
+          "mission_triggers.id"
+        ]
+      ],
+      "indexes": [
+        "ix_trigger_logs_fired_at",
+        "ix_trigger_logs_trigger_id"
+      ],
+      "name": "trigger_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "completion_tokens": "INTEGER",
+        "cost_usd": "FLOAT",
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "model": "VARCHAR(150)",
+        "prompt_tokens": "INTEGER",
+        "provider": "VARCHAR(50)",
+        "request_id": "VARCHAR(100)",
+        "thread_id": "INTEGER",
+        "total_tokens": "INTEGER",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "thread_id",
+          "chat_threads.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_usage_records_model",
+        "ix_usage_records_thread_id",
+        "ix_usage_records_user_id",
+        "ix_usage_records_workspace_id"
+      ],
+      "name": "usage_records",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "base_url": "VARCHAR(500)",
+        "created_at": "DATETIME",
+        "encrypted_key": "VARCHAR(500)",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "key_label": "VARCHAR(100)",
+        "models": "TEXT",
+        "provider": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_api_keys_user_id",
+        "ix_user_api_keys_workspace_id",
+        "ix_user_api_keys_workspace_user"
+      ],
+      "name": "user_api_keys",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "assigned_at": "DATETIME",
+        "assigned_by": "INTEGER",
+        "id": "VARCHAR(36)",
+        "role_id": "VARCHAR(36)",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "assigned_by",
+          "users.id"
+        ],
+        [
+          "role_id",
+          "custom_roles.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_custom_roles_role_id",
+        "ix_user_custom_roles_user_id",
+        "ix_user_custom_roles_workspace_id",
+        "ix_user_custom_roles_ws"
+      ],
+      "name": "user_custom_roles",
+      "unique_constraints": [
+        [
+          "role_id",
+          "user_id",
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "content_type": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "filename": "VARCHAR(500)",
+        "id": "VARCHAR(36)",
+        "size": "INTEGER",
+        "storage_path": "VARCHAR(1000)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_files_user_id"
+      ],
+      "name": "user_files",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "config": "TEXT",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "installed_at": "DATETIME",
+        "listing_id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_user_installations_listing_id",
+        "ix_user_installations_user_id"
+      ],
+      "name": "user_installations",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "encrypted_client_id": "TEXT",
+        "encrypted_client_secret": "TEXT",
+        "id": "UUID",
+        "is_active": "BOOLEAN",
+        "provider": "VARCHAR(50)",
+        "scopes": "JSONB",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_oauth_apps_provider",
+        "ix_user_oauth_apps_user_id"
+      ],
+      "name": "user_oauth_apps",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "app_id": "UUID",
+        "created_at": "DATETIME",
+        "encrypted_access_token": "TEXT",
+        "encrypted_refresh_token": "TEXT",
+        "expires_at": "DATETIME",
+        "id": "UUID",
+        "provider": "VARCHAR(50)",
+        "provider_account_id": "VARCHAR(255)",
+        "provider_account_name": "VARCHAR(255)",
+        "scopes": "JSONB",
+        "status": "VARCHAR(20)",
+        "token_type": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "app_id",
+          "user_oauth_apps.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_oauth_connections_app_id",
+        "ix_user_oauth_connections_provider",
+        "ix_user_oauth_connections_status",
+        "ix_user_oauth_connections_user_id"
+      ],
+      "name": "user_oauth_connections",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "access_token": "TEXT",
+        "created_at": "DATETIME",
+        "email": "VARCHAR(255)",
+        "id": "VARCHAR(36)",
+        "id_token": "TEXT",
+        "name": "VARCHAR(255)",
+        "provider_id": "VARCHAR(36)",
+        "refresh_token": "TEXT",
+        "subject": "VARCHAR(500)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "provider_id",
+          "oidc_providers.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_oidc_accounts_provider_id",
+        "ix_user_oidc_accounts_user_id",
+        "ix_user_oidc_user_provider"
+      ],
+      "name": "user_oidc_accounts",
+      "unique_constraints": [
+        [
+          "provider_id",
+          "subject"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "email_notifications": "BOOLEAN",
+        "id": "INTEGER",
+        "language": "VARCHAR(10)",
+        "settings_json": "TEXT",
+        "theme": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_settings_user_id"
+      ],
+      "name": "user_settings",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "cancel_at_period_end": "BOOLEAN",
+        "created_at": "DATETIME",
+        "current_period_end": "DATETIME",
+        "current_period_start": "DATETIME",
+        "id": "INTEGER",
+        "paypal_subscription_id": "VARCHAR(100)",
+        "status": "VARCHAR(20)",
+        "tier_id": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "tier_id",
+          "subscription_tiers.id"
+        ],
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_subscriptions_user_id"
+      ],
+      "name": "user_subscriptions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "id": "VARCHAR(36)",
+        "is_primary": "BOOLEAN",
+        "joined_at": "DATETIME",
+        "role": "VARCHAR(50)",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_user_tenants_user_id",
+        "ix_user_tenants_workspace_id",
+        "ix_user_tenants_ws"
+      ],
+      "name": "user_tenants",
+      "unique_constraints": [
+        [
+          "user_id",
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "avatar_url": "VARCHAR(500)",
+        "created_at": "DATETIME",
+        "email": "VARCHAR(255)",
+        "full_name": "VARCHAR(200)",
+        "hashed_password": "VARCHAR(255)",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "is_admin": "BOOLEAN",
+        "is_partner_admin": "BOOLEAN",
+        "last_login_at": "DATETIME",
+        "login_count": "INTEGER",
+        "onboarding_completed": "BOOLEAN",
+        "onboarding_completed_at": "DATETIME",
+        "onboarding_data": "TEXT",
+        "onboarding_step": "VARCHAR(50)",
+        "partner_id": "INTEGER",
+        "role": "VARCHAR(50)",
+        "totp_backup_codes": "TEXT",
+        "totp_enabled": "BOOLEAN",
+        "totp_secret": "VARCHAR(255)",
+        "totp_verified_at": "DATETIME",
+        "updated_at": "DATETIME",
+        "username": "VARCHAR(100)"
+      },
+      "foreign_keys": [
+        [
+          "partner_id",
+          "partners.id"
+        ]
+      ],
+      "indexes": [
+        "ix_users_email",
+        "ix_users_partner_id",
+        "ix_users_username"
+      ],
+      "name": "users",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "description": "TEXT",
+        "handler_function": "VARCHAR(255)",
+        "handler_module": "VARCHAR(255)",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "name": "VARCHAR(255)",
+        "path": "VARCHAR(255)",
+        "retry_count": "INTEGER",
+        "retry_delay_seconds": "INTEGER",
+        "secret": "VARCHAR(255)",
+        "signature_header": "VARCHAR(100)",
+        "signature_prefix": "VARCHAR(50)",
+        "source": "VARCHAR(100)",
+        "timeout_seconds": "INTEGER",
+        "updated_at": "DATETIME",
+        "verify_signature": "BOOLEAN"
+      },
+      "foreign_keys": [],
+      "indexes": [],
+      "name": "webhook_endpoints",
+      "unique_constraints": [
+        [
+          "name"
+        ],
+        [
+          "path"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "delivered_at": "DATETIME",
+        "endpoint_id": "INTEGER",
+        "event_type": "VARCHAR(255)",
+        "headers": "JSON",
+        "id": "INTEGER",
+        "last_error": "TEXT",
+        "last_error_at": "DATETIME",
+        "max_retries": "INTEGER",
+        "next_retry_at": "DATETIME",
+        "payload": "JSON",
+        "processing_completed_at": "DATETIME",
+        "processing_started_at": "DATETIME",
+        "processing_time_ms": "INTEGER",
+        "raw_body": "TEXT",
+        "response_body": "JSON",
+        "response_code": "INTEGER",
+        "retry_count": "INTEGER",
+        "source": "VARCHAR(100)",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_webhook_logs_endpoint_id"
+      ],
+      "name": "webhook_logs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "completed_at": "DATETIME",
+        "created_at": "DATETIME",
+        "error_message": "TEXT",
+        "id": "UUID",
+        "input_data": "JSONB",
+        "output_data": "JSONB",
+        "started_at": "DATETIME",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workflow_id": "UUID",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workflow_id",
+          "workflows.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workflow_executions_workspace_id"
+      ],
+      "name": "workflow_executions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "execution_id": "UUID",
+        "id": "UUID",
+        "state_data": "JSONB",
+        "updated_at": "DATETIME",
+        "workflow_id": "UUID"
+      },
+      "foreign_keys": [
+        [
+          "execution_id",
+          "workflow_executions.id"
+        ],
+        [
+          "workflow_id",
+          "workflows.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "workflow_states",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "id": "VARCHAR(36)",
+        "snapshot": "JSONB",
+        "updated_at": "DATETIME",
+        "version": "INTEGER",
+        "workflow_id": "UUID"
+      },
+      "foreign_keys": [
+        [
+          "workflow_id",
+          "workflows.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workflow_versions_workflow_id"
+      ],
+      "name": "workflow_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "description": "TEXT",
+        "graph_definition": "JSONB",
+        "id": "UUID",
+        "name": "VARCHAR(255)",
+        "status": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workflows_workspace_id"
+      ],
+      "name": "workflows",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action": "VARCHAR(50)",
+        "actor_id": "INTEGER",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "metadata": "JSONB",
+        "target_id": "VARCHAR(100)",
+        "target_type": "VARCHAR(50)",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "actor_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_activity_log_workspace_time",
+        "ix_workspace_activity_log_workspace_id"
+      ],
+      "name": "workspace_activity_log",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "auto_action": "VARCHAR(20)",
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "timeout_hours": "INTEGER",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_hitl_configs_workspace_id"
+      ],
+      "name": "workspace_hitl_configs",
+      "unique_constraints": [
+        [
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "accepted_at": "DATETIME",
+        "created_at": "DATETIME",
+        "email": "VARCHAR(255)",
+        "expires_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "invitation_message": "TEXT",
+        "invited_by": "INTEGER",
+        "role": "VARCHAR(50)",
+        "status": "VARCHAR(20)",
+        "token": "VARCHAR(64)",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "invited_by",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_invitations_email",
+        "ix_workspace_invitations_token",
+        "ix_workspace_invitations_workspace_id"
+      ],
+      "name": "workspace_invitations",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "joined_at": "DATETIME",
+        "role": "VARCHAR(50)",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_members_user_id",
+        "ix_workspace_members_workspace_id"
+      ],
+      "name": "workspace_members",
+      "unique_constraints": [
+        [
+          "user_id",
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "id": "INTEGER",
+        "recipient_id": "INTEGER",
+        "sender_id": "INTEGER",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "recipient_id",
+          "users.id"
+        ],
+        [
+          "sender_id",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_messages_recipient_id",
+        "ix_workspace_messages_sender_id",
+        "ix_workspace_messages_workspace_id"
+      ],
+      "name": "workspace_messages",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "entity_id": "VARCHAR(100)",
+        "entity_type": "VARCHAR(50)",
+        "granted_by": "INTEGER",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "permission": "VARCHAR(20)",
+        "source_workspace_id": "VARCHAR(36)",
+        "target_workspace_id": "VARCHAR(36)",
+        "updated_at": "DATETIME"
+      },
+      "foreign_keys": [
+        [
+          "granted_by",
+          "users.id"
+        ],
+        [
+          "source_workspace_id",
+          "workspaces.id"
+        ],
+        [
+          "target_workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_shares_entity_id",
+        "ix_workspace_shares_source_workspace_id",
+        "ix_workspace_shares_target_workspace_id"
+      ],
+      "name": "workspace_shares",
+      "unique_constraints": [
+        [
+          "entity_id",
+          "entity_type",
+          "source_workspace_id",
+          "target_workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "granted_by": "INTEGER",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "tool_name": "VARCHAR(200)",
+        "updated_at": "DATETIME",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "granted_by",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_tool_allowlist_workspace_id"
+      ],
+      "name": "workspace_tool_allowlist",
+      "unique_constraints": [
+        [
+          "tool_name",
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
+        "change_summary": "TEXT",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "snapshot": "JSONB",
+        "updated_at": "DATETIME",
+        "version": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspace_versions_workspace_id"
+      ],
+      "name": "workspace_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "billing_customer_id": "VARCHAR(100)",
+        "created_at": "DATETIME",
+        "id": "VARCHAR(36)",
+        "is_active": "BOOLEAN",
+        "logo_url": "VARCHAR(500)",
+        "member_limit": "INTEGER",
+        "name": "VARCHAR(200)",
+        "owner_id": "INTEGER",
+        "plan": "VARCHAR(50)",
+        "settings": "JSONB",
+        "slug": "VARCHAR(100)",
+        "storage_used_bytes": "BIGINT",
+        "subscription_tier_id": "INTEGER",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "owner_id",
+          "users.id"
+        ],
+        [
+          "subscription_tier_id",
+          "subscription_tiers.id"
+        ]
+      ],
+      "indexes": [
+        "ix_workspaces_owner_id",
+        "ix_workspaces_slug"
+      ],
+      "name": "workspaces",
+      "unique_constraints": []
+    }
+  ]
+}

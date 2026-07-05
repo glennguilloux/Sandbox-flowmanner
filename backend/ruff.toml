@@ -8,7 +8,7 @@ line-length = 120
 # 4,000+ line diffs on every regeneration. Exclude the alembic versions
 # directory — these files are machine-generated and should not be hand-
 # polished. Mypy already skips them via pyproject overrides.
-extend-exclude = ["alembic/versions/*"]
+extend-exclude = ["alembic/versions/*", "tests/_quarantine/*"]
 
 
 [lint]

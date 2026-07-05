@@ -210,7 +210,8 @@ class TestChatToolAllowlist:
         assert "memory_recall" in source
         assert "sandboxd_ids" in source
 
-    def test_returns_none_when_no_tools_registered(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_tools_registered(self):
         """If registry is empty, returns None."""
         from app.services.chat_service import _get_chat_openai_tools
 
@@ -218,7 +219,7 @@ class TestChatToolAllowlist:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base.get_tool_registry") as mock_registry:
                 mock_registry.return_value.list_all.return_value = []
-                result = _get_chat_openai_tools()
+                result = await _get_chat_openai_tools()
                 assert result is None
 
 
