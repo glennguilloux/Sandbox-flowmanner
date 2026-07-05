@@ -70,7 +70,7 @@ async def test_preview_running_sandbox(client):
     data = resp.json()
     assert data["sandbox_id"] == "sb-abc123"
     assert data["status"] == "running"
-    assert data["preview_url"] == "https://s-abc123-3000.preview.flowmanner.com"
+    assert data["preview_url"] == "https://s-abc123-8081.preview.flowmanner.com"
     assert data["preview_status"] == "running"
 
 
