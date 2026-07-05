@@ -187,6 +187,62 @@ class CostTracker:
         except Exception as e:
             logger.warning("Failed to record cost event: %s", e)
 
+    async def record_tool_call_cost(
+        self,
+        db,
+        user_id: int,
+        tool_name: str,
+        duration_ms: float,
+        workspace_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> None:
+        """Record a tool call as a billable cost event.
+
+        Convenience wrapper around :meth:`record_cost_event` that creates a
+        ``CostEvent`` with ``category=TOOL_EXECUTION``.  The cost estimate is
+        a flat per-call fee (tools don't have token-based pricing).
+
+        Does NOT commit — caller owns the transaction.
+        """
+        event = CostEvent(
+            category=CostCategory.TOOL_EXECUTION,
+            cost_usd=self._estimate_tool_cost(tool_name, duration_ms),
+            tool_name=tool_name,
+            latency_ms=int(duration_ms),
+            workspace_id=workspace_id or "",
+            agent_id=agent_id or "",
+            provider="tool",
+        )
+        await self.record_cost_event(db, event)
+
+    @staticmethod
+    def _estimate_tool_cost(tool_name: str, duration_ms: float) -> float:
+        """Estimate cost for a tool invocation.
+
+        Simple flat-rate pricing per tool category.  Can be replaced with
+        workspace-specific pricing later.
+        """
+        # Sandbox tools: $0.001 per second of compute
+        _SANDBOX_TOOLS = frozenset(
+            {
+                "sandboxd_preview",
+                "sandboxd_exec",
+                "sandboxd_file_write",
+                "sandboxd_file_read",
+                "sandboxd_file_list",
+                "sandboxd_serve",
+                "browser_sandbox",
+            }
+        )
+        if tool_name in _SANDBOX_TOOLS:
+            return max(0.001, (duration_ms / 1000.0) * 0.001)
+        # Search / retrieval: flat $0.0001
+        _SEARCH_TOOLS = frozenset({"web_search_enhanced", "rag_search", "memory_recall"})
+        if tool_name in _SEARCH_TOOLS:
+            return 0.0001
+        # Default: flat $0.0005 per call
+        return 0.0005
+
 
 # ── Singleton ──────────────────────────────────────────────────────
 

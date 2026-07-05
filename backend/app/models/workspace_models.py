@@ -22,6 +22,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.models.subscription_models import SubscriptionTier
     from app.models.user import User
 
@@ -207,6 +209,52 @@ class WorkspaceShare(Base, TimestampMixin):
     source_workspace: Mapped[Workspace] = relationship("Workspace", foreign_keys=[source_workspace_id])
     target_workspace: Mapped[Workspace] = relationship("Workspace", foreign_keys=[target_workspace_id])
     granter: Mapped[User | None] = relationship("User", foreign_keys=[granted_by])
+
+
+class WorkspaceToolAllowlist(Base, TimestampMixin):
+    """Per-workspace tool allowlist — controls which tools are available.
+
+    When no rows exist for a workspace, ALL tools are permitted (backwards compatible).
+    When rows exist, only tools with an active entry are available.
+    Uses sentinel INSERT pattern — never DELETE per AGENTS.md migration rules.
+    """
+
+    __tablename__ = "workspace_tool_allowlist"
+    __table_args__ = (UniqueConstraint("workspace_id", "tool_name", name="uq_workspace_tool"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tool_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
+    granted_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Relationships
+    workspace: Mapped[Workspace] = relationship("Workspace", foreign_keys=[workspace_id])
+    granter: Mapped[User | None] = relationship("User", foreign_keys=[granted_by])
+
+
+async def get_workspace_tool_allowlist(
+    db: AsyncSession,
+    workspace_id: str,
+) -> set[str] | None:
+    """Return the set of allowed tool names for a workspace.
+
+    Returns ``None`` when no allowlist rows exist (all tools permitted).
+    Returns a ``set[str]`` of tool names when the workspace has explicit entries.
+    Only active (``is_active=True``) entries are included.
+    """
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(WorkspaceToolAllowlist.tool_name).where(
+            WorkspaceToolAllowlist.workspace_id == workspace_id,
+            WorkspaceToolAllowlist.is_active == True,
+        )
+    )
+    tools = set(result.scalars().all())
+    return tools if tools else None
 
 
 class WorkspaceMessage(Base, TimestampMixin):

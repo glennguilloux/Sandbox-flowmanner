@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -10,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_tenant_admin
 from app.api.v2.base import ok
 from app.database import get_db
 from app.models.user import User
@@ -19,10 +20,13 @@ from app.models.workspace_models import (
     TeamMember,
     Workspace,
     WorkspaceMember,
+    WorkspaceToolAllowlist,
 )
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/workspaces", tags=["v2-workspaces"])
 
@@ -314,6 +318,166 @@ async def list_teams(
         )
 
     return ok(items)
+
+
+# ── Phase 5: Workspace Tool Allowlist ──────────────────────────────
+
+
+class ToolAllowlistResponse(BaseModel):
+    tool_id: str
+    name: str
+    description: str
+    category: str = "general"
+    enabled: bool = True
+    required_scopes: list[str] = []
+
+
+class UpdateToolsRequest(BaseModel):
+    tools: list[str]  # list of tool_id values to enable
+
+
+class RequestToolAccessRequest(BaseModel):
+    tool_name: str
+    reason: str = ""
+
+
+@router.get("/{workspace_id}/tools")
+async def list_workspace_tools(
+    workspace_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """List all tools and their enabled status for this workspace."""
+    membership = await _check_workspace_access(db, workspace_id, user.id)
+    if not membership:
+        raise _not_found()
+
+    from app.models.workspace_models import get_workspace_tool_allowlist
+    from app.tools.base import get_tool_registry
+
+    registry = get_tool_registry()
+    allowlist = await get_workspace_tool_allowlist(db, workspace_id)
+
+    items = []
+    for t in registry.list_all():
+        # If allowlist is None, all tools are permitted
+        is_enabled = t.tool_id in allowlist if allowlist is not None else True
+        items.append(
+            ToolAllowlistResponse(
+                tool_id=t.tool_id,
+                name=t.name,
+                description=t.description,
+                category=t.category,
+                enabled=is_enabled,
+                required_scopes=t.metadata.required_scopes,
+            ).model_dump()
+        )
+    return ok({"tools": items, "total": len(items)})
+
+
+@router.put("/{workspace_id}/tools")
+async def update_workspace_tools(
+    workspace_id: str,
+    body: UpdateToolsRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Update the tool allowlist for this workspace.
+
+    Admin/owner only.  Uses sentinel INSERT pattern — never DELETE.
+    """
+    membership = await _check_workspace_access(db, workspace_id, user.id)
+    if not membership or membership.role not in ("owner", "admin"):
+        raise _not_found()
+
+    # Validate tool names against registry
+    from app.tools.base import get_tool_registry
+
+    registry = get_tool_registry()
+    valid_tool_ids = {t.tool_id for t in registry.list_all()}
+    requested = set(body.tools)
+    invalid = requested - valid_tool_ids
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown tool IDs: {', '.join(sorted(invalid))}",
+        )
+
+    # Fetch existing allowlist entries
+    result = await db.execute(
+        select(WorkspaceToolAllowlist).where(
+            WorkspaceToolAllowlist.workspace_id == workspace_id,
+        )
+    )
+    existing = {row.tool_name: row for row in result.scalars().all()}
+
+    # Enable requested tools (insert or re-activate)
+    for tool_name in requested:
+        if tool_name in existing:
+            existing[tool_name].is_active = True
+            existing[tool_name].granted_by = user.id
+        else:
+            db.add(
+                WorkspaceToolAllowlist(
+                    workspace_id=workspace_id,
+                    tool_name=tool_name,
+                    is_active=True,
+                    granted_by=user.id,
+                )
+            )
+
+    # Deactivate tools not in the requested set (sentinel — no DELETE)
+    for tool_name, row in existing.items():
+        if tool_name not in requested:
+            row.is_active = False
+
+    await db.flush()
+    return ok({"enabled_tools": sorted(requested), "count": len(requested)})
+
+
+@router.post("/{workspace_id}/tools/request")
+async def request_tool_access(
+    workspace_id: str,
+    body: RequestToolAccessRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Request access to a tool that is not enabled for this workspace.
+
+    Logs the request and returns a confirmation.  Admins can enable it via
+    PUT /{workspace_id}/tools.
+    """
+    membership = await _check_workspace_access(db, workspace_id, user.id)
+    if not membership:
+        raise _not_found()
+
+    logger.info(
+        "tool_access_request user_id=%s workspace_id=%s tool=%s reason=%s",
+        user.id,
+        workspace_id,
+        body.tool_name,
+        body.reason,
+    )
+    try:
+        import asyncio
+
+        from app.api.middleware.audit import log_event
+
+        asyncio.create_task(
+            log_event(
+                user_id=user.id,
+                action="tool.access_requested",
+                details={
+                    "workspace_id": workspace_id,
+                    "tool_name": body.tool_name,
+                    "reason": body.reason,
+                },
+            )
+        )
+    except Exception:
+        pass  # audit logging must never break the request
+
+    return ok({"status": "requested", "tool_name": body.tool_name})
 
 
 @router.post("/{workspace_id}/teams", status_code=status.HTTP_201_CREATED)

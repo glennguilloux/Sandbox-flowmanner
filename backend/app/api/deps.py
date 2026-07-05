@@ -384,3 +384,41 @@ def require_scope(*required_scopes: str):
         return session
 
     return _check
+
+
+def require_tool_scope(tool_name: str):
+    """Dependency factory — require that the tool is enabled for the user's workspace.
+
+    Uses v2 auth (``get_current_user`` + JWT) and delegates to the workspace
+    tool allowlist.  Admin/superuser roles always pass.
+
+    Usage::
+
+        @router.post("/something")
+        async def do_something(
+            user: User = Depends(require_tool_scope("browser_sandbox")),
+        ):
+            ...
+    """
+
+    async def _check(
+        user: User = Depends(get_current_user),
+        workspace_id: str | None = Depends(get_workspace_id),
+        db: AsyncSession = Depends(get_db),
+    ):
+        # Admin / superuser bypass
+        if getattr(user, "is_superuser", False) or getattr(user, "is_admin", False):
+            return user
+
+        if workspace_id:
+            from app.models.workspace_models import get_workspace_tool_allowlist
+
+            allowlist = await get_workspace_tool_allowlist(db, workspace_id)
+            if allowlist is not None and tool_name not in allowlist:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Tool '{tool_name}' not enabled for this workspace",
+                )
+        return user
+
+    return _check

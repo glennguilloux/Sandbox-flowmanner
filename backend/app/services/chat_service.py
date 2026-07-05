@@ -1170,6 +1170,40 @@ async def _maybe_extract_memory_claims(
         )
 
 
+def _record_tool_cost_fire_and_forget(
+    user_id: int,
+    tool_name: str,
+    duration_ms: float,
+    workspace_id: str | None = None,
+) -> None:
+    """Fire-and-forget: record tool call cost using a fresh DB session.
+
+    Opens its own ``AsyncSessionLocal`` so the recording is independent of the
+    caller's (already-closed) request session.  Errors are swallowed — cost
+    tracking must never break the chat.
+    """
+    import asyncio
+
+    async def _run() -> None:
+        try:
+            from app.database import AsyncSessionLocal
+            from app.services.cost_tracker import get_cost_tracker
+
+            async with AsyncSessionLocal() as fresh_db:
+                await get_cost_tracker().record_tool_call_cost(
+                    db=fresh_db,
+                    user_id=user_id,
+                    tool_name=tool_name,
+                    duration_ms=duration_ms,
+                    workspace_id=workspace_id,
+                )
+                await fresh_db.commit()
+        except Exception as e:
+            logger.debug("tool_cost_tracking_failed tool=%s error=%s", tool_name, e)
+
+    asyncio.create_task(_run())
+
+
 async def send_message_to_llm(
     db: AsyncSession,
     thread_id: int,
@@ -1237,10 +1271,16 @@ async def send_message_to_llm(
     llm_start = time.time()
 
     # Build messages and process all DB-dependent setup BEFORE saving user message.
-    openai_tools = _get_chat_openai_tools()
     messages_for_llm = await _build_chat_messages(db, thread_id)
     # Append the new user message — it isn't in DB history yet
     messages_for_llm.append({"role": "user", "content": content})
+
+    # ── Phase 5: resolve workspace_id for allowlist filtering ────────
+    _thread_obj = await get_chat_thread(db, thread_id)
+    _workspace_id = _thread_obj.workspace_id if _thread_obj else None
+
+    # Phase 5: async tool list with workspace allowlist
+    openai_tools = await _get_chat_openai_tools(db=db, workspace_id=_workspace_id)
 
     # ── Phase 2: pre-compute user scopes for tool authorization ──────
     _cached_user_scopes: set[str] | None = None
@@ -1314,12 +1354,19 @@ async def send_message_to_llm(
 
                     # Execute each tool and add results
                     for tc in assistant_message.tool_calls:
+                        _tool_t0 = time.time()
                         tool_result = await _execute_tool_call(
                             tc.function.name,
                             tc.function.arguments,
                             user_id=user_id,
                             _user_scopes=_cached_user_scopes,
                             _user_role=_cached_user_role,
+                        )
+                        _record_tool_cost_fire_and_forget(
+                            user_id=user_id,
+                            tool_name=tc.function.name,
+                            duration_ms=(time.time() - _tool_t0) * 1000.0,
+                            workspace_id=_workspace_id,
                         )
                         messages_for_llm.append(
                             {
@@ -1421,8 +1468,16 @@ async def send_message_to_llm(
         return {"success": False, "content": str(e), "tokens": 0, "model": model}
 
 
-def _get_chat_openai_tools() -> list[dict] | None:
+async def _get_chat_openai_tools(
+    db: AsyncSession | None = None,
+    workspace_id: str | None = None,
+) -> list[dict] | None:
     """Return chat-safe tools in OpenAI function-calling format, or None if none available.
+
+    Phase 5: now async to support workspace allowlist filtering. When
+    *db* and *workspace_id* are provided, tools not in the workspace
+    allowlist are excluded.  When no allowlist exists for the workspace
+    (or no workspace context), all chat-allowed tools are returned.
 
     Phase 2 tool allowlist — widened from Phase 1 with documented additions.
 
@@ -1502,6 +1557,17 @@ def _get_chat_openai_tools() -> list[dict] | None:
         allowed_ids = safe_chat_ids | phase2_readonly_ids
         if settings.SANDBOXD_ENABLED:
             allowed_ids = allowed_ids | sandboxd_ids
+
+        # Phase 5: filter by workspace allowlist
+        workspace_allowed: set[str] | None = None
+        if db is not None and workspace_id:
+            from app.models.workspace_models import get_workspace_tool_allowlist
+
+            workspace_allowed = await get_workspace_tool_allowlist(db, workspace_id)
+
+        if workspace_allowed is not None:
+            # Intersect chat-allowed with workspace-allowed
+            allowed_ids = allowed_ids & workspace_allowed
 
         tools = [t.to_openai_schema() for t in registry.list_all() if t.tool_id in allowed_ids]
         return tools or None
@@ -1644,10 +1710,16 @@ async def stream_message_to_llm(
     llm_start = time.time()
 
     # Build messages and process all DB-dependent setup BEFORE saving user message.
-    openai_tools = _get_chat_openai_tools()
     messages_for_llm = await _build_chat_messages(db, thread_id)
     # Append the new user message — it isn't in DB history yet
     messages_for_llm.append({"role": "user", "content": content})
+
+    # ── Phase 5: resolve workspace_id for allowlist filtering ────────
+    _thread_obj = await get_chat_thread(db, thread_id)
+    _workspace_id = _thread_obj.workspace_id if _thread_obj else None
+
+    # Phase 5: async tool list with workspace allowlist
+    openai_tools = await _get_chat_openai_tools(db=db, workspace_id=_workspace_id)
 
     # ── Phase 2: pre-compute user scopes for tool authorization ──────
     # Resolve once before the tool loop so _execute_tool_call doesn't
@@ -1814,12 +1886,19 @@ async def stream_message_to_llm(
                             }
                         )
 
+                        _tool_t0 = time.time()
                         tool_result = await _execute_tool_call(
                             tool_name,
                             tool_args,
                             user_id=user_id,
                             _user_scopes=_cached_user_scopes,
                             _user_role=_cached_user_role,
+                        )
+                        _record_tool_cost_fire_and_forget(
+                            user_id=user_id,
+                            tool_name=tool_name,
+                            duration_ms=(time.time() - _tool_t0) * 1000.0,
+                            workspace_id=_workspace_id,
                         )
 
                         yield json.dumps(

@@ -263,6 +263,16 @@ class ToolRegistry:
         tools = self.list_all(category)
         return [t.to_anthropic_schema() for t in tools]
 
+    def get_permitted_tools(self, allowed_tool_names: set[str] | None = None) -> list[BaseTool]:
+        """Return tools filtered by workspace allowlist.
+
+        If *allowed_tool_names* is ``None`` (no allowlist configured for this
+        workspace), all registered tools are returned — backwards compatible.
+        """
+        if allowed_tool_names is None:
+            return self.list_all()
+        return [t for t in self.list_all() if t.tool_id in allowed_tool_names]
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "tools": [

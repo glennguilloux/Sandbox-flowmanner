@@ -286,6 +286,7 @@ from app.models.workspace_models import (
     Workspace,
     WorkspaceInvitation,
     WorkspaceMember,
+    WorkspaceToolAllowlist,
     WorkspaceVersion,
 )
 
