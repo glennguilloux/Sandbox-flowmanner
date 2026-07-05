@@ -22,6 +22,13 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 logger = logging.getLogger(__name__)
 
+# Track the active browser sandbox per chat session.
+# Only ONE browser sandbox may exist at a time — creating a new one
+# automatically closes the previous one. This prevents Docker containers
+# from piling up across LLM turns (each "launch" call from a new turn
+# would otherwise create a fresh container, leaking the old one).
+_active_browser_sandbox_id: str | None = None
+
 # ── Playwright scripts executed inside the container via sandboxd exec ──
 
 _NAVIGATE_SCRIPT = """\
@@ -226,8 +233,30 @@ class BrowserSandboxTool(BaseTool):
         from app.integrations.sandboxd_client import get_sandboxd_client
         from app.services.sandbox_service import SandboxService
 
+        global _active_browser_sandbox_id
+
         service = SandboxService()
         user_id = "chat-browser"
+
+        # ── Close any previous active browser sandbox ─────────────────
+        # Every "launch" call (across LLM turns) would otherwise create a
+        # fresh container, leaking the old one.  Closing the previous
+        # sandbox ensures at most one browser container exists at a time.
+        if _active_browser_sandbox_id:
+            previous_id = _active_browser_sandbox_id
+            _active_browser_sandbox_id = None  # clear before close (avoid re-entry)
+            try:
+                await service.close_browser_sandbox(previous_id)
+                logger.info(
+                    "Closed previous browser sandbox %s before creating new one",
+                    previous_id,
+                )
+            except Exception as close_err:
+                logger.warning(
+                    "Failed to close previous browser sandbox %s (continuing): %s",
+                    previous_id,
+                    close_err,
+                )
 
         # Create sandbox via SandboxService (reuses sandboxd client + preview URL logic)
         try:
@@ -245,6 +274,9 @@ class BrowserSandboxTool(BaseTool):
                 tool_id=self.tool_id,
                 error="sandboxd returned empty sandbox ID",
             )
+
+        # Track as the active sandbox
+        _active_browser_sandbox_id = sandbox_id
 
         preview_url = result.get("preview_url")
         client = get_sandboxd_client()
@@ -391,6 +423,10 @@ class BrowserSandboxTool(BaseTool):
             return sandbox_id
 
         from app.services.sandbox_service import SandboxService
+
+        global _active_browser_sandbox_id
+        if _active_browser_sandbox_id == sandbox_id:
+            _active_browser_sandbox_id = None
 
         service = SandboxService()
         await service.close_browser_sandbox(sandbox_id)
