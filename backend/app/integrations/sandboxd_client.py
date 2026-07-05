@@ -22,6 +22,12 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Port that the sandbox HTTP server actually listens on.  The
+# entrypoint-wrapper starts ``python3 -m http.server 8081`` and our
+# ``sandboxd_serve`` tool also defaults to 8081.  sandboxd templates
+# may report a stale port (e.g. 3000) — the rewriter normalises it.
+_PREVIEW_SERVE_PORT = 8081
+
 
 # ── Shared URL rewriter (used by tools, API routes, and playground) ──
 
@@ -30,8 +36,10 @@ def rewrite_sandboxd_url(url: str, domain: str | None = None) -> str:
     """Rewrite sandboxd localhost URLs to the public preview domain.
 
     Transforms ``http://s-xxx-3000.preview.localhost`` into
-    ``https://s-xxx-3000.preview.flowmanner.com`` — fixing both
-    the domain and the scheme (public domain has TLS).
+    ``https://s-xxx-8081.preview.flowmanner.com`` — fixing the
+    domain, scheme (public domain has TLS), and port (sandboxd
+    templates may report a stale port like 3000; the actual HTTP
+    server always runs on 8081).
 
     Only rewrites URLs whose host contains ``.preview.`` — plain URLs
     (e.g. ``https://example.com/page``) pass through unchanged.
@@ -44,6 +52,12 @@ def rewrite_sandboxd_url(url: str, domain: str | None = None) -> str:
     # Only rewrite sandboxd preview URLs (must contain '.preview.' in host)
     match = re.search(r"://([^/]+)", url)
     if match and ".preview." in match.group(1):
+        # Normalize port: sandboxd templates may report a stale port
+        # (e.g. 3000) but the actual http.server runs on 8081.
+        url = re.sub(r"-(\d+)(?=\.preview)", f"-{_PREVIEW_SERVE_PORT}", url)
+        # match is from the original url but still valid — split(':')[0]
+        # strips any explicit :port and the subdomain regex strips the
+        # embedded port too, so we only use match to locate the host.
         host = match.group(1).split(":")[0]
         subdomain = re.sub(r"\.preview.*$", "", host)
         if effective_domain:
