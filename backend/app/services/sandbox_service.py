@@ -302,25 +302,6 @@ class SandboxService:
             "status": result.get("status", "creating"),
         }
 
-    async def get_browser_sandbox_status(
-        self,
-        sandbox_id: str,
-    ) -> dict[str, Any]:
-        """Get the status of a browser sandbox container."""
-        try:
-            info = await self._client.get(sandbox_id)
-            return {
-                "sandbox_id": sandbox_id,
-                "status": info.get("status", "unknown"),
-            }
-        except Exception as e:
-            logger.warning("Failed to get browser sandbox status: %s", e)
-            return {
-                "sandbox_id": sandbox_id,
-                "status": "unknown",
-                "error": str(e),
-            }
-
     async def close_browser_sandbox(
         self,
         sandbox_id: str,
