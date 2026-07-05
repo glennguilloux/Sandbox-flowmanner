@@ -329,7 +329,9 @@ def _build_canvas_update(tool_name: str, tool_result_json: str) -> dict | None:
         result = json.loads(tool_result_json)
     except (json.JSONDecodeError, TypeError):
         return None
-    if isinstance(result, dict) and result.get("error"):
+    if not isinstance(result, dict):
+        return None
+    if result.get("error"):
         return None
 
     # Extract tile-relevant fields from the tool result
