@@ -319,3 +319,291 @@ class TestDiscoveryEndpoint:
         assert entry["rate_limit_key"] == "test_group"
         assert entry["timeout_seconds"] == 45
         assert entry["requires_auth"] is True  # backwards compat
+
+
+# ── Phase 2: _execute_tool_call scope resolution ──────────────────────
+
+
+class TestExecuteToolCallScopeResolution:
+    """Phase 2: verify _execute_tool_call uses cached user scopes correctly.
+
+    The function now accepts ``_user_scopes`` and ``_user_role`` params.
+    Three branches:
+    1. Admin/owner role → bypass scope check entirely
+    2. Cached scopes provided → check each required scope against the set
+    3. No cached scopes → deny as defense-in-depth
+    """
+
+    @pytest.mark.asyncio
+    async def test_admin_role_bypasses_scope_check(self):
+        """Admin role should pass even with required_scopes and empty cached scopes."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:admin"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=1,
+                _user_scopes=set(),
+                _user_role="admin",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_owner_role_bypasses_scope_check(self):
+        """Owner role should pass even with required_scopes."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:admin", "billing:write"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=1,
+                _user_scopes=set(),
+                _user_role="owner",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_user_with_matching_scopes_passes(self):
+        """User with all required scopes should execute the tool."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("scoped_tool", required_scopes=["tools:read"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "scoped_tool",
+                "{}",
+                user_id=42,
+                _user_scopes={"tools:read", "tools:write"},
+                _user_role="user",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_user_with_multiple_required_scopes_all_present(self):
+        """User must hold ALL required scopes, not just some."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("multi_scope", required_scopes=["tools:read", "tools:write"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "multi_scope",
+                "{}",
+                user_id=42,
+                _user_scopes={"tools:read", "tools:write", "other"},
+                _user_role="user",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+
+    @pytest.mark.asyncio
+    async def test_user_missing_scopes_denied_with_detail(self):
+        """User missing some scopes gets denied with the missing scopes listed."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:read", "tools:write", "admin"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=42,
+                _user_scopes={"tools:read"},
+                _user_role="user",
+            )
+            result = json.loads(result_json)
+            assert "error" in result
+            assert "capability denied" in result["error"]
+            assert "missing" in result["error"]
+            assert "tools:write" in result["error"]
+            assert "admin" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_no_cached_scopes_denied_defense_in_depth(self):
+        """When _user_scopes is None, deny tools with required_scopes."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:admin"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=42,
+                # _user_scopes not passed — defaults to None
+            )
+            result = json.loads(result_json)
+            assert "error" in result
+            assert "capability denied" in result["error"]
+            assert "restricted" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_no_user_id_skips_scope_check(self):
+        """When user_id is None, scope check is skipped entirely."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:admin"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=None,
+                _user_scopes=set(),
+                _user_role="user",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_tool_without_scopes_passes_regardless(self):
+        """Tools with empty required_scopes always pass, even with restricted user."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("open_tool")  # no required_scopes
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "open_tool",
+                "{}",
+                user_id=42,
+                _user_scopes=set(),
+                _user_role="user",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_unknown_role_with_scopes_passes(self):
+        """A non-admin role with correct scopes should still pass."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("scoped", required_scopes=["tools:read"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "scoped",
+                "{}",
+                user_id=99,
+                _user_scopes={"tools:read"},
+                _user_role="editor",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+
+    @pytest.mark.asyncio
+    async def test_admin_with_none_scopes_still_passes(self):
+        """Admin role bypasses even when _user_scopes is None (no DB lookup)."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:admin"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=1,
+                _user_role="admin",
+                # _user_scopes not passed — defaults to None
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_owner_with_none_scopes_still_passes(self):
+        """Owner role bypasses even when _user_scopes is None."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("restricted", required_scopes=["tools:admin"])
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "restricted",
+                "{}",
+                user_id=2,
+                _user_role="owner",
+            )
+            result = json.loads(result_json)
+            assert "error" not in result
+            assert result == {"echo": {}}
+
+    @pytest.mark.asyncio
+    async def test_tool_execution_error_propagates(self):
+        """If tool.execute() raises, the error is caught and returned as JSON."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("failing")
+        tool.execute = AsyncMock(side_effect=RuntimeError("boom"))
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "failing",
+                "{}",
+                user_id=1,
+                _user_scopes=set(),
+                _user_role="admin",
+            )
+            result = json.loads(result_json)
+            assert "error" in result
+            assert "boom" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_tool_failed_result_returns_error(self):
+        """If tool.execute() returns a failed ToolResult, the error is returned."""
+        from app.services.chat_service import _execute_tool_call
+
+        tool = _DummyTool("fail_result")
+        tool.execute = AsyncMock(return_value=ToolResult.error_result("fail_result", "permission denied"))
+        registry = MagicMock()
+        registry.get.return_value = tool
+
+        with patch("app.tools.base.get_tool_registry", return_value=registry):
+            result_json = await _execute_tool_call(
+                "fail_result",
+                "{}",
+                user_id=1,
+                _user_scopes=set(),
+                _user_role="admin",
+            )
+            result = json.loads(result_json)
+            assert result == {"error": "permission denied"}
