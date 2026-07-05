@@ -94,4 +94,9 @@ from app.api.v2.marketplace import router as marketplace_router
 
 api_v2_router.include_router(marketplace_router)
 
+# Tool discovery — enumerate tools the user is authorized to invoke
+from app.api.v2.tools import router as tools_router
+
+api_v2_router.include_router(tools_router)
+
 logger.info("API v2 router initialized — %d sub-routers", len(api_v2_router.routes))

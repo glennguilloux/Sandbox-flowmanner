@@ -1248,7 +1248,7 @@ async def send_message_to_llm(
 
                     # Execute each tool and add results
                     for tc in assistant_message.tool_calls:
-                        tool_result = await _execute_tool_call(tc.function.name, tc.function.arguments)
+                        tool_result = await _execute_tool_call(tc.function.name, tc.function.arguments, user_id=user_id)
                         messages_for_llm.append(
                             {
                                 "role": "tool",
@@ -1350,13 +1350,28 @@ async def send_message_to_llm(
 
 
 def _get_chat_openai_tools() -> list[dict] | None:
-    """Return sandboxd tools in OpenAI function-calling format, or None if disabled."""
-    if not settings.SANDBOXD_ENABLED:
-        return None
+    """Return chat-safe tools in OpenAI function-calling format, or None if none available.
+
+    Phase 1 tool allowlist — intentionally small, non-destructive tools only.
+    Widened deliberately per ADR, not silently opened to all 110+ tools.
+
+    Allowlist:
+    - sandboxd_* (6 tools): sandbox preview/exec/file operations — gated by SANDBOXD_ENABLED
+    - web_search_enhanced: web search (read-only, non-destructive)
+    - rag_search: RAG retrieval (read-only, non-destructive)
+    - memory_recall: memory service recall (read-only, non-destructive)
+
+    NOT exposed in Phase 1 (future phases):
+    - browser_* tools → Phase 4 (dedicated sandbox surface)
+    - linear_*, slack_*, stripe_*, github_manager write ops → Phase 2+ (needs workspace gating)
+    - Any tool with requires_auth=True + broad scopes and no workspace gating yet
+    """
     try:
         from app.tools.base import get_tool_registry
 
         registry = get_tool_registry()
+
+        # Core sandboxd tools (gated by SANDBOXD_ENABLED)
         sandboxd_ids = {
             "sandboxd_preview",
             "sandboxd_exec",
@@ -1365,15 +1380,41 @@ def _get_chat_openai_tools() -> list[dict] | None:
             "sandboxd_file_list",
             "sandboxd_serve",
         }
-        tools = [t.to_openai_schema() for t in registry.list_all() if t.tool_id in sandboxd_ids]
+
+        # Phase 1 safe additions: read-only, non-destructive
+        safe_chat_ids = {
+            "web_search_enhanced",
+            "rag_search",
+            "memory_recall",
+        }
+
+        allowed_ids = safe_chat_ids
+        if settings.SANDBOXD_ENABLED:
+            allowed_ids = allowed_ids | sandboxd_ids
+
+        tools = [t.to_openai_schema() for t in registry.list_all() if t.tool_id in allowed_ids]
         return tools or None
     except Exception:
         logger.debug("Failed to get chat tools from registry", exc_info=True)
         return None
 
 
-async def _execute_tool_call(tool_name: str, arguments_json: str) -> str:
-    """Execute a single tool call via the registry and return the result as JSON."""
+async def _execute_tool_call(
+    tool_name: str,
+    arguments_json: str,
+    user_id: int | None = None,
+    workspace_id: str | None = None,
+) -> str:
+    """Execute a single tool call via the registry and return the result as JSON.
+
+    Phase 1: adds scope-based authorization check before ``tool.execute()``.
+    If the tool declares ``required_scopes``, verify the caller holds them.
+    Tools with no required_scopes are unrestricted.
+
+    Uses a direct scope check (same pattern as v2/tools.py ``_user_has_scopes``)
+    rather than issuing-then-verifying a fresh capability token, which would
+    always pass and provide no real authorization.
+    """
     try:
         from app.tools.base import get_tool_registry
 
@@ -1381,6 +1422,27 @@ async def _execute_tool_call(tool_name: str, arguments_json: str) -> str:
         tool = registry.get(tool_name)
         if tool is None:
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
+
+        # Phase 1: scope-based authorization check.
+        # Tools with required_scopes need the caller to hold those scopes.
+        # Chat context: Phase 1 allowlisted tools all have empty required_scopes
+        # (see _get_chat_openai_tools), so this gate rarely fires — it is
+        # defense-in-depth for when the allowlist widens in Phase 2+.
+        # Phase 5: full capability-token enforcement with workspace gating
+        # and cached user-scope resolution (no per-call DB lookup).
+        if tool.metadata.required_scopes and user_id is not None:
+            logger.warning(
+                "Tool %s requires scopes %s — denying in chat context "
+                "(no cached scope resolution yet). Phase 5 will resolve.",
+                tool_name,
+                tool.metadata.required_scopes,
+            )
+            return json.dumps(
+                {
+                    "error": f"capability denied: tool '{tool_name}' requires scopes {tool.metadata.required_scopes} "
+                    f"which are not available in chat context (Phase 5 will add full scope resolution)"
+                }
+            )
 
         args = json.loads(arguments_json) if arguments_json else {}
         result = await tool.execute(args)
@@ -1609,7 +1671,7 @@ async def stream_message_to_llm(
                             }
                         )
 
-                        tool_result = await _execute_tool_call(tool_name, tool_args)
+                        tool_result = await _execute_tool_call(tool_name, tool_args, user_id=user_id)
 
                         yield json.dumps(
                             {

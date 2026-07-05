@@ -75,6 +75,11 @@ class ToolMetadata(BaseModel):
     tags: list[str] = Field(default_factory=list)
     examples: list[dict[str, Any]] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    required_scopes: list[str] = Field(default_factory=list, description="Authz scopes needed to call this tool")
+    requires_sandbox: bool = Field(False, description="Whether this tool runs in an isolated sandbox container")
+    rate_limit_key: str | None = Field(
+        None, description="Rate limit group key; tools sharing a key share one rate budget"
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
