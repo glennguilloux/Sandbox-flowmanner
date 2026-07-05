@@ -37,13 +37,15 @@ api_v2_router.include_router(programs_router)
 # handler on the main FastAPI app so 422s from the personal_memory
 # routes get ``PERSONAL_MEMORY_VALIDATION_ERROR`` instead of FastAPI's
 # generic ``{"detail": [...]}`` default.
-from app.main_fastapi import app as _fastapi_app  # noqa: E402
-from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.exceptions import RequestValidationError
 
-from app.api.v2.personal_memory import (  # noqa: E402
+from app.api.v2.personal_memory import (
     pm_validation_handler,
+)
+from app.api.v2.personal_memory import (
     router as personal_memory_router,
 )
+from app.main_fastapi import app as _fastapi_app
 
 api_v2_router.include_router(personal_memory_router)
 _fastapi_app.add_exception_handler(RequestValidationError, pm_validation_handler)
@@ -53,15 +55,15 @@ _fastapi_app.add_exception_handler(RequestValidationError, pm_validation_handler
 # the personal_memory section above: import router + validation handler,
 # include router, register the domain-specific 422 handler on the main
 # FastAPI app.
-from app.api.v2.critiques import (  # noqa: E402
+from app.api.v2.critiques import (
     critiques_validation_handler,
+)
+from app.api.v2.critiques import (
     router as critiques_router,
 )
 
 api_v2_router.include_router(critiques_router)
-_fastapi_app.add_exception_handler(
-    RequestValidationError, critiques_validation_handler
-)
+_fastapi_app.add_exception_handler(RequestValidationError, critiques_validation_handler)
 
 from app.api.v2.dashboard import router as dashboard_router
 from app.api.v2.integrations import router as integrations_router
@@ -86,5 +88,10 @@ api_v2_router.include_router(runs_router)
 from app.api.v2.regression import router as regression_router
 
 api_v2_router.include_router(regression_router)
+
+# Marketplace — tool/capability discovery, install, reviews
+from app.api.v2.marketplace import router as marketplace_router
+
+api_v2_router.include_router(marketplace_router)
 
 logger.info("API v2 router initialized — %d sub-routers", len(api_v2_router.routes))
