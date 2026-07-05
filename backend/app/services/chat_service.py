@@ -305,6 +305,57 @@ If any tool returns an error containing "container is not running" or
 _MAX_TOOL_ROUNDS = settings.CHAT_MAX_TOOL_ROUNDS
 
 
+# ── Phase 4: canvas_update event builder ──────────────────────────────
+# Maps tool_name → tile config for tools that should auto-open canvas tiles.
+# Extensible: add new tool→tile mappings here as the platform grows.
+_CANVAS_UPDATE_TOOLS: dict[str, dict[str, str]] = {
+    "browser_sandbox": {"tileKind": "browser-sandbox", "titlePrefix": "Browse"},
+}
+
+
+def _build_canvas_update(tool_name: str, tool_result_json: str) -> dict | None:
+    """Build a canvas_update SSE event if the tool result warrants opening a tile.
+
+    Returns None for tools that don't trigger tile opens, or when the tool
+    result indicates an error. Returns a canvas_update event dict otherwise.
+
+    Extensible: add entries to ``_CANVAS_UPDATE_TOOLS`` for new tile types.
+    """
+    config = _CANVAS_UPDATE_TOOLS.get(tool_name)
+    if config is None:
+        return None
+
+    try:
+        result = json.loads(tool_result_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(result, dict) and result.get("error"):
+        return None
+
+    # Extract tile-relevant fields from the tool result
+    action = result.get("action", "")
+    if action != "launch":
+        return None
+
+    sandbox_id = result.get("sandbox_id", "")
+    preview_url = result.get("preview_url", "")
+    title = f"{config['titlePrefix']}: {preview_url}" if preview_url else config["titlePrefix"]
+
+    return {
+        "type": "canvas_update",
+        "data": {
+            "action": "open_tile",
+            "tileKind": config["tileKind"],
+            "title": title,
+            "payload": {
+                "sandbox_id": sandbox_id,
+                "preview_url": preview_url,
+                "status": result.get("status", "running"),
+            },
+        },
+    }
+
+
 # LLM configuration from environment
 _LLM_API_KEY = os.getenv("LLM_API_KEY")
 _LLM_API_BASE = os.getenv("LLM_API_BASE") or os.getenv("LLM_BASE_URL") or "https://api.deepseek.com/v1"
@@ -1777,6 +1828,14 @@ async def stream_message_to_llm(
                                 "call_id": call_id,
                             }
                         )
+
+                        # ── Phase 4: canvas_update for agent-driven tile orchestration ──
+                        # When a tool produces a result that should open a canvas tile
+                        # (e.g. browser_sandbox launch), emit a canvas_update event so
+                        # the frontend can auto-open the tile without user action.
+                        _canvas_event = _build_canvas_update(tool_name, tool_result)
+                        if _canvas_event:
+                            yield json.dumps(_canvas_event)
 
                         messages_for_llm.append(
                             {
