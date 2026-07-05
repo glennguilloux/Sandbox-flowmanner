@@ -90,3 +90,4 @@ docs/THE-*.md
 docs/BRAINSTORM-*.md
 docs/EXIT-AUDIT-*.md
 docs/research/
+.pnpm-store/
