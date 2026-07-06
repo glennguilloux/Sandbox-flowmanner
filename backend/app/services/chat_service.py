@@ -1712,11 +1712,27 @@ async def _get_chat_openai_tools(
     - github_list_issues: list issues — read-only
     - github_list_prs: list pull requests — read-only
 
+    Phase 3 additions (read-only tools from internal services):
+    - dall_e_image_gen: image generation — read-only, produces images from prompts
+    - crypto_market_data: market data queries — read-only price/portfolio data
+    - global_news_aggregator: news search — read-only aggregation across sources
+    - arxiv_paper_finder: academic paper search — read-only arXiv queries
+    - google_search_api: web search (additional provider) — read-only
+    - fact_check_validator: claim verification — read-only
+    - html_to_markdown: content extraction — read-only HTML→Markdown
+    - pdf_parser: document parsing — read-only PDF text extraction
+    - deep_web_crawler: web crawling — read-only page content extraction
+    - google_workspace_hub: Google Workspace — read-only Calendar/Drive/Docs
+
+    Deferred (need deps installed — bs4 for wikipedia, pytesseract for ocr):
+    - wikipedia_fetcher: Wikipedia lookup — read-only (needs: beautifulsoup4)
+    - ocr_text_extractor: image text extraction — read-only (needs: pytesseract)
+
     NOT exposed (future phases — write ops or broad scopes):
-    - linear_create_issue, linear_update_issue → Phase 3 (needs workspace gating)
-    - slack_post_message → Phase 3 (write op)
-    - stripe_* → Phase 4 (financial)
-    - github_manager write ops (create_issue, merge_pr, etc.) → Phase 3
+    - linear_create_issue, linear_update_issue → Phase 4 (needs workspace gating)
+    - slack_post_message → Phase 4 (write op)
+    - stripe_* → Phase 5 (financial)
+    - github_manager write ops (create_issue, merge_pr, etc.) → Phase 4
     """
     try:
         from app.tools.base import get_tool_registry
@@ -1760,7 +1776,33 @@ async def _get_chat_openai_tools(
             "github_list_prs",
         }
 
-        allowed_ids = safe_chat_ids | phase2_readonly_ids
+        # Phase 3 additions: read-only tools from internal services (ADR-001)
+        # All verified non-destructive; each tool's is_destructive flag was
+        # confirmed False during the Chat Wiring Sprint (2026-07-06).
+        phase3_readonly_ids = {
+            # Image generation — read-only, produces images from prompts
+            "dall_e_image_gen",
+            # Market data — read-only price/portfolio queries
+            "crypto_market_data",
+            # News aggregation — read-only search across news sources
+            "global_news_aggregator",
+            # Academic papers — read-only arXiv search
+            "arxiv_paper_finder",
+            # Web search (additional provider) — read-only
+            "google_search_api",
+            # Fact-checking — read-only claim verification
+            "fact_check_validator",
+            # Content extraction — read-only HTML→Markdown conversion
+            "html_to_markdown",
+            # Document parsing — read-only PDF text extraction
+            "pdf_parser",
+            # Deep web crawling — read-only page content extraction
+            "deep_web_crawler",
+            # Google Workspace — read-only (Calendar/Drive/Docs reads)
+            "google_workspace_hub",
+        }
+
+        allowed_ids = safe_chat_ids | phase2_readonly_ids | phase3_readonly_ids
         if settings.SANDBOXD_ENABLED:
             allowed_ids = allowed_ids | sandboxd_ids
 
