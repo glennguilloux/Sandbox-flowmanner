@@ -18,6 +18,7 @@ from app.models.phase4_models import UserFile
 logger = logging.getLogger(__name__)
 
 from app.config import settings
+from app.services.chat_context import _inject_memory_context, _prune_messages_to_budget
 from app.services.llm_providers import (
     _LLM_API_BASE,
     _LLM_API_KEY,
@@ -35,7 +36,6 @@ from app.services.llm_providers import (
 from app.services.memory_citation_service import (
     build_citation_event,
     build_recall_used_event,
-    format_memory_block,
     recall_for_chat,
 )
 from app.services.personal_memory_extractor import (
@@ -872,65 +872,6 @@ async def _get_active_prompt_content(
             await rds.aclose()
 
 
-def _prune_messages_to_budget(messages: list[dict], token_budget: int) -> list[dict]:
-    """Prune conversation messages to fit within a token budget.
-
-    Keeps all system messages at the start and the last 2 user/assistant
-    exchanges (4 messages). If the total estimated tokens exceed the budget,
-    replaces the middle conversation messages with a summary placeholder.
-
-    Estimates tokens at ~4 chars per token.
-    """
-    if not messages or token_budget <= 0:
-        return messages
-
-    def _estimate_tokens(msgs: list[dict]) -> int:
-        return sum(len(m.get("content", "") or "") // 4 for m in msgs)
-
-    if _estimate_tokens(messages) <= token_budget:
-        return messages
-
-    # Separate system messages from conversation messages
-    system_msgs: list[dict] = []
-    conv_msgs: list[dict] = []
-    for m in messages:
-        if m.get("role") == "system":
-            system_msgs.append(m)
-        else:
-            conv_msgs.append(m)
-
-    if len(conv_msgs) <= 4:
-        return messages  # Too few messages to prune
-
-    # Keep last 4 conversation messages (2 user/assistant pairs)
-    tail = conv_msgs[-4:]
-    head = conv_msgs[:-4]
-
-    # Check if head + tail already fits
-    budget_after_system = token_budget - _estimate_tokens(system_msgs)
-    if _estimate_tokens(tail) >= budget_after_system:
-        return system_msgs + tail
-
-    # Keep as many head messages as will fit, then add placeholder
-    remaining_budget = budget_after_system - _estimate_tokens(tail)
-    kept_head: list[dict] = []
-    for m in head:
-        m_tokens = _estimate_tokens([m])
-        if _estimate_tokens(kept_head) + m_tokens <= remaining_budget:
-            kept_head.append(m)
-        else:
-            break
-
-    placeholder = {
-        "role": "system",
-        "content": "[Earlier conversation omitted for context length."
-        + (f" {len(head) - len(kept_head)} messages pruned." if len(head) > len(kept_head) else "")
-        + "]",
-    }
-
-    return system_msgs + kept_head + [placeholder] + tail
-
-
 async def _build_chat_messages(
     db: AsyncSession,
     thread_id: int,
@@ -985,29 +926,6 @@ async def _build_chat_messages(
     if settings.CHAT_CONTEXT_PRUNING_ENABLED:
         messages = _prune_messages_to_budget(messages, settings.CHAT_CONTEXT_TOKEN_BUDGET)
 
-    return messages
-
-
-def _inject_memory_context(
-    messages: list[dict],
-    claims: list[PersonalMemoryClaim],
-) -> list[dict]:
-    """Insert a system message containing the recalled-memory context.
-
-    No-op when ``claims`` is empty. The memory message is inserted at
-    index 1 (right after the existing system prompt at index 0) so the
-    LLM sees it before the conversation history. This is the chat-side
-    half of plan §3 (Pre-LLM injection) — the LLM is told what was
-    recalled; the citation chips are rendered by the frontend from the
-    ``memory_recall_used`` SSE event metadata (not parsed from the LLM's
-    text). See plan §2 "Critical Design Principle".
-    """
-    if not claims:
-        return messages
-    block = format_memory_block(claims)
-    if not block:
-        return messages
-    messages.insert(1, {"role": "system", "content": block})
     return messages
 
 
