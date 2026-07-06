@@ -34,6 +34,15 @@ if TYPE_CHECKING:
 
     from app.models.personal_memory_models import PersonalMemoryClaim
 
+
+async def _safe_fire_and_forget(coro, *, label: str) -> None:
+    """Wrap a fire-and-forget coroutine so exceptions are logged, not silently dropped."""
+    try:
+        await coro
+    except Exception:
+        logger.exception("fire-and-forget task failed: %s", label)
+
+
 PROVIDER_MAP = {
     "deepseek": ("https://api.deepseek.com/v1", "DEEPSEEK_API_KEY"),
     "zhipuai": ("https://open.bigmodel.cn/api/paas/v4", "ZHIPUAI_API_KEY"),
@@ -473,15 +482,18 @@ async def require_chat_thread_access(
                     from app.api.middleware.audit import log_event
 
                     asyncio.create_task(
-                        log_event(
-                            user_id=user_id,
-                            action="entity.access_denied",
-                            details={
-                                "entity_type": "chat_thread",
-                                "entity_id": str(thread_id),
-                                "workspace_id": str(thread.workspace_id),
-                                "reason": "no_membership",
-                            },
+                        _safe_fire_and_forget(
+                            log_event(
+                                user_id=user_id,
+                                action="entity.access_denied",
+                                details={
+                                    "entity_type": "chat_thread",
+                                    "entity_id": str(thread_id),
+                                    "workspace_id": str(thread.workspace_id),
+                                    "reason": "no_membership",
+                                },
+                            ),
+                            label="access_denied_audit_no_membership",
                         )
                     )
                 except Exception:
@@ -503,14 +515,17 @@ async def require_chat_thread_access(
                 from app.api.middleware.audit import log_event
 
                 asyncio.create_task(
-                    log_event(
-                        user_id=user_id,
-                        action="entity.access_denied",
-                        details={
-                            "entity_type": "chat_thread",
-                            "entity_id": str(thread_id),
-                            "reason": "owner_mismatch",
-                        },
+                    _safe_fire_and_forget(
+                        log_event(
+                            user_id=user_id,
+                            action="entity.access_denied",
+                            details={
+                                "entity_type": "chat_thread",
+                                "entity_id": str(thread_id),
+                                "reason": "owner_mismatch",
+                            },
+                        ),
+                        label="access_denied_audit_owner_mismatch",
                     )
                 )
             except Exception:
@@ -987,6 +1002,65 @@ async def _get_active_prompt_content(
             await rds.aclose()
 
 
+def _prune_messages_to_budget(messages: list[dict], token_budget: int) -> list[dict]:
+    """Prune conversation messages to fit within a token budget.
+
+    Keeps all system messages at the start and the last 2 user/assistant
+    exchanges (4 messages). If the total estimated tokens exceed the budget,
+    replaces the middle conversation messages with a summary placeholder.
+
+    Estimates tokens at ~4 chars per token.
+    """
+    if not messages or token_budget <= 0:
+        return messages
+
+    def _estimate_tokens(msgs: list[dict]) -> int:
+        return sum(len(m.get("content", "") or "") // 4 for m in msgs)
+
+    if _estimate_tokens(messages) <= token_budget:
+        return messages
+
+    # Separate system messages from conversation messages
+    system_msgs: list[dict] = []
+    conv_msgs: list[dict] = []
+    for m in messages:
+        if m.get("role") == "system":
+            system_msgs.append(m)
+        else:
+            conv_msgs.append(m)
+
+    if len(conv_msgs) <= 4:
+        return messages  # Too few messages to prune
+
+    # Keep last 4 conversation messages (2 user/assistant pairs)
+    tail = conv_msgs[-4:]
+    head = conv_msgs[:-4]
+
+    # Check if head + tail already fits
+    budget_after_system = token_budget - _estimate_tokens(system_msgs)
+    if _estimate_tokens(tail) >= budget_after_system:
+        return system_msgs + tail
+
+    # Keep as many head messages as will fit, then add placeholder
+    remaining_budget = budget_after_system - _estimate_tokens(tail)
+    kept_head: list[dict] = []
+    for m in head:
+        m_tokens = _estimate_tokens([m])
+        if _estimate_tokens(kept_head) + m_tokens <= remaining_budget:
+            kept_head.append(m)
+        else:
+            break
+
+    placeholder = {
+        "role": "system",
+        "content": "[Earlier conversation omitted for context length."
+        + (f" {len(head) - len(kept_head)} messages pruned." if len(head) > len(kept_head) else "")
+        + "]",
+    }
+
+    return system_msgs + kept_head + [placeholder] + tail
+
+
 async def _build_chat_messages(
     db: AsyncSession,
     thread_id: int,
@@ -1036,6 +1110,10 @@ async def _build_chat_messages(
     messages.extend(
         {"role": msg.role, "content": msg.content} for msg in recent_messages if msg.role in ("user", "assistant")
     )
+
+    # Phase 2.1: token-budget pruning (keeps first+last, replaces middle)
+    if settings.CHAT_CONTEXT_PRUNING_ENABLED:
+        messages = _prune_messages_to_budget(messages, settings.CHAT_CONTEXT_TOKEN_BUDGET)
 
     return messages
 
@@ -1326,7 +1404,7 @@ def _record_tool_cost_fire_and_forget(
         except Exception as e:
             logger.debug("tool_cost_tracking_failed tool=%s error=%s", tool_name, e)
 
-    asyncio.create_task(_run())
+    asyncio.create_task(_safe_fire_and_forget(_run(), label="tool_cost_recording"))
 
 
 async def send_message_to_llm(
@@ -1561,12 +1639,15 @@ async def send_message_to_llm(
         import asyncio
 
         asyncio.create_task(
-            _maybe_extract_memory_claims(
-                db=db,
-                thread_id=thread_id,
-                user_id=user_id,
-                user_message=content,
-                assistant_response=assistant_content,
+            _safe_fire_and_forget(
+                _maybe_extract_memory_claims(
+                    db=db,
+                    thread_id=thread_id,
+                    user_id=user_id,
+                    user_message=content,
+                    assistant_response=assistant_content,
+                ),
+                label="memory_extraction",
             )
         )
 
@@ -2148,12 +2229,15 @@ async def stream_message_to_llm(
         import asyncio
 
         asyncio.create_task(
-            _maybe_extract_memory_claims(
-                db=db,
-                thread_id=thread_id,
-                user_id=user_id,
-                user_message=content,
-                assistant_response=full_response,
+            _safe_fire_and_forget(
+                _maybe_extract_memory_claims(
+                    db=db,
+                    thread_id=thread_id,
+                    user_id=user_id,
+                    user_message=content,
+                    assistant_response=full_response,
+                ),
+                label="memory_extraction_streaming",
             )
         )
 

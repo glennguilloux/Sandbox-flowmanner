@@ -278,6 +278,13 @@ class Settings(BaseSettings):
     # Per-tenant or per-user override is intentionally NOT in scope for T33.
     CHAT_MEMORY_CITATIONS_ENABLED: bool = False
 
+    # T2.1 — Context window token-budget pruning.
+    # When enabled, _build_chat_messages applies token-budget pruning
+    # after the count-based max_history cap. Keeps beginning + end of
+    # conversation, replaces middle with a placeholder.
+    CHAT_CONTEXT_PRUNING_ENABLED: bool = True
+    CHAT_CONTEXT_TOKEN_BUDGET: int = 6000
+
     # Q1-A: Worker lease integration
     FLOWMANNER_LEASE_ENABLED: bool = True
     FLOWMANNER_LEASE_RECLAIMER_ENABLED: bool = True
