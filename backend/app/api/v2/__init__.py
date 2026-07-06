@@ -109,4 +109,9 @@ from app.api.v2.eval_runs import router as eval_runs_router
 
 api_v2_router.include_router(eval_runs_router)
 
+# Contact form — public endpoint for submitting inquiries
+from app.api.v2.contact import router as contact_router
+
+api_v2_router.include_router(contact_router)
+
 logger.info("API v2 router initialized — %d sub-routers", len(api_v2_router.routes))

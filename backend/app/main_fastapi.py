@@ -474,12 +474,22 @@ async def get_stats():
             )
             avg_dur = dur_rows.scalar() or 0.0
 
+            # Aggregate total tokens from LLMCallRecord
+            from app.models.llm_call_record import LLMCallRecord as _LLMCR
+
+            tok_rows = await session.execute(
+                select(
+                    func.coalesce(func.sum(_LLMCR.prompt_tokens + _LLMCR.completion_tokens), 0).label("total_tokens")
+                )
+            )
+            total_tokens = tok_rows.scalar() or 0
+
             return {
                 "total_runs": total,
                 "successful_runs": success,
                 "failed_runs": row.failed or 0,
                 "avg_duration_ms": int(float(avg_dur) * 1000),
-                "total_tokens": 0,  # TODO: aggregate from LLMCallRecord table
+                "total_tokens": total_tokens,
             }
     except Exception:
         return {

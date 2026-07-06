@@ -4,17 +4,14 @@ Mirrors the structure of ``_mission_cqrs/commands.py``.  All single-commit
 mutations go through ``wrap_command()`` so the unit-of-work is bounded
 to a single ``commit()`` / ``rollback()``.
 
-The ``fire_program`` and ``consolidate`` command paths are explicitly
-guarded against ``NotImplementedError`` from the T5 service stubs; they
-re-raise the stub failure as a ``ProgramError`` so the HTTP layer maps
-it to a 501 (not yet implemented) — this keeps the public surface
-stable while T8 / T9 land.
+``fire_program`` (T8) and ``consolidate`` (T9) are fully implemented in
+``MissionProgramService``.  The command handlers delegate directly with
+audit logging for traceability.
 """
 
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import TYPE_CHECKING
 
 from app.schemas.program import (
@@ -35,6 +32,8 @@ from .errors import map_program_infra_error
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    import uuid
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -102,29 +101,19 @@ class ProgramCommandHandlers(CommandHandlerBase):
         trigger_type: str = "manual",
         trigger_payload: dict | None = None,
     ) -> ProgramRunResponse:
-        """Trigger a program run.
+        """Trigger a program run (T8 — fully implemented).
 
-        ``fire_program`` is implemented in T8 — the T5 stub raises
-        ``NotImplementedError``.  We surface that as a ``ProgramError``
-        so the HTTP layer returns 501 (stable surface area).
+        Creates a Mission + ProgramRun, dispatches to UnifiedExecutor,
+        tracks cost/tokens/duration, and returns ProgramRunResponse.
         """
         service = self._build_service()
-        try:
-            run = await service.fire_program(
-                user.id,
-                program_id,
-                trigger_type=trigger_type,
-                trigger_payload=trigger_payload,
-            )
-        except NotImplementedError as exc:
-            # T8 will replace this stub; until then, return a domain error
-            # so the route can map to 501.
-            raise ProgramError(
-                f"fire_program is not yet implemented (idempotency_key={idempotency_key})"
-            ) from exc
-        # Thread idempotency_key into the audit so duplicate fires are
-        # correlated in the log stream (idempotency is enforced at the
-        # HTTP layer; the audit is for traceability).
+        run = await service.fire_program(
+            user.id,
+            program_id,
+            trigger_type=trigger_type,
+            trigger_payload=trigger_payload,
+        )
+        # Audit (non-blocking) — correlated via idempotency_key
         if self.audit is not None and hasattr(self.audit, "program_fired"):
             try:
                 self.audit.program_fired(
@@ -147,22 +136,14 @@ class ProgramCommandHandlers(CommandHandlerBase):
         idempotency_key: str,
         limit: int = 10,
     ) -> ConsolidateResponse:
-        """Consolidate recent runs into the learning brief.
+        """Consolidate recent runs into the learning brief (T9 — fully implemented).
 
-        ``consolidate_learning`` is implemented in T9 — the T5 stub
-        raises ``NotImplementedError``.  We surface that as a
-        ``ProgramError`` so the HTTP layer returns 501.
+        Queries terminal runs, fetches episodic memory summaries, calls
+        BudgetEnforcer for LLM synthesis, merges learning brief, and persists.
         """
         service = self._build_service()
-        try:
-            result = await service.consolidate_learning(
-                user.id, program_id, limit=limit
-            )
-        except NotImplementedError as exc:
-            raise ProgramError(
-                f"consolidate is not yet implemented (idempotency_key={idempotency_key})"
-            ) from exc
-        # Audit the consolidation for traceability.
+        result = await service.consolidate_learning(user.id, program_id, limit=limit)
+        # Audit (non-blocking) — correlated via idempotency_key
         if self.audit is not None and hasattr(self.audit, "program_consolidated"):
             try:
                 self.audit.program_consolidated(
