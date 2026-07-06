@@ -88,7 +88,14 @@ async def lifespan(app):
     # === SHUTDOWN ===
     logger.info("Application shutting down...")
 
-    # Graceful Langfuse shutdown
+    # Task 3.3: drain BackgroundTaskManager (ref-held ephemeral tasks)
+    try:
+        from app.services.background_task_manager import background_task_manager
+
+        await background_task_manager.drain(timeout=5.0)
+    except Exception as e:
+        logger.debug("BackgroundTaskManager drain error (non-fatal): %s", e)
+
     # Stop playground cleanup task (Phase 4)
     _stop_playground_cleanup()
 

@@ -308,24 +308,21 @@ async def require_chat_thread_access(
                     thread.workspace_id,
                 )
                 try:
-                    import asyncio
-
                     from app.api.middleware.audit import log_event
+                    from app.services.background_task_manager import background_task_manager
 
-                    asyncio.create_task(
-                        _safe_fire_and_forget(
-                            log_event(
-                                user_id=user_id,
-                                action="entity.access_denied",
-                                details={
-                                    "entity_type": "chat_thread",
-                                    "entity_id": str(thread_id),
-                                    "workspace_id": str(thread.workspace_id),
-                                    "reason": "no_membership",
-                                },
-                            ),
-                            label="access_denied_audit_no_membership",
-                        )
+                    background_task_manager.spawn(
+                        log_event(
+                            user_id=user_id,
+                            action="entity.access_denied",
+                            details={
+                                "entity_type": "chat_thread",
+                                "entity_id": str(thread_id),
+                                "workspace_id": str(thread.workspace_id),
+                                "reason": "no_membership",
+                            },
+                        ),
+                        label="access_denied_audit_no_membership",
                     )
                 except Exception:
                     pass
@@ -341,23 +338,20 @@ async def require_chat_thread_access(
                 thread.user_id,
             )
             try:
-                import asyncio
-
                 from app.api.middleware.audit import log_event
+                from app.services.background_task_manager import background_task_manager
 
-                asyncio.create_task(
-                    _safe_fire_and_forget(
-                        log_event(
-                            user_id=user_id,
-                            action="entity.access_denied",
-                            details={
-                                "entity_type": "chat_thread",
-                                "entity_id": str(thread_id),
-                                "reason": "owner_mismatch",
-                            },
-                        ),
-                        label="access_denied_audit_owner_mismatch",
-                    )
+                background_task_manager.spawn(
+                    log_event(
+                        user_id=user_id,
+                        action="entity.access_denied",
+                        details={
+                            "entity_type": "chat_thread",
+                            "entity_id": str(thread_id),
+                            "reason": "owner_mismatch",
+                        },
+                    ),
+                    label="access_denied_audit_owner_mismatch",
                 )
             except Exception:
                 pass
@@ -1153,7 +1147,9 @@ def _record_tool_cost_fire_and_forget(
         except Exception as e:
             logger.debug("tool_cost_tracking_failed tool=%s error=%s", tool_name, e)
 
-    asyncio.create_task(_safe_fire_and_forget(_run(), label="tool_cost_recording"))
+    from app.services.background_task_manager import background_task_manager
+
+    background_task_manager.spawn(_run(), label="tool_cost_recording")
 
 
 async def send_message_to_llm(
