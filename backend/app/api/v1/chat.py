@@ -45,6 +45,7 @@ from app.services.chat_service import (
     stream_message_to_llm,
     update_chat_thread,
 )
+from app.services.sse_buffer import get_stream_buffer, replay_from_buffer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -383,17 +384,20 @@ async def chat_with_llm_stream(
 
     requested_model = payload.model_id or payload.model or _get_model_preference(thread)
 
+    # Task 1.2b: wrap with get_stream_buffer for Redis event replay
     return StreamingResponse(
-        _sse_stream(
-            stream_message_to_llm(
-                db,
-                thread_id,
-                payload.content,
-                user.id,
-                _get_model_preference(thread),
-                user_api_key=user_api_key,
-                user_base_url=user_base_url,
-                model_id=requested_model,
+        get_stream_buffer(
+            _sse_stream(
+                stream_message_to_llm(
+                    db,
+                    thread_id,
+                    payload.content,
+                    user.id,
+                    _get_model_preference(thread),
+                    user_api_key=user_api_key,
+                    user_base_url=user_base_url,
+                    model_id=requested_model,
+                )
             )
         ),
         media_type="text/event-stream",
@@ -403,6 +407,24 @@ async def chat_with_llm_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ── SSE stream replay endpoint (Task 1.2b) ──────────────────────────
+
+
+@router.get("/streams/{stream_id}/replay")
+async def replay_stream(
+    stream_id: str,
+    since: int = Query(0, ge=0, description="Replay events with seq > since"),
+):
+    """Replay buffered SSE events for a stream (for client reconnection).
+
+    Returns 404 if the buffer has expired (TTL 5min) or never existed.
+    """
+    events = await replay_from_buffer(stream_id, since_seq=since)
+    if events is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stream buffer not found or expired")
+    return {"events": events, "stream_id": stream_id}
 
 
 # Export endpoint
