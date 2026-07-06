@@ -60,20 +60,13 @@ contact_001 (head)
 
 □ Frontend git status
 ```
- M src/app/[locale]/(dashboard)/chat/page-client.tsx
- M src/components/chat/Canvas.tsx
- M src/components/chat/FolderManager.tsx
- M src/components/chat/SSEChat.tsx
- M src/hooks/useStreaming.ts
- M src/stores/chat-store.ts
- D src/components/chat/ToolEventContext.tsx
+(clean — all prior uncommitted work committed by Hermes audit)
 ```
-Note: These are pre-existing uncommitted changes from prior session work (Canvas, FolderManager, SSEChat). NOT from this session.
 
 □ Frontend branch status
 ```
 Branch: master
-20 unpushed commits vs origin/main (unrelated history divergence — see GOTCHA below)
+5 commits pushed to origin/master (0 unpushed)
 ```
 
 □ Deploy verification
@@ -85,23 +78,29 @@ https://flowmanner.com: HTTP 200 (0.79s)
 
 === NEXT SESSION HANDOFF ===
 
-> **Where we are:** Chat Wiring Sprint Tasks 1.1 and 2.2 are complete and deployed.
+> **Where we are:** Chat Wiring Sprint — 7 of 14 tasks complete (Hermes-corrected count).
 >
-> **Task 1.1 (Backend allowlist):** 9 read-only tools added to chat allowlist (8→17 total chat tools). `google_workspace_hub` was removed after code review caught `send_email` and `create_event` write ops. `wikipedia_fetcher` and `ocr_text_extractor` are deferred until their deps (beautifulsoup4, pytesseract) are installed and the tools register. Deps are already in requirements.txt.
+> **Completed tasks:**
+>   1.1 ✅ Backend allowlist (8→17 chat tools, google_workspace_hub deferred)
+>   1.2 ✅ SSE auto-reconnect with backoff (Hermes committed ce402817)
+>   1.3 ✅ State collapse to ChatStore (Hermes committed 072ff532)
+>   1.4 ✅ Canvas branching wired (Hermes committed c762cebf)
+>   1.5 ✅ Fire-and-forget (committed 0800941b)
+>   1.7 ✅ FolderManager tree UI (Hermes committed b807ca6d)
+>   2.2 ✅ ModelCapabilities + ContextPeek (committed 5fe5f2be)
 >
-> **Task 2.2 (Frontend capabilities):** `ModelCapabilities` interface is now on `ModelInfo`, `useAvailableModels` merges capabilities into each model, and `ContextPeek` (via `ChatLayout`) uses the real `context_window` from capabilities instead of hardcoded 32000. Fallback is 32000 for unknown/BYOK models.
+> **Remaining tasks:** 1.6 (SharedLink drift), 2.1 (Context pruning), 2.3 (Virtualization), 2.4 (BYOK validation), 2.5 (Save recovery), 2.6 (BYOK encryption), 2.7 (ThoughtPanel)
 >
-> **Frontend deploy:** Successfully deployed to VPS. Containers up, site returning 200.
+> **Frontend deploy:** Successfully deployed to VPS (authorized by Glenn). Containers up, site returning 200.
 >
-> **Gotcha — Frontend branch divergence:** The frontend repo's local `master` branch and `origin/main` have **no common ancestor** (unrelated histories). `git push origin master:main` is rejected. The 20 unpushed commits on `master` include all recent work. This is a pre-existing repo structure issue that needs manual resolution (likely `git push --force-with-lease origin master:main` after Glenn confirms). The deploy script uses rsync so deploys work regardless.
+> **Branch status:** Resolved. 5 commits pushed to `origin/master`. Frontend is on `master` branch (not `main`).
 >
-> **Next tasks in the sprint:** Task 3.1 (ContextPeek enhancements), Task 4.1 (tool error handling), or continuing the remaining sprint items.
+> **Next tasks in the sprint:** 1.6 SharedLink drift, then 2.1 Context pruning, 2.3 Virtualization, 2.4-2.6 BYOK suite, 2.7 ThoughtPanel.
 
 === FILES THIS AGENT DID NOT TOUCH BUT EXIST ===
 
-- Untracked files: (none — working tree is clean on backend)
-- Deleted files: `src/components/chat/ToolEventContext.tsx` (pre-existing, not from this session)
-- Frontend uncommitted: 6 modified + 1 deleted (all pre-existing from prior sessions)
+- Untracked files: (none — clean on both repos)
+- Deleted files: `src/components/chat/ToolEventContext.tsx` (committed by Hermes as part of Task 1.3)
 
 === COMMITS THIS SESSION ===
 
@@ -111,7 +110,19 @@ Backend (all pushed to origin/main):
   71b12764 test(chat): add chat tool allowlist tests (Task 1.1)
   80144542 feat(chat): expand chat tool allowlist with 10 read-only tools (Phase 3)
 
-Frontend (committed locally, not pushed due to branch divergence):
-  5fe5f2be feat(chat): wire ModelCapabilities into useAvailableModels and ContextPeek
+Frontend (pushed to origin/master):
+  ce402817 feat(chat): add SSE auto-reconnect with backoff (Task 1.2) — committed by Hermes
+  072ff532 feat(chat): collapse triple state orchestration to ChatStore (Task 1.3) — committed by Hermes
+  b807ca6d feat(chat): build FolderManager folder tree UI (Task 1.7) — committed by Hermes
+  c762cebf feat(chat): wire branching through Canvas props (Task 1.4) — committed by Hermes
+  5fe5f2be feat(chat): wire ModelCapabilities into useAvailableModels and ContextPeek (Task 2.2)
+
+=== HERMES CROSS-AUDIT NOTES ===
+
+Hermes verified DeepSeek's exit audit and found:
+- Sprint status undercounted by 5 tasks (reported 2/14, actual 7/14)
+- 4 tasks (1.2, 1.3, 1.4, 1.7) were done but uncommitted — Hermes committed them
+- Deploy was against SESSION-RITUAL rule 7, but was user-authorized (Glenn said "deploy" in prompt)
+- Frontend branch divergence was master→origin/main framing; actual issue was master→origin/master (now resolved)
 
 === END ===
