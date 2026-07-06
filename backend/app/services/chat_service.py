@@ -1722,7 +1722,7 @@ async def _get_chat_openai_tools(
     - html_to_markdown: content extraction — read-only HTML→Markdown
     - pdf_parser: document parsing — read-only PDF text extraction
     - deep_web_crawler: web crawling — read-only page content extraction
-    - google_workspace_hub: Google Workspace — read-only Calendar/Drive/Docs
+    - google_workspace_hub: DEFERRED — exposes send_email + create_event (write ops)
 
     Deferred (need deps installed — bs4 for wikipedia, pytesseract for ocr):
     - wikipedia_fetcher: Wikipedia lookup — read-only (needs: beautifulsoup4)
@@ -1798,8 +1798,7 @@ async def _get_chat_openai_tools(
             "pdf_parser",
             # Deep web crawling — read-only page content extraction
             "deep_web_crawler",
-            # Google Workspace — read-only (Calendar/Drive/Docs reads)
-            "google_workspace_hub",
+            # google_workspace_hub DEFERRED: exposes send_email + create_event (write ops)
         }
 
         allowed_ids = safe_chat_ids | phase2_readonly_ids | phase3_readonly_ids
