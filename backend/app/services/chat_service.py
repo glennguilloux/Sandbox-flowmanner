@@ -441,9 +441,9 @@ async def create_chat_message_fresh_session(
     underlying asyncpg connection).  The session is committed by the
     context manager on successful exit.
     """
-    from app.database import AsyncSessionLocal
+    from app.database import fresh_session
 
-    async with AsyncSessionLocal() as fresh_db:
+    async with fresh_session() as fresh_db:
         msg = ChatMessage(thread_id=thread_id, role=role, content=content)
         if user_id is not None:
             msg.user_id = user_id
@@ -918,9 +918,9 @@ async def _maybe_extract_memory_claims(
     import asyncio
 
     try:
-        from app.database import AsyncSessionLocal
+        from app.database import fresh_session
 
-        async with AsyncSessionLocal() as fresh_db:
+        async with fresh_session() as fresh_db:
             # Need workspace_id from the thread.
             thread = await get_chat_thread(fresh_db, thread_id)
             if thread is None or not thread.workspace_id:
@@ -1091,7 +1091,7 @@ async def _maybe_extract_memory_claims(
                         create_err,
                     )
 
-            await fresh_db.commit()
+            # fresh_session() commits on successful exit
 
             # ── Record extraction metrics ───────────────────────────
             from app.core.metrics import record_memory_extraction
@@ -1138,10 +1138,10 @@ def _record_tool_cost_fire_and_forget(
 
     async def _run() -> None:
         try:
-            from app.database import AsyncSessionLocal
+            from app.database import fresh_session
             from app.services.cost_tracker import get_cost_tracker
 
-            async with AsyncSessionLocal() as fresh_db:
+            async with fresh_session() as fresh_db:
                 await get_cost_tracker().record_tool_call_cost(
                     db=fresh_db,
                     user_id=user_id,
@@ -1149,7 +1149,7 @@ def _record_tool_cost_fire_and_forget(
                     duration_ms=duration_ms,
                     workspace_id=workspace_id,
                 )
-                await fresh_db.commit()
+                # fresh_session() commits on successful exit
         except Exception as e:
             logger.debug("tool_cost_tracking_failed tool=%s error=%s", tool_name, e)
 

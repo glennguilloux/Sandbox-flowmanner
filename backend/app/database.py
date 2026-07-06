@@ -59,3 +59,32 @@ async def get_db():
 
 # Alias for backwards compatibility
 SessionLocal = AsyncSessionLocal
+
+
+# ── Task 2.8: fresh_session() wrapper ───────────────────────────
+# Consolidates the AsyncSessionLocal() pattern used in fire-and-forget
+# contexts (chat_service.py, task workers, etc.).  The wrapper owns its
+# transaction: commit on success, rollback on exception.  The caller
+# does NOT own this transaction — fresh_session is the boundary.
+from contextlib import asynccontextmanager as _asynccontextmanager
+
+
+@_asynccontextmanager
+async def fresh_session():
+    """Open a short-lived AsyncSession that commits on success, rolls back on exception.
+
+    Use this for writes that must NOT hold a transaction open across a long-running
+    operation (LLM stream, tool execution).  The caller does NOT own this transaction —
+    fresh_session does.
+
+    fresh_session() owns its transaction (fresh AsyncSession), so the AGENTS.md §3
+    "no commit in sub-modules" rule does not apply — the wrapper is the transaction
+    boundary, not a sub-module of the caller.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
