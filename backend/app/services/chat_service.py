@@ -191,6 +191,18 @@ _MAX_TOOL_ROUNDS = settings.CHAT_MAX_TOOL_ROUNDS
 
 from app.services.sse_protocol import _CANVAS_UPDATE_TOOLS, _build_canvas_update
 
+# -- SSE keepalive ping (Task 1.2a) -------------------------------------------
+# Defeats proxy idle timeouts during long tool rounds.
+_SSE_KEEPALIVE_INTERVAL = 15  # seconds
+
+
+def _sse_keepalive(last_yield_time: float, now: float) -> str | None:
+    """Return a SSE keepalive comment if enough time has elapsed since the last yield."""
+    if now - last_yield_time > _SSE_KEEPALIVE_INTERVAL:
+        return ": ping\n\n"
+    return None
+
+
 # Initialize AsyncOpenAI client for ZhipuAI (OpenAI-compatible)
 _client = AsyncOpenAI(
     api_key=_LLM_API_KEY,
@@ -1660,11 +1672,17 @@ async def stream_message_to_llm(
     """
     # --- Pre-LLM setup: resolve provider, BYOK lookup, build messages ---
     collected_chunks = []
+    _last_yield = time.monotonic()  # Task 1.2a: keepalive tracking
     raw_model = model_id or model_preference or _LLM_MODEL
     base_url, api_key, model = _resolve_provider(raw_model)
 
     mismatch_error = _validate_byok_key_matches_model(user_api_key, raw_model)
     if mismatch_error:
+        now = time.monotonic()
+        ping = _sse_keepalive(_last_yield, now)
+        if ping:
+            yield ping
+        _last_yield = now
         yield json.dumps({"type": "error", "error": mismatch_error})
         return
 
@@ -1803,6 +1821,11 @@ async def stream_message_to_llm(
                     if delta.content:
                         round_content_chunks.append(delta.content)
                         collected_chunks.append(delta.content)
+                        now = time.monotonic()
+                        ping = _sse_keepalive(_last_yield, now)
+                        if ping:
+                            yield ping
+                        _last_yield = now
                         yield json.dumps({"type": "token", "content": delta.content})
 
                     # Accumulate tool calls from streaming deltas
@@ -1913,6 +1936,13 @@ async def stream_message_to_llm(
                                 "content": tool_result,
                             }
                         )
+
+                    # Task 1.2a: keepalive after tool execution (the longest idle gap)
+                    now = time.monotonic()
+                    ping = _sse_keepalive(_last_yield, now)
+                    if ping:
+                        yield ping
+                        _last_yield = now
 
                     # Loop back for the next LLM call with tool results
                     continue
