@@ -1429,147 +1429,118 @@ async def _get_chat_openai_tools(
 ) -> list[dict] | None:
     """Return chat-safe tools in OpenAI function-calling format, or None if none available.
 
-    Phase 5: now async to support workspace allowlist filtering. When
-    *db* and *workspace_id* are provided, tools not in the workspace
-    allowlist are excluded.  When no allowlist exists for the workspace
-    (or no workspace context), all chat-allowed tools are returned.
+    ADR-001: Computed Allowlist (Task 3.2)
+    --------------------------------------
+    The exposed tool set is computed as the intersection of 3 gates:
 
-    Phase 2 tool allowlist — widened from Phase 1 with documented additions.
+    1. **Visibility gate** (curation):  ``tool.metadata.visibility != "hidden"``
+    2. **Workspace gate** (existing):   workspace allowlist intersects
+    3. **Scope gate** (existing, enforced in ``_execute_tool_call``):
+       ``tool.metadata.required_scopes`` checked against user scopes
 
-    ADR-001: Tool Allowlist Expansion Strategy
-    -------------------------------------------
-    We expand the allowlist incrementally. Each addition must be:
-    1. Non-destructive or gated by workspace-level permissions
-    2. Documented with rationale below
-    3. Tested before widening further
+    Visibility tags are curation, NOT security.  ``required_scopes`` is
+    the security boundary.  Adding tool #47 means tagging it, not editing
+    a set.
 
-    Phase 1 tools (unchanged):
-    - sandboxd_* (6 tools): sandbox preview/exec/file operations — gated by SANDBOXD_ENABLED
-    - web_search_enhanced: web search (read-only, non-destructive)
-    - rag_search: RAG retrieval (read-only, non-destructive)
-    - memory_recall: memory service recall (read-only, non-destructive)
+    Visibility values:
+    - ``default_on``: always exposed (Phase 1 core + sandboxd tools)
+    - ``opt_in``:   exposed when available (Phase 2/3 read-only tools)
+    - ``hidden``:   never exposed in chat (write ops, deferred tools)
 
-    Phase 2 additions (read-only or low-risk):
-    - browser_navigate: browse URLs — read-only, no side effects
-    - browser_extract: extract content from pages — read-only
-    - linear_list_issues: list Linear issues — read-only
-    - linear_get_issue: get single Linear issue — read-only
-    - slack_list_channels: list Slack channels — read-only
-    - slack_read_messages: read Slack messages — read-only
-    - github_list_repos: list GitHub repos — read-only
-    - github_get_repo: get repo details — read-only
-    - github_list_issues: list issues — read-only
-    - github_list_prs: list pull requests — read-only
-
-    Phase 3 additions (read-only tools from internal services):
-    - dall_e_image_gen: image generation — read-only, produces images from prompts
-    - crypto_market_data: market data queries — read-only price/portfolio data
-    - global_news_aggregator: news search — read-only aggregation across sources
-    - arxiv_paper_finder: academic paper search — read-only arXiv queries
-    - google_search_api: web search (additional provider) — read-only
-    - fact_check_validator: claim verification — read-only
-    - html_to_markdown: content extraction — read-only HTML→Markdown
-    - pdf_parser: document parsing — read-only PDF text extraction
-    - deep_web_crawler: web crawling — read-only page content extraction
-    - google_workspace_hub: DEFERRED — exposes send_email + create_event (write ops)
-
-    Previously deferred (deps now installed, added to phase3_readonly_ids):
-    - wikipedia_fetcher: Wikipedia lookup (bs4 now installed)
-    - ocr_text_extractor: image text extraction (pytesseract now installed)
-
-    NOT exposed (future phases — write ops or broad scopes):
-    - linear_create_issue, linear_update_issue → Phase 4 (needs workspace gating)
-    - slack_post_message → Phase 4 (write op)
-    - stripe_* → Phase 5 (financial)
-    - github_manager write ops (create_issue, merge_pr, etc.) → Phase 4
+    The ``_TOOL_VISIBILITY`` map below is a bridge until each tool file
+    declares ``visibility`` in its own ``ToolMetadata``.  Once all 24
+    exposed tools are tagged, this map can be deleted and the function
+    reads ``tool.metadata.visibility`` directly.
     """
     try:
         from app.tools.base import get_tool_registry
 
         registry = get_tool_registry()
 
-        # Core sandboxd tools (gated by SANDBOXD_ENABLED)
-        sandboxd_ids = {
-            "sandboxd_preview",
-            "sandboxd_exec",
-            "sandboxd_file_write",
-            "sandboxd_file_read",
-            "sandboxd_file_list",
-            "sandboxd_serve",
-            # Phase 4: isolated browser sandbox with live noVNC preview
-            "browser_sandbox",
+        # ── Visibility map (bridge until tools are tagged in-file) ───
+        # Task 3.2: maps tool_id → visibility level.
+        # Tools not in this map use ToolMetadata.visibility default
+        # ("opt_in" — safe default: exposed but not auto-on).
+        _TOOL_VISIBILITY: dict[str, str] = {
+            # Phase 1 core: always exposed
+            "web_search_enhanced": "default_on",
+            "rag_search": "default_on",
+            "memory_recall": "default_on",
+            # Phase 2: read-only external service tools
+            "browser_navigate": "default_on",
+            "browser_extract": "default_on",
+            "linear_list_issues": "default_on",
+            "linear_get_issue": "default_on",
+            "slack_list_channels": "default_on",
+            "slack_read_messages": "default_on",
+            "github_list_repos": "default_on",
+            "github_get_repo": "default_on",
+            "github_list_issues": "default_on",
+            "github_list_prs": "default_on",
+            # Phase 3: read-only internal service tools (opt-in candidates)
+            "dall_e_image_gen": "opt_in",
+            "crypto_market_data": "opt_in",
+            "global_news_aggregator": "opt_in",
+            "arxiv_paper_finder": "opt_in",
+            "google_search_api": "opt_in",
+            "fact_check_validator": "opt_in",
+            "html_to_markdown": "opt_in",
+            "pdf_parser": "opt_in",
+            "deep_web_crawler": "opt_in",
+            "wikipedia_fetcher": "opt_in",
+            "ocr_text_extractor": "opt_in",
+            # sandboxd tools: gated by SANDBOXD_ENABLED at query time
+            "sandboxd_preview": "default_on",
+            "sandboxd_exec": "default_on",
+            "sandboxd_file_write": "default_on",
+            "sandboxd_file_read": "default_on",
+            "sandboxd_file_list": "default_on",
+            "sandboxd_serve": "default_on",
+            "browser_sandbox": "default_on",
+            # Hidden: write ops, deferred
+            "google_workspace_hub": "hidden",
+            "gmail_sender": "hidden",
+            "linkedin_publisher": "hidden",
         }
 
-        # Phase 1 safe additions: read-only, non-destructive
-        safe_chat_ids = {
-            "web_search_enhanced",
-            "rag_search",
-            "memory_recall",
-        }
+        # sandboxd tools gated by feature flag
+        _SANDBOXD_IDS = frozenset(
+            {
+                "sandboxd_preview",
+                "sandboxd_exec",
+                "sandboxd_file_write",
+                "sandboxd_file_read",
+                "sandboxd_file_list",
+                "sandboxd_serve",
+                "browser_sandbox",
+            }
+        )
 
-        # Phase 2 additions: read-only tools from external services (ADR-001)
-        phase2_readonly_ids = {
-            # Browser — read-only page navigation and content extraction
-            "browser_navigate",
-            "browser_extract",
-            # Linear — read-only issue listing/reading
-            "linear_list_issues",
-            "linear_get_issue",
-            # Slack — read-only channel/message listing
-            "slack_list_channels",
-            "slack_read_messages",
-            # GitHub — read-only repo/issue/PR listing
-            "github_list_repos",
-            "github_get_repo",
-            "github_list_issues",
-            "github_list_prs",
-        }
+        # ── Compute exposed set ──────────────────────────────────────
+        # Gate 1: visibility != hidden
+        exposed: list = []
+        for tool in registry.list_all():
+            vis = _TOOL_VISIBILITY.get(tool.tool_id, "hidden")
+            if vis == "hidden":
+                continue
+            # Gate 1b: sandboxd tools require feature flag
+            if tool.tool_id in _SANDBOXD_IDS and not settings.SANDBOXD_ENABLED:
+                continue
+            exposed.append(tool)
 
-        # Phase 3 additions: read-only tools from internal services (ADR-001)
-        # All verified non-destructive; each tool's is_destructive flag was
-        # confirmed False during the Chat Wiring Sprint (2026-07-06).
-        phase3_readonly_ids = {
-            # Image generation — read-only, produces images from prompts
-            "dall_e_image_gen",
-            # Market data — read-only price/portfolio queries
-            "crypto_market_data",
-            # News aggregation — read-only search across news sources
-            "global_news_aggregator",
-            # Academic papers — read-only arXiv search
-            "arxiv_paper_finder",
-            # Web search (additional provider) — read-only
-            "google_search_api",
-            # Fact-checking — read-only claim verification
-            "fact_check_validator",
-            # Content extraction — read-only HTML→Markdown conversion
-            "html_to_markdown",
-            # Document parsing — read-only PDF text extraction
-            "pdf_parser",
-            # Deep web crawling — read-only page content extraction
-            "deep_web_crawler",
-            # Wikipedia lookup — read-only (bs4 dep now installed)
-            "wikipedia_fetcher",
-            # OCR text extraction — read-only (pytesseract dep now installed)
-            "ocr_text_extractor",
-            # google_workspace_hub DEFERRED: exposes send_email + create_event (write ops)
-        }
-
-        allowed_ids = safe_chat_ids | phase2_readonly_ids | phase3_readonly_ids
-        if settings.SANDBOXD_ENABLED:
-            allowed_ids = allowed_ids | sandboxd_ids
-
-        # Phase 5: filter by workspace allowlist
-        workspace_allowed: set[str] | None = None
+        # Gate 2: workspace allowlist intersection
         if db is not None and workspace_id:
             from app.models.workspace_models import get_workspace_tool_allowlist
 
             workspace_allowed = await get_workspace_tool_allowlist(db, workspace_id)
+            if workspace_allowed is not None:
+                exposed = [t for t in exposed if t.tool_id in workspace_allowed]
 
-        if workspace_allowed is not None:
-            # Intersect chat-allowed with workspace-allowed
-            allowed_ids = allowed_ids & workspace_allowed
+        # Gate 3 (required_scopes) is enforced in _execute_tool_call,
+        # not here — we expose the tool schema so the LLM can call it,
+        # and the scope check happens at execution time.
 
-        tools = [t.to_openai_schema() for t in registry.list_all() if t.tool_id in allowed_ids]
+        tools = [t.to_openai_schema() for t in exposed]
         return tools or None
     except Exception:
         logger.debug("Failed to get chat tools from registry", exc_info=True)
