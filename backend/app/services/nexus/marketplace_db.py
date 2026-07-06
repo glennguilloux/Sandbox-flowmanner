@@ -670,6 +670,36 @@ class MarketplaceService:
             if not self._db:
                 db.close()
 
+    def uninstall(self, listing_id: str, user_id: str) -> dict:
+        """Uninstall a listing - delete the UserInstallationModel row."""
+        from app.models.models import MarketplaceListingModel, UserInstallationModel
+
+        db = self._get_db()
+        try:
+            installation = (
+                db.query(UserInstallationModel)
+                .filter(
+                    UserInstallationModel.user_id == user_id,
+                    UserInstallationModel.listing_id == listing_id,
+                )
+                .first()
+            )
+            if not installation:
+                return {"success": False, "error": "Not installed"}
+            db.delete(installation)
+            # Decrement install count on listing
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
+            if listing and listing.install_count and listing.install_count > 0:
+                listing.install_count -= 1
+            db.commit()
+            return {"success": True, "message": "Uninstalled"}
+        except Exception as e:
+            db.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            if not self._db:
+                db.close()
+
     async def rate(
         self,
         listing_id: str,
