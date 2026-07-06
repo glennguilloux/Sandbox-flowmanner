@@ -2245,10 +2245,20 @@ async def stream_message_to_llm(
         # Session was closed before LLM call to prevent idle-in-transaction timeout.
         # Always use fresh session for saving.
         assistant_msg: ChatMessage | None = None
-        try:
-            assistant_msg = await create_chat_message_fresh_session(thread_id, "assistant", full_response)
-        except Exception as save_err:
-            logger.warning("stream: assistant message save failed (non-fatal): %s", save_err)
+        # Save with retry (3 attempts, exponential backoff)
+        assistant_msg = None
+        for _attempt in range(3):
+            try:
+                assistant_msg = await create_chat_message_fresh_session(thread_id, "assistant", full_response)
+                break
+            except Exception as save_err:
+                logger.warning("stream: assistant message save attempt %d failed: %s", _attempt + 1, save_err)
+                if _attempt < 2:
+                    await asyncio.sleep(0.5 * (2**_attempt))
+        if assistant_msg is None:
+            logger.error("stream: assistant message save failed after 3 attempts")
+            save_failed_payload = json.dumps({"type": "save_failed", "content": full_response[:500]})
+            yield f"data: {save_failed_payload}\n\n"
 
         # ── T33 Stage 1: emit memory_recall_used events for cited claims ──
         # Emitted AFTER the assistant message is persisted so the frontend
