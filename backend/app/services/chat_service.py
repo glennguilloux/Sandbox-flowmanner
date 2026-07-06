@@ -1724,9 +1724,9 @@ async def _get_chat_openai_tools(
     - deep_web_crawler: web crawling — read-only page content extraction
     - google_workspace_hub: DEFERRED — exposes send_email + create_event (write ops)
 
-    Deferred (need deps installed — bs4 for wikipedia, pytesseract for ocr):
-    - wikipedia_fetcher: Wikipedia lookup — read-only (needs: beautifulsoup4)
-    - ocr_text_extractor: image text extraction — read-only (needs: pytesseract)
+    Previously deferred (deps now installed, added to phase3_readonly_ids):
+    - wikipedia_fetcher: Wikipedia lookup (bs4 now installed)
+    - ocr_text_extractor: image text extraction (pytesseract now installed)
 
     NOT exposed (future phases — write ops or broad scopes):
     - linear_create_issue, linear_update_issue → Phase 4 (needs workspace gating)
@@ -1798,6 +1798,10 @@ async def _get_chat_openai_tools(
             "pdf_parser",
             # Deep web crawling — read-only page content extraction
             "deep_web_crawler",
+            # Wikipedia lookup — read-only (bs4 dep now installed)
+            "wikipedia_fetcher",
+            # OCR text extraction — read-only (pytesseract dep now installed)
+            "ocr_text_extractor",
             # google_workspace_hub DEFERRED: exposes send_email + create_event (write ops)
         }
 

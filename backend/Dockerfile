@@ -57,6 +57,7 @@ RUN apt-get update \
         libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 \
         libxshmfence1 libx11-6 libx11-xcb1 libxcb1 libxext6 \
         libxfixes3 libxrender1 \
+        tesseract-ocr \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

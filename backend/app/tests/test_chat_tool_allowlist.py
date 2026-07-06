@@ -53,6 +53,8 @@ def test_phase3_readonly_tools_present():
         "html_to_markdown",
         "pdf_parser",
         "deep_web_crawler",
+        "wikipedia_fetcher",
+        "ocr_text_extractor",
     }
     # Filter to only tools that are actually registered (may skip if deps missing)
     from app.tools.base import get_tool_registry
