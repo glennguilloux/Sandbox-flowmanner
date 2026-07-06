@@ -9,6 +9,7 @@ signature header are declared in ``PROVIDERS``; the generic
 or the trigger endpoint (``triggers.py``).
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -46,7 +47,7 @@ class ProviderConfig:
     timestamp_header: str = ""  # for replay-protected providers
     max_timestamp_drift: int = 300  # seconds
     # Custom verify function for non-standard schemes
-    custom_verify: Callable[[bytes, dict[str, str], str | None], bool] | None = None
+    custom_verify: Callable[..., bool] | None = None
     # Extracts (event_type, event_id, payload_dict) from the parsed body
     extract_event: Callable[[dict[str, str], dict[str, Any]], tuple[str, str, dict[str, Any]]] = field(
         default=lambda headers, body: ("unknown", "", body),
@@ -148,18 +149,45 @@ def _verify_slack(body: bytes, headers: dict[str, str], secret: str | None) -> b
     return hmac.compare_digest(expected, sig_header)
 
 
-def _verify_twilio(body: bytes, headers: dict[str, str], secret: str | None) -> bool:
-    """Twilio: HMAC-SHA1 of the URL + sorted form params.
+def _verify_twilio(body: bytes, headers: dict[str, str], secret: str | None, request_url: str = "") -> bool:
+    """Twilio HMAC-SHA1 verification.
 
-    TODO: Full HMAC-SHA1 verification requires the request URL + sorted form
-    params (Twilio's signature scheme).  Current implementation checks header
-    presence only.  For production, either pass the request URL through or use
-    Twilio's request validator middleware.
+    Twilio signs webhooks by computing HMAC-SHA1 of the full request URL
+    concatenated with sorted form parameters, using the auth token as key.
     """
     if not secret:
-        return True
+        return True  # Verification disabled (dev/test only)
+
     sig = headers.get("x-twilio-signature", "")
-    return bool(sig)
+    if not sig:
+        return False
+
+    if not request_url:
+        # Fallback: header presence check only (no URL available)
+        return bool(sig)
+
+    # Parse form-encoded body and sort params alphabetically
+    from urllib.parse import parse_qs
+
+    body_str = body.decode("utf-8") if body else ""
+    params = parse_qs(body_str)
+    flat_params = {k: v[0] for k, v in params.items()}
+    sorted_params = "".join(f"{k}{v}" for k, v in sorted(flat_params.items()))
+
+    # Build signed string: URL + sorted params
+    signed_string = request_url + sorted_params
+
+    # HMAC-SHA1 with the Twilio auth token
+    expected = base64.b64encode(
+        hmac.new(
+            secret.encode("utf-8"),
+            signed_string.encode("utf-8"),
+            hashlib.sha1,
+        ).digest()
+    ).decode("utf-8")
+
+    # Timing-safe comparison
+    return hmac.compare_digest(expected, sig)
 
 
 def _verify_monday(body: bytes, headers: dict[str, str], secret: str | None) -> bool:
@@ -395,7 +423,7 @@ def verify_webhook(
         return True
 
     if config.auth_type == "custom" and config.custom_verify:
-        return config.custom_verify(body, headers, secret)
+        return config.custom_verify(body, headers, secret, str(request.url))
 
     if config.auth_type == "hmac_sha256":
         return _verify_hmac_sha256(body, headers, secret, config.signature_header, config.prefix)
