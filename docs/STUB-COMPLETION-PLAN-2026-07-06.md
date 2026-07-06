@@ -46,10 +46,9 @@ pytest app/tests/ -q                   → 329 passed (last known)
 
 ### 0.1 Commit the 54 modified + 7 untracked frontend files
 
-The dirty work is a `serverFetch` refactor + hook cleanup + sandbox preview
-rework. Gates are green. Commit it before this session's context is lost.
+✅ **DONE** — Committed as `32c11d4b` (`refactor: extract serverFetch helper + modernize data hooks`). 0 dirty files remaining.
 
-**Steps:**
+**Steps (historical):**
 1. `cd /home/glenn/FlowmannerV2-frontend`
 2. Review: `git diff --stat | tail -5` → should show ~54 files, +1238/-1584
 3. Stage tracked changes: `git add -u`
@@ -81,8 +80,7 @@ git log --oneline -1                 # → the commit above
 
 ### 0.2 Triage unmerged branches
 
-13 branches exist (5 local + 8 remote). Most remote branches are 300+ commits
-ahead and likely stale.
+⏳ **PENDING** — 12 remote branches still exist. Task prepared at `.specs/tasks/draft/stub-phase-0.2-branch-triage.md`.
 
 **Decision tree per branch:**
 - If `< 5 commits ahead` and recent → review for merge
