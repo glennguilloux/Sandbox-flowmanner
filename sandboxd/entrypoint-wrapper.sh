@@ -12,11 +12,12 @@
 #      "Permission denied" — which is now OK because we override the
 #      socket path via RUNTIMED_DIR below.
 #
-#   2. Start a static HTTP server on port 8081 in the background, serving
-#      from /home/sandbox/. This makes the worker self-sufficient: the
-#      preview URL works as soon as the container starts, without needing
-#      `sandboxd_serve` or a file write to trigger the session-3 band-aid.
-#      Uses `nohup` + `&` so the server is detached from this shell.
+#   2. Start a static HTTP server on port $SANDBOXD_PREVIEW_PORT (default
+#      8081) in the background, serving from /home/sandbox/. This makes
+#      the worker self-sufficient: the preview URL works as soon as the
+#      container starts, without needing `sandboxd_serve` or a file
+#      write to trigger the session-3 band-aid.  Uses `nohup` + `&` so
+#      the server is detached from this shell.
 #
 #   3. Hand over to runtimed as PID 1. runtimed is the sandboxd runtime
 #      that provides the file API, exec API, etc. for the LLM via the
@@ -44,11 +45,14 @@ mkdir -p /home/sandbox/.runtimed 2>/dev/null || true
 # from erroring out for legacy templates.
 mkdir -p /home/sandbox/workspace/app 2>/dev/null || true
 
-# Start the static HTTP server on port 8081 in the background.
+# Start the static HTTP server on port $SANDBOXD_PREVIEW_PORT (default
+# 8081) in the background.  The same env var is read by the backend
+# (settings.SANDBOXD_PREVIEW_PORT) so the preview URL port matches the
+# server port without a hardcoded constant in two places.
 # `nohup` ignores SIGHUP; `&` puts it in the background; redirecting
 # stdout/stderr to a log file means failures are inspectable after the
 # fact instead of filling the container's stdout (which runtimed owns).
-nohup python3 -m http.server 8081 --directory /home/sandbox/ \
+nohup python3 -m http.server "${SANDBOXD_PREVIEW_PORT:-8081}" --directory /home/sandbox/ \
     >/tmp/http_server.log 2>&1 &
 
 # Hand over to runtimed as PID 1. This replaces the current shell with

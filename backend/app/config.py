@@ -265,6 +265,7 @@ class Settings(BaseSettings):
     SANDBOXD_API_URL: str = "http://127.0.0.1:9090"
     SANDBOXD_AUTH_TOKEN: str = ""
     SANDBOXD_PREVIEW_DOMAIN: str = "preview.flowmanner.com"
+    SANDBOXD_PREVIEW_PORT: int = 8081
     SANDBOXD_ENABLED: bool = True
     SANDBOXD_DEFAULT_TEMPLATE: str = "python-img"
 

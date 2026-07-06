@@ -43,7 +43,10 @@ class SandboxdServeInput(ToolInput):
         ge=1,
         le=65535,
         description=(
-            "Port to serve on (default 8081). Port 8080 is reserved defensively — the default python-img template does not use it, but some legacy templates (e.g., react-standard) may."
+            "Port to serve on. Defaults to settings.SANDBOXD_PREVIEW_PORT "
+            "(8081). Port 8080 is reserved defensively — the default "
+            "python-img template does not use it, but some legacy templates "
+            "(e.g., react-standard) may."
         ),
     )
     directory: str | None = Field(

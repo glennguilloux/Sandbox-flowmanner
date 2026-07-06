@@ -29,10 +29,11 @@ def rewrite_sandboxd_url(url: str, domain: str | None = None) -> str:
     """Rewrite sandboxd localhost URLs to the public preview domain.
 
     Transforms ``http://s-xxx-3000.preview.localhost`` into
-    ``https://s-xxx-8081.preview.flowmanner.com`` — fixing the
-    domain, scheme (public domain has TLS), and port (sandboxd
-    templates may report a stale port like 3000; the actual HTTP
-    server always runs on 8081).
+    ``https://s-xxx-3000.preview.flowmanner.com`` — fixing the domain
+    and scheme (public domain has TLS).  Port normalization (e.g.
+    stripping a stale template port like 3000 in favour of the serve
+    port) is handled by the caller, not here — this function only
+    rewrites the domain and forces HTTPS.
 
     Only rewrites URLs whose host contains ``.preview.`` — plain URLs
     (e.g. ``https://example.com/page``) pass through unchanged.
@@ -191,13 +192,15 @@ class SandboxdClient:
             _raw_preview_url,
             _port,
         )
-        if _port not in ("8081", "(none)"):
+        _expected = str(settings.SANDBOXD_PREVIEW_PORT)
+        if _port not in (_expected, "(none)"):
             logger.warning(
                 "SandboxdClient.get(%s): sandboxd returned port %s "
-                "(not 8081) in preview.url=%r — this will be "
+                "(not %s) in preview.url=%r — this will be "
                 "forwarded to the frontend as-is",
                 sandbox_id,
                 _port,
+                _expected,
                 _raw_preview_url,
             )
 

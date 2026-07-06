@@ -29,11 +29,6 @@ from app.integrations.sandboxd_client import get_sandboxd_client, rewrite_sandbo
 
 logger = logging.getLogger(__name__)
 
-# Port that the sandbox HTTP server actually listens on (started by
-# entrypoint-wrapper.sh and sandboxd_serve tool).  sandboxd templates
-# may report a stale port (e.g. 3000) — we normalise it here.
-_PREVIEW_SERVE_PORT = 8081
-
 # ── Forward-auth response cache ────────────────────────────────────────
 # Traefik hits /api/sandbox/forward-auth on every request to a sandbox
 # preview URL (~13 req/30s).  Caching successful auth results avoids a
@@ -195,9 +190,13 @@ async def get_preview_url(
     # sandboxd_preview.py so the tool and API always agree.
     raw_url = preview.get("url")
     # Normalize stale port: sandboxd templates may report a template
-    # default (e.g. 3000) instead of the actual serve port (8081).
+    # default (e.g. 3000) instead of the actual serve port.  The serve
+    # port is defined in settings.SANDBOXD_PREVIEW_PORT (shared with
+    # entrypoint-wrapper.sh via the SANDBOXD_PREVIEW_PORT env var) so
+    # both layers agree on the canonical port.
+    serve_port = settings.SANDBOXD_PREVIEW_PORT
     if raw_url:
-        raw_url = re.sub(r"-(\d+)(?=\.preview)", f"-{_PREVIEW_SERVE_PORT}", raw_url)
+        raw_url = re.sub(r"-(\d+)(?=\.preview)", f"-{serve_port}", raw_url)
     public_url = rewrite_sandboxd_url(raw_url) if raw_url else None
 
     # ── Debug: trace preview URL port mismatch (hypothesis 1) ──────
@@ -220,12 +219,14 @@ async def get_preview_url(
         _pub_port,
         preview,
     )
-    if _raw_port not in ("8081", "(none)"):
+    _expected_port = str(settings.SANDBOXD_PREVIEW_PORT)
+    if _raw_port not in (_expected_port, "(none)"):
         logger.warning(
-            "sandbox_preview [%s]: sandboxd returned NON-8081 port %s "
+            "sandbox_preview [%s]: sandboxd returned NON-%s port %s "
             "in preview URL: %r — this is the likely root cause of "
             "the port mismatch",
             sandbox_id,
+            _expected_port,
             _raw_port,
             raw_url,
         )

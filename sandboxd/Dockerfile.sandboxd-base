@@ -50,6 +50,12 @@ ENV RUNTIMED_DEV_CMD="python3 -m http.server 3000 --directory /home/sandbox/work
 # its socket there regardless of host permissions.
 ENV RUNTIMED_DIR=/tmp/runtimed
 
+# Port the background http.server listens on (set in entrypoint-wrapper.sh).
+# The backend reads the same env var name (settings.SANDBOXD_PREVIEW_PORT) so
+# both layers agree on the canonical preview port without hardcoding it in
+# two places.
+ENV SANDBOXD_PREVIEW_PORT=8081
+
 # Entrypoint wrapper: see entrypoint-wrapper.sh in this directory.
 # Replaces the previous inline-printf heredoc (extracted to a sibling
 # file because the new logic is ~15 lines, not a one-liner).
