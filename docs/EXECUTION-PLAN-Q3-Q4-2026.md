@@ -128,6 +128,8 @@ git diff --name-only  # must show .py files, not just .md
 
 **Summary.** Migrate the 3 remaining v1 routers that still inline old logic. Write the dual-write decision doc. This completes Phase 2.
 
+> ✅ EXECUTED (2026-07-07): Dual-write fully removed from codebase, dead scripts deleted. Mission is canonical.
+
 **Dependencies:** None (old executors are already deleted; these routers just need rewiring).
 
 **Code surface:**
@@ -358,7 +360,7 @@ git diff --name-only  # must show .py files
 | Phase | Adds | Risk | Weeks | Can parallel? | Status |
 |-------|------|------|-------|---------------|--------|
 | R1: Strategy Profiling + Plan Scorer | Runtime results, DEPRECATED flags, token-based scorer | Most strategies may fail with 27B | 0.5 | Yes | ✅ COMPLETE — 4 strategies gated behind STRATEGY_EXPERIMENTAL=false |
-| R2: Backend Cleanup Completion | 3 routers migrated, dual-write decision doc | Breaking v1 routes | 1 | After R1 (optional) | ✅ COMPLETE — 3 routers skipped (DEPRECATED strategies); dual-write decision doc written |
+| R2: Backend Cleanup Completion | 3 routers migrated, dual-write decision doc, dual-write removed, dead scripts deleted | Breaking v1 routes | 1 | After R1 (optional) | ✅ COMPLETE — 3 routers skipped (DEPRECATED strategies); dual-write decision written, executed, and cleaned up (2026-07-07) |
 | R3: Frontend Standardization | 16 fetch→React Query, E2E verification | Auth token migration | 1 | Yes (parallel to R2) | ✅ COMPLETE — all 15 remaining fetch() calls verified legitimate |
 | R4: Codebase Pruning Completion | ~1,300 LOC removed (domain agents + marketplace) | Removing something imported | 0.2 | Yes | ✅ COMPLETE — ~1,298 LOC removed |
 | R5: Product Depth | Templates gallery, eval dashboard, mission timeline | Building on un-profiled strategies | 2–3 | After R1 + R3 | ✅ COMPLETE — eval dashboard built; templates verified; timeline skipped (replay page covers it) |

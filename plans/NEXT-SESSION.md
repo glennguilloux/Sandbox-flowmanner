@@ -46,7 +46,7 @@
 
 ### Short-Term (Next 1–2 Weeks)
 
-5. **Dual-write removal** — Per `docs/DUAL-WRITE-DECISION.md`, remove the dual-write layer from `_mission_cqrs/commands.py` and delete `DualWriteService`. Keep Blueprint+Run as read model.
+5. ~~**Dual-write removal**~~ ✅ DONE — Per `docs/DUAL-WRITE-DECISION.md`, dual-write layer removed from `_mission_cqrs/commands.py`, `DualWriteService` deleted, dead scripts cleaned up (2026-07-07).
 6. **wt/w2-t6-wire-deploy branch cleanup** — Cherry-pick the 6 deploy-related commits onto main, then delete the branch (per execution plan §5)
 7. **Instrument Redis cache usage sites** — The `workflow_cache.py` is instrumented, but other Redis usage sites (`redis.get`/`redis.set` in services like `memory_service.py`, `dashboard_service.py`) could also benefit from metrics
 

@@ -142,8 +142,7 @@ The deep-dive report listed 30+ recommendations across P0–P5. The following ar
 
 | # | Risk | Prob | Impact | Mitigation | Owner |
 |---|------|------|--------|------------|-------|
-| R1 | 4/7 strategies fail with 27B model | High | Medium | Document, gate behind flag, default to `solo` | Glenn |
-| R2 | Dual-write decision deferred indefinitely | Medium | Medium | Phase 2 produces a recommendation doc; Glenn decides | Glenn |
+| R1 | 4/7 strategies fail with 27B model | High | Medium | Document, gate behind flag, default to `solo` | Glenn | | R2 | ~~Dual-write decision deferred indefinitely~~ ✅ EXECUTED | — | — | Mission canonical, dual-write removed, dead scripts deleted (2026-07-07) | Done |
 | R3 | Pruning breaks a hidden import | Low | Low | grep before delete; AGENTS.md tracks deps | Agent |
 | R4 | Frontend migration introduces auth regressions | Medium | High | E2E tests gate the migration; `apiClient` already handles JWT | Agent |
 | R5 | Improvement loop investigation reveals it IS used | Low | Medium | Keep Phases 1–2, cut 3–6 only | Glenn |

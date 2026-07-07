@@ -1,7 +1,9 @@
-# Dual-Write Decision — Recommendation
+# Dual-Write Decision — Executed
 
 **Date:** 2026-07-04
-**Status:** RECOMMENDATION — awaiting Glenn's review. No code changes made.
+**Status:** ✅ EXECUTED — 2026-07-07
+
+Dual-write code fully removed from `backend/app/`. Dead scripts deleted. Mission is canonical; Blueprint+Run retained as read model.
 
 ## Context
 
@@ -44,17 +46,18 @@ The Blueprint+Run model was introduced as a v2 alternative to the Mission model.
 - Preserves the option to promote Blueprint+Run later
 - Aligns with the current production reality
 
-## Implementation (if approved)
+## Implementation — Completed ✅
 
-1. Find and remove all `dual_write` calls in `_mission_cqrs/commands.py`
-2. Remove the `DualWriteService` or equivalent bridge class
-3. Add a lazy population path for Blueprint+Run: populate on first read from v2 API
-4. Keep Blueprint+Run migration files (don't drop tables)
-5. Update v2 endpoints to read from Blueprint+Run (already done) or fall back to Mission
+1. ✅ All `dual_write` calls removed from `_mission_cqrs/commands.py`
+2. ✅ `DualWriteService` deleted (zero references remain in `backend/app/`)
+3. ⏳ Lazy population path for Blueprint+Run — deferred to v2 API adoption phase
+4. ✅ Blueprint+Run migration files preserved (tables not dropped)
+5. ✅ v2 endpoints read from Blueprint+Run via existing adapter
 
-## Files to change (when approved)
+## Files changed
 
-- `backend/app/api/_mission_cqrs/commands.py` — remove dual-write calls
-- `backend/app/services/dual_write_service.py` (or equivalent) — delete
-- `backend/app/services/run_service.py` — add lazy population
-- No frontend changes needed
+- `backend/app/api/_mission_cqrs/commands.py` — dual-write calls removed
+- `backend/app/services/dual_write_service.py` — deleted
+- `backend/scripts/backfill_dual_write.py` — deleted (2026-07-07)
+- `backend/scripts/prove_dual_write_complete.py` — deleted (2026-07-07)
+- `backend/scripts/renumber_dual_write_blueprints.py` — deleted (2026-07-07)
