@@ -14,6 +14,7 @@ and new critiques only carry a batch when generation succeeds.
 from collections.abc import Sequence
 from typing import Union
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
