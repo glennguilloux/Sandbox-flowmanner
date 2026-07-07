@@ -148,6 +148,7 @@ def _register_custom_tasks() -> None:
         ("swarm_tasks", "swarm.{execute_task, consensus_timeout, agent_heartbeat_check, cost_budget_check}"),
         ("training_tasks", "training.* (7 tasks)"),
         ("eval_run", "evaluation.run_suite  (Phase 6 eval async execution)"),
+        ("memory_extraction_tasks", "memory.extract_claims  (durable memory extraction)"),
     ]
 
     registered_modules: list[str] = []

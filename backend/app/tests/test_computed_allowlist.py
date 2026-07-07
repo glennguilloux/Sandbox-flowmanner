@@ -18,31 +18,35 @@ def mock_registry():
 
     registry = ToolRegistry()
 
-    # default_on tool
+    # default_on tool — explicitly tagged in-file
     t1 = MagicMock(spec=BaseTool)
     t1.tool_id = "web_search_enhanced"
-    t1.metadata = ToolMetadata(tool_id="web_search_enhanced", name="web_search", description="search")
+    t1.metadata = ToolMetadata(
+        tool_id="web_search_enhanced", name="web_search", description="search", visibility="default_on"
+    )
     t1.to_openai_schema.return_value = {"type": "function", "function": {"name": "web_search_enhanced"}}
 
-    # opt_in tool (Phase 3)
+    # opt_in tool (Phase 3) — explicitly tagged in-file
     t2 = MagicMock(spec=BaseTool)
     t2.tool_id = "dall_e_image_gen"
-    t2.metadata = ToolMetadata(tool_id="dall_e_image_gen", name="dall_e", description="image gen")
+    t2.metadata = ToolMetadata(tool_id="dall_e_image_gen", name="dall_e", description="image gen", visibility="opt_in")
     t2.to_openai_schema.return_value = {"type": "function", "function": {"name": "dall_e_image_gen"}}
 
-    # hidden tool (write op)
+    # hidden tool (write op) — explicitly tagged in-file
     t3 = MagicMock(spec=BaseTool)
     t3.tool_id = "slack_post_message"
-    t3.metadata = ToolMetadata(tool_id="slack_post_message", name="slack_post", description="post")
+    t3.metadata = ToolMetadata(tool_id="slack_post_message", name="slack_post", description="post", visibility="hidden")
     t3.to_openai_schema.return_value = {"type": "function", "function": {"name": "slack_post_message"}}
 
-    # sandboxd tool
+    # sandboxd tool — explicitly tagged in-file
     t4 = MagicMock(spec=BaseTool)
     t4.tool_id = "sandboxd_preview"
-    t4.metadata = ToolMetadata(tool_id="sandboxd_preview", name="sandboxd", description="sandbox")
+    t4.metadata = ToolMetadata(
+        tool_id="sandboxd_preview", name="sandboxd", description="sandbox", visibility="default_on"
+    )
     t4.to_openai_schema.return_value = {"type": "function", "function": {"name": "sandboxd_preview"}}
 
-    # Unlisted tool (not in _TOOL_VISIBILITY map)
+    # Unlisted tool — NOT tagged in-file (defaults to hidden)
     t5 = MagicMock(spec=BaseTool)
     t5.tool_id = "some_random_tool"
     t5.metadata = ToolMetadata(tool_id="some_random_tool", name="random", description="random")
@@ -102,7 +106,7 @@ class TestComputedAllowlist:
 
     @pytest.mark.asyncio
     async def test_unlisted_tools_not_exposed(self, mock_registry):
-        """Tools not in _TOOL_VISIBILITY map default to hidden."""
+        """Tools not tagged in-file default to hidden (ToolMetadata default)."""
         from app.services.chat_service import _get_chat_openai_tools
 
         with patch("app.services.chat_service.settings") as mock_settings:

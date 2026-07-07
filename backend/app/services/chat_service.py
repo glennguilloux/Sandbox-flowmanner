@@ -886,7 +886,7 @@ async def _build_chat_messages(
 
 async def _maybe_extract_memory_claims(
     *,
-    db: AsyncSession,
+    db: AsyncSession | None = None,
     thread_id: int,
     user_id: int,
     user_message: str,
@@ -1261,6 +1261,7 @@ async def send_message_to_llm(
             total_prompt_tokens = 0
             total_completion_tokens = 0
             total_total_tokens = 0
+            executed_tools: list[dict] = []  # P0-2: track tool calls for REST response
 
             for _round in range(_MAX_TOOL_ROUNDS):
                 create_kwargs: dict = {
@@ -1315,6 +1316,15 @@ async def send_message_to_llm(
                             tool_name=tc.function.name,
                             duration_ms=(time.time() - _tool_t0) * 1000.0,
                             workspace_id=_workspace_id,
+                        )
+                        # P0-2: track executed tool for REST response
+                        executed_tools.append(
+                            {
+                                "tool": tc.function.name,
+                                "call_id": tc.id,
+                                "arguments": tc.function.arguments,
+                                "result": tool_result,
+                            }
                         )
                         messages_for_llm.append(
                             {
@@ -1380,27 +1390,25 @@ async def send_message_to_llm(
         except Exception as ue:
             logger.warning("Usage recording failed (non-fatal): %s", ue)
 
-        # ── Fire-and-forget memory extraction ───────────────────────
-        import asyncio
+        # ── P0-1: durable memory extraction via Celery ────────────────
+        try:
+            from app.tasks.memory_extraction_tasks import extract_memory_claims_task
 
-        asyncio.create_task(
-            _safe_fire_and_forget(
-                _maybe_extract_memory_claims(
-                    db=db,
-                    thread_id=thread_id,
-                    user_id=user_id,
-                    user_message=content,
-                    assistant_response=assistant_content,
-                ),
-                label="memory_extraction",
+            extract_memory_claims_task.delay(
+                thread_id=thread_id,
+                user_id=user_id,
+                user_message=content,
+                assistant_response=assistant_content,
             )
-        )
+        except Exception:
+            logger.debug("memory_extraction Celery dispatch failed (non-fatal)", exc_info=True)
 
         return {
             "success": True,
             "content": assistant_content,
             "tokens": total_total_tokens,
             "model": model,
+            "tool_calls": executed_tools,
         }
     except CircuitOpenError as e:
         llm_duration = time.time() - llm_start
@@ -1425,79 +1433,27 @@ async def _get_chat_openai_tools(
 ) -> list[dict] | None:
     """Return chat-safe tools in OpenAI function-calling format, or None if none available.
 
-    ADR-001: Computed Allowlist (Task 3.2)
-    --------------------------------------
+    ADR-001: Computed Allowlist (Task 3.2 + P0-3)
+    -----------------------------------------------
     The exposed tool set is computed as the intersection of 3 gates:
 
     1. **Visibility gate** (curation):  ``tool.metadata.visibility != "hidden"``
+       Each tool declares visibility in its own ``ToolMetadata``:
+       - ``default_on``: always exposed (Phase 1 core + sandboxd tools)
+       - ``opt_in``:   exposed when available (Phase 2/3 read-only tools)
+       - ``hidden``:   never exposed in chat (write ops, deferred tools)
     2. **Workspace gate** (existing):   workspace allowlist intersects
     3. **Scope gate** (existing, enforced in ``_execute_tool_call``):
        ``tool.metadata.required_scopes`` checked against user scopes
 
     Visibility tags are curation, NOT security.  ``required_scopes`` is
-    the security boundary.  Adding tool #47 means tagging it, not editing
-    a set.
-
-    Visibility values:
-    - ``default_on``: always exposed (Phase 1 core + sandboxd tools)
-    - ``opt_in``:   exposed when available (Phase 2/3 read-only tools)
-    - ``hidden``:   never exposed in chat (write ops, deferred tools)
-
-    The ``_TOOL_VISIBILITY`` map below is a bridge until each tool file
-    declares ``visibility`` in its own ``ToolMetadata``.  Once all 24
-    exposed tools are tagged, this map can be deleted and the function
-    reads ``tool.metadata.visibility`` directly.
+    the security boundary.  Adding a tool means tagging it in-file,
+    not editing a central set.
     """
     try:
         from app.tools.base import get_tool_registry
 
         registry = get_tool_registry()
-
-        # ── Visibility map (bridge until tools are tagged in-file) ───
-        # Task 3.2: maps tool_id → visibility level.
-        # Tools not in this map use ToolMetadata.visibility default
-        # ("opt_in" — safe default: exposed but not auto-on).
-        _TOOL_VISIBILITY: dict[str, str] = {
-            # Phase 1 core: always exposed
-            "web_search_enhanced": "default_on",
-            "rag_search": "default_on",
-            "memory_recall": "default_on",
-            # Phase 2: read-only external service tools
-            "browser_navigate": "default_on",
-            "browser_extract": "default_on",
-            "linear_list_issues": "default_on",
-            "linear_get_issue": "default_on",
-            "slack_list_channels": "default_on",
-            "slack_read_messages": "default_on",
-            "github_list_repos": "default_on",
-            "github_get_repo": "default_on",
-            "github_list_issues": "default_on",
-            "github_list_prs": "default_on",
-            # Phase 3: read-only internal service tools (opt-in candidates)
-            "dall_e_image_gen": "opt_in",
-            "crypto_market_data": "opt_in",
-            "global_news_aggregator": "opt_in",
-            "arxiv_paper_finder": "opt_in",
-            "google_search_api": "opt_in",
-            "fact_check_validator": "opt_in",
-            "html_to_markdown": "opt_in",
-            "pdf_parser": "opt_in",
-            "deep_web_crawler": "opt_in",
-            "wikipedia_fetcher": "opt_in",
-            "ocr_text_extractor": "opt_in",
-            # sandboxd tools: gated by SANDBOXD_ENABLED at query time
-            "sandboxd_preview": "default_on",
-            "sandboxd_exec": "default_on",
-            "sandboxd_file_write": "default_on",
-            "sandboxd_file_read": "default_on",
-            "sandboxd_file_list": "default_on",
-            "sandboxd_serve": "default_on",
-            "browser_sandbox": "default_on",
-            # Hidden: write ops, deferred
-            "google_workspace_hub": "hidden",
-            "gmail_sender": "hidden",
-            "linkedin_publisher": "hidden",
-        }
 
         # sandboxd tools gated by feature flag
         _SANDBOXD_IDS = frozenset(
@@ -1513,10 +1469,13 @@ async def _get_chat_openai_tools(
         )
 
         # ── Compute exposed set ──────────────────────────────────────
-        # Gate 1: visibility != hidden
+        # P0-3: visibility now read from each tool's ToolMetadata.visibility
+        # (set in-file). Default for untagged tools is "opt_in" (the
+        # ToolMetadata field default), but we fall back to "hidden" for
+        # safety — tools not explicitly tagged should not be exposed.
         exposed: list = []
         for tool in registry.list_all():
-            vis = _TOOL_VISIBILITY.get(tool.tool_id, "hidden")
+            vis = getattr(tool.metadata, "visibility", "hidden") or "hidden"
             if vis == "hidden":
                 continue
             # Gate 1b: sandboxd tools require feature flag
@@ -1978,6 +1937,8 @@ async def stream_message_to_llm(
 
         # Session was closed before LLM call to prevent idle-in-transaction timeout.
         # Always use fresh session for saving.
+        import asyncio
+
         assistant_msg: ChatMessage | None = None
         # Save with retry (3 attempts, exponential backoff)
         assistant_msg = None
@@ -2011,24 +1972,18 @@ async def stream_message_to_llm(
             for claim in memory_recall_claims:
                 yield json.dumps(build_citation_event(claim, message_id=str(assistant_msg.id)))
 
-        # ── Gap 1: fire-and-forget memory extraction ────────────────
-        # Extract personal-memory claims from this exchange in the
-        # background.  Uses a fresh DB session so it is independent of
-        # the caller's (already-closed) session.
-        import asyncio
+        # ── P0-1: durable memory extraction via Celery ────────────────
+        try:
+            from app.tasks.memory_extraction_tasks import extract_memory_claims_task
 
-        asyncio.create_task(
-            _safe_fire_and_forget(
-                _maybe_extract_memory_claims(
-                    db=db,
-                    thread_id=thread_id,
-                    user_id=user_id,
-                    user_message=content,
-                    assistant_response=full_response,
-                ),
-                label="memory_extraction_streaming",
+            extract_memory_claims_task.delay(
+                thread_id=thread_id,
+                user_id=user_id,
+                user_message=content,
+                assistant_response=full_response,
             )
-        )
+        except Exception:
+            logger.debug("memory_extraction Celery dispatch failed (non-fatal)", exc_info=True)
 
         try:
             from app.services.usage_service import get_usage_service

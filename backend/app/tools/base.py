@@ -77,7 +77,7 @@ class ToolMetadata(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     required_scopes: list[str] = Field(default_factory=list, description="Authz scopes needed to call this tool")
     visibility: str = Field(
-        "opt_in",
+        "hidden",
         description="default_on | opt_in | hidden — curation, NOT security. required_scopes is the security boundary.",
     )
     requires_sandbox: bool = Field(False, description="Whether this tool runs in an isolated sandbox container")

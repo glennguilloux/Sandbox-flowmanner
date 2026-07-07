@@ -360,6 +360,7 @@ async def chat_with_llm(
         "model": result["model"],
         "token_count": result.get("token_count"),
         "message_id": result.get("message_id"),
+        "tool_calls": result.get("tool_calls", []),
     }
 
 
