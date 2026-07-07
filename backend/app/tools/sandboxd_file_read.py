@@ -33,6 +33,7 @@ class SandboxdFileReadTool(BaseTool):
 
     def __init__(self) -> None:
         metadata = ToolMetadata(
+            visibility="default_on",
             tool_id="sandboxd_file_read",
             name="Sandboxd File Read",
             description=(

@@ -10,6 +10,7 @@ class BrowserNavigateInput(ToolInput):
 class BrowserNavigateTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="default_on",
             tool_id="browser_navigate",
             name="Navigate Browser",
             description="Navigate a browser to a URL and get the page title and status",

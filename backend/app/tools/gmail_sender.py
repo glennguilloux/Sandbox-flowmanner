@@ -93,6 +93,7 @@ class GmailSenderTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="hidden",
             tool_id="gmail_sender",
             name="Gmail Sender",
             description=(

@@ -213,6 +213,7 @@ class HtmlToMarkdownInput(ToolInput):
 class HtmlToMarkdownTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="opt_in",
             tool_id="html_to_markdown",
             name="HTML to Markdown",
             description="Convert raw HTML pages into clean, LLM-friendly Markdown text",

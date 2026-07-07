@@ -41,6 +41,7 @@ class SandboxdPreviewTool(BaseTool):
 
     def __init__(self) -> None:
         metadata = ToolMetadata(
+            visibility="default_on",
             tool_id="sandboxd_preview",
             name="Sandboxd Preview",
             description=(

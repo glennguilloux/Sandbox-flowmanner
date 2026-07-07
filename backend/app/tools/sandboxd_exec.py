@@ -68,6 +68,7 @@ class SandboxdExecTool(BaseTool):
 
     def __init__(self) -> None:
         metadata = ToolMetadata(
+            visibility="default_on",
             tool_id="sandboxd_exec",
             name="Sandboxd Exec",
             description=(

@@ -93,6 +93,7 @@ class WikipediaFetcherTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="opt_in",
             tool_id="wikipedia_fetcher",
             name="Wikipedia Fetcher",
             description=(

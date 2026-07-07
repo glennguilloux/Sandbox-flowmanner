@@ -90,6 +90,7 @@ class DeepWebCrawlerInput(ToolInput):
 class DeepWebCrawlerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="opt_in",
             tool_id="deep_web_crawler",
             name="Deep Web Crawler",
             description="Autonomous multi-page crawler that follows links based on semantic relevance",

@@ -177,6 +177,7 @@ class BrowserSandboxTool(BaseTool):
 
     def __init__(self) -> None:
         metadata = ToolMetadata(
+            visibility="default_on",
             tool_id="browser_sandbox",
             name="Browser Sandbox",
             description=(

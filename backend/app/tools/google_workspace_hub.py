@@ -50,6 +50,7 @@ class GoogleWorkspaceHubInput(ToolInput):
 class GoogleWorkspaceHubTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="hidden",
             tool_id="google_workspace_hub",
             name="Google Workspace Hub",
             description="Unified access to Gmail, Calendar, and Drive resources",

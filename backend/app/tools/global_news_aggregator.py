@@ -166,6 +166,7 @@ class GlobalNewsAggregatorTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="opt_in",
             tool_id="global_news_aggregator",
             name="Global News Aggregator",
             description=(

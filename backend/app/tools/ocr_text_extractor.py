@@ -69,6 +69,7 @@ class OcrTextExtractorTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="opt_in",
             tool_id="ocr_text_extractor",
             name="OCR Text Extractor",
             description=(

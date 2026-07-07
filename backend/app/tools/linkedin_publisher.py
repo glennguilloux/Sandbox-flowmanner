@@ -85,6 +85,7 @@ class LinkedinPublisherTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
+            visibility="hidden",
             tool_id="linkedin_publisher",
             name="LinkedIn Publisher",
             description=(

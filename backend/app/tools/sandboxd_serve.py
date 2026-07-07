@@ -62,6 +62,7 @@ class SandboxdServeTool(BaseTool):
 
     def __init__(self) -> None:
         metadata = ToolMetadata(
+            visibility="default_on",
             tool_id="sandboxd_serve",
             name="Sandboxd Serve",
             description=(
