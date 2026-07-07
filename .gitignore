@@ -80,14 +80,18 @@ docs/research/
 .sisyphus/exit-audit-*.md
 ?? docs/
 
-# Session artifacts (auto-created by Hermes / LLM agents during sessions)
+# ── Session artifacts (auto-created by Hermes / LLM agents during sessions) ──
 .worktrees/
 .sisyphus/drafts/
 .sisyphus/evidence/
 .sisyphus/plans/
+.sisyphus/analysis/
 docs/DEEP-DIVE-REPORT-*.md
 docs/THE-*.md
 docs/BRAINSTORM-*.md
 docs/EXIT-AUDIT-*.md
 docs/research/
 .pnpm-store/
+
+# ── Planning / analysis docs (working artifacts, not deploy source) ──
+plans/
