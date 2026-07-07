@@ -153,6 +153,7 @@ try:
 except Exception as e:
     logger.warning("Skipping notification router: %s", e)
 
+from app.api.v1.strategies import router as strategies_router  # P1-2 — strategy metadata
 from app.api.v1.substrate import router as substrate_router  # H5.2 — replay events
 
 api_v1_router = APIRouter(prefix="/api")
@@ -238,6 +239,7 @@ for _name, _router in [
     ("depth", depth_router),
     ("depth-events", depth_events_router),
     ("replay-export", replay_export_router),
+    ("strategies", strategies_router),
 ]:
     if _router:
         _prefix = None

@@ -39,10 +39,13 @@ class StrategyRegistry:
 
         for wf_type, module_path, class_name in modules:
             try:
+                # Absolute import to avoid __name__ lookup issues
+                # in classmethod context.
+                abs_path = f"app.services.substrate.strategies.{module_path.lstrip('.')}"
                 mod = __import__(
-                    module_path,
+                    abs_path,
                     fromlist=[class_name],
-                    level=1,
+                    level=0,
                 )
                 cls._strategies[WorkflowType(wf_type)] = getattr(mod, class_name)
             except ImportError as e:
@@ -68,3 +71,24 @@ class StrategyRegistry:
         """Get all registered workflow types."""
         cls._ensure_imported()
         return list(cls._strategies.keys())
+
+    @classmethod
+    def available_strategies(cls) -> list[dict[str, object]]:
+        """Return metadata for every registered strategy.
+
+        Used by ``GET /api/strategies`` so the frontend can surface
+        deprecated / experimental strategies to the user.
+        """
+        cls._ensure_imported()
+        result: list[dict[str, object]] = []
+        for wf_type, strategy_cls in cls._strategies.items():
+            doc = (strategy_cls.__doc__ or "").strip().split("\n")[0]
+            result.append(
+                {
+                    "type": wf_type.value,
+                    "deprecated": getattr(strategy_cls, "DEPRECATED", False),
+                    "experimental": getattr(strategy_cls, "EXPERIMENTAL", False),
+                    "description": doc,
+                }
+            )
+        return result
