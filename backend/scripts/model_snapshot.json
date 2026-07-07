@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 148,
+  "model_count": 149,
   "tables": [
     {
       "columns": {
@@ -798,11 +798,31 @@
     },
     {
       "columns": {
+        "company": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "email": "VARCHAR(255)",
+        "id": "UUID",
+        "message": "TEXT",
+        "name": "VARCHAR(255)",
+        "status": "VARCHAR(20)",
+        "subject": "VARCHAR(100)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_contact_submissions_email",
+        "ix_contact_submissions_status"
+      ],
+      "name": "contact_submissions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
         "alternatives": "JSONB",
         "created_at": "DATETIME",
         "critic_kind": "VARCHAR(30)",
         "duration_ms": "INTEGER",
         "id": "UUID",
+        "improvement_batch": "JSONB",
         "improvements": "JSONB",
         "misses": "JSONB",
         "mission_id": "UUID",
