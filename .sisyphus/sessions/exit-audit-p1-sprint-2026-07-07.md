@@ -1,6 +1,6 @@
 # Exit Audit — P1 Sprint — 2026-07-07
 
-**Session focus:** P1 sprint — Nginx SSE config, dual-write cleanup, strategy viability UX (backend + frontend).
+**Session focus:** P1 sprint — Nginx SSE config, dual-write cleanup, strategy viability UX (backend + frontend). ALL DEPLOYED.
 
 ## P1 Sprint Status
 
@@ -81,20 +81,31 @@ Net reduction of 397 lines. Primary deletions from dead dual-write scripts. Prim
 ### Frontend (4 files, +127 −1)
 New strategy selector UI hook and component additions.
 
+## Deployments — ALL CONFIRMED LIVE
+
+| Component | Status | Verification |
+|-----------|--------|-------------|
+| Backend (`deploy-backend.sh`) | ✅ Deployed & healthy | `curl -sS -o /dev/null -w '%{http_code}' https://flowmanner.com/api/health` → HTTP 200 |
+| Frontend (`deploy-frontend.sh`) | ✅ Deployed & serving | `curl -sS -o /dev/null -w '%{http_code}' https://flowmanner.com/` → HTTP 200 |
+| `/api/strategies` endpoint | ✅ Live | Returns 7 strategies (3 available, 4 deprecated) |
+| Nginx SSE (`proxy_buffering off`) | ✅ Active | Config deployed to VPS, `nginx -t` passes |
+
+**Container status (VPS):** `flowmanner-frontend` Up 5min, `flowmanner-nginx` Up 5min
+**Container status (Homelab):** `backend` Up 2min healthy, `celery-worker` Up 2min healthy, `celery-beat` Up 2min healthy, `workflow-postgres` Up 10h, `workflow-redis` Up 10h, `workflow-rabbitmq` Up 10h
+
 ## Handoff — Next Agent
 
-**State:** P1 sprint fully complete (backend + frontend). Working tree clean.
+**State:** P1 sprint fully complete and deployed. All endpoints verified. Working tree clean.
 
-### Remaining Work
-
-1. **Deploy frontend** — Run `bash /opt/flowmanner/deploy-frontend.sh` to make the strategy selector live (~4 min)
-2. **Deploy backend** (if not already live) — Run `bash /opt/flowmanner/deploy-backend.sh` to make `/api/strategies` endpoint live (~2 min)
-3. **Smoke test** — Open Chat Settings → General tab → verify Execution Strategy dropdown shows 7 strategies with deprecated ones grayed out
+### Smoke Test (Optional)
+- Open `https://flowmanner.com` → navigate to Chat → open Settings → General tab
+- Verify Execution Strategy dropdown shows 7 strategies
+- Verify swarm/pipeline/meta/langgraph are grayed out with "deprecated" badge
+- Select "dag" or "graph" and send a chat message to verify `workflow_type` is passed
 
 ### Key Notes for Next Agent
-- `GET /api/strategies` endpoint is implemented (commit `9ac22f83`) — verify it's deployed
+- `GET /api/strategies` endpoint is live at `https://flowmanner.com/api/strategies`
 - Nginx SSE is live on VPS — `proxy_buffering off` is active
 - Frontend source is on homelab at `/home/glenn/FlowmannerV2-frontend/`
-- Frontend committed to `origin/master` (`c99c715a`) but NOT deployed to VPS yet
 - 97 tests pass, all pre-commit hooks clean, zero lint issues
-- Full P1 sprint: 3 items, 18 files changed, +416 −687 lines
+- Full P1 sprint: 3 items, ~20 files changed, +576 −913 lines (backend + frontend)
