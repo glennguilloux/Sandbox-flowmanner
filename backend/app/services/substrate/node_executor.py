@@ -396,7 +396,7 @@ class NodeExecutor:
             case NodeType.CODE_EXECUTION:
                 return await self._handle_code(db, node, context, run_id, workflow)
             case NodeType.RAG_QUERY:
-                return await self._handle_rag(node, context)
+                return await self._handle_rag(node, context, workflow)
             case NodeType.WEB_SEARCH:
                 return await self._handle_web_search(node, context)
             case NodeType.FILE_OPERATION:
@@ -664,6 +664,12 @@ class NodeExecutor:
         if not handler:
             return {"success": False, "error": f"Unknown tool: {tool_name}"}
 
+        # For the RAG search tool, inject the workflow's user_id into the
+        # execution context so the shared-collection query can be scoped
+        # per user (fail-open when no workflow/user_id is available).
+        if tool_name == "rag_search":
+            context = {**context, "__rag_user_id__": workflow.user_id if workflow else None}
+
         params = node.config.get("params", {})
         tool_result = await handler(params, context)
         normalized = self._tool_result_to_dict(tool_result)
@@ -794,16 +800,22 @@ class NodeExecutor:
 
     # ── RAG ─────────────────────────────────────────────────────────
 
-    async def _handle_rag(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_rag(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
         """Execute a RAG query."""
         query = node.config.get("query") or context.get("query") or node.description or node.title
         collection = node.config.get("collection", "default")
+        user_id = workflow.user_id if workflow else None
 
         try:
             from app.services.rag_service import RAGService
 
             rag = RAGService()
-            results = rag.query_documents(query, n_results=5)
+            results = rag.query_documents(query, n_results=5, user_id=user_id)
             return {
                 "success": True,
                 "output": {
@@ -1480,13 +1492,16 @@ class NodeExecutor:
     async def _tool_rag_search(self, params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Standalone RAG search tool."""
         query = params.get("query") or context.get("query")
+        # user_id is injected into context by _handle_tool for per-user
+        # scoping of shared-collection queries (fail-open if absent).
+        user_id = context.get("__rag_user_id__")
         if not query:
             return {"success": False, "error": "No query provided"}
         try:
             from app.services.rag_service import RAGService
 
             rag = RAGService()
-            results = rag.query_documents(query, n_results=5)
+            results = rag.query_documents(query, n_results=5, user_id=user_id)
             return {"success": True, "output": {"query": query, "context": results}}
         except Exception as e:
             return {"success": False, "error": f"RAG search failed: {e}"}

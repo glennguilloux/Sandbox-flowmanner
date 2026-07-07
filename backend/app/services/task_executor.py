@@ -21,10 +21,13 @@ import logging
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.config import settings
 from app.services.mission_errors import PermanentMissionError, RetryableMissionError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +130,7 @@ class TaskExecutor:
                 case "tool" | "tool_execution":
                     result = await self._execute_tool(task, input_data, mission, db)
                 case "rag" | "rag_query":
-                    result = await self._execute_rag(task, input_data)
+                    result = await self._execute_rag(task, input_data, mission)
                 case "web_search":
                     result = await self._execute_web_search(task, input_data, mission, db)
                 case "code" | "code_execution":
@@ -183,7 +186,7 @@ class TaskExecutor:
             logger.info("No tool_id for task %s, using LLM fallback", task.title)
             return await self.llm_executor.execute_llm(task, input_data, mission, db)
 
-        tool_handlers = {
+        tool_handlers: dict[str, Callable[..., Any]] = {
             "web_search": self._tool_web_search,
             "code_executor": self._tool_code_executor,
             "file_reader": self._tool_file_reader,
@@ -200,6 +203,8 @@ class TaskExecutor:
         try:
             if tool_id == "report_generator":
                 return await handler(params, input_data, mission, db=db)
+            if tool_id == "rag_search":
+                return await handler(params, input_data, mission)
             return await handler(params, input_data)
         except RetryableMissionError as e:
             logger.warning("Retryable tool error in task %s: %s", task.id, e)
@@ -230,12 +235,19 @@ class TaskExecutor:
 
         return await tool_file_reader(params, input_data)
 
-    async def _tool_rag_search(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
+    async def _tool_rag_search(
+        self,
+        params: dict[str, Any],
+        input_data: dict[str, Any],
+        mission=None,
+    ) -> dict[str, Any]:
         """Run a RAG query with query validation.
 
         Args:
             params: Dict with ``query`` and optionally ``collection``.
             input_data: Fallback for ``query`` if not in params.
+            mission: Optional mission providing ``user_id`` for per-user
+                scoping of shared-collection queries (fail-open when absent).
 
         Returns:
             RAG search result dict.
@@ -244,7 +256,7 @@ class TaskExecutor:
         if not query:
             return {"success": False, "error": "No query provided"}
 
-        return await self._execute_rag_query(query, params.get("collection", "default"))
+        return await self._execute_rag_query(query, params.get("collection", "default"), mission=mission)
 
     async def _tool_api_caller(self, params: dict[str, Any], input_data: dict[str, Any]) -> dict[str, Any]:
         """Call an external API via mission_tools."""
@@ -350,13 +362,15 @@ class TaskExecutor:
 
     # ── RAG execution ──────────────────────────────────────────────────────
 
-    async def _execute_rag(self, task, input_data: dict[str, Any]) -> dict[str, Any]:
+    async def _execute_rag(self, task, input_data: dict[str, Any], mission=None) -> dict[str, Any]:
         """Execute a RAG (retrieval-augmented generation) task.
 
         Args:
             task: Task model with ``.description`` and ``.title`` as
                 fallback query source.
             input_data: Dict with ``query`` and ``collection`` keys.
+            mission: Optional mission providing ``user_id`` for per-user
+                scoping of shared-collection queries (fail-open when absent).
 
         Returns:
             RAG query result dict.
@@ -364,14 +378,21 @@ class TaskExecutor:
         query = input_data.get("query", task.description or task.title)
         collection = input_data.get("collection", "default")
 
-        return await self._execute_rag_query(query, collection)
+        return await self._execute_rag_query(query, collection, mission=mission)
 
-    async def _execute_rag_query(self, query: str, collection: str = "default") -> dict[str, Any]:
+    async def _execute_rag_query(
+        self,
+        query: str,
+        collection: str = "default",
+        mission=None,
+    ) -> dict[str, Any]:
         """Query the RAG service for relevant documents.
 
         Args:
             query: Search query string.
             collection: Qdrant collection name.
+            mission: Optional mission providing ``user_id`` for per-user
+                scoping of shared-collection queries (fail-open when absent).
 
         Returns:
             Dict with ``success``, ``output.query``, ``output.context``,
@@ -382,8 +403,10 @@ class TaskExecutor:
         if not rag_service:
             return {"success": False, "error": "RAGService not available"}
 
+        user_id = getattr(mission, "user_id", None)
+
         try:
-            context = rag_service.query_documents(query, n_results=5)
+            context = rag_service.query_documents(query, n_results=5, user_id=user_id)
 
             return {
                 "success": True,

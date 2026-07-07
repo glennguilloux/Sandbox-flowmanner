@@ -20,6 +20,7 @@ Run via::
     DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_critique_service.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -44,22 +45,22 @@ def _make_critic_output(**overrides):
     """Build a CriticOutput with sensible defaults for testing."""
     from app.services.critic import CriticOutput
 
-    defaults = dict(
-        score_overall=0.7,
-        score_alignment=0.8,
-        score_safety=0.9,
-        score_completeness=0.6,
-        summary="Solid plan, missed edge case",
-        misses=["did not check race condition"],
-        risks=["timeout under load"],
-        improvements=[{"description": "add retry", "confidence": 0.7}],
-        alternatives=[{"approach": "queue", "tradeoffs": "more deps", "score": 0.6}],
-        raw_response={"raw": "..."},
-        model_id="deepseek-chat",
-        tokens_in=100,
-        tokens_out=50,
-        duration_ms=200,
-    )
+    defaults = {
+        "score_overall": 0.7,
+        "score_alignment": 0.8,
+        "score_safety": 0.9,
+        "score_completeness": 0.6,
+        "summary": "Solid plan, missed edge case",
+        "misses": ["did not check race condition"],
+        "risks": ["timeout under load"],
+        "improvements": [{"description": "add retry", "confidence": 0.7}],
+        "alternatives": [{"approach": "queue", "tradeoffs": "more deps", "score": 0.6}],
+        "raw_response": {"raw": "..."},
+        "model_id": "deepseek-chat",
+        "tokens_in": 100,
+        "tokens_out": 50,
+        "duration_ms": 200,
+    }
     defaults.update(overrides)
     return CriticOutput(**defaults)
 
@@ -207,10 +208,9 @@ class TestCreateFromCriticDiscipline:
             critic_output=_make_critic_output(),
             critic_kind="critic",
         )
-        assert not db.commit.called, (
-            "service must NOT call db.commit() — caller owns the "
-            "transaction (services/AGENTS.md rule 3)"
-        )
+        assert (
+            not db.commit.called
+        ), "service must NOT call db.commit() — caller owns the transaction (services/AGENTS.md rule 3)"
 
     async def test_flushes_for_id_visibility(self) -> None:
         from app.services.critique_service import CritiqueService
@@ -224,9 +224,7 @@ class TestCreateFromCriticDiscipline:
             critic_output=_make_critic_output(),
             critic_kind="critic",
         )
-        assert db.flush.await_count >= 1, (
-            "service must call db.flush() so caller can observe the new id"
-        )
+        assert db.flush.await_count >= 1, "service must call db.flush() so caller can observe the new id"
 
     async def test_refreshes_row(self) -> None:
         from app.services.critique_service import CritiqueService
@@ -363,9 +361,7 @@ class TestCreateFromCriticValidation:
 
         db = _make_mock_db()
         svc = CritiqueService(db)
-        out = _make_critic_output(
-            misses=[], risks=[], improvements=[], alternatives=[]
-        )
+        out = _make_critic_output(misses=[], risks=[], improvements=[], alternatives=[])
         await svc.create_from_critic(
             user_id=1,
             workspace_id="ws",
@@ -476,3 +472,116 @@ class TestClampHelper:
         from app.services.critique_service import _clamp_score
 
         assert _clamp_score("not a number") is None  # type: ignore[arg-type]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2a.3 — ImprovementGenerator wiring inside create_from_critic
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCreateFromCriticImprovementBatch:
+    """2a.3: the ImprovementBatch derived from the CriticOutput must be
+    persisted on the critique row as ``improvement_batch`` JSONB, and the
+    service must still honour the no-commit discipline (rule 3)."""
+
+    async def test_persists_improvement_batch_from_critic_output(self) -> None:
+        """A populated CriticOutput stores the derived ImprovementBatch as
+        structured JSON on the ``improvement_batch`` column."""
+        from app.services.critique_service import CritiqueService
+
+        db = _make_mock_db()
+        svc = CritiqueService(db)
+        out = _make_critic_output()
+        result = await svc.create_from_critic(
+            user_id=42,
+            workspace_id="ws-1",
+            mission_id=uuid.uuid4(),
+            critic_output=out,
+            critic_kind="critic",
+        )
+        added = db.add.call_args[0][0]
+        # The batch is stored as a dict (JSONB) on the row.
+        assert added.improvement_batch is not None
+        batch = added.improvement_batch
+        # score_overall=0.7 → recommendation "apply_suggested".
+        assert batch["overall_recommendation"] == "apply_suggested"
+        assert batch["summary"] == "Solid plan, missed edge case"
+        # All four critic fields become plan adjustments.
+        cats = {a["category"] for a in batch["plan_adjustments"]}
+        assert "improvement" in cats
+        assert "miss" in cats
+        assert "risk" in cats
+        assert "alternative" in cats
+        # Stable key layout for T27 fan-out / SQL reads.
+        assert "tool_suggestions" in batch
+        assert "common_failure_patterns" in batch
+        # Service returns the same object.
+        assert result is added
+
+    async def test_does_not_commit(self) -> None:
+        """CritiqueService never calls db.commit() (rule 3) — including
+        the second flush() for the improvement batch."""
+        from app.services.critique_service import CritiqueService
+
+        db = _make_mock_db()
+        svc = CritiqueService(db)
+        await svc.create_from_critic(
+            user_id=1,
+            workspace_id="ws-1",
+            mission_id=uuid.uuid4(),
+            critic_output=_make_critic_output(),
+            critic_kind="critic",
+        )
+        assert not db.commit.called
+
+    async def test_empty_critic_output_still_persists_batch(self) -> None:
+        """Even a bare CriticOutput (no scores, no content) yields a
+        (mostly empty) batch — proving the wiring runs unconditionally."""
+        from app.services.critic import CriticOutput
+        from app.services.critique_service import CritiqueService
+
+        db = _make_mock_db()
+        svc = CritiqueService(db)
+        await svc.create_from_critic(
+            user_id=1,
+            workspace_id="ws-1",
+            mission_id=uuid.uuid4(),
+            critic_output=CriticOutput(),  # all defaults
+            critic_kind="critic",
+        )
+        added = db.add.call_args[0][0]
+        assert added.improvement_batch is not None
+        # score_overall=None → recommendation "discard".
+        assert added.improvement_batch["overall_recommendation"] == "discard"
+        # No content → no plan adjustments.
+        assert added.improvement_batch["plan_adjustments"] == []
+
+    async def test_skips_batch_on_generation_error(self) -> None:
+        """If ImprovementGenerator raises, the critique write still
+        succeeds, no batch is stored (logged, not fatal), and no commit."""
+        from app.services import improvement_generator as ig
+        from app.services.critique_service import CritiqueService
+
+        db = _make_mock_db()
+        svc = CritiqueService(db)
+        with pytest.MonkeyPatch().context() as mp:
+            # Force generate() to raise.
+            mp.setattr(
+                ig.ImprovementGenerator,
+                "generate",
+                lambda self, *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
+            )
+            result = await svc.create_from_critic(
+                user_id=1,
+                workspace_id="ws-1",
+                mission_id=uuid.uuid4(),
+                critic_output=_make_critic_output(),
+                critic_kind="critic",
+            )
+        added = db.add.call_args[0][0]
+        # Batch skipped (None) because generation failed.
+        assert added.improvement_batch is None
+        # Critique row still created & returned.
+        assert result is added
+        # Still no commit.
+        assert not db.commit.called

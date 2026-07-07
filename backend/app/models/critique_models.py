@@ -48,7 +48,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base, TimestampMixin
 
-
 # ── Value-set tuples for CHECK constraints ────────────────────────────────
 
 # Hardcoded tuples — do NOT derive from enum iteration.
@@ -153,18 +152,10 @@ class Critique(Base, TimestampMixin):
 
     # Verdict text + structured findings.
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    misses: Mapped[list] = mapped_column(
-        JSONB, nullable=False, default=list
-    )  # list[str]
-    risks: Mapped[list] = mapped_column(
-        JSONB, nullable=False, default=list
-    )  # list[str]
-    improvements: Mapped[list] = mapped_column(
-        JSONB, nullable=False, default=list
-    )  # list[dict]
-    alternatives: Mapped[list] = mapped_column(
-        JSONB, nullable=False, default=list
-    )  # list[dict]
+    misses: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # list[str]
+    risks: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # list[str]
+    improvements: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # list[dict]
+    alternatives: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # list[dict]
     raw_response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # LLM provenance / cost telemetry.
@@ -172,3 +163,13 @@ class Critique(Base, TimestampMixin):
     tokens_in: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tokens_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Improvement batch (D30-60, 2a.3). The structured
+    # ``ImprovementBatch`` produced by ``ImprovementGenerator`` from this
+    # critique's ``CriticOutput`` — plan adjustments, tool suggestions,
+    # common-failure patterns, summary, and overall recommendation.
+    # Persisted as JSONB (single source of truth for "what should
+    # improve next"), independent of any ``MissionProgram.learning_brief``
+    # merge (T27 owns that fan-out). Nullable so critiques created before
+    # 2a.3 (or when generation is skipped) don't require a batch.
+    improvement_batch: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

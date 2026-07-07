@@ -41,7 +41,7 @@ class Tool(Base, TimestampMixin):
     input_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     output_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     auth_policy: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    visibility: Mapped[str] = mapped_column(String(50), default="public")
+    visibility: Mapped[str] = mapped_column(String(50), default="hidden")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     source: Mapped[str] = mapped_column(String(50), default="db")

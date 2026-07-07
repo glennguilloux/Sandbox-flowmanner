@@ -48,6 +48,7 @@ from app.services.chat_service import (
     update_chat_message,
     update_chat_thread,
 )
+from app.services.sse_buffer import get_stream_buffer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -477,18 +478,20 @@ async def chat_with_llm_stream(
         attachments_data = [a.model_dump() for a in payload.attachments]
 
     return StreamingResponse(
-        _sse_stream(
-            stream_message_to_llm(
-                db,
-                thread_id,
-                payload.content,
-                user.id,
-                _get_model_preference(thread),
-                user_api_key=user_api_key,
-                user_base_url=user_base_url,
-                model_id=requested_model,
-                attachments=attachments_data,
-                web_search=payload.web_search,
+        get_stream_buffer(
+            _sse_stream(
+                stream_message_to_llm(
+                    db,
+                    thread_id,
+                    payload.content,
+                    user.id,
+                    _get_model_preference(thread),
+                    user_api_key=user_api_key,
+                    user_base_url=user_base_url,
+                    model_id=requested_model,
+                    attachments=attachments_data,
+                    web_search=payload.web_search,
+                )
             )
         ),
         media_type="text/event-stream",

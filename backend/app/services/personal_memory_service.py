@@ -27,19 +27,26 @@ Critical guardrails (from the End-of-Galaxy plan §3):
 
 Audit integration is duck-typed: any object exposing
 ``claim_created`` / ``claim_updated`` / ``claim_forgotten`` /
-``claim_recalled`` no-fail methods works. A no-op fallback is used
-until T4 wires up ``PersonalMemoryAudit``.
+``claim_recalled`` no-fail methods works. By default the service is
+wired to ``MemoryCorrectionService`` (the ``memory_correction_events``
+privacy audit trail) via the ``_MemoryCorrectionAudit`` adapter. Audit
+writes are fire-and-forget (``BackgroundTaskManager``) so memory ops
+never block on the audit write (perf guard).
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import SQLAlchemyError
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.personal_memory_models import (
     ALL_CLAIM_TYPES,
@@ -48,6 +55,7 @@ from app.models.personal_memory_models import (
     ALL_SOURCE_TYPES,
     PersonalMemoryClaim,
 )
+from app.services.background_task_manager import background_task_manager
 
 logger = logging.getLogger(__name__)
 
@@ -104,27 +112,133 @@ _EDITABLE_PATCH_FIELDS: frozenset[str] = frozenset(
 )
 
 
-# ── Audit no-op fallback ────────────────────────────────────────────────
+# ── Audit adapter → MemoryCorrectionService ────────────────────────────
+
+# A freshly-created claim is not committed until the caller's
+# transaction commits, yet the audit row references it via FK. Likewise a
+# hard-forget deletes the claim row before the fire-and-forget audit runs.
+# The writer retries briefly so a pending commit lands, then falls back to
+# dropping the claim FK so the privacy trail is never lost. Missed audits
+# are logged, never raised (no-fail).
+_AUDIT_MAX_RETRIES = 3
+_AUDIT_RETRY_BACKOFF_S = 0.05
 
 
-class _NoOpAudit:
-    """Duck-typed audit; no-op until T4 wires up PersonalMemoryAudit.
+class _MemoryCorrectionAudit:
+    """Duck-typed audit that persists memory events to the privacy
+    audit trail (``memory_correction_events``) via
+    ``MemoryCorrectionService``.
 
-    Each method is a permissive no-op so the service can call
-    ``self.audit.claim_created(...)`` unconditionally.
+    Each ``claim_*`` method maps to a valid ``event_type`` and spawns a
+    fire-and-forget task (``BackgroundTaskManager``) that opens its OWN
+    session and commits the audit row independently of the caller's
+    transaction. This keeps memory ops non-blocking (perf guard) and
+    makes the audit trail durable even if the caller rolls back.
+
+    Mapping (the service emits ``claim_``-prefixed events; the audit
+    table uses a fixed ``event_type`` taxonomy — see
+    ``memory_correction_models.ALL_EVENT_TYPES``):
+        claim_created   → "create"
+        claim_recalled  → "view"
+        claim_forgotten → "forget"
+        claim_updated   → "edit"
     """
 
-    def claim_created(self, *args: Any, **kwargs: Any) -> None:
-        pass
+    def __init__(self, manager: Any | None = None) -> None:
+        # Default to the process-wide manager (production). Tests may pass
+        # a dedicated instance so its tasks are scoped to one event loop.
+        from app.services.background_task_manager import background_task_manager
 
-    def claim_updated(self, *args: Any, **kwargs: Any) -> None:
-        pass
+        self._manager = manager or background_task_manager
 
-    def claim_forgotten(self, *args: Any, **kwargs: Any) -> None:
-        pass
+    def claim_created(self, **kwargs: Any) -> None:
+        self._emit("create", **kwargs)
 
-    def claim_recalled(self, *args: Any, **kwargs: Any) -> None:
-        pass
+    def claim_recalled(self, **kwargs: Any) -> None:
+        self._emit("view", **kwargs)
+
+    def claim_forgotten(self, **kwargs: Any) -> None:
+        self._emit("forget", **kwargs)
+
+    def claim_updated(self, **kwargs: Any) -> None:
+        self._emit("edit", **kwargs)
+
+    def _emit(self, event_type: str, **kwargs: Any) -> None:
+        # user_id / workspace_id are always supplied by every _safe_audit
+        # call site; claim_id is optional.
+        user_id = kwargs["user_id"]
+        workspace_id = kwargs["workspace_id"]
+        claim_id_raw = kwargs.get("claim_id")
+        claim_id = uuid.UUID(claim_id_raw) if claim_id_raw else None
+        # Everything other than the routing keys becomes forensic detail.
+        details = {k: v for k, v in kwargs.items() if k not in ("user_id", "workspace_id", "claim_id")}
+        if not details:
+            details = None
+        self._manager.spawn(
+            _write_audit_event(
+                event_type=event_type,
+                user_id=user_id,
+                workspace_id=workspace_id,
+                claim_id=claim_id,
+                details=details,
+            ),
+            label=f"memory_correction:{event_type}",
+        )
+
+
+async def _write_audit_event(
+    *,
+    event_type: str,
+    user_id: int,
+    workspace_id: str,
+    claim_id: uuid.UUID | None,
+    details: dict[str, Any] | None,
+) -> None:
+    """Persist one audit row in its own transaction.
+
+    The audit row references ``claim_id`` via FK, but the caller's claim
+    may be uncommitted (create) or already hard-deleted (forget) when
+    this fire-and-forget task runs. We retry briefly so a pending commit
+    lands; if the parent row is genuinely not visible, we fall back to
+    writing the event with ``claim_id=None`` (recording the unresolved id
+    in ``details``) so the privacy trail is never lost.
+    """
+    from app.database import fresh_session
+    from app.services.memory_correction_service import MemoryCorrectionService
+
+    attempt = 0
+    drop_claim_id = False
+    while True:
+        try:
+            async with fresh_session() as session:
+                svc = MemoryCorrectionService(session)
+                await svc.record_event(
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    event_type=event_type,
+                    claim_id=None if drop_claim_id else claim_id,
+                    actor="user",
+                    source="personal_memory_service",
+                    details=({**(details or {}), "_claim_id_unresolved": str(claim_id)} if drop_claim_id else details),
+                )
+            return
+        except SQLAlchemyError as exc:
+            if not drop_claim_id and attempt < _AUDIT_MAX_RETRIES:
+                attempt += 1
+                await asyncio.sleep(_AUDIT_RETRY_BACKOFF_S)
+                continue
+            if not drop_claim_id:
+                # Parent row not visible (uncommitted/deleted) — retry once
+                # with the FK dropped so the audit event still survives.
+                drop_claim_id = True
+                continue
+            logger.warning(
+                "memory_correction.audit_write_failed event_type=%s claim_id=%s error=%s",
+                event_type,
+                claim_id,
+                exc,
+            )
+            return
 
 
 # ── Service ─────────────────────────────────────────────────────────────
@@ -139,29 +253,21 @@ class PersonalMemoryService:
     populated before the caller's commit/rollback decision.
     """
 
-    def __init__(
-        self, db: AsyncSession, audit: Any | None = None
-    ) -> None:
+    def __init__(self, db: AsyncSession, audit: Any | None = None) -> None:
         self.db = db
-        self.audit = audit or _NoOpAudit()
+        self.audit = audit or _MemoryCorrectionAudit()
 
     # ── Validation helpers ──────────────────────────────────────────
 
     @staticmethod
-    def _validate_enum_value(
-        field: str, value: str, allowed: tuple[str, ...]
-    ) -> None:
+    def _validate_enum_value(field: str, value: str, allowed: tuple[str, ...]) -> None:
         if value not in allowed:
-            raise PersonalMemoryValidationError(
-                f"invalid {field}={value!r}; must be one of {list(allowed)}"
-            )
+            raise PersonalMemoryValidationError(f"invalid {field}={value!r}; must be one of {list(allowed)}")
 
     @staticmethod
     def _validate_importance(value: float) -> None:
         if not (0.0 <= value <= 1.0):
-            raise PersonalMemoryValidationError(
-                f"importance must be in [0.0, 1.0]; got {value!r}"
-            )
+            raise PersonalMemoryValidationError(f"importance must be in [0.0, 1.0]; got {value!r}")
 
     # ── CRUD: create ────────────────────────────────────────────────
 
@@ -196,9 +302,7 @@ class PersonalMemoryService:
         self._validate_enum_value("sensitivity", sensitivity, ALL_SENSITIVITIES)
         self._validate_importance(importance)
         if not (0.0 <= confidence <= 1.0):
-            raise PersonalMemoryValidationError(
-                f"confidence must be in [0.0, 1.0]; got {confidence!r}"
-            )
+            raise PersonalMemoryValidationError(f"confidence must be in [0.0, 1.0]; got {confidence!r}")
 
         claim = PersonalMemoryClaim(
             user_id=user_id,
@@ -258,9 +362,7 @@ class PersonalMemoryService:
         )
         claim = result.scalar_one_or_none()
         if claim is None:
-            raise PersonalMemoryClaimNotFound(
-                f"claim {claim_id} not found"
-            )
+            raise PersonalMemoryClaimNotFound(f"claim {claim_id} not found")
         return claim
 
     # ── CRUD: list_for_user ─────────────────────────────────────────
@@ -284,9 +386,7 @@ class PersonalMemoryService:
         if scope is not None:
             self._validate_enum_value("scope", scope, ALL_SCOPES)
         if claim_type is not None:
-            self._validate_enum_value(
-                "claim_type", claim_type, ALL_CLAIM_TYPES
-            )
+            self._validate_enum_value("claim_type", claim_type, ALL_CLAIM_TYPES)
 
         # Base predicate: (user_id, workspace_id) + not-deleted.
         base_predicates = [
@@ -301,18 +401,12 @@ class PersonalMemoryService:
         if scope is not None:
             optional_predicates.append(PersonalMemoryClaim.scope == scope)
         if claim_type is not None:
-            optional_predicates.append(
-                PersonalMemoryClaim.claim_type == claim_type
-            )
+            optional_predicates.append(PersonalMemoryClaim.claim_type == claim_type)
 
         where_clause = and_(*base_predicates, *optional_predicates)
 
         # Total count.
-        count_stmt = (
-            select(func.count())
-            .select_from(PersonalMemoryClaim)
-            .where(where_clause)
-        )
+        count_stmt = select(func.count()).select_from(PersonalMemoryClaim).where(where_clause)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
         # Items (paginated, ordered by created_at DESC).
@@ -354,9 +448,7 @@ class PersonalMemoryService:
             for s in scopes:
                 self._validate_enum_value("scope", s, ALL_SCOPES)
         if not (0.0 <= min_confidence <= 1.0):
-            raise PersonalMemoryValidationError(
-                f"min_confidence must be in [0.0, 1.0]; got {min_confidence!r}"
-            )
+            raise PersonalMemoryValidationError(f"min_confidence must be in [0.0, 1.0]; got {min_confidence!r}")
 
         # Compose predicates.
         now = datetime.now(UTC)
@@ -387,11 +479,7 @@ class PersonalMemoryService:
         where_clause = and_(*predicates)
 
         # Total count (useful for the recall response).
-        count_stmt = (
-            select(func.count())
-            .select_from(PersonalMemoryClaim)
-            .where(where_clause)
-        )
+        count_stmt = select(func.count()).select_from(PersonalMemoryClaim).where(where_clause)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
         # Items: ordered by confidence DESC, importance DESC,
@@ -440,9 +528,7 @@ class PersonalMemoryService:
         ``hard=True`` actually removes the row from the table.
         """
         # ``get()`` enforces the (user_id, workspace_id) filter.
-        claim = await self.get(
-            user_id=user_id, workspace_id=workspace_id, claim_id=claim_id
-        )
+        claim = await self.get(user_id=user_id, workspace_id=workspace_id, claim_id=claim_id)
 
         if hard:
             # Async session: delete() is a coroutine in async SQLAlchemy 2.x.
@@ -505,9 +591,7 @@ class PersonalMemoryService:
     ) -> PersonalMemoryClaim:
         """Update the importance score. Validates ``0.0 <= new_importance <= 1.0``."""
         self._validate_importance(new_importance)
-        claim = await self.get(
-            user_id=user_id, workspace_id=workspace_id, claim_id=claim_id
-        )
+        claim = await self.get(user_id=user_id, workspace_id=workspace_id, claim_id=claim_id)
         claim.importance = new_importance
         await self.db.flush()
         await self.db.refresh(claim)
@@ -555,20 +639,13 @@ class PersonalMemoryService:
 
         # Field-level validation for the (few) constrained fields.
         if "sensitivity" in fields and fields["sensitivity"] is not None:
-            self._validate_enum_value(
-                "sensitivity", fields["sensitivity"], ALL_SENSITIVITIES
-            )
+            self._validate_enum_value("sensitivity", fields["sensitivity"], ALL_SENSITIVITIES)
         if "importance" in fields and fields["importance"] is not None:
             self._validate_importance(fields["importance"])
-        if "confidence" in fields and fields["confidence"] is not None:
-            if not (0.0 <= fields["confidence"] <= 1.0):
-                raise PersonalMemoryValidationError(
-                    f"confidence must be in [0.0, 1.0]; got {fields['confidence']!r}"
-                )
+        if "confidence" in fields and fields["confidence"] is not None and not (0.0 <= fields["confidence"] <= 1.0):
+            raise PersonalMemoryValidationError(f"confidence must be in [0.0, 1.0]; got {fields['confidence']!r}")
 
-        claim = await self.get(
-            user_id=user_id, workspace_id=workspace_id, claim_id=claim_id
-        )
+        claim = await self.get(user_id=user_id, workspace_id=workspace_id, claim_id=claim_id)
         for field, value in fields.items():
             setattr(claim, field, value)
         await self.db.flush()
@@ -599,6 +676,4 @@ class PersonalMemoryService:
             if callable(method):
                 method(**kwargs)
         except Exception as exc:  # pragma: no cover - depends on audit impl
-            logger.warning(
-                "personal_memory.audit_failed method=%s error=%s", method_name, exc
-            )
+            logger.warning("personal_memory.audit_failed method=%s error=%s", method_name, exc)

@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 import base64
+import contextlib
 import json
 import logging
 import os
 import time
+from collections import deque
+from collections.abc import AsyncGenerator
 from datetime import UTC
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 from openai import AsyncOpenAI
 from sqlalchemy import func, select
@@ -189,21 +196,167 @@ If any tool returns an error containing "container is not running" or
 _MAX_TOOL_ROUNDS = settings.CHAT_MAX_TOOL_ROUNDS
 
 
+from app.services.background_task_manager import background_task_manager
 from app.services.sse_protocol import _CANVAS_UPDATE_TOOLS, _build_canvas_update
 
-# -- SSE keepalive ping (Task 1.2a) -------------------------------------------
-# Defeats proxy idle timeouts during long tool rounds.
+# -- SSE keepalive ping (Task 2b.2) -----------------------------------------
+# Defeats proxy idle timeouts during long tool rounds. The keepalive must be
+# timer-driven (every 15s) and independent of token cadence, because a single
+# tool round can block the generator for >15s with no yield — a yield-gated
+# ping would never fire and nginx would drop the idle connection.
 _SSE_KEEPALIVE_INTERVAL = 15  # seconds
 
-
-def _sse_keepalive(last_yield_time: float, now: float) -> str | None:
-    """Return a SSE keepalive comment if enough time has elapsed since the last yield."""
-    if now - last_yield_time > _SSE_KEEPALIVE_INTERVAL:
-        return ": ping\n\n"
-    return None
+# SSE comment line. `: ` prefix makes it a comment the browser EventSource ignores.
+_SSE_KEEPALIVE_PING = ": ping\n\n"
 
 
-# Initialize AsyncOpenAI client for ZhipuAI (OpenAI-compatible)
+async def _sse_keepalive_timer(queue: asyncio.Queue, stop_event: asyncio.Event) -> None:
+    """Emit `: ping` comments every ``_SSE_KEEPALIVE_INTERVAL`` seconds.
+
+    Runs as a ``BackgroundTaskManager`` task. Pumps ``_SSE_KEEPALIVE_PING``
+    into ``queue`` on a fixed cadence until ``stop_event`` is set or cancelled.
+    Pure timer — never depends on LLM token cadence.
+    """
+    try:
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=_SSE_KEEPALIVE_INTERVAL)
+            except TimeoutError:
+                # Interval elapsed without cancellation — emit a keepalive.
+                await queue.put(_SSE_KEEPALIVE_PING)
+            else:
+                # stop_event was set during the wait — exit cleanly.
+                break
+    except asyncio.CancelledError:
+        # Expected on stream teardown; swallow so the manager logs nothing.
+        raise
+
+
+async def _sse_keepalive_merge(
+    body: AsyncGenerator[str, None],
+    queue: asyncio.Queue,
+    stop_event: asyncio.Event,
+) -> AsyncGenerator[str, None]:
+    """Merge the LLM ``body`` stream with the timer-driven keepalive queue.
+
+    Yields events from ``body`` as they arrive (record = "real activity" →
+    reset the keepalive clock), and interleaves ``_SSE_KEEPALIVE_PING`` entries
+    from ``queue`` that arrive while the body is idle. The keepalive timer is
+    live for the whole stream, so a multi-second tool round still gets pings.
+    """
+    body_iter = body.__aiter__()
+    # One in-flight anext coroutine at a time. Creating a fresh __anext__()
+    # while the previous is pending raises "async generator is already running",
+    # so we hold the future and only advance after consuming it.
+    body_task = asyncio.ensure_future(body_iter.__anext__())
+    while True:
+        # Wait for the next body event, but wake at least every interval so
+        # idle gaps still surface timer pings.
+        done, _pending = await asyncio.wait({body_task}, timeout=_SSE_KEEPALIVE_INTERVAL)
+        if body_task in done:
+            try:
+                event = body_task.result()
+            except StopAsyncIteration:
+                # Body is exhausted. Any ping the timer queued during the final
+                # idle gap must NOT be appended after the real last body event,
+                # so we break here without draining the queue. The timer is
+                # cancelled on generator close.
+                break
+            # Advance to the next body event for the next iteration.
+            body_task = asyncio.ensure_future(body_iter.__anext__())
+            yield event
+            continue
+
+        # No body event within the interval → this is a genuine idle gap.
+        # Surface exactly one queued ping (the timer self-rate-limits to one
+        # per interval, but the queue may hold a straggler from a previous gap).
+        # We only drain the queue in this branch, so pings never leak after the
+        # real last body event.
+        try:
+            ping = queue.get_nowait()
+        except asyncio.QueueEmpty:
+            # Timer hasn't fired yet (scheduler jitter); emit the ping directly
+            # so the idle gap is still covered even if the queue was drained.
+            ping = _SSE_KEEPALIVE_PING
+        yield ping
+
+
+async def stream_message_to_llm(
+    db: AsyncSession,
+    thread_id: int,
+    content: str,
+    user_id: int,
+    model_preference: str | None = None,
+    user_api_key: str | None = None,
+    user_base_url: str | None = None,
+    model_id: str | None = None,
+    attachments: list | None = None,
+    web_search: bool | None = None,
+) -> AsyncGenerator[str, None]:
+    """Send a message to the LLM and stream the response via SSE.
+
+    The returned generator drives its own timer-driven keepalive (every 15s,
+    independent of token cadence) by spawning a ``BackgroundTaskManager`` task
+    and merging its pings with the LLM event stream. The keepalive task is
+    cancelled and awaited on generator close so no orphan task leaks.
+
+    If user_api_key is provided, a per-request AsyncOpenAI client is created
+    using that key (BYOK path). The key is used only for this call and discarded.
+    If model_id is provided it overrides model_preference and the env default.
+    If user_base_url is provided, it overrides the resolved base_url for custom providers.
+    For llamacpp/* models, any BYOK key is ignored (llama.cpp doesn't use API keys).
+    """
+    _keepalive_queue: asyncio.Queue = asyncio.Queue()
+    _keepalive_stop = asyncio.Event()
+    _keepalive_task = background_task_manager.spawn(
+        _sse_keepalive_timer(_keepalive_queue, _keepalive_stop),
+        label="sse_keepalive",
+    )
+    try:
+        async for event in _sse_keepalive_merge(
+            cast(
+                "AsyncGenerator[str, None]",
+                _stream_message_to_llm_body(
+                    db,
+                    thread_id,
+                    content,
+                    user_id,
+                    model_preference,
+                    user_api_key,
+                    user_base_url,
+                    model_id,
+                    attachments,
+                    web_search,
+                ),
+            ),
+            _keepalive_queue,
+            _keepalive_stop,
+        ):
+            yield event
+    finally:
+        _keepalive_stop.set()
+        _keepalive_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await _keepalive_task
+
+
+async def _stream_message_to_llm_body(
+    db: AsyncSession,
+    thread_id: int,
+    content: str,
+    user_id: int,
+    model_preference: str | None = None,
+    user_api_key: str | None = None,
+    user_base_url: str | None = None,
+    model_id: str | None = None,
+    attachments: list | None = None,
+    web_search: bool | None = None,
+) -> AsyncGenerator[str, None]:
+    """Body of :func:`stream_message_to_llm` (timer keepalive handled by wrapper)."""
+
+    # Initialize AsyncOpenAI client for ZhipuAI (OpenAI-compatible)
+
+
 _client = AsyncOpenAI(
     api_key=_LLM_API_KEY,
     base_url=_LLM_API_BASE,
@@ -967,7 +1120,7 @@ async def _maybe_extract_memory_claims(
                 if claims:
                     _extraction_source = "llm"
                     logger.info(
-                        "memory_extraction: LLM extractor returned %d claims " "(source=%s) for thread %s",
+                        "memory_extraction: LLM extractor returned %d claims (source=%s) for thread %s",
                         len(claims),
                         source,
                         thread_id,
@@ -978,20 +1131,20 @@ async def _maybe_extract_memory_claims(
                     _extraction_source = "regex_fallback_empty"
                     if claims:
                         logger.info(
-                            "memory_extraction: LLM returned 0 claims; " "regex fallback found %d for thread %s",
+                            "memory_extraction: LLM returned 0 claims; regex fallback found %d for thread %s",
                             len(claims),
                             thread_id,
                         )
             except TimeoutError:
                 logger.info(
-                    "memory_extraction: LLM extraction timed out for " "thread %s; falling back to regex",
+                    "memory_extraction: LLM extraction timed out for thread %s; falling back to regex",
                     thread_id,
                 )
                 claims = regex_fallback.extract(combined_text)
                 _extraction_source = "regex_fallback_timeout"
             except Exception as llm_err:
                 logger.info(
-                    "memory_extraction: LLM extraction failed for " "thread %s (%s); falling back to regex",
+                    "memory_extraction: LLM extraction failed for thread %s (%s); falling back to regex",
                     thread_id,
                     llm_err,
                 )
@@ -1054,7 +1207,7 @@ async def _maybe_extract_memory_claims(
                 try:
                     if needs_approval:
                         # Stage for user approval
-                        content_str = f"{claim.subject} {claim.predicate}: " f"{json.dumps(claim.object, default=str)}"
+                        content_str = f"{claim.subject} {claim.predicate}: {json.dumps(claim.object, default=str)}"
                         pw_id = await review_service.stage_pending_write(
                             fresh_db,
                             workspace_id=workspace_id,
@@ -1470,9 +1623,9 @@ async def _get_chat_openai_tools(
 
         # ── Compute exposed set ──────────────────────────────────────
         # P0-3: visibility now read from each tool's ToolMetadata.visibility
-        # (set in-file). Default for untagged tools is "opt_in" (the
-        # ToolMetadata field default), but we fall back to "hidden" for
-        # safety — tools not explicitly tagged should not be exposed.
+        # (set in-file). Default for untagged tools is "hidden" (the
+        # ToolMetadata field default — see app/tools/base.py), so tools
+        # not explicitly tagged are never exposed.
         exposed: list = []
         for tool in registry.list_all():
             vis = getattr(tool.metadata, "visibility", "hidden") or "hidden"
@@ -1574,455 +1727,6 @@ async def _execute_tool_call(
     except Exception as e:
         logger.exception("Tool execution failed: %s", tool_name)
         return json.dumps({"error": str(e)})
-
-
-async def stream_message_to_llm(
-    db: AsyncSession,
-    thread_id: int,
-    content: str,
-    user_id: int,
-    model_preference: str | None = None,
-    user_api_key: str | None = None,
-    user_base_url: str | None = None,
-    model_id: str | None = None,
-    attachments: list | None = None,
-    web_search: bool | None = None,
-):
-    """Send a message to the LLM and stream the response via SSE.
-
-    If user_api_key is provided, a per-request AsyncOpenAI client is created
-    using that key (BYOK path). The key is used only for this call and discarded.
-    If model_id is provided it overrides model_preference and the env default.
-    If user_base_url is provided, it overrides the resolved base_url for custom providers.
-    For llamacpp/* models, any BYOK key is ignored (llama.cpp doesn't use API keys).
-    """
-    # --- Pre-LLM setup: resolve provider, BYOK lookup, build messages ---
-    collected_chunks = []
-    _last_yield = time.monotonic()  # Task 1.2a: keepalive tracking
-    raw_model = model_id or model_preference or _LLM_MODEL
-    base_url, api_key, model = _resolve_provider(raw_model)
-
-    mismatch_error = _validate_byok_key_matches_model(user_api_key, raw_model)
-    if mismatch_error:
-        now = time.monotonic()
-        ping = _sse_keepalive(_last_yield, now)
-        if ping:
-            yield ping
-        _last_yield = now
-        yield json.dumps({"type": "error", "error": mismatch_error})
-        return
-
-    # --- Stored-key fallback: if no per-request key, look up user's stored key ---
-    effective_user_key = user_api_key
-    effective_base_url = user_base_url
-    if not effective_user_key and db is not None:
-        model_provider = _get_provider_for_model(raw_model)
-        stored_key, stored_base = await _lookup_stored_byok_key(db, user_id, provider_hint=model_provider)
-        if stored_key:
-            effective_user_key = stored_key
-            effective_base_url = stored_base
-
-    if raw_model and raw_model.startswith("llamacpp/"):
-        effective_user_key = None
-
-    if effective_user_key:
-        effective_base = effective_base_url or base_url
-        client = AsyncOpenAI(api_key=effective_user_key, base_url=effective_base)
-    elif base_url != _LLM_API_BASE or api_key != _LLM_API_KEY:
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-    else:
-        client = _client
-
-    # Circuit breaker protection
-    from app.core.circuit_breaker import CircuitOpenError, get_circuit_breaker
-    from app.core.metrics import record_llm_request
-
-    provider_name = _get_provider_for_model(raw_model) or "deepseek"
-    breaker = get_circuit_breaker(provider_name)
-    llm_start = time.time()
-
-    # Build messages and process all DB-dependent setup BEFORE saving user message.
-    messages_for_llm = await _build_chat_messages(db, thread_id)
-    # Append the new user message — it isn't in DB history yet
-    messages_for_llm.append({"role": "user", "content": content})
-
-    # ── Phase 5: resolve workspace_id for allowlist filtering ────────
-    _thread_obj = await get_chat_thread(db, thread_id)
-    _workspace_id = _thread_obj.workspace_id if _thread_obj else None
-
-    # Phase 5: async tool list with workspace allowlist
-    openai_tools = await _get_chat_openai_tools(db=db, workspace_id=_workspace_id)
-
-    # ── Phase 2: pre-compute user scopes for tool authorization ──────
-    # Resolve once before the tool loop so _execute_tool_call doesn't
-    # need a DB lookup per tool invocation.
-    _cached_user_scopes: set[str] | None = None
-    _cached_user_role: str | None = None
-    try:
-        from app.models.user import User as UserModel
-
-        _urow = (await db.execute(select(UserModel).where(UserModel.id == user_id))).scalar_one_or_none()
-        if _urow is not None:
-            _cached_user_scopes = set(getattr(_urow, "scopes", []) or [])
-            _cached_user_role = getattr(_urow, "role", None)
-    except Exception:
-        logger.debug("stream_message_to_llm: scope pre-fetch failed (non-fatal)", exc_info=True)
-
-    # ── T33 Stage 1: pre-LLM memory recall + injection ──────
-    memory_recall_claims: list[PersonalMemoryClaim] = []
-    if settings.CHAT_MEMORY_CITATIONS_ENABLED:
-        thread_for_recall = await get_chat_thread(db, thread_id)
-        if thread_for_recall and thread_for_recall.workspace_id:
-            try:
-                memory_recall_claims = await recall_for_chat(
-                    db,
-                    user_id=user_id,
-                    workspace_id=thread_for_recall.workspace_id,
-                    query=content,
-                )
-                if memory_recall_claims:
-                    messages_for_llm = _inject_memory_context(messages_for_llm, memory_recall_claims)
-                    logger.info(
-                        "stream_message_to_llm: injected %d memory claims for thread %s",
-                        len(memory_recall_claims),
-                        thread_id,
-                    )
-            except Exception as recall_err:
-                logger.warning(
-                    "stream_message_to_llm: memory recall failed for thread %s, continuing without context: %s",
-                    thread_id,
-                    recall_err,
-                )
-                memory_recall_claims = []
-        else:
-            logger.info(
-                "stream_message_to_llm: skipping memory recall for thread %s (workspace_id is null)",
-                thread_id,
-            )
-
-    if attachments:
-        messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
-
-    if web_search:
-        messages_for_llm = await _inject_web_search(messages_for_llm, content)
-
-    # Save user message, commit, and immediately close the session to prevent
-    # idle-in-transaction timeout during the LLM call
-    await create_chat_message(db, thread_id, "user", content, user_id=user_id)
-    await db.commit()
-    await db.close()
-
-    try:
-        async with breaker.protect():
-            full_response = ""
-            accumulated_prompt_tokens = 0
-            accumulated_completion_tokens = 0
-
-            # ── Tool-calling loop ───────────────────────────────────
-            for _round in range(_MAX_TOOL_ROUNDS):
-                create_kwargs: dict = {
-                    "model": model,
-                    "messages": messages_for_llm,
-                    "stream": True,
-                }
-                if openai_tools:
-                    create_kwargs["tools"] = openai_tools
-
-                response = await client.chat.completions.create(**create_kwargs)
-
-                # Accumulate streaming chunks — we need to detect both
-                # content tokens AND tool_call deltas in the same stream.
-                round_content_chunks: list[str] = []
-                # tool_calls_by_index tracks partial tool call arguments
-                tool_calls_by_index: dict[int, dict] = {}
-
-                async for chunk in response:
-                    choice = chunk.choices[0] if chunk.choices else None
-                    if not choice:
-                        continue
-
-                    delta = choice.delta
-
-                    # Stream text content to the frontend
-                    if delta.content:
-                        round_content_chunks.append(delta.content)
-                        collected_chunks.append(delta.content)
-                        now = time.monotonic()
-                        ping = _sse_keepalive(_last_yield, now)
-                        if ping:
-                            yield ping
-                        _last_yield = now
-                        yield json.dumps({"type": "token", "content": delta.content})
-
-                    # Accumulate tool calls from streaming deltas
-                    if delta.tool_calls:
-                        for tc_delta in delta.tool_calls:
-                            idx = tc_delta.index
-                            if idx not in tool_calls_by_index:
-                                tool_calls_by_index[idx] = {
-                                    "id": "",
-                                    "function": {"name": "", "arguments": ""},
-                                }
-                            tc = tool_calls_by_index[idx]
-                            if tc_delta.id:
-                                tc["id"] = tc_delta.id
-                            if tc_delta.function:
-                                if tc_delta.function.name:
-                                    tc["function"]["name"] = tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tc["function"]["arguments"] += tc_delta.function.arguments
-
-                    # Capture usage from streaming chunks (if provider includes it)
-                    chunk_usage = getattr(chunk, "usage", None)
-                    if chunk_usage and isinstance(getattr(chunk_usage, "prompt_tokens", None), int):
-                        accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
-                        accumulated_completion_tokens += chunk_usage.completion_tokens or 0
-
-                    # Detect finish_reason
-                    if choice.finish_reason == "tool_calls":
-                        break
-
-                # ── Process tool calls ──────────────────────────────
-                if tool_calls_by_index:
-                    # Build the assistant message with tool_calls for the history
-                    assistant_tool_calls = []
-                    for idx in sorted(tool_calls_by_index.keys()):
-                        tc = tool_calls_by_index[idx]
-                        assistant_tool_calls.append(
-                            {
-                                "id": tc["id"],
-                                "type": "function",
-                                "function": {
-                                    "name": tc["function"]["name"],
-                                    "arguments": tc["function"]["arguments"],
-                                },
-                            }
-                        )
-
-                    # Add assistant message with tool_calls to history
-                    messages_for_llm.append(
-                        {
-                            "role": "assistant",
-                            "content": "".join(round_content_chunks) or None,
-                            "tool_calls": assistant_tool_calls,
-                        }
-                    )
-
-                    # Execute each tool and add results to history
-                    for tc in assistant_tool_calls:
-                        tool_name = tc["function"]["name"]
-                        tool_args = tc["function"]["arguments"]
-                        call_id = tc["id"]
-
-                        yield json.dumps(
-                            {
-                                "type": "tool_call_start",
-                                "tool": tool_name,
-                                "arguments": tool_args,
-                                "call_id": call_id,
-                            }
-                        )
-
-                        _tool_t0 = time.time()
-                        tool_result = await _execute_tool_call(
-                            tool_name,
-                            tool_args,
-                            user_id=user_id,
-                            _user_scopes=_cached_user_scopes,
-                            _user_role=_cached_user_role,
-                        )
-                        _record_tool_cost_fire_and_forget(
-                            user_id=user_id,
-                            tool_name=tool_name,
-                            duration_ms=(time.time() - _tool_t0) * 1000.0,
-                            workspace_id=_workspace_id,
-                        )
-
-                        yield json.dumps(
-                            {
-                                "type": "tool_call_result",
-                                "tool": tool_name,
-                                "result": tool_result,
-                                "call_id": call_id,
-                            }
-                        )
-
-                        # ── Phase 4: canvas_update for agent-driven tile orchestration ──
-                        # When a tool produces a result that should open a canvas tile
-                        # (e.g. browser_sandbox launch), emit a canvas_update event so
-                        # the frontend can auto-open the tile without user action.
-                        _canvas_event = _build_canvas_update(tool_name, tool_result)
-                        if _canvas_event:
-                            yield json.dumps(_canvas_event)
-
-                        messages_for_llm.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": call_id,
-                                "content": tool_result,
-                            }
-                        )
-
-                    # Task 1.2a: keepalive after tool execution (the longest idle gap)
-                    now = time.monotonic()
-                    ping = _sse_keepalive(_last_yield, now)
-                    if ping:
-                        yield ping
-                        _last_yield = now
-
-                    # Loop back for the next LLM call with tool results
-                    continue
-
-                # No tool calls — we have a final text response
-                full_response = "".join(round_content_chunks) or "".join(collected_chunks)
-                break  # Exit the tool-calling loop
-
-            else:
-                # Loop exhausted — all rounds were tool calls
-                full_response = "".join(collected_chunks) or (
-                    "I reached the maximum number of tool calls "
-                    f"({_MAX_TOOL_ROUNDS}) without producing a final response."
-                )
-
-            # Fallback: some providers return 0 streaming chunks even
-            # though non-streaming works fine.
-            if not full_response.strip():
-                logger.info(
-                    "stream_message_to_llm: empty stream for %s, retrying without streaming",
-                    raw_model,
-                )
-                try:
-                    non_stream_kwargs: dict = {
-                        "model": model,
-                        "messages": messages_for_llm,
-                    }
-                    if openai_tools:
-                        non_stream_kwargs["tools"] = openai_tools
-                    non_stream_response = await client.chat.completions.create(**non_stream_kwargs)
-                    if non_stream_response.choices:
-                        full_response = non_stream_response.choices[0].message.content or ""
-                    # Second fallback: retry without tools if still empty
-                    # (some models don't support function calling)
-                    if not full_response.strip() and openai_tools:
-                        logger.info(
-                            "stream_message_to_llm: empty response with tools for %s, retrying without tools",
-                            raw_model,
-                        )
-                        non_stream_kwargs.pop("tools", None)
-                        no_tools_response = await client.chat.completions.create(**non_stream_kwargs)
-                        if no_tools_response.choices:
-                            full_response = no_tools_response.choices[0].message.content or ""
-                    if full_response:
-                        yield json.dumps({"type": "token", "content": full_response})
-                except Exception as retry_err:
-                    logger.error(
-                        "stream_message_to_llm: non-streaming retry also failed for %s: %s",
-                        raw_model,
-                        retry_err,
-                    )
-
-        # Use actual token counts if available from streaming, else estimate
-        prompt_tokens = accumulated_prompt_tokens or len(content.split())
-        completion_tokens = accumulated_completion_tokens or len(full_response.split())
-        total_tokens = prompt_tokens + completion_tokens
-
-        llm_duration = time.time() - llm_start
-        record_llm_request(
-            provider=provider_name,
-            duration_seconds=llm_duration,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            success=True,
-        )
-
-        # Session was closed before LLM call to prevent idle-in-transaction timeout.
-        # Always use fresh session for saving.
-        import asyncio
-
-        assistant_msg: ChatMessage | None = None
-        # Save with retry (3 attempts, exponential backoff)
-        assistant_msg = None
-        for _attempt in range(3):
-            try:
-                assistant_msg = await create_chat_message_fresh_session(thread_id, "assistant", full_response)
-                break
-            except Exception as save_err:
-                logger.warning("stream: assistant message save attempt %d failed: %s", _attempt + 1, save_err)
-                if _attempt < 2:
-                    await asyncio.sleep(0.5 * (2**_attempt))
-        if assistant_msg is None:
-            logger.error("stream: assistant message save failed after 3 attempts")
-            save_failed_payload = json.dumps({"type": "save_failed", "content": full_response[:500]})
-            yield f"data: {save_failed_payload}\n\n"
-
-        # ── T33 Stage 1: emit memory_recall_used events for cited claims ──
-        # Emitted AFTER the assistant message is persisted so the frontend
-        # can attach the recall metadata to the right message. Skipped when
-        # the save failed because there's no message_id to attach to.
-        if assistant_msg is not None:
-            for claim in memory_recall_claims:
-                yield json.dumps(build_recall_used_event(claim, message_id=str(assistant_msg.id)))
-
-        # ── T33 Stage 2: emit memory_citation events for the chip UI ──
-        # Same ordered list as the recall-used events above. The frontend
-        # renders one <MemoryCitationChip> per memory_citation event.
-        # The bracket label is built in the service (format_citation_label)
-        # so the chip displays the locked format verbatim.
-        if assistant_msg is not None:
-            for claim in memory_recall_claims:
-                yield json.dumps(build_citation_event(claim, message_id=str(assistant_msg.id)))
-
-        # ── P0-1: durable memory extraction via Celery ────────────────
-        try:
-            from app.tasks.memory_extraction_tasks import extract_memory_claims_task
-
-            extract_memory_claims_task.delay(
-                thread_id=thread_id,
-                user_id=user_id,
-                user_message=content,
-                assistant_response=full_response,
-            )
-        except Exception:
-            logger.debug("memory_extraction Celery dispatch failed (non-fatal)", exc_info=True)
-
-        try:
-            from app.services.usage_service import get_usage_service
-
-            get_usage_service().record_usage(
-                user_id=str(user_id),
-                model_id=model,
-                provider="byok" if user_api_key else "system",
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                cost=total_tokens * 0.000002,
-            )
-        except Exception as ue:
-            logger.warning("Usage recording failed (non-fatal): %s", ue)
-
-        yield json.dumps(
-            {
-                "type": "complete",
-                "full_response": full_response,
-                "message_id": assistant_msg.id if assistant_msg is not None else None,
-                "model": model,
-            }
-        )
-
-    except CircuitOpenError as e:
-        llm_duration = time.time() - llm_start
-        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
-        logger.warning("Circuit breaker open for %s: %s", provider_name, e)
-        yield json.dumps(
-            {
-                "type": "error",
-                "error": f"Service temporarily unavailable ({provider_name}). Please try again later.",
-            }
-        )
-    except Exception as e:
-        llm_duration = time.time() - llm_start
-        record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
-        logger.error("stream_message_to_llm failed: %s", e)
-        yield json.dumps({"type": "error", "error": str(e)})
 
 
 async def generate_thread_title(
