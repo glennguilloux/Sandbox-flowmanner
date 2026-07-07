@@ -316,7 +316,7 @@ class SeoContentScorerTool(BaseTool):
                 links.append({"text": text, "href": href})
         return links
 
-    def _extract_images(self, soup: BeautifulSoup) -> list[dict[str, str]]:
+    def _extract_images(self, soup: BeautifulSoup) -> list[dict[str, str | bool]]:
         return [
             {
                 "src": tag.get("src", ""),

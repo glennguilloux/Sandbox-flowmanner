@@ -124,7 +124,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── Python linter ────────────────────────────────────────────
 
-    async def _lint_python(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_python(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint Python code using ast and basic heuristics."""
         issues = []
         fixed_code = code
@@ -241,7 +241,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── JavaScript linter ────────────────────────────────────────
 
-    async def _lint_javascript(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_javascript(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint JavaScript code using syntax check via Node.js."""
         issues = []
 
@@ -286,7 +286,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── TypeScript linter ────────────────────────────────────────
 
-    async def _lint_typescript(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_typescript(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint TypeScript code."""
         issues = []
         fixed_code = code
@@ -303,9 +303,9 @@ class CodeLinterProTool(BaseTool):
 
     # ── Bash linter ──────────────────────────────────────────────
 
-    async def _lint_bash(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_bash(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint Bash code."""
-        issues = []
+        issues: list[dict] = []
         fixed_code = code
 
         # ShellCheck if available
@@ -357,7 +357,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── SQL linter ───────────────────────────────────────────────
 
-    async def _lint_sql(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_sql(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint SQL code."""
         issues = []
         fixed_code = code
@@ -425,7 +425,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── HTML linter ──────────────────────────────────────────────
 
-    async def _lint_html(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_html(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint HTML code for common issues."""
         issues = []
         fixed_code = code
@@ -482,7 +482,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── CSS linter ───────────────────────────────────────────────
 
-    async def _lint_css(self, code: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_css(self, code: str, fix: bool) -> tuple[list, float, str, str]:
         """Lint CSS code."""
         issues = []
         fixed_code = code
@@ -523,7 +523,7 @@ class CodeLinterProTool(BaseTool):
 
     # ── Generic linter ───────────────────────────────────────────
 
-    async def _lint_generic(self, code: str, lang: str, fix: bool) -> tuple[list, int, str, str]:
+    async def _lint_generic(self, code: str, lang: str, fix: bool) -> tuple[list, float, str, str]:
         """Generic linting for unrecognized languages."""
         issues = self._generic_checks(code, lang)
         fixed_code = self._fix_generic(code, lang) if fix else code
