@@ -126,10 +126,19 @@ class SandboxdClient:
         # Resolve template: explicit arg > settings default > empty (no template)
         effective_template = template if template is not None else settings.SANDBOXD_DEFAULT_TEMPLATE
 
+        # Preview ports to expose.  sandboxd builds the per-sandbox Traefik
+        # router (priority 100) that actually proxies the preview Host to the
+        # live container FROM this `ports` list — if it is empty, no router is
+        # created, every preview request falls through to the wake catch-all
+        # (priority 1), and the browser is stuck on the "Spinning up your app!"
+        # rocket forever.  So we must always expose the canonical serve port.
+        preview_ports = [settings.SANDBOXD_PREVIEW_PORT]
+
         # Try v1 public API first
         payload: dict[str, Any] = {
             "project": {"id": project_id, "user_id": user_id},
             "visibility": visibility,
+            "ports": preview_ports,
         }
         if effective_template:
             payload["template"] = effective_template
@@ -147,6 +156,7 @@ class SandboxdClient:
                 json={
                     "project_id": project_id,
                     "user_id": user_id,
+                    "ports": preview_ports,
                 },
             )
 
