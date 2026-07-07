@@ -1,37 +1,38 @@
 # FlowManner — NEXT SESSION HANDOFF
-**Last updated:** 2026-07-04
-**Status:** Q3/Q4 2026 Execution Plan — ALL PHASES COMPLETE
+**Last updated:** 2026-07-07
+**Status:** P1 Sprint COMPLETE — Q3/Q4 Execution Plan COMPLETE
 
 ---
 
 ## What Was Completed This Session
 
-### Phases R1–R6 (Q3/Q4 2026 Execution Plan) — DONE
+### P1 Sprint — ALL ITEMS DONE
 
-| Phase | Status | Key Outcome |
-|-------|--------|-------------|
-| R1: Strategy Profiling + Plan Scorer | ✅ Complete | 4 strategies gated behind STRATEGY_EXPERIMENTAL=false; plan scorer uses token/latency penalties |
-| R2: Backend Cleanup | ✅ Complete | 3 routers skipped (DEPRECATED strategies); dual-write decision doc written |
-| R3: Frontend Standardization | ✅ Complete | All 15 remaining fetch() calls verified legitimate; E2E coverage confirmed |
-| R4: Codebase Pruning | ✅ Complete | ~1,298 LOC removed (domain_agents/ + marketplace.py) |
-| R5: Product Depth | ✅ Complete | Eval dashboard built; templates gallery verified; mission timeline skipped (replay page covers it) |
-| R6: Hardening & Performance | ✅ Complete | audit_logs indexes (147x improvement); cache metrics instrumented; circuit breaker already done; CI audit clean |
+| Item | Status | Commit |
+|------|--------|--------|
+| P1-3: Nginx SSE (`proxy_buffering off`) | ✅ Deployed to VPS | `205a99d2` (backend), deployed to `flowmanner-nginx` |
+| P1-1: Dual-write cleanup | ✅ Scripts deleted, docs updated | `340e61d8` (backend) |
+| P1-2: Strategy viability UX (backend) | ✅ `GET /api/strategies` | `9ac22f83` (backend) |
+| P1-2: Strategy viability UX (frontend) | ✅ Strategy selector UI | `c99c715a` (frontend repo) |
 
-### Commits This Session
+### P1 Sprint Commits
 
+**Backend (origin/main):**
 | Commit | Description |
 |--------|-------------|
-| `0f1c5ddb` | chore: refresh model snapshot after extensions table removal |
-| `7cbbde82` | fix(r6a): make audit_logs migration idempotent (CREATE INDEX IF NOT EXISTS) |
-| `cbb24588` | docs: exit audit for R5/R6 session |
-| `017bce8d` | feat(r6d): instrument inprocess + Redis cache layers with Prometheus metrics |
-| `3c8d2df1` | perf(r6a): add audit_logs indexes for created_at and user_id (147x improvement) |
-| `c2aa168` (frontend) | feat(r5b): add eval results dashboard page and nav entry |
+| `205a99d2` | fix(nginx): add proxy_buffering off for SSE streaming support |
+| `340e61d8` | chore(cleanup): P1-1 dual-write cleanup — delete dead scripts, mark EXECUTED |
+| `9ac22f83` | feat(api): add GET /api/strategies endpoint with DEPRECATED flag |
+
+**Frontend (origin/master — FlowmannerV2-frontend):**
+| Commit | Description |
+|--------|-------------|
+| `c99c715a` | feat(chat): add strategy selector UI with deprecated flag support |
 
 ### Deployments
 
-- ✅ Backend deployed with `--migrate` — Alembic at `audit_log_perf_001` (head)
-- ⏸️ Frontend NOT deployed — eval dashboard committed on `master` but not pushed/deployed yet
+- ⏸️ Backend needs redeploy to make `/api/strategies` live — run `bash /opt/flowmanner/deploy-backend.sh`
+- ⏸️ Frontend NOT deployed — strategy selector committed on `master` but not deployed yet
 
 ---
 
@@ -39,15 +40,17 @@
 
 ### Immediate (Next Session)
 
-1. **Deploy frontend** — Run `ship` or `bash /opt/flowmanner/deploy-frontend.sh` to make the eval dashboard live at `/eval`
-2. **Verify eval dashboard end-to-end** — Load the page, check for console errors, verify datasets/runs/templates/benchmarks tabs work
-3. **Check /metrics endpoint** — Verify `cache_hits_total` and `cache_misses_total` Prometheus counters are exposed for both inprocess and Redis caches
-4. **Update roadmap docs** — Mark Q3/Q4 execution plan as complete in `docs/ROADMAP-Q3-Q4-2026.md` and `docs/EXECUTION-PLAN-Q3-Q4-2026.md`
+1. **Deploy frontend** — Run `bash /opt/flowmanner/deploy-frontend.sh` to make the strategy selector UI live (~4 min)
+2. **Deploy backend** — Run `bash /opt/flowmanner/deploy-backend.sh` to make `/api/strategies` endpoint live (~2 min)
+3. **Smoke test strategy selector** — Open Chat Settings → General tab → verify dropdown shows 7 strategies, deprecated ones grayed out
+4. **Verify eval dashboard** — Load `/eval`, check console errors, verify tabs work
+5. **Check /metrics endpoint** — Verify `cache_hits_total` and `cache_misses_total` Prometheus counters
 
 ### Short-Term (Next 1–2 Weeks)
 
-5. ~~**Dual-write removal**~~ ✅ DONE — Per `docs/DUAL-WRITE-DECISION.md`, dual-write layer removed from `_mission_cqrs/commands.py`, `DualWriteService` deleted, dead scripts cleaned up (2026-07-07).
-6. **wt/w2-t6-wire-deploy branch cleanup** — Cherry-pick the 6 deploy-related commits onto main, then delete the branch (per execution plan §5)
+5. ~~**Dual-write removal**~~ ✅ DONE — Per `docs/DUAL-WRITE-DECISION.md`, dual-write layer removed, dead scripts cleaned up (2026-07-07).
+6. ~~**Strategy viability UX**~~ ✅ DONE — `GET /api/strategies` + frontend selector with deprecated flag support (2026-07-07).
+7. **wt/w2-t6-wire-deploy branch cleanup** — Cherry-pick the 6 deploy-related commits onto main, then delete the branch (per execution plan §5)
 7. **Instrument Redis cache usage sites** — The `workflow_cache.py` is instrumented, but other Redis usage sites (`redis.get`/`redis.set` in services like `memory_service.py`, `dashboard_service.py`) could also benefit from metrics
 
 ### Medium-Term (Next 1–2 Months)
@@ -71,7 +74,7 @@
 
 1. **STRATEGY_EXPERIMENTAL defaults to false** — swarm/pipeline/meta/langgraph missions will fail with ValueError unless set to true in `.env`
 2. **audit_log_perf_001 migration** — Already applied via Alembic and psql. The indexes exist. Don't try to re-apply.
-3. **Frontend has no git remote** — The frontend at `/home/glenn/FlowmannerV2-frontend/` is deployed via `ship` or `deploy-frontend.sh`, not via git push. There are 59 pre-existing unstaged changes that are NOT from this session.
+3. **Frontend is on a separate repo** — The frontend at `/home/glenn/FlowmannerV2-frontend/` pushes to `origin/master` (not `main`). Deployed via `deploy-frontend.sh`. There may be pre-existing unstaged changes that are NOT from this session.
 4. **Full backend pytest OOM** — The full `pytest -q` suite is killed (exit 137). Use targeted tests: `pytest tests/test_lifespan_hydration.py tests/test_agent_api.py tests/test_plan_scorer.py tests/test_health.py -q`
 5. **docker compose exec vs docker exec** — `docker compose exec -T workflow-postgres` may fail intermittently. Use `docker exec workflow-postgres` as a fallback.
 6. **Cache metrics** — Both `inprocess.py` and `workflow_cache.py` now report to Prometheus via `record_cache_hit`/`record_cache_miss`. Check `/metrics` to verify.
