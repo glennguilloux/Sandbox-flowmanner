@@ -31,6 +31,12 @@ SSE_EVENT_ERROR = "error"
 SSE_EVENT_SAVE_FAILED = "save_failed"
 SSE_EVENT_STREAM_START = "stream_start"
 
+# ── P2-2: Intermediate tool_result event ────────────────────────────────
+# Emitted through the SSE buffer before and after each tool execution,
+# carrying status (running|done|error), so the frontend can render an
+# inline collapsible block per tool call.
+SSE_EVENT_TOOL_RESULT = "tool_result"
+
 
 # ── Canvas update event builder ───────────────────────────────────────
 # Maps tool_name → tile config for tools that should auto-open canvas tiles.
