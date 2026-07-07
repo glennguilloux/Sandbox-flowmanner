@@ -47,9 +47,31 @@ async def resolve_input(
     """Resolve tool input from either base64 *data* or a *url*.
 
     Raises ``ValueError`` if neither is provided.
+
+    SSRF guard: when fetching a URL, resolve the host and refuse loopback,
+    private, link-local, or cloud-metadata addresses so the tool layer cannot
+    be used as an internal-network oracle.
     """
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
     if data:
         return decode_data(data)
-    if url:
-        return await fetch_bytes(url, timeout=fetch_timeout)
-    raise ValueError(f"Either 'data' (base64) or 'url' must be provided for {label}")
+    if not url:
+        raise ValueError(f"No {label} provided (need 'data' or 'url')")
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
+    host = (parsed.hostname or "").lower()
+    if host in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254"):
+        raise ValueError(f"Refusing to fetch loopback/link-local/metadata host: {host}")
+    try:
+        for info in socket.getaddrinfo(host, None):
+            if ipaddress.ip_address(info[4][0]).is_private:
+                raise ValueError(f"Refusing to fetch private/non-public host: {host}")
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve host: {host}")
+
+    return await fetch_bytes(url, timeout=fetch_timeout)

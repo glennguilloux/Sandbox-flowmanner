@@ -133,7 +133,10 @@ class ImageExifExtractorTool(BaseTool):
         metadata = ToolMetadata(
             tool_id="image_exif_extractor",
             visibility="opt_in",
-            required_scopes=[],
+            # Security: the tool fetches arbitrary URLs via resolve_input, which
+            # is SSRF-reachable. The empty default made it public; require an
+            # explicit scope so only operators/authorized callers can use it.
+            required_scopes=["tool:image-exif"],
             name="Image EXIF Extractor",
             description="Extract EXIF metadata, GPS coordinates, and device info from images",
             category="file-handling",

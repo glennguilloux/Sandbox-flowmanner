@@ -7,7 +7,6 @@ schema_inference_engine → Automatically infer database schemas to help LLMs wr
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from pydantic import Field
@@ -22,15 +21,18 @@ logger = logging.getLogger(__name__)
 class SchemaInferenceEngineInput(ToolInput):
     connection_string: str | None = Field(
         None,
-        description="Database connection string (uses DATABASE_URL env var if omitted)",
+        description="Database connection string. REQUIRED — the tool will not "
+        "fall back to a server-side DATABASE_URL (that would let a caller "
+        "introspect the platform's own database without opt-in).",
     )
     schema_name: str | None = Field(
         None,
         description="Database schema to inspect (default: 'public' for Postgres)",
     )
     include_sample_data: bool = Field(
-        True,
-        description="Include a sample row from each table",
+        False,
+        description="Include a sample row from each table. Defaults to False; "
+        "opt in explicitly to avoid pulling live data into the model context.",
     )
     format: str = Field(
         "markdown",
@@ -43,7 +45,11 @@ class SchemaInferenceEngineTool(BaseTool):
         metadata = ToolMetadata(
             tool_id="schema_inference_engine",
             visibility="opt_in",
-            required_scopes=[],
+            # Security: full-DB introspection is a sensitive capability. The
+            # empty default would make it public to any caller. Require an
+            # explicit operator scope so DB introspection stays opt-in at the
+            # authz layer (admins bypass; everyone else must hold the scope).
+            required_scopes=["tool:schema-inference"],
             name="Schema Inference Engine",
             description="Automatically infer database schemas to help LLMs write better SQL",
             category="database",
@@ -59,11 +65,37 @@ class SchemaInferenceEngineTool(BaseTool):
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        conn_str = validated.connection_string or os.getenv("DATABASE_URL", "")
+        conn_str = validated.connection_string
         if not conn_str:
+            # Hard gate: never fall back to a server-side DATABASE_URL. That
+            # would let any caller who holds the tool scope introspect the
+            # platform's own database without an explicit connection string.
             return ToolResult.error_result(
                 tool_id=self.tool_id,
-                error="No connection string. Set DATABASE_URL env var or pass connection_string.",
+                error="No connection string provided. Pass an explicit "
+                "connection_string — the tool does not fall back to DATABASE_URL.",
+            )
+
+        # SSRF guard: refuse non-DB schemes and anything pointing at
+        # loopback/link-local/metadata endpoints.
+        lower = conn_str.lower()
+        if not (
+            lower.startswith("postgresql://")
+            or lower.startswith("postgresql+")
+            or lower.startswith("mysql://")
+            or lower.startswith("mysql+")
+            or lower.startswith("sqlite://")
+            or lower.startswith("sqlite+")
+        ):
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="Unsupported or non-DB connection scheme.",
+            )
+        _host = lower.split("://", 1)[1].split("/", 1)[0].split("@", 1)[-1].split(":")[0]
+        if _host in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "169.254.169.254", "::"):
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="Refusing to connect to a loopback/link-local/metadata host.",
             )
 
         # Ensure async driver

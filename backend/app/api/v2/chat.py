@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import get_current_user
 from app.api.v2.base import ok, paginated
@@ -331,14 +332,13 @@ async def delete_message(
     try:
         if not await delete_chat_message(db, message_id):
             raise _not_found()
-    except Exception as e:
-        error_msg = str(e).lower()
-        if "foreign key" in error_msg or "constraint" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete this message — it has branches referencing it. Delete the branches first.",
-            )
-        raise
+    except IntegrityError:
+        # A branch references this message (FK constraint) — clients must
+        # delete the branch first.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete this message — it has branches referencing it. Delete the branches first.",
+        )
 
 
 @router.post("/threads/{thread_id}/branches", status_code=status.HTTP_201_CREATED)
@@ -424,7 +424,7 @@ async def chat_with_llm(
         thread_id,
         payload.content,
         user.id,
-        _get_model_preference(thread),
+        requested_model,
         user_api_key=user_api_key,
         user_base_url=user_base_url,
         model_id=requested_model,
@@ -491,7 +491,7 @@ async def chat_with_llm_stream(
                     thread_id,
                     payload.content,
                     user.id,
-                    _get_model_preference(thread),
+                    requested_model,
                     user_api_key=user_api_key,
                     user_base_url=user_base_url,
                     model_id=requested_model,
