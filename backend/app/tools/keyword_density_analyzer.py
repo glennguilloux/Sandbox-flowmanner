@@ -379,6 +379,8 @@ class KeywordDensityAnalyzerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="keyword_density_analyzer",
+            visibility="opt_in",
+            required_scopes=[],
             name="Keyword Density Analyzer",
             description=(
                 "Extract keywords and calculate TF-IDF scores to analyze "

@@ -63,6 +63,8 @@ class ChartDataExtractorTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="chart_data_extractor",
+            visibility="opt_in",
+            required_scopes=[],
             name="Chart Data Extractor",
             description=(
                 "Reverse-engineer data tables from bar charts, line graphs, "

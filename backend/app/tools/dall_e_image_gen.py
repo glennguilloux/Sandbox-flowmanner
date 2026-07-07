@@ -94,7 +94,6 @@ class DallEImageGenTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="dall_e_image_gen",
             name="DALL-E Image Generator",
             description=(

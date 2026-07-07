@@ -150,6 +150,8 @@ class SeoContentScorerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="seo_content_scorer",
+            visibility="opt_in",
+            required_scopes=[],
             name="SEO Content Scorer",
             description=(
                 "Score HTML drafts against focus keywords using TF-IDF analysis, "

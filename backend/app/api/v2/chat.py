@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -447,6 +449,10 @@ async def chat_with_llm(
 
 
 async def _sse_stream(generator: AsyncGenerator) -> AsyncGenerator:
+    # Phase 2c.3: emit a stream_start event first (v1 parity) so the
+    # frontend can wire up per-stream state before tokens arrive.
+    stream_id = str(uuid.uuid4())
+    yield f"data: {json.dumps({'type': 'stream_start', 'stream_id': stream_id})}\n\n"
     async for chunk in generator:
         yield f"data: {chunk}\n\n"
     yield "data: [DONE]\n\n"

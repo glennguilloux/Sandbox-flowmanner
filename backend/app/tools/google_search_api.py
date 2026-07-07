@@ -84,7 +84,6 @@ class GoogleSearchApiTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="google_search_api",
             name="Google Search API",
             description=(

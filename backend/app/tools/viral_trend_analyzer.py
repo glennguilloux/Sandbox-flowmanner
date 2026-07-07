@@ -69,6 +69,8 @@ class ViralTrendAnalyzerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="viral_trend_analyzer",
+            visibility="opt_in",
+            required_scopes=[],
             name="Viral Trend Analyzer",
             description=(
                 "Analyze current trending topics across social platforms and news. "

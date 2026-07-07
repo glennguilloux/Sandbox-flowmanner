@@ -79,7 +79,6 @@ class ArxivPaperFinderTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="arxiv_paper_finder",
             name="ArXiv Paper Finder",
             description=(

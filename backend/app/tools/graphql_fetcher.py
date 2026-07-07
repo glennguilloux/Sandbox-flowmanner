@@ -30,6 +30,8 @@ class GraphqlFetcherTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="graphql_fetcher",
+            visibility="opt_in",
+            required_scopes=[],
             name="GraphQL Fetcher",
             description="Construct and execute GraphQL queries and mutations",
             category="database",

@@ -183,6 +183,8 @@ class GoogleAnalyticsReporterTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="google_analytics_reporter",
+            visibility="opt_in",
+            required_scopes=[],
             name="Google Analytics Reporter",
             description=(
                 "Fetch pageviews, user metrics, conversion data, and reports "

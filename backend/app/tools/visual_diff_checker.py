@@ -73,6 +73,8 @@ class VisualDiffCheckerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="visual_diff_checker",
+            visibility="opt_in",
+            required_scopes=[],
             name="Visual Diff Checker",
             description=(
                 "Compare two images for visual regressions or changes. "

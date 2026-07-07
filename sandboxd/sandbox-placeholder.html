@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flowmanner Sandbox</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --bg-soft: #121723;
+      --fg: #e6e9ef;
+      --muted: #8b94a7;
+      --accent: #6c8cff;
+      --accent-2: #a06cff;
+      --border: #1f2733;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: radial-gradient(1200px 600px at 70% -10%, #1a2236 0%, var(--bg) 55%);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(560px, 100%);
+      background: linear-gradient(180deg, var(--bg-soft), #0e131d);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      text-align: center;
+    }
+    .logo {
+      font-size: 13px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .title {
+      font-size: 26px;
+      font-weight: 650;
+      margin: 0 0 8px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .motto {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0 0 22px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #0e131d;
+      color: var(--fg);
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #3ad29f;
+      box-shadow: 0 0 0 4px rgba(58,210,159,.15);
+    }
+    .hint {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    code {
+      color: var(--accent);
+      background: #0e131d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">Flowmanner Sandbox</div>
+    <h1 class="title">Sandbox is ready</h1>
+    <p class="motto">The Universe flows as one manner!</p>
+    <span class="pill"><span class="dot"></span><span id="sid">sandbox</span></span>
+    <p class="hint">
+      This is a clean workspace. Write your app files and they will be served here.<br />
+      Use the <code>sandboxd_file_write</code> tool to add an <code>index.html</code>,
+      or run a dev server inside the sandbox.
+    </p>
+  </main>
+  <script>
+    // Show the sandbox id from ?sandbox_id=… if present.
+    try {
+      const u = new URLSearchParams(location.search);
+      const id = u.get("sandbox_id");
+      if (id) document.getElementById("sid").textContent = id;
+    } catch (_) {}
+  </script>
+</body>
+</html>

@@ -166,7 +166,6 @@ class GlobalNewsAggregatorTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="global_news_aggregator",
             name="Global News Aggregator",
             description=(
@@ -361,7 +360,7 @@ class GlobalNewsAggregatorTool(BaseTool):
             "articles": articles,
         }
 
-    async def _get_sources(self) -> dict[str, Any]:
+    async def _get_sources(self, validated: GlobalNewsAggregatorInput) -> dict[str, Any]:
         """List available news sources."""
         params: dict[str, Any] = {
             "apiKey": NEWS_API_KEY,

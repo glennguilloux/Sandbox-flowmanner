@@ -152,6 +152,8 @@ class SmartWebScraperTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="smart_web_scraper",
+            visibility="opt_in",
+            required_scopes=[],
             name="Smart Web Scraper",
             description="Extract main article content from URLs while stripping ads and nav",
             category="web-scraping",

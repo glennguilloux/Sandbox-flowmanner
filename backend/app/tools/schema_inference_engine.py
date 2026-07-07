@@ -42,6 +42,8 @@ class SchemaInferenceEngineTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="schema_inference_engine",
+            visibility="opt_in",
+            required_scopes=[],
             name="Schema Inference Engine",
             description="Automatically infer database schemas to help LLMs write better SQL",
             category="database",
@@ -81,16 +83,16 @@ class SchemaInferenceEngineTool(BaseTool):
 
                 for table_name in await conn.run_sync(lambda sync_conn: inspector.get_table_names(schema=schema_name)):
                     columns_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_columns(table_name, schema=schema_name)
+                        lambda sync_conn, t=table_name: inspector.get_columns(t, schema=schema_name)
                     )
                     pk_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_pk_constraint(table_name, schema=schema_name)
+                        lambda sync_conn, t=table_name: inspector.get_pk_constraint(t, schema=schema_name)
                     )
                     fk_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_foreign_keys(table_name, schema=schema_name)
+                        lambda sync_conn, t=table_name: inspector.get_foreign_keys(t, schema=schema_name)
                     )
                     indexes_info = await conn.run_sync(
-                        lambda sync_conn: inspector.get_indexes(table_name, schema=schema_name)
+                        lambda sync_conn, t=table_name: inspector.get_indexes(t, schema=schema_name)
                     )
 
                     primary_keys = pk_info.get("constrained_columns", [])
@@ -127,7 +129,7 @@ class SchemaInferenceEngineTool(BaseTool):
                                 for k, v in sample_row.items():
                                     if hasattr(v, "isoformat"):
                                         sample_row[k] = v.isoformat()
-                                    elif not isinstance(v, (str, int, float, bool, type(None))):
+                                    elif not isinstance(v, str | int | float | bool | type(None)):
                                         sample_row[k] = str(v)
                         except Exception:
                             sample_row = None

@@ -107,6 +107,8 @@ class InfiniscrollExtractorTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="infiniscroll_extractor",
+            visibility="opt_in",
+            required_scopes=[],
             name="Infinite Scroll Extractor",
             description=(
                 "Extract data from pages with infinite scroll by simulating "

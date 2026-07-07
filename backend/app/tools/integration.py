@@ -33,6 +33,8 @@ class ListIntegrationsTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="list_integrations",
+            visibility="opt_in",
+            required_scopes=[],
             name="List Integrations",
             description=(
                 "List all integrations the current user has connected, along with the "

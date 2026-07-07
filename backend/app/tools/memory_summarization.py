@@ -110,6 +110,8 @@ class MemorySummarizationTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="memory_summarization",
+            visibility="opt_in",
+            required_scopes=[],
             name="Memory Summarization",
             description=(
                 "Auto-compress long conversations into dense foundational "

@@ -85,6 +85,8 @@ class TableToCsvExtractorTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="table_to_csv_extractor",
+            visibility="opt_in",
+            required_scopes=[],
             name="Table to CSV Extractor",
             description=(
                 "Extract HTML tables from web pages and convert them to "

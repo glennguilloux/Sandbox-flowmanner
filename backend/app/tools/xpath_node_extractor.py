@@ -72,6 +72,8 @@ class XpathNodeExtractorTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="xpath_node_extractor",
+            visibility="opt_in",
+            required_scopes=[],
             name="XPath Node Extractor",
             description=(
                 "Query HTML/XML content using XPath expressions to extract "

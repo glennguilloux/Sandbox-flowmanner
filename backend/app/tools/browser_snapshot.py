@@ -9,6 +9,8 @@ class BrowserSnapshotTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="browser_snapshot",
+            visibility="opt_in",
+            required_scopes=[],
             name="DOM Snapshot",
             description="Get DOM snapshot with interactive element references",
             category="browser",

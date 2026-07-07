@@ -76,6 +76,8 @@ class CssSelectorQueryTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="css_selector_query",
+            visibility="opt_in",
+            required_scopes=[],
             name="CSS Selector Query",
             description=(
                 "Query HTML content using CSS selectors to extract text, "

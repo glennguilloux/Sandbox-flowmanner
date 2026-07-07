@@ -63,10 +63,7 @@ def _extract_exif(image: Image.Image) -> dict[str, Any]:
 
     # Convert GPS coordinates to decimal if present
     if gps_data:
-        gps_result: dict[str, Any] = {}
-        for k, v in gps_data.items():
-            gps_result[k] = v
-
+        gps_result: dict[str, Any] = dict(gps_data)
         if "GPSLatitude" in gps_data and "GPSLatitudeRef" in gps_data:
             gps_result["decimal_latitude"] = _convert_gps_to_decimal(
                 gps_data["GPSLatitude"], gps_data["GPSLatitudeRef"]
@@ -77,7 +74,7 @@ def _extract_exif(image: Image.Image) -> dict[str, Any]:
             )
         if "GPSAltitude" in gps_data:
             alt = gps_data["GPSAltitude"]
-            gps_result["altitude_meters"] = float(alt) if isinstance(alt, (int, float)) else alt
+            gps_result["altitude_meters"] = float(alt) if isinstance(alt, int | float) else alt
 
         result["gps"] = gps_result
 
@@ -135,6 +132,8 @@ class ImageExifExtractorTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="image_exif_extractor",
+            visibility="opt_in",
+            required_scopes=[],
             name="Image EXIF Extractor",
             description="Extract EXIF metadata, GPS coordinates, and device info from images",
             category="file-handling",

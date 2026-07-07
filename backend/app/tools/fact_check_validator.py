@@ -77,7 +77,6 @@ class FactCheckValidatorTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="fact_check_validator",
             name="Fact Check Validator",
             description=(

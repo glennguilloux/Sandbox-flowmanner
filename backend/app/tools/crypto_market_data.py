@@ -110,7 +110,6 @@ class CryptoMarketDataTool(BaseTool):
 
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="crypto_market_data",
             name="Crypto Market Data",
             description=(

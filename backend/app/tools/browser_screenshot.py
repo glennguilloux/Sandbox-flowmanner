@@ -9,6 +9,8 @@ class BrowserScreenshotTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="browser_screenshot",
+            visibility="opt_in",
+            required_scopes=[],
             name="Take Screenshot",
             description="Take a screenshot of the current browser page",
             category="browser",

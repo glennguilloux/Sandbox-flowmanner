@@ -255,6 +255,10 @@ def build_citation_event(
         "scope": claim.scope,
         "confidence": float(claim.confidence),
         "source": "pre_llm_context",
+        # Honest recall-quality signal for the frontend (Phase 2c.4).
+        # T19 ships substring recall; flips to "semantic" once embedding
+        # recall lands (C3.3). Lets the UI show recall confidence truthfully.
+        "recall_method": "substring",
     }
     if mission_id is not None:
         payload["mission_id"] = str(mission_id)
@@ -288,4 +292,8 @@ def build_recall_used_event(
         "scope": claim.scope,
         "confidence": float(claim.confidence),
         "source": "pre_llm_context",
+        # Honest recall-quality signal for the frontend (Phase 2c.4).
+        # T19 ships substring recall; flips to "semantic" once embedding
+        # recall lands (C3.3). Lets the UI show recall confidence truthfully.
+        "recall_method": "substring",
     }

@@ -717,7 +717,9 @@ async def _stream_message_to_llm_body(
         if assistant_msg is None:
             logger.error("stream: assistant message save failed after 3 attempts")
             save_failed_payload = json.dumps({"type": "save_failed", "content": full_response[:500]})
-            yield f"data: {save_failed_payload}\n\n"
+            # Phase 2c.3: emit bare JSON — the outer SSE wrapper frames it
+            # with "data: ". Prefixing here double-frames the event.
+            yield save_failed_payload
 
         # ── T33 Stage 1: emit memory_recall_used events for cited claims ──
         # Emitted AFTER the assistant message is persisted so the frontend

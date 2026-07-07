@@ -51,7 +51,6 @@ class PdfParserInput(ToolInput):
 class PdfParserTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
-            visibility="opt_in",
             tool_id="pdf_parser",
             name="PDF Parser",
             description="Extract text, tables, and metadata from PDF documents",

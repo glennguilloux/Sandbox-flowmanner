@@ -120,6 +120,8 @@ class StockPriceTrackerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="stock_price_tracker",
+            visibility="opt_in",
+            required_scopes=[],
             name="Stock Price Tracker",
             description=(
                 "Fetch end-of-day, intraday, or current stock prices, forex rates, "

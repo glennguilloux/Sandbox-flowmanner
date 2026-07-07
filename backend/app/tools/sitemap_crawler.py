@@ -94,6 +94,8 @@ class SitemapCrawlerTool(BaseTool):
     def __init__(self):
         metadata = ToolMetadata(
             tool_id="sitemap_crawler",
+            visibility="opt_in",
+            required_scopes=[],
             name="Sitemap Crawler",
             description="Automatically discover and queue all URLs from a website's XML sitemap",
             category="web-scraping",
