@@ -384,17 +384,16 @@ class CryptoMarketDataTool(BaseTool):
             resp.raise_for_status()
             raw = resp.json()
 
-        coins = []
-        for c in raw.get("coins", [])[: validated.per_page]:
-            coins.append(
-                {
-                    "id": c.get("id", ""),
-                    "name": c.get("name", ""),
-                    "symbol": c.get("symbol", ""),
-                    "market_cap_rank": c.get("market_cap_rank"),
-                    "thumb": c.get("thumb", ""),
-                }
-            )
+        coins = [
+            {
+                "id": c.get("id", ""),
+                "name": c.get("name", ""),
+                "symbol": c.get("symbol", ""),
+                "market_cap_rank": c.get("market_cap_rank"),
+                "thumb": c.get("thumb", ""),
+            }
+            for c in raw.get("coins", [])[: validated.per_page]
+        ]
 
         return {
             "action": "search_coins",

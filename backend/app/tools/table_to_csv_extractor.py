@@ -175,15 +175,13 @@ class TableToCsvExtractorTool(BaseTool):
         # Extract thead headers
         thead = table.find("thead")
         if thead:
-            for th in thead.find_all("th"):
-                headers.append(self._clean_cell(th.get_text(), validated))
+            headers.extend(self._clean_cell(th.get_text(), validated) for th in thead.find_all("th"))
 
         # If no thead, try first row as headers
         if not headers and validated.include_headers:
             first_row = table.find("tr")
             if first_row:
-                for th in first_row.find_all(["th", "td"]):
-                    headers.append(self._clean_cell(th.get_text(), validated))
+                headers.extend(self._clean_cell(th.get_text(), validated) for th in first_row.find_all(["th", "td"]))
 
         # Extract data rows (skip header row if we already extracted headers)
         rows = table.find_all("tr")
@@ -245,8 +243,7 @@ class TableToCsvExtractorTool(BaseTool):
             if validated.include_headers and headers:
                 lines.append("| " + " | ".join(headers) + " |")
                 lines.append("|" + "|".join(["---" for _ in headers]) + "|")
-            for row in rows:
-                lines.append("| " + " | ".join(row) + " |")
+            lines.extend("| " + " | ".join(row) + " |" for row in rows)
             return "\n".join(lines)
         elif validated.output_format == "pandas_json":
             if validated.include_headers and headers:

@@ -185,16 +185,15 @@ class GoogleSearchApiTool(BaseTool):
             data = resp.json()
 
         items = data.get("items", [])
-        results = []
-        for item in items:
-            results.append(
-                {
-                    "title": item.get("title", ""),
-                    "link": item.get("link", ""),
-                    "snippet": item.get("snippet", ""),
-                    "display_link": item.get("displayLink", ""),
-                }
-            )
+        results = [
+            {
+                "title": item.get("title", ""),
+                "link": item.get("link", ""),
+                "snippet": item.get("snippet", ""),
+                "display_link": item.get("displayLink", ""),
+            }
+            for item in items
+        ]
 
         search_info = data.get("searchInformation", {})
         return {

@@ -512,16 +512,15 @@ class GoogleAnalyticsReporterTool(BaseTool):
             data = resp.json()
 
         account_summaries = data.get("accountSummaries", [])
-        properties = []
-        for account in account_summaries:
-            for prop in account.get("propertySummaries", []):
-                properties.append(
-                    {
-                        "property_id": prop.get("property", "").split("/")[-1],
-                        "property_name": prop.get("displayName", ""),
-                        "account_name": account.get("displayName", ""),
-                    }
-                )
+        properties = [
+            {
+                "property_id": prop.get("property", "").split("/")[-1],
+                "property_name": prop.get("displayName", ""),
+                "account_name": account.get("displayName", ""),
+            }
+            for account in account_summaries
+            for prop in account.get("propertySummaries", [])
+        ]
 
         result = {
             "action": "list_properties",

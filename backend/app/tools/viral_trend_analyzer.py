@@ -235,15 +235,14 @@ class ViralTrendAnalyzerTool(BaseTool):
         import xml.etree.ElementTree as ET
 
         root = ET.fromstring(resp.text)
-        items = []
-        for item in root.iter("item"):
-            items.append(
-                {
-                    "title": (item.findtext("title") or "").strip(),
-                    "link": (item.findtext("link") or "").strip(),
-                    "description": (item.findtext("description") or "")[:200].strip(),
-                }
-            )
+        items = [
+            {
+                "title": (item.findtext("title") or "").strip(),
+                "link": (item.findtext("link") or "").strip(),
+                "description": (item.findtext("description") or "")[:200].strip(),
+            }
+            for item in root.iter("item")
+        ]
 
         if topic:
             items = [i for i in items if topic.lower() in (i.get("title", "") + i.get("description", "")).lower()]
@@ -279,17 +278,16 @@ class ViralTrendAnalyzerTool(BaseTool):
 
         root = ET.fromstring(resp.text)
         ns = {"yt": "http://www.youtube.com/xml/schemas/2015"}
-        items = []
-        for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
-            items.append(
-                {
-                    "title": (entry.findtext("{http://www.w3.org/2005/Atom}title") or "").strip(),
-                    "link": entry.find("{http://www.w3.org/2005/Atom}link").get("href", ""),
-                    "channel": (
-                        entry.findtext("{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name") or ""
-                    ).strip(),
-                }
-            )
+        items = [
+            {
+                "title": (entry.findtext("{http://www.w3.org/2005/Atom}title") or "").strip(),
+                "link": entry.find("{http://www.w3.org/2005/Atom}link").get("href", ""),
+                "channel": (
+                    entry.findtext("{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name") or ""
+                ).strip(),
+            }
+            for entry in root.iter("{http://www.w3.org/2005/Atom}entry")
+        ]
 
         return {
             "source": "youtube",

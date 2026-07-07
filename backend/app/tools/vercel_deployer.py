@@ -394,16 +394,15 @@ class VercelDeployerTool(BaseTool):
 
         events = resp.json() if isinstance(resp.json(), list) else resp.json().get("events", [])
         # Summarize to most recent + key event types
-        summarized: list[dict[str, Any]] = []
-        for e in events[:50]:
-            summarized.append(
-                {
-                    "type": e.get("type"),
-                    "created": e.get("created"),
-                    "text": (e.get("payload", {}).get("text", "") or "")[:200],
-                    "info": (e.get("payload", {}).get("info", {}) if e.get("payload") else None),
-                }
-            )
+        summarized: list[dict[str, Any]] = [
+            {
+                "type": e.get("type"),
+                "created": e.get("created"),
+                "text": (e.get("payload", {}).get("text", "") or "")[:200],
+                "info": (e.get("payload", {}).get("info", {}) if e.get("payload") else None),
+            }
+            for e in events[:50]
+        ]
 
         return {
             "action": "get_deployment_events",

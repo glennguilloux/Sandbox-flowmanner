@@ -234,17 +234,15 @@ class SendgridCampaignTool(BaseTool):
         """Build the attachments array."""
         if not validated.attachments:
             return []
-        result = []
-        for att in validated.attachments:
-            result.append(
-                {
-                    "content": att.get("content", ""),
-                    "type": att.get("type", "application/octet-stream"),
-                    "filename": att.get("filename", "attachment"),
-                    "disposition": "attachment",
-                }
-            )
-        return result
+        return [
+            {
+                "content": att.get("content", ""),
+                "type": att.get("type", "application/octet-stream"),
+                "filename": att.get("filename", "attachment"),
+                "disposition": "attachment",
+            }
+            for att in validated.attachments
+        ]
 
     # ── Action handlers ──────────────────────────────────────────
 

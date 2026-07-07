@@ -335,8 +335,7 @@ class LlmOutputEvaluatorTool(BaseTool):
         if context:
             parts.append(f"Ground-truth context:\n<context>\n{context}\n</context>\n")
         parts.append(f"Score each criterion 0-10:\n")
-        for c in criteria:
-            parts.append(f"- {c}")
+        parts.extend(f"- {c}" for c in criteria)
         if evaluation_style == "pairwise":
             parts.append("\nCompare Output A vs Output B and return:\n")
             parts.append("<output_a>\n" + text + "\n</output_a>\n")
@@ -347,15 +346,15 @@ class LlmOutputEvaluatorTool(BaseTool):
             parts.append("}")
         elif evaluation_style == "likert":
             parts.append("\nRate each criterion on a 1-5 Likert scale:\n")
-            for c in criteria:
-                parts.append(f"- {c}: 1=Strongly Disagree, 2=Disagree, 3=Neutral, 4=Agree, 5=Strongly Agree")
+            parts.extend(
+                f"- {c}: 1=Strongly Disagree, 2=Disagree, 3=Neutral, 4=Agree, 5=Strongly Agree" for c in criteria
+            )
             parts.append("\nReturn JSON:\n{")
             parts.append('  "criteria": [{"criterion": "...", "score": 3, "comment": "..."}]')
             parts.append("}")
         else:
             parts.append("\nScore each criterion 0-10:\n")
-            for c in criteria:
-                parts.append(f"- {c}")
+            parts.extend(f"- {c}" for c in criteria)
             parts.append("\nReturn JSON:\n{")
             parts.append('  "criteria": [{"criterion": "...", "score": 0, "comment": "..."}],')
             parts.append('  "hallucinations": [{"passage": "...", "description": "..."}]')
@@ -433,25 +432,24 @@ class LlmOutputEvaluatorTool(BaseTool):
         return {"criteria": parsed, "hallucinations": []}
 
     def _extract_issues(self, evaluation: dict) -> list[dict]:
-        issues = []
-        for c in evaluation.get("criteria", []):
-            if c["score"] < 5:
-                issues.append(
-                    {
-                        "severity": "high" if c["score"] < 3 else "medium",
-                        "criterion": c["criterion"],
-                        "message": c.get("comment", f"Low score on {c['criterion']}"),
-                    }
-                )
-        for h in evaluation.get("hallucinations", []):
-            issues.append(
-                {
-                    "severity": "critical",
-                    "criterion": "hallucination",
-                    "message": h.get("description", "Hallucination detected"),
-                    "passage": h.get("passage", ""),
-                }
-            )
+        issues = [
+            {
+                "severity": "high" if c["score"] < 3 else "medium",
+                "criterion": c["criterion"],
+                "message": c.get("comment", f"Low score on {c['criterion']}"),
+            }
+            for c in evaluation.get("criteria", [])
+            if c["score"] < 5
+        ]
+        issues.extend(
+            {
+                "severity": "critical",
+                "criterion": "hallucination",
+                "message": h.get("description", "Hallucination detected"),
+                "passage": h.get("passage", ""),
+            }
+            for h in evaluation.get("hallucinations", [])
+        )
         return issues
 
     def _build_summary(self, scores: dict, overall: float, issues: list, hallucinations: list) -> str:

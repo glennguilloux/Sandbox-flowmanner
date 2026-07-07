@@ -326,22 +326,22 @@ class CodeLinterProTool(BaseTool):
             )
             if result.returncode == 0 and result.stdout.strip():
                 shell_issues = json.loads(result.stdout)
-                for si in shell_issues:
-                    issues.append(
-                        {
-                            "line": si.get("line", 1),
-                            "column": si.get("column", 0),
-                            "severity": si.get("level", "warning"),
-                            "message": si.get("message", ""),
-                            "code_snippet": "",
-                            "suggestion": (
-                                si.get("fix", {}).get("replacements", [{}])[0].get("replacement", "")
-                                if si.get("fix")
-                                else ""
-                            ),
-                            "fixable": bool(si.get("fix")),
-                        }
-                    )
+                issues.extend(
+                    {
+                        "line": si.get("line", 1),
+                        "column": si.get("column", 0),
+                        "severity": si.get("level", "warning"),
+                        "message": si.get("message", ""),
+                        "code_snippet": "",
+                        "suggestion": (
+                            si.get("fix", {}).get("replacements", [{}])[0].get("replacement", "")
+                            if si.get("fix")
+                            else ""
+                        ),
+                        "fixable": bool(si.get("fix")),
+                    }
+                    for si in shell_issues
+                )
             os.unlink(tmp_path)
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass  # shellcheck not available
@@ -497,21 +497,22 @@ class CodeLinterProTool(BaseTool):
                 and not stripped.endswith("}")
                 and not stripped.endswith(";")
                 and not stripped.endswith(",")
+                and ":" in stripped
+                and not stripped.startswith("@")
             ):
-                if ":" in stripped and not stripped.startswith("@"):
-                    issues.append(
-                        {
-                            "line": i,
-                            "column": len(stripped),
-                            "severity": "warning",
-                            "message": "Missing semicolon after property",
-                            "code_snippet": stripped[:80],
-                            "suggestion": f"Add ';' at end: {stripped};",
-                            "fixable": True,
-                        }
-                    )
-                    if fix:
-                        lines[i - 1] = line.rstrip() + ";"
+                issues.append(
+                    {
+                        "line": i,
+                        "column": len(stripped),
+                        "severity": "warning",
+                        "message": "Missing semicolon after property",
+                        "code_snippet": stripped[:80],
+                        "suggestion": f"Add ';' at end: {stripped};",
+                        "fixable": True,
+                    }
+                )
+                if fix:
+                    lines[i - 1] = line.rstrip() + ";"
 
         if fix:
             fixed_code = "\n".join(lines)

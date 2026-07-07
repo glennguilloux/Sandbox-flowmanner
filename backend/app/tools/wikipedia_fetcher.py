@@ -298,17 +298,16 @@ class WikipediaFetcherTool(BaseTool):
             data = resp.json()
 
         results = data.get("query", {}).get("search", [])
-        articles = []
-        for r in results:
-            articles.append(
-                {
-                    "title": r.get("title", ""),
-                    "page_id": r.get("pageid"),
-                    "snippet": BeautifulSoup(r.get("snippet", ""), "html.parser").get_text(),
-                    "word_count": r.get("wordcount", 0),
-                    "url": self._build_article_url(r.get("title", ""), validated.language),
-                }
-            )
+        articles = [
+            {
+                "title": r.get("title", ""),
+                "page_id": r.get("pageid"),
+                "snippet": BeautifulSoup(r.get("snippet", ""), "html.parser").get_text(),
+                "word_count": r.get("wordcount", 0),
+                "url": self._build_article_url(r.get("title", ""), validated.language),
+            }
+            for r in results
+        ]
 
         return {
             "action": "search",

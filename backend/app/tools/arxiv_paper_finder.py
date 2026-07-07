@@ -167,20 +167,17 @@ class ArxivPaperFinderTool(BaseTool):
             if name_el is not None and name_el.text:
                 authors.append(name_el.text.strip())
 
-        links = []
-        for link_el in entry.findall("atom:link", _ARXIV_NS):
-            links.append(
-                {
-                    "href": link_el.get("href", ""),
-                    "rel": link_el.get("rel", ""),
-                    "title": link_el.get("title", ""),
-                }
-            )
+        links = [
+            {
+                "href": link_el.get("href", ""),
+                "rel": link_el.get("rel", ""),
+                "title": link_el.get("title", ""),
+            }
+            for link_el in entry.findall("atom:link", _ARXIV_NS)
+        ]
 
         # Categories
-        categories = []
-        for cat_el in entry.findall("atom:category", _ARXIV_NS):
-            categories.append(cat_el.get("term", ""))
+        categories = [cat_el.get("term", "") for cat_el in entry.findall("atom:category", _ARXIV_NS)]
 
         # ArXiv-specific
         primary_cat = entry.find("arxiv:primary_category", _ARXIV_NS)

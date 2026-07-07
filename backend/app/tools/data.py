@@ -187,9 +187,7 @@ class CsvParseTool(BaseTool):
                 io.StringIO(validated.csv_text),
                 delimiter=validated.delimiter,
             )
-            rows: list[dict] = []
-            for row in reader:
-                rows.append(dict(row))
+            rows: list[dict] = [dict(row) for row in reader]
 
             return ToolResult.success_result(
                 tool_id=self.tool_id,

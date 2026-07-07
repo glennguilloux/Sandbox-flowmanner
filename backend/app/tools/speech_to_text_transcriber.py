@@ -235,16 +235,15 @@ class SpeechToTextTranscriberTool(BaseTool):
 
             result = model.transcribe(tmp_path, **transcribe_opts)
 
-            segments = []
-            for seg in result.get("segments", []):
-                segments.append(
-                    {
-                        "start": round(seg.get("start", 0), 2),
-                        "end": round(seg.get("end", 0), 2),
-                        "text": seg.get("text", "").strip(),
-                        "confidence": round(seg.get("confidence", 0), 2),
-                    }
-                )
+            segments = [
+                {
+                    "start": round(seg.get("start", 0), 2),
+                    "end": round(seg.get("end", 0), 2),
+                    "text": seg.get("text", "").strip(),
+                    "confidence": round(seg.get("confidence", 0), 2),
+                }
+                for seg in result.get("segments", [])
+            ]
 
             return {
                 "text": result.get("text", "").strip(),

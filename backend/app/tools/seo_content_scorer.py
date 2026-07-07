@@ -259,9 +259,7 @@ class SeoContentScorerTool(BaseTool):
     async def _fetch_competitors(self, urls: list[str]) -> dict[str, str]:
         """Fetch competitor pages in parallel."""
         results: dict[str, str] = {}
-        tasks = []
-        for u in urls:
-            tasks.append(self._fetch_competitor_safe(u, results))
+        tasks = [self._fetch_competitor_safe(u, results) for u in urls]
 
         await asyncio.gather(*tasks, return_exceptions=True)
         return results
@@ -319,16 +317,14 @@ class SeoContentScorerTool(BaseTool):
         return links
 
     def _extract_images(self, soup: BeautifulSoup) -> list[dict[str, str]]:
-        images = []
-        for tag in soup.find_all("img"):
-            images.append(
-                {
-                    "src": tag.get("src", ""),
-                    "alt": tag.get("alt", ""),
-                    "has_alt": bool(tag.get("alt", "").strip()),
-                }
-            )
-        return images
+        return [
+            {
+                "src": tag.get("src", ""),
+                "alt": tag.get("alt", ""),
+                "has_alt": bool(tag.get("alt", "").strip()),
+            }
+            for tag in soup.find_all("img")
+        ]
 
     def _extract_meta(self, soup: BeautifulSoup) -> dict[str, str | None]:
         title = None

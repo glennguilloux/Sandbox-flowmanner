@@ -164,15 +164,14 @@ class FactCheckValidatorTool(BaseTool):
         claim = review.get("claimReview", [])
 
         # Collect ratings
-        ratings = []
-        for cr in claim:
-            ratings.append(
-                {
-                    "rating": cr.get("textualRating", "Unrated"),
-                    "source": cr.get("url", ""),
-                    "title": cr.get("title", ""),
-                }
-            )
+        ratings = [
+            {
+                "rating": cr.get("textualRating", "Unrated"),
+                "source": cr.get("url", ""),
+                "title": cr.get("title", ""),
+            }
+            for cr in claim
+        ]
 
         return {
             "text": review.get("text", ""),
