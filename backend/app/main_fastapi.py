@@ -215,7 +215,48 @@ async def request_id_middleware(request: Request, call_next):
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
+    """Unified handler for all typed AppError subclasses.
+
+    Builds the correct envelope shape based on the request path:
+    - /api/v2/* → v2 envelope  {data, meta, error}
+    - /api/v3/* → v3 envelope  {data, meta, error} with trace_id
+    - everything else → flat {detail} (v1 / unversioned)
+    """
+    path = request.url.path
+    request_id = request.headers.get("X-Request-ID")
+    message = str(exc)
+    code = exc.code
+    status = exc.http_status
+    details = exc.details
+
+    # v2 envelope
+    if path.startswith("/api/v2"):
+        from app.api.v2.base import ErrorDetail, ResponseMeta
+
+        error = ErrorDetail(code=code, message=message, details=details)
+        meta = ResponseMeta()
+        if request_id:
+            meta.request_id = request_id
+        body = {"data": None, "meta": meta.model_dump(), "error": error.model_dump()}
+        return JSONResponse(status_code=status, content=body)
+
+    # v3 envelope (adds trace_id)
+    if path.startswith("/api/v3"):
+        from app.api.v3.base import ErrorDetail as V3ErrorDetail
+        from app.api.v3.base import ResponseMeta as V3ResponseMeta
+
+        trace_id = getattr(request.state, "trace_id", None)
+        error = V3ErrorDetail(code=code, message=message, details=details)
+        if trace_id:
+            error.trace_id = trace_id
+        meta = V3ResponseMeta()
+        if request_id:
+            meta.request_id = request_id
+        body = {"data": None, "meta": meta.model_dump(), "error": error.model_dump()}
+        return JSONResponse(status_code=status, content=body)
+
+    # v1 / unversioned — flat detail (backward compat)
+    return JSONResponse(status_code=status, content={"detail": message})
 
 
 @app.exception_handler(Exception)

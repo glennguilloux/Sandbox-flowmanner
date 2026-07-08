@@ -1,52 +1,71 @@
-"""Mission error hierarchy — used by mission_executor and its sub-services."""
+"""Mission error hierarchy — used by mission_executor and its sub-services.
+
+All mission errors inherit from ``AppError`` (typed error hierarchy) so the
+unified exception handler in ``main_fastapi.py`` can build the correct
+envelope for any API version.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from app.core.exceptions import AppError, ConflictAppError, ForbiddenAppError, NotFoundAppError, ValidationAppError
 
 
-class MissionError(Exception):
+class MissionError(AppError):
     """Base for all mission errors."""
 
-    pass
+    code = "MISSION_ERROR"
+    http_status = 400
 
 
 class RetryableMissionError(MissionError):
     """Transient error — retry may fix it (timeout, rate limit, 5xx)."""
 
-    pass
+    code = "MISSION_RETRYABLE"
+    http_status = 503
 
 
 class PermanentMissionError(MissionError):
     """Bad input or state — must be fixed by user (401, 403, 404, bad config)."""
 
-    pass
+    code = "MISSION_PERMANENT"
+    http_status = 400
 
 
 # ── API-layer exceptions ──────────────────────────────────────────────────────
 
 
-class MissionNotFoundError(MissionError):
+class MissionNotFoundError(MissionError, NotFoundAppError):
     """Mission not found — maps to HTTP 404."""
 
-    pass
+    code = "MISSION_NOT_FOUND"  # explicit: MRO would pick MissionError.code without this
+    http_status = 404
 
 
-class MissionTransitionConflictError(MissionError):
+class MissionTransitionConflictError(MissionError, ConflictAppError):
     """Invalid status transition — maps to HTTP 409."""
 
-    pass
+    code = "MISSION_TRANSITION_CONFLICT"  # explicit: MissionError.code = MISSION_ERROR
+    http_status = 409
 
 
-class MissionForbiddenError(MissionError):
+class MissionForbiddenError(MissionError, ForbiddenAppError):
     """User does not own or have access to mission — maps to HTTP 403."""
 
-    pass
+    code = "MISSION_FORBIDDEN"  # explicit: MissionError.code = MISSION_ERROR
+    http_status = 403
 
 
-class MissionValidationError(MissionError):
-    """Bad request / validation failure — maps to HTTP 400."""
+class MissionValidationError(MissionError, ValidationAppError):
+    """Bad request / validation failure — maps to HTTP 422."""
 
-    pass
+    code = "MISSION_VALIDATION_ERROR"  # explicit: MissionError.code = MISSION_ERROR
+    http_status = 422
 
 
-class GraphNotFoundError(MissionError):
+class GraphNotFoundError(MissionError, NotFoundAppError):
     """Graph workflow not found or access denied — maps to HTTP 404."""
 
-    pass
+    code = "GRAPH_NOT_FOUND"  # explicit: MissionError.code = MISSION_ERROR
+    http_status = 404
