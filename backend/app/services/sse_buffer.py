@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-"""SSE Redis event buffer for stream replay.
+"""SSE Redis event buffer for stream replay — backed by Redis Streams.
 
-Task 1.2b of the Chat Wiring Sprint (Round 2).  Provides:
-  - ``append_to_buffer`` — store each SSE event with a monotonic seq
-  - ``replay_from_buffer`` — replay events after a given seq
-  - ``get_stream_buffer`` — wrapper generator that buffers + yields SSE events
+Replaces the earlier List + INCR design with ``XADD`` / ``XRANGE`` to
+eliminate the dual-source seq bug (separate ``_next_seq`` counter vs.
+list-index inference in ``replay_from_buffer``).
 
-The buffer is keyed by ``chat:stream:{stream_id}`` with a 5-minute TTL
-(sliding window — refreshed on every append).  The replay endpoint reads
-from this buffer when a client reconnects with ``Last-Event-ID``.
+Redis Streams give us:
+  - Atomic monotonic entry IDs (no separate counter)
+  - Exact-range resume via ``XRANGE id (since +``
+  - Approximate ``MAXLEN`` trimming for memory bounding
+
+The ``seq`` in SSE payloads is now the native stream entry ID (a string
+like ``"1720451234567-0"``).  The client uses this as an opaque cursor.
 """
 
 import json
@@ -24,6 +27,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _BUFFER_TTL = 300  # 5 minutes
+_MAXLEN = 1000  # approximate max entries per stream
 
 
 async def _get_stream_redis():
@@ -37,85 +41,100 @@ async def _get_stream_redis():
         return None
 
 
-async def append_to_buffer(stream_id: str, event_data: str) -> None:
-    """Append an SSE event to the Redis buffer.
+async def append_to_buffer(stream_id: str, event_data: str) -> str | None:
+    """Append an SSE event to the Redis Stream buffer.
 
-    The monotonic ``seq`` is assigned upstream (in ``get_stream_buffer`` via
-    ``_next_seq``) and baked into ``event_data``'s JSON payload — do NOT
-    incr the seq key here, or seq would advance twice per event.
-    """
-    rds = await _get_stream_redis()
-    if rds is None:
-        return
-    try:
-        events_key = f"chat:stream:{stream_id}:events"
-
-        await rds.rpush(events_key, event_data)
-        await rds.expire(events_key, _BUFFER_TTL)
-    except Exception as exc:
-        logger.debug("sse_buffer_append_failed stream_id=%s error=%s", stream_id, exc)
-    finally:
-        await rds.aclose()
-
-
-def _stamp_seq(sse_event: str, seq: int) -> str:
-    """Inject the monotonic ``seq`` into the JSON payload of an SSE event.
-
-    Accepts an SSE frame (e.g. ``data: {json}\\n\\n`` or
-    ``event: stream_start\\ndata: {json}\\n\\n``), parses the ``data:`` JSON,
-    sets ``seq`` on it, and returns the re-serialized frame. Non-JSON or
-    ``[DONE]`` frames are returned unchanged so downstream parsers still work.
-    """
-    nl = sse_event.find("\n")
-    head = sse_event[:nl] if nl != -1 else sse_event
-    if not head.startswith("data: "):
-        return sse_event
-    payload = head[len("data: ") :].strip()
-    if not payload or payload == "[DONE]":
-        return sse_event
-    try:
-        obj = json.loads(payload)
-    except (ValueError, TypeError):
-        return sse_event
-    if not isinstance(obj, dict):
-        return sse_event
-    obj["seq"] = seq
-    tail = sse_event[nl:] if nl != -1 else "\n\n"
-    return f"data: {json.dumps(obj)}{tail}"
-
-
-async def replay_from_buffer(stream_id: str, since_seq: int) -> list[str] | None:
-    """Replay SSE events with seq > since_seq.
-
-    Returns None if buffer is gone (TTL expired or never existed) — caller
-    returns 404 so the client falls back to the message API.
-    Returns an empty list if there are no new events.
-
-    Each returned SSE frame carries a ``seq`` field on its JSON payload, so a
-    reconnecting client can advance its cursor precisely and never redelivers
-    already-rendered tokens.
+    Returns the native stream entry ID (e.g. ``"1720451234567-0"``),
+    or ``None`` if Redis is unavailable.
     """
     rds = await _get_stream_redis()
     if rds is None:
         return None
     try:
         events_key = f"chat:stream:{stream_id}:events"
-        seq_key = f"chat:stream:{stream_id}:seq"
+        seq = await rds.xadd(events_key, {"event": event_data}, maxlen=_MAXLEN, approximate=True)
+        await rds.expire(events_key, _BUFFER_TTL)
+        return seq
+    except Exception as exc:
+        logger.debug("sse_buffer_append_failed stream_id=%s error=%s", stream_id, exc)
+        return None
+    finally:
+        await rds.aclose()
+
+
+def _stamp_seq(sse_event: str, seq: str) -> str:
+    """Inject the stream entry ``seq`` (string) into the JSON payload of an SSE event.
+
+    Handles both single-line (``data: {json}``) and multi-line
+    (``event: foo\\ndata: {json}``) SSE frames by scanning all lines
+    for the ``data:`` payload.  Non-JSON or ``[DONE]`` frames are
+    returned unchanged.
+    """
+    lines = sse_event.split("\n")
+    for i, line in enumerate(lines):
+        if line.startswith("data: "):
+            payload = line[len("data: ") :].strip()
+            if not payload or payload == "[DONE]":
+                return sse_event
+            try:
+                obj = json.loads(payload)
+            except (ValueError, TypeError):
+                return sse_event
+            if not isinstance(obj, dict):
+                return sse_event
+            obj["seq"] = seq
+            lines[i] = f"data: {json.dumps(obj)}"
+            return "\n".join(lines)
+    return sse_event
+
+
+def _parse_stream_id(entry_id: str) -> tuple[int, int]:
+    """Parse a Redis Stream entry ID ``'<ms>-<seq>'`` into a comparable tuple."""
+    try:
+        ts, seq = entry_id.split("-")
+        return int(ts), int(seq)
+    except (ValueError, AttributeError):
+        return (0, 0)
+
+
+async def replay_from_buffer(stream_id: str, since_seq: str) -> list[str] | None:
+    """Replay SSE events with entry ID > since_seq.
+
+    Returns None if buffer is gone (TTL expired or never existed) — caller
+    returns 404 so the client falls back to the message API.
+    Returns an empty list if there are no new events.
+
+    If ``since_seq`` predates the oldest retained entry (gap expired),
+    returns a single ``resync`` event so the client can do a full refetch.
+
+    Each returned SSE frame carries a ``seq`` field on its JSON payload (the
+    native Redis Stream entry ID), so a reconnecting client can advance its
+    cursor precisely.
+    """
+    rds = await _get_stream_redis()
+    if rds is None:
+        return None
+    try:
+        events_key = f"chat:stream:{stream_id}:events"
 
         exists = await rds.exists(events_key)
         if not exists:
             return None
 
-        total = await rds.llen(events_key)
-        if total == 0:
-            return []
+        since_str = str(since_seq)
 
-        # Each append increments seq, so event at index i has seq = i + 1.
-        # We want events with seq > since_seq, i.e. index >= since_seq.
-        raw_events = await rds.lrange(events_key, since_seq, -1)
-        # Re-stamp seq defensively (buffer stores already-stamped frames, but
-        # this guarantees the cursor contract for the client).
-        return [_stamp_seq(e, since_seq + i + 1) for i, e in enumerate(raw_events)]
+        # Check if requested resume point predates our oldest retained entry
+        if since_str not in ("0", ""):
+            oldest = await rds.xrange(events_key, "-", "+", count=1)
+            if oldest:
+                oldest_id = oldest[0][0]
+                if _parse_stream_id(since_str) < _parse_stream_id(oldest_id):
+                    return ["event: resync\ndata: {}\n\n"]
+
+        # XRANGE with exclusive start: "(since" means strictly after
+        start = f"({since_str}" if since_str not in ("0", "") else "-"
+        raw_entries = await rds.xrange(events_key, start, "+")
+        return [_stamp_seq(ev_data["event"], entry_id) for entry_id, ev_data in raw_entries]
     except Exception as exc:
         logger.debug("sse_buffer_replay_failed stream_id=%s error=%s", stream_id, exc)
         return None
@@ -126,12 +145,13 @@ async def replay_from_buffer(stream_id: str, since_seq: int) -> list[str] | None
 async def get_stream_buffer(
     inner_gen: AsyncGenerator,
 ) -> AsyncGenerator:
-    """Wrapper generator that buffers each yielded SSE event to Redis.
+    """Wrapper generator that buffers each yielded SSE event to a Redis Stream.
 
     Emits a ``stream_start`` event as the first event with the stream_id,
-    then buffers and yields every event from the inner generator, stamping a
-    monotonic ``seq`` onto each event's JSON payload. The seq lets the client
-    resume precisely after a reconnect (see ``replay_from_buffer``).
+    then buffers and yields every event from the inner generator, stamping
+    the native Redis Stream entry ID (``seq``) onto each event's JSON payload.
+
+    When Redis is unavailable, degrades to no-resume mode (seq = "0").
 
     Usage in the route handler::
 
@@ -142,36 +162,12 @@ async def get_stream_buffer(
     """
     stream_id = str(uuid.uuid4())
 
-    # Emit stream_start as the first event (seq 1)
-    seq = await _next_seq(stream_id)
-    stream_start_obj = {"stream_id": stream_id, "seq": seq}
+    # Emit stream_start as the first event
+    stream_start_obj = {"stream_id": stream_id}
     stream_start_sse = f"event: stream_start\ndata: {json.dumps(stream_start_obj)}\n\n"
-    await append_to_buffer(stream_id, stream_start_sse)
-    yield stream_start_sse
+    seq = await append_to_buffer(stream_id, stream_start_sse)
+    yield _stamp_seq(stream_start_sse, seq or "0")
 
     async for chunk in inner_gen:
-        seq = await _next_seq(stream_id)
-        stamped = _stamp_seq(chunk, seq)
-        # Buffer the stamped frame so replay keeps the same seq values
-        await append_to_buffer(stream_id, stamped)
-        yield stamped
-
-
-async def _next_seq(stream_id: str) -> int:
-    """Return the next monotonic seq for a stream (1-based)."""
-    rds = await _get_stream_redis()
-    if rds is None:
-        # No redis: fall back to a local per-call counter via the module cache
-        return _local_seq_cache.get(stream_id, 0) + 1
-    try:
-        seq = await rds.incr(f"chat:stream:{stream_id}:seq")
-        await rds.expire(f"chat:stream:{stream_id}:seq", _BUFFER_TTL)
-        return seq
-    except Exception as exc:
-        logger.debug("sse_buffer_seq_failed stream_id=%s error=%s", stream_id, exc)
-        return _local_seq_cache.get(stream_id, 0) + 1
-    finally:
-        await rds.aclose()
-
-
-_local_seq_cache: dict[str, int] = {}
+        seq = await append_to_buffer(stream_id, chunk)
+        yield _stamp_seq(chunk, seq or "0")

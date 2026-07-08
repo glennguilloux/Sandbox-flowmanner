@@ -416,10 +416,11 @@ async def chat_with_llm_stream(
 @router.get("/streams/{stream_id}/replay")
 async def replay_stream(
     stream_id: str,
-    since: int = Query(0, ge=0, description="Replay events with seq > since"),
+    since: str = Query("0", description="Replay events with stream entry ID > since"),
 ):
     """Replay buffered SSE events for a stream (for client reconnection).
 
+    ``since`` is a Redis Stream entry ID (opaque string like ``1720451234567-0``).
     Returns 404 if the buffer has expired (TTL 5min) or never existed.
     """
     events = await replay_from_buffer(stream_id, since_seq=since)
