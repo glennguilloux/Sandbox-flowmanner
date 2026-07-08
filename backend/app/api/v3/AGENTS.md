@@ -135,29 +135,44 @@ Notes:
 - `UserSummary` = `{ id, email, username, full_name, role, avatar_url, totp_enabled }`
 - `UserResponse` = full user object including `is_admin`, `is_active`, `created_at`, `last_login_at`, `onboarding_*`
 - All handlers call `await _require_v3_enabled(db)` first → 404 if `AUTH_V3_ENABLED=0`.
+- Auth webhook events are emitted via `_emit_auth_event(db, user_id, event_type, payload)` — fire-and-forget, never raises. Events: `user.created`, `user.updated`, `session.created`, `session.refreshed`, `session.revoked`. Resolves workspace IDs via `WorkspaceMember` lookup.
 
 ### 2. auth OIDC — [`auth_oidc.py`](./auth_oidc.py) (tag: `v3-auth-oidc`)
 
-⚠️ **Stub / WIP** — these handlers return placeholder data and should not be considered production-ready.
+✅ **Production-ready** — wired to existing `oidc_service.py` (PKCE, discovery, token exchange, user info, session creation).
 
 | Method | Path | Auth | Response shape |
 |---|---|---|---|
-| POST | `/auth/oidc/{provider}/login` | required | `200 {data: {authorization_url, state}, ...}` — currently hardcoded `https://example.com/...` |
-| GET | `/auth/oidc/{provider}/callback?code=&state=` | none | `302` redirect to `/` (no body) |
+| GET | `/auth/oidc/providers` | none | `200 {data: [{name, display_name, issuer}, ...], ...}` — list active OIDC providers |
+| POST | `/auth/oidc/{provider}/login` | required | `200 {data: {authorization_url, state}, ...}` — PKCE authorization URL for frontend redirect |
+| GET | `/auth/oidc/{provider}/callback?code=&state=` | none | `302` redirect to frontend with `access_token` + `session_id` in query params, `refresh_token` as httpOnly cookie |
+| POST | `/auth/oidc/{provider}/logout` | required | `200 {data: {end_session_url}, ...}` — provider's end_session URL for frontend redirect |
 
-Notes: 404 unless `AUTH_V3_OIDC=1`. The `provider` path param is taken as-is; no allowlist yet.
+Notes:
+- 404 unless `AUTH_V3_OIDC=1`.
+- Provider is validated against the `oidc_providers` table (only active providers accepted).
+- Login generates PKCE code_verifier + code_challenge via `oidc_service.get_authorization_url()`.
+- Callback: exchanges code for tokens → finds or creates user → creates v3 session with httpOnly cookie → redirects to frontend.
+- Uses the system-level `oidc_providers` / `user_oidc_accounts` tables (not workspace-scoped `oidc_provider_configs`).
 
 ### 3. auth webhooks — [`auth_webhooks.py`](./auth_webhooks.py) (tag: `v3-auth-webhooks`)
 
-⚠️ **Partial implementation** — `workspace_id`, `url`, and `events` are passed as **query params** to POST (not as a body payload), which is wrong REST. Refactor to a Pydantic body before shipping.
+✅ **Production-ready** — Pydantic body, HMAC-SHA256 signing, httpx delivery with exponential backoff retry, delivery logs, and auth event emission.
 
 | Method | Path | Auth | Response shape |
 |---|---|---|---|
-| POST | `/auth/webhooks?workspace_id=&url=&events=` | required | `201 {data: {id, workspace_id, url}, ...}` — `secret` is generated but **not** returned |
-| GET | `/auth/webhooks?workspace_id=` | required | `200 {data: [{id, url, events, is_active}, ...], ...}` |
+| POST | `/auth/webhooks` | required | `201 {data: {id, workspace_id, url, events, secret, is_active, created_at}, ...}` — `secret` shown ONCE |
+| GET | `/auth/webhooks?workspace_id=` | required | `200 {data: [{id, workspace_id, url, events, is_active, created_at, last_delivery_at, failure_count}, ...], ...}` |
 | DELETE | `/auth/webhooks/{webhook_id}` | required | `204` |
+| GET | `/auth/webhooks/{webhook_id}/deliveries?limit=` | required | `200 {data: [{id, event_type, status, response_code, error_message, attempt, created_at}, ...], ...}` |
 
-Notes: 404 unless `AUTH_V3_WEBHOOKS=1`. No signature verification, no retry logic, no HMAC headers — does not actually deliver webhooks yet.
+Notes:
+- 404 unless `AUTH_V3_WEBHOOKS=1`.
+- POST body: `{ url: string, events: string[], workspace_id: string }` (Pydantic `CreateWebhookBody`).
+- `secret` is an HMAC-SHA256 signing secret (64 hex chars) returned ONCE on creation. Store it securely.
+- Delivery signs payloads with `X-Webhook-Signature: sha256=<hex>` header. Retry on failure: 10s, 60s, 300s, 900s (exponential backoff, max 3 retries).
+- Auth events emitted via `emit_auth_webhook_event(db, workspace_id, event_type, payload)` — called from `auth.py` on session create/revoke/refresh, user create/update. Fire-and-forget.
+- HMAC utilities: `compute_webhook_signature(secret, payload_bytes)` and `verify_webhook_signature(secret, payload_bytes, signature_header)` — also usable for inbound webhook verification.
 
 ### 4. workspaces — [`workspaces.py`](./workspaces.py) (tag: `v3-workspaces`)
 
@@ -313,6 +328,9 @@ uv run pytest tests/api/v3/test_audit.py -v
 
 # API key CRUD
 uv run pytest tests/api/v3/test_api_keys.py -v
+
+# OIDC + webhooks (Item #7)
+uv run pytest tests/test_auth_v3_oidc.py tests/test_auth_v3_webhooks.py -v
 ```
 
 Lint & types:
@@ -331,8 +349,8 @@ uv run mypy app/api/v3/
 | `./middleware.py` | Maps HTTPException + unhandled errors to v3 error envelopes (only for `/api/v3/*`) | ✅ stable |
 | `./auth_cookies.py` | `set_refresh_cookie` / `clear_refresh_cookie` / `get_refresh_from_request` — httpOnly cookie + body-fallback refresh | ✅ stable |
 | `./auth.py` | Sessions, users, API keys — 11 endpoints | ✅ stable |
-| `./auth_oidc.py` | OIDC provider login + callback — **stub** | ⚠️ WIP — needs real provider integration |
-| `./auth_webhooks.py` | Webhook subscriptions — **partial** (POST takes query params instead of body) | ⚠️ needs Pydantic body refactor |
+| `./auth_oidc.py` | OIDC provider list, PKCE login, callback with session creation, logout — wired to `oidc_service.py` | ✅ stable |
+| `./auth_webhooks.py` | Webhook CRUD, HMAC-SHA256 signing, httpx delivery with retry, delivery logs, auth event emission | ✅ stable |
 | `./teams.py` | Top-level teams — feature-flagged | ✅ stable |
 | `./workspace_activity.py` | Audit log read — feature-flagged, read-only | ✅ stable |
 | `./workspace_billing.py` | Billing snapshot — feature-flagged, read-only (H4.1 migration) | ✅ stable |
@@ -345,4 +363,4 @@ uv run mypy app/api/v3/
 - **`v3/openapi.py`** — currently only `v2/openapi.py` exists. Add a v3 variant that filters the full app schema to only `/api/v3/*` paths, includes the `trace_id` field in the error schema, and documents the feature-flag table.
 - **`v3/idempotency.py` / `v3/rate_limit.py` / `v3/validation_middleware.py`** — not implemented. Port from `v2/` if needed. For now, v3 relies on global IP rate limits in `auth.py` and no idempotency on writes.
 - **Cursor pagination** — `workspace_activity.py` audit log uses OFFSET pagination. Add a cursor variant if audit logs grow past ~10k rows per workspace.
-- **OIDC + webhooks** — both routers are stubs. When completed, update their per-method tables to reflect the real provider integrations and HMAC signature flows.
+- **OIDC + webhooks** — ✅ completed. Both routers are production-ready with full implementations.

@@ -79,6 +79,27 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/auth", tags=["v3-auth"])
 
 
+async def _emit_auth_event(
+    db: AsyncSession,
+    user_id: int,
+    event_type: str,
+    payload: dict,
+) -> None:
+    """Emit an auth webhook event to all workspaces the user belongs to.
+
+    Fire-and-forget — never raises.  Logs at debug on failure.
+    """
+    try:
+        from app.api.v3.auth_webhooks import emit_auth_webhook_event
+
+        result = await db.execute(select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user_id))
+        workspace_ids = [row[0] for row in result.all()]
+        for ws_id in workspace_ids:
+            await emit_auth_webhook_event(db, ws_id, event_type, payload)
+    except Exception:
+        logger.debug("Auth webhook emission failed for %s", event_type, exc_info=True)
+
+
 async def _require_v3_enabled(db: AsyncSession) -> None:
     """Raise 404 if Auth v3 feature flag is disabled."""
     if not await is_auth_v3_enabled(db):
@@ -116,7 +137,7 @@ async def register_user(
     await _require_v3_enabled(db)
 
     ip = get_client_ip(request)
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"v3_register:{ip}",
         RATE_LIMITS["register"]["max_requests"],
         RATE_LIMITS["register"]["window_seconds"],
@@ -208,6 +229,29 @@ async def register_user(
         content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, refresh_token)
+
+    # Emit webhook events (fire-and-forget)
+    await _emit_auth_event(
+        db,
+        user.id,
+        "user.created",
+        {
+            "user_id": user.id,
+            "email": user.email,
+            "username": user.username,
+        },
+    )
+    await _emit_auth_event(
+        db,
+        user.id,
+        "session.created",
+        {
+            "session_id": session.id,
+            "user_id": user.id,
+            "ip_address": ip,
+        },
+    )
+
     return resp
 
 
@@ -233,7 +277,7 @@ async def create_session_handler(
     await _require_v3_enabled(db)
 
     ip = get_client_ip(request)
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"v3_login:{ip}",
         RATE_LIMITS["login"]["max_requests"],
         RATE_LIMITS["login"]["window_seconds"],
@@ -315,6 +359,19 @@ async def create_session_handler(
         content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, refresh_token)
+
+    # Emit webhook event (fire-and-forget)
+    await _emit_auth_event(
+        db,
+        user.id,
+        "session.created",
+        {
+            "session_id": session.id,
+            "user_id": user.id,
+            "ip_address": ip,
+        },
+    )
+
     return resp
 
 
@@ -338,7 +395,7 @@ async def verify_session_2fa(
     await _require_v3_enabled(db)
 
     ip = get_client_ip(request)
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"v3_2fa:{ip}",
         RATE_LIMITS["2fa_verify"]["max_requests"],
         RATE_LIMITS["2fa_verify"]["window_seconds"],
@@ -417,6 +474,20 @@ async def verify_session_2fa(
         content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, refresh_token)
+
+    # Emit webhook event (fire-and-forget)
+    await _emit_auth_event(
+        db,
+        user.id,
+        "session.created",
+        {
+            "session_id": session.id,
+            "user_id": user.id,
+            "ip_address": ip,
+            "method": "2fa_verify",
+        },
+    )
+
     return resp
 
 
@@ -501,6 +572,19 @@ async def refresh_session_handler(
         content=ok(response_data.model_dump(mode="json")),
     )
     set_refresh_cookie(resp, new_refresh_token)
+
+    # Emit webhook event (fire-and-forget)
+    await _emit_auth_event(
+        db,
+        user.id,
+        "session.refreshed",
+        {
+            "session_id": new_session.id,
+            "user_id": user.id,
+            "ip_address": ip,
+        },
+    )
+
     return resp
 
 
@@ -533,22 +617,21 @@ async def list_sessions(
         if payload:
             current_session_id = payload.get("session_id")
 
-    session_list = []
-    for s in sessions:
-        session_list.append(
-            SessionListResponse(
-                id=s.id,
-                device_name=s.device_name,
-                device_os=s.device_os,
-                browser=s.browser,
-                ip_address=s.ip_address,
-                location=s.location,
-                is_current=(s.id == current_session_id),
-                last_used_at=s.last_used_at,
-                created_at=s.created_at,
-                expires_at=s.expires_at,
-            ).model_dump(mode="json")
-        )
+    session_list = [
+        SessionListResponse(
+            id=s.id,
+            device_name=s.device_name,
+            device_os=s.device_os,
+            browser=s.browser,
+            ip_address=s.ip_address,
+            location=s.location,
+            is_current=(s.id == current_session_id),
+            last_used_at=s.last_used_at,
+            created_at=s.created_at,
+            expires_at=s.expires_at,
+        ).model_dump(mode="json")
+        for s in sessions
+    ]
 
     return ok(session_list)
 
@@ -592,6 +675,19 @@ async def revoke_session_handler(
     resp = Response(status_code=status.HTTP_204_NO_CONTENT)
     if current_session_id == session_id:
         clear_refresh_cookie(resp)
+
+    # Emit webhook event (fire-and-forget)
+    await _emit_auth_event(
+        db,
+        user.id,
+        "session.revoked",
+        {
+            "session_id": session_id,
+            "user_id": user.id,
+            "reason": "user_logout",
+        },
+    )
+
     return resp
 
 
@@ -671,6 +767,28 @@ async def update_me(
     if changed:
         await db.flush()
         await db.refresh(user)
+
+        # Emit webhook events (fire-and-forget)
+        await _emit_auth_event(
+            db,
+            user.id,
+            "user.updated",
+            {
+                "user_id": user.id,
+                "email": user.email,
+            },
+        )
+        if payload.password is not None:
+            await _emit_auth_event(
+                db,
+                user.id,
+                "session.revoked",
+                {
+                    "user_id": user.id,
+                    "reason": "password_change",
+                    "sessions_revoked": "all",
+                },
+            )
 
     return ok(
         UserResponse(
