@@ -3,6 +3,13 @@
 All mission errors inherit from ``AppError`` (typed error hierarchy) so the
 unified exception handler in ``main_fastapi.py`` can build the correct
 envelope for any API version.
+
+.. note:: **``http_status`` is authoritative for v1/unversioned paths only.**
+   For ``/api/v2/*`` and ``/api/v3/*`` routes, more-specific exception
+   handlers registered in ``api/v2/middleware.py`` and ``api/v3/middleware.py``
+   catch MissionError subclasses before the unified ``AppError`` handler
+   and return their own hardcoded status codes.  Do not assume ``http_status``
+   on these classes will be the actual HTTP status for v2/v3 requests.
 """
 
 from __future__ import annotations
