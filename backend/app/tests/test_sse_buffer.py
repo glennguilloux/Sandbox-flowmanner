@@ -178,3 +178,49 @@ class TestSeqStamping:
         # Make sure no redelivered token content re-appears
         rendered = {json.loads(e.split("data: ")[1]).get("content") for e in replayed}
         assert rendered == {"c", "d"}
+
+
+class TestSSEStreamWrapperEmitsNoDuplicateStreamStart:
+    """Comment 1: the v2 _sse_stream() wrapper must NOT emit its own
+    stream_start frame. The canonical single stream_start comes from
+    get_stream_buffer() in sse_buffer.py."""
+
+    @pytest.mark.asyncio
+    async def test_wrapper_yields_only_inner_chunks_and_done(self):
+        from app.api.v2.chat import _sse_stream
+
+        async def fake_inner():
+            yield json.dumps({"type": "token", "content": "a"})
+            yield json.dumps({"type": "token", "content": "b"})
+
+        frames = [f async for f in _sse_stream(fake_inner())]
+
+        # Exactly the two token frames + the [DONE] terminator.
+        assert frames == [
+            'data: {"type": "token", "content": "a"}\n\n',
+            'data: {"type": "token", "content": "b"}\n\n',
+            "data: [DONE]\n\n",
+        ]
+        # No stream_start frame of any kind.
+        assert not any("stream_start" in f for f in frames)
+
+    @pytest.mark.asyncio
+    async def test_buffer_emits_single_stream_start(self):
+        """The canonical stream_start (event: stream_start) is emitted once
+        by get_stream_buffer — and only once — for the whole stream."""
+
+        async def fake_inner():
+            yield json.dumps({"type": "token", "content": "a"})
+
+        mock_rds = AsyncMock()
+        mock_rds.rpush = AsyncMock()
+        mock_rds.expire = AsyncMock()
+        mock_rds.aclose = AsyncMock()
+        mock_rds.incr = AsyncMock(return_value=1)  # seq is JSON-serialized; must be int, not a MagicMock
+
+        with patch("app.services.sse_buffer._get_stream_redis", return_value=mock_rds):
+            captured = [frame async for frame in get_stream_buffer(fake_inner())]
+
+        start_frames = [f for f in captured if "stream_start" in f]
+        assert len(start_frames) == 1
+        assert start_frames[0].startswith("event: stream_start")

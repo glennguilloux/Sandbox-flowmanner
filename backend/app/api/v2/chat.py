@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-import json
-import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import get_current_user
 from app.api.v2.base import ok, paginated
 from app.api.v2.cursor_pagination import CursorParams, cursor_paginated
 from app.database import get_db
-from app.models.chat import ChatFolder, ChatMessage, ChatThread
+from app.models.chat import ChatBranch, ChatFolder, ChatMessage, ChatThread
 from app.schemas.chat import (
     ChatBranchCreate,
     ChatBranchResponse,
@@ -329,16 +326,19 @@ async def delete_message(
             detail="Only user messages can be deleted",
         )
 
-    try:
-        if not await delete_chat_message(db, message_id):
-            raise _not_found()
-    except IntegrityError:
-        # A branch references this message (FK constraint) — clients must
-        # delete the branch first.
+    # The chat_branches.parent_message_id FK is ondelete="SET NULL", so
+    # deleting a referenced message does NOT raise IntegrityError — it would
+    # silently orphan the branch with a NULL parent. Explicitly reject the
+    # delete when any branch still references this message (Comment 2).
+    branch_result = await db.execute(select(ChatBranch.id).where(ChatBranch.parent_message_id == message_id).limit(1))
+    if branch_result.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot delete this message — it has branches referencing it. Delete the branches first.",
         )
+
+    if not await delete_chat_message(db, message_id):
+        raise _not_found()
 
 
 @router.post("/threads/{thread_id}/branches", status_code=status.HTTP_201_CREATED)
@@ -449,10 +449,10 @@ async def chat_with_llm(
 
 
 async def _sse_stream(generator: AsyncGenerator) -> AsyncGenerator:
-    # Phase 2c.3: emit a stream_start event first (v1 parity) so the
-    # frontend can wire up per-stream state before tokens arrive.
-    stream_id = str(uuid.uuid4())
-    yield f"data: {json.dumps({'type': 'stream_start', 'stream_id': stream_id})}\n\n"
+    # The canonical stream_start frame (event: stream_start) is emitted by
+    # get_stream_buffer() in app/services/sse_buffer.py so the frontend can
+    # wire up per-stream state before tokens arrive. Do NOT emit a second
+    # bogus stream_start here.
     async for chunk in generator:
         yield f"data: {chunk}\n\n"
     yield "data: [DONE]\n\n"
