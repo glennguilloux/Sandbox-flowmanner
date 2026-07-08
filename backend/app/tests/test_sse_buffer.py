@@ -216,9 +216,14 @@ class TestSSEStreamWrapperEmitsNoDuplicateStreamStart:
         mock_rds.rpush = AsyncMock()
         mock_rds.expire = AsyncMock()
         mock_rds.aclose = AsyncMock()
-        mock_rds.incr = AsyncMock(return_value=1)  # seq is JSON-serialized; must be int, not a MagicMock
 
-        with patch("app.services.sse_buffer._get_stream_redis", return_value=mock_rds):
+        # Drive the seq directly so we don't depend on the redis incr mock
+        # returning a JSON-serializable int (an AsyncMock() parent rebinds
+        # incr on access). _next_seq only contributes seq to the frame.
+        with (
+            patch("app.services.sse_buffer._next_seq", new=AsyncMock(return_value=1)),
+            patch("app.services.sse_buffer._get_stream_redis", return_value=mock_rds),
+        ):
             captured = [frame async for frame in get_stream_buffer(fake_inner())]
 
         start_frames = [f for f in captured if "stream_start" in f]
