@@ -20,6 +20,7 @@ def _make_event(event_type: str, payload: dict | None = None):
 
 def _make_state(
     total_cost_usd: float = 0.05,
+    total_tokens: int = 0,
     started_at=None,
     last_event_at=None,
     completed_tasks: list | None = None,
@@ -27,6 +28,7 @@ def _make_state(
     """Create a mock replay state."""
     state = MagicMock()
     state.total_cost_usd = total_cost_usd
+    state.total_tokens = total_tokens
     state.started_at = started_at or datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
     state.last_event_at = last_event_at or datetime(2026, 1, 1, 0, 0, 30, tzinfo=UTC)
     state.completed_tasks = set(completed_tasks or ["task_1", "task_2"])
@@ -132,8 +134,49 @@ class TestExtractFromRun:
         db = AsyncMock()
         behaviors = await extractor.extract_from_run(db, "run-1", cost_headroom=2.0)
 
-        cost = [b for b in behaviors if b["type"] == "cost_ceiling"][0]
+        cost = next(b for b in behaviors if b["type"] == "cost_ceiling")
         assert cost["max_cost_usd"] == 0.20  # 0.10 * 2.0
+
+    @pytest.mark.asyncio
+    async def test_cost_ceiling_default_headroom_is_1_15(self):
+        """Default cost headroom is 1.15x (Item #9 tight ceiling)."""
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state(total_cost_usd=0.10))
+        extractor._event_log.get_events = AsyncMock(return_value=[])
+
+        db = AsyncMock()
+        behaviors = await extractor.extract_from_run(db, "run-1")
+
+        cost = next(b for b in behaviors if b["type"] == "cost_ceiling")
+        assert cost["max_cost_usd"] == round(0.10 * 1.15, 4)  # 0.115
+
+    @pytest.mark.asyncio
+    async def test_latency_ceiling_default_headroom_is_1_5(self):
+        """Default latency headroom is 1.5x (Item #9 tighter ceiling)."""
+        from datetime import timedelta
+
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        state = _make_state()
+        state.started_at = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
+        state.last_event_at = state.started_at + timedelta(seconds=100)
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=state)
+        extractor._event_log.get_events = AsyncMock(return_value=[])
+
+        db = AsyncMock()
+        behaviors = await extractor.extract_from_run(db, "run-1")
+
+        latency = next(b for b in behaviors if b["type"] == "latency")
+        assert latency["max_duration_seconds"] == 150  # 100 * 1.5
 
     @pytest.mark.asyncio
     async def test_latency_ceiling_uses_headroom_multiplier(self):
@@ -154,7 +197,7 @@ class TestExtractFromRun:
         db = AsyncMock()
         behaviors = await extractor.extract_from_run(db, "run-1", latency_headroom=3.0)
 
-        latency = [b for b in behaviors if b["type"] == "latency"][0]
+        latency = next(b for b in behaviors if b["type"] == "latency")
         assert latency["max_duration_seconds"] == 180  # 60 * 3.0
 
     @pytest.mark.asyncio
@@ -174,7 +217,7 @@ class TestExtractFromRun:
         db = AsyncMock()
         behaviors = await extractor.extract_from_run(db, "run-1")
 
-        latency = [b for b in behaviors if b["type"] == "latency"][0]
+        latency = next(b for b in behaviors if b["type"] == "latency")
         assert latency["max_duration_seconds"] == 300
 
     @pytest.mark.asyncio
@@ -191,7 +234,7 @@ class TestExtractFromRun:
         db = AsyncMock()
         behaviors = await extractor.extract_from_run(db, "run-1")
 
-        tc = [b for b in behaviors if b["type"] == "task_completion"][0]
+        tc = next(b for b in behaviors if b["type"] == "task_completion")
         assert tc["min_tasks_completed"] == 3
         assert tc["max_tasks_failed"] == 0
 
@@ -211,6 +254,130 @@ class TestExtractFromRun:
 
         types = [b["type"] for b in behaviors]
         assert "no_circuit_breaker" in types
+
+    @pytest.mark.asyncio
+    async def test_baseline_version_added_when_versions_provided(self):
+        """Baseline version metadata is included when version args are set (Item #9)."""
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state())
+        extractor._event_log.get_events = AsyncMock(return_value=[])
+
+        db = AsyncMock()
+        behaviors = await extractor.extract_from_run(
+            db,
+            "run-1",
+            model_id="deepseek-chat",
+            pricing_table_version="v1.2.3",
+            template_version="tmpl-abc",
+        )
+
+        bv = [b for b in behaviors if b["type"] == "baseline_version"]
+        assert len(bv) == 1
+        assert bv[0]["model_id"] == "deepseek-chat"
+        assert bv[0]["pricing_table_version"] == "v1.2.3"
+        assert bv[0]["template_version"] == "tmpl-abc"
+
+    @pytest.mark.asyncio
+    async def test_baseline_version_omitted_when_no_versions(self):
+        """Baseline version metadata is omitted when version args are empty."""
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state())
+        extractor._event_log.get_events = AsyncMock(return_value=[])
+
+        db = AsyncMock()
+        behaviors = await extractor.extract_from_run(db, "run-1")
+
+        types = [b["type"] for b in behaviors]
+        assert "baseline_version" not in types
+
+    @pytest.mark.asyncio
+    async def test_token_ceiling_added_when_state_has_tokens(self):
+        """Cost ceiling includes max_tokens when run has token count (Item #9)."""
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        state = _make_state(total_cost_usd=0.10, total_tokens=5000)
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=state)
+        extractor._event_log.get_events = AsyncMock(return_value=[])
+
+        db = AsyncMock()
+        behaviors = await extractor.extract_from_run(
+            db,
+            "run-1",
+            cost_headroom=1.15,
+            model_id="deepseek-chat",
+        )
+
+        cost = next(b for b in behaviors if b["type"] == "cost_ceiling")
+        assert cost["max_tokens"] == int(5000 * 1.15)  # 5750
+        assert cost["model_id"] == "deepseek-chat"
+
+    @pytest.mark.asyncio
+    async def test_forbidden_tools_included_in_tool_sequence(self):
+        """Forbidden tools are passed through to the tool_sequence assertion (Item #9)."""
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state())
+        extractor._event_log.get_events = AsyncMock(
+            return_value=[
+                _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "search"}),
+            ]
+        )
+
+        db = AsyncMock()
+        behaviors = await extractor.extract_from_run(
+            db,
+            "run-1",
+            forbidden_tools=["dangerous_tool"],
+        )
+
+        tool_seq = next(b for b in behaviors if b["type"] == "tool_sequence")
+        assert tool_seq["forbidden_tools"] == ["dangerous_tool"]
+
+    @pytest.mark.asyncio
+    async def test_required_edges_included_in_tool_sequence(self):
+        """Required edges are passed through to the tool_sequence assertion (Item #9)."""
+        from app.services.substrate.baseline_extractor import BaselineExtractor
+
+        extractor = BaselineExtractor()
+        extractor._replay_engine = MagicMock()
+        extractor._event_log = MagicMock()
+
+        extractor._replay_engine.rebuild_state = AsyncMock(return_value=_make_state())
+        extractor._event_log.get_events = AsyncMock(
+            return_value=[
+                _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "search"}),
+                _make_event(SubstrateEventType.TOOL_CALL, {"tool_name": "summarize"}),
+            ]
+        )
+
+        db = AsyncMock()
+        edges = [["search", "summarize"]]
+        behaviors = await extractor.extract_from_run(
+            db,
+            "run-1",
+            required_edges=edges,
+        )
+
+        tool_seq = next(b for b in behaviors if b["type"] == "tool_sequence")
+        assert tool_seq["required_edges"] == edges
 
 
 class TestGetBaselineExtractor:
