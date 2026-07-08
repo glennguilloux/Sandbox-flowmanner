@@ -9,7 +9,14 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.models.auth_v3_models import AuthSession
-from app.services.auth_service import decode_access_token, get_user_by_id
+from app.services.auth_service import decode_access_token as v1_decode_access_token
+from app.services.auth_service import get_user_by_id
+from app.services.auth_v3_service import (
+    backfill_session_from_v1,
+)
+from app.services.auth_v3_service import (
+    decode_access_token as v3_decode_access_token,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -27,8 +34,61 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Decode JWT and return the real user from DB."""
-    user_id = decode_access_token(token)
+    """Decode JWT and return the real user from DB.
+
+    Resolution order (Item #10 — dual-auth consolidation):
+    1. Try v3 decode (returns full payload with optional session_id)
+    2. If session_id present → verify AuthSession is active → return user
+    3. If no session_id (v1 JWT) → lazy-backfill an AuthSession → return user
+    4. Fall back to v1 decode if v3 decode fails (defense-in-depth)
+    """
+    payload = v3_decode_access_token(token)
+
+    if payload is not None:
+        user_id = payload.get("sub")
+        session_id = payload.get("session_id")
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token — missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user = await get_user_by_id(db, int(user_id))
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account disabled",
+            )
+
+        if session_id:
+            # v3 JWT — verify the session is still active
+            result = await db.execute(
+                select(AuthSession).where(
+                    AuthSession.id == session_id,
+                    AuthSession.is_active.is_(True),
+                )
+            )
+            session = result.scalar_one_or_none()
+            if session is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session revoked — please log in again",
+                )
+        else:
+            # v1 JWT — lazy-backfill an AuthSession for tracking
+            await backfill_session_from_v1(db, int(user_id))
+
+        return user
+
+    # Defense-in-depth: fall back to v1 decode
+    user_id = v1_decode_access_token(token)
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,6 +106,8 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account disabled",
         )
+    # Backfill even on v1 fallback path
+    await backfill_session_from_v1(db, int(user_id))
     return user
 
 
@@ -156,11 +218,24 @@ async def get_current_user_optional(
         return None
     token = auth[7:]
     try:
-        user_id = decode_access_token(token)
+        payload = v3_decode_access_token(token)
+        if payload is not None:
+            user_id = payload.get("sub")
+            if user_id is None:
+                return None
+            user = await get_user_by_id(db, int(user_id))
+            if user and user.is_active:
+                # Lazy backfill if no session_id (v1 JWT)
+                if not payload.get("session_id"):
+                    await backfill_session_from_v1(db, int(user_id))
+                return user
+        # Defense-in-depth: v1 fallback
+        user_id = v1_decode_access_token(token)
         if user_id is None:
             return None
         user = await get_user_by_id(db, int(user_id))
         if user and user.is_active:
+            await backfill_session_from_v1(db, int(user_id))
             return user
     except Exception:
         logger.debug("optional_user_decode_failed", exc_info=True)
@@ -229,13 +304,13 @@ async def get_current_session(
     # 1. Try httpOnly refresh cookie
     refresh_token = request.cookies.get("fm_refresh_token")
     if refresh_token:
-        token_payload = decode_access_token(refresh_token)
+        token_payload = v3_decode_access_token(refresh_token)
 
     # 2. Fall back to Bearer token header
     if token_payload is None:
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
-            token_payload = decode_access_token(auth_header[7:])
+            token_payload = v3_decode_access_token(auth_header[7:])
 
     if token_payload is None:
         raise HTTPException(

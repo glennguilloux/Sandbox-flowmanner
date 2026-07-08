@@ -33,6 +33,12 @@ from app.services.auth_service import (
     hash_password,
     store_refresh_token,
 )
+from app.services.auth_v3_service import (
+    create_access_token as v3_create_access_token,
+)
+from app.services.auth_v3_service import (
+    create_session as v3_create_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -578,8 +584,13 @@ async def authenticate_with_oidc(
     # Store OIDC tokens
     await update_oidc_account_tokens(db, user, provider, token_response)
 
-    # Generate local tokens
-    local_access = create_access_token(user.id)
+    # Generate local tokens (Item #10: dual-write v3 AuthSession)
+    try:
+        v3_session, _v3_refresh = await v3_create_session(db, user)
+        local_access = v3_create_access_token(user_id=user.id, session_id=str(v3_session.id))
+    except Exception:
+        logger.debug("v3 dual-write in OIDC failed, falling back to v1", exc_info=True)
+        local_access = create_access_token(user.id)
     local_refresh = create_refresh_token_value()
     await store_refresh_token(db, user.id, local_refresh)
 

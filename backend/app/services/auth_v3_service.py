@@ -248,9 +248,7 @@ async def _try_migrate_v1_token(
     """
     from app.services.auth_service import RefreshToken
 
-    result = await db.execute(
-        select(RefreshToken).where(RefreshToken.token == refresh_token)
-    )
+    result = await db.execute(select(RefreshToken).where(RefreshToken.token == refresh_token))
     v1_token = result.scalar_one_or_none()
 
     if v1_token is None:
@@ -576,6 +574,63 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
     """Find a user by ID."""
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
+
+
+async def backfill_session_from_v1(
+    db: AsyncSession,
+    user_id: int,
+    ip_address: str | None = None,
+    device_name: str | None = None,
+) -> AuthSession:
+    """Lazily create an AuthSession for a user authenticating via v1 JWT.
+
+        Called by ``get_current_user`` when it encounters a valid v1 access token
+        (no ``session_id`` claim) and no active AuthSession exists.  This is the
+        single-write bridge: every identity resolution that lands here produces an
+        AuthSession row so the v3 system becomes authoritative over time.
+
+        The backfilled session has a long-lived refresh token that is NOT returned
+    to the caller — the v1 caller already has its own refresh token.  The session
+        is only used for tracking and future v3-resolution.
+    """
+    # Check for existing active session to avoid duplicates
+    result = await db.execute(
+        select(AuthSession).where(
+            AuthSession.user_id == user_id,
+            AuthSession.is_active == True,
+        )
+    )
+    existing = result.scalars().first()
+    if existing is not None:
+        return existing
+
+    # Use a deterministic sentinel hash — this session is for tracking only,
+    # not for refresh.  A real random token would waste entropy and create
+    # an unvalidatable hash in the DB.
+    token_hash = hashlib.sha256(f"backfill:v1:{user_id}".encode()).hexdigest()
+    family_id = str(uuid.uuid4())
+    expires_at = datetime.now(UTC) + timedelta(seconds=settings.JWT_REFRESH_TOKEN_EXPIRES)
+
+    session = AuthSession(
+        user_id=user_id,
+        refresh_token_hash=token_hash,
+        device_name=device_name,
+        ip_address=ip_address,
+        is_active=True,
+        expires_at=expires_at,
+        family_id=family_id,
+        family_generation=0,
+    )
+    db.add(session)
+    await db.flush()
+    await db.refresh(session)
+
+    logger.info(
+        "backfilled v3 auth session from v1 token for user_id=%s session_id=%s",
+        user_id,
+        session.id,
+    )
+    return session
 
 
 async def create_user(

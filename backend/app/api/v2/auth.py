@@ -39,6 +39,12 @@ from app.services.auth_service import (
     track_login,
     verify_password,
 )
+from app.services.auth_v3_service import (
+    create_access_token as v3_create_access_token,
+)
+from app.services.auth_v3_service import (
+    create_session as v3_create_session,
+)
 from app.services.totp_service import consume_backup_code, verify_code
 from app.utils.password_validation import validate_password_strength
 
@@ -62,10 +68,22 @@ def _get_device_name(request: Request) -> str:
     return ua[:100] if ua else "Unknown"
 
 
+async def _create_access_token_dual_write(db: AsyncSession, user: User, request: Request, ip: str) -> str:
+    """Item #10: Dual-write a v3 AuthSession and return a v3 access token."""
+    try:
+        v3_session, _v3_refresh = await v3_create_session(
+            db, user, ip_address=ip, device_name=_get_device_name(request)
+        )
+        return v3_create_access_token(user_id=user.id, session_id=str(v3_session.id), role=user.role)
+    except Exception:
+        logger.debug("v3 dual-write failed, falling back to v1 access token", exc_info=True)
+        return create_access_token(user.id, role=user.role)
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)):
     ip = _get_client_ip(request)
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"register:{ip}",
         RATE_LIMITS["register"]["max_requests"],
         RATE_LIMITS["register"]["window_seconds"],
@@ -112,7 +130,7 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
     except Exception:
         logger.debug("register_workspace_create_failed", exc_info=True)
 
-    access = create_access_token(user.id, role=user.role)
+    access = await _create_access_token_dual_write(db, user, request, ip)
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
@@ -132,7 +150,7 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
 async def login(request: Request, db: AsyncSession = Depends(get_db)):
     ip = _get_client_ip(request)
 
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"login:{ip}",
         RATE_LIMITS["login"]["max_requests"],
         RATE_LIMITS["login"]["window_seconds"],
@@ -207,7 +225,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
 
     reset_login_attempts(lockout_key)
 
-    access = create_access_token(user.id, role=user.role)
+    access = await _create_access_token_dual_write(db, user, request, ip)
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
@@ -229,7 +247,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
 async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
     ip = _get_client_ip(request)
 
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"2fa_verify:{ip}",
         RATE_LIMITS["2fa_verify"]["max_requests"],
         RATE_LIMITS["2fa_verify"]["window_seconds"],
@@ -288,7 +306,7 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
     if not code_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code")
 
-    access = create_access_token(user.id, role=user.role)
+    access = await _create_access_token_dual_write(db, user, request, ip)
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(

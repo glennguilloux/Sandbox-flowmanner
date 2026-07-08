@@ -4,6 +4,7 @@ import contextlib
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi import File as FastAPIFile
@@ -48,6 +49,12 @@ from app.services.auth_service import (
     track_login,
     verify_password,
 )
+from app.services.auth_v3_service import (
+    create_access_token as v3_create_access_token,
+)
+from app.services.auth_v3_service import (
+    create_session as v3_create_session,
+)
 from app.services.totp_service import consume_backup_code, verify_code
 from app.utils.password_validation import validate_password_strength
 
@@ -75,11 +82,28 @@ def _get_device_name(request: Request) -> str:
     return ua[:100]
 
 
+async def _create_access_token_dual_write(db: AsyncSession, user: User, request: Request, ip: str) -> str:
+    """Item #10: Dual-write a v3 AuthSession and return a v3 access token.
+
+    Creates an AuthSession in the v3 system so get_current_user() can
+    resolve sessions via session_id.  Falls back to v1 access token on error
+    so existing login flows are never broken by v3 issues.
+    """
+    try:
+        v3_session, _v3_refresh = await v3_create_session(
+            db, user, ip_address=ip, device_name=_get_device_name(request)
+        )
+        return v3_create_access_token(user_id=user.id, session_id=str(v3_session.id), role=user.role)
+    except Exception:
+        logger.debug("v3 dual-write failed, falling back to v1 access token", exc_info=True)
+        return create_access_token(user.id, role=user.role)
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)):
     # Rate limiting
     ip = _get_client_ip(request)
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"register:{ip}",
         RATE_LIMITS["register"]["max_requests"],
         RATE_LIMITS["register"]["window_seconds"],
@@ -132,7 +156,7 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
     except Exception:
         logger.exception("[REGISTER] Failed to auto-create workspace for user %s", user.id)
 
-    access = create_access_token(user.id, role=user.role)
+    access = await _create_access_token_dual_write(db, user, request, ip)
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
@@ -162,7 +186,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     ip = _get_client_ip(request)
 
     # Rate limiting
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"login:{ip}",
         RATE_LIMITS["login"]["max_requests"],
         RATE_LIMITS["login"]["window_seconds"],
@@ -252,7 +276,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
         # No 2FA — complete login
         reset_login_attempts(lockout_key)
 
-        access = create_access_token(user.id, role=user.role)
+        access = await _create_access_token_dual_write(db, user, request, ip)
         refresh = create_refresh_token_value()
         family_id = str(uuid.uuid4())
         await store_refresh_token(
@@ -271,7 +295,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("[LOGIN] Unhandled error: %s", e, exc_info=True)
+        logger.exception("[LOGIN] Unhandled error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred. Please try again later.",
@@ -284,7 +308,7 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
     ip = _get_client_ip(request)
 
     # Rate limiting
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"2fa_verify:{ip}",
         RATE_LIMITS["2fa_verify"]["max_requests"],
         RATE_LIMITS["2fa_verify"]["window_seconds"],
@@ -351,7 +375,7 @@ async def login_2fa(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code")
 
     # Complete login
-    access = create_access_token(user.id, role=user.role)
+    access = await _create_access_token_dual_write(db, user, request, ip)
     refresh = create_refresh_token_value()
     family_id = str(uuid.uuid4())
     await store_refresh_token(
@@ -623,7 +647,7 @@ async def social_token_exchange(
     """
     # Rate limiting per IP (5 requests per minute)
     ip = _get_client_ip(request)
-    allowed, remaining, retry_after = check_rate_limit(
+    allowed, _remaining, retry_after = check_rate_limit(
         f"social_token:{ip}",
         RATE_LIMITS["social_token"]["max_requests"],
         RATE_LIMITS["social_token"]["window_seconds"],
@@ -667,7 +691,7 @@ async def social_token_exchange(
                 await db.flush()
             _complete_login(user)
             return _auth_response(
-                create_access_token(user.id, role=user.role),
+                await _create_access_token_dual_write(db, user, request, ip),
                 await _issue_refresh_token(db, user.id, request),
             )
 
@@ -688,7 +712,7 @@ async def social_token_exchange(
         await db.flush()
         _complete_login(user)
         return _auth_response(
-            create_access_token(user.id, role=user.role),
+            await _create_access_token_dual_write(db, user, request, ip),
             await _issue_refresh_token(db, user.id, request),
         )
 
@@ -742,7 +766,7 @@ async def social_token_exchange(
 
     _complete_login(user)
     return _auth_response(
-        create_access_token(user.id, role=user.role),
+        await _create_access_token_dual_write(db, user, request, ip),
         await _issue_refresh_token(db, user.id, request),
     )
 
