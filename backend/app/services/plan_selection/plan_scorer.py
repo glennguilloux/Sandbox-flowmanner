@@ -4,19 +4,32 @@ Scores each PlanCandidate in <10ms without LLM calls.  The score is a
 float in [0.0, 1.0] where higher is better.
 
 Scoring weights (sum to ~1.0 before clamping):
-  - Cost penalty:     -0.30 (normalized; cheaper = higher score)
-  - Risk flags:       -0.10 per flag, capped at -0.30
-  - Task count:       -0.05 (normalized; fewer = slightly better)
-  - Fallback bonus:   +0.20 (every tool-using task has a fallback)
-  - Retry penalty:    -0.05 (estimated retries from profile)
-  - Budget awareness: +0.10 (has max_budget declared)
-  - Base quality:     +0.70 (starting point)
+  - Token penalty:        -0.30 (normalized; fewer tokens = higher score)
+  - Latency penalty:      -0.20 (normalized; lower latency = higher score)
+  - Risk flags:           -0.10 per flag, capped at -0.30
+  - Strategy risk penalty: up to -0.25 (profiling-grounded; 0% success = max penalty)
+  - Task count:           -0.05 (normalized; fewer = slightly better)
+  - Fallback bonus:       +0.20 (every tool-using task has a fallback)
+  - Retry penalty:        -0.05 (estimated retries from profile)
+  - Budget awareness:     +0.10 (has max_budget declared)
+  - Base quality:         +0.70 (starting point)
+
+Normalizing constants are calibrated against actual 27B model profiling data
+(see :mod:`calibration`).
 """
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+
+from .calibration import (
+    LATENCY_NORMALIZER_MS,
+    TASK_COUNT_NORMALIZER,
+    TOKEN_NORMALIZER,
+    predict_strategy,
+    strategy_risk_penalty,
+)
 
 if TYPE_CHECKING:
     from .plan_candidate import PlanCandidate
@@ -133,6 +146,11 @@ def score_plan(candidate: PlanCandidate) -> float:
     Returns a float in [0.0, 1.0] where higher is better.  The scoring
     is deterministic (no LLM, no I/O) and runs in <10ms.
 
+    Scoring uses calibrated normalizing constants from :mod:`calibration`
+    (grounded in 27B model profiling data) and applies a strategy-risk
+    penalty based on the predicted execution strategy's empirical success
+    rate.
+
     Args:
         candidate: The PlanCandidate to score.
 
@@ -141,26 +159,35 @@ def score_plan(candidate: PlanCandidate) -> float:
     """
     score = 0.70  # base quality
 
-    # ── Cost penalty (token + latency, -0.50 max combined) ───────────────
-    # Local LLM (llama.cpp) is free, so dollar cost is meaningless.
-    # Penalize token count and latency instead.
-    token_penalty = min(candidate.estimated_tokens / 100_000, 1.0) * 0.30
-    latency_penalty = min(candidate.estimated_latency_ms / 60_000, 1.0) * 0.20
-    score -= token_penalty + latency_penalty
+    # ── Token penalty (-0.30 max) ───────────────────────────────────────
+    # Penalize resource-intensive plans.  Calibrated normalizer: 50k tokens.
+    token_penalty = min(candidate.estimated_tokens / TOKEN_NORMALIZER, 1.0) * 0.30
+    score -= token_penalty
+
+    # ── Latency penalty (-0.20 max) ────────────────────────────────────
+    # Penalize slow plans.  Calibrated normalizer: 30s.
+    latency_penalty = min(candidate.estimated_latency_ms / LATENCY_NORMALIZER_MS, 1.0) * 0.20
+    score -= latency_penalty
 
     # ── Risk flags penalty (-0.10 per flag, capped at -0.30) ────────────
     risk_count = len(candidate.risk_flags)
     risk_penalty = min(risk_count * 0.10, 0.30)
     score -= risk_penalty
 
+    # ── Strategy risk penalty (up to -0.25) ─────────────────────────────
+    # Grounded in strategy profiling data: plans whose predicted execution
+    # strategy has a low success rate get penalized proportionally.
+    strat_penalty = strategy_risk_penalty(candidate.tasks)
+    score -= strat_penalty
+
     # ── Task count penalty (-0.05 max) ──────────────────────────────────
-    # Normalize: 1 task = 0 penalty, 10+ tasks = full penalty
+    # Normalize: 1 task = 0 penalty, 10+ tasks = full penalty.
     task_count = len(candidate.tasks)
-    task_penalty = min(task_count / 10.0, 1.0) * 0.05
+    task_penalty = min(task_count / TASK_COUNT_NORMALIZER, 1.0) * 0.05
     score -= task_penalty
 
     # ── Fallback bonus (+0.20) ──────────────────────────────────────────
-    # Every tool-using task should have a fallback
+    # Every tool-using task should have a fallback.
     tool_tasks = [t for t in candidate.tasks if t.get("task_type") == "tool"]
     if tool_tasks:
         tasks_with_fallback = sum(1 for t in tool_tasks if t.get("fallback"))
@@ -171,7 +198,7 @@ def score_plan(candidate: PlanCandidate) -> float:
         score += 0.20
 
     # ── Retry penalty (-0.05 max) ──────────────────────────────────────
-    # Penalize plans likely to retry >2x on average
+    # Penalize plans likely to retry >2x on average.
     avg_max_retries = 0
     retry_counts = [t.get("max_retries", 3) for t in candidate.tasks]
     if retry_counts:
@@ -181,7 +208,7 @@ def score_plan(candidate: PlanCandidate) -> float:
         score -= retry_penalty
 
     # ── Budget awareness bonus (+0.10) ─────────────────────────────────
-    # Plans that declare a max_budget are self-aware about cost
+    # Plans that declare a max_budget are self-aware about cost.
     has_budget = any(t.get("max_budget") for t in candidate.tasks)
     if has_budget:
         score += 0.10

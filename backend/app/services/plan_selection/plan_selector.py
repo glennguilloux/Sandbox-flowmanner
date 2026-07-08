@@ -60,7 +60,10 @@ async def select_plan(
 
     # ── Apply policy ─────────────────────────────────────────────────────
     if policy == "min_cost":
-        winner = min(eligible, key=lambda c: c.estimated_cost_usd)
+        # Use token count as cost proxy — the local LLM is free, so
+        # dollar cost is meaningless.  Tokens correlate with resource
+        # consumption (VRAM, time) and are the real cost axis.
+        winner = min(eligible, key=lambda c: c.estimated_tokens)
     elif policy == "max_quality":
         winner = eligible[0]  # already sorted desc by quality
     elif policy in ("balanced", "auto"):

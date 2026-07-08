@@ -309,6 +309,7 @@ class TestCostAwarePlanSelectionE2E:
                 generation_strategy="heuristic",
                 tasks=[{"title": "Cheap task", "task_type": "llm"}],
                 estimated_cost_usd=0.0,
+                estimated_tokens=500,
                 quality_score=0.65,
             ),
             PlanCandidate(
@@ -316,6 +317,7 @@ class TestCostAwarePlanSelectionE2E:
                 generation_strategy="llm_persona",
                 tasks=[{"title": "Expensive task", "task_type": "code"}],
                 estimated_cost_usd=0.10,
+                estimated_tokens=5000,
                 quality_score=0.85,
             ),
         ]
@@ -325,7 +327,8 @@ class TestCostAwarePlanSelectionE2E:
         assert winner.plan_id == "expensive"
         assert winner.tasks[0]["title"] == "Expensive task"
 
-        # With min_cost policy, cheapest among eligible wins
+        # With min_cost policy, lowest token count among eligible wins
+        # (min_cost uses estimated_tokens, not estimated_cost_usd, since local LLM is free)
         winner, _ = await select_plan(candidates, policy="min_cost", min_quality_threshold=0.6)
         assert winner.plan_id == "cheap"
         assert winner.tasks[0]["title"] == "Cheap task"

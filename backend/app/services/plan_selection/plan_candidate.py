@@ -1,8 +1,14 @@
-"""PlanCandidate dataclass — represents a single plan candidate with cost/quality metadata."""
+"""PlanCandidate dataclass — represents a single plan candidate with cost/quality metadata.
+
+Includes a ``predicted_strategy`` field populated by the calibration module
+so consumers can see which execution strategy this plan would likely use.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from .calibration import predict_strategy
 
 
 @dataclass(slots=True)
@@ -33,6 +39,12 @@ class PlanCandidate:
     quality_score: float = 0.0
     risk_flags: list[str] = field(default_factory=list)
     rationale: str = ""
+    predicted_strategy: str = ""  # execution strategy predicted by calibration
+
+    def __post_init__(self) -> None:
+        """Auto-populate predicted_strategy if not set."""
+        if not self.predicted_strategy:
+            self.predicted_strategy = predict_strategy(self.tasks)
 
     def to_dict(self) -> dict:
         """Serialize to a plain dict for JSONB storage."""
@@ -46,6 +58,7 @@ class PlanCandidate:
             "quality_score": self.quality_score,
             "risk_flags": self.risk_flags,
             "rationale": self.rationale,
+            "predicted_strategy": self.predicted_strategy,
         }
 
     @classmethod
@@ -61,4 +74,5 @@ class PlanCandidate:
             quality_score=data.get("quality_score", 0.0),
             risk_flags=data.get("risk_flags", []),
             rationale=data.get("rationale", ""),
+            predicted_strategy=data.get("predicted_strategy", ""),
         )
