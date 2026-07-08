@@ -308,6 +308,11 @@ class Settings(BaseSettings):
     # Per strategy profiling 2026-07-04, these failed validation with simple workflows.
     STRATEGY_EXPERIMENTAL: bool = False
 
+    # Strategy gating — deprecated strategies (meta, swarm, pipeline, langgraph)
+    # 0% success with 27B model per strategy profiling 2026-07-04.
+    # Set to True to allow deprecated strategies (escape hatch for testing).
+    STRATEGY_ALLOW_DEPRECATED: bool = False
+
     # Cost-aware plan selection (K-Plan Scored Pick)
     BUDGET_AWARE_PLAN_SELECTION: Literal["off", "on", "auto"] = "off"
     PLAN_SELECTION_K: int = 3

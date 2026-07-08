@@ -119,6 +119,15 @@ class UnifiedExecutor:
         strategy = self._strategies.get(workflow_type)
         if strategy is None:
             raise ValueError(f"No strategy registered for workflow type: {workflow_type}")
+        # Gate deprecated strategies (0% success with 27B model per profiling)
+        if getattr(strategy, "DEPRECATED", False):
+            from app.config import settings
+
+            if not settings.STRATEGY_ALLOW_DEPRECATED:
+                raise ValueError(
+                    f"Strategy '{workflow_type.value}' is deprecated and unavailable. "
+                    f"Choose a non-deprecated strategy, or set STRATEGY_ALLOW_DEPRECATED=true in .env."
+                )
         # Gate experimental strategies behind STRATEGY_EXPERIMENTAL env var
         if getattr(strategy, "EXPERIMENTAL", False):
             from app.config import settings
