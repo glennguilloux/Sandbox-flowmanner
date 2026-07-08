@@ -27,6 +27,24 @@ from app.models.capability_models import Budget, BudgetExhausted
 
 logger = logging.getLogger(__name__)
 
+
+# ── Local-model detection ────────────────────────────────────────
+# The direct httpx fallback path targets the local llama.cpp server
+# (LLM_BASE_URL, default http://localhost:11434). That fallback is only
+# correct when the *intended* model was already a local one. Routing a
+# failed cloud/BYOK model silently to llama.cpp would run the wrong model
+# while reporting success. See budget_enforcer fallback note below.
+
+_LOCAL_MODEL_PREFIXES = ("llamacpp/", "local/", "ollama/")
+
+
+def _is_local_model(model_id: str | None) -> bool:
+    """Return True if a model id clearly denotes a local/self-hosted model."""
+    if not model_id:
+        return False
+    return any(model_id.startswith(prefix) for prefix in _LOCAL_MODEL_PREFIXES)
+
+
 # ── Pricing table (per-model cost per 1M tokens) ─────────────────
 
 # These prices are the source of truth.  They are loaded at boot and
@@ -215,6 +233,11 @@ class BudgetEnforcer:
         model_preference: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        # When False (default), a failure of the primary (cloud/BYOK) route
+        # is reported as success=False rather than silently falling back to
+        # the local llama.cpp server. Set True only when the caller
+        # explicitly intends a local-model fallback for a local-only run.
+        allow_fallback: bool = False,
         # Optional substrate context for event logging
         run_id: str | None = None,
         mission_id: str | None = None,
@@ -262,6 +285,9 @@ class BudgetEnforcer:
 
         # Q1-A chunk 5: Resolve provider via circuit breaker + fallback chain
         actual_provider = model_id  # default, may be overridden by CB
+        # Set when the local llama.cpp fallback fired for a NON-local intended
+        # model (cloud/BYOK failure). Carried to the event log for auditability.
+        substituted_from: str | None = None
         cb_enabled = False
         try:
             from app.config import settings as _settings
@@ -302,49 +328,51 @@ class BudgetEnforcer:
                 completion_tokens = cost_info.get("output_tokens", 0)
 
             except Exception as router_error:
-                logger.warning("ModelRouter failed, trying direct httpx: %s", router_error)
-
-                # Fallback to direct httpx call
-                import httpx
-
-                from app.config import settings
-
-                actual_model = actual_provider
-                llm_url = getattr(settings, "LLM_BASE_URL", "http://localhost:11434")
-                llm_key = getattr(settings, "LLM_API_KEY", "")
-
-                headers = {"Content-Type": "application/json"}
-                if llm_key:
-                    headers["Authorization"] = f"Bearer {llm_key}"
-
-                async with httpx.AsyncClient(timeout=120.0) as client:
-                    resp = await client.post(
-                        f"{llm_url}/v1/chat/completions",
-                        headers=headers,
-                        json={
-                            "model": actual_provider,
-                            "messages": messages,
-                            "temperature": temperature or 0.7,
-                            "max_tokens": max_tokens or 2000,
-                        },
+                # Decide whether the local llama.cpp httpx fallback is allowed.
+                #
+                # SECURITY/SAFETY: The fallback POSTs to the *local* llama.cpp
+                # server. If the intended model was a cloud/BYOK model whose
+                # primary route failed (bad key, auth, timeout, 5xx), silently
+                # substituting the local model and returning success=True runs
+                # the WRONG model while lying about it. Only fall back when:
+                #   (a) the caller explicitly passed allow_fallback=True, OR
+                #   (b) the intended model was already a local/self-hosted one
+                #       (so the fallback is the same model family, not a swap).
+                intended_was_local = _is_local_model(model_preference or actual_provider)
+                if allow_fallback or intended_was_local:
+                    logger.warning(
+                        "ModelRouter failed; falling back to local llama.cpp. "
+                        "allow_fallback=%s intended_was_local=%s model=%s: %s",
+                        allow_fallback,
+                        intended_was_local,
+                        model_preference or actual_provider,
+                        router_error,
                     )
-                    data = resp.json()
-
-                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                usage = data.get("usage", {})
-                prompt_tokens = usage.get("prompt_tokens", 0)
-                completion_tokens = usage.get("completion_tokens", 0)
-
-                response = {
-                    "success": True,
-                    "response": content,
-                    "model": actual_model,
-                    "provider": "llamacpp",
-                    "cost": {
-                        "input_tokens": prompt_tokens,
-                        "output_tokens": completion_tokens,
-                    },
-                }
+                    response = await self._local_llamacpp_fallback(
+                        messages=messages,
+                        actual_provider=actual_provider,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        run_id=run_id,
+                        mission_id=mission_id,
+                        task_id=task_id,
+                        workspace_id=workspace_id,
+                        agent_id=agent_id,
+                        # Tag the event log when the fallback fires for a model
+                        # that was NOT local-intended — i.e. the user's chosen
+                        # cloud/BYOK model did not run.
+                        substituted_from=(None if intended_was_local else (model_preference or actual_provider)),
+                    )
+                    # Remember the swap so the event log can tag it.
+                    substituted_from = None if intended_was_local else (model_preference or actual_provider)
+                    actual_model = response.get("model", actual_provider)
+                    cost_info = response.get("cost", {})
+                    prompt_tokens = cost_info.get("input_tokens", 0)
+                    completion_tokens = cost_info.get("output_tokens", 0)
+                else:
+                    # No fallback permitted: re-raise so the outer handler
+                    # records a proper success=False with the real error.
+                    raise
 
             # Calculate actual cost
             actual_cost = self.pricing.estimate(actual_model, prompt_tokens, completion_tokens)
@@ -353,7 +381,6 @@ class BudgetEnforcer:
             cost_info = dict(response.get("cost") or {})
             cost_info["usd"] = cost_usd
             response["cost"] = cost_info
-
             # Update budget
             budget.spent_usd += actual_cost
             budget.depth_used = budget.iterations_used  # Track depth
@@ -384,6 +411,7 @@ class BudgetEnforcer:
                 error=response.get("error"),
                 workspace_id=workspace_id,
                 agent_id=agent_id,
+                substituted_from=substituted_from,
             )
 
             # Phase 6.4: Record in circuit breaker (per-mission budget guard)
@@ -441,6 +469,80 @@ class BudgetEnforcer:
                 },
             }
 
+    async def _local_llamacpp_fallback(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        actual_provider: str,
+        temperature: float | None,
+        max_tokens: int | None,
+        run_id: str | None = None,
+        mission_id: str | None = None,
+        task_id: str | None = None,
+        workspace_id: str | None = None,
+        agent_id: str | None = None,
+        substituted_from: str | None = None,
+    ) -> dict[str, Any]:
+        """Direct httpx call to the local llama.cpp server.
+
+        This is the ONLY place the local-model fallback lives now. It is
+        reachable only when the caller opted into ``allow_fallback=True`` or
+        the intended model was already a local one (see ``call()``). When
+        ``substituted_from`` is set we are silently running a different model
+        than the user picked — the swap is tagged in the event log (done by the
+        caller) and surfaced via a warning here.
+        """
+        import httpx
+
+        from app.config import settings
+
+        llm_url = getattr(settings, "LLM_BASE_URL", "http://localhost:11434")
+        llm_key = getattr(settings, "LLM_API_KEY", "")
+
+        headers = {"Content-Type": "application/json"}
+        if llm_key:
+            headers["Authorization"] = f"Bearer {llm_key}"
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                f"{llm_url}/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": actual_provider,
+                    "messages": messages,
+                    "temperature": temperature or 0.7,
+                    "max_tokens": max_tokens or 2000,
+                },
+            )
+            data = resp.json()
+
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        usage = data.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+
+        if substituted_from:
+            logger.warning(
+                "LOCAL-FALLBACK SUBSTITUTION: intended model '%s' failed on its "
+                "primary route; ran on local llama.cpp model '%s' instead. The "
+                "user's chosen model did NOT run.",
+                substituted_from,
+                actual_provider,
+            )
+
+        return {
+            "success": True,
+            "response": content,
+            "model": actual_provider,
+            "provider": "llamacpp",
+            "cost": {
+                "input_tokens": prompt_tokens,
+                "output_tokens": completion_tokens,
+            },
+            # Pass the swap forward so callers/event log can flag it.
+            "substituted_from": substituted_from,
+        }
+
     async def _record_circuit_breaker(
         self,
         mission_id: str,
@@ -474,8 +576,14 @@ class BudgetEnforcer:
         error: str | None,
         workspace_id: str | None = None,
         agent_id: str | None = None,
+        substituted_from: str | None = None,
     ) -> None:
-        """Record an LLM call event to the substrate event log."""
+        """Record an LLM call event to the substrate event log.
+
+        ``substituted_from`` (when set) flags that the call actually ran on a
+        different (local) model than the user intended — the event log carries
+        this so a success=True with a provider mismatch is auditable.
+        """
         if run_id is None:
             return
 
@@ -500,6 +608,13 @@ class BudgetEnforcer:
                                 "latency_ms": latency_ms,
                                 "success": success,
                                 "error": error,
+                                "substituted_from": substituted_from,
+                                "warning": (
+                                    f"intended model '{substituted_from}' failed; "
+                                    f"ran on local fallback '{model_id}'"
+                                    if substituted_from
+                                    else None
+                                ),
                             },
                             "actor": "budget_enforcer",
                             "mission_id": mission_id,
