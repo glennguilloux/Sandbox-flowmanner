@@ -278,6 +278,13 @@ class Settings(BaseSettings):
     # Per-tenant or per-user override is intentionally NOT in scope for T33.
     CHAT_MEMORY_CITATIONS_ENABLED: bool = False
 
+    # SPIKE (ADR-002): ordered prepareStep injection closure for chat.
+    # When True, chat context injection (memory + web_search) is routed through
+    # ``_prepare_step_inject`` instead of the legacy inline path, and an
+    # ``injected`` SSE receipt event is emitted per source. Defaults False so
+    # single-shot chat behavior is unchanged until agentic/multi-step chat lands.
+    CHAT_PREPARE_STEP_HOOK_ENABLED: bool = False
+
     # T2.1 — Context window token-budget pruning.
     # When enabled, _build_chat_messages applies token-budget pruning
     # after the count-based max_history cap. Keeps beginning + end of

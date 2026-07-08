@@ -445,9 +445,8 @@ async def _stream_message_to_llm_body(
                     query=content,
                 )
                 if memory_recall_claims:
-                    messages_for_llm = _inject_memory_context(messages_for_llm, memory_recall_claims)
                     logger.info(
-                        "stream_message_to_llm: injected %d memory claims for thread %s",
+                        "stream_message_to_llm: recalled %d memory claims for thread %s",
                         len(memory_recall_claims),
                         thread_id,
                     )
@@ -467,14 +466,36 @@ async def _stream_message_to_llm_body(
     if attachments:
         messages_for_llm = await _process_attachments(db, messages_for_llm, attachments, raw_model)
 
-    if web_search:
-        messages_for_llm = await _inject_web_search(messages_for_llm, content)
+    _prepare_step_injected_events: list[dict] = []
+    if getattr(settings, "CHAT_PREPARE_STEP_HOOK_ENABLED", False):
+        # Route context injection through the ordered prepareStep closure
+        # (mirrors trigger.dev chat.agent prepareStep). Today this runs once
+        # pre-LLM (single-shot chat, steps=None). The future re-entrant turn loop
+        # will call it at each step boundary with a non-empty steps list +
+        # shouldInject gate, matching trigger.dev's step-boundary injection model.
+        messages_for_llm, _prepare_step_injected_events = await _prepare_step_inject(
+            messages_for_llm,
+            memory_claims=memory_recall_claims,
+            web_search=bool(web_search),
+            content=content,
+        )
+    else:
+        # Legacy inline injection — unchanged behavior when the spike flag is off.
+        if memory_recall_claims:
+            messages_for_llm = _inject_memory_context(messages_for_llm, memory_recall_claims)
+        if web_search:
+            messages_for_llm = await _inject_web_search(messages_for_llm, content)
 
     # Save user message, commit, and immediately close the session to prevent
     # idle-in-transaction timeout during the LLM call
     await create_chat_message(db, thread_id, "user", content, user_id=user_id)
     await db.commit()
     await db.close()
+
+    # Emit injection-receipt events so the frontend can reconcile
+    # injected-vs-queued context (only when the prepareStep hook is enabled).
+    for _ev in _prepare_step_injected_events:
+        yield json.dumps(_ev)
 
     try:
         async with breaker.protect():
@@ -1225,6 +1246,67 @@ async def _process_attachments(
             messages.insert(-1, {"role": "user", "content": context_msg})
 
     return messages
+
+
+async def _prepare_step_inject(
+    messages: list[dict],
+    *,
+    memory_claims: list | None = None,
+    web_search: bool = False,
+    content: str | None = None,
+    steps: list | None = None,
+    should_inject: bool | None = None,
+) -> tuple[list[dict], list[dict]]:
+    """Ordered context-injection closure for chat (SPIKE — ADR-002).
+
+    Mirrors trigger.dev ``chat.agent``'s single ``prepareStep`` primitive:
+    all context sources are merged into ``messages`` in a fixed order
+    (memory -> web search) and the function returns both the mutated message
+    list and a list of receipt events.
+
+    Today this is called once per turn, pre-LLM, with ``steps=None``
+    (single-shot chat). The future re-entrant turn loop will call it at each
+    AI-SDK step boundary with a non-empty ``steps`` list and a ``should_inject``
+    gate, matching trigger.dev's step-boundary injection model. The ordering is
+    enforced here by code structure, not convention.
+
+    Behavior when the flag is off is identical to the legacy inline path
+    (see ``_stream_message_to_llm_body``); this helper is only reached when
+    ``settings.CHAT_PREPARE_STEP_HOOK_ENABLED`` is True.
+
+    Returns:
+        (messages_with_context, injected_events) where each event is an SSE
+        payload dict the caller yields so the frontend can reconcile
+        injected-vs-queued context.
+    """
+    injected_events: list[dict] = []
+    result = list(messages)
+
+    # 1) Memory context (ordered first, like prepareStep's compaction->steering)
+    if memory_claims:
+        result = _inject_memory_context(result, memory_claims)
+        injected_events.append(
+            {
+                "type": "injected",
+                "source": "memory",
+                "count": len(memory_claims),
+            }
+        )
+
+    # 2) Web search context
+    if web_search and content is not None:
+        result = await _inject_web_search(result, content)
+        injected_events.append(
+            {
+                "type": "injected",
+                "source": "web_search",
+                "query": content,
+            }
+        )
+
+    # (Future step-boundary hook point) if steps is not None, apply a
+    # should_inject gate and additional per-step sources here.
+    return result, injected_events
 
 
 async def _inject_web_search(messages: list[dict], query: str) -> list[dict]:
