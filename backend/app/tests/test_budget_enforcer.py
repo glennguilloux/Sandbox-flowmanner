@@ -101,6 +101,11 @@ class TestFallbackGating:
         assert result["success"] is False, "failed cloud model must not become success"
         assert result["provider"] != "llamacpp"
         assert "BYOK key rejected" in (result.get("error") or "")
+        # Item #6: provenance on failed calls
+        assert result["requested_model"] == "openai/gpt-4o"
+        assert result["served_model"] is None
+        assert result["substituted_from"] is None
+        assert result["degraded"] is False
 
     async def test_failed_cloud_model_without_fallback_raises_to_caller(self):
         """The inner router failure is re-raised so the outer handler records
@@ -139,6 +144,10 @@ class TestFallbackGating:
 
         assert result["success"] is True
         assert result["provider"] == "llamacpp"
+        # Item #6: provenance — local→local is NOT degraded
+        assert result["requested_model"] == "llamacpp/qwen3.6-27b"
+        assert result["served_model"] == "llamacpp/qwen3.6-27b"
+        assert result["degraded"] is False
 
     async def test_explicit_allow_fallback_runs_local_model(self):
         """When the caller explicitly opts in via allow_fallback=True, a
@@ -162,6 +171,11 @@ class TestFallbackGating:
 
         assert result["success"] is True
         assert result["provider"] == "llamacpp"
+        # Item #6: provenance — cloud→local IS degraded
+        assert result["requested_model"] == "openai/gpt-4o"
+        assert result["served_model"] == "llamacpp/qwen3.6-27b"
+        assert result["substituted_from"] == "openai/gpt-4o"
+        assert result["degraded"] is True
 
 
 class TestSubstitutionTagging:
@@ -195,3 +209,6 @@ class TestSubstitutionTagging:
             )
 
         assert captured.get("substituted_from") == "openai/gpt-4o"
+        # Item #6: provenance fields in event log
+        assert captured.get("requested_model") == "openai/gpt-4o"
+        assert captured.get("degraded") is True

@@ -26,10 +26,10 @@ from app.services.substrate.circuit_breaker import (
 )
 from app.services.substrate.provider_fallback import (
     AllProvidersOpen,
+    ProviderProvenance,
     get_fallback_chain,
     resolve_provider,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -127,7 +127,7 @@ async def test_check_open_state_past_cooldown_transitions_to_half_open():
     # Verify the UPDATE was called to transition to HALF_OPEN
     db.execute.assert_any_call(
         db.execute.call_args_list[0][0][0],  # same SQL
-        db.execute.call_args_list[0][0][1],   # same params (we check via call count)
+        db.execute.call_args_list[0][0][1],  # same params (we check via call count)
     )
 
 
@@ -234,10 +234,10 @@ async def test_get_fallback_chain_workspace_specific_first():
     # Mock the SQL result: workspace-specific first, then global
     mock_result = MagicMock()
     mock_result.fetchall.return_value = [
-        ("anthropic",),   # workspace-specific, priority 0
-        ("deepseek",),    # workspace-specific, priority 1
-        ("anthropic",),   # global (shadowed by workspace-specific)
-        ("local",),       # global, priority 2
+        ("anthropic",),  # workspace-specific, priority 0
+        ("deepseek",),  # workspace-specific, priority 1
+        ("anthropic",),  # global (shadowed by workspace-specific)
+        ("local",),  # global, priority 2
     ]
     db.execute.return_value = mock_result
 
@@ -255,7 +255,7 @@ async def test_get_fallback_chain_global_only():
     mock_result = MagicMock()
     mock_result.fetchall.return_value = [
         ("anthropic",),  # global, priority 0
-        ("deepseek",),   # global, priority 1
+        ("deepseek",),  # global, priority 1
     ]
     db.execute.return_value = mock_result
 
@@ -286,12 +286,15 @@ async def test_resolve_provider_primary_allowed():
     db = _mock_db(row)
 
     with patch("app.services.substrate.provider_fallback.check_and_allow") as mock_check:
-        mock_check.return_value = CircuitBreakerCheck(
-            allowed=True, reason="closed", state=CircuitBreakerState.CLOSED
-        )
+        mock_check.return_value = CircuitBreakerCheck(allowed=True, reason="closed", state=CircuitBreakerState.CLOSED)
         result = await resolve_provider(db, ws_id, "openai")
 
-    assert result == "openai"
+    assert isinstance(result, ProviderProvenance)
+    assert result.served_provider == "openai"
+    assert result.requested_provider == "openai"
+    assert result.degraded is False
+    assert result.substituted_from is None
+    assert result.fallback_reason is None
 
 
 @pytest.mark.asyncio
@@ -307,18 +310,18 @@ async def test_resolve_provider_primary_open_uses_fallback():
     ):
         # Primary OPEN, fallback1 CLOSED
         mock_check.side_effect = [
-            CircuitBreakerCheck(
-                allowed=False, reason="open", state=CircuitBreakerState.OPEN
-            ),
-            CircuitBreakerCheck(
-                allowed=True, reason="closed", state=CircuitBreakerState.CLOSED
-            ),
+            CircuitBreakerCheck(allowed=False, reason="open", state=CircuitBreakerState.OPEN),
+            CircuitBreakerCheck(allowed=True, reason="closed", state=CircuitBreakerState.CLOSED),
         ]
         mock_chain.return_value = ["anthropic"]
 
         result = await resolve_provider(db, ws_id, "openai")
 
-    assert result == "anthropic"
+    assert isinstance(result, ProviderProvenance)
+    assert result.served_provider == "anthropic"
+    assert result.requested_provider == "openai"
+    assert result.degraded is False  # cloud→cloud is not degraded
+    assert result.fallback_reason == "open"
     mock_event.assert_called_once()
 
 
@@ -332,9 +335,7 @@ async def test_resolve_provider_all_open_raises():
         patch("app.services.substrate.provider_fallback.check_and_allow") as mock_check,
         patch("app.services.substrate.provider_fallback.get_fallback_chain") as mock_chain,
     ):
-        mock_check.return_value = CircuitBreakerCheck(
-            allowed=False, reason="open", state=CircuitBreakerState.OPEN
-        )
+        mock_check.return_value = CircuitBreakerCheck(allowed=False, reason="open", state=CircuitBreakerState.OPEN)
         mock_chain.return_value = ["anthropic", "deepseek"]
 
         with pytest.raises(AllProvidersOpen) as exc_info:
@@ -343,16 +344,20 @@ async def test_resolve_provider_all_open_raises():
     assert "openai" in exc_info.value.tried
     assert "anthropic" in exc_info.value.tried
     assert "deepseek" in exc_info.value.tried
+    # Provenance attached to AllProvidersOpen
+    assert exc_info.value.provenance is not None
+    assert exc_info.value.provenance.requested_provider == "openai"
+    assert exc_info.value.provenance.degraded is True
 
 
 @pytest.mark.asyncio
 async def test_resolve_provider_disabled_skips_check():
     """When check_circuit_breaker=False, returns primary unchanged."""
     db = AsyncMock()
-    result = await resolve_provider(
-        db, str(uuid4()), "openai", check_circuit_breaker=False
-    )
-    assert result == "openai"
+    result = await resolve_provider(db, str(uuid4()), "openai", check_circuit_breaker=False)
+    assert isinstance(result, ProviderProvenance)
+    assert result.served_provider == "openai"
+    assert result.degraded is False
 
 
 # ── Pg-integration tests (require real DB) ──────────────────────────
@@ -378,9 +383,7 @@ async def test_concurrent_probe_only_one_wins():
     probe_claimed = False
     lock = asyncio.Lock()
 
-    original_get_or_create = (
-        "app.services.substrate.circuit_breaker._get_or_create_row"
-    )
+    original_get_or_create = "app.services.substrate.circuit_breaker._get_or_create_row"
 
     async def mock_get_or_create(db, workspace_id, provider_id):
         nonlocal probe_claimed
@@ -478,7 +481,10 @@ async def test_llm_call_records_success():
         patch.object(enforcer, "_record_circuit_breaker", new_callable=AsyncMock),
     ):
         mock_settings.FLOWMANNER_CIRCUIT_BREAKER_ENABLED = True
-        mock_resolve.return_value = "deepseek-chat"
+        mock_resolve.return_value = ProviderProvenance(
+            requested_provider="deepseek",
+            served_provider="deepseek",
+        )
         mock_cb_success.return_value = None
 
         # Mock the ModelRouter
@@ -526,15 +532,16 @@ async def test_llm_call_records_failure_on_exception():
         patch.object(enforcer, "_record_circuit_breaker", new_callable=AsyncMock),
     ):
         mock_settings.FLOWMANNER_CIRCUIT_BREAKER_ENABLED = True
-        mock_resolve.return_value = "deepseek-chat"
+        mock_resolve.return_value = ProviderProvenance(
+            requested_provider="deepseek",
+            served_provider="deepseek",
+        )
         mock_cb_failure.return_value = True  # CB opened
 
         # Mock the ModelRouter to raise
         with patch("app.services.llm_router.ModelRouter") as MockRouter:
             mock_router = MockRouter.return_value
-            mock_router.route_request = AsyncMock(
-                side_effect=RuntimeError("Provider down")
-            )
+            mock_router.route_request = AsyncMock(side_effect=RuntimeError("Provider down"))
 
             db_session = AsyncMock()
             response = await enforcer.call(
@@ -555,9 +562,7 @@ async def test_llm_call_records_failure_on_exception():
 
 def test_circuit_breaker_check_frozen():
     """CircuitBreakerCheck is immutable."""
-    check = CircuitBreakerCheck(
-        allowed=True, reason="test", state=CircuitBreakerState.CLOSED
-    )
+    check = CircuitBreakerCheck(allowed=True, reason="test", state=CircuitBreakerState.CLOSED)
     with pytest.raises(AttributeError):
         check.allowed = False  # type: ignore[misc]
 

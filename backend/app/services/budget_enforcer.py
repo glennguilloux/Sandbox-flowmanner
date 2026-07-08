@@ -21,9 +21,12 @@ from __future__ import annotations
 import logging
 import time
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.models.capability_models import Budget, BudgetExhausted
+
+if TYPE_CHECKING:
+    from app.services.substrate.provider_fallback import ProviderProvenance
 
 logger = logging.getLogger(__name__)
 
@@ -283,11 +286,15 @@ class BudgetEnforcer:
         budget.iterations_used += 1
         start_time = time.monotonic()
 
+        # Item #6: Track the originally requested model for provenance.
+        requested_model = model_id
+
         # Q1-A chunk 5: Resolve provider via circuit breaker + fallback chain
         actual_provider = model_id  # default, may be overridden by CB
         # Set when the local llama.cpp fallback fired for a NON-local intended
         # model (cloud/BYOK failure). Carried to the event log for auditability.
         substituted_from: str | None = None
+        provenance: ProviderProvenance | None = None
         cb_enabled = False
         try:
             from app.config import settings as _settings
@@ -300,7 +307,9 @@ class BudgetEnforcer:
             try:
                 from app.services.substrate.provider_fallback import resolve_provider
 
-                actual_provider = await resolve_provider(db_session, workspace_id, model_id, check_circuit_breaker=True)
+                prov = await resolve_provider(db_session, workspace_id, model_id, check_circuit_breaker=True)
+                actual_provider = prov.served_provider
+                provenance = prov
             except Exception as cb_err:
                 # CB check failure must never block LLM calls — log and continue
                 logger.debug("Provider resolution skipped: %s", cb_err)
@@ -397,6 +406,7 @@ class BudgetEnforcer:
                 # but mark it so they know no further calls are allowed.
 
             # Record to substrate event log
+            degraded = bool(substituted_from) or bool(provenance and provenance.degraded)
             await self._record_llm_event(
                 run_id=run_id,
                 mission_id=mission_id,
@@ -412,6 +422,8 @@ class BudgetEnforcer:
                 workspace_id=workspace_id,
                 agent_id=agent_id,
                 substituted_from=substituted_from,
+                requested_model=requested_model,
+                degraded=degraded,
             )
 
             # Phase 6.4: Record in circuit breaker (per-mission budget guard)
@@ -426,6 +438,26 @@ class BudgetEnforcer:
                     await record_success(db_session, workspace_id, actual_provider)
                 except Exception as cb_err:
                     logger.debug("Provider CB success recording skipped: %s", cb_err)
+
+            # Item #6: Attach provenance to every successful response.
+            # This tells callers exactly which model was requested vs served,
+            # and whether a fallback (provider-level or model-level) occurred.
+            response["requested_model"] = requested_model
+            response["served_model"] = actual_model
+            response["substituted_from"] = substituted_from
+            response["degraded"] = degraded
+
+            # Emit metrics for degraded (cloud→local) fallback calls.
+            if response["degraded"]:
+                try:
+                    from app.core.metrics import record_model_fallback
+
+                    record_model_fallback(
+                        success=response.get("success", False),
+                        provider=provider,
+                    )
+                except Exception:
+                    pass
 
             # Enrich response with budget info
             response["budget"] = {
@@ -461,6 +493,10 @@ class BudgetEnforcer:
                 "model": model_id,
                 "provider": "unknown",
                 "cost": {"input_tokens": 0, "output_tokens": 0},
+                "requested_model": requested_model,
+                "served_model": None,
+                "substituted_from": None,
+                "degraded": bool(provenance and provenance.degraded),
                 "budget": {
                     "spent_usd": float(budget.spent_usd),
                     "remaining_usd": float(max(Decimal("0"), budget.max_cost_usd - budget.spent_usd)),
@@ -577,6 +613,8 @@ class BudgetEnforcer:
         workspace_id: str | None = None,
         agent_id: str | None = None,
         substituted_from: str | None = None,
+        requested_model: str | None = None,
+        degraded: bool = False,
     ) -> None:
         """Record an LLM call event to the substrate event log.
 
@@ -609,6 +647,9 @@ class BudgetEnforcer:
                                 "success": success,
                                 "error": error,
                                 "substituted_from": substituted_from,
+                                "requested_model": requested_model,
+                                "served_model": model_id,
+                                "degraded": degraded,
                                 "warning": (
                                     f"intended model '{substituted_from}' failed; "
                                     f"ran on local fallback '{model_id}'"
@@ -640,6 +681,9 @@ class BudgetEnforcer:
                     error_message=error,
                     workspace_id=workspace_id,
                     agent_id=agent_id,
+                    requested_model=requested_model,
+                    substituted_from=substituted_from,
+                    degraded=degraded,
                 )
                 async with AsyncSessionLocal() as rec_db:
                     rec_db.add(record)

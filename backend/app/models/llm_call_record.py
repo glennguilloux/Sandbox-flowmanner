@@ -63,3 +63,19 @@ class LLMCallRecord(Base):
         nullable=True,
         default=0,
     )
+    # Item #6: Provider-fallback provenance
+    requested_model: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+    )
+    substituted_from: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    degraded: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+    )
