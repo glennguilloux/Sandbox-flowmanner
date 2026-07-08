@@ -317,6 +317,19 @@ class UnifiedExecutor:
             if await self.event_log.run_exists(db, run_id):
                 logger.info("Resuming run %s for workflow %s", run_id, workflow.id)
 
+                # Item #3: Re-arm abort signal if abort_requested event exists
+                self._abort_signals[run_id] = asyncio.Event()
+                abort_events = await self.event_log.get_events(
+                    db, run_id, event_type=SubstrateEventType.ABORT_REQUESTED
+                )
+                if abort_events:
+                    self._abort_signals[run_id].set()
+                    logger.info(
+                        "Durable abort re-armed for run %s (reason: %s)",
+                        run_id,
+                        (abort_events[-1].payload or {}).get("reason", "unknown"),
+                    )
+
                 # Q1-A chunk 4: Validate resume state BEFORE rebuilding
                 from app.services.substrate.resume_validation import validate_resume_state
 
@@ -520,8 +533,19 @@ class UnifiedExecutor:
         span.set_attribute("workflow.completed_nodes", len(result.completed_nodes))
         return result
 
-    async def abort(self, run_id: str, reason: str = "user_requested") -> bool:
+    async def abort(
+        self,
+        run_id: str,
+        reason: str = "user_requested",
+        *,
+        db: AsyncSession | None = None,
+    ) -> bool:
         """Signal an abort for a running workflow.
+
+        Item #3: Abort is now durable — when ``db`` is provided, an
+        ``abort_requested`` event is written to the event log BEFORE
+        setting the in-memory signal.  On crash recovery, ``execute()``
+        replays the event log and re-arms the abort signal.
 
         Returns True if the abort signal was set (workflow was running).
         """
@@ -531,6 +555,26 @@ class UnifiedExecutor:
             self._abort_signals[run_id] = event
 
         if not event.is_set():
+            # Item #3: Durable abort — write to event log first
+            if db is not None:
+                try:
+                    await self.event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.ABORT_REQUESTED,
+                                "payload": {"reason": reason},
+                                "actor": "abort_handler",
+                            }
+                        ],
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to write durable abort event for run %s: %s",
+                        run_id,
+                        e,
+                    )
             event.set()
             logger.info("Abort signal set for run %s: %s", run_id, reason)
             return True

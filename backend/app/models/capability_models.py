@@ -336,6 +336,33 @@ class Budget(BaseModel):
             max_parallel_agents=32,
         )
 
+    # ── Item #3: Nested budget reservation ────────────────────────
+
+    def reserve(self, amount_usd: Decimal) -> None:
+        """Reserve budget for a child workflow (worst-case up front).
+
+        Deducts the reservation from remaining budget. Raises
+        BudgetExhausted if the reservation exceeds remaining funds.
+
+        The reserved amount is tracked via ``spent_usd`` so that
+        ``is_exhausted()`` sees it immediately.
+        """
+        remaining = self.max_cost_usd - self.spent_usd
+        if amount_usd > remaining:
+            raise BudgetExhausted(
+                f"Reservation ${amount_usd:.4f} exceeds remaining ${remaining:.4f}",
+                self,
+            )
+        self.spent_usd += amount_usd
+
+    def refund(self, amount_usd: Decimal) -> None:
+        """Refund unused budget after a child workflow completes.
+
+        Returns unused reservation back to the available pool.
+        """
+        refund_amount = min(amount_usd, self.spent_usd)
+        self.spent_usd -= refund_amount
+
 
 # ── BudgetExhausted exception ──────────────────────────────────────
 

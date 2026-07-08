@@ -54,6 +54,11 @@ class SubstrateEvent(Base):
         nullable=True,
         index=True,
     )
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(256),
+        nullable=True,
+        index=True,
+    )
 
 
 # ── Known event types ──────────────────────────────────────────────
@@ -109,6 +114,9 @@ class SubstrateEventType:
 
     # Q1-A chunk 4: Resume validation event
     RUN_RESUME_VALIDATED = "run.resumed"
+
+    # Item #3: Durable abort request
+    ABORT_REQUESTED = "abort_requested"
 
     # Q1-A chunk 5: Per-workspace+provider circuit breaker events
     CIRCUIT_BREAKER_OPENED = "circuit_breaker.opened"

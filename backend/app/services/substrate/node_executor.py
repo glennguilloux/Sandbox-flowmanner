@@ -26,7 +26,7 @@ from app.integrations.sandboxd_client import SandboxdClient, get_sandboxd_client
 from app.models.capability_models import Action, Budget, BudgetExhausted, ResourceRef
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.sandbox_service import SandboxService
-from app.services.substrate.event_log import get_event_log
+from app.services.substrate.event_log import _compute_idempotency_key, get_event_log
 from app.services.substrate.workflow_models import (
     NodeType,
     Workflow,
@@ -475,9 +475,16 @@ class NodeExecutor:
         *,
         context_events: list[SubstrateEvent] | None = None,
     ) -> dict[str, Any]:
-        """Execute an LLM call through the BudgetEnforcer."""
-        # Phase 6.4: Circuit breaker check before LLM call
+        """Execute an LLM call through the BudgetEnforcer.
+
+        Item #3: LLM output replay.  Before calling the provider, check
+        if a recorded llm.response event exists for this node.  If so,
+        return it immediately without re-calling the LLM (avoids double
+        billing on crash recovery).
+        """
         mission_id = workflow.id if workflow else None
+
+        # Phase 6.4: Circuit breaker check before LLM call
         if mission_id:
             allowed, reason = await self.executor.check_circuit_breaker(db=db, mission_id=mission_id, call_type="llm")
             if not allowed:
@@ -487,11 +494,37 @@ class NodeExecutor:
                     "tokens": 0,
                 }
 
+        # Item #3: LLM output replay — check for recorded response
+        event_log = get_event_log()
+        model_id = node.assigned_model or node.config.get("model_id", "deepseek-v4-flash")
+        prompt = node.config.get("prompt", node.description or node.title)
+
+        replay_key = _compute_idempotency_key(
+            run_id,
+            SubstrateEventType.LLM_RESPONSE,
+            node.id,
+            {"model_id": model_id, "prompt": prompt},
+        )
+        cached_event = await event_log.find_by_idempotency_key(db, replay_key)
+        if cached_event is not None:
+            payload = cached_event.payload or {}
+            logger.info(
+                "LLM output replay for node %s (run %s)",
+                node.id,
+                run_id,
+            )
+            return {
+                "success": True,
+                "output": {"text": payload.get("response", "")},
+                "tokens": payload.get("tokens", 0),
+                "cost": payload.get("cost_usd", 0.0),
+                "model": payload.get("model", model_id),
+                "provider": payload.get("provider", "replayed"),
+            }
+
         from app.services.budget_enforcer import get_budget_enforcer
 
         enforcer = get_budget_enforcer()
-        prompt = node.config.get("prompt", node.description or node.title)
-        model_id = node.assigned_model or node.config.get("model_id", "deepseek-v4-flash")
 
         system_prompt = node.config.get("system_prompt")
         messages = []
@@ -499,15 +532,13 @@ class NodeExecutor:
             messages.append({"role": "system", "content": system_prompt})
 
         # Q2-Q3 Chunk 2 Tier 1: Inject last-N event context window.
-        # This goes as a system message before the user prompt so the model
-        # can attend over recent mission history when generating its response.
         if context_events:
             ctx_text = self._format_context_events(context_events)
             if ctx_text:
                 messages.append(
                     {
                         "role": "system",
-                        "content": f"Recent mission events (last {len(context_events)} steps):\n{ctx_text}",
+                        "content": (f"Recent mission events (last {len(context_events)} steps):" f"\n{ctx_text}"),
                     }
                 )
 
@@ -546,11 +577,39 @@ class NodeExecutor:
                 "tokens": tokens,
             }
 
+        # Item #3: Record LLM response for future replay
+        cost_usd = float(cost_info.get("usd", budget_info.get("spent_usd", 0.0)) or 0.0)
+        try:
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": SubstrateEventType.LLM_RESPONSE,
+                        "payload": {
+                            "response": content,
+                            "tokens": tokens,
+                            "cost_usd": cost_usd,
+                            "model": response.get("model", model_id),
+                            "provider": response.get("provider", "unknown"),
+                            "prompt_tokens": prompt_tokens,
+                            "completion_tokens": completion_tokens,
+                        },
+                        "actor": "node_executor",
+                        "mission_id": mission_id,
+                        "task_id": node.id,
+                        "idempotency_key": replay_key,
+                    }
+                ],
+            )
+        except Exception as e:
+            logger.debug("Failed to record LLM response for replay: %s", e)
+
         return {
             "success": True,
             "output": {"text": content},
             "tokens": tokens,
-            "cost": float(cost_info.get("usd", budget_info.get("spent_usd", 0.0)) or 0.0),
+            "cost": cost_usd,
             "model": response.get("model", model_id),
             "provider": response.get("provider", "unknown"),
         }
@@ -1211,8 +1270,23 @@ class NodeExecutor:
 
             child_workflow = graph_to_workflow(child_graph)
 
-            # Share the parent budget (child spends from the same pool)
-            child_workflow.budget = budget
+            # Item #3: Reserve worst-case budget for the child workflow.
+            # The child's declared max_cost_usd is reserved up front; unused
+            # portion is refunded after the child completes.
+            child_max_cost = child_workflow.budget.max_cost_usd
+            budget.reserve(child_max_cost)
+
+            # Give the child its own isolated budget (not the parent's)
+            from decimal import Decimal
+
+            child_budget = Budget(
+                max_cost_usd=child_max_cost,
+                max_wall_time_seconds=int(budget.max_wall_time_seconds),
+                max_iterations=int(budget.max_iterations),
+                max_depth=int(budget.max_depth) - 1,
+                max_parallel_agents=int(budget.max_parallel_agents),
+            )
+            child_workflow.budget = child_budget
 
             # Propagate depth tracking
             child_workflow.metadata["_sub_workflow_depth"] = current_depth
@@ -1221,6 +1295,11 @@ class NodeExecutor:
             from app.services.substrate.workflow_models import StrategyResult
 
             strategy_result: StrategyResult = await self.executor.execute(db, child_workflow)
+
+            # Item #3: Refund unused reservation back to parent budget
+            unused = child_max_cost - child_budget.spent_usd
+            if unused > 0:
+                budget.refund(unused)
 
             return {
                 "success": strategy_result.success,
@@ -1235,7 +1314,14 @@ class NodeExecutor:
                 "cost": strategy_result.total_cost_usd,
                 "error": strategy_result.error,
             }
+        except BudgetExhausted:
+            # Child exceeded its budget — reservation already spent, no refund
+            raise
         except Exception as e:
+            # Refund unused reservation on non-budget failure
+            unused = child_max_cost - child_budget.spent_usd
+            if unused > 0:
+                budget.refund(unused)
             logger.exception("Sub-workflow %s execution failed", sub_workflow_id)
             return {
                 "success": False,

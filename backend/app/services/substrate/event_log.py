@@ -12,7 +12,10 @@ BEFORE UPDATE OR DELETE trigger on the substrate_events table.
 
 from __future__ import annotations
 
+import hashlib
+import json as _json
 import logging
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import NAMESPACE_DNS, UUID, uuid4, uuid5
@@ -25,6 +28,26 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+
+# ── Idempotency key computation ───────────────────────────────────
+
+
+def _compute_idempotency_key(
+    run_id: str,
+    event_type: str,
+    task_id: str | None,
+    payload: dict,
+) -> str:
+    """Compute a deterministic idempotency key for an event.
+
+    Key = sha256(run_id : task_id : event_type : sorted_payload_json)
+    This ensures the same logical step always produces the same key,
+    enabling dedup-on-write for crash recovery.
+    """
+    payload_str = _json.dumps(payload, sort_keys=True, default=str)
+    digest_input = f"{run_id}:{task_id}:{event_type}:{payload_str}"
+    return hashlib.sha256(digest_input.encode()).hexdigest()
 
 
 class EventLog:
@@ -84,6 +107,7 @@ class EventLog:
 
         now = datetime.now(UTC)
         persisted = []
+        skipped = 0
 
         for i, event_dict in enumerate(events):
             seq = current_seq + i + 1
@@ -92,6 +116,22 @@ class EventLog:
             task_id = _ensure_uuid(task_id_raw) if task_id_raw else None
             mission_id_val = mission_id or event_dict.get("mission_id")
             mission_id_val = _ensure_uuid(mission_id_val) if mission_id_val else None
+
+            # Item #3: Compute idempotency key for dedup-on-write.
+            # Allows caller to supply one; otherwise auto-compute.
+            idem_key = event_dict.get("idempotency_key")
+            if idem_key is None:
+                idem_key = _compute_idempotency_key(
+                    run_id,
+                    event_dict["type"],
+                    task_id,
+                    event_dict.get("payload", {}),
+                )
+
+            # Item #3: Dedup-on-write — check if this key already exists.
+            if await self._idempotency_key_exists(db, idem_key):
+                skipped += 1
+                continue
 
             event = SubstrateEvent(
                 id=str(uuid4()),
@@ -104,22 +144,31 @@ class EventLog:
                 causal_parent=event_dict.get("causal_parent"),
                 actor=event_dict.get("actor", "system"),
                 timestamp=now,
+                idempotency_key=idem_key,
             )
             # Set blueprint_id if column exists (added in phase101 migration)
-            try:
+            with suppress(AttributeError):
                 event.blueprint_id = blueprint_id or event_dict.get("blueprint_id")
-            except AttributeError:
-                pass  # Column not yet migrated
             db.add(event)
             persisted.append(event)
 
-        await db.flush()
+        if persisted:
+            await db.flush()
+
+        if skipped:
+            logger.info(
+                "Dedup-on-write: skipped %d duplicate events for run %s",
+                skipped,
+                run_id,
+            )
+
         logger.debug(
-            "Appended %d events to run %s (seq %d→%d)",
-            len(events),
+            "Appended %d events to run %s (seq %d→%d, %d deduped)",
+            len(persisted),
             run_id,
             current_seq,
-            current_seq + len(events),
+            current_seq + len(persisted),
+            skipped,
         )
         return persisted
 
@@ -181,6 +230,28 @@ class EventLog:
     async def run_exists(self, db: AsyncSession, run_id: str) -> bool:
         """Check if a run has any events."""
         return await self.get_latest_sequence(db, run_id) > 0
+
+    # ── Idempotency dedup ─────────────────────────────────────────
+
+    async def _idempotency_key_exists(
+        self,
+        db: AsyncSession,
+        idempotency_key: str,
+    ) -> bool:
+        """Check if an event with this idempotency key already exists."""
+        stmt = select(SubstrateEvent.id).where(SubstrateEvent.idempotency_key == idempotency_key).limit(1)
+        result = await db.execute(stmt)
+        return result.scalar() is not None
+
+    async def find_by_idempotency_key(
+        self,
+        db: AsyncSession,
+        idempotency_key: str,
+    ) -> SubstrateEvent | None:
+        """Find an event by its idempotency key (for LLM output replay)."""
+        stmt = select(SubstrateEvent).where(SubstrateEvent.idempotency_key == idempotency_key).limit(1)
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
 
 
 # ── UUID coercion helper ───────────────────────────────────────────
