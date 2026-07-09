@@ -2,7 +2,8 @@
 
 **Date:** 2026-06-13
 **Session:** Final verification wave in progress
-**Status:** F1 APPROVE, F2 REJECT, F3 pending, F4 REJECT
+**Status (as of 2026-06-13 review):** F1 APPROVE, F2 REJECT, F3 pending, F4 REJECT
+**Current status (2026-07-09 re-audit):** ✅ F2 RESOLVED, ✅ F4 RESOLVED — both rejections are already clear in the current tree. See "Chunk 9 Rejection Re-Audit (2026-07-09)" at the bottom of this doc.
 
 ---
 
@@ -135,3 +136,47 @@ the next feature needs a new `source_type`. Gotcha for next agent: the test
 `source_mission_id` must be a UUID string at runtime (it is — `Mission.id`); if a
 future caller passes a non-UUID, `create_from_proposal` drops the write fail-safe
 (returns None) rather than raising, by design.
+
+---
+
+# Chunk 9 Rejection Re-Audit (2026-07-09)
+
+The 2026-06-13 handoff listed F2 (ruff errors) and F4 (migration scope) as open
+rejections. Re-auditing against the current tree, **both are already resolved** —
+the intervening ~80 commits (incl. `abe65960` "fix: resolve 23 pre-existing test
+failures", `340e61d8` "dual-write cleanup — delete dead scripts") cleared them.
+
+## F2 — Code Quality (was REJECT: 9 ruff errors in 4 scripts)
+**RESOLVED.** Current state:
+```
+$ .venv/bin/ruff check scripts/backfill_blueprints_runs.py scripts/seed_capability_deps.py scripts/seed_topology.py scripts/verify_backfill_consistency.py
+All checks passed!
+```
+One additional stray error surfaced in a 5th script (`scripts/profile_strategies.py:133`
+`B007` unused loop var) — fixed 2026-07-09 by renaming `i` → `_i`. `ruff check scripts/`
+now passes clean. The original 9 errors no longer exist.
+
+## F4 — Scope Fidelity (was REJECT: 16 migration modifications, 22 unaccounted files)
+**RESOLVED.** Current state:
+- `app/migrations/` contains **12** migration versions — no `offline`/`--sql`/
+  `render_[...]` guards present (`grep -rln "offline\|--sql\|render_\[" app/migrations/` →
+  empty). The "16 modified migration files" described in the 2026-06-13 audit no
+  longer exist in the tree.
+- The "22 unaccounted files" were F1/F2/F3 evidence + t4_alembic_check_* +
+  pre_existing_drift_raw artifacts; the dual-write scripts (which carried the
+  offline-mode guards) were deleted by `340e61d8`. No scope violations remain.
+
+## Out of scope (NOT touched)
+`ruff check .` still reports ~613 errors across `app/` + `tests/` (pre-existing,
+unrelated to Chunk 9's F2/F4). These are separate lint debt — deliberately **not**
+addressed here to avoid a risky wide sweep. Flagged for a future dedicated lint
+cleanup, not for this re-audit.
+
+## Next Session Handoff (updated 2026-07-09)
+Chunk 9's F2/F4 rejections are closed with evidence above. Epic 2.1 is done and
+live. No memory-store follow-ups remain. **Next thing to do:** optionally schedule
+the broad `app/`+`tests/` ruff cleanup (613 errors) as its own tracked task — but
+that is new debt reduction, not a Chunk 9 blocker. Gotcha for next agent: when
+re-auditing old handoffs, re-establish ground truth from the tree (paths like
+`backend/scripts/` had moved to `scripts/`, and migrations to `app/migrations/`) —
+the 2026-06-13 doc was stale relative to current layout.

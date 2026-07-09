@@ -130,7 +130,7 @@ async def profile_strategy(executor, db, strategy: WorkflowType, attempts: int =
     total_tokens = 0
     errors = []
 
-    for i in range(attempts):
+    for _i in range(attempts):
         workflow = build_workflow(strategy)
         try:
             start = time.monotonic()
