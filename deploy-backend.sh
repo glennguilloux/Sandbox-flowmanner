@@ -303,28 +303,73 @@ pre_deploy_health() {
 # the operator that they will be baked into the image but NOT applied to the
 # running DB unless --migrate is passed.
 #
-# Catches: untracked files (??) and modified tracked files (M) ending in .py.
-# Misses: migrations in HEAD that were never applied to the DB (would need
-# a DB query to detect — out of scope for this patch).
+# Detects migrations that need --migrate in TWO ways:
+#   1. Uncommitted migration files in backend/alembic/versions/ (?? / M).
+#   2. Committed migrations in HEAD that are NOT yet applied to the running DB
+#      (the case that burned GOV-1.1: a new head was committed but the deploy
+#      ran without --migrate, so the schema never changed and the feature's
+#      writes failed at runtime).
+#
+# When any are found and --migrate was NOT passed, print a loud guardrail that
+# tells the operator (Glenn) to re-run with --migrate.
 check_pending_migrations() {
-  local pending
-  pending=$(git -C "$COMPOSE_DIR" status --porcelain backend/alembic/versions/ 2>/dev/null \
+  local uncommitted applied_heads needed_migrate=0 mig
+
+  # 1) Uncommitted migration files.
+  uncommitted=$(git -C "$COMPOSE_DIR" status --porcelain backend/alembic/versions/ 2>/dev/null \
             | grep -E '\.py$' \
             | grep -vE '^.D ' \
-            | awk '{print $2}') || pending=""
+            | awk '{print $2}') || uncommitted=""
 
-  if [ -z "$pending" ]; then
+  # 2) Committed-but-unapplied migrations: compare the DB "current" head(s)
+  #    against the repo "heads". If they differ, a committed migration needs
+  #    applying. Best-effort: if alembic/container is unavailable, skip (this
+  #    is a guardrail, not a hard gate).
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$BACKEND_CONTAINER"; then
+    local db_current repo_heads
+    db_current=$(docker compose exec -T "$BACKEND_CONTAINER" alembic current 2>/dev/null \
+      | awk '/^[A-Za-z0-9_]/ && !/^(INFO|DEBUG|WARNING)/{print $1}')
+    repo_heads=$(docker compose exec -T "$BACKEND_CONTAINER" alembic heads 2>/dev/null \
+      | awk '/^[A-Za-z0-9_]/ && !/^(INFO|DEBUG|WARNING)/{print $1}')
+
+    if [ -n "$db_current" ] && [ -n "$repo_heads" ]; then
+      for h in $db_current; do
+        echo "$repo_heads" | grep -qx "$h" || needed_migrate=1
+      done
+      # Also catch the "multiple heads" situation: if repo has >1 head
+      # (unmerged branch), that itself signals migrations were never applied.
+      if [ "$(echo "$repo_heads" | wc -l)" -gt 1 ]; then
+        needed_migrate=1
+      fi
+    fi
+  fi
+
+  if [ -z "$uncommitted" ] && [ "$needed_migrate" -eq 0 ]; then
     return 0
   fi
 
-  local count
-  count=$(echo "$pending" | wc -l)
-  log_warn "Found ${count} uncommitted migration file(s) in backend/alembic/versions/:"
-  while IFS= read -r mig; do
-    log_warn "  - ${mig}"
-  done <<< "$pending"
-  log_warn "These will be baked into the image but NOT applied to the DB."
-  log_warn "Apply now with: $0 --migrate"
+  echo ""
+  echo -e "${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
+  echo -e "${RED}${BOLD}!! MIGRATIONS NEED APPLYING — TELL GLENN TO RUN --migrate !!${NC}"
+  echo -e "${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
+  echo ""
+  if [ -n "$uncommitted" ]; then
+    local count
+    count=$(echo "$uncommitted" | wc -l)
+    log_warn "Found ${count} uncommitted migration file(s) in backend/alembic/versions/:"
+    while IFS= read -r mig; do
+      [ -n "$mig" ] && log_warn "  - ${mig}"
+    done <<< "$uncommitted"
+    log_warn "These will be baked into the image but NOT applied to the DB."
+  fi
+  if [ "$needed_migrate" -eq 1 ]; then
+    log_warn "Committed migration(s) in HEAD are NOT applied to the running DB"
+    log_warn "(e.g. a new alembic head was merged but the last deploy skipped --migrate)."
+    log_warn "The schema is STALE relative to the code — new/changed models may fail."
+  fi
+  local _script="${BASH_SOURCE[0]:-deploy-backend.sh}"
+  log_warn ">>> Re-run with: bash ${_script} --migrate"
+  log_warn ">>> (or 'git diff --stat' to see which migrations are pending)"
   echo ""
 }
 
