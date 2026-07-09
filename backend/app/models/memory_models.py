@@ -115,6 +115,10 @@ class MemoryEntry(Base, TimestampMixin):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     importance: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     supersedes_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=False),
         nullable=True,
