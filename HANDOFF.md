@@ -67,9 +67,71 @@ The 22 unaccounted files include F1/F2/F3 evidence + t4_alembic_check_* + pre_ex
 ---
 
 ## Next Steps
-
 1. Fix F2 ruff errors in the 4 backend scripts
 2. Decide on F4 migration files (revert vs accept/document)
 3. Re-run F2 and F4
 4. Run F3 manual QA
 5. Present consolidated results for user approval
+
+---
+
+# Handoff Addendum — Epic 2.1 Canonical Memory Store (2026-07-09)
+
+**Status:** ✅ COMPLETE — merged, verified, deployed, pushed to origin.
+
+## What shipped
+Reviewer (`BackgroundReviewService`) writes are now re-pointed from the
+deprecated `memory_entries` table to the **canonical `personal_memory_claims`
+store** via `PersonalMemoryService.create_from_proposal`. This closes the
+Epic 2.1 canonical-store design (`docs/EPIC-2.1-CANONICAL-STORE-DESIGN.md`).
+
+**Commit:** `d1720168` on `main` (also `84403041` — squashed-vs-merge pair;
+tip is `d1720168`). Pushed to `origin/main`.
+
+**Changed files (6, +828/−293, no migration):**
+- `backend/app/services/memory/background_review_service.py` — `add_reviewed_entry`
+  + `supersede_entry` re-pointed to `create_from_proposal`; `ProposedWrite` gained
+  `source_type`; REPLACE now soft-links by id (`meta.supersedes` / `superseded_by`).
+- `backend/app/services/personal_memory_service.py` — new
+  `create_from_proposal` governance adapter (workspace NOT NULL guardrail,
+  `source_type` provenance bridge `agent → program_learning`, GOV-1.3a poison
+  scan, GOV-1.4 audit trail). `program_learning` is a valid `ALL_SOURCE_TYPES`
+  enum value.
+- `backend/app/services/memory/background_review_prompt.py` — reviewer LLM now
+  required to emit `source_type` on every proposed write.
+- `backend/app/services/nexus/memory_integration.py` — **DELETED** (verified
+  unwired, zero importers).
+- `backend/app/tests/test_epic21_claims_writer.py` — **NEW** (470 lines, AsyncMock
+  based). Asserts claims written (not entries), workspace guard rail, scope bridge,
+  source_type default/required, soft-replace linkage.
+- `backend/app/tests/test_background_review.py` — aligned `source_mission_id` to
+  UUID string (matches runtime `Mission.id`).
+
+## Verification (3 layers, all green)
+- Mock suite: **70 passed, 0 failed** (claims path + memory_drain + provenance +
+  calibration).
+- Container regression (real Postgres, image `workflows-backend:epic21`):
+  `test_personal_memory_service.py` + `test_memory_feedback_loop.py` → **16 passed**.
+- Live deploy (by Glenn): `/api/health` → HTTP 200, DB + redis ok.
+- `git status` clean, no untracked files, alembic at head
+  (`20260709_gov14_memory_review_audit_event`), no new migration.
+
+## Caveats (not blockers)
+- `/api/health` boot was NOT re-tested in a throwaway container because the app's
+  `chat` router requires an `OPENAI_API_KEY` at module load (pre-existing gate, key
+  not in `.env` on disk — prod gets it via compose env injection). The container
+  regression already exercised the new SQLAlchemy paths, so the mapper-resolution
+  pitfall is ruled out.
+- Migration deliberately avoided: `personal_memory_claims` already existed; this
+  task only changes the write *path*.
+
+## Next Session Handoff
+Epic 2.1 is done and live. The reviewer memory path is fully canonical; reviewer
+writes now flow through the same governance gate as background extraction, with
+GOV-1.3a/1.4 coverage. **Next thing to do:** pick up the open Chunk 9 rejections
+(F2 ruff errors in 4 backend scripts; F4 migration-file scope decision) — those are
+unrelated to Epic 2.1 and were deferred. No memory-store follow-ups remain unless
+the next feature needs a new `source_type`. Gotcha for next agent: the test
+`source_mission_id` must be a UUID string at runtime (it is — `Mission.id`); if a
+future caller passes a non-UUID, `create_from_proposal` drops the write fail-safe
+(returns None) rather than raising, by design.
