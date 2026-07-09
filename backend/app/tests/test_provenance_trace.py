@@ -46,10 +46,15 @@ import pytest
 # satisfy the eager OpenAI-client construction in chat_service (imported
 # transitively by some app modules) with a dummy key. Insert THIS worktree's
 # backend dir first so the edits under test are the ones imported (not the
-# deployed /opt/flowmanner/backend tree).
-_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, _BACKEND_DIR)
+# deployed /opt/flowmanner/backend tree). The sys.path.insert must be the
+# last statement before the app imports: ruff's E402 tolerates a bare
+# sys.path.insert as an import-group separator but flags any other preamble
+# statement (e.g. os.environ.setdefault) after it.
 os.environ.setdefault("OPENAI_API_KEY", "test-provenance-trace")
+sys.path.insert(
+    0,
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+)
 
 from app.api.v2.personal_memory import claim_provenance
 from app.services.background_task_manager import BackgroundTaskManager
@@ -78,6 +83,32 @@ def _make_service(db):
     manager = BackgroundTaskManager()
     audit = _MemoryCorrectionAudit(manager=manager)
     return PersonalMemoryService(db, audit=audit), manager
+
+
+class _NoopAudit:
+    """Audit sink that records nothing.
+
+    ``PersonalMemoryService.create()`` fires a fire-and-forget ``create``
+    correction event through its audit hook. That background write races
+    the synchronous read in these tests and would pollute the correction
+    trail non-deterministically (2 vs 3 events). Passing this no-op audit
+    makes ``create()`` write zero correction events, so each test controls
+    the trail entirely via explicit ``MemoryCorrectionService.record_event``
+    calls — deterministic, no background tasks to drain.
+    """
+
+    def __getattr__(self, _name):  # dynamic no-op
+        def _noop(*_args, **_kwargs):
+            return None
+
+        return _noop
+
+
+def _make_silent_service(db):
+    """A service whose ``create()`` emits no correction events (see
+    ``_NoopAudit``). Use when the test asserts on an exact correction
+    trail it builds itself."""
+    return PersonalMemoryService(db, audit=_NoopAudit())
 
 
 def _make_user(db, user_id: int):
@@ -167,7 +198,7 @@ async def test_provenance_trace_no_corrections():
         _make_workspace(db, ws, uid)
         await db.commit()
 
-        svc, manager = _make_service(db)
+        svc = _make_silent_service(db)
         claim = await _create_claim(svc, uid, ws, "likes-dark-mode", confidence=0.8, importance=0.6)
         await db.commit()
 
@@ -204,8 +235,7 @@ async def test_provenance_trace_no_corrections():
     # events_by_type is a stable, fully-populated bucket map (all zeros).
     assert isinstance(summary["events_by_type"], dict)
     assert set(summary["events_by_type"].values()) == {0}
-
-    await manager.drain(timeout=5.0)
+    # _make_silent_service emits no background audit tasks, so no drain needed.
 
 
 @pytest.mark.asyncio(loop_scope="module")
@@ -222,7 +252,7 @@ async def test_provenance_trace_with_corrections():
         _make_workspace(db, ws, uid)
         await db.commit()
 
-        svc, manager = _make_service(db)
+        svc = _make_silent_service(db)
         # A mission-sourced claim so source_mission_id is exercised too.
         claim = await _create_claim(
             svc,
@@ -277,8 +307,7 @@ async def test_provenance_trace_with_corrections():
     assert summary["last_event_type"] == "view"
     assert summary["events_by_type"]["edit"] == 1
     assert summary["events_by_type"]["view"] == 1
-
-    await manager.drain(timeout=5.0)
+    # _make_silent_service emits no background audit tasks, so no drain needed.
 
 
 @pytest.mark.asyncio(loop_scope="module")
