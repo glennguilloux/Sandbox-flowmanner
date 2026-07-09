@@ -8,6 +8,7 @@
 #   ./deploy-backend.sh --dry-run        # Preview without executing
 #   ./deploy-backend.sh --rollback       # Revert to previous backend version
 #   ./deploy-backend.sh --skip-precheck  # Skip the pre-deploy gate
+#   ./deploy-backend.sh --no-smoke       # Skip pre-promotion boot smoke test
 #   ./deploy-backend.sh --migrate --dry-run
 #
 # Environment:
@@ -69,6 +70,7 @@ ROLLBACK=false
 MIGRATE=false
 VALIDATE=true  # Auto-on when --migrate is set; disable with --no-validate
 SKIP_PRECHECK=false
+SMOKETEST=true  # Pre-promotion boot smoke test (disable with --no-smoke)
 
 for arg in "$@"; do
   case "$arg" in
@@ -78,6 +80,7 @@ for arg in "$@"; do
     --validate)       VALIDATE=true ;;
     --no-validate)    VALIDATE=false ;;
     --skip-precheck)  SKIP_PRECHECK=true ;;
+    --no-smoke)      SMOKETEST=false ;;
     --help|-h)
       echo "Usage: $0 [--migrate] [--dry-run] [--rollback] [--validate|--no-validate] [--skip-precheck]"
       echo ""
@@ -89,6 +92,7 @@ for arg in "$@"; do
       echo "  --no-validate     Skip the pre-migrate validation gate (escape hatch)"
       echo "  --skip-precheck   Skip the pre-deploy gate (used by orchestrators"
       echo "                    that have already validated)"
+      echo "  --no-smoke       Skip the pre-promotion boot smoke test"
       exit 0
       ;;
     *)
@@ -158,6 +162,95 @@ save_current_image() {
 recreate_backend_services() {
   cd "$COMPOSE_DIR" && docker compose up -d --no-deps --force-recreate \
     "$BACKEND_CONTAINER" "${CELERY_SERVICES[@]}"
+}
+
+# ---------------------------------------------------------------------------
+# Boot Smoke Test (pre-promotion guard)
+# ---------------------------------------------------------------------------
+# Run the freshly-built image in a THROWAWAY container with the live
+# backend's environment. If the app fails to boot (e.g. a SQLAlchemy
+# mapper-resolution import error like the 2026-07-09 T1 outage, where a
+# TYPE_CHECKING-only `datetime` import crashed `uvicorn app.main_fastapi:app`
+# at startup), /health never returns 200 and we ABORT before recreating the
+# live container — preventing a crash loop on production.
+#
+# This catches failures that ruff/mypy cannot: runtime import-time errors
+# that only surface when the ASGI app object is constructed. The existing
+# post-recreate health check fires AFTER the live container is already
+# swapped, so it can only detect (not prevent) a bad image. This test runs
+# BEFORE the swap.
+boot_smoke_test() {
+  if [ "$SMOKETEST" = false ]; then
+    log_info "Boot smoke test SKIPPED (--no-smoke)"
+    return 0
+  fi
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN]${NC} boot smoke test: run new image, curl /health, abort if not 200"
+    return 0
+  fi
+
+  log_step "Boot smoke test (pre-promotion) — verify new image starts"
+
+  # We need a running backend to borrow a representative production env +
+  # network from. If none is up yet (first-ever deploy), skip — the
+  # post-recreate health check remains the only guard in that case.
+  if ! docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+    log_warn "No running backend to borrow env from — skipping boot smoke test"
+    return 0
+  fi
+
+  local env_file
+  env_file=$(mktemp /tmp/flowmanger-boot-smoke-env.XXXXXX.txt)
+  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$BACKEND_CONTAINER" > "$env_file"
+
+  local net
+  net=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$BACKEND_CONTAINER" | head -1)
+  [ -z "$net" ] && net="bridge"
+
+  # Internal app port: derive from HEALTH_URL (e.g. http://localhost:8000/health -> 8000)
+  local app_port
+  app_port=$(echo "$HEALTH_URL" | sed -E 's#.*:([0-9]+)/.*#\1#')
+  [ -z "$app_port" ] && app_port=8000
+
+  local smoke_port=8099
+  local smoke_name="flowmanner-boot-smoke-$$"
+  local smoke_url="http://127.0.0.1:${smoke_port}/health"
+
+  docker rm -f "$smoke_name" >/dev/null 2>&1 || true
+  log_info "Running $BACKEND_IMAGE in throwaway container (network=$net, app_port=$app_port)"
+  docker run -d --name "$smoke_name" --network "$net" --env-file "$env_file" \
+    -p "${smoke_port}:${app_port}" "$BACKEND_IMAGE" \
+    sh -c "cd /app && uvicorn app.main_fastapi:app --host 0.0.0.0 --port ${app_port}" >/dev/null 2>&1
+
+  local result=1  # 0=ok, 1=timeout, 2=container-died
+  for i in $(seq 1 12); do
+    if curl -fsSL --max-time 4 "$smoke_url" >/dev/null 2>&1; then
+      result=0
+      break
+    fi
+    if ! docker ps --format '{{.Names}}' | grep -q "$smoke_name"; then
+      result=2
+      break
+    fi
+    sleep 3
+  done
+
+  # Always clean up the throwaway container + env file.
+  docker rm -f "$smoke_name" >/dev/null 2>&1 || true
+  rm -f "$env_file"
+
+  if [ "$result" -eq 0 ]; then
+    log_success "Boot smoke test passed — new image starts and serves /health"
+    return 0
+  fi
+  if [ "$result" -eq 2 ]; then
+    log_error "Boot smoke test FAILED — new image crashed on startup (container exited)."
+  else
+    log_error "Boot smoke test FAILED — /health did not return 200 within timeout."
+  fi
+  log_error "Aborting deploy. The live (old) backend is UNTOUCHED."
+  log_error "Inspect the boot error: docker run --rm --network ${net} --env-file <live-env> ${BACKEND_IMAGE}"
+  return 1
 }
 
 # Rollback to previous backend version
@@ -367,6 +460,15 @@ build_and_deploy() {
 
   # Build new image (target runtime — test stage is last, not default)
   docker build --target runtime -t "$BACKEND_IMAGE" "$BACKEND_SOURCE"
+
+  # Pre-promotion guard: boot the new image in a throwaway container and
+  # verify /health returns 200 BEFORE swapping the live container. This
+  # catches startup-crash bugs (e.g. runtime import errors ruff/mypy miss)
+  # so a bad image can never reach production. The live backend is only
+  # recreated if this passes.
+  if ! boot_smoke_test; then
+    exit 1
+  fi
 
   log_step "Deploying backend + celery containers"
   log_info "Recreating: ${BACKEND_CONTAINER} ${CELERY_SERVICES[*]}"
