@@ -43,19 +43,21 @@ from app.models.user import User
 from app.schemas.personal_memory import (
     PersonalMemoryClaimResponse,
     PersonalMemoryClaimUpdate,
+    PersonalMemoryCorrectionListResponse,
+    PersonalMemoryCorrectionResponse,
     PersonalMemoryForgetRequest,
     PersonalMemoryProvenanceResponse,
     PersonalMemoryRecallItem,
     PersonalMemoryRecallRequest,
     PersonalMemoryRecallResponse,
 )
+from app.services.memory_correction_service import MemoryCorrectionService
 from app.services.personal_memory_service import (
     PersonalMemoryClaimNotFound,
     PersonalMemoryError,
     PersonalMemoryService,
     PersonalMemoryValidationError,
 )
-from app.services.memory_correction_service import MemoryCorrectionService
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +77,7 @@ router = APIRouter(prefix="/personal_memory", tags=["v2-personal-memory"])
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def pm_validation_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def pm_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     error = ErrorDetail(
         code="PERSONAL_MEMORY_VALIDATION_ERROR",
         message="Request validation failed",
@@ -183,10 +183,7 @@ async def inspector(
         offset=offset,
     )
     return paginated(
-        items=[
-            PersonalMemoryClaimResponse.model_validate(c).model_dump(mode="json")
-            for c in items
-        ],
+        items=[PersonalMemoryClaimResponse.model_validate(c).model_dump(mode="json") for c in items],
         total=total,
         page=page,
         per_page=per_page,
@@ -357,3 +354,56 @@ async def claim_provenance(
     # Pydantic response for OpenAPI documentation + validation.
     payload = PersonalMemoryProvenanceResponse.model_validate(summary)
     return ok(payload.model_dump(mode="json"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. GET /corrections — durable memory-correction audit trail (GOV-1.6)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/corrections")
+async def list_corrections(
+    workspace_id: str = Depends(get_workspace_id),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    event_type: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=200),
+) -> dict[str, Any]:
+    """Return the durable ``memory_correction_events`` audit trail.
+
+    GOV-1.6 closes the feedback loop read-side: the write path has been
+    wired since GOV-1.4 (``PersonalMemoryService._safe_audit`` →
+    ``MemoryCorrectionService``) but nothing ever surfaced it to the
+    Inspector. This endpoint exposes the same privacy trail that every
+    memory op / approval decision / dropped candidate writes to, so the
+    corrections are finally readable — satisfying the C3 "corrections are
+    wired, not just written" acceptance criterion.
+
+    ``drop`` events (GOV-1.6 / C5) are dropped extraction candidates:
+    ``claim_id`` is ``None`` and the candidate shape (claim_type / scope /
+    confidence) lives in ``details``. Filter with ``?event_type=drop`` to
+    see only calibration drops.
+
+    Always scoped to ``(user_id, workspace_id)`` (the workspace isolation
+    guardrail). A bad ``event_type`` surfaces as a 422 (raised by the
+    service).
+    """
+    service = MemoryCorrectionService(db)
+    items, total = await service.list_for_user(
+        user_id=user.id,
+        workspace_id=workspace_id,
+        event_type=event_type,
+        limit=per_page,
+        offset=(page - 1) * per_page,
+    )
+    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+    return ok(
+        PersonalMemoryCorrectionListResponse(
+            items=[PersonalMemoryCorrectionResponse.model_validate(ev) for ev in items],
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+        ).model_dump(mode="json")
+    )

@@ -71,6 +71,14 @@ ALL_EVENT_TYPES: tuple[str, ...] = (
     # audit trail (memory_correction_events) records expiry-as-decision
     # even when no mission run_id exists.
     "review",
+    # GOV-1.6 (C5): a candidate claim extracted from a conversation was
+    # dropped by the defensive filter (sensitive/restricted/private) before
+    # it reached durable memory. Recorded so the drop rate the GOV-1.5
+    # confidence gate calibrates against becomes a durable, Inspector-visible
+    # signal rather than a log line that ages out. claim_id is NULL (the
+    # candidate never became a PersonalMemoryClaim); the candidate's
+    # claim_type/scope/confidence are carried in details.
+    "drop",
 )
 ALL_ACTORS: tuple[str, ...] = (
     "user",

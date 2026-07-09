@@ -34,7 +34,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Enums — ``str, Enum`` so .value is a plain string at every API boundary
 # ═══════════════════════════════════════════════════════════════════════════
@@ -205,6 +204,7 @@ class PersonalMemoryRecallItem(PersonalMemoryClaimResponse):
     Inherits ``from_attributes=True`` from the parent — instantiable
     from an ORM instance via ``PersonalMemoryRecallItem(**claim.__dict__)``.
     """
+
     similarity: float | None = None
 
 
@@ -235,6 +235,7 @@ class PersonalMemoryForgetRequest(BaseModel):
     default) is a soft-delete (sets ``deleted_at``); ``hard=True`` removes
     the row from the table.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     claim_id: str = Field(min_length=36, max_length=36)
@@ -267,6 +268,7 @@ class PersonalMemoryProvenanceResponse(BaseModel):
     * All datetime fields are nullable — a claim with no recorded audit
       events returns ``event_count: 0`` and ``*_at: None``.
     """
+
     model_config = ConfigDict(from_attributes=True)
 
     claim_id: uuid.UUID
@@ -276,3 +278,46 @@ class PersonalMemoryProvenanceResponse(BaseModel):
     last_event_type: str | None = None
     last_actor: str | None = None
     events_by_type: dict[str, int]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Memory corrections / audit trail listing (GOV-1.6, C3 read-side + C5)
+#
+# GET /api/v2/personal_memory/corrections surfaces the durable
+# ``memory_correction_events`` audit trail (the same privacy trail every
+# memory op writes to via ``PersonalMemoryService._safe_audit``) so the
+# Inspector can finally READ the feedback loop that was closed at write
+# time but never surfaced. ``drop`` events (GOV-1.6 / C5) are dropped
+# extraction candidates — claim_id is None, the candidate shape lives in
+# ``details``.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class PersonalMemoryCorrectionResponse(BaseModel):
+    """One row of the ``memory_correction_events`` audit trail.
+
+    Maps directly onto the ``MemoryCorrectionEvent`` ORM row. ``claim_id``
+    is nullable (``drop`` events and memory-drain ``review`` events carry
+    no ``PersonalMemoryClaim`` FK). ``details`` is the free-form JSONB
+    forensic blob (old/new value, drop reason, reviewer decision, …).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    claim_id: uuid.UUID | None = None
+    event_type: str
+    actor: str
+    source: str | None = None
+    details: dict[str, Any] | None = None
+    created_at: datetime | None = None
+
+
+class PersonalMemoryCorrectionListResponse(BaseModel):
+    """Paginated envelope body for ``GET /personal_memory/corrections``."""
+
+    items: list[PersonalMemoryCorrectionResponse]
+    total: int
+    page: int
+    per_page: int
+    pages: int

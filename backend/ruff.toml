@@ -56,9 +56,12 @@ ignore = [
 "app/models/*.py" = ["F821"]
 # Tools use dynamic type references
 "app/tools/*.py" = ["F821"]
-# Strawberry GraphQL needs runtime imports (Info, JSON, datetime)
-# (was "TC001", "TC002", "TC003" before ruff 0.6 — those rule codes were
-# removed in ruff 0.6 and now cause a TOML parse error under pinned 0.6.9.)
+# Strawberry GraphQL needs runtime imports (Info, JSON, datetime).
+# NOTE: the TCH (flake8-type-checking) rules ARE active under the pinned
+# ruff v0.6.9 — the claim that TC001/TC002/TC003 were "removed in ruff 0.6"
+# is stale; the pre-commit hook flags them. Files below carry pre-existing
+# runtime-needed imports (FastAPI route signatures, Pydantic models) that
+# cannot move to a TYPE_CHECKING block, so they are per-file-ignored.
 "app/api/v2/schema.py" = []
 # Path is used at runtime in test fixtures, not just type annotations
 "tests/test_integration_manifest_service.py" = ["TCH003"]
@@ -75,3 +78,11 @@ ignore = [
 # (not deferrable to TYPE_CHECKING). TC003 (type-checking block) is a
 # false positive here. (The repo's active ruff reports TC003/TCxxx codes.)
 "app/models/blog_models.py" = ["TCH003"]
+# personal_memory.py (v2 Inspector API): User / AsyncSession /
+# RequestValidationError are used in FastAPI route signatures (Depends
+# annotations) and the Pydantic validation handler — runtime-needed, not
+# deferrable to TYPE_CHECKING. These TCH findings pre-exist my GOV-1.6 edit.
+"app/api/v2/personal_memory.py" = ["TCH001", "TCH002"]
+# personal_memory.py schema module: uuid / datetime back Pydantic model
+# fields (from_attributes). They are runtime-needed and pre-exist GOV-1.6.
+"app/schemas/personal_memory.py" = ["TCH003"]

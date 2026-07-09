@@ -1863,6 +1863,50 @@ async def _maybe_extract_memory_claims(
                 needs_approval,
                 _extraction_source,
             )
+
+            # ── GOV-1.6 (C5): persist dropped candidates durably ───────
+            # GOV-1.5 made drops observable (logs + metrics), but the
+            # dropped candidates were not durable or Inspector-visible —
+            # the GOV-1.6 (C5) gap. Write one ``drop`` MemoryCorrectionEvent
+            # per defensively-dropped candidate so the drop rate the 0.85
+            # gate calibrates against becomes a queryable signal in the same
+            # privacy trail. claim_id is NULL (the candidate never became a
+            # PersonalMemoryClaim); its shape is carried in details.
+            # No-fail: an audit-sink outage must never break memory capture.
+            if dropped_defensive:
+                try:
+                    from app.services.memory_correction_service import (
+                        ALL_EVENT_TYPES,
+                        MemoryCorrectionService,
+                    )
+
+                    if "drop" in ALL_EVENT_TYPES:
+                        drop_svc = MemoryCorrectionService(fresh_db)
+                        for c in claims:
+                            if c in safe_claims:
+                                continue
+                            await drop_svc.record_event(
+                                user_id=user_id,
+                                workspace_id=workspace_id,
+                                event_type="drop",
+                                claim_id=None,
+                                actor="system",
+                                source="memory_extraction",
+                                details={
+                                    "reason": "defensive_filter",
+                                    "claim_type": getattr(c, "claim_type", None),
+                                    "scope": getattr(c, "scope", None),
+                                    "confidence": float(getattr(c, "confidence", 0.0)),
+                                    "subject": getattr(c, "subject", None),
+                                    "predicate": getattr(c, "predicate", None),
+                                },
+                            )
+                except Exception as drop_err:  # pragma: no cover - no-fail sink
+                    logger.warning(
+                        "memory_extraction: durable drop audit failed for thread %s: %s",
+                        thread_id,
+                        drop_err,
+                    )
     except Exception as exc:
         logger.warning(
             "memory_extraction: hook failed for thread %s (non-fatal): %s",
