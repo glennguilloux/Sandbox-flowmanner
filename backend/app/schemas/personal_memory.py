@@ -281,6 +281,67 @@ class PersonalMemoryProvenanceResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Provenance trace (Epic 3.6) — the full "Why does the agent believe X?"
+# surface for a single claim: the claim itself + its origin provenance +
+# the durable correction/audit trail. Pure exposure over data that already
+# exists (PersonalMemoryClaim + MemoryCorrectionEvent rows).
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class PersonalMemoryProvenanceInfo(BaseModel):
+    """Origin provenance for a single claim (Epic 3.6).
+
+    These are the columns on ``PersonalMemoryClaim`` that answer "where did
+    this belief come from and how much do we trust it": the source type +
+    the source row id, when it was first learned, and the confidence /
+    importance / scope weighting.
+
+    Note on ``source_mission_id``: the claim model stores a *generic*
+    ``source_id`` (UUID) whose meaning is disambiguated by ``source_type``.
+    ``source_mission_id`` is a convenience projection — it equals
+    ``source_id`` when ``source_type == "mission"`` and is ``None``
+    otherwise, so a UI can link straight to the originating mission without
+    re-deriving the relationship.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    source_type: str
+    source_id: uuid.UUID | None = None
+    source_mission_id: uuid.UUID | None = None
+    created_at: datetime | None = None
+    confidence: float
+    importance: float
+    scope: str
+
+
+class PersonalMemoryProvenanceTraceResponse(BaseModel):
+    """Response body for ``GET /claims/{id}/provenance`` (Epic 3.6).
+
+    The full provenance trace for one claim:
+
+    * ``claim`` — the claim itself (ORM-backed full record).
+    * ``provenance`` — the origin provenance projection
+      (``PersonalMemoryProvenanceInfo``).
+    * ``corrections`` — the durable ``memory_correction_events`` audit
+      trail scoped to this claim, most-recent-first.
+    * ``audit_summary`` — the T32 aggregate summary (event counts by type,
+      first/last event). Preserved from the original ``/provenance``
+      endpoint so nothing regresses for callers that relied on the
+      roll-up view.
+
+    Always scoped to ``(user_id, workspace_id)`` at the service layer — a
+    claim not visible to the caller yields a 404 envelope (never a
+    cross-tenant leak).
+    """
+
+    claim: PersonalMemoryClaimResponse
+    provenance: PersonalMemoryProvenanceInfo
+    corrections: list[PersonalMemoryCorrectionResponse]
+    audit_summary: PersonalMemoryProvenanceResponse
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Memory corrections / audit trail listing (GOV-1.6, C3 read-side + C5)
 #
 # GET /api/v2/personal_memory/corrections surfaces the durable
