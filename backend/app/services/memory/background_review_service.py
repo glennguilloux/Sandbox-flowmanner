@@ -12,6 +12,11 @@ missing from ``MemoryService``:
 - ``supersede_entry`` — promote a replacement. The old entry is flipped
   to ``superseded`` and the new entry's ``supersedes_id`` points at it.
 
+Staging runs the GOV-1.3a escalate-only poison scan and attaches the
+findings to the row metadata so the eventual HITL drain (GOV-1.1) can
+prioritize flagged writes. The scan can never block or de-escalate a
+staged write.
+
 Also owns the reviewer LLM call (via ``LLMManager`` on the LangGraph
 path — not via ``chat_service._resolve_provider`` which is broken for
 ``llamacpp-*`` model_ids per ``services/AGENTS.md §3``) and the
@@ -46,12 +51,13 @@ from app.models.memory_models import (
 from app.services.memory.background_review_prompt import (
     IMPORTANCE_CEILING,
     IMPORTANCE_FLOOR,
+    REVIEW_PROMPT,
     REVIEWER_ACTION_TO_DB_ACTION,
     REVIEWER_CONTENT_MAX_CHARS,
     REVIEWER_CONTENT_MIN_CHARS,
     REVIEWER_TOOL_WHITELIST,
-    REVIEW_PROMPT,
 )
+from app.services.memory.poison_scan import scan_for_poison
 
 logger = logging.getLogger(__name__)
 
@@ -266,6 +272,22 @@ class BackgroundReviewService:
                 return None
 
             now = datetime.now(UTC)
+            # GOV-1.3a: escalate-only extraction-time poison scan. This is a
+            # triage aid, NOT the reliable control (that is GOV-1.2). The scan
+            # may only FLAG — it must never prevent staging or de-escalate a
+            # provenance-mandated approval. Findings are attached to the row
+            # metadata so the eventual HITL drain (GOV-1.1) can prioritize
+            # flagged writes for human review.
+            scan = scan_for_poison(content, old_text)
+            if scan.flagged:
+                logger.warning(
+                    "BackgroundReviewService.stage_pending_write: poison scan flagged "
+                    "write user=%s action=%s hits=%s severity=%s",
+                    user_id,
+                    action,
+                    scan.hits,
+                    scan.severity,
+                )
             row = PendingWrite(
                 id=str(uuid.uuid4()),
                 workspace_id=workspace_id,
@@ -280,6 +302,7 @@ class BackgroundReviewService:
                 meta={
                     "origin": "background_review",
                     **(metadata or {}),
+                    **scan.to_metadata(),
                 },
             )
             db.add(row)
@@ -323,11 +346,7 @@ class BackgroundReviewService:
         try:
             from sqlalchemy import select
 
-            old = (
-                await db.execute(
-                    select(MemoryEntry).where(MemoryEntry.id == old_entry_id)
-                )
-            ).scalar_one_or_none()
+            old = (await db.execute(select(MemoryEntry).where(MemoryEntry.id == old_entry_id))).scalar_one_or_none()
             if old is None:
                 logger.info(
                     "BackgroundReviewService.supersede_entry: old_id=%s not found",
@@ -422,9 +441,7 @@ class BackgroundReviewService:
                 out.append(validated)
         return out
 
-    def _validate_proposed_write(
-        self, item: dict[str, Any], fallback_reasoning: str
-    ) -> ProposedWrite | None:
+    def _validate_proposed_write(self, item: dict[str, Any], fallback_reasoning: str) -> ProposedWrite | None:
         """Apply the tool whitelist + bounds checks to a single raw dict.
 
         Returns ``None`` for rejected writes (logged at debug so the
@@ -530,9 +547,7 @@ class BackgroundReviewService:
                 if pw_id:
                     result.staged_writes.append(pw_id)
                 else:
-                    result.skipped.append(
-                        {"action": w.action, "reason": "stage_failed"}
-                    )
+                    result.skipped.append({"action": w.action, "reason": "stage_failed"})
                 continue
 
             # Direct write path.
@@ -556,22 +571,24 @@ class BackgroundReviewService:
                 # Replace requires an old_text to know what to
                 # supersede. Without it, fall back to staging.
                 if not w.old_text:
-                    result.skipped.append(
-                        {"action": w.action, "reason": "missing_old_text"}
-                    )
+                    result.skipped.append({"action": w.action, "reason": "missing_old_text"})
                     continue
                 # Look up the matching entry by content equality.
                 from sqlalchemy import select
 
                 match = (
-                    await db.execute(
-                        select(MemoryEntry).where(
-                            MemoryEntry.workspace_id == workspace_id,
-                            MemoryEntry.agent_id == agent_id,
-                            MemoryEntry.content == w.old_text,
+                    (
+                        await db.execute(
+                            select(MemoryEntry).where(
+                                MemoryEntry.workspace_id == workspace_id,
+                                MemoryEntry.agent_id == agent_id,
+                                MemoryEntry.content == w.old_text,
+                            )
                         )
                     )
-                ).scalars().first()
+                    .scalars()
+                    .first()
+                )
                 if match is None:
                     # Could not find the old entry — stage instead so
                     # the user can resolve manually.
@@ -587,9 +604,7 @@ class BackgroundReviewService:
                     if pw_id:
                         result.staged_writes.append(pw_id)
                     else:
-                        result.skipped.append(
-                            {"action": w.action, "reason": "no_match_and_stage_failed"}
-                        )
+                        result.skipped.append({"action": w.action, "reason": "no_match_and_stage_failed"})
                     continue
                 new_id = await self.supersede_entry(
                     db,
@@ -603,9 +618,7 @@ class BackgroundReviewService:
                     result.superseded.append((match.id, new_id))
                     result.direct_writes.append(new_id)
                 else:
-                    result.skipped.append(
-                        {"action": w.action, "reason": "supersede_failed"}
-                    )
+                    result.skipped.append({"action": w.action, "reason": "supersede_failed"})
             elif w.action == PendingWriteAction.REMOVE:
                 # Remove is destructive — always stages.
                 pw_id = await self.stage_pending_write(
@@ -620,13 +633,9 @@ class BackgroundReviewService:
                 if pw_id:
                     result.staged_writes.append(pw_id)
                 else:
-                    result.skipped.append(
-                        {"action": w.action, "reason": "stage_failed"}
-                    )
+                    result.skipped.append({"action": w.action, "reason": "stage_failed"})
             else:
-                result.skipped.append(
-                    {"action": w.action, "reason": "unknown_action"}
-                )
+                result.skipped.append({"action": w.action, "reason": "unknown_action"})
         return result
 
     # ── Reviewer LLM call (LangGraph path, not chat_service) ──────────
@@ -702,9 +711,7 @@ class BackgroundReviewService:
                 )
                 resp.raise_for_status()
                 data = resp.json()
-            content = (
-                data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            )
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             return content or ""
         except Exception as exc:
             logger.warning(
@@ -725,9 +732,7 @@ class BackgroundReviewService:
         try:
             from sqlalchemy import select
 
-            stmt = select(MemoryEntry).where(
-                MemoryEntry.workspace_id == workspace_id
-            )
+            stmt = select(MemoryEntry).where(MemoryEntry.workspace_id == workspace_id)
             # Bounded fetch — we don't need every entry, just the
             # newest ~50 to decide what's NEW.
             stmt = stmt.order_by(MemoryEntry.created_at.desc()).limit(50)
@@ -759,9 +764,7 @@ class BackgroundReviewService:
 
             from app.models.mission_models import Mission
 
-            row = (
-                await db.execute(select(Mission).where(Mission.id == mission_id))
-            ).scalar_one_or_none()
+            row = (await db.execute(select(Mission).where(Mission.id == mission_id))).scalar_one_or_none()
             if row is None:
                 return ""
             parts: list[str] = []
