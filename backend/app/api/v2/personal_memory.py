@@ -46,7 +46,9 @@ from app.schemas.personal_memory import (
     PersonalMemoryCorrectionListResponse,
     PersonalMemoryCorrectionResponse,
     PersonalMemoryForgetRequest,
+    PersonalMemoryProvenanceInfo,
     PersonalMemoryProvenanceResponse,
+    PersonalMemoryProvenanceTraceResponse,
     PersonalMemoryRecallItem,
     PersonalMemoryRecallRequest,
     PersonalMemoryRecallResponse,
@@ -319,40 +321,92 @@ async def forget_claim(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 6. GET /claims/{id}/provenance — per-claim audit summary (T32)
+# 6. GET /claims/{id}/provenance — full provenance trace (Epic 3.6)
+#    "Why does the agent believe X?" — the claim + its origin provenance +
+#    the durable correction/audit trail (and the T32 roll-up summary).
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@router.get("/claims/{claim_id}/provenance")
+@router.get("/claims/{claim_id}/provenance", response_model=None)
 async def claim_provenance(
     claim_id: uuid.UUID,
     workspace_id: str = Depends(get_workspace_id),
     user: User = Depends(get_current_user),
+    service: PersonalMemoryService = Depends(_get_service),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
-    """Return the audit-trail summary for a single claim.
+):
+    """Return the full provenance trace for a single claim (Epic 3.6).
 
-    Thin envelope-wrapping layer over
-    ``MemoryCorrectionService.get_provenance()`` (D30-60, T29 service).
-    The service does the heavy lifting (workspace-isolated event fetch
-    + stable ``events_by_type`` bucket map); the route just unwraps
-    the dataclass into a Pydantic response.
+    Answers "Why does the agent believe X?" by composing three data
+    sources that already exist — this is pure exposure work, no new
+    persistence:
 
-    Privacy guardrail: cross-tenant claims return
-    ``event_count: 0, *_at: None`` (NOT 404) so a malicious user can't
-    probe whether a claim exists in a different workspace. This mirrors
-    the design of ``PersonalMemoryService.list_for_user`` for the same
-    reason.
+    * ``claim`` — the ``PersonalMemoryClaim`` itself.
+    * ``provenance`` — origin projection (source_type, source_id, the
+      mission-specific ``source_mission_id`` convenience alias, created_at,
+      confidence, importance, scope).
+    * ``corrections`` — the durable ``memory_correction_events`` audit
+      trail scoped to this claim (most-recent-first).
+    * ``audit_summary`` — the T32 aggregate roll-up (event counts by type,
+      first/last event) preserved so nothing regresses.
+
+    Scope guardrail: every read is filtered by ``(user_id, workspace_id)``.
+    A claim that isn't visible to the caller (cross-tenant, wrong user)
+    surfaces as a 404 envelope — never a cross-tenant leak, and the
+    correction/summary reads are only performed once the claim is proven
+    visible.
     """
-    service = MemoryCorrectionService(db)
-    summary = await service.get_provenance(
+    # 1. Fetch the claim first — this is the workspace-isolation gate.
+    #    service.get() filters by (id, user_id, workspace_id) and raises
+    #    PersonalMemoryClaimNotFound for anything the caller can't see.
+    try:
+        claim = await service.get(
+            user_id=user.id,
+            workspace_id=workspace_id,
+            claim_id=claim_id,
+        )
+    except PersonalMemoryClaimNotFound as exc:
+        return _envelope_error(
+            "PERSONAL_MEMORY_CLAIM_NOT_FOUND",
+            str(exc),
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    # 2. Correction trail + T32 roll-up summary — both scoped to
+    #    (user_id, workspace_id, claim_id) by the correction service.
+    correction_service = MemoryCorrectionService(db)
+    corrections = await correction_service.list_for_claim(
         user_id=user.id,
         workspace_id=workspace_id,
         claim_id=claim_id,
     )
-    # The service already returns the canonical shape; wrap it in the
-    # Pydantic response for OpenAPI documentation + validation.
-    payload = PersonalMemoryProvenanceResponse.model_validate(summary)
+    summary = await correction_service.get_provenance(
+        user_id=user.id,
+        workspace_id=workspace_id,
+        claim_id=claim_id,
+    )
+
+    # 3. Origin provenance projection. ``source_mission_id`` is a
+    #    convenience alias: the claim model stores a generic ``source_id``
+    #    whose meaning is set by ``source_type``, so we only surface it as
+    #    a mission id when the source actually is a mission.
+    source_mission_id = claim.source_id if claim.source_type == "mission" else None
+    provenance = PersonalMemoryProvenanceInfo(
+        source_type=claim.source_type,
+        source_id=claim.source_id,
+        source_mission_id=source_mission_id,
+        created_at=claim.created_at,
+        confidence=claim.confidence,
+        importance=claim.importance,
+        scope=claim.scope,
+    )
+
+    payload = PersonalMemoryProvenanceTraceResponse(
+        claim=PersonalMemoryClaimResponse.model_validate(claim),
+        provenance=provenance,
+        corrections=[PersonalMemoryCorrectionResponse.model_validate(ev) for ev in corrections],
+        audit_summary=PersonalMemoryProvenanceResponse.model_validate(summary),
+    )
     return ok(payload.model_dump(mode="json"))
 
 
