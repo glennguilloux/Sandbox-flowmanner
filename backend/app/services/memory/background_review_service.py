@@ -3,14 +3,19 @@
 Owns the three write operations the verification report flagged as
 missing from ``MemoryService``:
 
-- ``add_reviewed_entry`` — direct write to ``memory_entries`` when the
+- ``add_reviewed_entry`` — direct write to ``personal_memory_claims``
+  (via ``PersonalMemoryService.create_from_proposal``) when the
   workspace's ``write_approval`` flag is false (solo users, or
-  workspaces under 30 days old).
+  workspaces under 30 days old). Reviewer memory must land in claims
+  because the live agent read path (``recall_for_chat``) reads ONLY
+  claims — Epic 2.1.
 - ``stage_pending_write`` — staging row in ``pending_writes`` when
   ``write_approval`` is true. The row sits in the queue until the user
   approves it, rejects it, or 7 days elapse.
-- ``supersede_entry`` — promote a replacement. The old entry is flipped
-  to ``superseded`` and the new entry's ``supersedes_id`` points at it.
+- ``supersede_entry`` — soft-replace a claim. A successor claim is
+  created via ``create_from_proposal`` and the old claim is soft-deleted
+  (``deleted_at`` set; never hard-deleted — "negative constraints are
+  immortal").
 
 Staging runs the GOV-1.3a escalate-only poison scan and attaches the
 findings to the row metadata so the eventual HITL drain (GOV-1.1) can
@@ -99,6 +104,28 @@ class ProposedWrite:
             PendingWriteAction.REPLACE,
             PendingWriteAction.REMOVE,
         }
+
+
+@dataclass
+class _ProposalShim:
+    """Read-only attribute bag handed to ``PersonalMemoryService.create_from_proposal``.
+
+    The reviewer package does not give us a ``source_type`` on every path (the
+    prompt asks for one, but HITL approvals and the direct-write path build
+    ``ProposedWrite`` without it). This shim carries exactly the attributes
+    ``create_from_proposal`` reads (``content``, ``memory_type``, ``importance``,
+    ``scope``, ``source_type``, ``old_text``) without duplicating the full
+    ``ProposedWrite`` validation/whitelist logic. ``create_from_proposal`` does
+    the governance work (provenance bridge + guardrails), so the shim stays dumb.
+    """
+
+    content: str
+    memory_type: str = "episodic"
+    importance: float = 0.5
+    scope: str | None = None
+    source_type: str | None = None
+    old_text: str | None = None
+    reasoning: str = ""
 
 
 @dataclass
@@ -267,37 +294,59 @@ class BackgroundReviewService:
         source_mission_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> str | None:
-        """Insert a memory entry marked as reviewer-accepted.
+        """Write a reviewer-accepted memory as a governed claim.
 
-        Returns the new ``MemoryEntry.id`` on success, ``None`` on
+        Epic 2.1: re-pointed from ``memory_entries`` to
+        ``personal_memory_claims`` via ``PersonalMemoryService``. The
+        live agent read path (``recall_for_chat`` → ``PersonalMemoryService.recall``)
+        reads ONLY claims, so reviewer memory must land there to be visible.
+
+        Returns the new ``PersonalMemoryClaim.id`` on success, ``None`` on
         failure. Never raises — caller treats ``None`` as "the
         reviewer could not commit, move on".
+
+        Scope / source_type are lifted from ``metadata`` when the caller
+        knows them (HITL approvals set both); the proposal adapter fills in
+        sane governance defaults otherwise.
         """
+        # Lazy import avoids a circular import at module load.
+        from app.services.personal_memory_service import PersonalMemoryService
+
+        scope = (metadata or {}).get("scope")
+        source_type = (metadata or {}).get("source_type")
+        proposal = _ProposalShim(
+            content=content,
+            memory_type=memory_type,
+            importance=importance,
+            scope=scope or "agent",
+            source_type=source_type,
+            old_text=None,
+            reasoning="",
+        )
+        service = PersonalMemoryService(db)
         try:
-            entry = MemoryEntry(
-                id=str(uuid.uuid4()),
+            result = await service.create_from_proposal(
+                proposal,
                 workspace_id=workspace_id,
                 user_id=user_id,
-                agent_id=agent_id,
-                namespace="agent" if agent_id else "default",
-                memory_type=memory_type,
-                content=content,
-                importance=max(IMPORTANCE_FLOOR, min(IMPORTANCE_CEILING, importance)),
                 source_mission_id=source_mission_id,
-                meta={
-                    "origin": "background_review",
-                    **(metadata or {}),
-                },
+                agent_id=agent_id,
             )
-            db.add(entry)
-            await db.flush()
-            logger.info(
-                "BackgroundReviewService.add_reviewed_entry id=%s agent=%s importance=%.2f",
-                entry.id,
-                agent_id,
-                entry.importance,
-            )
-            return entry.id
+            if result is None:
+                logger.warning(
+                    "BackgroundReviewService.add_reviewed_entry: proposal rejected "
+                    "(workspace_id=%s mission=%s) — no claim written",
+                    workspace_id,
+                    source_mission_id,
+                )
+            else:
+                logger.info(
+                    "BackgroundReviewService.add_reviewed_entry claim=%s agent=%s importance=%.2f",
+                    result,
+                    agent_id,
+                    importance,
+                )
+            return result
         except Exception as exc:
             logger.warning(
                 "BackgroundReviewService.add_reviewed_entry failed for mission=%s: %s",
@@ -651,21 +700,27 @@ class BackgroundReviewService:
         new_memory_type: str = "episodic",
         source_mission_id: str | None = None,
     ) -> str | None:
-        """Replace an existing memory entry with a new one.
+        """Soft-replace an existing claim with a successor (Epic 2.1).
 
-        Sets ``old_entry.review_state='superseded'`` (using the
-        ``meta`` JSONB column — there is no first-class
-        ``review_state`` column yet; that lands in a future migration
-        if/when the data model needs it) and points the new entry's
-        ``supersedes_id`` at the old one.
+        The reviewer's REPLACE now targets ``personal_memory_claims``. We
+        create a successor claim (carrying the new content) via
+        ``PersonalMemoryService.create_from_proposal`` and soft-delete the
+        old claim by setting ``deleted_at`` — we never hard-delete (per the
+        "negative constraints are immortal" rule, ``background_review_service``
+        doc §3.1). ``old_entry_id`` is a ``PersonalMemoryClaim.id``.
 
-        Returns the new entry's id, or ``None`` if the old entry
-        doesn't exist / write fails.
+        Returns the new claim's id, or ``None`` if the old claim doesn't
+        exist / the write fails.
         """
         try:
             from sqlalchemy import select
 
-            old = (await db.execute(select(MemoryEntry).where(MemoryEntry.id == old_entry_id))).scalar_one_or_none()
+            from app.models.personal_memory_models import PersonalMemoryClaim
+            from app.services.personal_memory_service import PersonalMemoryService
+
+            old = (
+                await db.execute(select(PersonalMemoryClaim).where(PersonalMemoryClaim.id == old_entry_id))
+            ).scalar_one_or_none()
             if old is None:
                 logger.info(
                     "BackgroundReviewService.supersede_entry: old_id=%s not found",
@@ -673,35 +728,63 @@ class BackgroundReviewService:
                 )
                 return None
 
-            # Mark the old entry as superseded via meta (avoid schema
-            # bloat — review_state is NOT in memory_entries yet). When
-            # the column lands, switch this to a real column update.
-            meta = dict(old.meta or {})
-            meta["review_state"] = "superseded"
-            meta["superseded_at"] = datetime.now(UTC).isoformat()
-            old.meta = meta
-
-            new_entry = MemoryEntry(
-                id=str(uuid.uuid4()),
+            # Carry the old claim's provenance forward onto the successor so
+            # GOV-1.2 keeps gating the replacement the same way.
+            successor = _ProposalShim(
+                content=new_content,
+                memory_type=new_memory_type,
+                importance=new_importance,
+                scope=old.scope,
+                source_type=old.source_type,
+                old_text=None,
+                reasoning="",
+            )
+            service = PersonalMemoryService(db)
+            new_id = await service.create_from_proposal(
+                successor,
                 workspace_id=old.workspace_id,
                 user_id=old.user_id,
-                agent_id=old.agent_id,
-                namespace=old.namespace,
-                memory_type=new_memory_type,
-                content=new_content,
-                importance=max(IMPORTANCE_FLOOR, min(IMPORTANCE_CEILING, new_importance)),
-                supersedes_id=old.id,
                 source_mission_id=source_mission_id,
-                meta={"origin": "background_review", "supersedes": old.id},
+                agent_id=None,
             )
-            db.add(new_entry)
+            if new_id is None:
+                logger.warning(
+                    "BackgroundReviewService.supersede_entry: successor rejected for "
+                    "old_id=%s — leaving old claim intact",
+                    old_entry_id,
+                )
+                return None
+
+            # Soft-delete the old claim (never hard-delete) AND keep the
+            # immortal link the Epic 2.1 task body requires: record the
+            # replacement chain in ``meta`` so it is reconstructable from the
+            # canonical store alone (``PersonalMemoryClaim`` has no
+            # ``supersedes`` column). The old claim points at the successor;
+            # the successor points back at the old id for symmetry.
+            old_meta = dict(getattr(old, "meta", None) or {})
+            old_meta["superseded_by"] = str(new_id)
+            old.meta = old_meta
+            old.deleted_at = datetime.now(UTC)
+            try:
+                new = await db.get(PersonalMemoryClaim, uuid.UUID(new_id))
+                if new is not None and isinstance(new, PersonalMemoryClaim):
+                    new_meta = dict(getattr(new, "meta", None) or {})
+                    new_meta["supersedes"] = str(old_entry_id)
+                    new.meta = new_meta
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning(
+                    "BackgroundReviewService.supersede_entry: could not tag successor " "meta for old=%s new=%s: %s",
+                    old_entry_id,
+                    new_id,
+                    exc,
+                )
             await db.flush()
             logger.info(
-                "BackgroundReviewService.supersede_entry: old=%s new=%s",
+                "BackgroundReviewService.supersede_entry: soft-replaced old=%s new=%s",
                 old.id,
-                new_entry.id,
+                new_id,
             )
-            return new_entry.id
+            return new_id
         except Exception as exc:
             logger.warning(
                 "BackgroundReviewService.supersede_entry failed for old_id=%s: %s",
@@ -844,9 +927,15 @@ class BackgroundReviewService:
         """Apply the validated proposed writes to durable storage.
 
         If ``write_approval`` is false: write directly to
-        ``memory_entries`` (skipping the queue). If true: stage in
+        ``personal_memory_claims`` (via ``add_reviewed_entry`` /
+        ``supersede_entry`` — skipping the queue). If true: stage in
         ``pending_writes``. Destructive writes always stage regardless
         of ``write_approval`` (per user decision 2026-06-17).
+
+        Every direct write routes through ``create_from_proposal`` so the
+        same governance gate (workspace NOT NULL, source_type provenance,
+        GOV-1.3a scan, GOV-1.4 audit) applies as for staged writes — no
+        fast-path that bypasses it (Epic 2.1).
         """
         result = ApplyResult()
         for w in proposed:
@@ -892,22 +981,38 @@ class BackgroundReviewService:
                 if not w.old_text:
                     result.skipped.append({"action": w.action, "reason": "missing_old_text"})
                     continue
-                # Look up the matching entry by content equality.
+                # Look up the matching claim by content equality (Epic 2.1:
+                # reviewer writes target claims, not entries). Match against
+                # the claim's object["text"], falling back to subject/predicate.
                 from sqlalchemy import select
 
-                match = (
+                from app.models.personal_memory_models import PersonalMemoryClaim
+
+                candidates = (
                     (
                         await db.execute(
-                            select(MemoryEntry).where(
-                                MemoryEntry.workspace_id == workspace_id,
-                                MemoryEntry.agent_id == agent_id,
-                                MemoryEntry.content == w.old_text,
+                            select(PersonalMemoryClaim).where(
+                                PersonalMemoryClaim.workspace_id == workspace_id,
+                                PersonalMemoryClaim.user_id == user_id,
+                                PersonalMemoryClaim.deleted_at.is_(None),
                             )
                         )
                     )
                     .scalars()
-                    .first()
+                    .all()
                 )
+                old_text = (w.old_text or "").strip().lower()
+                match = None
+                for c in candidates:
+                    ctext = (c.object or {}).get("text", "")
+                    if (
+                        ctext
+                        and ctext.strip().lower() == old_text
+                        or (c.subject and c.subject.strip().lower() == old_text)
+                        or (c.predicate and c.predicate.strip().lower() == old_text)
+                    ):
+                        match = c
+                        break
                 if match is None:
                     # Could not find the old entry — stage instead so
                     # the user can resolve manually.

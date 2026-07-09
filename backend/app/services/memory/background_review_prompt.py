@@ -74,11 +74,19 @@ You may emit a JSON object with the shape:
                   "the exact text of the entry being superseded>",
       "importance": <float 0.0..1.0>,
       "memory_type": "episodic" | "semantic" | "preference",
-      "scope": "agent" | "workspace"
+      "scope": "agent" | "workspace",
+      "source_type": "fetched" | "tool_output" | "agent" | "third_party"
     }
   ]
 }
 ```
+
+> **You MUST emit `source_type` on every proposed write.** It records where
+> the remembered fact came from and is load-bearing for the governance gate
+> (GOV-1.2): `fetched` / `tool_output` / `third_party` facts are routed to
+> human approval; `agent` is for something the agent itself observed or
+> concluded this mission. If you cannot tell, emit `agent` — never omit the
+> field.
 
 You may emit ZERO proposed writes — that is a valid answer. Do not
 propose writes just to fill the array.
