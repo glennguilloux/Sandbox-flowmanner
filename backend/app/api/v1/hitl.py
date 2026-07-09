@@ -241,6 +241,43 @@ async def get_inbox_item(
     return HITLService._item_to_dict(item)
 
 
+async def _maybe_resolve_memory_write(
+    item: Any,
+    db: Any,
+    *,
+    approve: bool,
+    resolved_by: int,
+) -> bool:
+    """GOV-1.1: if this inbox item is a memory-write approval, apply/reject the
+    staged write through the memory drain instead of signalling a mission.
+
+    Returns True when the item was a MEMORY_APPROVAL (caller must skip the
+    executor resume/abort signal). Best-effort: never raises.
+    """
+    if item.interrupt_type != HumanInterruptType.MEMORY_APPROVAL.value:
+        return False
+    pwid = (item.context or {}).get("pending_write_id") or ((item.proposed_action or {}).get("pending_write_id"))
+    if pwid:
+        try:
+            from app.services.memory.background_review_service import (
+                BackgroundReviewService,
+            )
+
+            await BackgroundReviewService().resolve_pending_write(
+                db,
+                pending_write_id=pwid,
+                approve=approve,
+                resolved_by=resolved_by,
+            )
+        except Exception as exc:  # best-effort: never raise
+            logger.warning(
+                "hitl approve/reject: memory write resolve failed pwid=%s: %s",
+                pwid,
+                exc,
+            )
+    return True
+
+
 @router.post("/{item_id}/approve", response_model=dict)
 async def approve_item(
     item_id: str,
@@ -263,6 +300,10 @@ async def approve_item(
             details={"current_status": item.status},
         )
 
+    # GOV-1.1: memory-write approvals apply the staged write, never resume a
+    # mission. Skip the executor resume signal when this is a memory approval.
+    is_memory = await _maybe_resolve_memory_write(item, db, approve=True, resolved_by=user.id)
+
     resolved = await service.resolve_interrupt(
         item_id,
         resolved_by=user.id,
@@ -271,8 +312,9 @@ async def approve_item(
         resolution_payload=body.resolution_payload if body else None,
     )
 
-    # Signal the executor to resume
-    await _signal_executor_resume(item.mission_id, item.run_id, "approved", resolved)
+    # Signal the executor to resume (mission approvals only)
+    if not is_memory:
+        await _signal_executor_resume(item.mission_id, item.run_id, "approved", resolved)
 
     return HITLService._item_to_dict(resolved)
 
@@ -299,6 +341,10 @@ async def reject_item(
             details={"current_status": item.status},
         )
 
+    # GOV-1.1: memory-write rejections reject the staged write, never abort a
+    # mission. Skip the executor abort signal when this is a memory approval.
+    is_memory = await _maybe_resolve_memory_write(item, db, approve=False, resolved_by=user.id)
+
     resolved = await service.resolve_interrupt(
         item_id,
         resolved_by=user.id,
@@ -307,8 +353,9 @@ async def reject_item(
         resolution_payload=body.resolution_payload if body else None,
     )
 
-    # Signal the executor — rejection means abort
-    await _signal_executor_abort(item.mission_id, item.run_id, "rejected_by_human")
+    # Signal the executor — rejection means abort (mission approvals only)
+    if not is_memory:
+        await _signal_executor_abort(item.mission_id, item.run_id, "rejected_by_human")
 
     return HITLService._item_to_dict(resolved)
 

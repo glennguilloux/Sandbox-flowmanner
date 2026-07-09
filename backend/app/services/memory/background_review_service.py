@@ -319,11 +319,200 @@ class BackgroundReviewService:
                 action,
                 user_id,
             )
+            # GOV-1.1: drain the staged write into the existing HITL inbox as a
+            # SEPARATE filter (MEMORY_APPROVAL) from mission action approvals.
+            # Memory writes must never pause/abort a mission, so the inbox item
+            # carries no mission_id. Best-effort: if inbox creation fails the
+            # staged row is still in pending_writes and is caught by the sweeper.
+            await self._route_to_inbox(
+                db,
+                pending_write_id=row.id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                action=action,
+                content=content,
+                old_text=old_text,
+                expires_at=row.expires_at,
+            )
             return row.id
         except Exception as exc:
             logger.warning(
                 "BackgroundReviewService.stage_pending_write failed for mission=%s: %s",
                 mission_id,
+                exc,
+            )
+            return None
+
+    async def _route_to_inbox(
+        self,
+        db: Any,
+        *,
+        pending_write_id: str,
+        workspace_id: str | None,
+        user_id: int,
+        action: str,
+        content: str | None,
+        old_text: str | None,
+        expires_at: datetime,
+    ) -> None:
+        """Create a HITL inbox item (MEMORY_APPROVAL) for a staged write (GOV-1.1).
+
+        Surfaces the staged memory write in the existing inbox under a separate
+        filter so it never contends with mission action approvals and never
+        blocks a mission. Best-effort: failures are logged, never raised — the
+        pending_writes row remains the source of truth and is swept independently.
+        """
+        try:
+            from app.models.hitl_models import HumanInterruptType
+            from app.services.hitl_service import HITLService
+
+            service = HITLService(db)
+            preview = (content or old_text or "")[:280]
+            await service.create_interrupt(
+                mission_id=None,  # memory approvals are not mission-bound
+                user_id=user_id,
+                interrupt_type=HumanInterruptType.MEMORY_APPROVAL,
+                title=f"Memory write: {action}",
+                description=preview,
+                proposed_action={
+                    "pending_write_id": pending_write_id,
+                    "action": action,
+                    "content": content,
+                    "old_text": old_text,
+                },
+                context={"pending_write_id": pending_write_id, "origin": "background_review"},
+                workspace_id=workspace_id,
+                expires_at=expires_at,
+            )
+            logger.info(
+                "BackgroundReviewService._route_to_inbox pending_write=%s user=%s",
+                pending_write_id,
+                user_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "BackgroundReviewService._route_to_inbox failed for pending_write=%s: %s",
+                pending_write_id,
+                exc,
+            )
+
+    async def resolve_pending_write(
+        self,
+        db: Any,
+        *,
+        pending_write_id: str,
+        approve: bool,
+        resolved_by: int | None = None,
+    ) -> str | None:
+        """Apply or reject a staged memory write from the HITL inbox (GOV-1.1).
+
+        APPROVE -> apply the write to durable storage and mark the row
+        APPROVED. REJECT -> mark the row REJECTED (the write is dropped).
+
+        Best-effort: never raises. Returns the new MemoryEntry id on a
+        successful apply, ``"rejected"`` on reject, or ``None`` on failure /
+        missing row. The caller (inbox API / expiry sweeper) is responsible
+        for also resolving the linked InboxItem.
+        """
+        try:
+            from sqlalchemy import select
+
+            from app.models.memory_models import PendingWrite, PendingWriteStatus
+
+            row = (
+                await db.execute(select(PendingWrite).where(PendingWrite.id == pending_write_id))
+            ).scalar_one_or_none()
+            if row is None:
+                logger.info(
+                    "BackgroundReviewService.resolve_pending_write: pending_write=%s not found",
+                    pending_write_id,
+                )
+                return None
+            if row.status != PendingWriteStatus.PENDING:
+                logger.info(
+                    "BackgroundReviewService.resolve_pending_write: pending_write=%s already %s",
+                    pending_write_id,
+                    row.status,
+                )
+                return None
+
+            if not approve:
+                row.status = PendingWriteStatus.REJECTED
+                row.reviewed_at = datetime.now(UTC)
+                await db.flush()
+                logger.info(
+                    "BackgroundReviewService.resolve_pending_write rejected id=%s",
+                    pending_write_id,
+                )
+                return "rejected"
+
+            # APPROVE -> apply the write.
+            result_id: str | None = None
+            if row.action == PendingWriteAction.ADD:
+                result_id = await self.add_reviewed_entry(
+                    db,
+                    workspace_id=row.workspace_id,
+                    user_id=row.user_id,
+                    agent_id=None,
+                    content=row.content or "",
+                    memory_type="episodic",
+                    importance=0.5,
+                    source_mission_id=row.mission_id,
+                    metadata={"origin": "background_review", "approved_via": "hitl"},
+                )
+            elif row.action == PendingWriteAction.REPLACE:
+                old_id = (row.meta or {}).get("target_entry_id")
+                if old_id:
+                    result_id = await self.supersede_entry(
+                        db,
+                        old_entry_id=old_id,
+                        new_content=row.content or "",
+                        new_importance=0.5,
+                        source_mission_id=row.mission_id,
+                    )
+                else:
+                    # No target to replace -> treat as an add.
+                    result_id = await self.add_reviewed_entry(
+                        db,
+                        workspace_id=row.workspace_id,
+                        user_id=row.user_id,
+                        agent_id=None,
+                        content=row.content or "",
+                        memory_type="episodic",
+                        importance=0.5,
+                        source_mission_id=row.mission_id,
+                        metadata={"origin": "background_review", "approved_via": "hitl"},
+                    )
+            elif row.action == PendingWriteAction.REMOVE:
+                # Removal is recorded as a resolved row; there is no destructive
+                # delete path in v1 (negative constraints are immortal per doc §C).
+                # The supersede/mark path is left to the store-reconciliation epic.
+                result_id = "removed"
+            else:
+                logger.warning(
+                    "BackgroundReviewService.resolve_pending_write: unknown action=%s",
+                    row.action,
+                )
+                return None
+
+            if result_id is None:
+                return None
+
+            row.status = PendingWriteStatus.APPROVED
+            row.reviewed_at = datetime.now(UTC)
+            if resolved_by is not None:
+                row.meta = {**(row.meta or {}), "resolved_by": resolved_by}
+            await db.flush()
+            logger.info(
+                "BackgroundReviewService.resolve_pending_write approved id=%s result=%s",
+                pending_write_id,
+                result_id,
+            )
+            return result_id
+        except Exception as exc:
+            logger.warning(
+                "BackgroundReviewService.resolve_pending_write failed for id=%s: %s",
+                pending_write_id,
                 exc,
             )
             return None

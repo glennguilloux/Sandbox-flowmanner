@@ -226,14 +226,47 @@ class HITLService:
         configs: dict[str | None, WorkspaceHITLConfig] = {}
         non_null_ids = [wid for wid in workspace_ids if wid is not None]
         if non_null_ids:
-            cfg_stmt = select(WorkspaceHITLConfig).where(
-                WorkspaceHITLConfig.workspace_id.in_(non_null_ids)
-            )
+            cfg_stmt = select(WorkspaceHITLConfig).where(WorkspaceHITLConfig.workspace_id.in_(non_null_ids))
             cfg_rows = (await self.db.execute(cfg_stmt)).scalars().all()
             configs = {cfg.workspace_id: cfg for cfg in cfg_rows}
 
         results: list[dict] = []
         for item in items:
+            # GOV-1.1: memory-write approvals are a SEPARATE filter from mission
+            # action approvals. They must never resume/abort a mission, so they
+            # are auto-rejected on expiry (C4: the only path to audited
+            # expiry-as-decision) without any executor dispatch.
+            if item.interrupt_type == HumanInterruptType.MEMORY_APPROVAL.value:
+                pwid = (item.context or {}).get("pending_write_id")
+                if pwid:
+                    try:
+                        from app.services.memory.background_review_service import (
+                            BackgroundReviewService,
+                        )
+
+                        await BackgroundReviewService().resolve_pending_write(
+                            self.db, pending_write_id=pwid, approve=False
+                        )
+                    except Exception as exc:  # best-effort: never raise
+                        logger.warning(
+                            "HITL expiry: memory approval resolve failed pwid=%s: %s",
+                            pwid,
+                            exc,
+                        )
+                item.status = InboxItemStatus.REJECTED.value
+                item.resolved_at = now
+                item.resolution_note = "expired: auto-rejected memory write"
+                await self._emit_resolved_event(item, "reject")
+                results.append(
+                    {
+                        "inbox_item_id": item.id,
+                        "workspace_id": item.workspace_id,
+                        "auto_action": "reject",
+                        "dispatched": False,
+                    }
+                )
+                continue
+
             # Determine auto-action for this item's workspace
             cfg = configs.get(item.workspace_id)
             auto_action = cfg.auto_action if cfg else settings.HITL_DEFAULT_AUTO_ACTION
@@ -260,7 +293,8 @@ class HITLService:
                 result_entry["dispatched"] = True
                 logger.info(
                     "HITL expiry: item=%s workspace=%s action=reject (mission will fail)",
-                    item.id, item.workspace_id,
+                    item.id,
+                    item.workspace_id,
                 )
 
             elif auto_action == "approve":
@@ -270,7 +304,8 @@ class HITLService:
                 result_entry["dispatched"] = True
                 logger.warning(
                     "HITL expiry: item=%s workspace=%s action=approve (mission continues)",
-                    item.id, item.workspace_id,
+                    item.id,
+                    item.workspace_id,
                 )
 
             else:  # "stay"
@@ -278,7 +313,8 @@ class HITLService:
                 logger.warning(
                     "HITL expiry ALERT: item=%s workspace=%s action=stay — mission remains paused indefinitely. "
                     "Workspace owner should review stale HITL items.",
-                    item.id, item.workspace_id,
+                    item.id,
+                    item.workspace_id,
                 )
 
             results.append(result_entry)
@@ -302,17 +338,19 @@ class HITLService:
                 await event_log.append(
                     self.db,
                     item.run_id,
-                    [{
-                        "type": SubstrateEventType.HUMAN_INTERRUPT_RESOLVED,
-                        "payload": {
-                            "inbox_item_id": item.id,
-                            "resolution": "expired",
-                            "auto_action": auto_action,
+                    [
+                        {
+                            "type": SubstrateEventType.HUMAN_INTERRUPT_RESOLVED,
+                            "payload": {
+                                "inbox_item_id": item.id,
+                                "resolution": "expired",
+                                "auto_action": auto_action,
+                                "mission_id": item.mission_id,
+                            },
+                            "actor": "hitl_expiry_worker",
                             "mission_id": item.mission_id,
-                        },
-                        "actor": "hitl_expiry_worker",
-                        "mission_id": item.mission_id,
-                    }],
+                        }
+                    ],
                 )
         except Exception as e:
             logger.debug("Failed to emit HUMAN_INTERRUPT_RESOLVED event: %s", e)
@@ -329,14 +367,13 @@ class HITLService:
         # Check if the mission is already in a terminal state
         from app.models.mission_models import Mission
 
-        result = await self.db.execute(
-            select(Mission).where(Mission.id == item.mission_id)
-        )
+        result = await self.db.execute(select(Mission).where(Mission.id == item.mission_id))
         mission = result.scalar_one_or_none()
         if mission is None:
             logger.warning(
                 "HITL expiry: mission=%s not found for item=%s, skipping resume",
-                item.mission_id, item.id,
+                item.mission_id,
+                item.id,
             )
             return
 
@@ -344,7 +381,9 @@ class HITLService:
         if current_status in ("completed", "failed", "aborted", "cancelled"):
             logger.info(
                 "HITL expiry: mission=%s is already %s, skipping resume for item=%s",
-                item.mission_id, current_status, item.id,
+                item.mission_id,
+                current_status,
+                item.id,
             )
             return
 
@@ -430,7 +469,9 @@ class HITLService:
         await self.db.flush()
         logger.info(
             "bulk_resolve: resolved=%d skipped=%d failed=%d",
-            len(resolved), len(skipped), len(failed),
+            len(resolved),
+            len(skipped),
+            len(failed),
         )
         return {"resolved": resolved, "skipped": skipped, "failed": failed}
 
@@ -453,11 +494,7 @@ class HITLService:
         if workspace_id:
             conditions.append(InboxItem.workspace_id == workspace_id)
 
-        stmt = (
-            select(InboxItem)
-            .where(and_(*conditions))
-            .order_by(InboxItem.created_at.desc())
-        )
+        stmt = select(InboxItem).where(and_(*conditions)).order_by(InboxItem.created_at.desc())
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 

@@ -31,6 +31,10 @@ class HumanInterruptType(str, Enum):
     APPROVAL = "approval"
     CLARIFICATION = "clarification"
     ESCALATION = "escalation"
+    # GOV-1.1: memory write approvals are drained into the inbox as a
+    # SEPARATE filter from mission action approvals (no SLA contention)
+    # and must never pause/abort a mission.
+    MEMORY_APPROVAL = "memory_approval"
 
 
 class InboxItemStatus(str, Enum):
@@ -70,10 +74,12 @@ class InboxItem(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    mission_id: Mapped[str] = mapped_column(
+    # GOV-1.1: memory write approvals (MEMORY_APPROVAL) are not bound to a
+    # mission, so mission_id is nullable. Action approvals still require one.
+    mission_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("missions.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     run_id: Mapped[str | None] = mapped_column(
