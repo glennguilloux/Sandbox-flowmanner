@@ -24,6 +24,7 @@ Cases:
 
 from __future__ import annotations
 
+import contextlib
 import os
 import uuid
 from typing import Any
@@ -164,60 +165,68 @@ async def ctx():
         try:
             yield ctx_dict
         finally:
-            # Cleanup: delete the workspace (cascades to members + programs +
-            # runs) then the owner. Use a fresh session so we're not affected
-            # by any in-flight transaction state in `session`.
+            # The yielded session may still be bound to an open transaction
+            # holding row locks on mission_programs / program_runs. Opening a
+            # SECOND session to clean up would block behind those locks (the
+            # DELETE waits on the first session's transactionid) and the async
+            # teardown would await forever — see the 2026-07-09 full-suite stall
+            # in test_consolidate_learning.py.
+            #
+            # Fix: roll the held session back (releasing its locks) and then
+            # reuse THAT SAME session for cleanup. No second connection, no
+            # cross-session lock contention.
+            with contextlib.suppress(Exception):
+                await session.rollback()
             try:
-                async with TestSessionLocal() as cleanup:
-                    # substrate_events is append-only (BEFORE DELETE/UPDATE
-                    # trigger), so the FK SET NULL cascade from missions is
-                    # blocked. Disable the trigger for the duration of the
-                    # cleanup, re-enable after. Order matters: children first.
-                    await cleanup.execute(
-                        text("ALTER TABLE substrate_events DISABLE TRIGGER trg_substrate_events_append_only")
-                    )
-                    await cleanup.execute(
-                        text(
-                            "DELETE FROM program_runs WHERE program_id IN "
-                            "(SELECT id FROM mission_programs WHERE user_id = :uid)"
-                        ),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM mission_programs WHERE user_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM missions WHERE user_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM workspace_members WHERE user_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM workspaces WHERE owner_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM users WHERE id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
-                    )
-                    await cleanup.commit()
+                # substrate_events is append-only (BEFORE DELETE/UPDATE
+                # trigger), so the FK SET NULL cascade from missions is
+                # blocked. Disable the trigger for the duration of the
+                # cleanup, re-enable after. Order matters: children first.
+                await session.execute(
+                    text("ALTER TABLE substrate_events DISABLE TRIGGER trg_substrate_events_append_only")
+                )
+                await session.execute(
+                    text(
+                        "DELETE FROM program_runs WHERE program_id IN "
+                        "(SELECT id FROM mission_programs WHERE user_id = :uid)"
+                    ),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM mission_programs WHERE user_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM missions WHERE user_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM workspace_members WHERE user_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM workspaces WHERE owner_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM users WHERE id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
+                )
+                await session.commit()
             except Exception:
                 # Best-effort cleanup; don't mask the real test error.
                 # Re-enable the trigger on failure (best effort).
-                try:
-                    async with TestSessionLocal() as s2:
-                        await s2.execute(
-                            text("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
-                        )
-                        await s2.commit()
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    await session.execute(
+                        text("ALTER TABLE substrate_events ENABLE TRIGGER trg_substrate_events_append_only")
+                    )
+                    await session.commit()
+            finally:
+                with contextlib.suppress(Exception):
+                    await session.close()
 
 
 # ── (a) create returns active + learning_brief=None ──────────────────────
