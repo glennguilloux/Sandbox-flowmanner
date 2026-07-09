@@ -1688,6 +1688,36 @@ async def _maybe_extract_memory_claims(
                 and c.scope not in _EXCLUDED_SCOPES
             ]
 
+            # GOV-1.5 (C5): persist *why* claims were dropped. The
+            # defensive filter previously dropped claims silently, so the
+            # 0.85 confidence gate could never be calibrated from real
+            # data. Log every defensively-dropped claim with its score
+            # and reason so a later pass can quantify the drop rate.
+            dropped_defensive = len(claims) - len(safe_claims)
+            if dropped_defensive:
+                _dropped_below: list[float] = []
+                for c in claims:
+                    if c not in safe_claims:
+                        _dropped_below.append(float(getattr(c, "confidence", 0.0)))
+                        logger.info(
+                            "memory_extraction: dropped (defensive filter) "
+                            "thread=%s claim_type=%s scope=%s confidence=%.2f "
+                            "subject=%s predicate=%s",
+                            thread_id,
+                            getattr(c, "claim_type", "?"),
+                            getattr(c, "scope", "?"),
+                            float(getattr(c, "confidence", 0.0)),
+                            getattr(c, "subject", "?"),
+                            getattr(c, "predicate", "?"),
+                        )
+                logger.info(
+                    "memory_extraction: defensive filter dropped %d/%d claims for thread %s (scores=%s)",
+                    dropped_defensive,
+                    len(claims),
+                    thread_id,
+                    _dropped_below,
+                )
+
             if not safe_claims:
                 logger.info(
                     "memory_extraction: all %d claims filtered for thread %s",
@@ -1713,6 +1743,11 @@ async def _maybe_extract_memory_claims(
             ).scalar_one_or_none()
             needs_approval = compute_write_approval(ws_row)
 
+            from app.services.memory.extraction_thresholds import (
+                MEMORY_EXTRACTION_MIN_CONFIDENCE,
+                is_trusted_direct_write,
+                passes_confidence_gate,
+            )
             from app.services.memory.provenance_approval import (
                 requires_provenance_approval,
             )
@@ -1751,6 +1786,41 @@ async def _maybe_extract_memory_claims(
                     else:
                         # Direct write — only reachable for a user_explicit
                         # source_type (see requires_provenance_approval).
+                        # GOV-1.5 (calibration): even trusted direct writes
+                        # are held for approval when their extractor
+                        # confidence is below the calibrated floor. This
+                        # gate applies ONLY to the trusted path — untrusted
+                        # source_types never reach this branch, so the
+                        # confidence gate can never de-escalate a
+                        # provenance-mandated approval (GOV-1.2 invariant).
+                        if is_trusted_direct_write(claim_source_type) and not passes_confidence_gate(claim.confidence):
+                            logger.info(
+                                "memory_extraction: trusted claim held for "
+                                "approval below confidence gate (%.2f < %.2f) "
+                                "thread=%s subject=%s predicate=%s",
+                                claim.confidence,
+                                MEMORY_EXTRACTION_MIN_CONFIDENCE,
+                                thread_id,
+                                claim.subject,
+                                claim.predicate,
+                            )
+                            content_str = f"{claim.subject} {claim.predicate}: {json.dumps(claim.object, default=str)}"
+                            pw_id = await review_service.stage_pending_write(
+                                fresh_db,
+                                workspace_id=workspace_id,
+                                user_id=user_id,
+                                mission_id=None,
+                                action="add",
+                                content=content_str,
+                                metadata={
+                                    "source_type": claim_source_type,
+                                    "held_reason": "confidence_below_gate",
+                                    "confidence": claim.confidence,
+                                },
+                            )
+                            if pw_id:
+                                staged += 1
+                            continue
                         await pm_service.create(
                             user_id=user_id,
                             workspace_id=workspace_id,
@@ -1779,6 +1849,7 @@ async def _maybe_extract_memory_claims(
                 claims_extracted=len(claims),
                 claims_persisted=persisted,
                 claims_staged=staged,
+                claims_dropped=dropped_defensive,
             )
 
             logger.info(

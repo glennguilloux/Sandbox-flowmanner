@@ -204,21 +204,31 @@ def record_memory_extraction(
     claims_extracted: int = 0,
     claims_persisted: int = 0,
     claims_staged: int = 0,
+    claims_dropped: int = 0,
 ) -> None:
     """Record a memory extraction attempt.
 
     ``source`` is one of: ``llm``, ``regex``, ``regex_fallback_empty``,
     ``regex_fallback_timeout``, ``regex_fallback_error``, ``empty``.
+
+    ``claims_dropped`` is the count of candidates removed by the
+    defensive / confidence filters BEFORE the persist-or-stage decision
+    (GOV-1.5 — calibration telemetry). It is tracked separately from
+    ``filtered`` (which captures per-claim create/stage *failures* on the
+    remaining candidates) so the drop rate can be measured against the
+    raw extraction volume.
     """
     memory_extraction_total.labels(source=source).inc()
     if claims_persisted > 0:
         memory_extraction_claims_total.labels(source=source, disposition="persisted").inc(claims_persisted)
     if claims_staged > 0:
         memory_extraction_claims_total.labels(source=source, disposition="staged").inc(claims_staged)
-    # Everything that was extracted but not persisted or staged is
-    # counted as "filtered" — this includes defensive-filter drops
-    # AND individual create/stage failures.
-    claims_lost = claims_extracted - claims_persisted - claims_staged
+    if claims_dropped > 0:
+        memory_extraction_claims_total.labels(source=source, disposition="dropped").inc(claims_dropped)
+    # Everything that reached the persist/stage step but was neither
+    # persisted nor staged is counted as "filtered" — i.e. individual
+    # create/stage failures on the surviving candidates.
+    claims_lost = claims_extracted - claims_dropped - claims_persisted - claims_staged
     if claims_lost > 0:
         memory_extraction_claims_total.labels(source=source, disposition="filtered").inc(claims_lost)
 

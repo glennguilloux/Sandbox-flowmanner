@@ -35,10 +35,12 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,17 @@ class CandidateClaim:
         rationale: Optional one-sentence explanation of why the
                    extractor produced this claim. Helpful for the
                    Memory Inspector UI and audit log.
+        source_type: Provenance of the claim. Defaults to
+                     ``"conversation"`` (inferred by the chat extractor).
+                     ``"user_explicit"`` marks claims the user authored
+                     directly (e.g. an explicit "remember this" command)
+                     and is the only source trusted enough to bypass the
+                     human-approval gate (GOV-1.2). Externally-derived
+                     sources (``mission`` / ``program_learning``) are
+                     routed to approval regardless of confidence.
+                     Carried through to ``_maybe_extract_memory_claims``
+                     so the GOV-1.5 confidence gate can scope itself to
+                     the trusted direct-write path.
     """
 
     subject: str
@@ -94,12 +107,13 @@ class CandidateClaim:
     scope: str
     confidence: float
     rationale: str | None = None
+    source_type: str = "conversation"
 
     def __post_init__(self) -> None:
         if self.claim_type not in _VALID_CLAIM_TYPES:
-            raise ValueError(f"invalid claim_type={self.claim_type!r}; " f"must be one of {sorted(_VALID_CLAIM_TYPES)}")
+            raise ValueError(f"invalid claim_type={self.claim_type!r}; must be one of {sorted(_VALID_CLAIM_TYPES)}")
         if self.scope not in _VALID_SCOPES:
-            raise ValueError(f"invalid scope={self.scope!r}; " f"must be one of {sorted(_VALID_SCOPES)}")
+            raise ValueError(f"invalid scope={self.scope!r}; must be one of {sorted(_VALID_SCOPES)}")
         if not (0.0 <= self.confidence <= 1.0):
             raise ValueError(f"confidence must be in [0.0, 1.0]; got {self.confidence!r}")
         if not isinstance(self.object, dict):
@@ -431,7 +445,7 @@ class PersonalMemoryExtractor:
         """
         router = self._get_model_router()
         if router is None:
-            logger.debug("personal_memory.extract: no model_router available; " "returning []")
+            logger.debug("personal_memory.extract: no model_router available; returning []")
             return []
 
         messages = self._build_messages(text=text, context=context, max_claims=max_claims)
@@ -445,7 +459,7 @@ class PersonalMemoryExtractor:
             )
         except Exception as exc:
             logger.warning(
-                "personal_memory.extract: LLM call failed user_id=%s " "workspace_id=%s error=%s",
+                "personal_memory.extract: LLM call failed user_id=%s workspace_id=%s error=%s",
                 user_id,
                 workspace_id,
                 exc,
@@ -549,7 +563,7 @@ class PersonalMemoryExtractor:
                 f"Extract up to {max_claims} personal-memory claims from "
                 f"the following text:\n\n{text}"
             )
-        return f"Extract up to {max_claims} personal-memory claims from the " f"following text:\n\n{text}"
+        return f"Extract up to {max_claims} personal-memory claims from the following text:\n\n{text}"
 
     def _build_messages(self, *, text: str, context: str | None, max_claims: int) -> list[dict[str, Any]]:
         return [
@@ -621,7 +635,7 @@ class PersonalMemoryExtractor:
                 claims.append(self._item_to_claim(item))
             except (ValueError, TypeError) as exc:
                 logger.debug(
-                    "personal_memory.extract: skipping invalid LLM item " "error=%s item=%s",
+                    "personal_memory.extract: skipping invalid LLM item error=%s item=%s",
                     exc,
                     item,
                 )
