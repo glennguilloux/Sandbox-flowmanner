@@ -182,6 +182,64 @@ def compute_write_approval(workspace: Any) -> bool:
     return age > timedelta(days=30)
 
 
+class _NoOpMemoryAudit:
+    """Default audit sink for BackgroundReviewService.
+
+    Records nothing. The service stays fully functional without an audit
+    adapter (best-effort semantics). A real adapter is injected when we
+    want the memory-domain audit trail (memory_correction_events) to capture
+    approval decisions (GOV-1.4 C3).
+    """
+
+    def review(self, **kwargs: Any) -> None:
+        return None
+
+
+class _MemoryCorrectionReviewAudit:
+    """In-session audit sink that records a ``review`` MemoryCorrectionEvent.
+
+    Unlike ``PersonalMemoryService._MemoryCorrectionAudit`` (which uses a
+    fire-and-forget ``BackgroundTaskManager``), this writes the audit row
+    IN THE SAME SESSION/TRANSACTION as the approval decision. That is
+    deliberate: GOV-1.4 C3 requires expiry-as-decision to persist atomically
+    with the decision, and the memory-drain callers (hitl.py,
+    hitl_expiry.py) own their transaction and commit it. A fire-and-forget
+    task would race the caller's commit and could lose the row.
+
+    No-fail: any error is logged and swallowed so an audit-sink outage can
+    never crash the approval path.
+
+    ``review`` event_type is added by the GOV-1.4 migration
+    (20260709_gov14_memory_review_audit_event).
+    """
+
+    async def review(self, *, db: Any, user_id: int, workspace_id: str, **details: Any) -> None:
+        try:
+            from app.services.memory_correction_service import (
+                ALL_EVENT_TYPES,
+                MemoryCorrectionService,
+            )
+
+            if "review" not in ALL_EVENT_TYPES:  # defensive: migration not applied
+                logger.warning("memory_review_audit: 'review' event_type unavailable")
+                return
+            svc = MemoryCorrectionService(db)
+            # claim_id is intentionally omitted for memory-drain decisions:
+            # a PendingWrite is not a PersonalMemoryClaim. The decision is
+            # anchored to the pending_write_id via details so it stays
+            # auditable without a misleading FK to personal_memory_claims.
+            await svc.record_event(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                event_type="review",
+                actor="system" if details.get("decided_by") == "hitl_expiry" else "user",
+                source="memory_drain",
+                details={k: v for k, v in details.items() if k != "decided_by"},
+            )
+        except Exception as exc:  # pragma: no cover - no-fail sink
+            logger.warning("memory_review_audit: write failed: %s", exc)
+
+
 class BackgroundReviewService:
     """Apply the reviewer's proposed writes to durable storage.
 
@@ -189,6 +247,10 @@ class BackgroundReviewService:
     they need (so the Celery worker can manage its own short-lived
     session lifecycle) and never raise on runtime failure.
     """
+
+    # GOV-1.4 (C3): optional in-session audit sink for approval decisions.
+    # Defaults to no-op so the service is self-sufficient without wiring.
+    audit: Any = _NoOpMemoryAudit()
 
     # ── Write operations (the 3 missing methods from the plan) ─────────
 
@@ -403,6 +465,7 @@ class BackgroundReviewService:
         pending_write_id: str,
         approve: bool,
         resolved_by: int | None = None,
+        decided_by: str = "user",
     ) -> str | None:
         """Apply or reject a staged memory write from the HITL inbox (GOV-1.1).
 
@@ -414,6 +477,16 @@ class BackgroundReviewService:
         missing row. The caller (inbox API / expiry sweeper) is responsible
         for also resolving the linked InboxItem.
         """
+        # GOV-1.4 (C3): record the approval decision in the memory-domain
+        # audit trail. In-session: the audit row commits with the caller's
+        # transaction (the inbox API / hitl_expiry owns the commit).
+        await self._audit_review_decision(
+            db,
+            pending_write_id=pending_write_id,
+            approve=approve,
+            resolved_by=resolved_by,
+            decided_by=decided_by,
+        )
         try:
             from sqlalchemy import select
 
@@ -516,6 +589,57 @@ class BackgroundReviewService:
                 exc,
             )
             return None
+
+    async def _audit_review_decision(
+        self,
+        db: Any,
+        *,
+        pending_write_id: str,
+        approve: bool,
+        resolved_by: int | None,
+        decided_by: str,
+    ) -> None:
+        """Record a memory-write approval decision to the audit trail (GOV-1.4 C3).
+
+        Best-effort, in-session. Pulls the anchored row's workspace/user so the
+        audit row is correctly scoped; falls back to logging if the row is gone.
+        Skipped entirely when the active ``audit`` sink is the no-op default
+        (i.e. the service was not wired with ``_MemoryCorrectionReviewAudit``).
+        """
+        try:
+            from sqlalchemy import select
+
+            from app.models.memory_models import PendingWrite
+
+            if isinstance(self.audit, _NoOpMemoryAudit):
+                return
+            row = (
+                await db.execute(select(PendingWrite).where(PendingWrite.id == pending_write_id))
+            ).scalar_one_or_none()
+            if row is None:
+                logger.info(
+                    "BackgroundReviewService._audit_review_decision: pending_write=%s gone",
+                    pending_write_id,
+                )
+                return
+            await self.audit.review(
+                db=db,
+                user_id=int(row.user_id),
+                workspace_id=str(row.workspace_id),
+                pending_write_id=str(row.id),
+                action=str(row.action),
+                decision="approve" if approve else "reject",
+                decided_by=decided_by,
+                resolved_by=resolved_by,
+                origin=(row.meta or {}).get("origin", "background_review"),
+                scan=(row.meta or {}).get("poison_scan"),
+            )
+        except Exception as exc:  # no-fail: audit can never block approval
+            logger.warning(
+                "BackgroundReviewService._audit_review_decision failed id=%s: %s",
+                pending_write_id,
+                exc,
+            )
 
     async def supersede_entry(
         self,

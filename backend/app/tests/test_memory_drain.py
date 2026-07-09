@@ -258,7 +258,9 @@ async def test_expire_and_act_rejects_memory_approval_without_dispatch():
             "dispatched": False,
         }
     ]
-    brs_cls.return_value.resolve_pending_write.assert_awaited_once_with(db, pending_write_id="pw-1", approve=False)
+    brs_cls.return_value.resolve_pending_write.assert_awaited_once_with(
+        db, pending_write_id="pw-1", approve=False, decided_by="hitl_expiry"
+    )
     dispatch.assert_not_awaited()  # memory writes must never trigger mission signals
 
 
@@ -336,3 +338,183 @@ async def test_reject_item_memory_write_skips_executor_abort():
     )
     resume.assert_not_awaited()
     abort.assert_not_awaited()
+
+
+# ── 5. GOV-1.4 (C3): approval decisions persist to the audit trail ──
+
+
+def _make_audit_db(row: SimpleNamespace) -> AsyncMock:
+    """Session whose PendingWrite query returns ``row`` twice (resolve +
+    audit reload) and accepts the audit service's flush()."""
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalar_one_or_none = MagicMock(return_value=row)
+    db.execute = AsyncMock(return_value=result)
+    db.flush = AsyncMock()
+    return db
+
+
+@pytest.mark.asyncio
+async def test_resolve_approve_records_review_audit_event():
+    """C3: a human APPROVE of a memory write persists a 'review' audit row."""
+    from app.services.memory.background_review_service import (
+        _MemoryCorrectionReviewAudit,
+    )
+    from app.services.memory_correction_service import MemoryCorrectionService
+
+    row = _pending_write_row(action=PendingWriteAction.ADD, meta={"origin": "background_review"})
+    db = _make_audit_db(row)
+
+    audit = _MemoryCorrectionReviewAudit()
+    svc = BackgroundReviewService()
+    svc.audit = audit
+    svc.add_reviewed_entry = AsyncMock(return_value="entry-9")
+
+    with patch.object(MemoryCorrectionService, "record_event", new=AsyncMock()) as rec:
+        out = await svc.resolve_pending_write(db, pending_write_id="pw-1", approve=True, resolved_by=1)
+
+    assert out == "entry-9"
+    rec.assert_awaited_once()
+    kwargs = rec.call_args.kwargs
+    assert kwargs["event_type"] == "review"
+    assert kwargs["user_id"] == 1
+    assert kwargs["workspace_id"] == "ws-1"
+    assert kwargs["details"]["decision"] == "approve"
+    assert kwargs["details"]["pending_write_id"] == "pw-1"
+    assert kwargs["actor"] == "user"
+    assert kwargs["details"]["resolved_by"] == 1
+    # actions writes carry no misleading claim FK
+    assert "claim_id" not in rec.call_args.args or rec.call_args.kwargs.get("claim_id") is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_reject_records_review_audit_event():
+    """C3: a human REJECT of a memory write persists a 'review' audit row."""
+    from app.services.memory.background_review_service import (
+        _MemoryCorrectionReviewAudit,
+    )
+    from app.services.memory_correction_service import MemoryCorrectionService
+
+    row = _pending_write_row(action=PendingWriteAction.ADD)
+    db = _make_audit_db(row)
+
+    audit = _MemoryCorrectionReviewAudit()
+    svc = BackgroundReviewService()
+    svc.audit = audit
+    svc.add_reviewed_entry = AsyncMock(return_value="entry-9")
+
+    with patch.object(MemoryCorrectionService, "record_event", new=AsyncMock()) as rec:
+        out = await svc.resolve_pending_write(db, pending_write_id="pw-1", approve=False)
+
+    assert out == "rejected"
+    rec.assert_awaited_once()
+    assert rec.call_args.kwargs["event_type"] == "review"
+    assert rec.call_args.kwargs["details"]["decision"] == "reject"
+
+
+@pytest.mark.asyncio
+async def test_default_noop_audit_records_nothing():
+    """Backwards-compat: unwired service issues no audit query / no event."""
+    row = _pending_write_row(action=PendingWriteAction.ADD)
+    db = _make_resolve_db(row)
+    svc = BackgroundReviewService()  # default _NoOpMemoryAudit
+    svc.add_reviewed_entry = AsyncMock(return_value="entry-9")
+
+    # Only one execute (the resolve query); audit must not reload the row.
+    out = await svc.resolve_pending_write(db, pending_write_id="pw-1", approve=True)
+    assert out == "entry-9"
+    assert db.execute.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_expire_memory_approval_records_review_audit_event():
+    """C3 + C4: expiry auto-rejects AND persists a 'review' audit row
+    (decided_by=hitl_expiry), without executor dispatch."""
+    from app.services.hitl_service import HITLService
+    from app.services.memory.background_review_service import (
+        BackgroundReviewService,
+        _MemoryCorrectionReviewAudit,
+    )
+    from app.services.memory_correction_service import MemoryCorrectionService
+
+    memory_item = SimpleNamespace(
+        id="ii-mem",
+        workspace_id=None,
+        interrupt_type=HumanInterruptType.MEMORY_APPROVAL.value,
+        context={"pending_write_id": "pw-1"},
+        status=PendingWriteStatus.PENDING,
+        resolved_at=None,
+        resolution_note=None,
+    )
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [memory_item]
+    db.execute = AsyncMock(return_value=result)
+    db.flush = AsyncMock()
+
+    with (
+        patch.object(HITLService, "_emit_resolved_event", new=AsyncMock()),
+        patch.object(HITLService, "_dispatch_resume", new=AsyncMock()) as dispatch,
+        patch.object(MemoryCorrectionService, "record_event", new=AsyncMock()) as rec,
+        patch("app.services.memory.background_review_service.BackgroundReviewService") as brs_cls,
+    ):
+        # Wire the audit sink onto the resolve path used by the sweeper.
+        real_svc = BackgroundReviewService()
+        real_svc.audit = _MemoryCorrectionReviewAudit()
+        brs_cls.return_value.resolve_pending_write = real_svc.resolve_pending_write
+        service = HITLService(db)
+        results = await service.expire_and_act()
+
+    assert results == [
+        {
+            "inbox_item_id": "ii-mem",
+            "workspace_id": None,
+            "auto_action": "reject",
+            "dispatched": False,
+        }
+    ]
+    dispatch.assert_not_awaited()  # C4: never resume/abort a mission
+    rec.assert_awaited_once()  # C3: expiry-as-decision is audited
+    assert rec.call_args.kwargs["event_type"] == "review"
+    assert rec.call_args.kwargs["details"]["decision"] == "reject"
+    assert rec.call_args.kwargs["actor"] == "system"
+
+
+@pytest.mark.asyncio
+async def test_memory_approval_never_auto_approves():
+    """Standing Decision 1: a MEMORY_APPROVAL item must expire to REJECT
+    regardless of any workspace HITL auto-action=approve config. It never
+    becomes an auto-approved memory write."""
+    from app.services.hitl_service import HITLService
+
+    memory_item = SimpleNamespace(
+        id="ii-mem",
+        workspace_id="ws-approve-by-default",
+        interrupt_type=HumanInterruptType.MEMORY_APPROVAL.value,
+        context={"pending_write_id": "pw-1"},
+        status=PendingWriteStatus.PENDING,
+        resolved_at=None,
+        resolution_note=None,
+    )
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [memory_item]
+    db.execute = AsyncMock(return_value=result)
+    db.flush = AsyncMock()
+
+    with (
+        patch.object(HITLService, "_emit_resolved_event", new=AsyncMock()),
+        patch.object(HITLService, "_dispatch_resume", new=AsyncMock()) as dispatch,
+        patch("app.services.memory.background_review_service.BackgroundReviewService") as brs_cls,
+    ):
+        brs_cls.return_value.resolve_pending_write = AsyncMock(return_value="rejected")
+        service = HITLService(db)
+        results = await service.expire_and_act()
+
+    # Even though the workspace config could say "approve", memory writes
+    # are hardcoded to reject on expiry (the only path to audited
+    # expiry-as-decision, per C4 / Standing Decision 1).
+    assert results[0]["auto_action"] == "reject"
+    brs_cls.return_value.resolve_pending_write.assert_awaited_once_with(
+        db, pending_write_id="pw-1", approve=False, decided_by="hitl_expiry"
+    )

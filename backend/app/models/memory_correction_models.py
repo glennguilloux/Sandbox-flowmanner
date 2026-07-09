@@ -6,6 +6,12 @@ is the durable record required by the release gate "no privacy incidents"
 — every interaction with a user's personal memory must be auditable so
 we can answer "who saw this claim, when, from where, and why?".
 
+GOV-1.4 added the "review" event_type: a memory-write approval decision
+(human approve/reject, or the audited HITL expiry auto-reject) taken on a
+PendingWrite drained through the memory inbox. It exists so expiry-as-
+decision is recorded in this trail even when no mission run_id is present
+(the inbox MEMORY_APPROVAL items carry run_id=None).
+
 Design notes (see plan §D30-60 / release gate):
 - ``workspace_id`` is NOT NULL on every row (workspace isolation guardrail,
   project-wide rule). ON DELETE CASCADE: deleting a workspace drops its
@@ -46,7 +52,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base, TimestampMixin
 
-
 # ── Value-set tuples for CHECK constraints ────────────────────────────────
 
 # Hardcoded tuples — do NOT derive from enum iteration.
@@ -60,6 +65,12 @@ ALL_EVENT_TYPES: tuple[str, ...] = (
     "export",
     "pause",
     "resume",
+    # GOV-1.4: a human (or the audited HITL expiry) made a memory-write
+    # approval decision (approve/reject) on a PendingWrite drained via the
+    # memory inbox. Captured as its own event_type so the memory-domain
+    # audit trail (memory_correction_events) records expiry-as-decision
+    # even when no mission run_id exists.
+    "review",
 )
 ALL_ACTORS: tuple[str, ...] = (
     "user",

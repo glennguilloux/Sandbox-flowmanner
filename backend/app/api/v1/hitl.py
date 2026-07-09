@@ -261,9 +261,16 @@ async def _maybe_resolve_memory_write(
         try:
             from app.services.memory.background_review_service import (
                 BackgroundReviewService,
+                _MemoryCorrectionReviewAudit,
             )
 
-            await BackgroundReviewService().resolve_pending_write(
+            # GOV-1.4 (C3): human approve/reject of a memory write must be
+            # recorded in the memory-domain audit trail, not just the inbox
+            # row flip. Inject the in-session audit sink so the decision
+            # persists in the caller's transaction.
+            svc = BackgroundReviewService()
+            svc.audit = _MemoryCorrectionReviewAudit()
+            await svc.resolve_pending_write(
                 db,
                 pending_write_id=pwid,
                 approve=approve,

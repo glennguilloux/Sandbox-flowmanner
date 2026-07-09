@@ -242,10 +242,20 @@ class HITLService:
                     try:
                         from app.services.memory.background_review_service import (
                             BackgroundReviewService,
+                            _MemoryCorrectionReviewAudit,
                         )
 
-                        await BackgroundReviewService().resolve_pending_write(
-                            self.db, pending_write_id=pwid, approve=False
+                        # GOV-1.4 (C3): the audited expiry must persist a
+                        # decision to the memory-domain trail
+                        # (memory_correction_events). Inject the in-session
+                        # audit sink so resolve_pending_write records it.
+                        svc = BackgroundReviewService()
+                        svc.audit = _MemoryCorrectionReviewAudit()
+                        await svc.resolve_pending_write(
+                            self.db,
+                            pending_write_id=pwid,
+                            approve=False,
+                            decided_by="hitl_expiry",
                         )
                     except Exception as exc:  # best-effort: never raise
                         logger.warning(
