@@ -77,6 +77,9 @@ from app.models.binding_models import (
     CapabilityDependency,
 )
 
+# Blog + case-study models (T1 — DB-backed blog)
+from app.models.blog_models import BlogPost, BlogTag
+
 # Blueprint + Run unified models (Phase 10.1)
 from app.models.blueprint_models import (
     Blueprint,

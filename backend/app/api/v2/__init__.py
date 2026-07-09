@@ -114,4 +114,11 @@ from app.api.v2.contact import router as contact_router
 
 api_v2_router.include_router(contact_router)
 
+# T1 — Blog + Roadmap v2 read-only routers
+from app.api.v2.blog import router as blog_router
+from app.api.v2.roadmap import router as roadmap_router
+
+api_v2_router.include_router(blog_router)
+api_v2_router.include_router(roadmap_router)
+
 logger.info("API v2 router initialized — %d sub-routers", len(api_v2_router.routes))
