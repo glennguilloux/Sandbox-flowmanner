@@ -294,6 +294,52 @@ async def test_recall_emits_view_audit_event():
 
 
 @pytest.mark.asyncio(loop_scope="module")
+async def test_recall_writes_last_used_at():
+    """Epic 3.1: ``recall`` must bump ``last_used_at`` on every returned claim.
+
+    The column exists (personal_memory_models.py:166) and recall() sets it
+    for each returned row, then flushes (personal_memory_service.py:684-690).
+    This test proves the bump is actually persisted — not just mutating the
+    in-memory object.
+    """
+    from sqlalchemy import select
+
+    from app.database import fresh_session
+    from app.models.personal_memory_models import PersonalMemoryClaim
+
+    uid = _uid()
+    ws = _wsid()
+    async with fresh_session() as db:
+        _seed(db, uid, ws)
+        await db.commit()
+        svc, manager = _make_service(db)
+        claim = await svc.create(
+            user_id=uid,
+            workspace_id=ws,
+            subject="prefers",
+            predicate="likes",
+            object={"value": "coffee"},
+            claim_type="preference",
+            scope="personal",
+            source_type="conversation",
+        )
+        await db.commit()
+
+        # Before recall, the column is unset.
+        assert claim.last_used_at is None
+
+        items, _ = await svc.recall(user_id=uid, workspace_id=ws, query="prefers")
+        await db.commit()
+        assert len(items) >= 1
+
+        # Re-read the persisted row to prove the flush+commit landed.
+        reread = (await db.execute(select(PersonalMemoryClaim).where(PersonalMemoryClaim.id == claim.id))).scalar_one()
+        assert reread.last_used_at is not None
+
+    await manager.drain(timeout=5.0)
+
+
+@pytest.mark.asyncio(loop_scope="module")
 async def test_recall_with_no_match_emits_no_view_event():
     """A ``recall`` that returns nothing must NOT audit a view."""
     from app.database import fresh_session
