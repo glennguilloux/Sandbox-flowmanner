@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 149,
+  "model_count": 152,
   "tables": [
     {
       "columns": {
@@ -412,6 +412,68 @@
         "ix_webhook_sub_workspace"
       ],
       "name": "auth_webhook_subscriptions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "post_id": "UUID",
+        "tag_id": "UUID"
+      },
+      "foreign_keys": [
+        [
+          "post_id",
+          "blog_posts.id"
+        ],
+        [
+          "tag_id",
+          "blog_tags.id"
+        ]
+      ],
+      "indexes": [],
+      "name": "blog_post_tags",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "author_name": "VARCHAR(255)",
+        "category": "VARCHAR(32)",
+        "challenge": "TEXT",
+        "client_name": "VARCHAR(255)",
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "excerpt": "TEXT",
+        "featured_image_url": "TEXT",
+        "id": "UUID",
+        "industry": "VARCHAR(255)",
+        "is_featured": "BOOLEAN",
+        "metrics": "TEXT",
+        "published_at": "DATETIME",
+        "results": "TEXT",
+        "slug": "VARCHAR(255)",
+        "solution": "TEXT",
+        "title": "VARCHAR(512)",
+        "updated_at": "DATETIME",
+        "view_count": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_blog_posts_slug"
+      ],
+      "name": "blog_posts",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "name": "VARCHAR(128)",
+        "slug": "VARCHAR(128)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_blog_tags_slug"
+      ],
+      "name": "blog_tags",
       "unique_constraints": []
     },
     {
@@ -1618,6 +1680,7 @@
         "completion_tokens": "INTEGER",
         "cost_category": "VARCHAR(30)",
         "cost_usd": "FLOAT",
+        "degraded": "BOOLEAN",
         "embedding_tokens": "INTEGER",
         "error_message": "TEXT",
         "id": "UUID",
@@ -1626,6 +1689,8 @@
         "model_id": "VARCHAR(100)",
         "prompt_tokens": "INTEGER",
         "provider": "VARCHAR(50)",
+        "requested_model": "VARCHAR(100)",
+        "substituted_from": "TEXT",
         "success": "BOOLEAN",
         "task_id": "UUID",
         "timestamp": "DATETIME",
@@ -1636,8 +1701,10 @@
       "indexes": [
         "ix_llm_call_records_agent_id",
         "ix_llm_call_records_cost_category",
+        "ix_llm_call_records_degraded",
         "ix_llm_call_records_mission_id",
         "ix_llm_call_records_model_id",
+        "ix_llm_call_records_requested_model",
         "ix_llm_call_records_success",
         "ix_llm_call_records_timestamp",
         "ix_llm_call_records_workspace_id"
@@ -3023,6 +3090,7 @@
         "blueprint_id": "UUID",
         "causal_parent": "BIGINT",
         "id": "UUID",
+        "idempotency_key": "VARCHAR(256)",
         "mission_id": "UUID",
         "payload": "JSONB",
         "run_id": "UUID",
@@ -3034,6 +3102,7 @@
       "foreign_keys": [],
       "indexes": [
         "ix_substrate_events_blueprint_id",
+        "ix_substrate_events_idempotency_key",
         "ix_substrate_events_mission_id",
         "ix_substrate_events_run_id",
         "ix_substrate_events_sequence",
