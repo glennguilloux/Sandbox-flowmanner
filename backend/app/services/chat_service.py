@@ -1713,13 +1713,28 @@ async def _maybe_extract_memory_claims(
             ).scalar_one_or_none()
             needs_approval = compute_write_approval(ws_row)
 
+            from app.services.memory.provenance_approval import (
+                requires_provenance_approval,
+            )
+
             pm_service = PersonalMemoryService(fresh_db)
             review_service = BackgroundReviewService()
             persisted = 0
             staged = 0
             for claim in safe_claims:
+                # GOV-1.2 provenance gate (deterministic, no confidence
+                # bypass). The chat extractor infers every claim here with
+                # source_type="conversation" (never user_explicit), so the
+                # gate routes ALL extracted claims to human approval —
+                # unless the workspace/approval decision already forces
+                # staging. Only a literally user-authored source_type
+                # ("user_explicit") may bypass to a direct write.
+                # This is the reliable control; 1.3a scan / 1.3b scrub are
+                # NOT allowed to de-escalate it.
+                claim_source_type = getattr(claim, "source_type", None) or "conversation"
+                provenance_requires_approval = requires_provenance_approval(claim_source_type)
                 try:
-                    if needs_approval:
+                    if needs_approval or provenance_requires_approval:
                         # Stage for user approval
                         content_str = f"{claim.subject} {claim.predicate}: {json.dumps(claim.object, default=str)}"
                         pw_id = await review_service.stage_pending_write(
@@ -1729,11 +1744,13 @@ async def _maybe_extract_memory_claims(
                             mission_id=None,
                             action="add",
                             content=content_str,
+                            metadata={"source_type": claim_source_type},
                         )
                         if pw_id:
                             staged += 1
                     else:
-                        # Direct write
+                        # Direct write — only reachable for a user_explicit
+                        # source_type (see requires_provenance_approval).
                         await pm_service.create(
                             user_id=user_id,
                             workspace_id=workspace_id,
@@ -1742,7 +1759,7 @@ async def _maybe_extract_memory_claims(
                             object=claim.object,
                             claim_type=claim.claim_type,
                             scope=claim.scope,
-                            source_type="conversation",
+                            source_type=claim_source_type,
                             confidence=claim.confidence,
                         )
                         persisted += 1
