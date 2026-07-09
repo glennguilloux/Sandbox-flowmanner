@@ -18,6 +18,13 @@ from app.services.auth_v3_service import (
     decode_access_token as v3_decode_access_token,
 )
 
+# Backward-compatible re-export. Several call sites (e.g. sandbox_preview forward-auth)
+# and their tests import ``decode_access_token`` from this module. The v3 auth refactor
+# renamed the local bindings to ``v1_``/``v3_decode_access_token`` but consumers still
+# expect the v1 semantics (returns the user_id as a string, or None). Keep this alias so
+# ``from app.api.deps import decode_access_token`` resolves at runtime.
+decode_access_token = v1_decode_access_token
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 

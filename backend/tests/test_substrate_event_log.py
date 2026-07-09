@@ -37,7 +37,10 @@ def _make_event_dict(**overrides):
 def _make_db_mock(existing_count=0, max_seq=0):
     """Create a mock AsyncSession that returns given count/max_seq from queries.
 
-    The execute() mock returns the max_seq result first, then count result.
+    Call order in EventLog.append():
+      1. get_latest_sequence()  -> max_seq (None if 0)
+      2. _count_events()        -> existing_count
+      3. _idempotency_key_exists() per event -> None (no duplicate key found)
     """
     db = AsyncMock(spec=AsyncSession)
 
@@ -45,14 +48,15 @@ def _make_db_mock(existing_count=0, max_seq=0):
 
     async def mock_execute(stmt):
         call_count[0] += 1
+        result = MagicMock()
         if call_count[0] == 1:
-            result = MagicMock()
             result.scalar.return_value = max_seq if max_seq > 0 else None
-            return result
-        else:
-            result = MagicMock()
+        elif call_count[0] == 2:
             result.scalar.return_value = existing_count
-            return result
+        else:
+            # _idempotency_key_exists: no existing key -> None (not a duplicate)
+            result.scalar.return_value = None
+        return result
 
     db.execute = AsyncMock(side_effect=mock_execute)
     db.add = MagicMock()

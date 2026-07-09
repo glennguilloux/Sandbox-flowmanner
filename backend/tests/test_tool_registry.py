@@ -201,14 +201,17 @@ class TestScopeFiltering:
 
 class TestChatToolAllowlist:
     def test_allowlist_includes_expected_tools(self):
-        """Verify the allowlist docstring mentions the Phase 1 tools."""
+        """Verify the allowlist logic references the sandboxd tool IDs and the
+        visibility gate (Phase 1 computed-allowlist via ToolMetadata.visibility)."""
         from app.services.chat_service import _get_chat_openai_tools
 
         source = __import__("inspect").getsource(_get_chat_openai_tools)
-        assert "web_search_enhanced" in source
-        assert "rag_search" in source
-        assert "memory_recall" in source
-        assert "sandboxd_ids" in source
+        # sandboxd tools are gated by feature flag + visibility metadata
+        assert "sandboxd_preview" in source
+        assert "sandboxd_exec" in source
+        assert "_SANDBOXD_IDS" in source
+        assert "visibility" in source  # computed allowlist reads ToolMetadata.visibility
+        assert "get_workspace_tool_allowlist" in source  # workspace gate
 
     @pytest.mark.asyncio
     async def test_returns_none_when_no_tools_registered(self):

@@ -35,6 +35,7 @@ def _make_thread(system_prompt: str | None = None) -> MagicMock:
     thread.id = 1
     thread.user_id = 1
     thread.username = "testuser"
+    thread.workspace_id = None  # no workspace → skip prompt_versions lookup, use metadata fallback
     if system_prompt is not None:
         thread.metadata_ = {"system_prompt": system_prompt}
     else:
@@ -67,6 +68,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         system_msg = messages[0]
@@ -91,6 +94,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = False
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         system_msg = messages[0]
@@ -114,6 +119,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         content = messages[0]["content"]
@@ -136,6 +143,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         content = messages[0]["content"]
@@ -158,6 +167,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = False
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         content = messages[0]["content"]
@@ -180,6 +191,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         content = messages[0]["content"]
@@ -202,6 +215,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages1 = await _build_chat_messages(mock_db, thread_id=1)
             messages2 = await _build_chat_messages(mock_db, thread_id=1)
 
@@ -226,6 +241,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=1)
 
         content = messages[0]["content"]
@@ -249,6 +266,8 @@ class TestSandboxdSystemPromptInjection:
             patch("app.services.chat_service.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
+            mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
+            mock_settings.CHAT_CONTEXT_TOKEN_BUDGET = 4000
             messages = await _build_chat_messages(mock_db, thread_id=999)
 
         content = messages[0]["content"]

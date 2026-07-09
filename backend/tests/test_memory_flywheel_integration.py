@@ -315,11 +315,17 @@ class TestFullFlywheel:
         # Mock the thread
         mock_thread = _mock_thread()
 
-        # Mock recall to return the existing claim
-        async def mock_recall_for_chat(db, *, user_id, workspace_id, query):
+        # Mock the per-session memory snapshot recall to return the existing claim.
+        # Production replaced recall_for_chat() with get_or_capture_snapshot()
+        # (Epic 2.2 frozen-snapshot cache). Chat_service imports it locally, so
+        # patch the source module.
+        async def mock_get_snapshot(db, *, thread_id, user_id, workspace_id, ttl_seconds=None):
             return [existing_claim]
 
-        monkeypatch.setattr(chat_service, "recall_for_chat", mock_recall_for_chat)
+        monkeypatch.setattr(
+            "app.services.memory_snapshot_service.get_or_capture_snapshot",
+            mock_get_snapshot,
+        )
 
         # Mock get_chat_thread
         async def mock_get_thread(db, thread_id):
@@ -737,15 +743,13 @@ class TestNonStreamingExtraction:
             AsyncMock(return_value=SimpleNamespace(id=101)),
         )
 
-        # Capture create_task calls
-        real_create_task = asyncio.create_task
-        tasks = []
-
-        def track_create_task(coro):
-            tasks.append(coro)
-            return real_create_task(coro)
-
-        monkeypatch.setattr("asyncio.create_task", track_create_task)
+        # Extraction is dispatched via Celery (extract_memory_claims_task.delay),
+        # not an inline asyncio task. Capture the .delay call.
+        mock_extract_task = MagicMock()
+        monkeypatch.setattr(
+            "app.tasks.memory_extraction_tasks.extract_memory_claims_task",
+            mock_extract_task,
+        )
 
         result = await chat_service.send_message_to_llm(
             db=mock_db,
@@ -757,13 +761,8 @@ class TestNonStreamingExtraction:
         assert result["success"] is True
         assert result["content"] == "Use Python!"
 
-        # Extraction task should have been created
-        assert len(tasks) == 1
-
-        # Clean up unawaited coroutines
-        for t in tasks:
-            if hasattr(t, "close"):
-                t.close()
+        # Extraction task should have been enqueued via Celery
+        assert mock_extract_task.delay.call_count == 1
 
 
 # ── Test 8: Citation label format is stable ────────────────────────────

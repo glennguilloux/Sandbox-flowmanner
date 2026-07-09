@@ -105,7 +105,7 @@ class TestInboxItemModel:
 
     def test_interrupt_type_values(self):
         """All expected interrupt type values should exist."""
-        expected = {"approval", "clarification", "escalation"}
+        expected = {"approval", "clarification", "escalation", "memory_approval"}
         actual = {t.value for t in HumanInterruptType}
         assert expected == actual
 

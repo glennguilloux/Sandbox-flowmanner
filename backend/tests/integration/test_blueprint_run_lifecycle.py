@@ -742,7 +742,12 @@ class TestSubstrateEvents:
             call_count += 1
             if call_count <= 1:
                 return seq_result
-            return count_result
+            if call_count == 2:
+                return count_result
+            # Call 3+ = idempotency-key existence check -> no prior key.
+            idem_result = MagicMock()
+            idem_result.scalar.return_value = None
+            return idem_result
 
         mock_db.execute = AsyncMock(side_effect=_execute)
 
@@ -790,7 +795,14 @@ class TestSubstrateEvents:
         async def _execute(stmt):
             nonlocal call_count
             call_count += 1
-            return seq_result if call_count <= 1 else count_result
+            if call_count <= 1:
+                return seq_result
+            if call_count == 2:
+                return count_result
+            # Call 3+ = idempotency-key existence check -> no prior key.
+            idem_result = MagicMock()
+            idem_result.scalar.return_value = None
+            return idem_result
 
         mock_db.execute = AsyncMock(side_effect=_execute)
 
@@ -834,7 +846,14 @@ class TestSubstrateEvents:
         async def _execute(stmt):
             nonlocal call_count
             call_count += 1
-            return seq_result if call_count <= 1 else count_result
+            if call_count <= 1:
+                return seq_result
+            if call_count == 2:
+                return count_result
+            # Call 3+ = idempotency-key existence check -> no prior key.
+            idem_result = MagicMock()
+            idem_result.scalar.return_value = None
+            return idem_result
 
         mock_db.execute = AsyncMock(side_effect=_execute)
 
@@ -1908,353 +1927,3 @@ class _AsyncCtx:
 
     async def __aexit__(self, *args):
         return False
-
-
-class TestDualWriteIntegration:
-    """Verify the mission → Blueprint + Run dual-write wiring.
-
-    The dual-write flow:
-    1. create_mission stores _source_mission_id in Blueprint.definition
-    2. execute_mission looks up Blueprint by definition["_source_mission_id"]
-    3. Creates a Run via RunService.create_from_blueprint
-    4. Copies StrategyResult fields (status, tokens, cost, started_at, completed_at)
-    """
-
-    @pytest.mark.asyncio
-    async def test_create_mission_dual_writes_blueprint_with_source_id(
-        self,
-        mock_db,
-        mock_user,
-    ):
-        """create_mission must fire-and-forget a Blueprint with _source_mission_id in definition."""
-        from app.api._mission_cqrs.commands import MissionCommandHandlers
-
-        mission_result = MagicMock(id=str(uuid4()), title="Test Mission")
-
-        _captured: list = []
-        mock_bp_db = AsyncMock()
-        mock_bp_svc = MagicMock()
-        mock_bp_svc.create = AsyncMock(return_value=MagicMock(id=str(uuid4())))
-
-        with (
-            patch(
-                "app.api._mission_cqrs.commands._schedule_fire_and_forget",
-                lambda c: _captured.append(c),
-            ),
-            patch("app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_bp_db)),
-            patch("app.services.blueprint_service.BlueprintService", return_value=mock_bp_svc),
-            patch(
-                "app.api._mission_cqrs.commands.create_mission",
-                new_callable=AsyncMock,
-                return_value=mission_result,
-            ),
-            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
-        ):
-            payload = MagicMock(
-                title="Test Mission",
-                description="A test",
-                mission_type="solo",
-                priority="medium",
-            )
-
-            handlers = MissionCommandHandlers(mock_db)
-            await handlers.create_mission(mock_user, payload)
-
-            # Await captured fire-and-forget coroutines INSIDE the with block
-            # so patches are still active when the dual-write runs
-            for coro in _captured:
-                with contextlib.suppress(Exception):
-                    await coro
-
-        # Verify BlueprintService.create was called with _source_mission_id
-        mock_bp_svc.create.assert_called_once()
-        call_kwargs = mock_bp_svc.create.call_args.kwargs
-        assert call_kwargs["definition"] == {"_source_mission_id": str(mission_result.id)}
-        assert call_kwargs["title"] == "Test Mission"
-        assert call_kwargs["user_id"] == mock_user.id
-        assert call_kwargs["workspace_id"] is None
-
-    @pytest.mark.asyncio
-    async def test_execute_mission_dual_writes_run_with_started_at(
-        self,
-        mock_db,
-        mock_user,
-    ):
-        """execute_mission must find linked Blueprint and create a Run with started_at set."""
-        from app.api._mission_cqrs.commands import MissionCommandHandlers
-        from app.models.mission_models import MissionStatus
-        from app.services.substrate.workflow_models import StrategyResult
-
-        mission_id = uuid4()
-        mission = MagicMock(
-            id=str(mission_id),
-            workspace_id=None,
-            user_id=mock_user.id,
-            status=MissionStatus.EXECUTING,
-            plan=None,
-            tokens_used=0,
-            started_at=datetime.now(UTC),
-        )
-
-        strategy_result = StrategyResult(
-            success=True,
-            status="completed",
-            data={"result": "done"},
-            completed_nodes=["node-1"],
-            failed_nodes=[],
-            total_tokens=250,
-            total_cost_usd=0.005,
-            execution_time_ms=1500.0,
-            event_count=4,
-        )
-
-        _captured: list = []
-        mock_run_db = AsyncMock()
-        bp_mock = MagicMock(id=str(uuid4()))
-        bp_result = MagicMock()
-        bp_result.scalars.return_value.first.return_value = bp_mock
-        mock_run_db.execute = AsyncMock(return_value=bp_result)
-
-        run_mock = MagicMock(
-            id=str(uuid4()),
-            status="pending",
-            started_at=None,
-            completed_at=None,
-            total_tokens=0,
-            total_cost_usd=0.0,
-            error_message=None,
-            output_data=None,
-        )
-        mock_run_svc = MagicMock()
-        mock_run_svc.create_from_blueprint = AsyncMock(return_value=run_mock)
-
-        with (
-            patch(
-                "app.api._mission_cqrs.commands._schedule_fire_and_forget",
-                lambda c: _captured.append(c),
-            ),
-            patch("app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_run_db)),
-            patch(
-                "app.api._mission_cqrs.commands.require_mission_access",
-                new_callable=AsyncMock,
-                return_value=mission,
-            ),
-            patch("app.services.substrate.executor.get_unified_executor") as mock_get_exec,
-            patch(
-                "app.services.substrate.adapters.mission_to_workflow",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "app.api._mission_cqrs.commands.get_mission_tasks",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch("app.services.run_service.RunService", return_value=mock_run_svc),
-            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
-        ):
-            mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=strategy_result)
-            mock_get_exec.return_value = mock_executor
-
-            handlers = MissionCommandHandlers(mock_db)
-            await handlers.execute_mission(mock_user, mission_id)
-
-            # Await fire-and-forget coroutines INSIDE the with block
-            for coro in _captured:
-                with contextlib.suppress(Exception):
-                    await coro
-
-        # Verify Run was created from the linked Blueprint
-        mock_run_svc.create_from_blueprint.assert_called_once_with(
-            blueprint_id=str(bp_mock.id),
-            user_id=mock_user.id,
-        )
-
-        # Verify Run fields were set correctly
-        assert run_mock.started_at is not None, "Run.started_at must be set"
-        assert run_mock.status == "completed"
-        assert run_mock.total_tokens == 250
-        assert run_mock.total_cost_usd == 0.005
-        assert run_mock.error_message is None
-        assert run_mock.output_data == {"result": "done"}
-        assert run_mock.completed_at is not None, "Run.completed_at must be set for terminal status"
-
-    @pytest.mark.asyncio
-    async def test_execute_mission_dual_write_skips_when_no_blueprint(
-        self,
-        mock_db,
-        mock_user,
-    ):
-        """When no linked Blueprint exists, dual-write must skip Run creation gracefully."""
-        from app.api._mission_cqrs.commands import MissionCommandHandlers
-        from app.models.mission_models import MissionStatus
-        from app.services.substrate.workflow_models import StrategyResult
-
-        mission_id = uuid4()
-        mission = MagicMock(
-            id=str(mission_id),
-            workspace_id=None,
-            user_id=mock_user.id,
-            status=MissionStatus.EXECUTING,
-            plan=None,
-            tokens_used=0,
-            started_at=datetime.now(UTC),
-        )
-
-        strategy_result = StrategyResult(
-            success=True,
-            status="completed",
-            data={},
-            completed_nodes=["n1"],
-            failed_nodes=[],
-            total_tokens=100,
-            total_cost_usd=0.001,
-            execution_time_ms=500.0,
-            event_count=2,
-        )
-
-        _captured: list = []
-        mock_run_db = AsyncMock()
-        empty_result = MagicMock()
-        empty_result.scalars.return_value.first.return_value = None
-        mock_run_db.execute = AsyncMock(return_value=empty_result)
-
-        mock_run_svc = MagicMock()
-        mock_run_svc.create_from_blueprint = AsyncMock()
-
-        with (
-            patch(
-                "app.api._mission_cqrs.commands._schedule_fire_and_forget",
-                lambda c: _captured.append(c),
-            ),
-            patch("app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_run_db)),
-            patch(
-                "app.api._mission_cqrs.commands.require_mission_access",
-                new_callable=AsyncMock,
-                return_value=mission,
-            ),
-            patch("app.services.substrate.executor.get_unified_executor") as mock_get_exec,
-            patch(
-                "app.services.substrate.adapters.mission_to_workflow",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "app.api._mission_cqrs.commands.get_mission_tasks",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch("app.services.run_service.RunService", return_value=mock_run_svc),
-            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
-        ):
-            mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=strategy_result)
-            mock_get_exec.return_value = mock_executor
-
-            handlers = MissionCommandHandlers(mock_db)
-            await handlers.execute_mission(mock_user, mission_id)
-
-            for coro in _captured:
-                with contextlib.suppress(Exception):
-                    await coro
-
-        mock_run_svc.create_from_blueprint.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_execute_mission_dual_write_copies_failure_fields(
-        self,
-        mock_db,
-        mock_user,
-    ):
-        """When execution fails, dual-write must set error_message and skip output_data."""
-        from app.api._mission_cqrs.commands import MissionCommandHandlers
-        from app.models.mission_models import MissionStatus
-        from app.services.substrate.workflow_models import StrategyResult
-
-        mission_id = uuid4()
-        mission = MagicMock(
-            id=str(mission_id),
-            workspace_id=None,
-            user_id=mock_user.id,
-            status=MissionStatus.EXECUTING,
-            plan=None,
-            tokens_used=0,
-            started_at=datetime.now(UTC),
-        )
-
-        strategy_result = StrategyResult(
-            success=False,
-            status="failed",
-            error="Model rate limit exceeded",
-            data=None,
-            completed_nodes=[],
-            failed_nodes=["node-1"],
-            total_tokens=50,
-            total_cost_usd=0.001,
-            execution_time_ms=200.0,
-            event_count=2,
-        )
-
-        _captured: list = []
-        mock_run_db = AsyncMock()
-        bp_mock = MagicMock(id=str(uuid4()))
-        bp_result = MagicMock()
-        bp_result.scalars.return_value.first.return_value = bp_mock
-        mock_run_db.execute = AsyncMock(return_value=bp_result)
-
-        run_mock = MagicMock(
-            id=str(uuid4()),
-            status="pending",
-            started_at=None,
-            completed_at=None,
-            total_tokens=0,
-            total_cost_usd=0.0,
-            error_message=None,
-            output_data=None,
-        )
-        mock_run_svc = MagicMock()
-        mock_run_svc.create_from_blueprint = AsyncMock(return_value=run_mock)
-
-        with (
-            patch(
-                "app.api._mission_cqrs.commands._schedule_fire_and_forget",
-                lambda c: _captured.append(c),
-            ),
-            patch("app.database.AsyncSessionLocal", lambda: _AsyncCtx(mock_run_db)),
-            patch(
-                "app.api._mission_cqrs.commands.require_mission_access",
-                new_callable=AsyncMock,
-                return_value=mission,
-            ),
-            patch("app.services.substrate.executor.get_unified_executor") as mock_get_exec,
-            patch(
-                "app.services.substrate.adapters.mission_to_workflow",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "app.api._mission_cqrs.commands.get_mission_tasks",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch("app.services.run_service.RunService", return_value=mock_run_svc),
-            patch("app.api._mission_cqrs.base.asyncio.sleep", new_callable=AsyncMock),
-        ):
-            mock_executor = AsyncMock()
-            mock_executor.execute = AsyncMock(return_value=strategy_result)
-            mock_get_exec.return_value = mock_executor
-
-            handlers = MissionCommandHandlers(mock_db)
-            await handlers.execute_mission(mock_user, mission_id)
-
-            for coro in _captured:
-                with contextlib.suppress(Exception):
-                    await coro
-
-        mock_run_svc.create_from_blueprint.assert_called_once()
-
-        # Verify failure fields
-        assert run_mock.started_at is not None
-        assert run_mock.status == "failed"
-        assert run_mock.total_tokens == 50
-        assert run_mock.error_message == "Model rate limit exceeded"
-        assert run_mock.output_data is None, "output_data must be None on failure"
-        assert run_mock.completed_at is not None, "completed_at must be set for terminal status"

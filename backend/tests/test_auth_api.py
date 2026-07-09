@@ -70,10 +70,14 @@ def test_register_duplicate_email(test_client, mock_db_session):
 def test_login_success(test_client, mock_db_session, sample_user):
     """POST /api/auth/login with valid credentials returns 200."""
     mock_db_session.execute.return_value.scalar_one_or_none.return_value = sample_user
+    mock_v3_session = MagicMock()
+    mock_v3_session.id = "sess-123"
     with (
         patch("app.api.v1.auth.record_failed_login", return_value={"locked": False}),
         patch("app.api.v1.auth.reset_login_attempts"),
         patch("app.api.v1.auth.verify_password", return_value=True),
+        patch("app.api.v1.auth.v3_create_session", return_value=mock_v3_session),
+        patch("app.api.v1.auth.v3_create_access_token", return_value="acc-test-123"),
         patch("app.api.v1.auth.create_access_token", return_value="acc-test-123"),
         patch("app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"),
     ):

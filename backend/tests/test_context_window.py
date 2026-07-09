@@ -49,6 +49,9 @@ def _make_mock_executor():
     mock_executor.event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
     mock_executor.event_log.get_latest_sequence = AsyncMock(return_value=0)
     mock_executor.event_log.get_events = AsyncMock(return_value=[])
+    # Item #3: LLM output replay — must return None so _handle_llm proceeds
+    # to a fresh LLM call rather than entering the replay branch.
+    mock_executor.event_log.find_by_idempotency_key = AsyncMock(return_value=None)
     return NodeExecutor(mock_executor), mock_executor
 
 
@@ -366,6 +369,10 @@ class TestContextInjectionInLLM:
         with (
             patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer),
             patch("app.services.circuit_breaker_service.CircuitBreakerService"),
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=MagicMock(find_by_idempotency_key=AsyncMock(return_value=None)),
+            ),
         ):
             await ne._handle_llm(
                 db,
@@ -414,6 +421,10 @@ class TestContextInjectionInLLM:
         with (
             patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer),
             patch("app.services.circuit_breaker_service.CircuitBreakerService"),
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=MagicMock(find_by_idempotency_key=AsyncMock(return_value=None)),
+            ),
         ):
             await ne._handle_llm(
                 db,
@@ -455,6 +466,10 @@ class TestContextInjectionInLLM:
         with (
             patch("app.services.budget_enforcer.get_budget_enforcer", return_value=mock_enforcer),
             patch("app.services.circuit_breaker_service.CircuitBreakerService"),
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=MagicMock(find_by_idempotency_key=AsyncMock(return_value=None)),
+            ),
         ):
             await ne._handle_llm(db, node, {}, budget, run_id, context_events=[])
 

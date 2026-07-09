@@ -202,7 +202,13 @@ class TestExtractionPersistsClaims:
             "app.services.personal_memory_service.PersonalMemoryService",
             MagicMock(return_value=mock_pm_service),
         )
+        mock_review_service = AsyncMock()
+        mock_review_service.stage_pending_write = AsyncMock(return_value="pw-1")
         monkeypatch.setattr(chat_service, "get_chat_thread", AsyncMock(return_value=mock_thread))
+        monkeypatch.setattr(
+            "app.services.memory.background_review_service.BackgroundReviewService",
+            MagicMock(return_value=mock_review_service),
+        )
 
         # Mock LLM extractor to return empty (falls through to regex)
         mock_llm_extractor = AsyncMock()
@@ -237,14 +243,10 @@ class TestExtractionPersistsClaims:
             assistant_response="Got it, noted!",
         )
 
-        # Both claims should have been persisted
-        assert mock_pm_service.create.call_count == 2
-
-        # Verify the create calls have source_type="conversation"
-        for call in mock_pm_service.create.call_args_list:
-            assert call.kwargs["source_type"] == "conversation"
-            assert call.kwargs["user_id"] == 1
-            assert call.kwargs["workspace_id"] == "ws-1"
+        # Per the GOV-1.2 provenance gate, conversation-sourced claims are
+        # staged for HITL approval (not direct-written). Both claims stage.
+        assert mock_review_service.stage_pending_write.call_count == 2
+        assert mock_pm_service.create.call_count == 0
 
 
 class TestTeamWorkspaceStaging:
@@ -349,7 +351,15 @@ class TestTeamWorkspaceStaging:
         assert mock_pm_service.create.call_count == 0
 
     async def test_solo_workspace_direct_writes(self, monkeypatch: pytest.MonkeyPatch):
-        """Solo workspaces (1 member) should direct-write claims."""
+        """Solo workspaces (1 member) stage conversation-sourced claims for HITL approval.
+
+        Per the GOV-1.2 provenance gate (chat_service.py:1768), every claim the
+        chat extractor produces is source_type="conversation", which
+        requires_provenance_approval() always returns True for. So even a solo
+        workspace stages claims via BackgroundReviewService.stage_pending_write
+        rather than direct-writing. Direct writes are only reachable from a
+        user_explicit source_type, which the chat path never emits.
+        """
         from app.services import chat_service
 
         monkeypatch.setattr(
@@ -436,9 +446,9 @@ class TestTeamWorkspaceStaging:
             assistant_response="Noted!",
         )
 
-        # Claims should be DIRECTLY WRITTEN, not staged
-        assert mock_pm_service.create.call_count == 1
-        assert mock_review_service.stage_pending_write.call_count == 0
+        # Conversation-sourced claims route to HITL staging, not direct write.
+        assert mock_pm_service.create.call_count == 0
+        assert mock_review_service.stage_pending_write.call_count == 1
 
 
 class TestDefensiveFilterApplied:
@@ -482,7 +492,13 @@ class TestDefensiveFilterApplied:
             "app.services.personal_memory_service.PersonalMemoryService",
             MagicMock(return_value=mock_pm_service),
         )
+        mock_review_service = AsyncMock()
+        mock_review_service.stage_pending_write = AsyncMock(return_value="pw-1")
         monkeypatch.setattr(chat_service, "get_chat_thread", AsyncMock(return_value=mock_thread))
+        monkeypatch.setattr(
+            "app.services.memory.background_review_service.BackgroundReviewService",
+            MagicMock(return_value=mock_review_service),
+        )
 
         # Mock LLM extractor to return empty (falls through to regex)
         mock_llm_extractor = AsyncMock()
@@ -520,8 +536,9 @@ class TestDefensiveFilterApplied:
             assistant_response="Noted!",
         )
 
-        # Only the safe claim should be persisted (1 of 3)
-        assert mock_pm_service.create.call_count == 1
+        # Only the safe claim should be staged for HITL approval (1 of 3)
+        assert mock_review_service.stage_pending_write.call_count == 1
+        assert mock_pm_service.create.call_count == 0
 
 
 class TestExtractionIsFireAndForget:
@@ -566,7 +583,13 @@ class TestExtractionIsFireAndForget:
             "app.services.personal_memory_service.PersonalMemoryService",
             MagicMock(return_value=mock_pm_service),
         )
+        mock_review_service = AsyncMock()
+        mock_review_service.stage_pending_write = AsyncMock(return_value="pw-1")
         monkeypatch.setattr(chat_service, "get_chat_thread", AsyncMock(return_value=mock_thread))
+        monkeypatch.setattr(
+            "app.services.memory.background_review_service.BackgroundReviewService",
+            MagicMock(return_value=mock_review_service),
+        )
 
         # Mock LLM extractor to return empty (falls through to regex)
         mock_llm_extractor = AsyncMock()
@@ -598,7 +621,9 @@ class TestExtractionIsFireAndForget:
         )
 
         # If we got here without hanging, the call completed.
-        assert mock_pm_service.create.call_count == 1
+        # Conversation-sourced claim stages for HITL approval.
+        assert mock_review_service.stage_pending_write.call_count == 1
+        assert mock_pm_service.create.call_count == 0
 
 
 class TestExtractionSkipsWhenNoWorkspace:
@@ -731,6 +756,12 @@ class TestLLMExtractionWithFallback:
             "app.services.personal_memory_service.PersonalMemoryService",
             MagicMock(return_value=mock_pm_service),
         )
+        mock_review_service = AsyncMock()
+        mock_review_service.stage_pending_write = AsyncMock(return_value="pw-1")
+        monkeypatch.setattr(
+            "app.services.memory.background_review_service.BackgroundReviewService",
+            MagicMock(return_value=mock_review_service),
+        )
 
         # Mock PersonalMemoryExtractor to return LLM-sourced claims
         llm_claims = [_candidate_claim(predicate="prefers", value="dark mode")]
@@ -757,8 +788,9 @@ class TestLLMExtractionWithFallback:
 
         # LLM extractor should have been called
         mock_llm_extractor.extract_with_fallback.assert_awaited_once()
-        # Claim should be persisted
-        assert mock_pm_service.create.call_count == 1
+        # Claim should be staged for HITL approval (conversation-sourced)
+        assert mock_review_service.stage_pending_write.call_count == 1
+        assert mock_pm_service.create.call_count == 0
 
     async def test_llm_timeout_falls_back_to_regex(self, monkeypatch: pytest.MonkeyPatch):
         """When LLM extraction times out, regex fallback is used."""
@@ -800,6 +832,12 @@ class TestLLMExtractionWithFallback:
             "app.services.personal_memory_service.PersonalMemoryService",
             MagicMock(return_value=mock_pm_service),
         )
+        mock_review_service = AsyncMock()
+        mock_review_service.stage_pending_write = AsyncMock(return_value="pw-1")
+        monkeypatch.setattr(
+            "app.services.memory.background_review_service.BackgroundReviewService",
+            MagicMock(return_value=mock_review_service),
+        )
 
         # Mock PersonalMemoryExtractor to raise TimeoutError
         mock_llm_extractor = AsyncMock()
@@ -837,7 +875,9 @@ class TestLLMExtractionWithFallback:
 
         # Regex fallback should have been used
         mock_regex.extract.assert_called_once()
-        assert mock_pm_service.create.call_count == 1
+        # Claim stages for HITL approval (conversation-sourced)
+        assert mock_review_service.stage_pending_write.call_count == 1
+        assert mock_pm_service.create.call_count == 0
 
     async def test_llm_error_falls_back_to_regex(self, monkeypatch: pytest.MonkeyPatch):
         """When LLM extraction raises any error, regex fallback is used."""
@@ -879,6 +919,12 @@ class TestLLMExtractionWithFallback:
             "app.services.personal_memory_service.PersonalMemoryService",
             MagicMock(return_value=mock_pm_service),
         )
+        mock_review_service = AsyncMock()
+        mock_review_service.stage_pending_write = AsyncMock(return_value="pw-1")
+        monkeypatch.setattr(
+            "app.services.memory.background_review_service.BackgroundReviewService",
+            MagicMock(return_value=mock_review_service),
+        )
 
         # Mock PersonalMemoryExtractor to raise RuntimeError
         mock_llm_extractor = AsyncMock()
@@ -916,7 +962,9 @@ class TestLLMExtractionWithFallback:
 
         # Regex fallback should have been used
         mock_regex.extract.assert_called_once()
-        assert mock_pm_service.create.call_count == 1
+        # Claim stages for HITL approval (conversation-sourced)
+        assert mock_review_service.stage_pending_write.call_count == 1
+        assert mock_pm_service.create.call_count == 0
 
 
 class TestRegexExtractorPatterns:

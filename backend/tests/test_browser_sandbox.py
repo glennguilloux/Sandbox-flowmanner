@@ -143,6 +143,7 @@ class TestBrowserSandboxToolExecution:
 
         with (
             patch("app.integrations.sandboxd_client.get_sandboxd_client", return_value=mock_client),
+            patch("app.services.sandbox_service.get_sandboxd_client", return_value=mock_client),
             patch("app.config.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_PREVIEW_DOMAIN = "preview.flowmanner.com"

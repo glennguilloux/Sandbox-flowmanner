@@ -43,7 +43,6 @@ def _make_mock_node_executor():
             "budget": {"prompt_tokens": 10, "completion_tokens": 20, "cost_usd": 0.01},
         }
     )
-
     node_executor = NodeExecutor(mock_executor)
     return node_executor, mock_executor
 
@@ -368,7 +367,7 @@ class TestHandleRAG:
         assert result["output"]["query"] == "test query"
         assert result["output"]["collection"] == "docs"
         assert result["output"]["context"] == [{"text": "result", "score": 0.9}]
-        mock_rag.query_documents.assert_called_once_with("test query", n_results=5)
+        mock_rag.query_documents.assert_called_once_with("test query", n_results=5, user_id=None)
 
     @pytest.mark.asyncio
     async def test_handle_rag_falls_back_to_title(self):
@@ -387,7 +386,7 @@ class TestHandleRAG:
         assert result["success"] is True
         assert result["output"]["query"] == "Test Node"
         assert result["output"]["context"] == []
-        mock_rag.query_documents.assert_called_once_with("Test Node", n_results=5)
+        mock_rag.query_documents.assert_called_once_with("Test Node", n_results=5, user_id=None)
 
 
 class TestHandleWebSearch:
@@ -584,12 +583,19 @@ class TestHandleLLM:
             }
         )
 
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
         with (
             patch(
                 "app.services.budget_enforcer.get_budget_enforcer",
                 return_value=mock_enforcer,
             ),
             patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls,
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
         ):
             mock_cb = MagicMock()
             mock_cb.get_breaker = AsyncMock(return_value=None)
@@ -618,12 +624,19 @@ class TestHandleLLM:
             }
         )
 
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
         with (
             patch(
                 "app.services.budget_enforcer.get_budget_enforcer",
                 return_value=mock_enforcer,
             ),
             patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls,
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
         ):
             mock_cb = MagicMock()
             mock_cb.get_breaker = AsyncMock(return_value=None)
@@ -655,12 +668,19 @@ class TestHandleLLM:
             }
         )
 
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
         with (
             patch(
                 "app.services.budget_enforcer.get_budget_enforcer",
                 return_value=mock_enforcer,
             ),
             patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls,
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
         ):
             mock_cb = MagicMock()
             mock_cb.get_breaker = AsyncMock(return_value=None)
@@ -700,12 +720,19 @@ class TestHandleLLM:
             }
         )
 
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
         with (
             patch(
                 "app.services.budget_enforcer.get_budget_enforcer",
                 return_value=mock_enforcer,
             ),
             patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls,
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
         ):
             mock_cb = MagicMock()
             mock_cb.get_breaker = AsyncMock(return_value=None)

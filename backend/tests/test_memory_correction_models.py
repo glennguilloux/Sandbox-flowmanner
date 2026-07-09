@@ -251,6 +251,8 @@ class TestMemoryCorrectionEventValueSets:
             "export",
             "pause",
             "resume",
+            "review",
+            "drop",
         }
 
     def test_all_event_types_no_sunder_leak(self) -> None:

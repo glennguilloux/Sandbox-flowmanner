@@ -57,9 +57,24 @@ with _suppress(OSError, TimeoutError), _socket.create_connection(("workflow-post
 mock_redis = MagicMock()
 mock_redis.from_url = MagicMock(return_value=MagicMock())
 mock_redis.ConnectionError = ConnectionError
+
+
+# The async client is awaited by callers (``await rds.get()`` / ``setex`` /
+# ``aclose`` / ``delete`` / ``scan``). A plain MagicMock returns non-awaitable
+# MagicMocks and raises "object MagicMock can't be used in 'await' expression".
+# Build an AsyncMock-backed client so awaited methods resolve, with ``get``
+# defaulting to None (cache miss → callers fall through to the DB path).
+def _make_async_redis_client(*args, **kwargs):
+    client = AsyncMock()
+    client.get = AsyncMock(return_value=None)
+    client.scan = AsyncMock(return_value=(0, []))
+    return client
+
+
 mock_redis.asyncio = MagicMock()
+mock_redis.asyncio.from_url = MagicMock(side_effect=_make_async_redis_client)
 mock_redis.asyncio.Redis = MagicMock()
-mock_redis.asyncio.Redis.from_url = MagicMock(return_value=MagicMock())
+mock_redis.asyncio.Redis.from_url = MagicMock(side_effect=_make_async_redis_client)
 sys.modules["redis"] = mock_redis
 sys.modules["redis.asyncio"] = mock_redis.asyncio
 

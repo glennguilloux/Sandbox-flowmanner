@@ -518,7 +518,16 @@ class TestHandleLlm:
             }
         )
 
-        with patch("app.services.budget_enforcer.get_budget_enforcer", return_value=enforcer):
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
+        with (
+            patch("app.services.budget_enforcer.get_budget_enforcer", return_value=enforcer),
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
+        ):
             result = await ne._handle_llm(MagicMock(), node, {}, budget, "run-1")
 
         assert result["success"] is True

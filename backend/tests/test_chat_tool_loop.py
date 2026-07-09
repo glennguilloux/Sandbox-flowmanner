@@ -82,10 +82,12 @@ class TestGetChatOpenaiTools:
 
         sandboxd_tool = MagicMock()
         sandboxd_tool.tool_id = "sandboxd_preview"
+        sandboxd_tool.metadata.visibility = "default_on"
         sandboxd_tool.to_openai_schema.return_value = {"type": "function"}
 
         other_tool = MagicMock()
         other_tool.tool_id = "browser_ping"
+        other_tool.metadata.visibility = "hidden"  # not exposed in chat
         other_tool.to_openai_schema.return_value = {"type": "function"}
 
         mock_registry = MagicMock()
@@ -99,7 +101,8 @@ class TestGetChatOpenaiTools:
             result = await _get_chat_openai_tools()
 
         assert result is not None
-        assert len(result) == 1  # only sandboxd_preview
+        assert len(result) == 1  # only sandboxd_preview (browser_ping is hidden)
+        assert result[0]["type"] == "function"
 
     @pytest.mark.asyncio
     async def test_returns_none_when_no_sandboxd_tools_registered(self):
@@ -107,6 +110,7 @@ class TestGetChatOpenaiTools:
 
         other_tool = MagicMock()
         other_tool.tool_id = "some_other_tool"
+        other_tool.metadata.visibility = "hidden"  # not exposed in chat
         other_tool.to_openai_schema.return_value = {"type": "function"}
 
         mock_registry = MagicMock()

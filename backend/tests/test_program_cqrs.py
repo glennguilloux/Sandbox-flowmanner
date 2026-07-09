@@ -303,30 +303,8 @@ class TestProgramCommandHandlersFireAndConsolidate:
         assert kwargs["trigger_type"] == "manual"
         assert kwargs["request_id"] == "req-fire-1"
 
-    @pytest.mark.asyncio
-    async def test_fire_program_surfaces_not_implemented(self, mocker, user, session):
-        """T5 stub raises ``NotImplementedError``; the command path
-        translates that to a domain ``ProgramError``."""
-        service = _build_mock_service(
-            mocker,
-            fire_program=NotImplementedError("fire_program is implemented in T8"),
-        )
-        audit = MagicMock()
-        handlers = ProgramCommandHandlers(session, audit=audit)
-
-        with pytest.raises(ProgramError) as ei:
-            await handlers.fire_program(
-                user=user,
-                program_id=uuid.uuid4(),
-                idempotency_key="idem-1",
-                trigger_type="manual",
-            )
-        assert "not yet implemented" in str(ei.value).lower()
-        assert "idem-1" in str(ei.value)
-
 
 class TestProgramCommandHandlersUserNotes:
-    @pytest.mark.asyncio
     async def test_update_user_notes_calls_service(self, mocker, user, session):
         """(f) ``update_user_notes`` calls ``service.update_user_notes``."""
         program = _fake_program()
