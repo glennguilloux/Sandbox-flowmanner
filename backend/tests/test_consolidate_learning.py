@@ -26,6 +26,7 @@ Cases:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import uuid
@@ -45,15 +46,15 @@ os.environ.setdefault(
 )
 
 # Late imports so env var is honored.
-from app.models.mission_models import Mission  # noqa: E402
-from app.models.mission_program_models import (  # noqa: E402
+from app.models.mission_models import Mission
+from app.models.mission_program_models import (
     MissionProgram,
     ProgramRun,
 )
-from app.models.user import User  # noqa: E402
-from app.models.workspace_models import Workspace  # noqa: E402
-from app.schemas.program import ProgramCreate  # noqa: E402
-from app.services.mission_program_service import (  # noqa: E402
+from app.models.user import User
+from app.models.workspace_models import Workspace
+from app.schemas.program import ProgramCreate
+from app.services.mission_program_service import (
     MissionProgramService,
     ProgramTransitionConflict,
 )
@@ -141,59 +142,65 @@ async def ctx():
         try:
             yield ctx_dict
         finally:
+            # The yielded session is still bound to an open transaction that
+            # holds row locks on mission_programs / program_runs. Opening a
+            # SECOND session to clean up would block behind those locks
+            # (DELETE waits on the first session's transactionid) and the
+            # async teardown would await forever — the whole pytest run hangs
+            # (observed at 22% with the 2026-07-09 full-suite stall).
+            #
+            # Fix: roll the held session back (releasing its locks) and then
+            # reuse THAT SAME session for cleanup. No second connection, no
+            # cross-session lock contention.
+            with contextlib.suppress(Exception):
+                await session.rollback()
             try:
-                async with TestSessionLocal() as cleanup:
-                    # substrate_events is append-only; disable the trigger for cleanup.
-                    await cleanup.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "DISABLE TRIGGER trg_substrate_events_append_only"
-                        )
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM program_runs WHERE program_id IN "
-                             "(SELECT id FROM mission_programs WHERE user_id = :uid)"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM mission_programs WHERE user_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM missions WHERE user_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM workspace_members WHERE user_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM workspaces WHERE owner_id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text("DELETE FROM users WHERE id = :uid"),
-                        {"uid": owner.id},
-                    )
-                    await cleanup.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "ENABLE TRIGGER trg_substrate_events_append_only"
-                        )
-                    )
-                    await cleanup.commit()
+                # substrate_events is append-only; disable the trigger for cleanup.
+                await session.execute(
+                    text("ALTER TABLE substrate_events " "DISABLE TRIGGER trg_substrate_events_append_only")
+                )
+                await session.execute(
+                    text(
+                        "DELETE FROM program_runs WHERE program_id IN "
+                        "(SELECT id FROM mission_programs WHERE user_id = :uid)"
+                    ),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM mission_programs WHERE user_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM missions WHERE user_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM workspace_members WHERE user_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM workspaces WHERE owner_id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("DELETE FROM users WHERE id = :uid"),
+                    {"uid": owner.id},
+                )
+                await session.execute(
+                    text("ALTER TABLE substrate_events " "ENABLE TRIGGER trg_substrate_events_append_only")
+                )
+                await session.commit()
             except Exception:
                 try:
-                    async with TestSessionLocal() as s2:
-                        await s2.execute(
-                            text(
-                                "ALTER TABLE substrate_events "
-                                "ENABLE TRIGGER trg_substrate_events_append_only"
-                            )
-                        )
-                        await s2.commit()
+                    await session.execute(
+                        text("ALTER TABLE substrate_events " "ENABLE TRIGGER trg_substrate_events_append_only")
+                    )
+                    await session.commit()
                 except Exception:
                     pass
+            finally:
+                with contextlib.suppress(Exception):
+                    await session.close()
 
 
 # ── Helpers: mocks + run seeding ───────────────────────────────────────
@@ -216,9 +223,7 @@ def _make_enforcer_mock(*, response_content: str = "{}") -> MagicMock:
     ``call`` is an AsyncMock returning a dict with a ``content`` key.
     """
     e = MagicMock()
-    e.call = AsyncMock(
-        return_value={"content": response_content, "success": True}
-    )
+    e.call = AsyncMock(return_value={"content": response_content, "success": True})
     return e
 
 
@@ -272,16 +277,17 @@ async def test_zero_runs_returns_noop(ctx) -> None:
     memory_mock = _make_memory_mock()
     enforcer_mock = _make_enforcer_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     assert response.consolidated_runs == 0
     # LLM MUST NOT be called when there are no terminal runs.
@@ -343,21 +349,20 @@ async def test_user_notes_preserved_across_consolidation(ctx) -> None:
         "plan_adjustments": "Tuesdays are great",
         "user_notes": "LLM attempted to overwrite — must be ignored",
     }
-    enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps(llm_payload)
-    )
+    enforcer_mock = _make_enforcer_mock(response_content=json.dumps(llm_payload))
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # LLM-returned structured fields make it into the brief.
     assert response.brief.user_notes == "ALWAYS avoid Mondays — high load"
@@ -410,21 +415,20 @@ async def test_running_runs_excluded(ctx) -> None:
     )
     await ctx["session"].commit()
 
-    enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps({"total_runs": 99})
-    )
+    enforcer_mock = _make_enforcer_mock(response_content=json.dumps({"total_runs": 99}))
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # Only the 2 terminal runs are counted.
     assert response.consolidated_runs == 2
@@ -449,9 +453,7 @@ async def test_archived_program_raises_conflict(ctx) -> None:
     await ctx["session"].commit()
 
     with pytest.raises(ProgramTransitionConflict):
-        await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
 
 # ── (e) LLM call goes through BudgetEnforcer with the right prompt ─────
@@ -502,21 +504,25 @@ async def test_llm_call_uses_budget_enforcer(ctx) -> None:
     )
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # BudgetEnforcer.call was invoked exactly once.
     assert enforcer_mock.call.await_count == 1
     # The call used the expected model.
-    kwargs = enforcer_mock.call.await_kwargs
+    # NOTE: read the call args via await_args.kwargs — enforcer_mock is a
+    # MagicMock, and ``.call`` collides with MagicMock's reserved ``call``
+    # child, so ``.await_kwargs`` resolves to a MagicMock rather than a dict.
+    kwargs = enforcer_mock.call.await_args.kwargs
     assert kwargs["model_id"] == "claude-sonnet-4"
     # The prompt mentions "total_runs" (schema field the LLM should return).
     messages = kwargs["messages"]
