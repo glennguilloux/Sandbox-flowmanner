@@ -117,9 +117,8 @@ def mission_to_workflow(
     # Build edges from dependencies (for DAG and others)
     edges: list[WorkflowEdge] = []
     if wf_type == WorkflowType.DAG:
-        for node in nodes:
-            for dep_id in node.dependencies:
-                edges.append(WorkflowEdge(source=dep_id, target=node.id))
+        # Flatten (node, dep) pairs into edges.
+        edges = [WorkflowEdge(source=dep_id, target=node.id) for node in nodes for dep_id in node.dependencies]
 
     # Build budget
     budget = Budget(
@@ -142,6 +141,7 @@ def mission_to_workflow(
         edges=edges,
         budget=budget,
         user_id=str(mission.user_id) if hasattr(mission, "user_id") else None,
+        workspace_id=(str(mission.workspace_id) if hasattr(mission, "workspace_id") and mission.workspace_id else None),
         metadata={
             "substrate_run_id": (
                 mission.plan.get("substrate_run_id") if hasattr(mission, "plan") and mission.plan else None
@@ -162,31 +162,28 @@ def flow_to_workflow(flow: Any) -> Workflow:
     """
     flow_def = getattr(flow, "flow_definition", {}) or {}
 
-    nodes: list[WorkflowNode] = []
-    for node_data in flow_def.get("nodes", []):
-        node_type = _TASK_TYPE_MAP.get(
-            node_data.get("data", {}).get("nodeType", "llm"),
-            NodeType.LLM_CALL,
+    nodes: list[WorkflowNode] = [
+        WorkflowNode(
+            id=node_data.get("id", ""),
+            type=_TASK_TYPE_MAP.get(
+                node_data.get("data", {}).get("nodeType", "llm"),
+                NodeType.LLM_CALL,
+            ),
+            title=node_data.get("data", {}).get("label", ""),
+            config=node_data.get("data", {}),
         )
-        nodes.append(
-            WorkflowNode(
-                id=node_data.get("id", ""),
-                type=node_type,
-                title=node_data.get("data", {}).get("label", ""),
-                config=node_data.get("data", {}),
-            )
-        )
+        for node_data in flow_def.get("nodes", [])
+    ]
 
-    edges: list[WorkflowEdge] = []
-    for edge_data in flow_def.get("edges", []):
-        edges.append(
-            WorkflowEdge(
-                source=edge_data.get("source", ""),
-                target=edge_data.get("target", ""),
-                condition=edge_data.get("data", {}).get("condition"),
-                label=edge_data.get("data", {}).get("label"),
-            )
+    edges: list[WorkflowEdge] = [
+        WorkflowEdge(
+            source=edge_data.get("source", ""),
+            target=edge_data.get("target", ""),
+            condition=edge_data.get("data", {}).get("condition"),
+            label=edge_data.get("data", {}).get("label"),
         )
+        for edge_data in flow_def.get("edges", [])
+    ]
 
     return Workflow(
         id=str(flow.id) if hasattr(flow, "id") else "",
@@ -196,6 +193,7 @@ def flow_to_workflow(flow: Any) -> Workflow:
         nodes=nodes,
         edges=edges,
         user_id=str(flow.user_id) if hasattr(flow, "user_id") else None,
+        workspace_id=(str(flow.workspace_id) if hasattr(flow, "workspace_id") and flow.workspace_id else None),
     )
 
 
@@ -222,15 +220,14 @@ def graph_to_workflow(graph: Any) -> Workflow:
             )
         )
 
-    edges: list[WorkflowEdge] = []
-    for edge_data in graph_def.get("edges", []):
-        edges.append(
-            WorkflowEdge(
-                source=edge_data.get("source", ""),
-                target=edge_data.get("target", ""),
-                label=edge_data.get("label"),
-            )
+    edges: list[WorkflowEdge] = [
+        WorkflowEdge(
+            source=edge_data.get("source", ""),
+            target=edge_data.get("target", ""),
+            label=edge_data.get("label"),
         )
+        for edge_data in graph_def.get("edges", [])
+    ]
 
     return Workflow(
         id=str(graph.id) if hasattr(graph, "id") else "",
@@ -239,6 +236,7 @@ def graph_to_workflow(graph: Any) -> Workflow:
         nodes=nodes,
         edges=edges,
         user_id=str(graph.user_id) if hasattr(graph, "user_id") else None,
+        workspace_id=(str(graph.workspace_id) if hasattr(graph, "workspace_id") and graph.workspace_id else None),
     )
 
 
@@ -274,6 +272,7 @@ def blueprint_to_workflow(
         edges=[WorkflowEdge(**e) for e in snapshot.get("edges", [])],
         budget=budget,
         user_id=user_id,
+        workspace_id=snapshot.get("workspace_id"),
         metadata=snapshot.get("config", {}),
     )
 

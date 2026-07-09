@@ -135,6 +135,13 @@ class Workflow(BaseModel):
         )
     )
     user_id: str | None = None
+    # Workspace the run belongs to. Required for workspace-scoped features
+    # (Epic 4.1b standing constraints, circuit breaker, HITL inbox). Adapters
+    # MUST propagate it from the source ORM (Mission.workspace_id, etc.) — if
+    # it is None the substrate executor treats the run as unscoped and the
+    # constraint gate is skipped (fail-open), which silently disables
+    # enforcement for that run.
+    workspace_id: str | None = None
     input_schema: dict[str, Any] | None = None
     output_schema: dict[str, Any] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

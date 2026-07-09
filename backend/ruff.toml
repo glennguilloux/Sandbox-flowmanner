@@ -102,3 +102,7 @@ ignore = [
 # 3.x) and silence the lint finding rather than shipping a test that fails
 # in the project's own test runner.
 "app/tests/test_memory_entry_lifecycle_fields.py" = ["UP017"]
+# workflow_models.py: NodeType / WorkflowType are str+Enum (intentional — they
+# serialize as plain strings through the substrate executor and across the
+# JSON event log). Same intentional pattern as schemas/personal_memory.py.
+"app/services/substrate/workflow_models.py" = ["UP042"]
