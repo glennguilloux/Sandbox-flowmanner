@@ -1,6 +1,6 @@
 # Epic 2.2 — Agent-Side Frozen Snapshot of Canonical Memory
 
-> Status: **DESIGN DOC (first deliverable of Epic 2.2).** No code, no migration, no deploy.
+> Status: **BUILT + VERIFIED, NOT MERGED, NOT LIVE.** Build lands on branch `wt/e22-frozen-snapshot-build-20260709` (commit `f8c334ea`), pushed to origin. Option A shipped as designed: no migration, no schema change. Verified 2026-07-09 — E22 suite 6/6 vs live Postgres, ruff clean, memory regression 10/10 in isolation. `origin/main` remains at `d67637f2` (this design doc); the current healthy prod deploy is main-line and does **not** contain E22. To ship: merge `f8c334ea` → `main`, then `deploy-backend.sh` (no `--migrate`). Exit audit: `.hermes/sessions/exit-audit-2026-07-09-epic22-frozen-snapshot.md`.
 > Author: Hermes (homelab agent) | Date: 2026-07-09 | Machine: homelab `/opt/flowmanner/backend`
 > Sequence context: Epic 2.1 shipped + pushed (HEAD `d1720168`, live). 2.1 re-pointed reviewer writes to `personal_memory_claims` and removed dead `MemoryIntegration`. This doc is the immediate read/snapshot follow-through.
 > Source of truth for this doc: the code as read on 2026-07-09 (file:line citations below, all re-verified — 2.1's `:441`/`:484`/`:476` citations still hold).
