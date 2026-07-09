@@ -128,6 +128,14 @@ class MemoryEntry(Base, TimestampMixin):
         nullable=True,
     )
     meta: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+    # Epic 3.3 — soft-archive timestamp for the decay job. Nullable by design:
+    # NULL means the entry is live. The decay job sets this (soft-archive)
+    # instead of deleting, mirroring personal_memory_claims.deleted_at.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
 
     __table_args__ = (
         Index("ix_memory_entries_agent_type", "agent_id", "memory_type"),

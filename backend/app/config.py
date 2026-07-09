@@ -303,6 +303,22 @@ class Settings(BaseSettings):
     HITL_DEFAULT_TIMEOUT_HOURS: int = 24
     HITL_DEFAULT_AUTO_ACTION: str = "reject"  # reject | approve | stay
 
+    # Epic 3.3 — personal-memory / memory-entry retrieval-lifecycle decay job.
+    # Soft-archive + importance decay + hard-delete of expired sensitive claims.
+    # All values are safe to tune via env without a code change.
+    #
+    # NOTE on schema mapping (the merged PersonalMemoryClaim has no
+    # scope='constraint' / scope='sensitive' — see personal_memory_models.py):
+    #   - "immortal" claims = sensitivity == 'restricted'  (never arch/decay)
+    #   - "sensitive + expired" claims = claim_type == 'sensitive' AND
+    #     expires_at < now()  (hard-deleted)
+    # These map onto the real CHECK-constrained enumerations.
+    MEMORY_DECAY_TTL_DAYS: int = 90  # soft-archive if not recalled within this window
+    MEMORY_DECAY_RATE_PER_DAY: float = 0.01  # importance * (1 - rate * days_since_last_use)
+    MEMORY_DECAY_MIN_IMPORTANCE: float = 0.0  # floor after decay (0 = allow decay to zero)
+    MEMORY_DECAY_IMMORTAL_SENSITIVITY: str = "restricted"  # claims with this sensitivity are immortal
+    MEMORY_DECAY_SENSITIVE_CLAIM_TYPE: str = "sensitive"  # claim_type that may be hard-deleted when expired
+
     # Q2-Q3 Chunk 2 Tier 2: Cross-mission episodic memory
     # Default OFF — the BM25+vector episodic memory system is a sunset
     # candidate (model eats individual agent memory by late 2027).

@@ -27,6 +27,7 @@ import logging
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import worker_ready, worker_shutdown
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,13 @@ celery_app.conf.beat_schedule = {
     "integration-health-check-all": {
         "task": "integration.health_check_all",
         "schedule": 900.0,  # 15 minutes
+    },
+    # Epic 3.3 — retrieval-lifecycle decay: soft-archive stale claims/entries,
+    # decay importance by recency, hard-delete expired sensitive claims.
+    # Daily at 03:00 UTC.
+    "decay-memory-entries": {
+        "task": "memory.decay_entries",
+        "schedule": crontab(hour=3, minute=0),
     },
 }
 
@@ -149,6 +157,7 @@ def _register_custom_tasks() -> None:
         ("training_tasks", "training.* (7 tasks)"),
         ("eval_run", "evaluation.run_suite  (Phase 6 eval async execution)"),
         ("memory_extraction_tasks", "memory.extract_claims  (durable memory extraction)"),
+        ("decay_memory", "memory.decay_entries  (Epic 3.3 retrieval-lifecycle decay)"),
     ]
 
     registered_modules: list[str] = []
