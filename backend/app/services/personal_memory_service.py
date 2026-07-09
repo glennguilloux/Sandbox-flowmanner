@@ -335,6 +335,15 @@ class PersonalMemoryService:
             user_id=user_id,
             workspace_id=workspace_id,
         )
+        # Epic 2.2 write-invalidation: a new claim write for
+        # (user_id, workspace_id) bumps the frozen-snapshot generation
+        # counter. The snapshot service re-captures lazily on next access
+        # if the counter moved. Imported lazily to avoid a module-load
+        # cycle (memory_snapshot_service imports recall_for_chat from
+        # memory_citation_service, which imports this module).
+        from app.services.memory_snapshot_service import bump_generation
+
+        bump_generation(user_id, workspace_id)
         return claim
 
     # ── CRUD: create_from_proposal ──────────────────────────────────
