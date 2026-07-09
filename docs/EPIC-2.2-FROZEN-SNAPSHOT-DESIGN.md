@@ -200,4 +200,4 @@ The 2.1 doc said 2.2's snapshot "wiring is Epic 3.1." That phrasing conflated tw
 
 ---
 
-*Next: Glenn reviews this design. If approved, the build is a thin snapshot seam + lazy capture + dual invalidation, reusing `recall_for_chat`/`format_memory_block` unchanged — no migration, low blast radius, matches 2.1's "mostly wiring" prediction. 2.3 (policy) and 3.1 (recall hardening) follow on the settled snapshot.*
+*Next: Glenn reviewed + approved; the build shipped live (`a4475c7a`). The follow-on policy epic is **Epic 2.3 — Conflict-Resolution Policy** (`docs/EPIC-2.3-CONFLICT-RESOLUTION-POLICY-DESIGN.md`, design doc committed `1234fdbe`): detects overlapping live claims, applies the `source priority > recency > confidence` precedence, surfaces unresolved overlaps in the Inspector (never silently merged), and reorders `recall()` so the 2.2 frozen snapshot captures a *resolved* view. 3.1 (recall hardening: semantic recall + scope-isolation) follows after 2.3.*
