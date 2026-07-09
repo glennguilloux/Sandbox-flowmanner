@@ -14,7 +14,7 @@ No write paths exist yet — these are surfaced read-only by
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
@@ -31,9 +31,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 # Association table: BlogPost (N) <--> BlogTag (N)
 blog_post_tags = Table(

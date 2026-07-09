@@ -70,3 +70,8 @@ ignore = [
 "app/api/v1/sandbox_preview.py" = ["TCH002"]
 # AsyncIterator used in return annotation; harmless at top level
 "app/integrations/sandboxd_client.py" = ["TCH003"]
+# blog_models.py: BlogPost uses Mapped[datetime | None] which SQLAlchemy
+# resolves eagerly at mapper-config time, so datetime must be a runtime import
+# (not deferrable to TYPE_CHECKING). TC003 (type-checking block) is a
+# false positive here. (The repo's active ruff reports TC003/TCxxx codes.)
+"app/models/blog_models.py" = ["TCH003"]
