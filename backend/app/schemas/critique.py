@@ -25,6 +25,7 @@ Style notes (mirrors ``app/schemas/personal_memory.py``):
 * All enums are ``str, Enum`` so ``CriticKind.RECRITIC == "red_team"``
   works naturally at every API boundary.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -33,7 +34,6 @@ from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Enums — ``str, Enum`` so .value is a plain string at every API boundary

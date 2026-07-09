@@ -195,7 +195,7 @@ async def webhook_fire(
     try:
         from app.services.auth_rate_limiter import check_rate_limit
 
-        is_allowed, remaining, retry_after = check_rate_limit(_rate_key, max_requests=30, window_seconds=60)
+        is_allowed, _remaining, retry_after = check_rate_limit(_rate_key, max_requests=30, window_seconds=60)
         if not is_allowed:
             raise HTTPException(
                 status_code=429,

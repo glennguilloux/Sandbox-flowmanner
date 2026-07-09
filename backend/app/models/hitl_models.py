@@ -14,7 +14,7 @@ Design decisions:
 
 from __future__ import annotations
 
-from datetime import datetime  # noqa: TCH003 — needed at runtime by SQLAlchemy Mapped[]
+from datetime import datetime
 from enum import Enum
 from uuid import uuid4
 

@@ -21,7 +21,7 @@ from app.api.deps import get_current_user
 from app.api.v3.auth_cookies import set_refresh_cookie
 from app.api.v3.base import ok
 from app.database import get_db
-from app.schemas.auth_v3 import OIDCLoginRequest  # noqa: TCH001  # FastAPI needs at runtime for body parsing
+from app.schemas.auth_v3 import OIDCLoginRequest  # FastAPI needs at runtime for body parsing
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

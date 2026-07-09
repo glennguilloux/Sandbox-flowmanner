@@ -53,9 +53,10 @@ async def _resume_async(
     invocation that touches the engine.  See commit 7b4646e for the same
     fix applied to hitl_expiry.py and the full root-cause writeup.
     """
+    from sqlalchemy import select
+
     from app.database import AsyncSessionLocal, engine
     from app.models.mission_models import Mission, MissionStatus
-    from sqlalchemy import select
 
     # Drop any cached asyncpg connections left over from a previous task's
     # event loop.  Each Celery task gets a fresh loop, but the pool is global
@@ -115,16 +116,18 @@ async def _resume_async(
                 await event_log.append(
                     db,
                     run_id,
-                    [{
-                        "type": SubstrateEventType.HITL_RESUMED,
-                        "payload": {
-                            "inbox_item_id": inbox_item_id,
-                            "resolution": resolution,
-                            "resume_status": exec_result.status,
-                        },
-                        "actor": "hitl_resume_task",
-                        "mission_id": mission_id,
-                    }],
+                    [
+                        {
+                            "type": SubstrateEventType.HITL_RESUMED,
+                            "payload": {
+                                "inbox_item_id": inbox_item_id,
+                                "resolution": resolution,
+                                "resume_status": exec_result.status,
+                            },
+                            "actor": "hitl_resume_task",
+                            "mission_id": mission_id,
+                        }
+                    ],
                 )
             except Exception as ev_err:
                 logger.debug("Failed to emit HITL_RESUMED event: %s", ev_err)
@@ -161,11 +164,9 @@ def resume_hitl_task(self, mission_id: str, run_id: str, inbox_item_id: str, res
     and rebuilds state from the event log, then re-enters the HITL node.
     """
     try:
-        return _run_async(
-            _resume_async(mission_id, run_id, inbox_item_id, resolution)
-        )
+        return _run_async(_resume_async(mission_id, run_id, inbox_item_id, resolution))
     except Exception as exc:
-        countdown = 10 * (2 ** self.request.retries)
+        countdown = 10 * (2**self.request.retries)
         raise self.retry(exc=exc, countdown=countdown)
 
 

@@ -30,7 +30,6 @@ from app.services.swarm.handoff_protocol import (
     HandoffProtocol,
 )
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -45,16 +44,16 @@ def _make_budget(
 
 
 def _make_packet(**overrides) -> HandoffPacket:
-    defaults = dict(
-        handoff_id="h-001",
-        from_agent_id="agent-a",
-        from_agent_name="Agent A",
-        to_agent_id="agent-b",
-        to_agent_name="Agent B",
-        goal="Implement the widget",
-        success_criteria=["Tests pass", "No regressions"],
-        budget=_make_budget(),
-    )
+    defaults = {
+        "handoff_id": "h-001",
+        "from_agent_id": "agent-a",
+        "from_agent_name": "Agent A",
+        "to_agent_id": "agent-b",
+        "to_agent_name": "Agent B",
+        "goal": "Implement the widget",
+        "success_criteria": ["Tests pass", "No regressions"],
+        "budget": _make_budget(),
+    }
     defaults.update(overrides)
     return HandoffPacket(**defaults)
 
@@ -81,15 +80,15 @@ def _make_record(**overrides):
     rec.tool_candidates = overrides.get("tool_candidates", [])
     rec.budget_remaining_usd = overrides.get("budget_remaining_usd", 1.0)
     rec.hitl_state = overrides.get("hitl_state", {})
-    rec.depth_policy_state = overrides.get("depth_policy_state", None)
-    rec.parent_handoff_id = overrides.get("parent_handoff_id", None)
+    rec.depth_policy_state = overrides.get("depth_policy_state")
+    rec.parent_handoff_id = overrides.get("parent_handoff_id")
     rec.status = overrides.get("status", "pending")
-    rec.execution_id = overrides.get("execution_id", None)
+    rec.execution_id = overrides.get("execution_id")
     rec.priority = overrides.get("priority", 0)
-    rec.started_at = overrides.get("started_at", None)
-    rec.completed_at = overrides.get("completed_at", None)
-    rec.result = overrides.get("result", None)
-    rec.result_metadata = overrides.get("result_metadata", None)
+    rec.started_at = overrides.get("started_at")
+    rec.completed_at = overrides.get("completed_at")
+    rec.result = overrides.get("result")
+    rec.result_metadata = overrides.get("result_metadata")
     return rec
 
 
@@ -179,9 +178,7 @@ class TestHandoffProtocolTyped:
         """delegate_with_packet calls lease_integration.claim_for_handoff."""
         packet = _make_packet()
         await protocol.delegate_with_packet(packet)
-        protocol.lease_integration.claim_for_handoff.assert_awaited_once_with(
-            "h-001", "agent-b"
-        )
+        protocol.lease_integration.claim_for_handoff.assert_awaited_once_with("h-001", "agent-b")
 
     @pytest.mark.asyncio
     async def test_delegate_with_packet_emits_initiated_event(self, protocol):
@@ -196,11 +193,7 @@ class TestHandoffProtocolTyped:
     @pytest.mark.asyncio
     async def test_delegate_with_zero_budget_raises(self, protocol):
         """packet.budget.remaining_usd = 0 raises BudgetExceededError."""
-        packet = _make_packet(
-            budget=HandoffBudget(
-                remaining_usd=Decimal("0"), initial_usd=Decimal("1")
-            )
-        )
+        packet = _make_packet(budget=HandoffBudget(remaining_usd=Decimal("0"), initial_usd=Decimal("1")))
         with pytest.raises(BudgetExceededError):
             await protocol.delegate_with_packet(packet)
         protocol.db.add.assert_not_called()
@@ -210,9 +203,7 @@ class TestHandoffProtocolTyped:
         """Cross-workspace HITL item raises ValueError."""
         packet = _make_packet(
             hitl_state=HandoffHITLState(
-                pending_items=[
-                    {"id": "item-1", "workspace_id": "ws-other"}
-                ],
+                pending_items=[{"id": "item-1", "workspace_id": "ws-other"}],
                 workspace_id="ws-main",
             )
         )
@@ -224,9 +215,7 @@ class TestHandoffProtocolTyped:
         """HITL item with no workspace_id in a scoped packet raises ValueError."""
         packet = _make_packet(
             hitl_state=HandoffHITLState(
-                pending_items=[
-                    {"id": "item-1"}
-                ],
+                pending_items=[{"id": "item-1"}],
                 workspace_id="ws-main",
             )
         )
@@ -257,25 +246,18 @@ class TestHandoffProtocolTyped:
         """complete_with_packet releases lease and emits HANDOFF_COMPLETED."""
         record = _make_record(budget_remaining_usd=5.0)
         with patch.object(protocol, "_get", return_value=record):
-            result = await protocol.complete_with_packet(
-                "h-001", "Done", spent_usd=Decimal("1.00")
-            )
+            result = await protocol.complete_with_packet("h-001", "Done", spent_usd=Decimal("1.00"))
         assert result.status == "completed"
         protocol.lease_integration.release.assert_awaited_once_with("h-001")
         events = protocol._event_log.append.call_args[0][2]
         assert events[0]["type"] == "handoff.completed"
 
     @pytest.mark.asyncio
-    async def test_complete_with_overspend_raises_and_emits_budget_exhausted(
-        self, protocol
-    ):
+    async def test_complete_with_overspend_raises_and_emits_budget_exhausted(self, protocol):
         """Overspend raises BudgetExceededError and emits BUDGET_EXHAUSTED."""
         record = _make_record(budget_remaining_usd=1.0)
-        with patch.object(protocol, "_get", return_value=record):
-            with pytest.raises(BudgetExceededError):
-                await protocol.complete_with_packet(
-                    "h-001", "Partial", spent_usd=Decimal("5.00")
-                )
+        with patch.object(protocol, "_get", return_value=record), pytest.raises(BudgetExceededError):
+            await protocol.complete_with_packet("h-001", "Partial", spent_usd=Decimal("5.00"))
         assert record.status == "failed"
         protocol.lease_integration.release.assert_awaited_once()
         events = protocol._event_log.append.call_args[0][2]
@@ -284,9 +266,7 @@ class TestHandoffProtocolTyped:
     @pytest.mark.asyncio
     async def test_backward_compat_delegate_still_works(self, protocol):
         """Old delegate() method still works (no typed fields set)."""
-        with patch.object(
-            protocol.registry, "get_capability", return_value=MagicMock(name="Agent B")
-        ):
+        with patch.object(protocol.registry, "get_capability", return_value=MagicMock(name="Agent B")):
             handoff = await protocol.delegate(
                 from_agent_id="agent-a",
                 from_agent_name="Agent A",
@@ -301,9 +281,7 @@ class TestHandoffProtocolTyped:
         """complete_with_packet correctly deducts spent from remaining."""
         record = _make_record(budget_remaining_usd=5.0)
         with patch.object(protocol, "_get", return_value=record):
-            await protocol.complete_with_packet(
-                "h-001", "Done", spent_usd=Decimal("2.50")
-            )
+            await protocol.complete_with_packet("h-001", "Done", spent_usd=Decimal("2.50"))
         assert float(record.budget_remaining_usd) == pytest.approx(2.5)
 
     @pytest.mark.asyncio
@@ -337,14 +315,11 @@ class TestHandoffProtocolTyped:
     @pytest.mark.asyncio
     async def test_accept_with_packet_not_found_raises(self, protocol):
         """accept_with_packet on missing handoff raises ValueError."""
-        with patch.object(protocol, "_get", return_value=None):
-            with pytest.raises(ValueError, match="not found"):
-                await protocol.accept_with_packet("h-nonexistent")
+        with patch.object(protocol, "_get", return_value=None), pytest.raises(ValueError, match="not found"):
+            await protocol.accept_with_packet("h-nonexistent")
 
     @pytest.mark.asyncio
-    async def test_accept_with_packet_emits_lease_lost_when_renew_fails(
-        self, protocol
-    ):
+    async def test_accept_with_packet_emits_lease_lost_when_renew_fails(self, protocol):
         """If renew() returns False, HANDOFF_LEASE_LOST is emitted and
         accept still completes (fail-open)."""
         record = _make_record(status="pending", budget_remaining_usd=1.0)

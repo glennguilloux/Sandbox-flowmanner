@@ -500,9 +500,9 @@ class GitRepoManagerTool(BaseTool):
         if not cwd:
             return {"action": "get_status", "error": "No work_dir available"}
 
-        rc, stdout, stderr = await self._run_git(["status", "--porcelain"], cwd=cwd)
+        _rc, stdout, _stderr = await self._run_git(["status", "--porcelain"], cwd=cwd)
         lines = [l for l in stdout.split("\n") if l.strip()] if stdout else []
-        rc2, branch, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
+        _rc2, branch, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
 
         return {
             "action": "get_status",
@@ -519,11 +519,11 @@ class GitRepoManagerTool(BaseTool):
             return {"action": "list_branches", "error": "No work_dir available"}
 
         # Local branches
-        rc1, local, _ = await self._run_git(["branch"], cwd=cwd)
+        _rc1, local, _ = await self._run_git(["branch"], cwd=cwd)
         local_branches = [b.lstrip("* ").strip() for b in local.split("\n") if b.strip()] if local else []
 
         # Current branch
-        rc2, current, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
+        _rc2, current, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
 
         return {
             "action": "list_branches",
@@ -538,7 +538,7 @@ class GitRepoManagerTool(BaseTool):
         if not cwd:
             return {"action": "get_diff", "error": "No work_dir available"}
 
-        rc, stdout, stderr = await self._run_git(["diff"], cwd=cwd)
+        _rc, stdout, _stderr = await self._run_git(["diff"], cwd=cwd)
         lines = stdout.split("\n") if stdout else []
 
         return {
@@ -555,7 +555,7 @@ class GitRepoManagerTool(BaseTool):
             return {"action": "get_log", "error": "No work_dir available"}
 
         max_entries = v.max_log_entries or 20
-        rc, stdout, _ = await self._run_git(["log", f"-{max_entries}", "--oneline", "--decorate"], cwd=cwd)
+        _rc, stdout, _ = await self._run_git(["log", f"-{max_entries}", "--oneline", "--decorate"], cwd=cwd)
         entries = [e.strip() for e in stdout.split("\n") if e.strip()] if stdout else []
 
         return {

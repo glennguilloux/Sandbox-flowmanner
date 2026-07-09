@@ -340,7 +340,7 @@ class ModelRouter:
 
         # 1. Check for platform API key
         try:
-            base_url, api_key, _model_name = _resolve_provider(raw_model)
+            _base_url, api_key, _model_name = _resolve_provider(raw_model)
             if api_key and api_key not in ("", "sk-xxx", "sk-no-key-required"):
                 return True
         except Exception as e:

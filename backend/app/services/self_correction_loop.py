@@ -67,21 +67,18 @@ class SelfCorrectionBudget:
         """
         if self.total_attempts >= self.max_total_attempts:
             return True, (
-                f"Self-correction attempt budget exhausted "
-                f"({self.total_attempts}/{self.max_total_attempts})"
+                f"Self-correction attempt budget exhausted " f"({self.total_attempts}/{self.max_total_attempts})"
             )
 
         if self.total_cost_usd >= self.max_total_cost_usd:
             return True, (
-                f"Self-correction cost budget exhausted "
-                f"(${self.total_cost_usd:.4f}/${self.max_total_cost_usd:.2f})"
+                f"Self-correction cost budget exhausted " f"(${self.total_cost_usd:.4f}/${self.max_total_cost_usd:.2f})"
             )
 
         elapsed = time.monotonic() - self.started_at
         if elapsed >= self.max_total_wall_clock_seconds:
             return True, (
-                f"Self-correction wall-clock budget exhausted "
-                f"({elapsed:.1f}s/{self.max_total_wall_clock_seconds}s)"
+                f"Self-correction wall-clock budget exhausted " f"({elapsed:.1f}s/{self.max_total_wall_clock_seconds}s)"
             )
 
         return False, ""
@@ -217,7 +214,9 @@ class SelfCorrectionLoop:
             )
             if event_emitter:
                 await self._emit_event(
-                    event_emitter, run_id, task_id,
+                    event_emitter,
+                    run_id,
+                    task_id,
                     SubstrateEventType.SELF_CORRECTION_ABORTED,
                     {"reason": budget_reason, "budget": self._budget.to_dict()},
                 )
@@ -249,10 +248,7 @@ class SelfCorrectionLoop:
                 self._budget.max_reflections,
             )
             # Downgrade: if we can't reflect, try retry; if retry also not recommended, abort
-            if analysis.retry_recommended:
-                action = RecoveryAction.RETRY
-            else:
-                action = RecoveryAction.ABORT
+            action = RecoveryAction.RETRY if analysis.retry_recommended else RecoveryAction.ABORT
 
         # 6. Emit substrate event
         event_payload = {
@@ -270,7 +266,9 @@ class SelfCorrectionLoop:
         }
         if event_emitter:
             await self._emit_event(
-                event_emitter, run_id, task_id,
+                event_emitter,
+                run_id,
+                task_id,
                 SubstrateEventType.SELF_CORRECTION_ATTEMPTED,
                 event_payload,
             )
@@ -291,7 +289,9 @@ class SelfCorrectionLoop:
             )
             if event_emitter:
                 await self._emit_event(
-                    event_emitter, run_id, task_id,
+                    event_emitter,
+                    run_id,
+                    task_id,
                     SubstrateEventType.SELF_CORRECTION_ABORTED,
                     {
                         "reason": analysis.root_cause,
@@ -343,7 +343,9 @@ class SelfCorrectionLoop:
 
         if event_emitter:
             await self._emit_event(
-                event_emitter, run_id, task_id,
+                event_emitter,
+                run_id,
+                task_id,
                 SubstrateEventType.SELF_CORRECTION_COMPLETED,
                 {
                     "total_attempts": self._budget.total_attempts,
@@ -371,12 +373,14 @@ class SelfCorrectionLoop:
         try:
             await event_emitter(
                 run_id,
-                [{
-                    "type": event_type,
-                    "payload": payload,
-                    "actor": "self_correction_loop",
-                    "task_id": task_id,
-                }],
+                [
+                    {
+                        "type": event_type,
+                        "payload": payload,
+                        "actor": "self_correction_loop",
+                        "task_id": task_id,
+                    }
+                ],
             )
         except Exception as e:
             logger.debug("Failed to emit self-correction event %s: %s", event_type, e)

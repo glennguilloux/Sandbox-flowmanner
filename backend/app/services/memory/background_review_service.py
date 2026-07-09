@@ -1006,8 +1006,7 @@ class BackgroundReviewService:
                 for c in candidates:
                     ctext = (c.object or {}).get("text", "")
                     if (
-                        ctext
-                        and ctext.strip().lower() == old_text
+                        (ctext and ctext.strip().lower() == old_text)
                         or (c.subject and c.subject.strip().lower() == old_text)
                         or (c.predicate and c.predicate.strip().lower() == old_text)
                     ):

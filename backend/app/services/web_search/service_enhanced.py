@@ -124,12 +124,11 @@ class EnhancedWebSearchService:
         from .query_understanding import SearchIntent
 
         search_type = SearchType.QUICK
-        if query_understanding:
-            if query_understanding.intent in (
-                SearchIntent.RESEARCH,
-                SearchIntent.COMPARISON,
-            ):
-                search_type = SearchType.DEEP
+        if query_understanding and query_understanding.intent in (
+            SearchIntent.RESEARCH,
+            SearchIntent.COMPARISON,
+        ):
+            search_type = SearchType.DEEP
         if use_cache:
             cached = await self.cache.get(query, search_type)
             if cached:

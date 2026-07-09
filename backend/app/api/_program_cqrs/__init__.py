@@ -13,11 +13,11 @@ from .errors import map_program_infra_error
 from .queries import ProgramQueryHandlers
 
 __all__ = [
-    "ProgramAudit",
     "CommandHandlerBase",
-    "QueryHandlerBase",
+    "ProgramAudit",
     "ProgramCommandHandlers",
     "ProgramQueryHandlers",
+    "QueryHandlerBase",
     "get_program_commands",
     "get_program_queries",
     "map_program_infra_error",

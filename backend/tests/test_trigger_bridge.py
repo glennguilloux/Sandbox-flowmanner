@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,10 +39,8 @@ class TestTriggerBridgeStartStop:
             assert bridge._running is True
             assert bridge._task is not None
             bridge._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await bridge._task
-            except asyncio.CancelledError:
-                pass
 
     @pytest.mark.asyncio
     async def test_start_is_idempotent(self):
@@ -52,10 +51,8 @@ class TestTriggerBridgeStartStop:
             await bridge.start()  # second call should be no-op
             assert bridge._task is task1
             bridge._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await bridge._task
-            except asyncio.CancelledError:
-                pass
 
     @pytest.mark.asyncio
     async def test_stop_clears_task(self):

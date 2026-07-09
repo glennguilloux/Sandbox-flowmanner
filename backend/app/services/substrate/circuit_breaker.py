@@ -27,8 +27,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select, text
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +61,7 @@ class CircuitBreakerOpen(Exception):
     def __init__(self, provider_id: str, retry_after: float) -> None:
         self.provider_id = provider_id
         self.retry_after = retry_after
-        super().__init__(
-            f"Circuit breaker OPEN for provider '{provider_id}'. "
-            f"Retry after {retry_after:.1f}s."
-        )
+        super().__init__(f"Circuit breaker OPEN for provider '{provider_id}'. " f"Retry after {retry_after:.1f}s.")
 
 
 # ── SQL helpers ──────────────────────────────────────────────────────
@@ -114,9 +112,7 @@ async def _get_or_create_row(
 ) -> dict:
     """SELECT FOR UPDATE the CB row, inserting a fresh CLOSED row if missing."""
     ws_id_str = str(workspace_id) if workspace_id is not None else None
-    result = await db.execute(
-        _SELECT_FOR_UPDATE_SQL, {"ws_id": ws_id_str, "provider_id": provider_id}
-    )
+    result = await db.execute(_SELECT_FOR_UPDATE_SQL, {"ws_id": ws_id_str, "provider_id": provider_id})
     row = result.mappings().first()
     if row is not None:
         return dict(row)
@@ -126,9 +122,7 @@ async def _get_or_create_row(
     await db.flush()
 
     # Re-select with FOR UPDATE to get the row under lock
-    result = await db.execute(
-        _SELECT_FOR_UPDATE_SQL, {"ws_id": ws_id_str, "provider_id": provider_id}
-    )
+    result = await db.execute(_SELECT_FOR_UPDATE_SQL, {"ws_id": ws_id_str, "provider_id": provider_id})
     row = result.mappings().first()
     assert row is not None, "INSERT+SELECT should always find the row"
     return dict(row)
@@ -155,9 +149,7 @@ async def check_and_allow(
     state = CircuitBreakerState(row["state"])
 
     if state == CircuitBreakerState.CLOSED:
-        return CircuitBreakerCheck(
-            allowed=True, reason="closed", state=CircuitBreakerState.CLOSED
-        )
+        return CircuitBreakerCheck(allowed=True, reason="closed", state=CircuitBreakerState.CLOSED)
 
     if state == CircuitBreakerState.OPEN:
         opened_at = row["opened_at"]
@@ -187,9 +179,7 @@ async def check_and_allow(
             },
         )
         await db.flush()
-        logger.info(
-            "Circuit breaker OPEN→HALF_OPEN for %s/%s (probe)", workspace_id, provider_id
-        )
+        logger.info("Circuit breaker OPEN→HALF_OPEN for %s/%s (probe)", workspace_id, provider_id)
         return CircuitBreakerCheck(
             allowed=True,
             reason="half_open_probe",
@@ -366,9 +356,7 @@ async def record_failure(
 
     # Emit circuit_breaker.opened event ONLY on state transition to OPEN
     if transitioned_to_open:
-        await _emit_opened_event(
-            db, workspace_id, provider_id, new_failure_count, effective_threshold
-        )
+        await _emit_opened_event(db, workspace_id, provider_id, new_failure_count, effective_threshold)
 
     return transitioned_to_open
 

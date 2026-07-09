@@ -77,12 +77,11 @@ os.environ.setdefault(
 )
 
 # Late imports so env var is honored.
-from app.api.deps import get_current_user, get_db, get_workspace_id  # noqa: E402
-from app.api.v2 import critiques as critiques_module  # noqa: E402
-from app.main_fastapi import app  # noqa: E402
-from app.models.critique_models import ALL_CRITIC_KINDS, Critique  # noqa: E402
-from app.models.user import User  # noqa: E402
-
+from app.api.deps import get_current_user, get_db, get_workspace_id
+from app.api.v2 import critiques as critiques_module
+from app.main_fastapi import app
+from app.models.critique_models import ALL_CRITIC_KINDS, Critique
+from app.models.user import User
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Test data helpers
@@ -266,9 +265,7 @@ class TestCritiqueResponseSchema:
                 )
             )
         ]
-        resp = CritiqueListResponse(
-            items=items, total=1, page=1, per_page=50
-        )
+        resp = CritiqueListResponse(items=items, total=1, page=1, per_page=50)
         d = resp.model_dump()
         assert d["total"] == 1
         assert d["page"] == 1
@@ -377,9 +374,7 @@ class TestRouterListFilters:
         client = client_ctx["client"]
         service = client_ctx["service"]
         mission_id = uuid.uuid4()
-        resp = client.get(
-            f"/api/v2/critiques?mission_id={mission_id}"
-        )
+        resp = client.get(f"/api/v2/critiques?mission_id={mission_id}")
         assert resp.status_code == 200, resp.text
         kwargs = service.list.await_args.kwargs
         assert kwargs["mission_id"] == mission_id
@@ -388,9 +383,7 @@ class TestRouterListFilters:
         client = client_ctx["client"]
         service = client_ctx["service"]
         program_id = uuid.uuid4()
-        resp = client.get(
-            f"/api/v2/critiques?program_id={program_id}"
-        )
+        resp = client.get(f"/api/v2/critiques?program_id={program_id}")
         assert resp.status_code == 200, resp.text
         kwargs = service.list.await_args.kwargs
         assert kwargs["program_id"] == program_id
@@ -398,9 +391,7 @@ class TestRouterListFilters:
     def test_list_passes_critic_kind_filter(self, client_ctx) -> None:
         client = client_ctx["client"]
         service = client_ctx["service"]
-        resp = client.get(
-            "/api/v2/critiques?critic_kind=red_team"
-        )
+        resp = client.get("/api/v2/critiques?critic_kind=red_team")
         assert resp.status_code == 200, resp.text
         kwargs = service.list.await_args.kwargs
         assert kwargs["critic_kind"] == "red_team"
@@ -408,9 +399,7 @@ class TestRouterListFilters:
     def test_list_passes_min_score_filter(self, client_ctx) -> None:
         client = client_ctx["client"]
         service = client_ctx["service"]
-        resp = client.get(
-            "/api/v2/critiques?min_score_overall=0.7"
-        )
+        resp = client.get("/api/v2/critiques?min_score_overall=0.7")
         assert resp.status_code == 200, resp.text
         kwargs = service.list.await_args.kwargs
         assert kwargs["min_score_overall"] == 0.7
@@ -419,9 +408,7 @@ class TestRouterListFilters:
         """page=2, per_page=25 → offset=25, limit=25 in the service call."""
         client = client_ctx["client"]
         service = client_ctx["service"]
-        resp = client.get(
-            "/api/v2/critiques?page=2&per_page=25"
-        )
+        resp = client.get("/api/v2/critiques?page=2&per_page=25")
         assert resp.status_code == 200, resp.text
         kwargs = service.list.await_args.kwargs
         # page 2, per_page 25 → offset (2-1)*25 = 25, limit 25
@@ -438,17 +425,13 @@ class TestRouterListFilters:
         assert kwargs["offset"] == 0
         assert kwargs["limit"] == 50
 
-    def test_list_invalid_critic_kind_returns_422_envelope(
-        self, client_ctx
-    ) -> None:
+    def test_list_invalid_critic_kind_returns_422_envelope(self, client_ctx) -> None:
         """Service raises CritiqueValidationError → route 422 envelope."""
         from app.services.critique_service import CritiqueValidationError
 
         client = client_ctx["client"]
         service = client_ctx["service"]
-        service.list = AsyncMock(
-            side_effect=CritiqueValidationError("invalid critic_kind='bogus'")
-        )
+        service.list = AsyncMock(side_effect=CritiqueValidationError("invalid critic_kind='bogus'"))
 
         resp = client.get("/api/v2/critiques?critic_kind=bogus")
         # Pydantic Query() would 422 first for an out-of-enum value, but
@@ -567,9 +550,7 @@ class TestRouterGet:
 
         client = client_ctx["client"]
         service = client_ctx["service"]
-        service.get = AsyncMock(
-            side_effect=CritiqueNotFound("critique not found")
-        )
+        service.get = AsyncMock(side_effect=CritiqueNotFound("critique not found"))
         critique_id = uuid.uuid4()
         resp = client.get(f"/api/v2/critiques/{critique_id}")
         assert resp.status_code == 404, resp.text
@@ -633,9 +614,7 @@ class TestServiceList:
         )
         # Inspect the WHERE clause of the FIRST execute call (count).
         stmt = db.execute.await_args_list[0][0][0]
-        compiled = str(
-            stmt.compile(compile_kwargs={"literal_binds": True})
-        )
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         # (user_id, workspace_id) must appear in the WHERE clause.
         assert "user_id" in compiled
         assert "workspace_id" in compiled
@@ -737,12 +716,7 @@ class TestServiceList:
         # Two distinct execute() results: count=7, items=3 rows.
         user_id = 1
         ws = "ws-paginate"
-        items = [
-            _make_critique_instance(
-                user_id=user_id, workspace_id=ws
-            )
-            for _ in range(3)
-        ]
+        items = [_make_critique_instance(user_id=user_id, workspace_id=ws) for _ in range(3)]
 
         count_result = MagicMock()
         count_result.scalar_one.return_value = 7
@@ -774,8 +748,7 @@ class TestServiceList:
         svc = CritiqueService(db)
         await svc.list(user_id=1, workspace_id="ws")
         assert not db.commit.called, (
-            "service.list() must NOT call db.commit() — caller owns "
-            "the transaction (services/AGENTS.md rule 3)"
+            "service.list() must NOT call db.commit() — caller owns " "the transaction (services/AGENTS.md rule 3)"
         )
 
     async def test_list_optional_filters_in_where(self) -> None:
@@ -801,9 +774,7 @@ class TestServiceList:
         )
         # Inspect the count WHERE clause.
         stmt = db.execute.await_args_list[0][0][0]
-        compiled = str(
-            stmt.compile(compile_kwargs={"literal_binds": True})
-        )
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         # Mandatory isolation.
         assert "user_id" in compiled
         assert "workspace_id" in compiled

@@ -250,7 +250,7 @@ class EntityTrackerTool(BaseTool):
         # Resolve text: use direct value or fetch from store
         text = validated.value
         if text is None:
-            fetched, source = await self._fetch_text(validated, user_id)
+            fetched, _source = await self._fetch_text(validated, user_id)
             if fetched is None:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,

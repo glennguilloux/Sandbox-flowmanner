@@ -32,7 +32,6 @@ from app.services.self_correction_loop import (
     reset_self_correction_loop,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # RecoveryPolicy: default mappings
 # ═══════════════════════════════════════════════════════════════════
@@ -46,64 +45,91 @@ class TestRecoveryPolicyDefaults:
 
     def test_timeout_maps_to_retry(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.TIMEOUT, root_cause="timed out",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=True,
+            error_class=ErrorClass.TIMEOUT,
+            root_cause="timed out",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=True,
         )
         assert self.policy.decide(analysis) == RecoveryAction.RETRY
 
     def test_network_maps_to_retry(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.NETWORK, root_cause="connection refused",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=True,
+            error_class=ErrorClass.NETWORK,
+            root_cause="connection refused",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=True,
         )
         assert self.policy.decide(analysis) == RecoveryAction.RETRY
 
     def test_rate_limit_maps_to_fallback_provider(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.RATE_LIMIT, root_cause="too many requests",
-            is_recoverable=True, suggested_recovery="fallback", retry_recommended=True,
+            error_class=ErrorClass.RATE_LIMIT,
+            root_cause="too many requests",
+            is_recoverable=True,
+            suggested_recovery="fallback",
+            retry_recommended=True,
         )
         assert self.policy.decide(analysis) == RecoveryAction.FALLBACK_PROVIDER
 
     def test_resource_maps_to_retry(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.RESOURCE, root_cause="quota exceeded",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=True,
+            error_class=ErrorClass.RESOURCE,
+            root_cause="quota exceeded",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=True,
         )
         assert self.policy.decide(analysis) == RecoveryAction.RETRY
 
     def test_validation_maps_to_reflect(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.VALIDATION, root_cause="bad input",
-            is_recoverable=True, suggested_recovery="fix input", retry_recommended=False,
+            error_class=ErrorClass.VALIDATION,
+            root_cause="bad input",
+            is_recoverable=True,
+            suggested_recovery="fix input",
+            retry_recommended=False,
         )
         assert self.policy.decide(analysis) == RecoveryAction.REFLECT
 
     def test_logic_maps_to_reflect(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.LOGIC, root_cause="logic error",
-            is_recoverable=True, suggested_recovery="adjust", retry_recommended=False,
+            error_class=ErrorClass.LOGIC,
+            root_cause="logic error",
+            is_recoverable=True,
+            suggested_recovery="adjust",
+            retry_recommended=False,
         )
         assert self.policy.decide(analysis) == RecoveryAction.REFLECT
 
     def test_not_found_maps_to_reflect(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.NOT_FOUND, root_cause="resource missing",
-            is_recoverable=True, suggested_recovery="broaden search", retry_recommended=False,
+            error_class=ErrorClass.NOT_FOUND,
+            root_cause="resource missing",
+            is_recoverable=True,
+            suggested_recovery="broaden search",
+            retry_recommended=False,
         )
         assert self.policy.decide(analysis) == RecoveryAction.REFLECT
 
     def test_permission_maps_to_ask_hitl(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.PERMISSION, root_cause="access denied",
-            is_recoverable=True, suggested_recovery="check creds", retry_recommended=False,
+            error_class=ErrorClass.PERMISSION,
+            root_cause="access denied",
+            is_recoverable=True,
+            suggested_recovery="check creds",
+            retry_recommended=False,
         )
         assert self.policy.decide(analysis) == RecoveryAction.ASK_HITL
 
     def test_unknown_maps_to_retry(self):
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.UNKNOWN, root_cause="something weird",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=True,
+            error_class=ErrorClass.UNKNOWN,
+            root_cause="something weird",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=True,
         )
         assert self.policy.decide(analysis) == RecoveryAction.RETRY
 
@@ -119,24 +145,33 @@ class TestRecoveryPolicyNonRecoverable:
     def test_non_recoverable_timeout_yields_abort(self):
         policy = RecoveryPolicy()
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.TIMEOUT, root_cause="budget exhausted",
-            is_recoverable=False, suggested_recovery="abort", retry_recommended=False,
+            error_class=ErrorClass.TIMEOUT,
+            root_cause="budget exhausted",
+            is_recoverable=False,
+            suggested_recovery="abort",
+            retry_recommended=False,
         )
         assert policy.decide(analysis) == RecoveryAction.ABORT
 
     def test_non_recoverable_network_yields_abort(self):
         policy = RecoveryPolicy()
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.NETWORK, root_cause="budget exhausted",
-            is_recoverable=False, suggested_recovery="abort", retry_recommended=False,
+            error_class=ErrorClass.NETWORK,
+            root_cause="budget exhausted",
+            is_recoverable=False,
+            suggested_recovery="abort",
+            retry_recommended=False,
         )
         assert policy.decide(analysis) == RecoveryAction.ABORT
 
     def test_non_recoverable_unknown_yields_abort(self):
         policy = RecoveryPolicy()
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.UNKNOWN, root_cause="budget exhausted",
-            is_recoverable=False, suggested_recovery="abort", retry_recommended=False,
+            error_class=ErrorClass.UNKNOWN,
+            root_cause="budget exhausted",
+            is_recoverable=False,
+            suggested_recovery="abort",
+            retry_recommended=False,
         )
         assert policy.decide(analysis) == RecoveryAction.ABORT
 
@@ -152,16 +187,22 @@ class TestRecoveryPolicyRetryDowngrade:
     def test_timeout_with_retry_not_recommended_yields_reflect(self):
         policy = RecoveryPolicy()
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.TIMEOUT, root_cause="timeout",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=False,
+            error_class=ErrorClass.TIMEOUT,
+            root_cause="timeout",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=False,
         )
         assert policy.decide(analysis) == RecoveryAction.REFLECT
 
     def test_network_with_retry_not_recommended_yields_reflect(self):
         policy = RecoveryPolicy()
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.NETWORK, root_cause="connection error",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=False,
+            error_class=ErrorClass.NETWORK,
+            root_cause="connection error",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=False,
         )
         assert policy.decide(analysis) == RecoveryAction.REFLECT
 
@@ -175,8 +216,11 @@ class TestRecoveryPolicyOverrides:
     def test_override_changes_action(self):
         policy = RecoveryPolicy(overrides={ErrorClass.TIMEOUT: RecoveryAction.ABORT})
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.TIMEOUT, root_cause="timeout",
-            is_recoverable=True, suggested_recovery="retry", retry_recommended=True,
+            error_class=ErrorClass.TIMEOUT,
+            root_cause="timeout",
+            is_recoverable=True,
+            suggested_recovery="retry",
+            retry_recommended=True,
         )
         assert policy.decide(analysis) == RecoveryAction.ABORT
 
@@ -247,7 +291,7 @@ class TestSelfCorrectionBudgetExhaustion:
     def test_cost_budget_exhausted_when_over(self):
         budget = SelfCorrectionBudget(max_total_cost_usd=0.50)
         budget.total_cost_usd = 0.75
-        exhausted, reason = budget.is_exhausted()
+        exhausted, _reason = budget.is_exhausted()
         assert exhausted is True
 
     def test_wall_clock_budget_exhausted(self):
@@ -259,7 +303,7 @@ class TestSelfCorrectionBudgetExhaustion:
 
     def test_wall_clock_not_exhausted_when_fresh(self):
         budget = SelfCorrectionBudget(max_total_wall_clock_seconds=3600.0)
-        exhausted, reason = budget.is_exhausted()
+        exhausted, _reason = budget.is_exhausted()
         assert exhausted is False
 
 
@@ -354,8 +398,10 @@ class TestSelfCorrectionLoopDecisions:
         # directly with a recoverable analysis to verify the ASK_HITL mapping.
         policy = RecoveryPolicy()
         analysis = FailureAnalysisResult(
-            error_class=ErrorClass.PERMISSION, root_cause="access denied",
-            is_recoverable=True, suggested_recovery="check creds",
+            error_class=ErrorClass.PERMISSION,
+            root_cause="access denied",
+            is_recoverable=True,
+            suggested_recovery="check creds",
             retry_recommended=False,
         )
         assert policy.decide(analysis) == RecoveryAction.ASK_HITL

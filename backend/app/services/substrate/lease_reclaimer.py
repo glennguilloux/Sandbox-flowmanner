@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import socket
 import os
+import socket
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -99,9 +99,7 @@ async def reclaim_one(
     """
     # Claim with a short TTL — the ON CONFLICT ... WHERE expires_at < now()
     # guard ensures we only reclaim truly expired leases.
-    claimed = await try_claim_lease(
-        db, reclaimer_worker_id, lease.run_id, ttl_seconds=1
-    )
+    claimed = await try_claim_lease(db, reclaimer_worker_id, lease.run_id, ttl_seconds=1)
 
     if not claimed:
         # Another process reclaimed or re-created the lease first.
@@ -171,9 +169,7 @@ class LeaseReclaimer:
         scan_interval_seconds: int = 60,
         batch_size: int = 100,
     ) -> None:
-        self._worker_id = worker_id or (
-            f"reclaimer-{socket.gethostname()}-{os.getpid()}"
-        )
+        self._worker_id = worker_id or (f"reclaimer-{socket.gethostname()}-{os.getpid()}")
         self._scan_interval = scan_interval_seconds
         self._batch_size = batch_size
 
@@ -197,12 +193,10 @@ class LeaseReclaimer:
 
         while not stop_event.is_set():
             try:
-                await asyncio.wait_for(
-                    stop_event.wait(), timeout=self._scan_interval
-                )
+                await asyncio.wait_for(stop_event.wait(), timeout=self._scan_interval)
                 # stop_event was set — exit cleanly.
                 break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Interval elapsed — run a scan.
                 pass
 
@@ -265,9 +259,7 @@ def start_reclaimer() -> None:
         finally:
             loop.close()
 
-    _reclaimer_thread = threading.Thread(
-        target=_run, name="lease-reclaimer", daemon=True
-    )
+    _reclaimer_thread = threading.Thread(target=_run, name="lease-reclaimer", daemon=True)
     _reclaimer_thread.start()
     logger.info("LeaseReclaimer background thread started")
 

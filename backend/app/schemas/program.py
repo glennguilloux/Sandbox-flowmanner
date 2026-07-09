@@ -24,7 +24,6 @@ from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ── Trigger config discriminated union ────────────────────────────────────
 
 
@@ -58,7 +57,7 @@ class ManualTrigger(BaseModel):
 
 # Discriminated union: Pydantic v2 routes by the ``type`` field.
 TriggerConfig = Annotated[
-    Union[CronTrigger, WebhookTrigger, ManualTrigger],
+    CronTrigger | WebhookTrigger | ManualTrigger,
     Field(discriminator="type"),
 ]
 
@@ -104,9 +103,7 @@ class LearningBriefBase(BaseModel):
     # pattern from T22 (the new field defaults to []).
     critic_plan_adjustments: list[dict[str, Any]] = Field(default_factory=list)
     critic_tool_suggestions: list[dict[str, Any]] = Field(default_factory=list)
-    critic_common_failure_patterns: list[dict[str, Any]] = Field(
-        default_factory=list
-    )
+    critic_common_failure_patterns: list[dict[str, Any]] = Field(default_factory=list)
     critic_last_applied_at: str | None = None
 
 

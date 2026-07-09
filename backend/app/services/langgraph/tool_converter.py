@@ -21,7 +21,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from app.services.langgraph.llm_config import LLMManager, get_llm_manager  # noqa: F401
+from app.services.langgraph.llm_config import LLMManager, get_llm_manager
 
 logger = logging.getLogger(__name__)
 
@@ -455,7 +455,9 @@ class ToolConverter:
             # Build prompt — with optional sparse routing
             if enable_routing and workspace_id and user_id:
                 tools_description = await self._build_routed_tools_description(
-                    message, workspace_id, user_id,
+                    message,
+                    workspace_id,
+                    user_id,
                 )
             else:
                 tools_description = self._build_tools_description()

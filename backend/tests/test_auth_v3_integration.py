@@ -27,48 +27,48 @@ def _am(retval):
 
 
 def _make_user(**overrides):
-    defaults = dict(
-        id=1,
-        email="test@example.com",
-        username="testuser",
-        full_name="Test User",
-        role="pro",
-        is_admin=False,
-        is_superuser=False,
-        is_active=True,
-        avatar_url=None,
-        totp_enabled=False,
-        totp_secret=None,
-        totp_backup_codes=None,
-        tenant_id=None,
-        hashed_password="$2b$...",
-        login_count=5,
-        last_login_at=datetime.now(UTC),
-        created_at=datetime.now(UTC),
-        onboarding_step=None,
-        onboarding_completed=False,
-    )
+    defaults = {
+        "id": 1,
+        "email": "test@example.com",
+        "username": "testuser",
+        "full_name": "Test User",
+        "role": "pro",
+        "is_admin": False,
+        "is_superuser": False,
+        "is_active": True,
+        "avatar_url": None,
+        "totp_enabled": False,
+        "totp_secret": None,
+        "totp_backup_codes": None,
+        "tenant_id": None,
+        "hashed_password": "$2b$...",
+        "login_count": 5,
+        "last_login_at": datetime.now(UTC),
+        "created_at": datetime.now(UTC),
+        "onboarding_step": None,
+        "onboarding_completed": False,
+    }
     defaults.update(overrides)
     return MagicMock(**defaults)
 
 
 def _make_session(**overrides):
-    defaults = dict(
-        id="sess_test123",
-        user_id=1,
-        refresh_token_hash="abc123...",
-        ip_address="127.0.0.1",
-        device_name="pytest",
-        device_os="Linux",
-        browser="Chrome",
-        location=None,
-        scopes=json.dumps(["sessions:read", "sessions:write", "api_keys:read", "api_keys:write"]),
-        is_active=True,
-        revoked_at=None,
-        last_used_at=datetime.now(UTC),
-        created_at=datetime.now(UTC),
-        expires_at=datetime(2026, 7, 1, tzinfo=UTC),
-    )
+    defaults = {
+        "id": "sess_test123",
+        "user_id": 1,
+        "refresh_token_hash": "abc123...",
+        "ip_address": "127.0.0.1",
+        "device_name": "pytest",
+        "device_os": "Linux",
+        "browser": "Chrome",
+        "location": None,
+        "scopes": json.dumps(["sessions:read", "sessions:write", "api_keys:read", "api_keys:write"]),
+        "is_active": True,
+        "revoked_at": None,
+        "last_used_at": datetime.now(UTC),
+        "created_at": datetime.now(UTC),
+        "expires_at": datetime(2026, 7, 1, tzinfo=UTC),
+    }
     defaults.update(overrides)
     return MagicMock(**defaults)
 
@@ -76,16 +76,16 @@ def _make_session(**overrides):
 def _make_api_key(**overrides):
     """Create a mock API key. name is set after construction because it's a
     reserved MagicMock constructor parameter."""
-    defaults = dict(
-        id="key_test123",
-        key_hash="abc...",
-        key_prefix="fm_a1b2c3",
-        scopes=json.dumps(["missions:read"]),
-        is_active=True,
-        last_used_at=None,
-        created_at=datetime.now(UTC),
-        expires_at=None,
-    )
+    defaults = {
+        "id": "key_test123",
+        "key_hash": "abc...",
+        "key_prefix": "fm_a1b2c3",
+        "scopes": json.dumps(["missions:read"]),
+        "is_active": True,
+        "last_used_at": None,
+        "created_at": datetime.now(UTC),
+        "expires_at": None,
+    }
     defaults.update(overrides)
     name = defaults.pop("name", "CI Key")
     m = MagicMock(**defaults)

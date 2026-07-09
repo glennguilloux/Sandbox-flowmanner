@@ -134,7 +134,7 @@ class TestTopologyNodeSchema:
 
         indexes = TopologyNode.__table__.indexes
         idx = next(
-            (ix for ix in indexes if set(c.name for c in ix.columns) == {"snapshot_id"}),
+            (ix for ix in indexes if {c.name for c in ix.columns} == {"snapshot_id"}),
             None,
         )
         assert idx is not None, "Missing index on snapshot_id"
@@ -216,7 +216,7 @@ class TestTopologyEdgeSchema:
 
         indexes = TopologyEdge.__table__.indexes
         idx = next(
-            (ix for ix in indexes if set(c.name for c in ix.columns) == {"snapshot_id"}),
+            (ix for ix in indexes if {c.name for c in ix.columns} == {"snapshot_id"}),
             None,
         )
         assert idx is not None, "Missing index on snapshot_id"

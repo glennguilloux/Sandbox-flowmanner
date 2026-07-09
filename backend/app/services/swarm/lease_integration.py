@@ -36,13 +36,11 @@ class HandoffLeaseIntegration:
     track it without schema changes.
     """
 
-    def __init__(self, db: "AsyncSession", worker_id: str = "handoff-worker"):
+    def __init__(self, db: AsyncSession, worker_id: str = "handoff-worker"):
         self.db = db
         self._worker_id = worker_id
 
-    async def _claim_for_worker(
-        self, handoff_id: str, agent_id: str, worker_id: str
-    ) -> str:
+    async def _claim_for_worker(self, handoff_id: str, agent_id: str, worker_id: str) -> str:
         """Internal: claim a lease for *handoff_id* under *worker_id*.
 
         Shared by ``claim_for_handoff`` (instance default worker) and
@@ -68,9 +66,7 @@ class HandoffLeaseIntegration:
 
     async def claim_for_handoff(self, handoff_id: str, agent_id: str) -> str:
         """Claim a lease for a handoff.  Returns the synthetic run_id."""
-        return await self._claim_for_worker(
-            handoff_id, agent_id, self._worker_id
-        )
+        return await self._claim_for_worker(handoff_id, agent_id, self._worker_id)
 
     async def renew(self, handoff_id: str) -> bool:
         """Renew the lease for an in-flight handoff."""
@@ -114,9 +110,7 @@ class HandoffLeaseIntegration:
                 pre-fix behavior).  Pass an explicit worker_id to actually
                 transfer ownership across workers.
         """
-        target_worker = (
-            new_worker_id if new_worker_id is not None else self._worker_id
-        )
+        target_worker = new_worker_id if new_worker_id is not None else self._worker_id
         await self.release(handoff_id)
         await self._claim_for_worker(handoff_id, to_agent_id, target_worker)
         logger.info(

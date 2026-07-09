@@ -60,18 +60,19 @@ os.environ.setdefault(
 )
 
 # Late imports so env var is honored.
-from app.models.mission_models import Mission  # noqa: E402
-from app.models.mission_program_models import (  # noqa: E402
+import contextlib
+
+from app.models.mission_models import Mission
+from app.models.mission_program_models import (
     MissionProgram,
     ProgramRun,
 )
-from app.models.user import User  # noqa: E402
-from app.models.workspace_models import Workspace  # noqa: E402
-from app.schemas.program import LearningBriefBase, ProgramCreate  # noqa: E402
-from app.services.mission_program_service import (  # noqa: E402
+from app.models.user import User
+from app.models.workspace_models import Workspace
+from app.schemas.program import LearningBriefBase, ProgramCreate
+from app.services.mission_program_service import (
     MissionProgramService,
 )
-
 
 # ════════════════════════════════════════════════════════════════════════
 # Section 1 — Schema (pure-Python, no DB)
@@ -231,24 +232,16 @@ async def ctx() -> Any:
     finally:
         # Close the test session cleanly. If close fails (e.g. async
         # generator race), swallow it — we still want cleanup to run.
-        try:
+        with contextlib.suppress(Exception):
             await session.close()
-        except Exception:
-            pass
         # Best-effort cleanup of persisted rows.
         try:
             async with TestSessionLocal() as cleanup:
                 await cleanup.execute(
-                    text(
-                        "ALTER TABLE substrate_events "
-                        "DISABLE TRIGGER trg_substrate_events_append_only"
-                    )
+                    text("ALTER TABLE substrate_events " "DISABLE TRIGGER trg_substrate_events_append_only")
                 )
                 await cleanup.execute(
-                    text(
-                        "DELETE FROM personal_memory_claims "
-                        "WHERE user_id = :uid"
-                    ),
+                    text("DELETE FROM personal_memory_claims " "WHERE user_id = :uid"),
                     {"uid": owner.id},
                 )
                 await cleanup.execute(
@@ -279,20 +272,14 @@ async def ctx() -> Any:
                     {"uid": owner.id},
                 )
                 await cleanup.execute(
-                    text(
-                        "ALTER TABLE substrate_events "
-                        "ENABLE TRIGGER trg_substrate_events_append_only"
-                    )
+                    text("ALTER TABLE substrate_events " "ENABLE TRIGGER trg_substrate_events_append_only")
                 )
                 await cleanup.commit()
         except Exception:
             try:
                 async with TestSessionLocal() as s2:
                     await s2.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "ENABLE TRIGGER trg_substrate_events_append_only"
-                        )
+                        text("ALTER TABLE substrate_events " "ENABLE TRIGGER trg_substrate_events_append_only")
                     )
                     await s2.commit()
             except Exception:
@@ -309,14 +296,10 @@ def _make_memory_mock() -> MagicMock:
     return m
 
 
-def _make_enforcer_mock(
-    *, response_content: str = "{}"
-) -> MagicMock:
+def _make_enforcer_mock(*, response_content: str = "{}") -> MagicMock:
     """Stand-in for BudgetEnforcer singleton."""
     e = MagicMock()
-    e.call = AsyncMock(
-        return_value={"content": response_content, "success": True}
-    )
+    e.call = AsyncMock(return_value={"content": response_content, "success": True})
     return e
 
 
@@ -441,16 +424,17 @@ async def test_no_personal_memory_service_yields_empty_claims(ctx) -> None:
     )
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # user_personal_claims is the empty list.
     assert response.brief.user_personal_claims == []
@@ -527,16 +511,17 @@ async def test_recall_claims_serialized_with_documented_shape(ctx) -> None:
     )
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     claims = response.brief.user_personal_claims
     assert len(claims) == 2
@@ -580,16 +565,24 @@ async def test_restricted_and_private_claims_filtered(ctx) -> None:
     only the kept one.
     """
     normal = _make_claim(
-        subject="user", predicate="prefers", scope="personal",
+        subject="user",
+        predicate="prefers",
+        scope="personal",
         sensitivity="normal",
     )
     restricted = _make_claim(
-        subject="user", predicate="secret", scope="personal",
-        sensitivity="restricted", claim_id=uuid.uuid4(),
+        subject="user",
+        predicate="secret",
+        scope="personal",
+        sensitivity="restricted",
+        claim_id=uuid.uuid4(),
     )
     private = _make_claim(
-        subject="user", predicate="private", scope="private",
-        sensitivity="normal", claim_id=uuid.uuid4(),
+        subject="user",
+        predicate="private",
+        scope="private",
+        sensitivity="normal",
+        claim_id=uuid.uuid4(),
     )
 
     service = MissionProgramService(
@@ -614,21 +607,20 @@ async def test_restricted_and_private_claims_filtered(ctx) -> None:
     )
     await ctx["session"].commit()
 
-    enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps({"total_runs": 1, "success_rate": 1.0})
-    )
+    enforcer_mock = _make_enforcer_mock(response_content=json.dumps({"total_runs": 1, "success_rate": 1.0}))
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     claims = response.brief.user_personal_claims
     assert len(claims) == 1
@@ -683,22 +675,21 @@ async def test_user_notes_not_overwritten(ctx) -> None:
     await ctx["session"].commit()
 
     enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps(
-            {"total_runs": 1, "success_rate": 1.0, "effective_tools": ["t1"]}
-        )
+        response_content=json.dumps({"total_runs": 1, "success_rate": 1.0, "effective_tools": ["t1"]})
     )
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # Canonical isolation: user_notes survives the consolidation.
     assert response.brief.user_notes == "ALWAYS avoid Mondays — high load"
@@ -706,10 +697,7 @@ async def test_user_notes_not_overwritten(ctx) -> None:
     assert len(response.brief.user_personal_claims) == 1
     # Persisted in DB.
     await ctx["session"].refresh(program)
-    assert (
-        program.learning_brief["user_notes"]
-        == "ALWAYS avoid Mondays — high load"
-    )
+    assert program.learning_brief["user_notes"] == "ALWAYS avoid Mondays — high load"
     assert len(program.learning_brief["user_personal_claims"]) == 1
 
 
@@ -744,23 +732,22 @@ async def test_recall_raises_swallowed_yields_empty_claims(ctx) -> None:
     await ctx["session"].commit()
 
     enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps(
-            {"total_runs": 1, "success_rate": 0.5, "effective_tools": ["t1"]}
-        )
+        response_content=json.dumps({"total_runs": 1, "success_rate": 0.5, "effective_tools": ["t1"]})
     )
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
         # MUST NOT raise.
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # Brief is still merged and structured fields are present.
     assert response.brief.user_personal_claims == []
@@ -781,9 +768,7 @@ async def test_last_consolidated_at_set_with_empty_personal_memory(ctx) -> None:
     """
     service = MissionProgramService(
         ctx["session"],
-        get_personal_memory_service=lambda: _make_personal_memory_service_mock(
-            recall_return=([], 0)
-        ),
+        get_personal_memory_service=lambda: _make_personal_memory_service_mock(recall_return=([], 0)),
     )
     payload = ProgramCreate(name="Empty-pm", description="")
     program = await service.create(
@@ -801,21 +786,20 @@ async def test_last_consolidated_at_set_with_empty_personal_memory(ctx) -> None:
     )
     await ctx["session"].commit()
 
-    enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps({"total_runs": 1, "success_rate": 1.0})
-    )
+    enforcer_mock = _make_enforcer_mock(response_content=json.dumps({"total_runs": 1, "success_rate": 1.0}))
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     assert response.brief.last_consolidated_at is not None
     # And user_personal_claims is the empty list.
@@ -833,9 +817,7 @@ async def test_structured_fields_preserved(ctx) -> None:
     """
     service = MissionProgramService(
         ctx["session"],
-        get_personal_memory_service=lambda: _make_personal_memory_service_mock(
-            recall_return=([_make_claim()], 1)
-        ),
+        get_personal_memory_service=lambda: _make_personal_memory_service_mock(recall_return=([_make_claim()], 1)),
     )
     payload = ProgramCreate(name="Structured-preserved", description="")
     program = await service.create(
@@ -864,30 +846,27 @@ async def test_structured_fields_preserved(ctx) -> None:
         "hitl_history": [{"outcome": "approved", "count": 1}],
         "plan_adjustments": "favor summarization first",
     }
-    enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps(llm_payload)
-    )
+    enforcer_mock = _make_enforcer_mock(response_content=json.dumps(llm_payload))
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     # Structured fields survive the merge.
     assert response.brief.total_runs == 7
     assert response.brief.success_rate == 0.8571
     assert response.brief.avg_cost_usd == 0.05
     assert response.brief.avg_tokens == 1234
-    assert response.brief.common_failures == [
-        {"pattern": "rate-limit", "count": 2, "mitigation": "backoff"}
-    ]
+    assert response.brief.common_failures == [{"pattern": "rate-limit", "count": 2, "mitigation": "backoff"}]
     assert response.brief.effective_tools == ["search", "summarize"]
     assert response.brief.ineffective_tools == ["raw-curl"]
     assert response.brief.hitl_history == [{"outcome": "approved", "count": 1}]
@@ -917,9 +896,7 @@ async def test_top_20_cap(ctx) -> None:
     ]
     service = MissionProgramService(
         ctx["session"],
-        get_personal_memory_service=lambda: _make_personal_memory_service_mock(
-            recall_return=(claims_25, 25)
-        ),
+        get_personal_memory_service=lambda: _make_personal_memory_service_mock(recall_return=(claims_25, 25)),
     )
     payload = ProgramCreate(name="Top20-cap", description="")
     program = await service.create(
@@ -937,21 +914,20 @@ async def test_top_20_cap(ctx) -> None:
     )
     await ctx["session"].commit()
 
-    enforcer_mock = _make_enforcer_mock(
-        response_content=json.dumps({"total_runs": 1, "success_rate": 1.0})
-    )
+    enforcer_mock = _make_enforcer_mock(response_content=json.dumps({"total_runs": 1, "success_rate": 1.0}))
     memory_mock = _make_memory_mock()
 
-    with patch(
-        "app.services.episodic_memory_service.get_episodic_memory_service",
-        return_value=memory_mock,
-    ), patch(
-        "app.services.budget_enforcer.get_budget_enforcer",
-        return_value=enforcer_mock,
+    with (
+        patch(
+            "app.services.episodic_memory_service.get_episodic_memory_service",
+            return_value=memory_mock,
+        ),
+        patch(
+            "app.services.budget_enforcer.get_budget_enforcer",
+            return_value=enforcer_mock,
+        ),
     ):
-        response = await service.consolidate_learning(
-            user_id=ctx["owner"].id, program_id=program.id
-        )
+        response = await service.consolidate_learning(user_id=ctx["owner"].id, program_id=program.id)
 
     claims = response.brief.user_personal_claims
     assert len(claims) == 20

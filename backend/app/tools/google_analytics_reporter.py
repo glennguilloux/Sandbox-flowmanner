@@ -361,7 +361,7 @@ class GoogleAnalyticsReporterTool(BaseTool):
         end_date = _parse_date(validated.end_date or "today")
 
         # Validate date range
-        sd, ed, range_err = _validate_date_range(start_date, end_date)
+        _sd, _ed, range_err = _validate_date_range(start_date, end_date)
         if range_err:
             return {"error": range_err, "success": False}
 

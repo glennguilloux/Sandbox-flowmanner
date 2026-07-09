@@ -40,6 +40,7 @@ Run via::
 
 from __future__ import annotations
 
+import contextlib
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -54,7 +55,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.pool import NullPool
-
 
 # Ensure DATABASE_URL is set BEFORE importing app modules that need it.
 os.environ.setdefault(
@@ -100,8 +100,7 @@ class TestClaimTypeEnum:
         # If a nonmember() were forgotten, this would contain _TRANSITIONS.
         members = [m for m in dir(ClaimType) if not m.startswith("__")]
         assert "_TRANSITIONS" not in members, (
-            "str, Enum must use enum.nonmember() to keep class-level dicts "
-            "out of member iteration"
+            "str, Enum must use enum.nonmember() to keep class-level dicts " "out of member iteration"
         )
 
 
@@ -521,17 +520,13 @@ class TestPersonalMemoryForgetRequestSchema:
     def test_default_hard_false(self) -> None:
         from app.schemas.personal_memory import PersonalMemoryForgetRequest
 
-        req = PersonalMemoryForgetRequest(
-            claim_id="00000000-0000-0000-0000-000000000000"
-        )
+        req = PersonalMemoryForgetRequest(claim_id="00000000-0000-0000-0000-000000000000")
         assert req.hard is False
 
     def test_explicit_hard_true(self) -> None:
         from app.schemas.personal_memory import PersonalMemoryForgetRequest
 
-        req = PersonalMemoryForgetRequest(
-            claim_id="00000000-0000-0000-0000-000000000000", hard=True
-        )
+        req = PersonalMemoryForgetRequest(claim_id="00000000-0000-0000-0000-000000000000", hard=True)
         assert req.hard is True
 
     def test_claim_id_required(self) -> None:
@@ -568,12 +563,8 @@ _TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 # need `127.0.0.1`. Only swap if it's still the bare docker hostname.
 if "@postgres:" in _TEST_DATABASE_URL:
     _TEST_DATABASE_URL = _TEST_DATABASE_URL.replace("@postgres:", "@127.0.0.1:")
-_test_engine = create_async_engine(
-    _TEST_DATABASE_URL, echo=False, poolclass=NullPool
-)
-TestSessionLocal = async_sessionmaker(
-    _test_engine, class_=AsyncSession, expire_on_commit=False
-)
+_test_engine = create_async_engine(_TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+TestSessionLocal = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -605,9 +596,7 @@ def _new_workspace_id() -> str:
     return f"ws-pmem-{uuid.uuid4().hex[:24]}"
 
 
-async def _make_user(
-    session: AsyncSession, *, suffix: str = "owner"
-) -> Any:
+async def _make_user(session: AsyncSession, *, suffix: str = "owner") -> Any:
     """Insert a fresh User row. Caller is responsible for commit."""
     from app.models.user import User
 
@@ -627,9 +616,7 @@ async def _make_user(
     return user
 
 
-async def _make_workspace(
-    session: AsyncSession, *, owner_id: int
-) -> Any:
+async def _make_workspace(session: AsyncSession, *, owner_id: int) -> Any:
     """Insert a fresh Workspace row. Caller is responsible for commit."""
     from app.models.workspace_models import Workspace
 
@@ -698,10 +685,8 @@ async def ctx() -> Any:
     finally:
         # Close the test session cleanly. If close fails (e.g. async
         # generator race), swallow it — we still want cleanup to run.
-        try:
+        with contextlib.suppress(Exception):
             await session.close()
-        except Exception:
-            pass
         await _cleanup_user(owner.id)
 
 

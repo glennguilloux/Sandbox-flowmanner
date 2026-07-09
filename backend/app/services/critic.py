@@ -635,15 +635,15 @@ class RedTeamAgent(_CriticAgentBase):
 from app.services.budget_enforcer import get_budget_enforcer
 
 __all__ = [
-    "CRITIC_SYSTEM_PROMPT",
-    "CRITIC_USER_PROMPT_TEMPLATE",
+    "CRITIC_DEFAULT_BUDGET_USD",
+    "CRITIC_DEFAULT_MAX_TOKENS",
     "CRITIC_DEFAULT_MODEL",
     "CRITIC_DEFAULT_TEMPERATURE",
-    "CRITIC_DEFAULT_MAX_TOKENS",
+    "CRITIC_SYSTEM_PROMPT",
+    "CRITIC_USER_PROMPT_TEMPLATE",
     "RED_TEAM_DEFAULT_TEMPERATURE",
-    "CRITIC_DEFAULT_BUDGET_USD",
+    "CriticAgent",
     "CriticInput",
     "CriticOutput",
-    "CriticAgent",
     "RedTeamAgent",
 ]

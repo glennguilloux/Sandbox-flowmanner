@@ -66,10 +66,10 @@ class TestCandidateClaimImmutability:
     """The CandidateClaim dataclass MUST be frozen (immutable)."""
 
     def test_is_frozen_dataclass(self) -> None:
-        from app.services.personal_memory_extractor import CandidateClaim
-
         # frozen=True is the safest signal — assigning to a field must raise.
         import dataclasses
+
+        from app.services.personal_memory_extractor import CandidateClaim
 
         assert dataclasses.is_dataclass(CandidateClaim)
         assert CandidateClaim.__dataclass_params__.frozen is True
@@ -396,9 +396,7 @@ class TestRegexExtractorPII:
     def test_email_flagged_sensitive_private(self) -> None:
         from app.services.personal_memory_extractor import RegexPersonalMemoryExtractor
 
-        claims = RegexPersonalMemoryExtractor().extract(
-            "Reach me at alice@example.com please"
-        )
+        claims = RegexPersonalMemoryExtractor().extract("Reach me at alice@example.com please")
         assert len(claims) >= 1
         c = claims[0]
         assert c.claim_type == "sensitive"
@@ -408,9 +406,7 @@ class TestRegexExtractorPII:
     def test_phone_flagged_sensitive_private(self) -> None:
         from app.services.personal_memory_extractor import RegexPersonalMemoryExtractor
 
-        claims = RegexPersonalMemoryExtractor().extract(
-            "Call me at 555-123-4567 if urgent"
-        )
+        claims = RegexPersonalMemoryExtractor().extract("Call me at 555-123-4567 if urgent")
         assert len(claims) >= 1
         c = claims[0]
         assert c.claim_type == "sensitive"
@@ -420,9 +416,7 @@ class TestRegexExtractorPII:
         from app.services.personal_memory_extractor import RegexPersonalMemoryExtractor
 
         # 16 digits, grouped as 4-4-4-4 (Luhn is NOT enforced — it's just a regex).
-        claims = RegexPersonalMemoryExtractor().extract(
-            "My card is 4242 4242 4242 4242 btw"
-        )
+        claims = RegexPersonalMemoryExtractor().extract("My card is 4242 4242 4242 4242 btw")
         assert len(claims) >= 1
         c = claims[0]
         assert c.claim_type == "sensitive"
@@ -442,9 +436,7 @@ class TestRegexExtractorEmptyForNonPersonalText:
         from app.services.personal_memory_extractor import RegexPersonalMemoryExtractor
 
         # No first-person, no PII, no imperative.
-        claims = RegexPersonalMemoryExtractor().extract(
-            "Postgres 15.2 was released in February 2023."
-        )
+        claims = RegexPersonalMemoryExtractor().extract("Postgres 15.2 was released in February 2023.")
         assert claims == []
 
     def test_empty_string_yields_nothing(self) -> None:
@@ -467,16 +459,14 @@ class TestLLMResponseParser:
     * return ``[]`` for non-parseable content (NEVER raise)
     """
 
-    def _parser(self):  # noqa: ANN202 - internal helper
+    def _parser(self):
         from app.services.personal_memory_extractor import (
             PersonalMemoryExtractor,
         )
 
         # The parser is a method on the extractor; call it via a real
         # instance with a no-op router.
-        return PersonalMemoryExtractor(
-            get_model_router=lambda: None
-        )._parse_llm_response
+        return PersonalMemoryExtractor(get_model_router=lambda: None)._parse_llm_response
 
     def test_parses_fenced_json(self) -> None:
         parse = self._parser()
@@ -534,7 +524,7 @@ class TestSystemPrompt:
     * the four scope names: personal, workspace, program, private
     """
 
-    def _extractor(self):  # noqa: ANN202
+    def _extractor(self):
         from app.services.personal_memory_extractor import PersonalMemoryExtractor
 
         return PersonalMemoryExtractor(get_model_router=lambda: None)
@@ -618,9 +608,7 @@ class TestExtractWithFallbackPathSelection:
         # LLM raises an exception. The fallback regex extractor should
         # still find "I prefer dark mode" in the input text.
         mock_router = MagicMock()
-        mock_router.route_request = AsyncMock(
-            side_effect=RuntimeError("LLM provider is down")
-        )
+        mock_router.route_request = AsyncMock(side_effect=RuntimeError("LLM provider is down"))
 
         extractor = PersonalMemoryExtractor(
             get_model_router=lambda: mock_router,
@@ -708,9 +696,7 @@ class TestExtractCallsModelRouter:
     async def test_extract_uses_default_model_name(self) -> None:
         from app.services.personal_memory_extractor import PersonalMemoryExtractor
 
-        mock_router = _make_mock_router(
-            response={"success": True, "response": "[]", "model": "deepseek-chat"}
-        )
+        mock_router = _make_mock_router(response={"success": True, "response": "[]", "model": "deepseek-chat"})
         extractor = PersonalMemoryExtractor(get_model_router=lambda: mock_router)
         await extractor.extract(user_id=1, workspace_id="ws-1", text="Hello")
 
@@ -729,9 +715,7 @@ class TestExtractCallsModelRouter:
     async def test_extract_uses_custom_model_name(self) -> None:
         from app.services.personal_memory_extractor import PersonalMemoryExtractor
 
-        mock_router = _make_mock_router(
-            response={"success": True, "response": "[]", "model": "qwen-0.5b"}
-        )
+        mock_router = _make_mock_router(response={"success": True, "response": "[]", "model": "qwen-0.5b"})
         extractor = PersonalMemoryExtractor(
             get_model_router=lambda: mock_router,
             model_name="qwen-0.5b",
@@ -795,9 +779,7 @@ class TestExtractReturnsParsedCandidates:
         """Even without a fence, an empty JSON array must yield []."""
         from app.services.personal_memory_extractor import PersonalMemoryExtractor
 
-        mock_router = _make_mock_router(
-            response={"success": True, "response": "[]", "model": "deepseek-chat"}
-        )
+        mock_router = _make_mock_router(response={"success": True, "response": "[]", "model": "deepseek-chat"})
         extractor = PersonalMemoryExtractor(get_model_router=lambda: mock_router)
         claims = await extractor.extract(user_id=1, workspace_id="ws-1", text="nothing")
 
@@ -821,9 +803,7 @@ class TestExtractWithFallbackWhenLLMRaises:
             get_model_router=lambda: mock_router,
             fallback_extractor=RegexPersonalMemoryExtractor(),
         )
-        claims, source = await extractor.extract_with_fallback(
-            user_id=1, workspace_id="ws-1", text="My name is Alice"
-        )
+        claims, source = await extractor.extract_with_fallback(user_id=1, workspace_id="ws-1", text="My name is Alice")
         assert source is ExtractionSource.FALLBACK
         assert len(claims) >= 1
         # The regex extractor should pick up "My name is Alice" as a fact.

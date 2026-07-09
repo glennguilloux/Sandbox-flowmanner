@@ -252,7 +252,7 @@ class ChartDataExtractorTool(BaseTool):
     def _extract_line_chart(self, img: np.ndarray) -> dict[str, Any]:
         """Extract data points from a line chart using edge detection."""
         gray = np.mean(img, axis=2).astype(np.uint8)
-        h, w = gray.shape
+        _h, w = gray.shape
 
         # Detect line pixels using horizontal gradient
         gy = np.abs(np.diff(gray.astype(np.int16), axis=0))

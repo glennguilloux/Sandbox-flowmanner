@@ -1041,13 +1041,10 @@ class TestRouteRegistration:
             mock_ec.return_value.list_escalations = AsyncMock(return_value=[])
             mock_ec.return_value.list_dead_letters = AsyncMock(return_value=[])
 
-            if method == "GET":
-                resp = test_client.get(path)
-            else:
-                resp = test_client.post(path, json={})
-            assert resp.status_code == expected_status, (
-                f"Expected {expected_status} for {method} {path}, got {resp.status_code}"
-            )
+            resp = test_client.get(path) if method == "GET" else test_client.post(path, json={})
+            assert (
+                resp.status_code == expected_status
+            ), f"Expected {expected_status} for {method} {path}, got {resp.status_code}"
 
     def test_parameterized_routes_exist(self, test_client):
         """Parameterized routes return 404 for non-existent IDs (route itself exists)."""

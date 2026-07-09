@@ -45,7 +45,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base, TimestampMixin
 
-
 # ── Value-set tuples for CHECK constraints ────────────────────────────────
 
 # Hardcoded tuples — do NOT derive from enum iteration.

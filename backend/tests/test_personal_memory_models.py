@@ -27,7 +27,6 @@ from typing import Any
 
 import pytest
 
-
 # ── Pure-Python tests (no DB) ────────────────────────────────────────────
 
 
@@ -149,7 +148,7 @@ class TestPersonalMemoryClaimColumnDefaults:
 
     def test_confidence_default_is_0_5(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         confidence_col = Base.metadata.tables["personal_memory_claims"].columns["confidence"]
         assert confidence_col.default is not None
@@ -157,7 +156,7 @@ class TestPersonalMemoryClaimColumnDefaults:
 
     def test_importance_default_is_0_5(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         importance_col = Base.metadata.tables["personal_memory_claims"].columns["importance"]
         assert importance_col.default is not None
@@ -165,7 +164,7 @@ class TestPersonalMemoryClaimColumnDefaults:
 
     def test_sensitivity_default_is_normal(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         sensitivity_col = Base.metadata.tables["personal_memory_claims"].columns["sensitivity"]
         assert sensitivity_col.default is not None
@@ -177,44 +176,44 @@ class TestPersonalMemoryClaimCheckConstraints:
 
     def test_claim_type_check_constraint_defined(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         table = Base.metadata.tables["personal_memory_claims"]
         check_names = {c.name for c in table.constraints if hasattr(c, "name") and c.name}
         # The CHECK constraint for claim_type must be defined.
-        assert any("claim_type" in (n or "") for n in check_names), (
-            f"Expected a CHECK constraint on claim_type; got: {check_names}"
-        )
+        assert any(
+            "claim_type" in (n or "") for n in check_names
+        ), f"Expected a CHECK constraint on claim_type; got: {check_names}"
 
     def test_scope_check_constraint_defined(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         table = Base.metadata.tables["personal_memory_claims"]
         check_names = {c.name for c in table.constraints if hasattr(c, "name") and c.name}
-        assert any("scope" in (n or "") for n in check_names), (
-            f"Expected a CHECK constraint on scope; got: {check_names}"
-        )
+        assert any(
+            "scope" in (n or "") for n in check_names
+        ), f"Expected a CHECK constraint on scope; got: {check_names}"
 
     def test_source_type_check_constraint_defined(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         table = Base.metadata.tables["personal_memory_claims"]
         check_names = {c.name for c in table.constraints if hasattr(c, "name") and c.name}
-        assert any("source_type" in (n or "") for n in check_names), (
-            f"Expected a CHECK constraint on source_type; got: {check_names}"
-        )
+        assert any(
+            "source_type" in (n or "") for n in check_names
+        ), f"Expected a CHECK constraint on source_type; got: {check_names}"
 
     def test_sensitivity_check_constraint_defined(self) -> None:
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         table = Base.metadata.tables["personal_memory_claims"]
         check_names = {c.name for c in table.constraints if hasattr(c, "name") and c.name}
-        assert any("sensitivity" in (n or "") for n in check_names), (
-            f"Expected a CHECK constraint on sensitivity; got: {check_names}"
-        )
+        assert any(
+            "sensitivity" in (n or "") for n in check_names
+        ), f"Expected a CHECK constraint on sensitivity; got: {check_names}"
 
 
 class TestPersonalMemoryClaimValueSets:
@@ -256,7 +255,7 @@ class TestPersonalMemoryClaimIndexes:
     def test_active_scope_index_defined(self) -> None:
         """Index on (user_id, workspace_id, deleted_at) for active-scope lookup."""
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         table = Base.metadata.tables["personal_memory_claims"]
         # All index columns, in declaration order, flattened.
@@ -266,14 +265,13 @@ class TestPersonalMemoryClaimIndexes:
             index_column_sets.append((idx.name, cols))
         # We expect an index on (user_id, workspace_id, deleted_at) in that order.
         assert any(
-            cols == ("user_id", "workspace_id", "deleted_at")
-            for _name, cols in index_column_sets
+            cols == ("user_id", "workspace_id", "deleted_at") for _name, cols in index_column_sets
         ), f"Missing composite index on (user_id, workspace_id, deleted_at); found: {index_column_sets}"
 
     def test_workspace_scope_index_defined(self) -> None:
         """Index on (workspace_id, scope) for workspace-scoped recall."""
         from app.models import Base
-        from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+        from app.models.personal_memory_models import PersonalMemoryClaim
 
         table = Base.metadata.tables["personal_memory_claims"]
         index_column_sets = []
@@ -281,8 +279,7 @@ class TestPersonalMemoryClaimIndexes:
             cols = tuple(idx.columns.keys())
             index_column_sets.append((idx.name, cols))
         assert any(
-            cols == ("workspace_id", "scope")
-            for _name, cols in index_column_sets
+            cols == ("workspace_id", "scope") for _name, cols in index_column_sets
         ), f"Missing composite index on (workspace_id, scope); found: {index_column_sets}"
 
 
@@ -298,7 +295,7 @@ def test_workspace_id_is_not_null() -> None:
     that weakens it fails this test before reaching production.
     """
     from app.models import Base
-    from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+    from app.models.personal_memory_models import PersonalMemoryClaim
 
     workspace_col = Base.metadata.tables["personal_memory_claims"].columns["workspace_id"]
     assert workspace_col.nullable is False, (
@@ -310,7 +307,7 @@ def test_workspace_id_is_not_null() -> None:
 def test_all_required_columns_are_not_null() -> None:
     """All required columns are NOT NULL (no nullable defaults for required fields)."""
     from app.models import Base
-    from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+    from app.models.personal_memory_models import PersonalMemoryClaim
 
     cols = Base.metadata.tables["personal_memory_claims"].columns
     required = (
@@ -330,39 +327,35 @@ def test_all_required_columns_are_not_null() -> None:
         "updated_at",
     )
     for col_name in required:
-        assert cols[col_name].nullable is False, (
-            f"PersonalMemoryClaim.{col_name} must be NOT NULL (required field)"
-        )
+        assert cols[col_name].nullable is False, f"PersonalMemoryClaim.{col_name} must be NOT NULL (required field)"
 
 
 def test_optional_columns_are_nullable() -> None:
     """source_id, last_used_at, expires_at, deleted_at are nullable (TTL / soft-delete)."""
     from app.models import Base
-    from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+    from app.models.personal_memory_models import PersonalMemoryClaim
 
     cols = Base.metadata.tables["personal_memory_claims"].columns
     for col_name in ("source_id", "last_used_at", "expires_at", "deleted_at"):
-        assert cols[col_name].nullable is True, (
-            f"PersonalMemoryClaim.{col_name} must be nullable (optional/TTL field)"
-        )
+        assert cols[col_name].nullable is True, f"PersonalMemoryClaim.{col_name} must be nullable (optional/TTL field)"
 
 
 def test_object_column_is_jsonb() -> None:
     """The ``object`` column must be a JSONB type (not TEXT or VARCHAR)."""
     from app.models import Base
-    from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+    from app.models.personal_memory_models import PersonalMemoryClaim
 
     object_col = Base.metadata.tables["personal_memory_claims"].columns["object"]
     # SQLAlchemy renders JSONB with __class__.__name__ == "JSONB"
-    assert object_col.type.__class__.__name__ == "JSONB", (
-        f"PersonalMemoryClaim.object must be JSONB; got {object_col.type.__class__.__name__}"
-    )
+    assert (
+        object_col.type.__class__.__name__ == "JSONB"
+    ), f"PersonalMemoryClaim.object must be JSONB; got {object_col.type.__class__.__name__}"
 
 
 def test_id_is_uuid_primary_key() -> None:
     """Primary key is UUID, auto-defaulted via uuid4()."""
     from app.models import Base
-    from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: F401
+    from app.models.personal_memory_models import PersonalMemoryClaim
 
     table = Base.metadata.tables["personal_memory_claims"]
     pk = table.primary_key

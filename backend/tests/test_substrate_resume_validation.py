@@ -16,7 +16,6 @@ from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.substrate.event_log import EventLog
 from app.services.substrate.resume_validation import ResumeValidation, validate_resume_state
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -42,9 +41,7 @@ def _mock_event_log(events: list[SubstrateEvent]) -> EventLog:
     """Create a mock EventLog that returns events filtered by type."""
     el = MagicMock(spec=EventLog)
 
-    async def _get_events(
-        db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000
-    ):
+    async def _get_events(db, rid, *, from_sequence=0, to_sequence=None, event_type=None, limit=10000):
         filtered = [e for e in events if e.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [e for e in filtered if e.sequence <= to_sequence]
@@ -160,10 +157,7 @@ class TestValidateCheckpointLag:
             _make_event(rid, 1, SubstrateEventType.MISSION_STARTED, {"title": "T"}),
             _make_event(rid, 2, SubstrateEventType.CHECKPOINT),
             # node.started + node.completed x 30 = 60 events (seq 3..62)
-            *[
-                _make_event(rid, 3 + i * 2, SubstrateEventType.NODE_STARTED, {"task_id": f"n{i}"})
-                for i in range(30)
-            ],
+            *[_make_event(rid, 3 + i * 2, SubstrateEventType.NODE_STARTED, {"task_id": f"n{i}"}) for i in range(30)],
             *[
                 _make_event(rid, 4 + i * 2, SubstrateEventType.NODE_COMPLETED, {"task_id": f"n{i}", "tokens": 1})
                 for i in range(30)
@@ -247,7 +241,9 @@ class TestIdempotencyGuard:
 
         rid = str(uuid4())
         completed_event = _make_event(
-            rid, 3, SubstrateEventType.NODE_COMPLETED,
+            rid,
+            3,
+            SubstrateEventType.NODE_COMPLETED,
             {"task_id": "n1", "output": "cached_output", "tokens": 42, "cost_usd": 0.05},
         )
 
@@ -314,7 +310,9 @@ class TestChaosCrashPostCheckpoint:
             return []
 
         el.get_events = AsyncMock(side_effect=_get_completed)
-        completed_ids = {(e.payload or {}).get("task_id") for e in crash_events if e.type == SubstrateEventType.NODE_COMPLETED}
+        completed_ids = {
+            (e.payload or {}).get("task_id") for e in crash_events if e.type == SubstrateEventType.NODE_COMPLETED
+        }
         assert "a" in completed_ids  # would be skipped
         assert "b" not in completed_ids  # would be re-executed
 
@@ -372,6 +370,8 @@ class TestChaosResumeAfterFullCrash:
         assert v.last_checkpoint_sequence == 7
 
         # Verify idempotency: n1 and n2 are completed, n3 is not
-        completed_ids = {(e.payload or {}).get("task_id") for e in crash_events if e.type == SubstrateEventType.NODE_COMPLETED}
+        completed_ids = {
+            (e.payload or {}).get("task_id") for e in crash_events if e.type == SubstrateEventType.NODE_COMPLETED
+        }
         assert completed_ids == {"n1", "n2"}
         assert "n3" not in completed_ids

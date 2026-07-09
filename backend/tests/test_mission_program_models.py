@@ -20,7 +20,6 @@ from typing import Any
 
 import pytest
 
-
 # ── Pure-Python tests (no DB) ────────────────────────────────────────────
 
 
@@ -85,8 +84,8 @@ class TestMissionProgramInstantiation:
 
     def test_status_default_applies_at_flush(self) -> None:
         """Column default fires at flush (matches the Mission model pattern)."""
-        from app.models.mission_program_models import MissionProgram
         from app.models import Base
+        from app.models.mission_program_models import MissionProgram
 
         # Pull the column-level default from the mapper (no DB needed).
         columns = Base.metadata.tables["mission_programs"].columns
@@ -187,7 +186,7 @@ def test_workspace_id_is_not_null_on_missionprogram() -> None:
     that weakens it fails this test before reaching production.
     """
     from app.models import Base
-    from app.models.mission_program_models import MissionProgram  # noqa: F401
+    from app.models.mission_program_models import MissionProgram
 
     workspace_col = Base.metadata.tables["mission_programs"].columns["workspace_id"]
     assert workspace_col.nullable is False, (
@@ -199,25 +198,21 @@ def test_workspace_id_is_not_null_on_missionprogram() -> None:
 def test_missionprogram_required_columns_are_not_null() -> None:
     """All four required columns are NOT NULL: id, user_id, workspace_id, name."""
     from app.models import Base
-    from app.models.mission_program_models import MissionProgram  # noqa: F401
+    from app.models.mission_program_models import MissionProgram
 
     cols = Base.metadata.tables["mission_programs"].columns
     for col_name in ("id", "user_id", "workspace_id", "name"):
-        assert cols[col_name].nullable is False, (
-            f"MissionProgram.{col_name} must be NOT NULL (required field)"
-        )
+        assert cols[col_name].nullable is False, f"MissionProgram.{col_name} must be NOT NULL (required field)"
 
 
 def test_programrun_required_columns_are_not_null() -> None:
     """All four required columns are NOT NULL: id, program_id, mission_id, trigger_type."""
     from app.models import Base
-    from app.models.mission_program_models import ProgramRun  # noqa: F401
+    from app.models.mission_program_models import ProgramRun
 
     cols = Base.metadata.tables["program_runs"].columns
     for col_name in ("id", "program_id", "mission_id", "trigger_type"):
-        assert cols[col_name].nullable is False, (
-            f"ProgramRun.{col_name} must be NOT NULL (required field)"
-        )
+        assert cols[col_name].nullable is False, f"ProgramRun.{col_name} must be NOT NULL (required field)"
 
 
 @pytest.mark.integration
