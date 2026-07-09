@@ -11,11 +11,14 @@ format. This service is intentionally a thin layer:
   shown in chat" (see plan §14 risk register).
 
 * ``format_memory_block`` — build a system-message-ready text block
-  describing the recalled claims for the LLM prompt. The block is
-  **deliberately decoupled** from the short-UUID citation label the
-  frontend renders — the LLM never sees the citation label, only the
-  (subject, predicate, object, confidence) tuple. The chip label is
-  derived from the claim UUID in ``build_recall_used_event``.
+  describing the recalled claims for the LLM prompt. Each (subject,
+  predicate, object) fragment is passed through ``scrub_recalled_claim_text``
+  (GOV-1.3b read-side defense) to strip invisible Unicode, control
+  whitespace, fenced-instruction markers, and neutralize injection trigger
+  phrases. The block is **deliberately decoupled** from the short-UUID
+  citation label the frontend renders — the LLM never sees the citation
+  label, only the (subject, predicate, object, confidence) tuple. The chip
+  label is derived from the claim UUID in ``build_recall_used_event``.
 
 * ``build_recall_used_event`` — build one ``memory_recall_used`` SSE
   event payload per cited claim. Emitted AFTER the assistant message is
@@ -36,6 +39,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 from app.services.personal_memory_service import PersonalMemoryService
@@ -61,6 +65,110 @@ CHAT_RECALL_MIN_CONFIDENCE: float = 0.7
 # set ever changes, update §13/§14 in the plan doc and the test suite.
 _EXCLUDED_SENSITIVITIES: frozenset[str] = frozenset({"sensitive", "restricted"})
 _EXCLUDED_SCOPES: frozenset[str] = frozenset({"private"})
+
+# ---------------------------------------------------------------------------
+# Recall-side scrubber (GOV-1.3b harm reduction).
+#
+# A recalled PersonalMemoryClaim is attacker-controlled text (it was written by
+# the background reviewer or an earlier agent run, which can be poisoned). When
+# it is injected into the live chat LLM prompt via ``format_memory_block`` it
+# must not be able to smuggle prompt-injection directives, control characters,
+# or fenced-instruction blocks past the model. This is MITIGATION, not
+# neutralization: a scrubbed instruction is still *visible* to the model, so
+# the surrounding ``<memory-context>`` framing (see ``chat_context.py``) and
+# provenance gating (GOV-1.2) remain the real controls. Status must never read
+# "poisoning is handled."
+#
+# Design constraints (kept minimal + additive per GOV-1.3b):
+#   * Never raises on recall — a scrubber bug must not break chat.
+#   * Never alters the *semantic* content of a claim, only strips control /
+#     injection syntax. Falls back to the original string on any error.
+#   * Does NOT drop claims — only the read-side fence + gate decide that.
+# ---------------------------------------------------------------------------
+
+# Invisible / control Unicode ranges often abused for steganographic prompts
+# and homograph attacks. We strip them; they carry no legitimate memory value.
+_INVISIBLE_RE = re.compile(
+    "["
+    "\u00ad"  # soft hyphen
+    "\u034f"  # combining grapheme joiner
+    "\u061c"  # arabic letter mark
+    "\u115f\u1160"  # hangul filler / choseong filler
+    "\u17b4\u17b5"  # khmer vowel signs
+    "\u200b-\u200f"  # zero-width (space, nbsp, joiner, non-joiner)
+    "\u202a-\u202e"  # directional formatting
+    "\u2060-\u2064"  # word joiner / invisible operators
+    "\u2066-\u2069"  # directional isolate
+    "\u206a-\u206f"  # deprecated directional overrides
+    "\u2e2f"
+    "\u3000"  # ideographic space
+    "\u2800"  # braille blank
+    "\ufe00-\ufe0f"  # variation selectors
+    "\ufeff"  # byte order mark
+    "\ufff9-\ufffb"  # interlinear annotation marks
+    "]"
+)
+
+# Whitespace-control chars that can be used to obfuscate directives.
+_CONTROL_WS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+# Blatant fenced-instruction / block-escape markers. A recalled claim is data,
+# not an instruction; these shapes are almost never legitimate memory content.
+_BLOCK_ESCAPE_RE = re.compile(
+    r"</?(?:system|assistant|user|tool|function|memory|instructions?|prompt)\b",
+    re.IGNORECASE,
+)
+_FENCE_RE = re.compile(r"```|~~~")
+
+# Classic injection trigger phrases. We neutralize by prefixing rather than
+# deleting, so the *presence* of the claim is preserved for reviewer audit
+# while the directive is defused.
+_DIRECTIVE_PREFIX_RE = re.compile(
+    r"(?i)"
+    r"(ignore (?:all |any |previous |above )?(?:previous |prior )?instructions?)"
+    r"|((?:disregard|forget|override|neglect) (?:the |all |any )?(?:above |previous |prior |preceding )?instructions?)"
+    r"|((?:you are|act as|pretend to be|roleplay as) (?:now |a |an |the )?[\w -]{0,40})"
+    r"|((?:reveal|exfiltrate|leak|send|post|transmit)[\s\S]{0,40}(?:secret|api[_-]?key|password|token|credential))"
+    r"|((?:system ?prompt|developer ?message|root ?instruction)[\s\S]{0,30})"
+)
+
+# Allow-list of benign, common adjectival/contextual uses that should NOT be
+# defused (avoids false positives on legit preferences like "ignore whitespace").
+_DIRECTIVE_ALLOWLIST_RE = re.compile(
+    r"(?i)(ignore (?:the |a )?(?:tab|space|whitespace|case|formatting|trailing|leading))"
+    r"|(when (?:you |the model |it )?ignore)"
+)
+
+_MAX_SCRUBBED_CHARS = 4000  # safety clamp; a single claim line should never exceed this
+
+
+def scrub_recalled_claim_text(text: str) -> str:
+    """Neutralize prompt-injection syntax in a recalled-claim fragment.
+
+    Returns the scrubbed string. On any error, returns the *original* text
+    unchanged (fail open — never break recall, never silently mangle memory).
+    """
+    if not text or not isinstance(text, str):
+        return text
+    if len(text) > _MAX_SCRUBBED_CHARS:
+        # Truncate before regex work to bound CPU; truncation here only caps
+        # pathological inputs — the framing layer still marks it as recalled.
+        text = text[:_MAX_SCRUBBED_CHARS]
+    try:
+        # 1) strip invisible / control whitespace (no semantic content).
+        cleaned = _INVISIBLE_RE.sub("", text)
+        cleaned = _CONTROL_WS_RE.sub(" ", cleaned)
+        # 2) defuse fenced-instruction / block-escape markers.
+        cleaned = _BLOCK_ESCAPE_RE.sub("[BLOCKED-TAG]", cleaned)
+        cleaned = _FENCE_RE.sub("[FENCE]", cleaned)
+        # 3) neutralize directive phrases (prefix, never delete).
+        if _DIRECTIVE_ALLOWLIST_RE.search(cleaned):
+            return cleaned  # benign usage — leave untouched
+        cleaned = _DIRECTIVE_PREFIX_RE.sub("[RECALLED-CLAIM-SUSPECTED] \\1\\2\\3\\4\\5", cleaned)
+        return cleaned
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("scrub_recalled_claim_text: unexpected failure; passing through")
+        return text
 
 
 async def recall_for_chat(
@@ -160,11 +268,20 @@ def format_memory_block(claims: list[PersonalMemoryClaim]) -> str:
         "",
     ]
     for claim in claims:
+        # GOV-1.3b read-side scrubber: recalled claims are attacker-
+        # influenced data (written by the reviewer / earlier runs). Strip
+        # invisible Unicode, control whitespace, fenced-instruction markers,
+        # and neutralize injection trigger phrases before the block reaches
+        # the live LLM. This is harm reduction, NOT neutralization; the
+        # <memory-context> framing + provenance gate remain the real controls.
+        subject = scrub_recalled_claim_text(getattr(claim, "subject", "") or "")
+        predicate = scrub_recalled_claim_text(getattr(claim, "predicate", "") or "")
         try:
             object_str = json.dumps(claim.object, sort_keys=True, default=str)
         except (TypeError, ValueError):
             object_str = str(claim.object)
-        lines.append(f"- {claim.subject} → {claim.predicate} → {object_str} (confidence: {claim.confidence:.2f})")
+        object_str = scrub_recalled_claim_text(object_str)
+        lines.append(f"- {subject} → {predicate} → {object_str} (confidence: {claim.confidence:.2f})")
     return "\n".join(lines)
 
 
