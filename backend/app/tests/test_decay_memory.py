@@ -33,14 +33,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 # Make ``app`` importable from the worktree's backend dir (the copy under
 # test), derived from this file's location rather than a hardcoded path so
 # the test runs against the right checkout.
-_BACKEND_DIR = str(Path(__file__).resolve().parents[2])
-if _BACKEND_DIR not in sys.path:
-    sys.path.insert(0, _BACKEND_DIR)
+os.environ.setdefault("OPENAI_API_KEY", "test-decay-job")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.models import Base
 from app.models.memory_models import MemoryEntry
@@ -50,8 +49,11 @@ from app.models.workspace_models import Workspace
 from app.tasks.decay_memory import decay_importance, run_decay_job
 
 # Isolated target DB — never the dev DB with real claims.
-TEST_DB_URL = os.getenv(
-    "FLOWMANNER_DECAY_TEST_DB",
+# A per-test unique database name is used (see the `engine` fixture) so that
+# back-to-back runs never inherit leftover schema from a prior test or from
+# another test module that shares the module-scoped event loop.
+TEST_DB_BASE = os.getenv(
+    "FLOWMANNER_DECAY_TEST_DB_BASE",
     "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc" "@localhost:5432/flowmanner_phase_b_smoke",
 )
 
@@ -60,18 +62,29 @@ TEST_DB_URL = os.getenv(
 async def engine():
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    eng = create_async_engine(TEST_DB_URL, future=True)
-    # Build a clean schema for the test in THIS test's event loop.
+    # Unique DB per test → no cross-test or cross-module schema residue.
+    db_name = f"decay_{uuid.uuid4().hex[:12]}"
+    test_db_url = TEST_DB_BASE.rsplit("/", 1)[0] + "/" + db_name
+    admin = create_async_engine(TEST_DB_BASE.rsplit("/", 1)[0] + "/postgres", future=True)
+    # CREATE/DROP DATABASE must run autocommit (not inside a transaction block).
+    async with admin.connect() as conn:
+        await conn.execution_options(isolation_level="AUTOCOMMIT")
+        await conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+    await admin.dispose()
+
+    eng = create_async_engine(test_db_url, future=True)
     async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     Session = async_sessionmaker(bind=eng, expire_on_commit=False)
     yield eng, Session
 
-    async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
     await eng.dispose()
+    admin = create_async_engine(TEST_DB_BASE.rsplit("/", 1)[0] + "/postgres", future=True)
+    async with admin.connect() as conn:
+        await conn.execution_options(isolation_level="AUTOCOMMIT")
+        await conn.execute(text(f'DROP DATABASE "{db_name}" WITH (FORCE)'))
+    await admin.dispose()
 
 
 def _uid() -> int:

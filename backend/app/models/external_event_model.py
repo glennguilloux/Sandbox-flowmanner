@@ -101,7 +101,6 @@ class ExternalEvent(Base, TimestampMixin):
     user_id: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
-        index=True,
         comment="User ID if known from the webhook context",
     )
 
