@@ -85,7 +85,11 @@ ignore = [
 "app/api/v2/personal_memory.py" = ["TCH001", "TCH002"]
 # personal_memory.py schema module: uuid / datetime back Pydantic model
 # fields (from_attributes). They are runtime-needed and pre-exist GOV-1.6.
-"app/schemas/personal_memory.py" = ["TCH003"]
+# UP042 (str+Enum) is intentional here: str-enums serialize cleanly to JSON
+# for the API and keep claim_type / scope / source_type values as plain
+# strings. Epic 4.1a adds CONSTRAINT to ClaimType without changing this
+# design.
+"app/schemas/personal_memory.py" = ["TCH003", "UP042"]
 # memory_models.py: MemoryEntry.expires_at / reviewed_at / last_used_at use
 # Mapped[datetime | None] which SQLAlchemy resolves eagerly at mapper-config
 # time, so datetime must be a runtime import (not deferrable to

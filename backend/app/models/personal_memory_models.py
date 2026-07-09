@@ -53,6 +53,7 @@ ALL_CLAIM_TYPES: tuple[str, ...] = (
     "preference",
     "observation",
     "sensitive",
+    "constraint",
 )
 ALL_SCOPES: tuple[str, ...] = (
     "personal",

@@ -538,7 +538,7 @@ class NodeExecutor:
                 messages.append(
                     {
                         "role": "system",
-                        "content": (f"Recent mission events (last {len(context_events)} steps):" f"\n{ctx_text}"),
+                        "content": (f"Recent mission events (last {len(context_events)} steps):\n{ctx_text}"),
                     }
                 )
 
@@ -710,6 +710,53 @@ class NodeExecutor:
             cap_engine.verify_and_require(token, Action.EXECUTE)
         except PermissionError as e:
             return {"success": False, "error": f"Capability denied: {e}"}
+
+        # Epic 4.1b: standing-constraint gate. Loads the user's durable
+        # ``constraint`` claims and blocks / escalates conflicting tool
+        # calls. Fail-open by design — a memory-store error must never
+        # brick tool dispatch.
+        workspace_id = getattr(workflow, "workspace_id", None) or ""
+        if workspace_id:
+            from app.services.pre_tool_constraints import (
+                ALLOW,
+                PreToolConstraints,
+            )
+
+            constraints = PreToolConstraints(db)
+            resolved_uid = PreToolConstraints.resolve_user_id(getattr(workflow, "user_id", None))
+            verdict = await constraints.evaluate(
+                tool_name,
+                user_id=resolved_uid,
+                workspace_id=workspace_id,
+            )
+            if verdict.decision == "block":
+                logger.warning(
+                    "Tool %s blocked by standing constraint: %s",
+                    tool_name,
+                    verdict.reason,
+                )
+                return {
+                    "success": False,
+                    "error": f"Blocked by standing constraint: {verdict.reason}",
+                    "constraint_blocked": True,
+                    "constraint_id": verdict.triggered_claim_id,
+                }
+            if verdict.decision == "escalate":
+                # Route through the existing HITL approval gate instead of
+                # silently forbidding. The mission executor's pending-inbox
+                # path (raise_interrupt) is the production surface; here we
+                # surface the gate decision so the caller can interrupt.
+                logger.info(
+                    "Tool %s requires approval per standing constraint: %s",
+                    tool_name,
+                    verdict.reason,
+                )
+                return {
+                    "success": False,
+                    "error": f"Approval required: {verdict.reason}",
+                    "constraint_escalate": True,
+                    "constraint_id": verdict.triggered_claim_id,
+                }
 
         # Route to tool handler
         handlers = {

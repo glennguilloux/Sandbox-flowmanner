@@ -52,6 +52,7 @@ class ClaimType(str, Enum):
     PREFERENCE = "preference"
     OBSERVATION = "observation"
     SENSITIVE = "sensitive"
+    CONSTRAINT = "constraint"
 
 
 class Scope(str, Enum):

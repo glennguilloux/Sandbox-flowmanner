@@ -101,6 +101,29 @@ propose writes just to fill the array.
 - Anything about the reviewer's own process ("I noticed the agent
   uses tool T a lot"). That is the improvement loop's job, not yours.
 
+## Do NOT over-learn from failures (Epic 4.2)
+
+A single failed attempt is NOT evidence of a permanent constraint. Do
+NOT capture any of the following — they are brittle over-hardening and
+corrode the agent's autonomy:
+
+- "Never use tool X again" because ONE call to X failed or timed out.
+  Failures are transient; a tool working 99/100 times is still worth
+  using. Only capture a tool ban if the user EXPLICITLY states a
+  standing prohibition (e.g. "never run rm -rf on prod"), or if a
+  `constraint` claim already exists in the snapshot forbidding it.
+- "Always avoid approach Y" inferred from one mission that happened to
+  go sideways. Generalising one bad outcome into a universal rule is a
+  correctness regression, not a learning.
+- Negative rules about the user themselves ("user hates it when…")
+  from a single frustrated message. Wait for a durable, repeated signal
+  before remembering a prohibition about the user.
+
+If a genuine standing constraint exists, it will already appear in
+MEMORY_SNAPSHOT as a `constraint` claim — cite that claim instead of
+inventing a new ban. When in doubt, prefer capturing the *positive*
+lesson ("when X, prefer Y because Z failed") over a blanket prohibition.
+
 ## What IS worth remembering
 
 - A user preference stated in this mission that wasn't already known.
