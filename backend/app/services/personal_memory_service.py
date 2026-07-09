@@ -56,6 +56,7 @@ from app.models.personal_memory_models import (
     PersonalMemoryClaim,
 )
 from app.services.background_task_manager import background_task_manager
+from app.services.memory.poison_scan import scan_for_poison
 
 logger = logging.getLogger(__name__)
 
@@ -335,6 +336,181 @@ class PersonalMemoryService:
             workspace_id=workspace_id,
         )
         return claim
+
+    # ── CRUD: create_from_proposal ──────────────────────────────────
+    #
+    # Thin adapter used by the background reviewer (Epic 2.1): turns a
+    # reviewer ``ProposedWrite`` (free-text + ``memory_type`` + optional
+    # ``source_type``) into a governed ``PersonalMemoryClaim``.
+    #
+    # Hard contract (preserves ``BackgroundReviewService`` no-raise
+    # semantics): on any data-integrity problem (null workspace, rejected
+    # provenance, invalid field) it logs + returns ``None`` — it NEVER
+    # raises, so the Celery worker behavior is unchanged.
+
+    # Reviewer source_type vocabulary (the prompt asks for one of these)
+    # is the OLD backlog proposal and does NOT match the as-built
+    # ``ALL_SOURCE_TYPES`` enum. Bridge it to the real enum here so the
+    # value that actually lands in the claim is one the DB CHECK will
+    # accept. ``program_learning`` is the canonical value: a reviewer is a
+    # programmatic/background process (per provenance_approval.py), which
+    # also correctly forces GOV-1.2 human approval.
+    _REVIEWER_SOURCE_TYPE_BRIDGE: dict[str, str] = {
+        "agent": "program_learning",
+        "program_learning": "program_learning",
+        "fetched": "mission",
+        "tool_output": "mission",
+        "third_party": "conversation",
+        "conversation": "conversation",
+        "mission": "mission",
+        "user_explicit": "user_explicit",
+    }
+
+    async def create_from_proposal(
+        self,
+        proposed: Any,
+        *,
+        workspace_id: str | None,
+        user_id: int,
+        source_mission_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> str | None:
+        """Promote a reviewer ``ProposedWrite`` into a governed claim.
+
+        Returns the new claim id (as ``str``) on success, ``None`` on
+        any data-integrity failure (null workspace, rejected/rejected
+        provenance, invalid field). Never raises.
+
+        Governance enforced here (the whole point of Epic 2.1):
+          * ``workspace_id`` MUST be present (NOT NULL guardrail — never
+            guess a workspace).
+          * ``source_type`` MUST resolve to a real enum value; if the
+            proposal carries none we default to ``program_learning`` and
+            log (the provenance gate still fires).
+          * GOV-1.3a poison scan runs on the way in (direct writes
+            previously skipped this — now they don't).
+          * ``create`` then runs its own validation + fires the
+            ``_MemoryCorrectionAudit`` adapter (GOV-1.4/1.6 trails now
+            cover reviewer writes).
+        """
+        try:
+            content = (proposed.content or "").strip()
+            if not content:
+                logger.warning("personal_memory.create_from_proposal: empty content; skipping")
+                return None
+
+            # 1. workspace_id NOT NULL guardrail.
+            if workspace_id is None:
+                logger.warning(
+                    "personal_memory.create_from_proposal: workspace_id is None "
+                    "(data-integrity error) — refusing to write claim without a workspace"
+                )
+                return None
+
+            # 2. source_type resolution (bridge reviewer vocab -> enum).
+            raw_source = getattr(proposed, "source_type", None)
+            if raw_source is None:
+                logger.warning(
+                    "personal_memory.create_from_proposal: proposal had no source_type; "
+                    "defaulting to 'program_learning' (GOV-1.2 still applies)"
+                )
+                source_type = "program_learning"
+            else:
+                source_type = self._REVIEWER_SOURCE_TYPE_BRIDGE.get(raw_source)
+                if source_type is None:
+                    logger.warning(
+                        "personal_memory.create_from_proposal: source_type=%r is "
+                        "unknown/unverifiable — refusing to write (fail-safe)",
+                        raw_source,
+                    )
+                    return None
+
+            # 3. GOV-1.3a poison scan on the way in (direct writes included).
+            scan = scan_for_poison(content, getattr(proposed, "old_text", None))
+            if scan.flagged:
+                logger.warning(
+                    "personal_memory.create_from_proposal: GOV-1.3a flagged " "write user=%s hits=%s severity=%s",
+                    user_id,
+                    scan.hits,
+                    scan.severity,
+                )
+
+            # 4. Map ProposedWrite fields -> claim fields.
+            memory_type = getattr(proposed, "memory_type", "episodic")
+            # claim_type: episodic -> observation; others -> preference/fact.
+            if memory_type == "episodic":
+                claim_type = "observation"
+            elif memory_type == "preference":
+                claim_type = "preference"
+            else:
+                claim_type = "fact"  # semantic / default
+
+            # predicate from memory_type (low-confidence heuristic; flagged).
+            predicate_by_type = {
+                "preference": "prefers",
+                "episodic": "observed",
+                "semantic": "is",
+            }
+            predicate = predicate_by_type.get(memory_type, "is")
+            if memory_type not in predicate_by_type:
+                logger.warning(
+                    "personal_memory.create_from_proposal: low-confidence predicate "
+                    "parse for memory_type=%r (defaulted to 'is')",
+                    memory_type,
+                )
+
+            importance = float(getattr(proposed, "importance", 0.5) or 0.5)
+            if importance <= 0.0 or importance > 1.0:
+                logger.warning(
+                    "personal_memory.create_from_proposal: importance=%s out of "
+                    "range; defaulting to 0.5 for calibration (GOV-1.5)",
+                    importance,
+                )
+                importance = 0.5
+
+            # scope: claims use {"personal","shared","private"} (ALL_SCOPES).
+            # Reviewer "agent" (a user preference / how the user works) maps
+            # to "personal" (user-facing, recallable in chat); "workspace"
+            # maps to "shared". Never "private" (would be filtered from chat).
+            raw_scope = getattr(proposed, "scope", None) or "agent"
+            scope = "shared" if raw_scope == "workspace" else "personal"
+
+            # subject: the workspace/agent owner ("user") is the canonical
+            # subject of personal memory.
+            subject = "user"
+
+            source_id = uuid.UUID(source_mission_id) if source_mission_id else None
+
+            claim = await self.create(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                subject=subject,
+                predicate=predicate,
+                object={"text": content},
+                claim_type=claim_type,
+                scope=scope,
+                source_type=source_type,
+                source_id=source_id,
+                confidence=0.5,
+                importance=importance,
+                sensitivity="normal",
+            )
+            logger.info(
+                "personal_memory.create_from_proposal: claim=%s user=%s ws=%s type=%s",
+                claim.id,
+                user_id,
+                workspace_id,
+                claim_type,
+            )
+            return str(claim.id)
+        except Exception as exc:
+            logger.warning(
+                "personal_memory.create_from_proposal failed for mission=%s user=%s: %s",
+                source_mission_id,
+                user_id,
+                exc,
+            )
+            return None
 
     # ── CRUD: get ───────────────────────────────────────────────────
 

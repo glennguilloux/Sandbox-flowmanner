@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -199,7 +200,7 @@ async def test_apply_proposed_writes_direct_when_no_approval():
         workspace_id="ws-1",
         user_id=1,
         agent_id="agent-1",
-        source_mission_id="mission-1",
+        source_mission_id=str(uuid.uuid4()),
         proposed=proposed,
         write_approval=False,
     )
@@ -228,7 +229,7 @@ async def test_apply_proposed_writes_staged_when_approval_required():
         workspace_id="ws-1",
         user_id=1,
         agent_id="agent-1",
-        source_mission_id="mission-1",
+        source_mission_id=str(uuid.uuid4()),
         proposed=proposed,
         write_approval=True,
     )
@@ -255,7 +256,7 @@ async def test_apply_proposed_writes_destructive_always_staged():
         workspace_id="ws-1",
         user_id=1,
         agent_id="agent-1",
-        source_mission_id="mission-1",
+        source_mission_id=str(uuid.uuid4()),
         proposed=proposed,
         write_approval=False,  # even without approval
     )
