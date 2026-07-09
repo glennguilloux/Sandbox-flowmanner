@@ -95,3 +95,6 @@ docs/research/
 
 # ── Planning / analysis docs (working artifacts, not deploy source) ──
 plans/
+
+# Per-agent session status file (template committed as STATUS.example.md)
+STATUS.md

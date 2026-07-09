@@ -19,7 +19,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BATS_FILE="${SCRIPT_DIR}/deploy_flowmanner.bats"
+# Array of Bats test files. pre_deploy_check.bats is a Wave 2 deliverable and
+# may be missing on first run — the loop below skips absent files gracefully.
+BATS_FILES=(
+  "${SCRIPT_DIR}/deploy_flowmanner.bats"
+  "${SCRIPT_DIR}/pre_deploy_check.bats"
+)
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; NC='\033[0m'
 
@@ -70,8 +75,20 @@ echo -e "${BOLD}Bats binary:${NC} $BATS_BIN ($($BATS_BIN --version 2>&1 | head -
 
 # ── Check test files exist ────────────────────────────────────────────────────
 
-if [ ! -f "$BATS_FILE" ]; then
-  echo -e "${RED}Test file not found:${NC} $BATS_FILE"
+# Pre-flight: at least one test file must exist (otherwise nothing to run).
+# Files in BATS_FILES that don't yet exist are skipped inside the run loop.
+found_any=false
+for f in "${BATS_FILES[@]}"; do
+  if [[ -f "$f" ]]; then
+    found_any=true
+    break
+  fi
+done
+if ! $found_any; then
+  echo -e "${RED}No test files found. Expected at least one of:${NC}"
+  for f in "${BATS_FILES[@]}"; do
+    echo "  $f"
+  done
   exit 3
 fi
 
@@ -97,11 +114,22 @@ if [ -n "$FILTER" ]; then
   BATS_ARGS+=(--filter "$FILTER")
 fi
 
-# Run bats
-set +e
-"$BATS_BIN" "${BATS_ARGS[@]}" "$BATS_FILE"
-BATS_RC=$?
-set -e
+# Run each Bats file, skipping any that don't exist (e.g. Wave 2 placeholder).
+# BATS_ARGS carries --verbose-run and/or --filter, preserved from flag parsing.
+BATS_RC=0
+for f in "${BATS_FILES[@]}"; do
+  if [[ ! -f "$f" ]]; then
+    echo "SKIP: $f (not present yet — Wave 2 deliverable)"
+    continue
+  fi
+  set +e
+  "$BATS_BIN" "${BATS_ARGS[@]}" "$f"
+  _rc=$?
+  set -e
+  if [[ $_rc -ne 0 ]]; then
+    BATS_RC=$_rc
+  fi
+done
 
 echo ""
 echo -e "${BOLD}══════════════════════════════════════════════════════${NC}"
