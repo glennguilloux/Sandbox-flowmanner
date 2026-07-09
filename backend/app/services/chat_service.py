@@ -43,7 +43,6 @@ from app.services.llm_providers import (
 from app.services.memory_citation_service import (
     build_citation_event,
     build_recall_used_event,
-    recall_for_chat,
 )
 from app.services.personal_memory_extractor import (
     PersonalMemoryExtractor,
@@ -433,20 +432,29 @@ async def _stream_message_to_llm_body(
         logger.debug("stream_message_to_llm: scope pre-fetch failed (non-fatal)", exc_info=True)
 
     # ── T33 Stage 1: pre-LLM memory recall + injection ──────
+    # Epic 2.2: freeze one recall_for_chat result per session (thread_id)
+    # via the snapshot seam, instead of re-calling recall per message.
+    # Cache miss -> exactly ONE recall_for_chat (seed query "") + store.
+    # Cache hit -> reuse the frozen claims. Write-invalidation / TTL are
+    # handled inside the seam. Injection shape below is unchanged.
     memory_recall_claims: list[PersonalMemoryClaim] = []
     if settings.CHAT_MEMORY_CITATIONS_ENABLED:
         thread_for_recall = await get_chat_thread(db, thread_id)
         if thread_for_recall and thread_for_recall.workspace_id:
             try:
-                memory_recall_claims = await recall_for_chat(
+                from app.services.memory_snapshot_service import (
+                    get_or_capture_snapshot,
+                )
+
+                memory_recall_claims = await get_or_capture_snapshot(
                     db,
+                    thread_id=thread_id,
                     user_id=user_id,
                     workspace_id=thread_for_recall.workspace_id,
-                    query=content,
                 )
                 if memory_recall_claims:
                     logger.info(
-                        "stream_message_to_llm: recalled %d memory claims for thread %s",
+                        "stream_message_to_llm: froze %d memory claims for thread %s",
                         len(memory_recall_claims),
                         thread_id,
                     )
