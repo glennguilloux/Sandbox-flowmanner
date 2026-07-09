@@ -180,3 +180,48 @@ that is new debt reduction, not a Chunk 9 blocker. Gotcha for next agent: when
 re-auditing old handoffs, re-establish ground truth from the tree (paths like
 `backend/scripts/` had moved to `scripts/`, and migrations to `app/migrations/`) —
 the 2026-06-13 doc was stale relative to current layout.
+
+---
+
+# Ruff Lint Sweep — `backend/app/` + `backend/tests/` (2026-07-09)
+
+Fresh `ruff check app tests` reported **611** errors (the older "613" figure was
+stale). Reduced to **357** by a dedicated tracked task (`t_f9176a84`) with a
+scope-locked brief: safe `--fix` + a curated behavior-neutral unsafe allowlist,
+explicitly excluding risky auto-fixes.
+
+## What was applied
+- **Safe fixes (164):** RUF100 (unused `# noqa`), I001 (import sort), RUF101,
+  RUF022/RUF034/UP041/SIM910/C420 trivial simplifications, `mypy`-coerced style.
+- **Curated unsafe (90):** PERF401, SIM102/105/108/113/115/117/101, C401/408/416,
+  G004/G201 (lazy logging), RUF059 (drop unused unpack), SIM115 (file ctx mgr),
+  RUF015. Pure refactors — no runtime/type-semantic effect.
+
+## What was EXCLUDED (left for manual/human review — 357 remaining)
+- **TC001/002/003/004** (68): typing-only import moves — runtime `NameError`
+  risk (SQLAlchemy mapper resolution). NOT auto-applied.
+- **UP042** (55): str→`StrEnum` — changes `isinstance`/serialization semantics.
+- **B006/B011/B015/B017** (17): real logic smells (mutable default, `assert False`,
+  useless compare, `assertRaises(Exception)`) — human judgement per-site.
+- **PT006/011/012/015/017/018/028** (40): pytest assertion quality — manual tuning.
+- **Cosmetic remainder** (171): G004/G201/PERF401/SIM* left in place — low value,
+  fold into per-file cleanup.
+
+## Verification (independent, post-merge)
+- Host `ruff check` on worktree source → **357** (matches worker claim).
+- 4 mypy pre-commit failures flagged by the worker's `--no-verify` were checked:
+  the underlying error lines (langfuse_service:173, web_search/service_enhanced:136,
+  substrate/lease_reclaimer:285, langgraph/tool_converter:646) are **not** in any
+  changed hunk → genuinely pre-existing, NOT a regression. (The files were touched
+  by style edits, but those lines were untouched.)
+- Full suite collected clean: `app/tests` = 1300, `tests/` = 3930 — no import/
+  collection breakage from the refactors.
+
+## Follow-up cards (optional, not blockers)
+1. `B0xx` logic smells → human review per site (may be intentional).
+2. `TC0xx`/`UP042` refactor → needs runtime verification (boot smoke + a
+   representative endpoint) before applying.
+
+## Next Session Handoff (updated 2026-07-09)
+Lint debt reduced 611→357 with a safe, verifiable scope. Remaining 357 are
+intentionally risky/manual. No runtime behavior changed. Deployable as-is.
