@@ -86,3 +86,15 @@ ignore = [
 # personal_memory.py schema module: uuid / datetime back Pydantic model
 # fields (from_attributes). They are runtime-needed and pre-exist GOV-1.6.
 "app/schemas/personal_memory.py" = ["TCH003"]
+# memory_models.py: MemoryEntry.expires_at / reviewed_at / last_used_at use
+# Mapped[datetime | None] which SQLAlchemy resolves eagerly at mapper-config
+# time, so datetime must be a runtime import (not deferrable to
+# TYPE_CHECKING). TC003 is a false positive here — same as blog_models.py.
+"app/models/memory_models.py" = ["TCH003"]
+# test_memory_entry_lifecycle_fields.py: uses datetime.now(timezone.utc).
+# ruff's UP017 prefers datetime.UTC (3.11+), but the pinned uv-built
+# cpython-3.11 in this worktree's venv predates datetime.UTC, so the
+# UP017 suggestion is not importable here. Keep timezone.utc (valid on all
+# 3.x) and silence the lint finding rather than shipping a test that fails
+# in the project's own test runner.
+"app/tests/test_memory_entry_lifecycle_fields.py" = ["UP017"]
