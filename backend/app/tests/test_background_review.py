@@ -17,6 +17,7 @@ Run:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from datetime import UTC, datetime, timedelta
@@ -29,10 +30,10 @@ import pytest
 # tests run outside the backend container.
 sys.path.insert(0, "/opt/flowmanner/backend")
 
-from app.services.memory.background_review_prompt import (  # noqa: E402
+from app.services.memory.background_review_prompt import (
     REVIEWER_TOOL_WHITELIST,
 )
-from app.services.memory.background_review_service import (  # noqa: E402
+from app.services.memory.background_review_service import (
     ALL_PENDING_WRITE_ACTIONS,
     ApplyResult,
     BackgroundReviewService,
@@ -41,7 +42,6 @@ from app.services.memory.background_review_service import (  # noqa: E402
     compute_write_approval,
     get_background_review_service,
 )
-
 
 # ── 1. compute_write_approval — the workspace policy function ────────────
 
@@ -162,9 +162,7 @@ def test_validate_proposed_write_accepts_whitelisted_action():
 
 def test_whitelist_contains_only_memory_actions():
     """The whitelist is exactly the three memory tools (defence in depth)."""
-    assert REVIEWER_TOOL_WHITELIST == frozenset(
-        {"memory_add", "memory_replace", "memory_remove"}
-    )
+    assert frozenset({"memory_add", "memory_replace", "memory_remove"}) == REVIEWER_TOOL_WHITELIST
 
 
 # ── 4. apply_proposed_writes — direct vs staged ──────────────────────────
@@ -340,3 +338,255 @@ def test_apply_result_total_writes_counts_both_paths():
     r.staged_writes.append("b")
     r.staged_writes.append("c")
     assert r.total_writes == 3
+
+
+# ── 9. GOV-1.7 reviewer reliability ──────────────────────────────────────
+
+
+def _make_service_with_client(client):
+    """Return a BackgroundReviewService whose httpx/post path is driven by
+    ``client`` (an async-context-manager exposing ``post``)."""
+    from app.services.memory import background_review_service as brs
+
+    service = BackgroundReviewService()
+    patches = (
+        patch(
+            "app.services.langgraph.llm_config.get_llm_manager",
+            return_value=MagicMock(get_model=lambda m: MagicMock()),
+        ),
+        patch("app.services.langgraph.llm_config.get_llamacpp_base_url", return_value="http://x"),
+        patch("httpx.AsyncClient", return_value=client),
+        patch("asyncio.sleep", return_value=None),
+    )
+    for p in patches:
+        p.start()
+    return service, patches
+
+
+def _fake_client_raising(exc, succeed_on_call=None):
+    """AsyncClient-like that raises ``exc`` on .post until ``succeed_on_call``
+    (1-indexed), then returns a 200 JSON body."""
+    import httpx
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": '{"proposed_writes": []}'}}]}
+
+    class _Client:
+        def __init__(self) -> None:
+            self._calls = 0
+
+        async def __aenter__(self) -> _Client:
+            return self
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> _Resp:
+            self._calls += 1
+            if succeed_on_call is not None and self._calls >= succeed_on_call:
+                return _Resp()
+            raise exc
+
+    return _Client()
+
+
+def test_call_reviewer_retries_transient_timeout_then_succeeds():
+    """TimeoutException on attempt 1+2 is retried; attempt 3 succeeds."""
+    import httpx
+
+    from app.services.memory import background_review_service as brs
+
+    client = _fake_client_raising(httpx.TimeoutException("timeout"), succeed_on_call=3)
+    service, patches = _make_service_with_client(client)
+    try:
+        result = asyncio.run(service.call_reviewer(snapshot="s", transcript="t"))
+    finally:
+        for p in patches:
+            p.stop()
+    assert result == '{"proposed_writes": []}'
+    # 2 timeouts + 1 success == 3 post() calls.
+    assert client._calls == 3
+
+
+def test_call_reviewer_permanent_error_does_not_retry():
+    """A non-transient error fails open immediately, no retry loop."""
+    from app.services.memory import background_review_service as brs
+
+    client = _fake_client_raising(ValueError("boom"))
+    service, patches = _make_service_with_client(client)
+    try:
+        result = asyncio.run(service.call_reviewer(snapshot="s", transcript="t"))
+    finally:
+        for p in patches:
+            p.stop()
+    assert result == ""
+    # Permanent error -> exactly one post() attempt, then immediate return "".
+    assert client._calls == 1
+
+
+def test_call_reviewer_retryable_status_exhausts():
+    """A 503 (retryable) exhausts REVIEWER_MAX_RETRIES and returns empty."""
+    from app.services.memory import background_review_service as brs
+
+    captured = {"calls": 0}
+
+    class _Resp:
+        status_code = 503
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:  # pragma: no cover - never reached
+            return {}
+
+    class _Client:
+        async def __aenter__(self) -> _Client:
+            return self
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> _Resp:
+            captured["calls"] += 1
+            return _Resp()
+
+    service, patches = _make_service_with_client(_Client())
+    try:
+        result = asyncio.run(service.call_reviewer(snapshot="s", transcript="t"))
+    finally:
+        for p in patches:
+            p.stop()
+    assert result == ""
+    assert captured["calls"] == brs.REVIEWER_MAX_RETRIES
+
+
+def test_call_reviewer_non_retryable_status_fail_open_once():
+    """A 400 (non-retryable) fails open immediately, single attempt."""
+    import httpx
+
+    from app.services.memory import background_review_service as brs
+
+    captured = {"calls": 0}
+
+    class _Resp:
+        status_code = 400
+
+        def raise_for_status(self) -> None:
+            raise httpx.HTTPStatusError("bad", request=None, response=None)  # type: ignore[arg-type]
+
+        def json(self) -> dict:
+            return {}
+
+    class _Client:
+        async def __aenter__(self) -> _Client:
+            return self
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> _Resp:
+            captured["calls"] += 1
+            return _Resp()
+
+    service, patches = _make_service_with_client(_Client())
+    try:
+        result = asyncio.run(service.call_reviewer(snapshot="s", transcript="t"))
+    finally:
+        for p in patches:
+            p.stop()
+    assert result == ""
+    assert captured["calls"] == 1
+
+
+def test_review_gap_recorded_on_reviewer_exception():
+    """GOV-1.7: a reviewer exception triggers a durable gap record (best-effort)."""
+    import app.tasks.background_review_tasks as tmod
+
+    recorded = {}
+
+    async def _fake_gap(mission_id, workspace, user_id, reason, detail=None):
+        recorded.setdefault("reasons", []).append(reason)
+        recorded["mission_id"] = mission_id
+
+    service = MagicMock()
+    service.call_reviewer = AsyncMock(side_effect=RuntimeError("reviewer down"))
+
+    mission = SimpleNamespace(
+        id="m-1",
+        workspace_id="ws-1",
+        user_id=7,
+        agent_id="a-1",
+        started_at=datetime.now(UTC) - timedelta(minutes=2),
+        completed_at=datetime.now(UTC),
+        results={"turns": [1, 2, 3, 4, 5]},
+    )
+
+    with (
+        patch(
+            "app.services.memory.background_review_service.get_background_review_service",
+            return_value=service,
+        ),
+        patch.object(tmod, "_record_review_gap", _fake_gap),
+    ):
+        service.build_snapshot = AsyncMock(return_value="snap")
+        service.build_transcript = AsyncMock(return_value="tr")
+
+        fake_db = MagicMock()
+        fake_db.execute = AsyncMock(return_value=SimpleNamespace(scalar_one_or_none=lambda: mission))
+        fake_session = MagicMock()
+        fake_session.__aenter__ = AsyncMock(return_value=fake_db)
+        fake_session.__aexit__ = AsyncMock(return_value=None)
+        with patch("app.database.AsyncSessionLocal", return_value=fake_session):
+            asyncio.run(tmod._review_mission_async("m-1", {}, None))
+
+    assert recorded.get("mission_id") == "m-1"
+    assert "reviewer_exception" in recorded.get("reasons", [])
+
+
+def test_review_gap_recorded_on_empty_response():
+    """GOV-1.7: a fail-open empty reviewer response also records a gap."""
+    import app.tasks.background_review_tasks as tmod
+
+    recorded = {}
+
+    async def _fake_gap(mission_id, workspace, user_id, reason, detail=None):
+        recorded.setdefault("reasons", []).append(reason)
+
+    service = MagicMock()
+    service.call_reviewer = AsyncMock(return_value="")
+
+    mission = SimpleNamespace(
+        id="m-2",
+        workspace_id="ws-2",
+        user_id=9,
+        agent_id="a-2",
+        started_at=datetime.now(UTC) - timedelta(minutes=2),
+        completed_at=datetime.now(UTC),
+        results={"turns": [1, 2, 3, 4, 5]},
+    )
+
+    with (
+        patch(
+            "app.services.memory.background_review_service.get_background_review_service",
+            return_value=service,
+        ),
+        patch.object(tmod, "_record_review_gap", _fake_gap),
+    ):
+        service.build_snapshot = AsyncMock(return_value="snap")
+        service.build_transcript = AsyncMock(return_value="tr")
+
+        fake_db = MagicMock()
+        fake_db.execute = AsyncMock(return_value=SimpleNamespace(scalar_one_or_none=lambda: mission))
+        fake_session = MagicMock()
+        fake_session.__aenter__ = AsyncMock(return_value=fake_db)
+        fake_session.__aexit__ = AsyncMock(return_value=None)
+        with patch("app.database.AsyncSessionLocal", return_value=fake_session):
+            asyncio.run(tmod._review_mission_async("m-2", {}, None))
+
+    assert "reviewer_returned_empty" in recorded.get("reasons", [])

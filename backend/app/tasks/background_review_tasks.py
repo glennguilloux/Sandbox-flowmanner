@@ -31,9 +31,12 @@ Langfuse spans (4, per the plan):
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import json
 import logging
 import os
 import time
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -61,6 +64,56 @@ def _get_langfuse_service():
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("Langfuse unavailable for background review spans: %s", exc)
         return None
+
+
+async def _record_review_gap(
+    mission_id: str,
+    workspace: str | None,
+    user_id: int | None,
+    reason: str,
+    detail: str | None = None,
+) -> None:
+    """Persist a durable audit-log gap record when the reviewer fails (GOV-1.7).
+
+    A reviewer failure must not be a silent memory hole. We write a durable
+    ``audit_logs`` row (best-effort) so there is a persistent, queryable record
+    that a mission's background review did not complete. The task never raises
+    from here — failing to log a gap must not fail the review task.
+    """
+    try:
+        from app.database import AsyncSessionLocal
+        from app.models.legacy_models import AuditLog
+
+        log = AuditLog(
+            id=str(uuid.uuid4()),
+            timestamp=datetime.now(UTC),
+            action="memory.review.gap",
+            action_details=json.dumps(
+                {
+                    "mission_id": mission_id,
+                    "workspace_id": workspace,
+                    "reason": reason,
+                    "detail": detail,
+                }
+            )[:4000],
+            user_id=user_id,
+            endpoint="/api/memory/background-review",
+            method="REVIEW",
+        )
+        async with AsyncSessionLocal() as db:
+            db.add(log)
+            await db.commit()
+        logger.warning(
+            "memory.review.gap recorded for mission=%s reason=%s",
+            mission_id,
+            reason,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "memory.review.gap FAILED to persist for mission=%s: %s",
+            mission_id,
+            exc,
+        )
 
 
 def _count_turns(mission: Any) -> int:
@@ -140,11 +193,15 @@ def review_mission(self, mission_id: str) -> dict[str, Any]:
     }
 
     langfuse = _get_langfuse_service()
-    trace = langfuse.trace(
-        name="background_review",
-        metadata={"mission_id": mission_id},
-        tags=["memory", "background_review"],
-    ) if langfuse else None
+    trace = (
+        langfuse.trace(
+            name="background_review",
+            metadata={"mission_id": mission_id},
+            tags=["memory", "background_review"],
+        )
+        if langfuse
+        else None
+    )
 
     try:
         asyncio.run(_review_mission_async(mission_id, summary, trace))
@@ -159,10 +216,8 @@ def review_mission(self, mission_id: str) -> dict[str, Any]:
         summary["duration_ms"] = int((time.perf_counter() - started) * 1000)
         logger.info("review_mission summary: %s", summary)
         if trace is not None and hasattr(trace, "update"):
-            try:
+            with contextlib.suppress(Exception):
                 trace.update(output=summary)
-            except Exception:
-                pass
 
     return summary
 
@@ -192,9 +247,7 @@ async def _review_mission_async(
 
         from app.models.mission_models import Mission
 
-        mission = (
-            await db.execute(select(Mission).where(Mission.id == mission_id))
-        ).scalar_one_or_none()
+        mission = (await db.execute(select(Mission).where(Mission.id == mission_id))).scalar_one_or_none()
 
         if mission is None:
             summary["outcome"] = "skipped"
@@ -241,14 +294,22 @@ async def _review_mission_async(
         except Exception as exc:
             logger.warning("reviewer LLM call failed for mission=%s: %s", mission_id, exc)
             raw_response = ""
+            # GOV-1.7: do not let the failure be a silent memory hole.
+            # Persist a durable gap record (best-effort) so the missing
+            # review is queryable in the audit log.
+            await _record_review_gap(
+                mission_id=mission_id,
+                workspace=workspace,
+                user_id=user_id,
+                reason="reviewer_exception",
+                detail=str(exc)[:1000],
+            )
         if reviewer_span is not None and hasattr(reviewer_span, "update"):
-            try:
+            with contextlib.suppress(Exception):
                 reviewer_span.update(
                     output={"response_chars": len(raw_response)},
                     status_message="ok" if raw_response else "empty",
                 )
-            except Exception:
-                pass
 
         summary["reviewer_model"] = service.__class__.__name__  # cheap identifier
         # Pull the real model id from the singleton (set in __init__).
@@ -256,6 +317,15 @@ async def _review_mission_async(
         if not raw_response:
             summary["outcome"] = "no_response"
             summary["reason"] = "reviewer_returned_empty"
+            # GOV-1.7: a fail-open empty response is a silent memory hole.
+            # Persist a durable gap record (best-effort) so the missing
+            # review is queryable in the audit log instead of disappearing.
+            await _record_review_gap(
+                mission_id=mission_id,
+                workspace=workspace,
+                user_id=user_id,
+                reason="reviewer_returned_empty",
+            )
             return
 
         # ── 4. Parse + validate (Langfuse span: validation) ──────────
@@ -267,12 +337,10 @@ async def _review_mission_async(
             )
         proposed = service.parse_reviewer_response(raw_response)
         if validation_span is not None and hasattr(validation_span, "update"):
-            try:
+            with contextlib.suppress(Exception):
                 validation_span.update(
                     output={"proposed_count": len(proposed)},
                 )
-            except Exception:
-                pass
 
         if not proposed:
             summary["outcome"] = "no_proposed_writes"
@@ -284,11 +352,7 @@ async def _review_mission_async(
 
         ws_orm = None
         if workspace:
-            ws_orm = (
-                await db.execute(
-                    select(Workspace).where(Workspace.id == workspace)
-                )
-            ).scalar_one_or_none()
+            ws_orm = (await db.execute(select(Workspace).where(Workspace.id == workspace))).scalar_one_or_none()
         write_approval = compute_write_approval(ws_orm)
 
         # ── 6. Apply writes (Langfuse span: apply_writes) ────────────
@@ -324,10 +388,8 @@ async def _review_mission_async(
             summary["outcome"] = "apply_error"
             summary["error"] = str(exc)
             if apply_span is not None and hasattr(apply_span, "update"):
-                try:
+                with contextlib.suppress(Exception):
                     apply_span.update(status_message="error")
-                except Exception:
-                    pass
             return
 
         summary["direct_writes"] = len(result.direct_writes)
@@ -336,7 +398,7 @@ async def _review_mission_async(
         summary["outcome"] = "applied"
 
         if apply_span is not None and hasattr(apply_span, "update"):
-            try:
+            with contextlib.suppress(Exception):
                 apply_span.update(
                     output={
                         "direct_writes": result.direct_writes,
@@ -345,8 +407,6 @@ async def _review_mission_async(
                         "skipped": result.skipped,
                     },
                 )
-            except Exception:
-                pass
 
         # ── 7. Supersede resolution span ─────────────────────────────
         if result.superseded and trace is not None and hasattr(trace, "span"):
@@ -354,17 +414,12 @@ async def _review_mission_async(
                 name="memory.review.supersede_resolution",
                 metadata={"count": len(result.superseded)},
             )
-            try:
+            with contextlib.suppress(Exception):
                 super_span.update(
                     output={
-                        "pairs": [
-                            {"old_id": old_id, "new_id": new_id}
-                            for old_id, new_id in result.superseded
-                        ],
+                        "pairs": [{"old_id": old_id, "new_id": new_id} for old_id, new_id in result.superseded],
                     },
                 )
-            except Exception:
-                pass
 
         # ── 8. Best-effort: notify the user via SSE + notifications ──
         if result.staged_writes and user_id:
@@ -396,8 +451,7 @@ async def _notify_pending_writes(user_id: int, mission_id: str, count: int) -> N
                 data={
                     "title": "Agent wants to remember",
                     "message": (
-                        f"{count} pending memory write"
-                        f"{'s' if count != 1 else ''} from mission {mission_id[:8]}"
+                        f"{count} pending memory write{'s' if count != 1 else ''} from mission {mission_id[:8]}"
                     ),
                     "mission_id": mission_id,
                     "pending_count": count,

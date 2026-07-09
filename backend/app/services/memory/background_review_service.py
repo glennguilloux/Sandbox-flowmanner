@@ -31,6 +31,7 @@ rate (target < 5% per the plan).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
@@ -67,6 +68,11 @@ logger = logging.getLogger(__name__)
 #   - NO SaaS APIs (OpenAI/Google/DeepSeek) — earlier I recommended
 #     GPT-4o-mini; that was wrong. Reviewer stays on the local 27B.
 DEFAULT_REVIEWER_MODEL = "llamacpp-qwen3.6-27b"
+
+# GOV-1.7 reviewer reliability: bounded retry on transient HTTP failures.
+REVIEWER_MAX_RETRIES = 3
+REVIEWER_RETRY_BASE_DELAY = 1.0
+REVIEWER_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
 @dataclass(frozen=True)
@@ -703,16 +709,75 @@ class BackgroundReviewService:
                 "temperature": 0.2,
                 "max_tokens": 1024,
             }
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{base_url}/chat/completions",
-                    json=payload,
-                    headers={"Authorization": "Bearer not-needed"},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            return content or ""
+            # GOV-1.7 retry loop — bounded, linear backoff, transient-only.
+            for attempt in range(1, REVIEWER_MAX_RETRIES + 1):
+                try:
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        resp = await client.post(
+                            f"{base_url}/chat/completions",
+                            json=payload,
+                            headers={"Authorization": "Bearer not-needed"},
+                        )
+                        status = resp.status_code
+                        if status in REVIEWER_RETRYABLE_STATUS:
+                            # Transient server-side error -> retry after backoff.
+                            logger.warning(
+                                "BackgroundReviewService.call_reviewer: transient HTTP %s "
+                                "(attempt %d/%d) for %s; retrying",
+                                status,
+                                attempt,
+                                REVIEWER_MAX_RETRIES,
+                                model_id,
+                            )
+                            if attempt < REVIEWER_MAX_RETRIES:
+                                await asyncio.sleep(REVIEWER_RETRY_BASE_DELAY * attempt)
+                                continue
+                            break
+                        resp.raise_for_status()
+                        data = resp.json()
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return content or ""
+                except httpx.TimeoutException as exc:
+                    logger.warning(
+                        "BackgroundReviewService.call_reviewer: timeout (attempt %d/%d) for %s; retrying",
+                        attempt,
+                        REVIEWER_MAX_RETRIES,
+                        model_id,
+                    )
+                    last_exc = exc
+                    if attempt < REVIEWER_MAX_RETRIES:
+                        await asyncio.sleep(REVIEWER_RETRY_BASE_DELAY * attempt)
+                        continue
+                    break
+                except httpx.TransportError as exc:
+                    logger.warning(
+                        "BackgroundReviewService.call_reviewer: transport error (attempt %d/%d) for %s; retrying",
+                        attempt,
+                        REVIEWER_MAX_RETRIES,
+                        model_id,
+                    )
+                    last_exc = exc
+                    if attempt < REVIEWER_MAX_RETRIES:
+                        await asyncio.sleep(REVIEWER_RETRY_BASE_DELAY * attempt)
+                        continue
+                    break
+                except Exception as exc:
+                    # Permanent (non-transient) failure -> fail open immediately,
+                    # do NOT retry. Return "" so the caller no-ops gracefully.
+                    logger.warning(
+                        "BackgroundReviewService.call_reviewer: %s failed (permanent): %s",
+                        model_id,
+                        exc,
+                    )
+                    return ""
+            # Exhausted retries on a transient error -> log + fail open.
+            logger.warning(
+                "BackgroundReviewService.call_reviewer: %s exhausted %d retries; "
+                "returning empty (reviewer unavailable)",
+                model_id,
+                REVIEWER_MAX_RETRIES,
+            )
+            return ""
         except Exception as exc:
             logger.warning(
                 "BackgroundReviewService.call_reviewer: %s failed: %s",
