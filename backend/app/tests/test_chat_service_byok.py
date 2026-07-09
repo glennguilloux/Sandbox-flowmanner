@@ -482,7 +482,7 @@ class TestProviderResolution:
         """openai/gpt-4o-mini should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider("openai/gpt-4o-mini")
+        base_url, _api_key, model = _resolve_provider("openai/gpt-4o-mini")
         assert base_url == "https://api.openai.com/v1"
         assert model == "gpt-4o-mini"
 
@@ -490,7 +490,7 @@ class TestProviderResolution:
         """openai_compatible/gpt-4o-mini should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider("openai_compatible/gpt-4o-mini")
+        base_url, _api_key, model = _resolve_provider("openai_compatible/gpt-4o-mini")
         assert base_url == "https://api.openai.com/v1"
         assert model == "gpt-4o-mini"
 
@@ -498,7 +498,7 @@ class TestProviderResolution:
         """openai_compatible/gpt-4o-mini-2024-07-18 should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider("openai_compatible/gpt-4o-mini-2024-07-18")
+        base_url, _api_key, model = _resolve_provider("openai_compatible/gpt-4o-mini-2024-07-18")
         assert base_url == "https://api.openai.com/v1"
         assert model == "gpt-4o-mini-2024-07-18"
 
@@ -506,7 +506,7 @@ class TestProviderResolution:
         """openrouter/anthropic/claude-3.5-sonnet should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider("openrouter/anthropic/claude-3.5-sonnet")
+        base_url, _api_key, model = _resolve_provider("openrouter/anthropic/claude-3.5-sonnet")
         assert base_url == "https://openrouter.ai/api/v1"
         assert model == "anthropic/claude-3.5-sonnet"
 
@@ -514,7 +514,7 @@ class TestProviderResolution:
         """deepseek/deepseek-chat should resolve correctly."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider("deepseek/deepseek-chat")
+        base_url, _api_key, model = _resolve_provider("deepseek/deepseek-chat")
         assert base_url == "https://api.deepseek.com/v1"
         assert model == "deepseek-chat"
 
@@ -522,7 +522,7 @@ class TestProviderResolution:
         """Model without prefix should use default base URL."""
         from app.services.chat_service import _resolve_provider
 
-        base_url, api_key, model = _resolve_provider("gpt-4o-mini")
+        _base_url, _api_key, model = _resolve_provider("gpt-4o-mini")
         assert model == "gpt-4o-mini"
 
 

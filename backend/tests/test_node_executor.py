@@ -457,7 +457,7 @@ class TestHandleTool:
 class TestHandleHITL:
     @pytest.mark.asyncio
     async def test_handle_hitl_creates_interrupt(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = _make_node(node_type="approval", config={"approval_prompt": "Approve this?"})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -500,7 +500,7 @@ class TestHandleHITL:
 
     @pytest.mark.asyncio
     async def test_handle_hitl_clarification_type(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = _make_node(node_type="human_review", config={})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -533,7 +533,7 @@ class TestHandleHITL:
 class TestDispatchRoutingExtended:
     @pytest.mark.asyncio
     async def test_dispatch_unknown_type_returns_error(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = MagicMock()
         node.type = "completely_unknown"  # Not in the match cases
         db = AsyncMock()
@@ -564,7 +564,7 @@ class TestDispatchRoutingExtended:
 class TestHandleLLM:
     @pytest.mark.asyncio
     async def test_handle_llm_returns_correct_tokens_and_cost(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = _make_node(node_type="llm_call", config={"prompt": "Hello"})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -603,7 +603,7 @@ class TestHandleLLM:
 
     @pytest.mark.asyncio
     async def test_handle_llm_failure_response(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = _make_node(node_type="llm_call", config={"prompt": "Hello"})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -635,7 +635,7 @@ class TestHandleLLM:
 
     @pytest.mark.asyncio
     async def test_handle_llm_empty_response(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = _make_node(node_type="llm_call", config={"prompt": "Hello"})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -672,7 +672,7 @@ class TestHandleLLM:
 
     @pytest.mark.asyncio
     async def test_handle_llm_with_system_prompt(self):
-        ne, mock_executor = _make_mock_node_executor()
+        ne, _mock_executor = _make_mock_node_executor()
         node = _make_node(
             node_type="llm_call",
             config={

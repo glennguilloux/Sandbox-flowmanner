@@ -24,18 +24,14 @@ def fastapi_app():
     handling which monkeypatches `response_class` — an attribute that
     doesn't exist on FastAPI.
     """
-    from app.main_fastapi import app as _app  # noqa: PLC0415
+    from app.main_fastapi import app as _app
 
     return _app
 
 
 def _route_paths(app) -> set[str]:
     """Return the set of HTTP route paths registered on the app."""
-    return {
-        r.path
-        for r in app.routes
-        if getattr(r, "methods", None) and "depth" in r.path
-    }
+    return {r.path for r in app.routes if getattr(r, "methods", None) and "depth" in r.path}
 
 
 class TestDepthRouteMount:
@@ -43,9 +39,7 @@ class TestDepthRouteMount:
 
     def test_post_decide_at_depth_prefix(self, fastapi_app):
         paths = _route_paths(fastapi_app)
-        assert "/api/depth/decide" in paths, (
-            f"POST /api/depth/decide is missing. Actual depth paths: {sorted(paths)}"
-        )
+        assert "/api/depth/decide" in paths, f"POST /api/depth/decide is missing. Actual depth paths: {sorted(paths)}"
 
     def test_get_events_under_missions_not_depth(self, fastapi_app):
         """The events endpoint must be at /api/missions/..., NOT /api/depth/missions/...
@@ -54,8 +48,7 @@ class TestDepthRouteMount:
         """
         paths = _route_paths(fastapi_app)
         assert "/api/missions/{mission_id}/depth-events" in paths, (
-            f"GET /api/missions/{{mission_id}}/depth-events is missing. "
-            f"Actual depth paths: {sorted(paths)}"
+            f"GET /api/missions/{{mission_id}}/depth-events is missing. " f"Actual depth paths: {sorted(paths)}"
         )
 
     def test_no_buggy_path_under_depth_prefix(self, fastapi_app):

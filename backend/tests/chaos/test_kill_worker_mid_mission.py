@@ -172,7 +172,7 @@ class TestKillWorkerMidMission:
         run_id = str(uuid4())
         mission_id = str(uuid4())
 
-        persisted, expected = _simulate_mission_until_crash(run_id, mission_id, crash_after_sequence=5)
+        persisted, _expected = _simulate_mission_until_crash(run_id, mission_id, crash_after_sequence=5)
 
         el = _mock_event_log(persisted)
         engine = ReplayEngine(event_log=el)

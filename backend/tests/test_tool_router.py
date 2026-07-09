@@ -25,7 +25,6 @@ from app.models.tool_routing_models import ToolRouteResult, ToolScore
 from app.services.langgraph.tool_converter import ToolConverter, ToolDefinition
 from app.services.tool_router import ToolRouter, _jaccard_similarity, _task_text_hash, _tokenize
 
-
 # ── Fixtures ───────────────────────────────────────────────────────
 
 
@@ -76,7 +75,9 @@ class TestToolRouterRoute:
     async def test_happy_path_returns_sparse_candidate_set(self):
         """route() returns a non-empty candidate set in sparse mode when confidence is high."""
         tools = [
-            _make_tool("search_workflows", "Search Workflows", "Search for available workflows by name or category", "search"),
+            _make_tool(
+                "search_workflows", "Search Workflows", "Search for available workflows by name or category", "search"
+            ),
             _make_tool("execute_n8n", "Execute n8n", "Execute an n8n workflow", "workflow", requires_approval=True),
             _make_tool("list_configs", "List Configs", "List saved configurations", "config"),
         ]
@@ -120,7 +121,9 @@ class TestToolRouterRoute:
     async def test_high_risk_tool_always_included(self):
         """Tools with requires_approval=True are always in the candidate set even with low score."""
         safe_tool = _make_tool("safe", "Safe Tool", "A safe tool about images", "image")
-        high_risk = _make_tool("risky", "Risky Tool", "Completely unrelated topic about cooking", "general", requires_approval=True)
+        high_risk = _make_tool(
+            "risky", "Risky Tool", "Completely unrelated topic about cooking", "general", requires_approval=True
+        )
         converter = _make_converter([safe_tool, high_risk])
         router = ToolRouter(registry=converter, min_confidence=0.1)
 
@@ -283,6 +286,7 @@ class TestScopingAndIsolation:
 
         # These are positional/required — verify the function signature
         import inspect
+
         sig = inspect.signature(router.route)
         params = list(sig.parameters.keys())
         assert "workspace_id" in params

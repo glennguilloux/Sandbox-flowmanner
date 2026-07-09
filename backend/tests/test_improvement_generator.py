@@ -42,7 +42,6 @@ os.environ.setdefault(
 
 import pytest
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════
@@ -465,15 +464,9 @@ class TestCommonFailures:
         # The "Failed to connect..." group has 2 occurrences and is
         # sorted first (highest count).
         assert batch.common_failure_patterns[0]["occurrences"] == 2
-        assert (
-            "failed to connect"
-            in batch.common_failure_patterns[0]["pattern"]
-        )
+        assert "failed to connect" in batch.common_failure_patterns[0]["pattern"]
         assert batch.common_failure_patterns[1]["occurrences"] == 1
-        assert (
-            "timeout exceeded"
-            in batch.common_failure_patterns[1]["pattern"]
-        )
+        assert "timeout exceeded" in batch.common_failure_patterns[1]["pattern"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -582,6 +575,7 @@ class TestEdgeCases:
         """The module does not import AsyncSession and does not call
         any database write operation (spec §T26 tight rule)."""
         import re
+
         import app.services.improvement_generator as mod
 
         source = open(mod.__file__).read()
@@ -594,10 +588,7 @@ class TestEdgeCases:
             "db.execute",
             "async with engine",
         ):
-            assert forbidden not in source, (
-                f"Spec §T26 violation: {forbidden!r} found in "
-                f"{mod.__file__}"
-            )
+            assert forbidden not in source, f"Spec §T26 violation: {forbidden!r} found in " f"{mod.__file__}"
         # AST-level check: no ImportFrom/Import mentions AsyncSession.
         import ast
 
@@ -614,15 +605,12 @@ class TestEdgeCases:
     def test_no_fstring_in_logger(self) -> None:
         """No logger call uses an f-string (project rule)."""
         import re
+
         import app.services.improvement_generator as mod
 
         source = open(mod.__file__).read()
         # The spec allows the module to log nothing — but if it does,
         # the logger calls must use parameterised formatting.
         # The pattern `logger.<method>(f"` catches the violation.
-        fstring_in_logger = re.findall(
-            r"logger\.\w+\(f[\"']", source
-        )
-        assert fstring_in_logger == [], (
-            f"Found f-strings in logger calls: {fstring_in_logger}"
-        )
+        fstring_in_logger = re.findall(r"logger\.\w+\(f[\"']", source)
+        assert fstring_in_logger == [], f"Found f-strings in logger calls: {fstring_in_logger}"

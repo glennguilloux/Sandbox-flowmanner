@@ -38,23 +38,23 @@ class TestNormalizeProvider:
 
 class TestResolveProvider:
     def test_openai_prefix(self):
-        base_url, api_key, model = _resolve_provider("openai/gpt-4o")
+        base_url, _api_key, model = _resolve_provider("openai/gpt-4o")
         assert base_url == "https://api.openai.com/v1"
         assert model == "gpt-4o"
 
     def test_deepseek_prefix(self):
-        base_url, api_key, model = _resolve_provider("deepseek/deepseek-chat")
+        base_url, _api_key, model = _resolve_provider("deepseek/deepseek-chat")
         assert base_url == "https://api.deepseek.com/v1"
         assert model == "deepseek-chat"
 
     def test_no_prefix_returns_defaults(self):
-        base_url, api_key, model = _resolve_provider("gpt-4o-mini")
+        base_url, _api_key, model = _resolve_provider("gpt-4o-mini")
         assert model == "gpt-4o-mini"
         # Falls back to _LLM_API_BASE
         assert "deepseek" in base_url or "openai" in base_url
 
     def test_openrouter_nested_path(self):
-        base_url, api_key, model = _resolve_provider("openrouter/anthropic/claude-3.5-sonnet")
+        base_url, _api_key, model = _resolve_provider("openrouter/anthropic/claude-3.5-sonnet")
         assert base_url == "https://openrouter.ai/api/v1"
         assert model == "anthropic/claude-3.5-sonnet"
 

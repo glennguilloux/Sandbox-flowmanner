@@ -270,7 +270,7 @@ class TestBuildContextWindow:
 class TestFormatContextEvents:
     def test_formats_events_as_structured_text(self):
         """Each event is formatted as [seq] type (actor=...) payload."""
-        ne, _ = _make_mock_executor()
+        _ne, _ = _make_mock_executor()
         events = [
             _make_event(5, "task.completed", "node_executor", {"task_id": "t5", "tokens": 100}),
             _make_event(6, "llm.call", "budget_enforcer", {"model": "deepseek-chat"}),
@@ -285,7 +285,7 @@ class TestFormatContextEvents:
 
     def test_truncates_large_payloads(self):
         """Payloads exceeding 300 chars are truncated."""
-        ne, _ = _make_mock_executor()
+        _ne, _ = _make_mock_executor()
         large_payload = {"data": "x" * 400}
         events = [_make_event(1, "task.completed", "test", large_payload)]
 
@@ -296,11 +296,11 @@ class TestFormatContextEvents:
         assert "x" * 400 not in result
 
     def test_returns_empty_string_for_empty_list(self):
-        ne, _ = _make_mock_executor()
+        _ne, _ = _make_mock_executor()
         assert NodeExecutor._format_context_events([]) == ""
 
     def test_events_separated_by_newlines(self):
-        ne, _ = _make_mock_executor()
+        _ne, _ = _make_mock_executor()
         events = [
             _make_event(1, "task.started", "executor"),
             _make_event(2, "task.completed", "executor"),
@@ -340,7 +340,7 @@ class TestContextInjectionInLLM:
     @pytest.mark.asyncio
     async def test_context_events_injected_as_system_message(self):
         """Context events are added as a system message before the user prompt."""
-        ne, mock_executor = _make_mock_executor()
+        ne, _mock_executor = _make_mock_executor()
         node = WorkflowNode(
             id="n1",
             type="llm_call",
@@ -391,7 +391,7 @@ class TestContextInjectionInLLM:
     @pytest.mark.asyncio
     async def test_context_with_system_prompt(self):
         """Context events go AFTER the existing system prompt."""
-        ne, mock_executor = _make_mock_executor()
+        ne, _mock_executor = _make_mock_executor()
         node = WorkflowNode(
             id="n1",
             type="llm_call",
@@ -433,7 +433,7 @@ class TestContextInjectionInLLM:
     @pytest.mark.asyncio
     async def test_no_context_message_when_events_empty(self):
         """When context_events is empty, no extra message is added."""
-        ne, mock_executor = _make_mock_executor()
+        ne, _mock_executor = _make_mock_executor()
         node = WorkflowNode(
             id="n1",
             type="llm_call",
@@ -472,7 +472,7 @@ class TestTaskStartedRecordsContextWindow:
     @pytest.mark.asyncio
     async def test_task_started_includes_context_window_range(self):
         """The task.started event payload includes context window metadata."""
-        ne, mock_executor = _make_mock_executor()
+        ne, _mock_executor = _make_mock_executor()
         node = WorkflowNode(id="n1", type="llm_call", config={"prompt": "Hi"})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -517,7 +517,7 @@ class TestTaskStartedRecordsContextWindow:
     @pytest.mark.asyncio
     async def test_task_started_omits_context_when_empty(self):
         """When no context events exist, task.started omits context window keys."""
-        ne, mock_executor = _make_mock_executor()
+        ne, _mock_executor = _make_mock_executor()
         node = WorkflowNode(id="n1", type="llm_call", config={"prompt": "Hi"})
         db = AsyncMock()
         run_id = str(uuid4())
@@ -553,7 +553,7 @@ class TestTaskStartedRecordsContextWindow:
     @pytest.mark.asyncio
     async def test_execute_respects_custom_context_window_size(self):
         """Custom context_window_size from workflow.metadata is used."""
-        ne, mock_executor = _make_mock_executor()
+        ne, _mock_executor = _make_mock_executor()
         node = WorkflowNode(id="n1", type="llm_call", config={"prompt": "Hi"})
         db = AsyncMock()
         run_id = str(uuid4())

@@ -13,7 +13,7 @@ previous version.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime  # noqa: TCH003 — needed at runtime by SQLAlchemy Mapped[]
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID

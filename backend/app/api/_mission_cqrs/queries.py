@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 
 logger = logging.getLogger(__name__)
-import uuid  # noqa: TCH003  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
+import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
 from typing import TYPE_CHECKING
 
 from app.models.mission_models import (

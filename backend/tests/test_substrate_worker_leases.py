@@ -28,7 +28,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 
@@ -266,7 +265,7 @@ class TestRenewLease:
 class TestSubstrateLeaseExports:
     def test_substrate_lease_exports(self):
         """All lease symbols are importable from app.services.substrate."""
-        from app.services.substrate import (  # noqa: F401
+        from app.services.substrate import (
             LeaseRecord,
             get_active_lease,
             release_lease,

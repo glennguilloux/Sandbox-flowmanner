@@ -27,8 +27,8 @@ _env_db_url = os.environ.get("DATABASE_URL")
 if _env_db_url:
     os.environ["DATABASE_URL"] = _env_db_url  # Ensure it's set for pydantic-settings
 
-from app.database import AsyncSessionLocal  # noqa: E402
-from app.services.substrate.leases import try_claim_lease  # noqa: E402
+from app.database import AsyncSessionLocal
+from app.services.substrate.leases import try_claim_lease
 
 
 async def main() -> None:

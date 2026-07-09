@@ -45,16 +45,16 @@ def _clear_non_oauth_env(monkeypatch):
 
 
 def _make_user(**kwargs) -> SimpleNamespace:
-    defaults = dict(
-        id=1,
-        email="test@example.com",
-        username="testuser",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True,
-        is_admin=False,
-        is_superuser=False,
-    )
+    defaults = {
+        "id": 1,
+        "email": "test@example.com",
+        "username": "testuser",
+        "full_name": "Test User",
+        "hashed_password": "hashed",
+        "is_active": True,
+        "is_admin": False,
+        "is_superuser": False,
+    }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 
@@ -234,7 +234,7 @@ class TestNonOAuthConnections:
         assert data["total"] >= 1
         slugs = [e["slug"] for e in data["connected"]]
         assert "linear" in slugs
-        linear = [e for e in data["connected"] if e["slug"] == "linear"][0]
+        linear = next(e for e in data["connected"] if e["slug"] == "linear")
         assert linear["auth_type"] == "api_key"
         assert linear["account_name"] == "linear-workspace"
 
@@ -271,7 +271,7 @@ class TestNonOAuthConnections:
         response = client.get("/api/integrations/connected")
 
         assert response.status_code == 200
-        linear = [e for e in response.json()["connected"] if e["slug"] == "linear"][0]
+        linear = next(e for e in response.json()["connected"] if e["slug"] == "linear")
         assert linear["action_count"] > 0
         assert len(linear["actions"]) > 0
         for action in linear["actions"]:

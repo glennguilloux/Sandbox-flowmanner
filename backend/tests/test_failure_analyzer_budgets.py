@@ -101,7 +101,7 @@ class TestErrorBudgetExhaustion:
     def test_cost_budget_exhausted_when_over(self):
         budget = ErrorBudget(max_cost_usd=0.50)
         budget.total_cost_usd = 0.75
-        exhausted, reason = budget.is_exhausted()
+        exhausted, _reason = budget.is_exhausted()
         assert exhausted is True
 
     def test_wall_clock_budget_exhausted(self):
@@ -114,7 +114,7 @@ class TestErrorBudgetExhaustion:
     def test_wall_clock_budget_not_exhausted_when_fresh(self):
         budget = ErrorBudget(max_wall_clock_seconds=3600.0)
         budget.started_at = time.monotonic()
-        exhausted, reason = budget.is_exhausted()
+        exhausted, _reason = budget.is_exhausted()
         assert exhausted is False
 
     def test_wall_clock_zero_max_disables_check(self):
@@ -351,12 +351,12 @@ class TestFailureAnalyzerOther:
         self.analyzer = FailureAnalyzer()
 
     def test_is_budget_exhausted_returns_false_for_fresh(self):
-        exhausted, reason = self.analyzer.is_budget_exhausted(ErrorClass.TIMEOUT)
+        exhausted, _reason = self.analyzer.is_budget_exhausted(ErrorClass.TIMEOUT)
         assert exhausted is False
 
     def test_is_budget_exhausted_returns_true_when_exhausted(self):
         self.analyzer._budgets[ErrorClass.TIMEOUT].retry_count = 5
-        exhausted, reason = self.analyzer.is_budget_exhausted(ErrorClass.TIMEOUT)
+        exhausted, _reason = self.analyzer.is_budget_exhausted(ErrorClass.TIMEOUT)
         assert exhausted is True
 
     def test_get_budget_returns_budget_for_class(self):

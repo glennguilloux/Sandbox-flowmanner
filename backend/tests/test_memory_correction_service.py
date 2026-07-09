@@ -20,6 +20,7 @@ Run via::
     DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_memory_correction_service.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -29,7 +30,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 
 # Ensure DATABASE_URL is set BEFORE importing app modules that need it.
 os.environ.setdefault(
@@ -73,9 +73,7 @@ def _make_event_row(
     return row
 
 
-def _chain_execute_returning(
-    db: MagicMock, *, scalars: list[Any] | None = None, count: int | None = None
-) -> None:
+def _chain_execute_returning(db: MagicMock, *, scalars: list[Any] | None = None, count: int | None = None) -> None:
     """Wire up ``db.execute`` to return a result mock.
 
     If ``count`` is provided, sets up the *count* result; otherwise
@@ -123,9 +121,7 @@ class TestModuleSurface:
 
         # Must be both a domain error AND a ValueError (per pattern).
         assert issubclass(MemoryCorrectionValidationError, ValueError)
-        assert issubclass(
-            MemoryCorrectionValidationError, Exception
-        )
+        assert issubclass(MemoryCorrectionValidationError, Exception)
 
     def test_constructable_with_db(self) -> None:
         from app.services.memory_correction_service import (
@@ -399,8 +395,7 @@ class TestRecordEventDiscipline:
             event_type="view",
         )
         assert not db.commit.called, (
-            "service must NOT call db.commit() — caller owns the "
-            "transaction (services/AGENTS.md rule 3)"
+            "service must NOT call db.commit() — caller owns the " "transaction (services/AGENTS.md rule 3)"
         )
 
     async def test_record_event_flushes_for_id_visibility(self) -> None:
@@ -415,9 +410,7 @@ class TestRecordEventDiscipline:
             workspace_id="ws",
             event_type="view",
         )
-        assert db.flush.await_count >= 1, (
-            "service must call db.flush() so caller can observe the new id"
-        )
+        assert db.flush.await_count >= 1, "service must call db.flush() so caller can observe the new id"
 
     async def test_record_event_refreshes_row(self) -> None:
         from app.services.memory_correction_service import (
@@ -458,9 +451,7 @@ class TestListForUserIsolation:
         # workspace_id in the WHERE clause.
         for call in db.execute.await_args_list:
             stmt = call.args[0]
-            compiled = str(
-                stmt.compile(compile_kwargs={"literal_binds": True})
-            )
+            compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
             assert "user_id" in compiled
             assert "workspace_id" in compiled
             assert "42" in compiled
@@ -523,9 +514,7 @@ class TestListForUserFilters:
         # Both queries (count + items) must filter by event_type.
         for call in db.execute.await_args_list:
             stmt = call.args[0]
-            compiled = str(
-                stmt.compile(compile_kwargs={"literal_binds": True})
-            )
+            compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
             assert "forget" in compiled
 
     async def test_list_for_user_filters_by_claim_id(self) -> None:
@@ -545,9 +534,7 @@ class TestListForUserFilters:
         # Both queries (count + items) must reference claim_id.
         for call in db.execute.await_args_list:
             stmt = call.args[0]
-            compiled = str(
-                stmt.compile(compile_kwargs={"literal_binds": True})
-            )
+            compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
             assert "claim_id" in compiled
             # Postgres UUID column drops the dashes in literal_binds.
             assert str(claim_id).replace("-", "") in compiled
@@ -570,9 +557,7 @@ class TestListForUserFilters:
         # LIMIT 10 and OFFSET 20.
         items_stmt_call = db.execute.await_args_list[1]
         stmt = items_stmt_call.args[0]
-        compiled = str(
-            stmt.compile(compile_kwargs={"literal_binds": True})
-        )
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         assert "10" in compiled
         assert "20" in compiled
 
@@ -770,8 +755,7 @@ class TestGetProvenance:
         # Other buckets should be zero.
         for et in ("create", "delete", "inspect", "export", "pause", "resume"):
             assert prov["events_by_type"][et] == 0, (
-                f"events_by_type[{et!r}] must be 0 (stable UI); "
-                f"got {prov['events_by_type'][et]}"
+                f"events_by_type[{et!r}] must be 0 (stable UI); " f"got {prov['events_by_type'][et]}"
             )
 
     async def test_get_provenance_first_and_last_event(self) -> None:
@@ -783,15 +767,9 @@ class TestGetProvenance:
         ts_old = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         ts_mid = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
         ts_new = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
-        ev_old = _make_event_row(
-            event_type="create", actor="system", created_at=ts_old
-        )
-        ev_mid = _make_event_row(
-            event_type="view", actor="user", created_at=ts_mid
-        )
-        ev_new = _make_event_row(
-            event_type="edit", actor="admin", created_at=ts_new
-        )
+        ev_old = _make_event_row(event_type="create", actor="system", created_at=ts_old)
+        ev_mid = _make_event_row(event_type="view", actor="user", created_at=ts_mid)
+        ev_new = _make_event_row(event_type="edit", actor="admin", created_at=ts_new)
         # DESC order.
         result_mock = MagicMock()
         result_mock.scalars.return_value.all.return_value = [
@@ -836,8 +814,15 @@ class TestGetProvenance:
         assert prov["last_actor"] is None
         # Stable bucket map — every known event type shows up with 0.
         for et in (
-            "view", "edit", "delete", "forget", "create", "inspect",
-            "export", "pause", "resume",
+            "view",
+            "edit",
+            "delete",
+            "forget",
+            "create",
+            "inspect",
+            "export",
+            "pause",
+            "resume",
         ):
             assert prov["events_by_type"][et] == 0
 

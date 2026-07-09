@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import uuid  # noqa: TCH003  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
+import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Query, Response, status

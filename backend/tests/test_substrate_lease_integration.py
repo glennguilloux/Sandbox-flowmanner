@@ -15,14 +15,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.substrate.executor import UnifiedExecutor, LeaseLostError
+from app.services.substrate.executor import LeaseLostError, UnifiedExecutor
 from app.services.substrate.workflow_models import (
     StrategyResult,
     Workflow,
     WorkflowNode,
     WorkflowType,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -79,8 +78,7 @@ def _make_mock_strategy(result: StrategyResult | None = None):
     strategy = MagicMock()
     strategy.validate = AsyncMock(return_value=[])
     strategy.execute = AsyncMock(
-        return_value=result
-        or StrategyResult(success=True, status="completed", total_tokens=50)
+        return_value=result or StrategyResult(success=True, status="completed", total_tokens=50)
     )
     return strategy
 
@@ -93,31 +91,31 @@ def _make_mock_strategy(result: StrategyResult | None = None):
 class TestClaimAtExecuteStart:
     def test_claim_at_execute_start(self):
         """execute() claims a lease when LEASE_ENABLED is true."""
-        executor, event_log, _ = _make_mock_executor()
+        executor, _event_log, _ = _make_mock_executor()
         workflow = _make_workflow()
         db = AsyncMock()
 
         mock_strategy = _make_mock_strategy()
 
-        with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            with patch(
+        with (
+            patch.object(executor, "_get_strategy", return_value=mock_strategy),
+            patch(
                 "app.services.substrate.lease_manager.try_claim_lease",
                 new_callable=AsyncMock,
                 return_value=True,
-            ) as mock_claim:
-                with patch(
-                    "app.services.substrate.lease_manager.release_lease",
-                    new_callable=AsyncMock,
-                ):
-                    with patch(
-                        "app.services.substrate.lease_manager.renew_lease",
-                        new_callable=AsyncMock,
-                        return_value=True,
-                    ):
-                        with patch(
-                            "app.config.settings.FLOWMANNER_LEASE_ENABLED", True
-                        ):
-                            result = asyncio.run(executor.execute(db, workflow))
+            ) as mock_claim,
+            patch(
+                "app.services.substrate.lease_manager.release_lease",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.substrate.lease_manager.renew_lease",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", True),
+        ):
+            result = asyncio.run(executor.execute(db, workflow))
 
         assert result.success is True
         mock_claim.assert_called_once()
@@ -132,7 +130,7 @@ class TestAlreadyRunning:
     def test_execute_returns_already_running_when_lease_held_by_other(self):
         """Worker B calling execute() for a run held by worker A returns
         'already_running' without re-executing."""
-        executor, event_log, replay_engine = _make_mock_executor()
+        executor, event_log, _replay_engine = _make_mock_executor()
         workflow = _make_workflow()
         db = AsyncMock()
 
@@ -140,33 +138,33 @@ class TestAlreadyRunning:
         worker_a_lease = _make_lease_row("worker-a", "run-1")
 
         # Patch at lease_manager module level (where LeaseManager imports them)
-        with patch(
-            "app.services.substrate.lease_manager.try_claim_lease",
-            new_callable=AsyncMock,
-            return_value=False,
-        ):
-            with patch(
+        with (
+            patch(
+                "app.services.substrate.lease_manager.try_claim_lease",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
                 "app.services.substrate.lease_manager.get_active_lease",
                 new_callable=AsyncMock,
                 return_value=worker_a_lease,
-            ):
-                with patch(
-                    "app.services.substrate.lease_manager.release_lease",
-                    new_callable=AsyncMock,
-                ):
-                    with patch(
-                        "app.config.settings.FLOWMANNER_LEASE_ENABLED", True
-                    ):
-                        result = asyncio.run(executor.execute(db, workflow, run_id="run-1"))
+            ),
+            patch(
+                "app.services.substrate.lease_manager.release_lease",
+                new_callable=AsyncMock,
+            ),
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", True),
+        ):
+            result = asyncio.run(executor.execute(db, workflow, run_id="run-1"))
 
         assert result.status == "already_running"
         assert "worker-a" in result.error
         # Should NOT have called mission.started (no execution)
         append_calls = event_log.append.call_args_list
         mission_started_calls = [
-            c for c in append_calls
-            if len(c[0]) > 2 and isinstance(c[0][2], list)
-            and any(e.get("type") == "mission.started" for e in c[0][2])
+            c
+            for c in append_calls
+            if len(c[0]) > 2 and isinstance(c[0][2], list) and any(e.get("type") == "mission.started" for e in c[0][2])
         ]
         assert len(mission_started_calls) == 0
 
@@ -179,31 +177,31 @@ class TestAlreadyRunning:
 class TestReleaseOnExit:
     def test_release_on_success(self):
         """Successful execute() releases the lease at the end."""
-        executor, event_log, _ = _make_mock_executor()
+        executor, _event_log, _ = _make_mock_executor()
         workflow = _make_workflow()
         db = AsyncMock()
 
         mock_strategy = _make_mock_strategy()
 
-        with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            with patch(
+        with (
+            patch.object(executor, "_get_strategy", return_value=mock_strategy),
+            patch(
                 "app.services.substrate.lease_manager.try_claim_lease",
                 new_callable=AsyncMock,
                 return_value=True,
-            ):
-                with patch(
-                    "app.services.substrate.lease_manager.release_lease",
-                    new_callable=AsyncMock,
-                ) as mock_release:
-                    with patch(
-                        "app.services.substrate.lease_manager.renew_lease",
-                        new_callable=AsyncMock,
-                        return_value=True,
-                    ):
-                        with patch(
-                            "app.config.settings.FLOWMANNER_LEASE_ENABLED", True
-                        ):
-                            result = asyncio.run(executor.execute(db, workflow))
+            ),
+            patch(
+                "app.services.substrate.lease_manager.release_lease",
+                new_callable=AsyncMock,
+            ) as mock_release,
+            patch(
+                "app.services.substrate.lease_manager.renew_lease",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", True),
+        ):
+            result = asyncio.run(executor.execute(db, workflow))
 
         assert result.success is True
         # release_lease should have been called (via LeaseManager.release)
@@ -211,7 +209,7 @@ class TestReleaseOnExit:
 
     def test_release_on_exception(self):
         """execute() that raises an exception still releases the lease."""
-        executor, event_log, _ = _make_mock_executor()
+        executor, _event_log, _ = _make_mock_executor()
         workflow = _make_workflow()
         db = AsyncMock()
 
@@ -219,25 +217,25 @@ class TestReleaseOnExit:
         mock_strategy.validate = AsyncMock(return_value=[])
         mock_strategy.execute = AsyncMock(side_effect=RuntimeError("boom"))
 
-        with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            with patch(
+        with (
+            patch.object(executor, "_get_strategy", return_value=mock_strategy),
+            patch(
                 "app.services.substrate.lease_manager.try_claim_lease",
                 new_callable=AsyncMock,
                 return_value=True,
-            ):
-                with patch(
-                    "app.services.substrate.lease_manager.release_lease",
-                    new_callable=AsyncMock,
-                ) as mock_release:
-                    with patch(
-                        "app.services.substrate.lease_manager.renew_lease",
-                        new_callable=AsyncMock,
-                        return_value=True,
-                    ):
-                        with patch(
-                            "app.config.settings.FLOWMANNER_LEASE_ENABLED", True
-                        ):
-                            result = asyncio.run(executor.execute(db, workflow))
+            ),
+            patch(
+                "app.services.substrate.lease_manager.release_lease",
+                new_callable=AsyncMock,
+            ) as mock_release,
+            patch(
+                "app.services.substrate.lease_manager.renew_lease",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", True),
+        ):
+            result = asyncio.run(executor.execute(db, workflow))
 
         assert result.success is False
         assert result.status == "failed"
@@ -253,21 +251,21 @@ class TestReleaseOnExit:
 class TestLeaseDisabledFlag:
     def test_lease_disabled_flag(self):
         """When FLOWMANNER_LEASE_ENABLED=false, no lease is claimed."""
-        executor, event_log, _ = _make_mock_executor()
+        executor, _event_log, _ = _make_mock_executor()
         workflow = _make_workflow()
         db = AsyncMock()
 
         mock_strategy = _make_mock_strategy()
 
-        with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            with patch(
+        with (
+            patch.object(executor, "_get_strategy", return_value=mock_strategy),
+            patch(
                 "app.services.substrate.lease_manager.try_claim_lease",
                 new_callable=AsyncMock,
-            ) as mock_claim:
-                with patch(
-                    "app.config.settings.FLOWMANNER_LEASE_ENABLED", False
-                ):
-                    result = asyncio.run(executor.execute(db, workflow))
+            ) as mock_claim,
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", False),
+        ):
+            result = asyncio.run(executor.execute(db, workflow))
 
         assert result.success is True
         # try_claim_lease should NOT have been called
@@ -359,25 +357,25 @@ class TestSubstrateEventsEmitted:
 
         mock_strategy = _make_mock_strategy()
 
-        with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            with patch(
+        with (
+            patch.object(executor, "_get_strategy", return_value=mock_strategy),
+            patch(
                 "app.services.substrate.lease_manager.try_claim_lease",
                 new_callable=AsyncMock,
                 return_value=True,
-            ):
-                with patch(
-                    "app.services.substrate.lease_manager.release_lease",
-                    new_callable=AsyncMock,
-                ):
-                    with patch(
-                        "app.services.substrate.lease_manager.renew_lease",
-                        new_callable=AsyncMock,
-                        return_value=True,
-                    ):
-                        with patch(
-                            "app.config.settings.FLOWMANNER_LEASE_ENABLED", True
-                        ):
-                            result = asyncio.run(executor.execute(db, workflow))
+            ),
+            patch(
+                "app.services.substrate.lease_manager.release_lease",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.substrate.lease_manager.renew_lease",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", True),
+        ):
+            result = asyncio.run(executor.execute(db, workflow))
 
         assert result.success is True
 

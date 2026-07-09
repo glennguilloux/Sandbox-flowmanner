@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ── Pure-Python tests (no DB) ────────────────────────────────────────────
 
 
@@ -31,11 +30,10 @@ class TestCritiqueMetadata:
     def test_critique_table_registered_in_metadata(self) -> None:
         """The ``critiques`` table must be in Base.metadata once the model is imported."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         assert "critiques" in Base.metadata.tables, (
-            "Expected 'critiques' in Base.metadata.tables; "
-            f"got: {sorted(Base.metadata.tables.keys())}"
+            "Expected 'critiques' in Base.metadata.tables; " f"got: {sorted(Base.metadata.tables.keys())}"
         )
 
     def test_critique_class_is_a_model(self) -> None:
@@ -62,7 +60,7 @@ class TestCritiqueColumns:
     def test_required_columns_are_not_null(self) -> None:
         """All required columns are NOT NULL on the critiques table."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         cols = Base.metadata.tables["critiques"].columns
         required = (
@@ -78,14 +76,12 @@ class TestCritiqueColumns:
             "updated_at",
         )
         for col_name in required:
-            assert cols[col_name].nullable is False, (
-                f"Critique.{col_name} must be NOT NULL (required field)"
-            )
+            assert cols[col_name].nullable is False, f"Critique.{col_name} must be NOT NULL (required field)"
 
     def test_optional_columns_are_nullable(self) -> None:
         """Optional columns are NULLABLE: program_id, scores, summary, raw, model_id, tokens, duration."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         cols = Base.metadata.tables["critiques"].columns
         optional = (
@@ -102,24 +98,20 @@ class TestCritiqueColumns:
             "duration_ms",
         )
         for col_name in optional:
-            assert cols[col_name].nullable is True, (
-                f"Critique.{col_name} must be nullable (optional field)"
-            )
+            assert cols[col_name].nullable is True, f"Critique.{col_name} must be nullable (optional field)"
 
     def test_mission_id_is_not_null(self) -> None:
         """mission_id is NOT NULL (every critique is anchored to a mission)."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         cols = Base.metadata.tables["critiques"].columns
-        assert cols["mission_id"].nullable is False, (
-            "Critique.mission_id must be NOT NULL"
-        )
+        assert cols["mission_id"].nullable is False, "Critique.mission_id must be NOT NULL"
 
     def test_id_is_uuid_primary_key(self) -> None:
         """Primary key is UUID, auto-defaulted via uuid4()."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
         pk = table.primary_key
@@ -134,24 +126,23 @@ class TestCritiqueColumns:
     def test_jsonb_columns_use_postgres_jsonb(self) -> None:
         """The four JSONB columns (misses, risks, improvements, alternatives) and raw_response use JSONB."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         cols = Base.metadata.tables["critiques"].columns
         for col_name in ("misses", "risks", "improvements", "alternatives", "raw_response"):
             assert cols[col_name].type.__class__.__name__ == "JSONB", (
-                f"Critique.{col_name} must be JSONB; "
-                f"got {cols[col_name].type.__class__.__name__}"
+                f"Critique.{col_name} must be JSONB; " f"got {cols[col_name].type.__class__.__name__}"
             )
 
     def test_critic_kind_column_is_string(self) -> None:
         """critic_kind is a String column (project pattern: validated by CHECK, not enum)."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         kind_col = Base.metadata.tables["critiques"].columns["critic_kind"]
-        assert kind_col.type.__class__.__name__ == "String", (
-            f"critic_kind must be String; got {kind_col.type.__class__.__name__}"
-        )
+        assert (
+            kind_col.type.__class__.__name__ == "String"
+        ), f"critic_kind must be String; got {kind_col.type.__class__.__name__}"
 
 
 class TestCritiqueIndexes:
@@ -160,46 +151,34 @@ class TestCritiqueIndexes:
     def test_composite_index_user_workspace_created(self) -> None:
         """Index on (user_id, workspace_id, created_at) for fast active-scope lookup."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
-        index_column_sets = [
-            (idx.name, tuple(idx.columns.keys())) for idx in table.indexes
-        ]
-        assert any(
-            cols == ("user_id", "workspace_id", "created_at")
-            for _name, cols in index_column_sets
-        ), (
-            "Missing composite index on (user_id, workspace_id, created_at); "
-            f"found: {index_column_sets}"
+        index_column_sets = [(idx.name, tuple(idx.columns.keys())) for idx in table.indexes]
+        assert any(cols == ("user_id", "workspace_id", "created_at") for _name, cols in index_column_sets), (
+            "Missing composite index on (user_id, workspace_id, created_at); " f"found: {index_column_sets}"
         )
 
     def test_index_on_mission_id(self) -> None:
         """Index on mission_id for fast mission-scoped lookup."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
-        index_column_sets = [
-            (idx.name, tuple(idx.columns.keys())) for idx in table.indexes
-        ]
+        index_column_sets = [(idx.name, tuple(idx.columns.keys())) for idx in table.indexes]
         assert any(
-            cols == ("mission_id",)
-            for _name, cols in index_column_sets
+            cols == ("mission_id",) for _name, cols in index_column_sets
         ), f"Missing index on (mission_id,); found: {index_column_sets}"
 
     def test_index_on_program_id(self) -> None:
         """Index on program_id for fast program-scoped lookup."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
-        index_column_sets = [
-            (idx.name, tuple(idx.columns.keys())) for idx in table.indexes
-        ]
+        index_column_sets = [(idx.name, tuple(idx.columns.keys())) for idx in table.indexes]
         assert any(
-            cols == ("program_id",)
-            for _name, cols in index_column_sets
+            cols == ("program_id",) for _name, cols in index_column_sets
         ), f"Missing index on (program_id,); found: {index_column_sets}"
 
 
@@ -208,50 +187,38 @@ class TestCritiqueCheckConstraints:
 
     def test_critic_kind_check_constraint_defined(self) -> None:
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
-        check_names = {
-            c.name for c in table.constraints if hasattr(c, "name") and c.name
-        }
-        assert any("critic_kind" in (n or "") for n in check_names), (
-            f"Expected a CHECK constraint on critic_kind; got: {check_names}"
-        )
+        check_names = {c.name for c in table.constraints if hasattr(c, "name") and c.name}
+        assert any(
+            "critic_kind" in (n or "") for n in check_names
+        ), f"Expected a CHECK constraint on critic_kind; got: {check_names}"
 
     def test_score_overall_check_constraint_defined(self) -> None:
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
-        check_names = {
-            c.name for c in table.constraints if hasattr(c, "name") and c.name
-        }
-        assert any("score_overall" in (n or "") for n in check_names), (
-            f"Expected a CHECK constraint on score_overall; got: {check_names}"
-        )
+        check_names = {c.name for c in table.constraints if hasattr(c, "name") and c.name}
+        assert any(
+            "score_overall" in (n or "") for n in check_names
+        ), f"Expected a CHECK constraint on score_overall; got: {check_names}"
 
     def test_score_overall_check_range(self) -> None:
         """The CHECK constraint on score_overall must be 0.0 <= x <= 1.0."""
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         table = Base.metadata.tables["critiques"]
-        score_checks = [
-            c
-            for c in table.constraints
-            if hasattr(c, "name")
-            and c.name
-            and "score_overall" in c.name
-        ]
-        assert len(score_checks) == 1, (
-            f"Expected exactly one score_overall CHECK constraint; got: {score_checks}"
-        )
+        score_checks = [c for c in table.constraints if hasattr(c, "name") and c.name and "score_overall" in c.name]
+        assert len(score_checks) == 1, f"Expected exactly one score_overall CHECK constraint; got: {score_checks}"
         sqltext = str(score_checks[0].sqltext)
         # Normalize whitespace.
         normalized = " ".join(sqltext.split())
-        assert "0.0" in normalized and "1.0" in normalized, (
-            f"score_overall CHECK should include 0.0 and 1.0 bounds; got: {normalized!r}"
-        )
+        assert (
+            "0.0" in normalized and "1.0" in normalized
+        ), f"score_overall CHECK should include 0.0 and 1.0 bounds; got: {normalized!r}"
 
 
 class TestCritiqueValueSets:
@@ -265,9 +232,9 @@ class TestCritiqueValueSets:
     def test_all_critic_kinds_is_hardcoded_tuple(self) -> None:
         from app.models.critique_models import ALL_CRITIC_KINDS
 
-        assert isinstance(ALL_CRITIC_KINDS, tuple), (
-            f"ALL_CRITIC_KINDS must be a tuple; got {type(ALL_CRITIC_KINDS).__name__}"
-        )
+        assert isinstance(
+            ALL_CRITIC_KINDS, tuple
+        ), f"ALL_CRITIC_KINDS must be a tuple; got {type(ALL_CRITIC_KINDS).__name__}"
 
     def test_all_critic_kinds_contains_documented_values(self) -> None:
         from app.models.critique_models import ALL_CRITIC_KINDS
@@ -292,12 +259,8 @@ class TestCritiqueValueSets:
         from app.models.critique_models import ALL_CRITIC_KINDS
 
         for v in ALL_CRITIC_KINDS:
-            assert isinstance(v, str), (
-                f"ALL_CRITIC_KINDS entries must be str; got {type(v).__name__}: {v!r}"
-            )
-            assert not v.startswith("_"), (
-                f"ALL_CRITIC_KINDS contains a sunder-name leak: {v!r}"
-            )
+            assert isinstance(v, str), f"ALL_CRITIC_KINDS entries must be str; got {type(v).__name__}: {v!r}"
+            assert not v.startswith("_"), f"ALL_CRITIC_KINDS contains a sunder-name leak: {v!r}"
 
 
 class TestCritiqueJsonbDefaults:
@@ -305,7 +268,7 @@ class TestCritiqueJsonbDefaults:
 
     def test_misses_default_is_empty_list(self) -> None:
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         col = Base.metadata.tables["critiques"].columns["misses"]
         assert col.default is not None, "misses must have a column-level default"
@@ -314,51 +277,35 @@ class TestCritiqueJsonbDefaults:
         # ``default=dict``) — calling the wrapped arg requires a context
         # object, so we confirm ``is_callable`` + ``for_update`` semantics
         # via the public attribute.
-        assert col.default.is_callable is True, (
-            "misses default must be a callable (e.g. default=list)"
-        )
-        assert col.default.for_update is False, (
-            "misses default must fire on INSERT, not just UPDATE"
-        )
+        assert col.default.is_callable is True, "misses default must be a callable (e.g. default=list)"
+        assert col.default.for_update is False, "misses default must fire on INSERT, not just UPDATE"
 
     def test_risks_default_is_empty_list(self) -> None:
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         col = Base.metadata.tables["critiques"].columns["risks"]
         assert col.default is not None, "risks must have a column-level default"
-        assert col.default.is_callable is True, (
-            "risks default must be a callable (e.g. default=list)"
-        )
-        assert col.default.for_update is False, (
-            "risks default must fire on INSERT, not just UPDATE"
-        )
+        assert col.default.is_callable is True, "risks default must be a callable (e.g. default=list)"
+        assert col.default.for_update is False, "risks default must fire on INSERT, not just UPDATE"
 
     def test_improvements_default_is_empty_list(self) -> None:
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         col = Base.metadata.tables["critiques"].columns["improvements"]
         assert col.default is not None, "improvements must have a column-level default"
-        assert col.default.is_callable is True, (
-            "improvements default must be a callable (e.g. default=list)"
-        )
-        assert col.default.for_update is False, (
-            "improvements default must fire on INSERT, not just UPDATE"
-        )
+        assert col.default.is_callable is True, "improvements default must be a callable (e.g. default=list)"
+        assert col.default.for_update is False, "improvements default must fire on INSERT, not just UPDATE"
 
     def test_alternatives_default_is_empty_list(self) -> None:
         from app.models import Base
-        from app.models.critique_models import Critique  # noqa: F401
+        from app.models.critique_models import Critique
 
         col = Base.metadata.tables["critiques"].columns["alternatives"]
         assert col.default is not None, "alternatives must have a column-level default"
-        assert col.default.is_callable is True, (
-            "alternatives default must be a callable (e.g. default=list)"
-        )
-        assert col.default.for_update is False, (
-            "alternatives default must fire on INSERT, not just UPDATE"
-        )
+        assert col.default.is_callable is True, "alternatives default must be a callable (e.g. default=list)"
+        assert col.default.for_update is False, "alternatives default must fire on INSERT, not just UPDATE"
 
 
 # ── Foreign keys (mapper inspection — no live DB) ────────────────────────
@@ -367,62 +314,50 @@ class TestCritiqueJsonbDefaults:
 def test_workspace_id_fk_with_cascade() -> None:
     """workspace_id has FK to workspaces.id with ON DELETE CASCADE."""
     from app.models import Base
-    from app.models.critique_models import Critique  # noqa: F401
+    from app.models.critique_models import Critique
 
     workspace_col = Base.metadata.tables["critiques"].columns["workspace_id"]
     fk_targets = list(workspace_col.foreign_keys)
-    assert len(fk_targets) == 1, (
-        f"workspace_id must have exactly one FK; got {len(fk_targets)}"
-    )
+    assert len(fk_targets) == 1, f"workspace_id must have exactly one FK; got {len(fk_targets)}"
     fk = fk_targets[0]
-    assert fk.column.table.name == "workspaces", (
-        f"FK must target workspaces; got {fk.column.table.name}"
-    )
-    assert fk.ondelete == "CASCADE", (
-        f"FK must ON DELETE CASCADE; got {fk.ondelete!r}"
-    )
+    assert fk.column.table.name == "workspaces", f"FK must target workspaces; got {fk.column.table.name}"
+    assert fk.ondelete == "CASCADE", f"FK must ON DELETE CASCADE; got {fk.ondelete!r}"
 
 
 def test_user_id_fk_to_users() -> None:
     """user_id has FK to users.id (no cascade — user rows are global)."""
     from app.models import Base
-    from app.models.critique_models import Critique  # noqa: F401
+    from app.models.critique_models import Critique
 
     user_col = Base.metadata.tables["critiques"].columns["user_id"]
     fk_targets = list(user_col.foreign_keys)
     assert len(fk_targets) == 1, f"user_id must have exactly one FK; got {len(fk_targets)}"
     fk = fk_targets[0]
-    assert fk.column.table.name == "users", (
-        f"FK must target users; got {fk.column.table.name}"
-    )
+    assert fk.column.table.name == "users", f"FK must target users; got {fk.column.table.name}"
 
 
 def test_mission_id_fk_to_missions() -> None:
     """mission_id has FK to missions.id (cascade on mission delete)."""
     from app.models import Base
-    from app.models.critique_models import Critique  # noqa: F401
+    from app.models.critique_models import Critique
 
     mission_col = Base.metadata.tables["critiques"].columns["mission_id"]
     fk_targets = list(mission_col.foreign_keys)
     assert len(fk_targets) == 1, f"mission_id must have exactly one FK; got {len(fk_targets)}"
     fk = fk_targets[0]
-    assert fk.column.table.name == "missions", (
-        f"FK must target missions; got {fk.column.table.name}"
-    )
+    assert fk.column.table.name == "missions", f"FK must target missions; got {fk.column.table.name}"
 
 
 def test_program_id_fk_to_mission_programs() -> None:
     """program_id has FK to mission_programs.id (cascade on program delete)."""
     from app.models import Base
-    from app.models.critique_models import Critique  # noqa: F401
+    from app.models.critique_models import Critique
 
     program_col = Base.metadata.tables["critiques"].columns["program_id"]
     fk_targets = list(program_col.foreign_keys)
     assert len(fk_targets) == 1, f"program_id must have exactly one FK; got {len(fk_targets)}"
     fk = fk_targets[0]
-    assert fk.column.table.name == "mission_programs", (
-        f"FK must target mission_programs; got {fk.column.table.name}"
-    )
+    assert fk.column.table.name == "mission_programs", f"FK must target mission_programs; got {fk.column.table.name}"
 
 
 def test_workspace_id_is_not_null() -> None:
@@ -431,7 +366,7 @@ def test_workspace_id_is_not_null() -> None:
     Workspace isolation mandatory per project rules.
     """
     from app.models import Base
-    from app.models.critique_models import Critique  # noqa: F401
+    from app.models.critique_models import Critique
 
     workspace_col = Base.metadata.tables["critiques"].columns["workspace_id"]
     assert workspace_col.nullable is False, (

@@ -199,15 +199,33 @@ class TestBulletsRendered:
     def test_c2_multiple_claims_each_rendered(self) -> None:
         """Three claims produce three bullets, in importance-DESC order."""
         claims = [
-            _make_claim(subject="user", predicate="prefers", obj={"value": "Python"},
-                        claim_type="preference", scope="personal",
-                        confidence=0.9, importance=0.3),
-            _make_claim(subject="user", predicate="name", obj={"value": "Glenn"},
-                        claim_type="fact", scope="personal",
-                        confidence=0.95, importance=0.9),
-            _make_claim(subject="workspace", predicate="uses", obj={"value": "Postgres"},
-                        claim_type="fact", scope="workspace",
-                        confidence=0.9, importance=0.6),
+            _make_claim(
+                subject="user",
+                predicate="prefers",
+                obj={"value": "Python"},
+                claim_type="preference",
+                scope="personal",
+                confidence=0.9,
+                importance=0.3,
+            ),
+            _make_claim(
+                subject="user",
+                predicate="name",
+                obj={"value": "Glenn"},
+                claim_type="fact",
+                scope="personal",
+                confidence=0.95,
+                importance=0.9,
+            ),
+            _make_claim(
+                subject="workspace",
+                predicate="uses",
+                obj={"value": "Postgres"},
+                claim_type="fact",
+                scope="workspace",
+                confidence=0.9,
+                importance=0.6,
+            ),
         ]
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
@@ -273,21 +291,29 @@ class TestRestrictedExcluded:
         that, even if the service somehow returned it.
         """
         normal = _make_claim(
-            subject="user", predicate="name", obj={"value": "Glenn"},
-            claim_type="fact", scope="personal", sensitivity="normal",
-            confidence=0.9, importance=0.8,
+            subject="user",
+            predicate="name",
+            obj={"value": "Glenn"},
+            claim_type="fact",
+            scope="personal",
+            sensitivity="normal",
+            confidence=0.9,
+            importance=0.8,
         )
         restricted = _make_claim(
-            subject="user", predicate="ssn", obj={"value": "XXX-XX-XXXX"},
-            claim_type="sensitive", scope="personal", sensitivity="restricted",
-            confidence=0.99, importance=0.99,
+            subject="user",
+            predicate="ssn",
+            obj={"value": "XXX-XX-XXXX"},
+            claim_type="sensitive",
+            scope="personal",
+            sensitivity="restricted",
+            confidence=0.99,
+            importance=0.99,
         )
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
 
-        prompt = planner._build_plan_prompt(
-            mission, personal_memory_claims=[normal, restricted]
-        )
+        prompt = planner._build_plan_prompt(mission, personal_memory_claims=[normal, restricted])
 
         assert "Glenn" in prompt
         assert "XXX-XX-XXXX" not in prompt
@@ -300,15 +326,17 @@ class TestRestrictedExcluded:
         filtered list is treated like an empty recall).
         """
         restricted = _make_claim(
-            subject="user", predicate="ssn", obj={"value": "XXX-XX-XXXX"},
-            claim_type="sensitive", scope="personal", sensitivity="restricted",
+            subject="user",
+            predicate="ssn",
+            obj={"value": "XXX-XX-XXXX"},
+            claim_type="sensitive",
+            scope="personal",
+            sensitivity="restricted",
         )
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
 
-        prompt = planner._build_plan_prompt(
-            mission, personal_memory_claims=[restricted]
-        )
+        prompt = planner._build_plan_prompt(mission, personal_memory_claims=[restricted])
 
         assert "PERSONAL MEMORY CONTEXT" not in prompt
         assert "XXX-XX-XXXX" not in prompt
@@ -325,21 +353,27 @@ class TestPrivateScopeExcluded:
         defence-in-depth in case a malformed service returns it.
         """
         personal = _make_claim(
-            subject="user", predicate="name", obj={"value": "Glenn"},
-            claim_type="fact", scope="personal",
-            confidence=0.9, importance=0.8,
+            subject="user",
+            predicate="name",
+            obj={"value": "Glenn"},
+            claim_type="fact",
+            scope="personal",
+            confidence=0.9,
+            importance=0.8,
         )
         private = _make_claim(
-            subject="user", predicate="diary", obj={"value": "secret thought"},
-            claim_type="observation", scope="private",
-            confidence=0.9, importance=0.8,
+            subject="user",
+            predicate="diary",
+            obj={"value": "secret thought"},
+            claim_type="observation",
+            scope="private",
+            confidence=0.9,
+            importance=0.8,
         )
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
 
-        prompt = planner._build_plan_prompt(
-            mission, personal_memory_claims=[personal, private]
-        )
+        prompt = planner._build_plan_prompt(mission, personal_memory_claims=[personal, private])
 
         assert "Glenn" in prompt
         assert "diary" not in prompt
@@ -349,15 +383,16 @@ class TestPrivateScopeExcluded:
     def test_f2_all_private_omits_section(self) -> None:
         """If every claim is private-scope, the section is omitted."""
         private = _make_claim(
-            subject="user", predicate="diary", obj={"value": "secret"},
-            claim_type="observation", scope="private",
+            subject="user",
+            predicate="diary",
+            obj={"value": "secret"},
+            claim_type="observation",
+            scope="private",
         )
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
 
-        prompt = planner._build_plan_prompt(
-            mission, personal_memory_claims=[private]
-        )
+        prompt = planner._build_plan_prompt(mission, personal_memory_claims=[private])
 
         assert "PERSONAL MEMORY CONTEXT" not in prompt
 
@@ -372,9 +407,13 @@ class TestBulletCap:
         """
         claims = [
             _make_claim(
-                subject="user", predicate=f"p{i}", obj={"value": f"v{i}"},
-                claim_type="preference", scope="personal",
-                confidence=0.5, importance=round(0.95 - i * 0.01, 2),
+                subject="user",
+                predicate=f"p{i}",
+                obj={"value": f"v{i}"},
+                claim_type="preference",
+                scope="personal",
+                confidence=0.5,
+                importance=round(0.95 - i * 0.01, 2),
             )
             for i in range(15)
         ]
@@ -384,9 +423,7 @@ class TestBulletCap:
         prompt = planner._build_plan_prompt(mission, personal_memory_claims=claims)
 
         # Exactly 10 bullets (the cap), no more.
-        assert prompt.count("  - ") == 10, (
-            f"Expected 10 bullets (the cap), got {prompt.count('  - ')}"
-        )
+        assert prompt.count("  - ") == 10, f"Expected 10 bullets (the cap), got {prompt.count('  - ')}"
         # The 10 highest-importance claims are the ones with predicates
         # p0..p9 (importance 0.95 .. 0.86). p14 (lowest importance) MUST
         # NOT appear in the prompt.
@@ -402,10 +439,10 @@ class TestSectionOrdering:
         self,
     ) -> None:
         """When BOTH sections are present, the ordering must be:
-            1. Constraints line
-            2. LEARNING CONTEXT block
-            3. PERSONAL MEMORY CONTEXT block
-            4. 'Return a JSON array' instructions
+        1. Constraints line
+        2. LEARNING CONTEXT block
+        3. PERSONAL MEMORY CONTEXT block
+        4. 'Return a JSON array' instructions
         """
         learning_brief = {
             "total_runs": 4,
@@ -419,19 +456,19 @@ class TestSectionOrdering:
             constraints={"priority": "high"},
         )
         # Inject a learning brief so the LEARNING CONTEXT section actually appears.
-        mission.constraints["_planning_context"] = {
-            "learning_brief": learning_brief
-        }
+        mission.constraints["_planning_context"] = {"learning_brief": learning_brief}
         claim = _make_claim(
-            subject="user", predicate="prefers", obj={"value": "Python"},
-            claim_type="preference", scope="personal",
-            confidence=0.85, importance=0.7,
+            subject="user",
+            predicate="prefers",
+            obj={"value": "Python"},
+            claim_type="preference",
+            scope="personal",
+            confidence=0.85,
+            importance=0.7,
         )
         planner = _make_planner(get_personal_memory_service=lambda: None)
 
-        prompt = planner._build_plan_prompt(
-            mission, personal_memory_claims=[claim]
-        )
+        prompt = planner._build_plan_prompt(mission, personal_memory_claims=[claim])
 
         constraints_idx = prompt.index("Constraints:")
         learning_idx = prompt.index("=== LEARNING CONTEXT")
@@ -473,9 +510,11 @@ class TestObjectRendering:
         ``value=Python, context=primary_language``.
         """
         claim = _make_claim(
-            subject="user", predicate="prefers",
+            subject="user",
+            predicate="prefers",
             obj={"value": "Python", "context": "primary"},
-            claim_type="preference", scope="personal",
+            claim_type="preference",
+            scope="personal",
         )
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
@@ -491,9 +530,11 @@ class TestObjectRendering:
         rendered as the bare string with no ``key=`` prefix.
         """
         claim = _make_claim(
-            subject="user", predicate="name",
+            subject="user",
+            predicate="name",
             obj="Glenn",  # bare string, not a dict
-            claim_type="fact", scope="personal",
+            claim_type="fact",
+            scope="personal",
         )
         mission = _make_mission()
         planner = _make_planner(get_personal_memory_service=lambda: None)
@@ -549,12 +590,9 @@ class TestServiceException:
         assert claims == []
         # The debug log was called (we don't pin the exact format, just
         # that debug() was hit at least once with a non-empty message).
-        debug_calls = [
-            call_args for call_args in mock_logger.debug.call_args_list
-        ]
+        debug_calls = list(mock_logger.debug.call_args_list)
         assert len(debug_calls) >= 1, (
-            "An exception in personal-memory recall must be logged at "
-            "debug level so operators can see it"
+            "An exception in personal-memory recall must be logged at " "debug level so operators can see it"
         )
         # The level is debug, not warning/error.
         for c in debug_calls:
@@ -612,9 +650,7 @@ class TestLearningContextUnchanged:
         mission = _make_mission(
             constraints={
                 "priority": "high",
-                "_planning_context": {
-                    "learning_brief": {"total_runs": 3, "user_notes": "x"}
-                },
+                "_planning_context": {"learning_brief": {"total_runs": 3, "user_notes": "x"}},
             },
         )
         planner = _make_planner(get_personal_memory_service=lambda: None)

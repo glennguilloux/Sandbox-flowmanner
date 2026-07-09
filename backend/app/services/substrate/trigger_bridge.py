@@ -144,7 +144,7 @@ class TriggerBridge:
         # Lazy imports — keeps the bridge lightweight and avoids cycles.
         from datetime import UTC, datetime
         from typing import Any
-        from uuid import UUID  # noqa: TCH003
+        from uuid import UUID
 
         from croniter import croniter
         from sqlalchemy import and_, select

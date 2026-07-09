@@ -88,11 +88,9 @@ def _program_error_to_envelope(exc: ProgramError) -> JSONResponse:
     Single source of truth — every endpoint that calls a CQRS command
     handler funnels its ``try/except ProgramError`` through here.
     """
-    if isinstance(exc, ProgramNotFound) or isinstance(exc, ProgramForbidden):
+    if isinstance(exc, (ProgramNotFound, ProgramForbidden)):
         # Leak avoidance: both surface as 404 PROGRAM_NOT_FOUND.
-        return _envelope_error(
-            404, "PROGRAM_NOT_FOUND", "Program not found", status.HTTP_404_NOT_FOUND
-        )
+        return _envelope_error(404, "PROGRAM_NOT_FOUND", "Program not found", status.HTTP_404_NOT_FOUND)
     if isinstance(exc, ProgramTransitionConflict):
         return _envelope_error(
             409,
@@ -149,9 +147,7 @@ def _envelope_error(
 async def list_programs(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    workspace_id: str | None = Query(
-        None, description="Optional workspace UUID filter"
-    ),
+    workspace_id: str | None = Query(None, description="Optional workspace UUID filter"),
     user: User = Depends(get_current_user),
     q: ProgramQueryHandlers = Depends(get_program_queries),
 ):
@@ -408,9 +404,7 @@ async def update_notes(
     if isinstance(_rate, JSONResponse):
         return _rate
     try:
-        program = await commands.update_user_notes(
-            user, program_id, payload.user_notes
-        )
+        program = await commands.update_user_notes(user, program_id, payload.user_notes)
     except ProgramError as exc:
         return _program_error_to_envelope(exc)
     return ok(ProgramResponse.model_validate(program).model_dump(mode="json"))

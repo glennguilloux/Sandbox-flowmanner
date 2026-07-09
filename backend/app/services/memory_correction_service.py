@@ -23,6 +23,7 @@ Critical guardrails (from the End-of-Galaxy plan §D30-60 / release gate):
   value sets, and the service does NOT redefine them (so CHECK
   constraints and validation stay in lockstep).
 """
+
 from __future__ import annotations
 
 import logging
@@ -48,9 +49,7 @@ class MemoryCorrectionServiceError(Exception):
     """Base for all memory-correction-service errors."""
 
 
-class MemoryCorrectionValidationError(
-    MemoryCorrectionServiceError, ValueError
-):
+class MemoryCorrectionValidationError(MemoryCorrectionServiceError, ValueError):
     """Raised for input validation failures. Inherits from both
     ``MemoryCorrectionServiceError`` and ``ValueError`` so callers can
     use either ``except ValueError`` (Pythonic) or
@@ -80,17 +79,13 @@ class MemoryCorrectionService:
     def _validate_event_type(event_type: str) -> None:
         if event_type not in ALL_EVENT_TYPES:
             raise MemoryCorrectionValidationError(
-                f"invalid event_type={event_type!r}; "
-                f"must be one of {list(ALL_EVENT_TYPES)}"
+                f"invalid event_type={event_type!r}; " f"must be one of {list(ALL_EVENT_TYPES)}"
             )
 
     @staticmethod
     def _validate_actor(actor: str) -> None:
         if actor not in ALL_ACTORS:
-            raise MemoryCorrectionValidationError(
-                f"invalid actor={actor!r}; "
-                f"must be one of {list(ALL_ACTORS)}"
-            )
+            raise MemoryCorrectionValidationError(f"invalid actor={actor!r}; " f"must be one of {list(ALL_ACTORS)}")
 
     # ── Write: record_event ───────────────────────────────────────
 
@@ -134,8 +129,7 @@ class MemoryCorrectionService:
         await self.db.flush()
         await self.db.refresh(event)
         logger.info(
-            "memory_correction.event_recorded id=%s user_id=%s "
-            "workspace_id=%s event_type=%s actor=%s claim_id=%s",
+            "memory_correction.event_recorded id=%s user_id=%s " "workspace_id=%s event_type=%s actor=%s claim_id=%s",
             event.id,
             user_id,
             workspace_id,
@@ -190,22 +184,14 @@ class MemoryCorrectionService:
         # Optional filters, added incrementally.
         optional_predicates: list[Any] = []
         if event_type is not None:
-            optional_predicates.append(
-                MemoryCorrectionEvent.event_type == event_type
-            )
+            optional_predicates.append(MemoryCorrectionEvent.event_type == event_type)
         if claim_id is not None:
-            optional_predicates.append(
-                MemoryCorrectionEvent.claim_id == claim_id
-            )
+            optional_predicates.append(MemoryCorrectionEvent.claim_id == claim_id)
 
         where_clause = and_(*base_predicates, *optional_predicates)
 
         # ── Total count ───────────────────────────────────────────
-        count_stmt = (
-            select(func.count())
-            .select_from(MemoryCorrectionEvent)
-            .where(where_clause)
-        )
+        count_stmt = select(func.count()).select_from(MemoryCorrectionEvent).where(where_clause)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
         # ── Items (paginated, ordered by created_at DESC) ────────
@@ -216,9 +202,7 @@ class MemoryCorrectionService:
             .offset(offset)
             .limit(limit)
         )
-        items = list(
-            (await self.db.execute(items_stmt)).scalars().all()
-        )
+        items = list((await self.db.execute(items_stmt)).scalars().all())
         return items, int(total)
 
     # ── Read: list_for_claim ──────────────────────────────────────
@@ -295,11 +279,9 @@ class MemoryCorrectionService:
 
         # Stable bucket map — every known event type shows up, with
         # zero when no rows match.
-        events_by_type: dict[str, int] = {et: 0 for et in ALL_EVENT_TYPES}
+        events_by_type: dict[str, int] = dict.fromkeys(ALL_EVENT_TYPES, 0)
         for ev in events:
-            events_by_type[ev.event_type] = (
-                events_by_type.get(ev.event_type, 0) + 1
-            )
+            events_by_type[ev.event_type] = events_by_type.get(ev.event_type, 0) + 1
 
         if not events:
             return {

@@ -14,34 +14,34 @@ import pytest
 
 def _make_mock_analytics_response():
     """Mock analytics response matching DashboardAnalyticsResponse shape."""
-    return dict(
-        seven_day_success_rate=0.85,
-        avg_runtime_seconds=12.5,
-        current_queue_depth=3,
-        top_failed_missions=[
-            dict(mission_name="Data Extraction Pipeline", failure_count=7),
-            dict(mission_name="Report Generator", failure_count=4),
+    return {
+        "seven_day_success_rate": 0.85,
+        "avg_runtime_seconds": 12.5,
+        "current_queue_depth": 3,
+        "top_failed_missions": [
+            {"mission_name": "Data Extraction Pipeline", "failure_count": 7},
+            {"mission_name": "Report Generator", "failure_count": 4},
         ],
-    )
+    }
 
 
 def _make_mock_firefighting_response():
     """Mock firefighting metrics matching FirefightingMetricsResponse shape."""
-    return dict(
-        failedMissionCount=12,
-        avgRetryCount=2.3,
-        topErrorCodes=[
-            dict(code="TIMEOUT", count=5),
-            dict(code="LLM_502", count=3),
+    return {
+        "failedMissionCount": 12,
+        "avgRetryCount": 2.3,
+        "topErrorCodes": [
+            {"code": "TIMEOUT", "count": 5},
+            {"code": "LLM_502", "count": 3},
         ],
-        manualInterventionMissions=[
-            dict(
-                missionId="mission-001",
-                errorCode="TIMEOUT",
-                lastUpdateTimestamp="2026-05-27T10:00:00Z",
-            ),
+        "manualInterventionMissions": [
+            {
+                "missionId": "mission-001",
+                "errorCode": "TIMEOUT",
+                "lastUpdateTimestamp": "2026-05-27T10:00:00Z",
+            },
         ],
-    )
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -323,6 +323,6 @@ class TestRouteRegistration:
             mock_db.execute = AsyncMock(return_value=mock_total)
 
             resp = test_client.get(path)
-            assert resp.status_code == expected_status, (
-                f"Expected {expected_status} for GET {path}, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == expected_status
+            ), f"Expected {expected_status} for GET {path}, got {resp.status_code}"

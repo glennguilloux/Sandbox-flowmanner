@@ -109,7 +109,7 @@ class TestAbortAndRunningState:
 class TestExecute:
     @pytest.mark.asyncio
     async def test_execute_returns_strategy_result(self):
-        executor, event_log, _ = _make_mock_executor()
+        executor, _event_log, _ = _make_mock_executor()
         workflow = _make_workflow()
         db = AsyncMock()
 
@@ -170,11 +170,11 @@ class TestExecute:
         mock_strategy.validate = AsyncMock(return_value=[])
         mock_strategy.execute = AsyncMock(return_value=StrategyResult(success=True, status="completed"))
 
-        with patch.object(executor, "_get_strategy", return_value=mock_strategy):
-            with patch(
-                "app.config.settings.FLOWMANNER_LEASE_ENABLED", False
-            ):
-                await executor.execute(db, workflow)
+        with (
+            patch.object(executor, "_get_strategy", return_value=mock_strategy),
+            patch("app.config.settings.FLOWMANNER_LEASE_ENABLED", False),
+        ):
+            await executor.execute(db, workflow)
 
         event_log.append.assert_called()
         # Find the append call that contains mission.started (lease events may precede it)
@@ -230,7 +230,7 @@ class TestCircuitBreaker:
             "app.services.circuit_breaker_service.CircuitBreakerService",
             return_value=mock_cb,
         ):
-            allowed, reason = await executor.check_circuit_breaker(db, "m1")
+            allowed, _reason = await executor.check_circuit_breaker(db, "m1")
             assert allowed is True
 
     @pytest.mark.asyncio

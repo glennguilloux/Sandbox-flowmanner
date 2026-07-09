@@ -11,12 +11,12 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import importlib
 import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -167,9 +167,7 @@ class TestSend5xxAlert:
         # httpx raises when DNS fails or the request times out
         with patch(
             "httpx.AsyncClient",
-            return_value=_httpx_mock_client(
-                side_effect=ConnectionError("ntfy unreachable")
-            ),
+            return_value=_httpx_mock_client(side_effect=ConnectionError("ntfy unreachable")),
         ):
             result = asyncio.run(
                 am.send_5xx_alert(
@@ -236,7 +234,7 @@ class TestGeneralErrorHandlerNtfy:
                     "message": str(exc),
                 }
             )
-            try:
+            with contextlib.suppress(Exception):
                 asyncio.create_task(
                     send_5xx_alert(
                         request_id=request_id,
@@ -246,8 +244,6 @@ class TestGeneralErrorHandlerNtfy:
                         message=str(exc),
                     )
                 )
-            except Exception:
-                pass
             return JSONResponse(
                 status_code=500,
                 content={"detail": "An error occurred. Please try again later."},
@@ -304,9 +300,7 @@ class TestGeneralErrorHandlerNtfy:
         # ntfy is down — httpx raises ConnectionError
         with patch(
             "httpx.AsyncClient",
-            return_value=_httpx_mock_client(
-                side_effect=ConnectionError("ntfy down")
-            ),
+            return_value=_httpx_mock_client(side_effect=ConnectionError("ntfy down")),
         ):
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.get("/boom", headers={"X-Request-ID": "req-yyy"})

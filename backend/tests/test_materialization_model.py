@@ -57,7 +57,7 @@ class TestMaterializationModelImport:
         indexes = MaterializationState.__table__.indexes
         unique_indexes = [ix for ix in indexes if ix.unique]
         target_idx = next(
-            (ix for ix in unique_indexes if set(c.name for c in ix.columns) == {"object_type", "object_id", "target"}),
+            (ix for ix in unique_indexes if {c.name for c in ix.columns} == {"object_type", "object_id", "target"}),
             None,
         )
         assert target_idx is not None, "Missing unique index on (object_type, object_id, target)"

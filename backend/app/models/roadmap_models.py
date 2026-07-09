@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime  # noqa: TCH003 — needed at runtime by SQLAlchemy Mapped[]
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,

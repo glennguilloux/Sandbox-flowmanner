@@ -69,7 +69,6 @@ from typing import Any
 
 from app.services.critic import CriticOutput
 
-
 # ── DTOs ──────────────────────────────────────────────────────────────────
 
 
@@ -252,9 +251,7 @@ class ImprovementGenerator:
         tool_suggestions = self._to_tool_suggestions(adjustments)
         # 4. Group misses by their first 50 chars of normalized
         #    text to surface recurring failure patterns.
-        common_failures = self._group_common_failures(
-            critic_output.misses
-        )
+        common_failures = self._group_common_failures(critic_output.misses)
         # 5. Truncate the critic summary to 200 chars; substitute
         #    "No summary" for empty / None input.
         summary = self._summary(critic_output.summary)
@@ -314,9 +311,7 @@ class ImprovementGenerator:
 
         # misses: list[str]
         miss_default_conf = self._clamp_confidence(
-            critic_output.score_overall
-            if critic_output.score_overall is not None
-            else 0.5
+            critic_output.score_overall if critic_output.score_overall is not None else 0.5
         )
         for miss in critic_output.misses or []:
             if not isinstance(miss, str):
@@ -335,9 +330,7 @@ class ImprovementGenerator:
 
         # risks: list[str]
         risk_default_conf = self._clamp_confidence(
-            critic_output.score_safety
-            if critic_output.score_safety is not None
-            else 0.5
+            critic_output.score_safety if critic_output.score_safety is not None else 0.5
         )
         for risk in critic_output.risks or []:
             if not isinstance(risk, str):
@@ -390,9 +383,7 @@ class ImprovementGenerator:
         seen: dict[str, PlanAdjustment] = {}
         order: list[str] = []
         for adj in adjustments:
-            key = self._normalize(adj.description)[
-                : self._DEDUPE_PREFIX_CHARS
-            ]
+            key = self._normalize(adj.description)[: self._DEDUPE_PREFIX_CHARS]
             if not key:
                 # Empty keys (blank descriptions) don't represent
                 # any concrete advice — drop them.
@@ -402,9 +393,7 @@ class ImprovementGenerator:
                 if adj.confidence > existing.confidence:
                     seen[key] = adj
                 elif adj.confidence == existing.confidence:
-                    existing_order = self._CATEGORY_ORDER.get(
-                        existing.category, 99
-                    )
+                    existing_order = self._CATEGORY_ORDER.get(existing.category, 99)
                     new_order = self._CATEGORY_ORDER.get(adj.category, 99)
                     if new_order < existing_order:
                         seen[key] = adj
@@ -471,9 +460,7 @@ class ImprovementGenerator:
                 "occurrences": count,
                 "mitigation": "see plan adjustments",
             }
-            for pattern, count in sorted(
-                groups.items(), key=lambda kv: -kv[1]
-            )
+            for pattern, count in sorted(groups.items(), key=lambda kv: -kv[1])
         ]
 
     def _summary(self, raw: str | None) -> str:

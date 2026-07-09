@@ -96,11 +96,11 @@ class BrowserTaskRunner:
         """
         (
             ToolRegistry,
-            BrowserNavigateInput,
-            BrowserSnapshotInput,
-            BrowserClickInput,
-            BrowserTypeInput,
-            BrowserScrollInput,
+            _BrowserNavigateInput,
+            _BrowserSnapshotInput,
+            _BrowserClickInput,
+            _BrowserTypeInput,
+            _BrowserScrollInput,
         ) = _import_browser_tools()
 
         tool_name = task.task_type

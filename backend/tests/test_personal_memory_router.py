@@ -68,13 +68,14 @@ os.environ.setdefault(
 )
 
 # Late imports so env var is honored.
-from app.api.deps import get_current_user, get_db, get_workspace_id  # noqa: E402
-from app.main_fastapi import app  # noqa: E402
-from app.models.memory_correction_models import MemoryCorrectionEvent  # noqa: E402
-from app.models.personal_memory_models import PersonalMemoryClaim  # noqa: E402
-from app.models.user import User  # noqa: E402
-from app.models.workspace_models import Workspace  # noqa: E402
+import contextlib
 
+from app.api.deps import get_current_user, get_db, get_workspace_id
+from app.main_fastapi import app
+from app.models.memory_correction_models import MemoryCorrectionEvent
+from app.models.personal_memory_models import PersonalMemoryClaim
+from app.models.user import User
+from app.models.workspace_models import Workspace
 
 # ═══════════════════════════════════════════════════════════════════════════
 # get_db override — bypass the app's .env DATABASE_URL (which points at
@@ -97,6 +98,7 @@ async def _override_get_db():
             # transaction boundary (per services/AGENTS.md rule 3).
             pass
 
+
 pytestmark = pytest.mark.integration
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -108,12 +110,8 @@ _TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 # host we need `127.0.0.1`. Only swap if it's still the bare docker hostname.
 if "@postgres:" in _TEST_DATABASE_URL:
     _TEST_DATABASE_URL = _TEST_DATABASE_URL.replace("@postgres:", "@127.0.0.1:")
-_test_engine = create_async_engine(
-    _TEST_DATABASE_URL, echo=False, poolclass=NullPool
-)
-TestSessionLocal = async_sessionmaker(
-    _test_engine, class_=AsyncSession, expire_on_commit=False
-)
+_test_engine = create_async_engine(_TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+TestSessionLocal = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -148,9 +146,7 @@ def _new_workspace_id() -> str:
     return f"ws-pm-router-{uuid.uuid4().hex[:21]}"
 
 
-async def _make_user(
-    session: AsyncSession, *, suffix: str = "owner"
-) -> User:
+async def _make_user(session: AsyncSession, *, suffix: str = "owner") -> User:
     user_id = _new_id()
     user = User(
         id=user_id,
@@ -167,9 +163,7 @@ async def _make_user(
     return user
 
 
-async def _make_workspace(
-    session: AsyncSession, *, owner_id: int
-) -> Workspace:
+async def _make_workspace(session: AsyncSession, *, owner_id: int) -> Workspace:
     ws = Workspace(
         id=_new_workspace_id(),
         name=f"test-ws-{uuid.uuid4().hex[:8]}",
@@ -260,24 +254,17 @@ async def ctx():
                 app.dependency_overrides.pop(get_workspace_id, None)
                 app.dependency_overrides.pop(get_db, None)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await session.close()
-        except Exception:
-            pass
         # Best-effort cleanup of persisted rows.
         try:
             async with TestSessionLocal() as cleanup:
                 await cleanup.execute(
-                    text(
-                        "DELETE FROM personal_memory_claims "
-                        "WHERE user_id = :uid"
-                    ),
+                    text("DELETE FROM personal_memory_claims " "WHERE user_id = :uid"),
                     {"uid": owner.id},
                 )
                 await cleanup.execute(
-                    text(
-                        "DELETE FROM workspaces WHERE owner_id = :uid"
-                    ),
+                    text("DELETE FROM workspaces WHERE owner_id = :uid"),
                     {"uid": owner.id},
                 )
                 await cleanup.execute(
@@ -368,9 +355,7 @@ async def test_provenance_claim_with_events(ctx) -> None:
     )
     await session.commit()
 
-    resp = client.get(
-        f"/api/v2/personal_memory/claims/{claim.id}/provenance"
-    )
+    resp = client.get(f"/api/v2/personal_memory/claims/{claim.id}/provenance")
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["error"] is None
@@ -410,9 +395,7 @@ async def test_provenance_claim_with_no_events(ctx) -> None:
     )
     await session.commit()
 
-    resp = client.get(
-        f"/api/v2/personal_memory/claims/{claim.id}/provenance"
-    )
+    resp = client.get(f"/api/v2/personal_memory/claims/{claim.id}/provenance")
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert data["event_count"] == 0
@@ -422,8 +405,15 @@ async def test_provenance_claim_with_no_events(ctx) -> None:
     assert data["last_actor"] is None
     # Every key in ALL_EVENT_TYPES must be present, with value 0.
     for et in (
-        "view", "edit", "delete", "forget", "create",
-        "inspect", "export", "pause", "resume",
+        "view",
+        "edit",
+        "delete",
+        "forget",
+        "create",
+        "inspect",
+        "export",
+        "pause",
+        "resume",
     ):
         assert data["events_by_type"][et] == 0, et
 
@@ -442,9 +432,7 @@ async def test_provenance_unknown_claim_returns_empty_shape(ctx) -> None:
     """
     client = ctx["client"]
     unknown_id = uuid.uuid4()
-    resp = client.get(
-        f"/api/v2/personal_memory/claims/{unknown_id}/provenance"
-    )
+    resp = client.get(f"/api/v2/personal_memory/claims/{unknown_id}/provenance")
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert data["claim_id"] == str(unknown_id)
@@ -460,24 +448,16 @@ async def test_provenance_unknown_claim_returns_empty_shape(ctx) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _cleanup_provenance_test_rows(
-    user_id: int, workspace_id: str
-) -> None:
+async def _cleanup_provenance_test_rows(user_id: int, workspace_id: str) -> None:
     """Delete rows created by the provenance tests (cases 16–18)."""
     try:
         async with TestSessionLocal() as cleanup:
             await cleanup.execute(
-                text(
-                    "DELETE FROM memory_correction_events "
-                    "WHERE user_id = :uid"
-                ),
+                text("DELETE FROM memory_correction_events " "WHERE user_id = :uid"),
                 {"uid": user_id},
             )
             await cleanup.execute(
-                text(
-                    "DELETE FROM personal_memory_claims "
-                    "WHERE user_id = :uid AND workspace_id = :wid"
-                ),
+                text("DELETE FROM personal_memory_claims " "WHERE user_id = :uid AND workspace_id = :wid"),
                 {"uid": user_id, "wid": workspace_id},
             )
             await cleanup.execute(
@@ -530,9 +510,7 @@ def _swap_user_override(user: User) -> None:
 
 
 def _swap_workspace_override(workspace_id: str) -> None:
-    app.dependency_overrides[get_workspace_id] = _workspace_id_factory(
-        workspace_id
-    )
+    app.dependency_overrides[get_workspace_id] = _workspace_id_factory(workspace_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -849,17 +827,13 @@ async def test_delete_claim_hard_forget(ctx) -> None:
     claim_id = claim.id
     await session.commit()
 
-    resp = client.delete(
-        f"/api/v2/personal_memory/claims/{claim_id}"
-    )
+    resp = client.delete(f"/api/v2/personal_memory/claims/{claim_id}")
     assert resp.status_code == 204, resp.text
 
     # Verify the row is gone.
     async with TestSessionLocal() as verify:
         result = await verify.execute(
-            text(
-                "SELECT id FROM personal_memory_claims WHERE id = :id"
-            ),
+            text("SELECT id FROM personal_memory_claims WHERE id = :id"),
             {"id": str(claim_id)},
         )
         assert result.scalar_one_or_none() is None
@@ -874,9 +848,7 @@ async def test_delete_claim_not_found(ctx) -> None:
     """DELETE on an unknown id returns a 404 envelope (NOT raw 404)."""
     client = ctx["client"]
     unknown = uuid.uuid4()
-    resp = client.delete(
-        f"/api/v2/personal_memory/claims/{unknown}"
-    )
+    resp = client.delete(f"/api/v2/personal_memory/claims/{unknown}")
     assert resp.status_code == 404, resp.text
     body = resp.json()
     # The v2 envelope shape — error envelope, not FastAPI's {"detail": ...}.
@@ -921,10 +893,7 @@ async def test_forget_soft(ctx) -> None:
     # Verify in DB.
     async with TestSessionLocal() as verify:
         result = await verify.execute(
-            text(
-                "SELECT deleted_at FROM personal_memory_claims "
-                "WHERE id = :id"
-            ),
+            text("SELECT deleted_at FROM personal_memory_claims " "WHERE id = :id"),
             {"id": str(claim.id)},
         )
         row = result.scalar_one_or_none()
@@ -963,9 +932,7 @@ async def test_forget_hard(ctx) -> None:
     # Verify the row is gone.
     async with TestSessionLocal() as verify:
         result = await verify.execute(
-            text(
-                "SELECT id FROM personal_memory_claims WHERE id = :id"
-            ),
+            text("SELECT id FROM personal_memory_claims WHERE id = :id"),
             {"id": str(claim_id)},
         )
         assert result.scalar_one_or_none() is None
@@ -1029,12 +996,8 @@ async def test_cross_workspace_isolation_enforced_via_api() -> None:
         await session_a.commit()
 
         # ── Phase 1: Alice sees her own claim. ──────────────────────
-        app.dependency_overrides[get_current_user] = _current_user_factory(
-            user_a
-        )
-        app.dependency_overrides[get_workspace_id] = _workspace_id_factory(
-            ws_a.id
-        )
+        app.dependency_overrides[get_current_user] = _current_user_factory(user_a)
+        app.dependency_overrides[get_workspace_id] = _workspace_id_factory(ws_a.id)
         app.dependency_overrides[get_db] = _override_get_db
 
         with TestClient(app) as client:
@@ -1046,9 +1009,7 @@ async def test_cross_workspace_isolation_enforced_via_api() -> None:
                 assert resp.status_code == 200, resp.text
                 alice_body = resp.json()
                 assert alice_body["data"]["total"] == 1
-                assert (
-                    alice_body["data"]["items"][0]["subject"] == "alice-secret"
-                )
+                assert alice_body["data"]["items"][0]["subject"] == "alice-secret"
 
                 # ── Phase 2: Swap to Bob. Bob is in ws_b, NOT a member
                 # of ws_a. He must NOT see Alice's claim. ──────────────
@@ -1061,9 +1022,7 @@ async def test_cross_workspace_isolation_enforced_via_api() -> None:
                 )
                 assert resp.status_code == 200, resp.text
                 bob_body = resp.json()
-                bob_subjects = [
-                    item["subject"] for item in bob_body["data"]["items"]
-                ]
+                bob_subjects = [item["subject"] for item in bob_body["data"]["items"]]
                 # ★ The guardrail: Alice's claim must not appear in Bob's
                 #   listing under any circumstances.
                 assert "alice-secret" not in bob_subjects
@@ -1080,18 +1039,12 @@ async def test_cross_workspace_isolation_enforced_via_api() -> None:
                     json={"subject": "hacked"},
                 )
                 assert resp.status_code == 404, resp.text
-                assert resp.json()["error"]["code"] == (
-                    "PERSONAL_MEMORY_CLAIM_NOT_FOUND"
-                )
+                assert resp.json()["error"]["code"] == ("PERSONAL_MEMORY_CLAIM_NOT_FOUND")
 
                 # DELETE
-                resp = client.delete(
-                    f"/api/v2/personal_memory/claims/{alice_claim_id}"
-                )
+                resp = client.delete(f"/api/v2/personal_memory/claims/{alice_claim_id}")
                 assert resp.status_code == 404, resp.text
-                assert resp.json()["error"]["code"] == (
-                    "PERSONAL_MEMORY_CLAIM_NOT_FOUND"
-                )
+                assert resp.json()["error"]["code"] == ("PERSONAL_MEMORY_CLAIM_NOT_FOUND")
 
                 # POST /forget
                 resp = client.post(
@@ -1099,9 +1052,7 @@ async def test_cross_workspace_isolation_enforced_via_api() -> None:
                     json={"claim_id": str(alice_claim_id), "hard": False},
                 )
                 assert resp.status_code == 404, resp.text
-                assert resp.json()["error"]["code"] == (
-                    "PERSONAL_MEMORY_CLAIM_NOT_FOUND"
-                )
+                assert resp.json()["error"]["code"] == ("PERSONAL_MEMORY_CLAIM_NOT_FOUND")
             finally:
                 app.dependency_overrides.pop(get_current_user, None)
                 app.dependency_overrides.pop(get_workspace_id, None)
@@ -1115,30 +1066,20 @@ async def test_cross_workspace_isolation_enforced_via_api() -> None:
             (session_a, user_a.id),
             (session_b, user_b.id),
         ):
-            try:
+            with contextlib.suppress(Exception):
                 await s.close()
-            except Exception:
-                pass
         try:
             async with TestSessionLocal() as cleanup:
                 await cleanup.execute(
-                    text(
-                        "DELETE FROM personal_memory_claims "
-                        "WHERE user_id IN (:a, :b)"
-                    ),
+                    text("DELETE FROM personal_memory_claims " "WHERE user_id IN (:a, :b)"),
                     {"a": user_a.id, "b": user_b.id},
                 )
                 await cleanup.execute(
-                    text(
-                        "DELETE FROM workspaces "
-                        "WHERE owner_id IN (:a, :b)"
-                    ),
+                    text("DELETE FROM workspaces " "WHERE owner_id IN (:a, :b)"),
                     {"a": user_a.id, "b": user_b.id},
                 )
                 await cleanup.execute(
-                    text(
-                        "DELETE FROM users WHERE id IN (:a, :b)"
-                    ),
+                    text("DELETE FROM users WHERE id IN (:a, :b)"),
                     {"a": user_a.id, "b": user_b.id},
                 )
                 await cleanup.commit()

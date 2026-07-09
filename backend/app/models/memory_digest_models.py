@@ -27,6 +27,7 @@ Design notes (see plan §D30-60):
       listing (e.g. "latest email digest")
     - (sent_at) — fast cleanup / retention sweeps
 """
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -44,7 +45,6 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base, TimestampMixin
-
 
 # ── Value-set tuples for CHECK constraints ──────────────────────────────
 
@@ -124,19 +124,13 @@ class MemoryDigestDelivery(Base, TimestampMixin):
     # When the digest was queued (NOT when it was actually delivered —
     # that goes in delivered_at, which is NULL until the send
     # succeeds). For previewed digests, sent_at == delivered_at.
-    sent_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    sent_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Delivery channel — email, in-app, or preview.
-    delivery_channel: Mapped[str] = mapped_column(
-        String(30), nullable=False, index=True
-    )
+    delivery_channel: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
 
     # Status of this delivery attempt.
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
 
     # How many claims were in the digest. >= 0 (a digest of 0 claims
     # is valid: "nothing to share this week, see you next time").
@@ -155,9 +149,7 @@ class MemoryDigestDelivery(Base, TimestampMixin):
     # When the digest was actually delivered. NULL until status flips
     # to "delivered" (or "previewed", in which case delivered_at ==
     # sent_at).
-    delivered_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    delivered_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Free-text error message for failed deliveries. Capped at 2000
     # chars at the service layer.

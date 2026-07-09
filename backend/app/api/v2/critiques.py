@@ -71,9 +71,7 @@ router = APIRouter(prefix="/critiques", tags=["v2-critiques"])
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def critiques_validation_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def critiques_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     error = ErrorDetail(
         code="CRITIQUES_VALIDATION_ERROR",
         message="Request validation failed",
@@ -170,10 +168,7 @@ async def list_critiques(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     return paginated(
-        items=[
-            CritiqueResponse.model_validate(c).model_dump(mode="json")
-            for c in items
-        ],
+        items=[CritiqueResponse.model_validate(c).model_dump(mode="json") for c in items],
         total=total,
         page=page,
         per_page=per_page,
@@ -224,16 +219,14 @@ async def get_critique(
             "An internal critique error occurred",
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    return ok(
-        CritiqueResponse.model_validate(critique).model_dump(mode="json")
-    )
+    return ok(CritiqueResponse.model_validate(critique).model_dump(mode="json"))
 
 
 # Re-export the paginated wrapper for the import surface; tests may
 # import it to construct fixtures.
 __all__ = [
-    "router",
-    "critiques_validation_handler",
     "CritiqueListResponse",
     "CritiqueResponse",
+    "critiques_validation_handler",
+    "router",
 ]

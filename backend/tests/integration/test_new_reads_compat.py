@@ -216,20 +216,20 @@ class TestBlueprintRunConverter:
     @staticmethod
     def _bp(**kwargs):
         """Blueprint-like mock."""
-        defaults = dict(
-            id=str(uuid4()),
-            user_id=42,
-            workspace_id=None,
-            title="Test BP",
-            description="desc",
-            blueprint_type="solo",
-            definition={},
-            status="draft",
-            version=1,
-            deleted_at=None,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
+        defaults = {
+            "id": str(uuid4()),
+            "user_id": 42,
+            "workspace_id": None,
+            "title": "Test BP",
+            "description": "desc",
+            "blueprint_type": "solo",
+            "definition": {},
+            "status": "draft",
+            "version": 1,
+            "deleted_at": None,
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
+        }
         defaults.update(kwargs)
         return MagicMock(**defaults)
 
@@ -237,20 +237,20 @@ class TestBlueprintRunConverter:
     def _run(blueprint_id: str, **kwargs):
         """Run-like mock."""
         now = datetime.now(UTC)
-        defaults = dict(
-            id=str(uuid4()),
-            blueprint_id=blueprint_id,
-            user_id=42,
-            status="completed",
-            total_tokens=100,
-            total_cost_usd=0.002,
-            error_message=None,
-            output_data=None,
-            started_at=now,
-            completed_at=now,
-            created_at=now,
-            updated_at=now,
-        )
+        defaults = {
+            "id": str(uuid4()),
+            "blueprint_id": blueprint_id,
+            "user_id": 42,
+            "status": "completed",
+            "total_tokens": 100,
+            "total_cost_usd": 0.002,
+            "error_message": None,
+            "output_data": None,
+            "started_at": now,
+            "completed_at": now,
+            "created_at": now,
+            "updated_at": now,
+        }
         defaults.update(kwargs)
         return MagicMock(**defaults)
 

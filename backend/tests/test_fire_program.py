@@ -46,16 +46,16 @@ os.environ.setdefault(
 )
 
 # Late imports so env var is honored.
-from app.models.mission_models import Mission  # noqa: E402
-from app.models.mission_program_models import (  # noqa: E402
+from app.models.mission_models import Mission
+from app.models.mission_program_models import (
     MissionProgram,
     ProgramRun,
     ProgramStatus,
 )
-from app.models.user import User  # noqa: E402
-from app.models.workspace_models import Workspace  # noqa: E402
-from app.schemas.program import ProgramCreate  # noqa: E402
-from app.services.mission_program_service import (  # noqa: E402
+from app.models.user import User
+from app.models.workspace_models import Workspace
+from app.schemas.program import ProgramCreate
+from app.services.mission_program_service import (
     MissionProgramService,
     ProgramBudgetExceeded,
     ProgramForbidden,
@@ -149,14 +149,13 @@ async def ctx():
                 async with TestSessionLocal() as cleanup:
                     # substrate_events is append-only; disable the trigger for cleanup.
                     await cleanup.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "DISABLE TRIGGER trg_substrate_events_append_only"
-                        )
+                        text("ALTER TABLE substrate_events " "DISABLE TRIGGER trg_substrate_events_append_only")
                     )
                     await cleanup.execute(
-                        text("DELETE FROM program_runs WHERE program_id IN "
-                             "(SELECT id FROM mission_programs WHERE user_id = :uid)"),
+                        text(
+                            "DELETE FROM program_runs WHERE program_id IN "
+                            "(SELECT id FROM mission_programs WHERE user_id = :uid)"
+                        ),
                         {"uid": owner.id},
                     )
                     await cleanup.execute(
@@ -180,29 +179,21 @@ async def ctx():
                         {"uid": owner.id},
                     )
                     await cleanup.execute(
-                        text(
-                            "ALTER TABLE substrate_events "
-                            "ENABLE TRIGGER trg_substrate_events_append_only"
-                        )
+                        text("ALTER TABLE substrate_events " "ENABLE TRIGGER trg_substrate_events_append_only")
                     )
                     await cleanup.commit()
             except Exception:
                 try:
                     async with TestSessionLocal() as s2:
                         await s2.execute(
-                            text(
-                                "ALTER TABLE substrate_events "
-                                "ENABLE TRIGGER trg_substrate_events_append_only"
-                            )
+                            text("ALTER TABLE substrate_events " "ENABLE TRIGGER trg_substrate_events_append_only")
                         )
                         await s2.commit()
                 except Exception:
                     pass
 
 
-def _make_strategy_result(
-    *, success: bool = True, status: str = "completed", **kwargs: Any
-):
+def _make_strategy_result(*, success: bool = True, status: str = "completed", **kwargs: Any):
     """Build a StrategyResult-like object for mocking the executor."""
     from app.services.substrate.workflow_models import StrategyResult
 
@@ -252,9 +243,7 @@ async def test_fire_program_creates_mission_and_run(ctx) -> None:
     await ctx["session"].commit()
 
     # Mock the executor.
-    mock_result = _make_strategy_result(
-        success=True, status="completed", total_cost_usd=0.07, total_tokens=150
-    )
+    mock_result = _make_strategy_result(success=True, status="completed", total_cost_usd=0.07, total_tokens=150)
     with patch(EXECUTOR_PATH) as mock_get_exec:
         mock_exec = MagicMock()
         mock_exec.execute = AsyncMock(return_value=mock_result)
@@ -350,6 +339,7 @@ async def test_fire_program_paused_raises_conflict(ctx) -> None:
     await ctx["session"].commit()
     # Pause it.
     from app.schemas.program import ProgramUpdate
+
     paused = await service.update(
         user_id=ctx["owner"].id,
         program_id=program.id,
@@ -468,9 +458,7 @@ async def test_fire_program_records_outcome_metrics(ctx) -> None:
     )
     await ctx["session"].commit()
 
-    mock_result = _make_strategy_result(
-        total_cost_usd=0.123, total_tokens=999, execution_time_ms=4321.0
-    )
+    mock_result = _make_strategy_result(total_cost_usd=0.123, total_tokens=999, execution_time_ms=4321.0)
     with patch(EXECUTOR_PATH) as mock_get_exec, patch(ADAPTER_PATH) as mock_m2w:
         mock_exec = MagicMock()
         mock_exec.execute = AsyncMock(return_value=mock_result)
@@ -584,7 +572,5 @@ async def test_fire_program_forbidden_for_outsider(ctx) -> None:
                 )
     finally:
         async with TestSessionLocal() as s3:
-            await s3.execute(
-                text("DELETE FROM users WHERE id = :uid"), {"uid": outsider_id}
-            )
+            await s3.execute(text("DELETE FROM users WHERE id = :uid"), {"uid": outsider_id})
             await s3.commit()

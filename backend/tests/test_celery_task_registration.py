@@ -32,24 +32,30 @@ import pytest
 
 # Modules moved to app.tasks._disabled/ on 2026-06-12.  Their task names
 # must NOT appear in the celery registry; if they do, either the stub
-# was accidentally revived without removing the # noqa or the file was
+# was accidentally revived without removing the
 # silently re-imported by a transitive import chain.
 DISABLED_MODULES = {
-    "base_task",          # CeleryTask model never built
-    "deepagents_tasks",   # app.services.deepagents_integration never built
-    "langgraph_tasks",    # agent.get_llm() never added to llm_config
-    "task_definitions",   # WorkflowRuns model + MonitoringService never built
-    "webhook_dispatcher", # webhook_subscription/delivery/event models
-    "webhook_tasks",      # SyncSessionLocal never added to app/database.py
+    "base_task",  # CeleryTask model never built
+    "deepagents_tasks",  # app.services.deepagents_integration never built
+    "langgraph_tasks",  # agent.get_llm() never added to llm_config
+    "task_definitions",  # WorkflowRuns model + MonitoringService never built
+    "webhook_dispatcher",  # webhook_subscription/delivery/event models
+    "webhook_tasks",  # SyncSessionLocal never added to app/database.py
 }
 DISABLED_TASK_NAMES = {
     "cleanup_old_tasks",
     "health_check",
-    "deepagents.execute", "deepagents.stream", "deepagents.batch_execute",
-    "langgraph.execute", "langgraph.approval",
-    "langgraph.tool_execution", "langgraph.batch_process",
-    "sync_workflow_status", "update_system_metrics",
-    "dispatch_webhook_event", "retry_failed_webhooks",
+    "deepagents.execute",
+    "deepagents.stream",
+    "deepagents.batch_execute",
+    "langgraph.execute",
+    "langgraph.approval",
+    "langgraph.tool_execution",
+    "langgraph.batch_process",
+    "sync_workflow_status",
+    "update_system_metrics",
+    "dispatch_webhook_event",
+    "retry_failed_webhooks",
     "app.tasks.webhook_tasks.deliver_webhook",
     "app.tasks.webhook_tasks.process_due_retries",
 }
@@ -57,7 +63,7 @@ DISABLED_TASK_NAMES = {
 
 def test_celery_app_imports_without_error():
     """Importing celery_app must succeed and must not log a registration warning."""
-    from app.tasks.celery_app import celery_app  # noqa: F401
+    from app.tasks.celery_app import celery_app
 
     assert celery_app is not None
     assert celery_app.main == "workflows"
@@ -76,7 +82,7 @@ def test_chunk1_substrate_resume_hitl_registered():
 @pytest.mark.skipif(
     True,
     reason="disabled 2026-06-12: langgraph_tasks moved to app.tasks._disabled/ "
-           "(transitive get_llm import missing). See _disabled/langgraph_tasks.py for revival steps.",
+    "(transitive get_llm import missing). See _disabled/langgraph_tasks.py for revival steps.",
 )
 def test_langgraph_tasks_registered():
     """All 4 langgraph tasks must be registered.
@@ -117,7 +123,7 @@ def test_swarm_tasks_registered():
 @pytest.mark.skipif(
     True,
     reason="disabled 2026-06-12: deepagents_tasks moved to app.tasks._disabled/ "
-           "(missing app.services.deepagents_integration). See _disabled/deepagents_tasks.py for revival steps.",
+    "(missing app.services.deepagents_integration). See _disabled/deepagents_tasks.py for revival steps.",
 )
 def test_deepagents_tasks_registered():
     """All 3 deepagents tasks must be registered.
@@ -156,7 +162,7 @@ def test_training_tasks_registered():
 @pytest.mark.skipif(
     True,
     reason="disabled 2026-06-12: webhook_tasks moved to app.tasks._disabled/ "
-           "(missing SyncSessionLocal from app.database). See _disabled/webhook_tasks.py for revival steps.",
+    "(missing SyncSessionLocal from app.database). See _disabled/webhook_tasks.py for revival steps.",
 )
 def test_webhook_tasks_registered():
     """Webhook dispatcher + webhook_tasks modules must register their tasks.
@@ -186,8 +192,7 @@ def test_batch_processing_task_registered():
     from app.tasks.celery_app import celery_app
 
     assert "batch.process_batch" in celery_app.tasks, (
-        f"batch.process_batch not registered. "
-        f"Got: {sorted(k for k in celery_app.tasks if 'batch' in k)}"
+        f"batch.process_batch not registered. " f"Got: {sorted(k for k in celery_app.tasks if 'batch' in k)}"
     )
 
 
@@ -220,14 +225,10 @@ def test_no_warnings_logged_during_registration(caplog):
         caplog.clear()
         _register_custom_tasks()
 
-    celery_warnings = [
-        r for r in caplog.records
-        if r.name == "app.tasks.celery_app" and r.levelno >= logging.WARNING
-    ]
+    celery_warnings = [r for r in caplog.records if r.name == "app.tasks.celery_app" and r.levelno >= logging.WARNING]
     assert not celery_warnings, (
         "celery_app logged WARNING(s) during registration — a task "
-        "module failed to import:\n"
-        + "\n".join(f"  {r.getMessage()}" for r in celery_warnings)
+        "module failed to import:\n" + "\n".join(f"  {r.getMessage()}" for r in celery_warnings)
     )
 
 
@@ -290,6 +291,5 @@ def test_registry_has_substantial_custom_task_count():
 
     custom_tasks = [k for k in celery_app.tasks if not k.startswith("celery.")]
     assert len(custom_tasks) >= 18, (
-        f"Expected at least 18 custom tasks in registry, got {len(custom_tasks)}: "
-        f"{sorted(custom_tasks)}"
+        f"Expected at least 18 custom tasks in registry, got {len(custom_tasks)}: " f"{sorted(custom_tasks)}"
     )

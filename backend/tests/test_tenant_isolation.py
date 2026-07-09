@@ -255,7 +255,7 @@ async def test_list_missions_fallback_to_user():
 
     db.execute = mock_execute
 
-    items, total = await list_missions(db, user_id=42, workspace_id=None)
+    _items, total = await list_missions(db, user_id=42, workspace_id=None)
     _assert(total == 1, "list_missions without workspace_id falls back to user_id")
 
 
@@ -334,7 +334,7 @@ async def test_list_chat_threads_workspace_filter():
 
     db.execute = mock_execute
 
-    items, total = await list_chat_threads(db, 1, workspace_id=ws_id)
+    _items, total = await list_chat_threads(db, 1, workspace_id=ws_id)
     _assert(total == 5, "list_chat_threads with workspace_id returns correct count")
 
 
@@ -354,7 +354,7 @@ async def test_list_chat_threads_fallback_to_user():
 
     db.execute = mock_execute
 
-    items, total = await list_chat_threads(db, 42, workspace_id=None)
+    _items, total = await list_chat_threads(db, 42, workspace_id=None)
     _assert(total == 2, "list_chat_threads without workspace_id falls back to user_id")
 
 

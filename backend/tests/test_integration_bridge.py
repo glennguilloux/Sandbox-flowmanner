@@ -11,6 +11,7 @@ Tests the bridge between OAuth tokens and Nexus capabilities:
 """
 
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -404,16 +405,14 @@ async def test_execute_always_disconnects():
             "app.services.integration_bridge.decrypt_token",
             return_value="ya29.token",
         ),
+        contextlib.suppress(RuntimeError),
     ):
-        try:
-            await bridge.execute_integration_action(
-                user_id=33,
-                slug="google",
-                action="gmail_send",
-                params={"to": "x@x.com", "subject": "Hi", "body": "Hello"},
-            )
-        except RuntimeError:
-            pass
+        await bridge.execute_integration_action(
+            user_id=33,
+            slug="google",
+            action="gmail_send",
+            params={"to": "x@x.com", "subject": "Hi", "body": "Hello"},
+        )
 
     # Disconnect is always called in the finally block
     mock_connector.disconnect.assert_called_once()

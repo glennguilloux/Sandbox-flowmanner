@@ -22,22 +22,19 @@ class TestCommunityTemplateDriftClosure:
         Before this chunk, alembic check raised NoReferencedTableError.
         After, it must resolve cleanly.
         """
-        from app.models.community_models import CommunityComment, CommunityTemplate
-
         # The FK target table must be in Base.metadata
         from app.models import Base
+        from app.models.community_models import CommunityComment, CommunityTemplate
 
-        assert "community_templates" in Base.metadata.tables, (
-            "community_templates not in Base.metadata — FK target unresolved"
-        )
+        assert (
+            "community_templates" in Base.metadata.tables
+        ), "community_templates not in Base.metadata — FK target unresolved"
 
         # CommunityComment's template_id FK must point to community_templates
         comment_table = CommunityComment.__table__
         template_id_col = comment_table.columns["template_id"]
         fk_targets = [fk.target_fullname for fk in template_id_col.foreign_keys]
-        assert "community_templates.id" in fk_targets, (
-            f"FK target not found. Got: {fk_targets}"
-        )
+        assert "community_templates.id" in fk_targets, f"FK target not found. Got: {fk_targets}"
 
 
 class TestCommunityTemplateSchemaShape:

@@ -22,6 +22,7 @@ Run via::
     DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_memory_extraction_pause_service.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -106,8 +107,8 @@ class TestTtlValidation:
 
     def test_ttl_at_min_accepted(self) -> None:
         from app.services.memory_extraction_pause_service import (
-            MemoryExtractionPauseService,
             MIN_TTL_SECONDS,
+            MemoryExtractionPauseService,
         )
 
         # No exception.
@@ -473,9 +474,7 @@ class TestIsPaused:
         result_mock.scalar_one_or_none.return_value = None
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryExtractionPauseService(db)
-        await svc.is_paused(
-            user_id=1, workspace_id="ws", conversation_id="conv"
-        )
+        await svc.is_paused(user_id=1, workspace_id="ws", conversation_id="conv")
         # The select must be LIMIT 1 (cheap lookup).
         stmt = db.execute.await_args[0][0]
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
@@ -501,9 +500,7 @@ class TestListActivePauses:
         item_result.scalars.return_value.all.return_value = [MagicMock()] * 3
         db.execute = AsyncMock(side_effect=[count_result, item_result])
         svc = MemoryExtractionPauseService(db)
-        items, total = await svc.list_active_pauses(
-            user_id=1, workspace_id="ws"
-        )
+        items, total = await svc.list_active_pauses(user_id=1, workspace_id="ws")
         assert total == 7
         assert len(items) == 3
 
@@ -519,9 +516,7 @@ class TestListActivePauses:
         item_result.scalars.return_value.all.return_value = []
         db.execute = AsyncMock(side_effect=[count_result, item_result])
         svc = MemoryExtractionPauseService(db)
-        await svc.list_active_pauses(
-            user_id=1, workspace_id="ws", limit=10, offset=20
-        )
+        await svc.list_active_pauses(user_id=1, workspace_id="ws", limit=10, offset=20)
         # The item-fetch SELECT must reference LIMIT 10 OFFSET 20.
         # We don't assert on the order of args; assert on the
         # presence of the values in either of the two execute() calls.

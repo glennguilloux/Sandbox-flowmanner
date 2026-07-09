@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import socket
 import os
+import socket
 from typing import TYPE_CHECKING
 
 from app.services.substrate.leases import (
@@ -29,8 +29,9 @@ from app.services.substrate.leases import (
 )
 
 if TYPE_CHECKING:
-    from app.services.substrate.event_log import EventLog
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.services.substrate.event_log import EventLog
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +71,7 @@ class LeaseManager:
     ) -> None:
         self._worker_id = worker_id or _default_worker_id()
         self._ttl_seconds = ttl_seconds
-        self._heartbeat_interval = heartbeat_interval_seconds or max(
-            ttl_seconds // 3, 10
-        )
+        self._heartbeat_interval = heartbeat_interval_seconds or max(ttl_seconds // 3, 10)
         self._run_id: str | None = None
         self._lease_lost = False
         self._renew_count = 0
@@ -188,12 +187,10 @@ class LeaseManager:
 
         while not stop_event.is_set():
             try:
-                await asyncio.wait_for(
-                    stop_event.wait(), timeout=self._heartbeat_interval
-                )
+                await asyncio.wait_for(stop_event.wait(), timeout=self._heartbeat_interval)
                 # stop_event was set — exit cleanly
                 break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Interval elapsed — renew the lease
                 ok = await self.renew(db)
                 if not ok:
@@ -219,16 +216,18 @@ class LeaseManager:
                         await self._event_log.append(
                             db,
                             self._run_id,
-                            [{
-                                "type": SubstrateEventType.LEASE_RENEWED,
-                                "payload": {
-                                    "worker_id": self._worker_id,
-                                    "run_id": self._run_id,
-                                    "renewed_count": self._renew_count,
-                                    "ttl_seconds": self._ttl_seconds,
-                                },
-                                "actor": "lease_heartbeat",
-                            }],
+                            [
+                                {
+                                    "type": SubstrateEventType.LEASE_RENEWED,
+                                    "payload": {
+                                        "worker_id": self._worker_id,
+                                        "run_id": self._run_id,
+                                        "renewed_count": self._renew_count,
+                                        "ttl_seconds": self._ttl_seconds,
+                                    },
+                                    "actor": "lease_heartbeat",
+                                }
+                            ],
                         )
                     except Exception as exc:
                         logger.debug("Lease renewed event skipped: %s", exc)

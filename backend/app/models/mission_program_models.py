@@ -21,7 +21,7 @@ Design notes (see plan §T1):
 
 from __future__ import annotations
 
-from datetime import datetime  # noqa: TCH003
+from datetime import datetime
 from enum import Enum, nonmember
 from uuid import uuid4
 

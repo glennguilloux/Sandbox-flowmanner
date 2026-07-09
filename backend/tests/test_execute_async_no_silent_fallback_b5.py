@@ -87,12 +87,14 @@ class TestExecuteAsyncNoSilentFallback:
         pending_run = _make_pending_run(user_id=1)
         svc = _make_run_service_with_run(pending_run)
 
-        with patch(
-            "app.tasks.mission_execution.dispatch_mission_execution",
-            side_effect=RuntimeError("celery queue unreachable"),
+        with (
+            patch(
+                "app.tasks.mission_execution.dispatch_mission_execution",
+                side_effect=RuntimeError("celery queue unreachable"),
+            ),
+            pytest.raises(RuntimeError, match="celery queue unreachable"),
         ):
-            with pytest.raises(RuntimeError, match="celery queue unreachable"):
-                await svc.execute_async(str(pending_run.id), 1)
+            await svc.execute_async(str(pending_run.id), 1)
 
     async def test_execute_async_does_not_call_create_task_on_failure(self):
         """Anti-regression guard: ``asyncio.create_task`` must NOT be

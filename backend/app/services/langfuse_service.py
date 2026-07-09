@@ -630,7 +630,7 @@ class LangfuseService:
             self._client.flush()
 
         start = time.perf_counter()
-        result, error = _run_with_retry(_call, FLUSH_TIMEOUT_SECONDS)
+        _result, error = _run_with_retry(_call, FLUSH_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
         if error is None:
             self._record_success(operation="flush", duration=duration)
@@ -678,7 +678,7 @@ class LangfuseService:
             )
 
         start = time.perf_counter()
-        result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
+        _result, error = _run_with_retry(_call, SDK_OPERATION_TIMEOUT_SECONDS)
         duration = time.perf_counter() - start
         if error is None:
             self._record_success(operation="score", duration=duration)
