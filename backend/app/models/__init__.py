@@ -166,6 +166,13 @@ from app.models.legacy_models import AuditLog
 # LLM call record model (H1.3 observability)
 from app.models.llm_call_record import LLMCallRecord
 
+# Marketplace transaction lifecycle + internal wallet (MARKETPLACE-2)
+from app.models.marketplace_txn_models import (
+    MarketplaceTransactionModel,
+    MarketplaceWalletModel,
+    TransactionStatus,
+)
+
 # Materialization state model (Phase 1.1e)
 from app.models.materialization_models import MaterializationState
 
