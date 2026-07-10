@@ -41,6 +41,9 @@ from app.api.deps import get_current_user, get_db, get_workspace_id
 from app.api.v2.base import ErrorDetail, ResponseMeta, ok, paginated
 from app.models.user import User
 from app.schemas.personal_memory import (
+    ConflictGroupResponse,
+    ConflictListResponse,
+    ConflictMemberResponse,
     PersonalMemoryClaimResponse,
     PersonalMemoryClaimUpdate,
     PersonalMemoryCorrectionListResponse,
@@ -459,5 +462,54 @@ async def list_corrections(
             page=page,
             per_page=per_page,
             pages=pages,
-        ).model_dump(mode="json")
+        ).model_dump(mode="json"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. GET /conflicts — Epic 2.3 E23-C conflict surfacing (read-only)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/conflicts")
+async def list_conflicts(
+    workspace_id: str = Depends(get_workspace_id),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    scope: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """Surface conflicting live claims for the Memory Inspector.
+
+    Returns only groups of claims that conflict on the same ``(subject,
+    predicate)`` with a differing ``object``. Each group carries the
+    deterministic winner (claim-type precedence > source priority > recency >
+    confidence) plus the losers with an explainable ``superseded_because``.
+
+    **Never deletes or merges** — surfacing only (per the 2.3 policy). Always
+    scoped to ``(user_id, workspace_id)``.
+    """
+    from app.services.memory_conflict_service import list_conflicts as _list_conflicts
+
+    groups = await _list_conflicts(
+        db=db,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        scope=scope,
+    )
+    items = [
+        ConflictGroupResponse(
+            subject=g.subject,
+            predicate=g.predicate,
+            winner=PersonalMemoryClaimResponse.model_validate(g.winner),
+            losers=[
+                ConflictMemberResponse(
+                    claim=PersonalMemoryClaimResponse.model_validate(m.claim),
+                    rank=m.rank,
+                    superseded_because=m.superseded_because,
+                )
+                for m in g.members[1:]
+            ],
+        )
+        for g in groups
+    ]
+    return ok(ConflictListResponse(items=items, total=len(items)).model_dump(mode="json"))

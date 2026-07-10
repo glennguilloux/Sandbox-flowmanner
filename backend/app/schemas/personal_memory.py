@@ -383,3 +383,32 @@ class PersonalMemoryCorrectionListResponse(BaseModel):
     page: int
     per_page: int
     pages: int
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Epic 2.3 E23-C — conflict surfacing (read-only, never silent-merge)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class ConflictMemberResponse(BaseModel):
+    """One claim inside a conflict group, with its rank + why it lost."""
+
+    claim: PersonalMemoryClaimResponse
+    rank: int
+    superseded_because: str | None = None
+
+
+class ConflictGroupResponse(BaseModel):
+    """A set of live claims that conflict on (subject, predicate)."""
+
+    subject: str
+    predicate: str
+    winner: PersonalMemoryClaimResponse
+    losers: list[ConflictMemberResponse]
+
+
+class ConflictListResponse(BaseModel):
+    """Envelope body for ``GET /personal_memory/conflicts``."""
+
+    items: list[ConflictGroupResponse]
+    total: int
