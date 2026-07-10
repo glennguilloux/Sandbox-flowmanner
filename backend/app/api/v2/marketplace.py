@@ -225,10 +225,14 @@ async def uninstall_listing(
     listing_id: str,
     user=Depends(get_current_user),
 ):
-    """Uninstall a marketplace listing (placeholder — full uninstall logic TBD)."""
-    # The MarketplaceService doesn't have an uninstall method yet.
-    # Return 501 so the frontend knows this isn't real.
-    raise HTTPException(status_code=501, detail="Uninstall not yet implemented")
+    """Uninstall a marketplace listing for the current user."""
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.uninstall, listing_id, str(user.id))
+    if not result.get("success"):
+        detail = result.get("error", "Uninstall failed")
+        status = 404 if detail == "Not installed" else 400
+        raise HTTPException(status_code=status, detail=detail)
+    return ok(result)
 
 
 @router.get("/listings/{listing_id}/reviews")
