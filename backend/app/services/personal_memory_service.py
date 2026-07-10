@@ -740,7 +740,17 @@ class PersonalMemoryService:
             select(PersonalMemoryClaim)
             .where(where_clause)
             .order_by(
+                # Window axes MUST match the Python ``lexicographic_rank``
+                # comparator (higher tuple = first):
+                #   source_priority > recency > confidence > importance
+                # ``created_at DESC`` is monotonic with the recency half-life
+                # band used by the comparator, so the SQL window never drops a
+                # high-recency claim that the Python sort would promote within a
+                # source_priority band. Without this, a newer claim could be
+                # truncated before the deterministic re-sort and silently lose
+                # to an older one (defeating the E23-B recency axis).
                 PersonalMemoryClaim.source_priority.desc(),
+                PersonalMemoryClaim.created_at.desc(),
                 PersonalMemoryClaim.confidence.desc(),
                 PersonalMemoryClaim.importance.desc(),
             )

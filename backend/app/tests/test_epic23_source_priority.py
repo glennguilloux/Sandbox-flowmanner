@@ -176,6 +176,23 @@ class TestLexicographicRank:
         ranked = lexicographic_rank([conv, prog], reverse=False)
         assert ranked[-1] is conv
 
+    def test_recency_axis_wins_within_same_source_priority(self) -> None:
+        """E23-B recency axis: within a source_priority band, a newer claim
+        must outrank an older one even when the older claim has higher
+        confidence. This is the exact axis the recall() SQL window must
+        preserve (via ``created_at DESC``) before the Python re-sort, so the
+        window never truncates a high-recency claim that the comparator would
+        promote. Regression guard for the recall() ORDER BY fix.
+        """
+        # Same source_type -> same source_priority band.
+        old_high_conf = _claim(source_type="conversation", confidence=0.95, age_days=120)
+        new_low_conf = _claim(source_type="conversation", confidence=0.40, age_days=0)
+        ranked = lexicographic_rank([old_high_conf, new_low_conf])
+        assert ranked[0] is new_low_conf
+        assert (
+            ranked[0].source_priority == ranked[1].source_priority
+        ), "test precondition: must be within the same source_priority band"
+
 
 # ── Integration: recall() ordering picks the source-priority winner ───────
 
