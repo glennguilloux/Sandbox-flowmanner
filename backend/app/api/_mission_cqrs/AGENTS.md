@@ -19,7 +19,7 @@ The underscore prefix marks this as an **internal implementation package, not a 
 | `commands.py` | `MissionCommandHandlers` — all 14 mutating operations. **The bulk of the file.** |
 | `queries.py` | `MissionQueryHandlers` — all 10 read operations + `PaginatedMissions` dataclass + SSE `stream_status()`. |
 | `audit.py` | `AuditService` with the 9 convenience helpers (`mission_created`, `mission_updated`, `mission_deleted`, `mission_executed`, `mission_aborted`, `mission_paused`, `mission_resumed`, `mission_retried`) + the generic `record()`. Failures are logged and swallowed — auditing MUST NOT break business flow. |
-| `compat.py` | Phase 6 read-from-Blueprint/Run compat layer: `use_new_reads()` feature flag, `list_missions_from_blueprints`, `get_mission_from_blueprint`, `list_active_from_blueprints`, `active_missions_from_blueprints`, `MissionShim` dataclass, and the three `dual_write_*` helpers. |
+| `compat.py` | Phase 6 read-from-Blueprint/Run compat layer: `use_new_reads()` feature flag, `list_missions_from_blueprints`, `get_mission_from_blueprint`, `list_active_from_blueprints`, `active_missions_from_blueprints`, `MissionShim` dataclass. **The `dual_write_*` helpers were removed 2026-07-07** (see `docs/DUAL-WRITE-DECISION.md`) — Blueprint/Run is now a dormant read model only. |
 | `deps.py` | FastAPI DI factories: `get_mission_commands()` (injects session + `AuditService` + `X-Request-ID` from `request.headers`), `get_mission_queries()`. |
 | `errors.py` | `map_infra_error()` — translates `IntegrityError` → `MissionValidationError`, transient `DBAPIError` → `RetryableMissionError`, anything else → `PermanentMissionError`. |
 
@@ -38,7 +38,7 @@ These rules apply inside the `_mission_cqrs` package, on top of `backend/AGENTS.
 3. **Multi-commit flows are explicit.** When a handler must commit state → log → dispatch side effects (Celery, WS, analytics, dual-write), do the commits inline and add a `# NOTE: not wrapped in wrap_command — ...` comment explaining the commit boundaries. **Do not** "fix" these by adding an outer wrapper — the multi-commit ordering is load-bearing (see `execute_async`, `abort_mission`, `pause_mission`, `resume_mission`, `retry_mission`, `batch_abort`, `create_from_template`, `create_improvement`, `apply_improvement`).
 4. **Audit calls are no-fail and non-blocking at the session level.** `AuditService.record()` does `session.add()` but never `flush()` or `commit()` — the surrounding transaction owns the commit. Audit failures are caught and logged inside `record()`.
 5. **Cache invalidation is fire-and-forget via `_schedule_fire_and_forget()`.** The cache helpers come from `app.services.mission_cache` (`invalidate_mission_cache`, `invalidate_user_caches`). Failures are logged inside the helper, never re-raised.
-6. **Dual-writes are fire-and-forget via `_schedule_fire_and_forget()`.** The helpers in `compat.py` (`dual_write_sync_run_status`, `dual_write_sync_blueprint`, `dual_write_soft_delete_blueprint`) open their own `AsyncSessionLocal` and silently log failures. The legacy `Mission` table is the source of truth during the transition; Blueprint/Run is the future.
+6. **~~Dual-writes~~ REMOVED (2026-07-07).** The `dual_write_*` helpers in `compat.py` were deleted; `commands.py` performs no Blueprint/Run writes. The legacy `Mission` table is the sole source of truth. Blueprint/Run survive only as a **dormant read model** behind `USE_NEW_READS` (lazy population deferred — see `docs/DUAL-WRITE-DECISION.md`). Do not reintroduce writes without a new decision.
 7. **Read routing respects the `USE_NEW_READS=1` env flag.** When set, query handlers call into `compat.py` (`list_missions_from_blueprints`, `get_mission_from_blueprint`, etc.) and return `MissionShim` / `MissionResponse` DTOs. Without the flag, the legacy `Mission` table is queried. The flag is read by `use_new_reads()` at the top of each query method.
 8. **Workspace-aware access checks are mandatory.** Any handler that takes a `mission_id` calls `require_mission_access(self.session, mission_id, user.id)` first. The check accepts both user-owned missions (no workspace) and workspace-owned missions (verified membership).
 9. **All mission executions go through the substrate.** `execute_mission()` and `execute_async()` both use `get_unified_executor()` + `mission_to_workflow()`. `MissionExecutor` is no longer the execution path (post-Phase-8.1).
@@ -51,22 +51,24 @@ These rules apply inside the `_mission_cqrs` package, on top of `backend/AGENTS.
 
 ### Method map — `MissionCommandHandlers` (commands.py)
 
+> **Doc-drift fix (2026-07-10):** the **Dual-write** column below is now a **no-op / defunct**. The write-path dual-write was removed 2026-07-07 (see `docs/DUAL-WRITE-DECISION.md`); `commands.py` contains **zero** `dual_write_*` calls. `Blueprint`/`Run` now exist only as a **dormant read model** behind the `USE_NEW_READS` flag (lazy population deferred to v2 adoption). The query-handler table further down still accurately reflects that read path.
+
 | Method | Transaction | Audit hook | Dual-write | Cache invalidation | Notes |
 |--------|-------------|------------|------------|--------------------|-------|
-| `create_mission(user, payload, workspace_id)` | `wrap_command()` | `audit.mission_created()` | `_dual_write_blueprint()` (fire-and-forget) → `BlueprintService.create()` | `invalidate_user_caches(user.id)` | Phase 8.4 subscription check first. Dual-write creates linked Blueprint with `_source_mission_id` in `definition`. |
-| `update_mission(user, mission_id, payload)` | `wrap_command()` | `audit.mission_updated()` | `dual_write_sync_run_status(...)` + `dual_write_sync_blueprint(**sync_fields)` (fire-and-forget) | `invalidate_mission_cache(user.id, str(mission_id))` | Only `title` / `description` are dual-written; status is dual-written via the run-status helper. |
-| `delete_mission(user, mission_id)` | `wrap_command()` | `audit.mission_deleted()` (level=`warning`) | `dual_write_soft_delete_blueprint(...)` | `invalidate_user_caches(user.id)` + `invalidate_mission_cache(user.id, str(mission_id))` | Soft delete (sets `deleted_at`, `deleted_by`). |
+| `create_mission(user, payload, workspace_id)` | `wrap_command()` | `audit.mission_created()` | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | `invalidate_user_caches(user.id)` | Phase 8.4 subscription check first. |
+| `update_mission(user, mission_id, payload)` | `wrap_command()` | `audit.mission_updated()` | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | `invalidate_mission_cache(user.id, str(mission_id))` | Mission table is the sole source of truth (write-path dual-write removed 2026-07-07). |
+| `delete_mission(user, mission_id)` | `wrap_command()` | `audit.mission_deleted()` (level=`warning`) | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | `invalidate_user_caches(user.id)` + `invalidate_mission_cache(user.id, str(mission_id))` | Soft delete (sets `deleted_at`, `deleted_by`). |
 | `create_task(user, mission_id, payload)` | `wrap_command()` | — (no audit hook) | — | — | Pure task insert. |
 | `update_task(user, mission_id, task_id, payload)` | `wrap_command()` | — (no audit hook) | — | — | Mutates task fields inline. |
 | `create_log(user, mission_id, payload)` | `wrap_command()` | — (the log row IS the audit) | — | — | Direct `create_mission_log()`. |
 | `plan_mission(user, mission_id)` | `wrap_command()` | — (MissionExecutor logs internally) | — | — | Delegates to `MissionExecutor.plan_mission()`. Status changes logged inside the executor. |
-| `execute_mission(user, mission_id, payload)` | `wrap_command()` | `audit.mission_executed()` | `_dual_write_run()` → finds linked Blueprint by `_source_mission_id`, creates a Run, copies `started_at` / `status` / `tokens` / `cost` / `error_message` / `output_data` | — | Phase 8.1: execution goes through `substrate.UnifiedExecutor` + `mission_to_workflow()`. Fire-and-forget analytics. |
-| `execute_async(user, mission_id, payload)` | **Multi-commit (NOT wrapped)** | — (transition log written inline) | `dual_write_sync_run_status("queued")` | — | Three commits: (1) `mission.status = QUEUED`, (2) transition log, (3) Celery dispatch (`dispatch_mission_execution`) with fallback to `asyncio.create_task(_run_execution())`. |
-| `abort_mission(user, mission_id, reason_str)` | **Multi-commit (NOT wrapped)** | `audit.mission_aborted()` (level=`warning`, with `abort_reason`) | `dual_write_sync_run_status("aborted", error_message, completed_at)` | — | Uses `SELECT ... FOR UPDATE` for TOCTOU safety. Signals UnifiedExecutor abort by `substrate_run_id` then by `mission_id`. Fire-and-forget WS emit + analytics. |
-| `pause_mission(user, mission_id)` | **Multi-commit (NOT wrapped)** | `audit.mission_paused()` | `dual_write_sync_run_status("paused")` | — | Only valid from `RUNNING`. Resets all `RUNNING` tasks → `PENDING`. |
-| `resume_mission(user, mission_id)` | **Multi-commit (NOT wrapped)** | `audit.mission_resumed()` | `dual_write_sync_run_status("queued")` | — | Only valid from `PAUSED`. |
-| `retry_mission(user, mission_id)` | **Multi-commit (NOT wrapped)** | `audit.mission_retried()` | `dual_write_sync_run_status("pending", error_message=None)` | — | Only valid from `FAILED`. Calls `MissionExecutor.plan_mission()` to re-plan. |
-| `batch_abort(user, mission_ids, reason)` | **Multi-commit (NOT wrapped, single final commit)** | `audit.mission_aborted()` (per mission) | `dual_write_sync_run_status("aborted", ...)` (per aborted mission) | — | `SELECT ... FOR UPDATE` on all missions. Pre-fetches workspace memberships in one query (N+1 prevention). |
+| `execute_mission(user, mission_id, payload)` | `wrap_command()` | `audit.mission_executed()` | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | Phase 8.1: execution goes through `substrate.UnifiedExecutor` + `mission_to_workflow()`. Fire-and-forget analytics. |
+| `execute_async(user, mission_id, payload)` | **Multi-commit (NOT wrapped)** | — (transition log written inline) | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | Three commits: (1) `mission.status = QUEUED`, (2) transition log, (3) Celery dispatch (`dispatch_mission_execution`) with fallback to `asyncio.create_task(_run_execution())`. |
+| `abort_mission(user, mission_id, reason_str)` | **Multi-commit (NOT wrapped)** | `audit.mission_aborted()` (level=`warning`, with `abort_reason`) | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | Uses `SELECT ... FOR UPDATE` for TOCTOU safety. Signals UnifiedExecutor abort by `substrate_run_id` then by `mission_id`. Fire-and-forget WS emit + analytics. |
+| `pause_mission(user, mission_id)` | **Multi-commit (NOT wrapped)** | `audit.mission_paused()` | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | Only valid from `RUNNING`. Resets all `RUNNING` tasks → `PENDING`. |
+| `resume_mission(user, mission_id)` | **Multi-commit (NOT wrapped)** | `audit.mission_resumed()` | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | Only valid from `PAUSED`. |
+| `retry_mission(user, mission_id)` | **Multi-commit (NOT wrapped)** | `audit.mission_retried()` | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | Only valid from `FAILED`. Calls `MissionExecutor.plan_mission()` to re-plan. |
+| `batch_abort(user, mission_ids, reason)` | **Multi-commit (NOT wrapped, single final commit)** | `audit.mission_aborted()` (per mission) | — (removed 2026-07-07; see docs/DUAL-WRITE-DECISION.md) | — | `SELECT ... FOR UPDATE` on all missions. Pre-fetches workspace memberships in one query (N+1 prevention). |
 | `create_from_template(user, template_id)` | **Multi-commit (NOT wrapped)** | — | — | — | Flushes to obtain `mission.id` for FK references, then commits. `wrap_command` would skip the flush. |
 | `create_improvement(user, mission_id, payload)` | **Multi-commit (NOT wrapped)** | — | — | — | `SelfImprovementEngine` manages its own persistence. |
 | `apply_improvement(user, mission_id, improvement_id)` | **Multi-commit (NOT wrapped)** | — | — | — | `SelfImprovementEngine.apply_strategy()` mutates + commits internally. |
@@ -106,8 +108,9 @@ These rules apply inside the `_mission_cqrs` package, on top of `backend/AGENTS.
 
 ### Dual-write map (fire-and-forget, from `compat.py`)
 
-| Dual-write helper | Mutates | Called by |
-|-------------------|---------|-----------|
+> **REMOVED 2026-07-07** — the `dual_write_*` helpers (`dual_write_sync_run_status`, `dual_write_sync_blueprint`, `dual_write_soft_delete_blueprint`, `_dual_write_blueprint`, `_dual_write_run`) were deleted from `compat.py` and are no longer called by any handler. `commands.py` performs **zero** Blueprint/Run writes. The table below is retained only for archaeology; do not rely on it.
+
+| Dual-write helper (DEFUNCT) | Mutated | Called by (pre-removal) |
 | `dual_write_sync_run_status(mission_id, user_id, status, error_message, completed_at)` | Latest `Run.status` (+ optional `error_message` / `completed_at`). Maps MissionStatus → RunStatus. | `update_mission`, `execute_async`, `abort_mission`, `pause_mission`, `resume_mission`, `retry_mission`, `batch_abort` |
 | `dual_write_sync_blueprint(mission_id, user_id, **kwargs)` | Blueprint fields (title, description) + `updated_at`. | `update_mission` (only when `title` or `description` changed) |
 | `dual_write_soft_delete_blueprint(mission_id, user_id)` | `Blueprint.deleted_at` + `Blueprint.deleted_by`. | `delete_mission` |
@@ -122,7 +125,7 @@ All dual-write helpers open their own `AsyncSessionLocal` and silently log + swa
 2. Single-commit: use `wrap_command(_op)`. Multi-commit: do commits inline with a `# NOTE: not wrapped` comment.
 3. Call `audit.<event>()` for any state transition.
 4. Call `invalidate_*` cache helpers via `_schedule_fire_and_forget()`.
-5. Call `dual_write_*` helpers via `_schedule_fire_and_forget()` for any status / title / description / deletion change.
+5. <s>Call `dual_write_*` helpers via `_schedule_fire_and_forget()`</s> — **REMOVED 2026-07-07.** No Blueprint/Run writes occur; Mission is the sole source of truth. (See `docs/DUAL-WRITE-DECISION.md`.)
 6. Workspace access: `mission = await require_mission_access(self.session, mission_id, user.id)` first.
 7. Subscription gate: `check_mission_create_allowed()` / `check_mission_execute_allowed()` where applicable.
 8. Add a unit test in `backend/app/tests/test_mission_advanced_api.py` or a new `test_mission_cqrs_*.py`.

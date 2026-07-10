@@ -1,6 +1,6 @@
 # Epic 2.1 — Canonical-Store Decision & Promotion Pipeline Design
 
-> Status: **DESIGN DOC (first deliverable of Epic 2.1).** No code, no migration.
+> Status: **IMPLEMENTED** — commit `84403041` (`feat(memory): Epic 2.1 re-point reviewer writes to personal_memory_claims`). Originally a DESIGN DOC (2026-07-09, "no code"). The build landed 2026-07-10. This file is now a **design record**, not an open task.
 > Author: Hermes (homelab agent) | Date: 2026-07-09 | Machine: homelab `/opt/flowmanner/backend`
 > Sequence context: GOV-1.1–1.6 (Epic 1) locked + pushed (HEAD `050af5f0`). Epic 2 unblocked.
 > Source of truth for this doc: the code as read on 2026-07-09 (file:line citations below).
