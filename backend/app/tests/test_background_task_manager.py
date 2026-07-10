@@ -11,11 +11,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.background_task_manager import BackgroundTaskManager
+from app.services.background_task_manager import (
+    BackgroundTaskManager,
+    _run_fire_and_forget,
+)
 
 
 async def _passthrough(coro, *, label: str = ""):
-    """Mock replacement for _safe_fire_and_forget — just awaits the coro."""
+    """Mock replacement for _run_fire_and_forget — just awaits the coro."""
     await coro
 
 
@@ -28,7 +31,7 @@ class TestBackgroundTaskManager:
         async def _work():
             await asyncio.sleep(0.01)
 
-        with patch("app.services.chat_service._safe_fire_and_forget", side_effect=_passthrough):
+        with patch("app.services.background_task_manager._run_fire_and_forget", side_effect=_passthrough):
             task = manager.spawn(_work(), label="test")
             assert len(manager._tasks) >= 1
             await asyncio.sleep(0.05)
@@ -41,7 +44,7 @@ class TestBackgroundTaskManager:
         async def _work():
             return "done"
 
-        with patch("app.services.chat_service._safe_fire_and_forget", side_effect=_passthrough):
+        with patch("app.services.background_task_manager._run_fire_and_forget", side_effect=_passthrough):
             manager.spawn(_work(), label="test")
             await asyncio.sleep(0.1)
             assert len(manager._tasks) == 0
@@ -56,7 +59,7 @@ class TestBackgroundTaskManager:
             await asyncio.sleep(0.05)
             completed.append(True)
 
-        with patch("app.services.chat_service._safe_fire_and_forget", side_effect=_passthrough):
+        with patch("app.services.background_task_manager._run_fire_and_forget", side_effect=_passthrough):
             manager.spawn(_work(), label="test")
             await manager.drain(timeout=2.0)
             assert completed == [True]
@@ -75,7 +78,7 @@ class TestBackgroundTaskManager:
         async def _slow():
             await asyncio.sleep(5.0)
 
-        with patch("app.services.chat_service._safe_fire_and_forget", side_effect=_passthrough):
+        with patch("app.services.background_task_manager._run_fire_and_forget", side_effect=_passthrough):
             manager.spawn(_slow(), label="slow")
             await manager.drain(timeout=0.01)
             # Should not raise
@@ -88,7 +91,7 @@ class TestBackgroundTaskManager:
         async def _boom():
             raise RuntimeError("boom")
 
-        with patch("app.services.chat_service._safe_fire_and_forget", side_effect=_passthrough):
+        with patch("app.services.background_task_manager._run_fire_and_forget", side_effect=_passthrough):
             task = manager.spawn(_boom(), label="boom")
             await asyncio.sleep(0.1)
             # Task should be done and discarded

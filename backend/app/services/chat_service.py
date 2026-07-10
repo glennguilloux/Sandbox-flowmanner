@@ -280,6 +280,22 @@ async def _sse_keepalive_merge(
         yield ping
 
 
+def _sse_keepalive_spawn(queue: asyncio.Queue, stop_event: asyncio.Event) -> asyncio.Task:
+    """Spawn the timer-driven SSE keepalive task via ``BackgroundTaskManager``.
+
+    Fires ``: ping`` comments every ``_SSE_KEEPALIVE_INTERVAL`` seconds,
+    independent of LLM token cadence (see ``_sse_keepalive_timer``). Returns the
+    fire-and-forget ``asyncio.Task`` handle the caller cancels on teardown.
+
+    Extracted as a standalone unit so it can be tested in isolation with a
+    mocked ``BackgroundTaskManager``.
+    """
+    return background_task_manager.spawn(
+        _sse_keepalive_timer(queue, stop_event),
+        label="sse_keepalive",
+    )
+
+
 async def stream_message_to_llm(
     db: AsyncSession,
     thread_id: int,
@@ -307,10 +323,7 @@ async def stream_message_to_llm(
     """
     _keepalive_queue: asyncio.Queue = asyncio.Queue()
     _keepalive_stop = asyncio.Event()
-    _keepalive_task = background_task_manager.spawn(
-        _sse_keepalive_timer(_keepalive_queue, _keepalive_stop),
-        label="sse_keepalive",
-    )
+    _keepalive_task = _sse_keepalive_spawn(_keepalive_queue, _keepalive_stop)
     try:
         async for event in _sse_keepalive_merge(
             cast(
@@ -361,17 +374,11 @@ async def _stream_message_to_llm_body(
     """
     # --- Pre-LLM setup: resolve provider, BYOK lookup, build messages ---
     collected_chunks = []
-    _last_yield = time.monotonic()  # Task 1.2a: keepalive tracking
     raw_model = model_id or model_preference or _LLM_MODEL
     base_url, api_key, model = _resolve_provider(raw_model)
 
     mismatch_error = _validate_byok_key_matches_model(user_api_key, raw_model)
     if mismatch_error:
-        now = time.monotonic()
-        ping = _sse_keepalive(_last_yield, now)
-        if ping:
-            yield ping
-        _last_yield = now
         yield json.dumps({"type": "error", "error": mismatch_error})
         return
 
@@ -561,11 +568,6 @@ async def _stream_message_to_llm_body(
                     if delta.content:
                         round_content_chunks.append(delta.content)
                         collected_chunks.append(delta.content)
-                        now = time.monotonic()
-                        ping = _sse_keepalive(_last_yield, now)
-                        if ping:
-                            yield ping
-                        _last_yield = now
                         yield json.dumps({"type": "token", "content": delta.content})
 
                     # Accumulate tool calls from streaming deltas
@@ -677,12 +679,9 @@ async def _stream_message_to_llm_body(
                             }
                         )
 
-                    # Task 1.2a: keepalive after tool execution (the longest idle gap)
-                    now = time.monotonic()
-                    ping = _sse_keepalive(_last_yield, now)
-                    if ping:
-                        yield ping
-                        _last_yield = now
+                    # The timer-driven keepalive (spawned on stream entry) covers
+                    # the long idle gap during tool execution independent of token
+                    # cadence, so no yield-gated ping is needed here.
 
                     # Loop back for the next LLM call with tool results
                     continue
@@ -839,13 +838,6 @@ async def _stream_message_to_llm_body(
         record_llm_request(provider=provider_name, duration_seconds=llm_duration, success=False)
         logger.error("stream_message_to_llm failed: %s", e)
         yield json.dumps({"type": "error", "error": str(e)})
-
-
-def _sse_keepalive(last_yield_time: float, now: float) -> str | None:
-    """Return a SSE keepalive comment if enough time has elapsed since the last yield."""
-    if now - last_yield_time > _SSE_KEEPALIVE_INTERVAL:
-        return ": ping\n\n"
-    return None
 
 
 _client = AsyncOpenAI(

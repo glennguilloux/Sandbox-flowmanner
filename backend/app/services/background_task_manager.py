@@ -2,7 +2,7 @@
 
 Replaces raw ``asyncio.create_task()`` calls that don't hold strong
 refs (GC risk).  The manager holds a set of ``asyncio.Task`` objects,
-logs exceptions via the existing ``_safe_fire_and_forget`` wrapper,
+logs exceptions (logged, never propagated to the caller),
 and discards completed tasks automatically.
 
 Usage::
@@ -23,6 +23,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+async def _run_fire_and_forget(coro, *, label: str) -> None:
+    """Run a fire-and-forget coroutine so exceptions are logged, not silently
+    dropped or propagated to the caller.
+
+    Kept local to this module deliberately: ``BackgroundTaskManager`` is a
+    leaf utility that must not import heavier services (e.g. ``chat_service``,
+    which constructs an ``AsyncOpenAI`` client at module load and raises when
+    no API key is configured). A lazy import of such a service here would make
+    *every* background write — including the personal-memory privacy audit
+    trail — fail in any environment where that service cannot be imported.
+    """
+    try:
+        await coro
+    except Exception:  # fire-and-forget must never propagate
+        logger.exception("fire-and-forget task failed: %s", label)
+
+
 class BackgroundTaskManager:
     """Holds strong refs to spawned tasks, logs exceptions, drains on shutdown."""
 
@@ -32,12 +49,10 @@ class BackgroundTaskManager:
     def spawn(self, coro, *, label: str) -> asyncio.Task:  # type: ignore[type-arg]
         """Spawn a fire-and-forget coroutine with a strong ref held by the manager.
 
-        Exceptions are logged via ``_safe_fire_and_forget`` semantics
-        (logged, never propagated to the caller).
+        Exceptions are logged (never propagated to the caller) by the wrapped
+        coroutine and again by ``_on_task_done``.
         """
-        from app.services.chat_service import _safe_fire_and_forget
-
-        task = asyncio.create_task(_safe_fire_and_forget(coro, label=label))
+        task = asyncio.create_task(_run_fire_and_forget(coro, label=label))
         self._tasks.add(task)
         task.add_done_callback(self._on_task_done)
         return task
