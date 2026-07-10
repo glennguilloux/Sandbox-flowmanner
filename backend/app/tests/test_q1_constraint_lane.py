@@ -24,6 +24,8 @@ import asyncio
 import sys
 from typing import Any
 
+import pytest
+
 sys.path.insert(0, "/opt/flowmanner/backend")
 
 from sqlalchemy.dialects import postgresql
@@ -120,4 +122,76 @@ class TestConstraintLaneFailOpen:
         result = asyncio.get_event_loop().run_until_complete(
             svc._recall_constraint_lane(user_id=1, workspace_id="ws", query="deploy", min_confidence=0.0)
         )
+        assert result == []
+
+
+class TestFailClosedTenantGuard:
+    """Gate (2): tenant filter FAIL-CLOSED.
+
+    A missing/empty tenant must RAISE rather than silently compiling to
+    ``user_id IS NULL`` / ``workspace_id = ''`` (tenant-escape). This is a
+    boundary/security error, distinct from the fail-open-on-DB-error posture.
+    """
+
+    def test_recall_raises_on_user_id_none(self) -> None:
+        svc = object.__new__(pms.PersonalMemoryService)
+
+        with pytest.raises(pms.PersonalMemoryValidationError):
+            asyncio.get_event_loop().run_until_complete(
+                svc.recall(user_id=None, workspace_id="ws", query="x")  # type: ignore[arg-type]
+            )
+
+    def test_recall_raises_on_workspace_id_none(self) -> None:
+        svc = object.__new__(pms.PersonalMemoryService)
+
+        with pytest.raises(pms.PersonalMemoryValidationError):
+            asyncio.get_event_loop().run_until_complete(
+                svc.recall(user_id=1, workspace_id=None, query="x")  # type: ignore[arg-type]
+            )
+
+    def test_recall_raises_on_empty_workspace_id(self) -> None:
+        svc = object.__new__(pms.PersonalMemoryService)
+
+        with pytest.raises(pms.PersonalMemoryValidationError):
+            asyncio.get_event_loop().run_until_complete(svc.recall(user_id=1, workspace_id="", query="x"))
+
+    def test_constraint_lane_raises_on_user_id_none(self) -> None:
+        svc = object.__new__(pms.PersonalMemoryService)
+
+        with pytest.raises(pms.PersonalMemoryValidationError):
+            asyncio.get_event_loop().run_until_complete(
+                svc._recall_constraint_lane(  # type: ignore[arg-type]
+                    user_id=None, workspace_id="ws", query="deploy", min_confidence=0.0
+                )
+            )
+
+    def test_constraint_lane_raises_on_empty_workspace_id(self) -> None:
+        svc = object.__new__(pms.PersonalMemoryService)
+
+        with pytest.raises(pms.PersonalMemoryValidationError):
+            asyncio.get_event_loop().run_until_complete(
+                svc._recall_constraint_lane(user_id=1, workspace_id="", query="deploy", min_confidence=0.0)
+            )
+
+    def test_resolved_tenant_does_not_raise(self) -> None:
+        # Happy path: a fully-resolved tenant must NOT trip the guard.
+        svc = object.__new__(pms.PersonalMemoryService)
+
+        class _OkResult:
+            def scalars(self):
+                return self
+
+            def all(self):
+                return []
+
+        class _FakeDB:
+            async def execute(self, stmt):
+                return _OkResult()
+
+        svc.db = _FakeDB()  # type: ignore[assignment]
+        result = asyncio.get_event_loop().run_until_complete(
+            svc._recall_constraint_lane(user_id=1, workspace_id="ws", query="deploy", min_confidence=0.0)
+        )
+        # The lane returns [] but must NOT raise — proving the guard only
+        # fires on a missing tenant, not on a resolved one.
         assert result == []
