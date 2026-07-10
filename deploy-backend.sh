@@ -29,7 +29,9 @@ BACKEND_CONTAINER="backend"
 COMPOSE_DIR="/opt/flowmanner"
 HEALTH_URL="http://localhost:8000/health"
 # Env-overridable: set DEPLOY_HEALTH_RETRIES / DEPLOY_HEALTH_BACKOFF_S to tune.
-# Default 20×5s = 100s window — covers cold-start embedding model load (~19s).
+# Default 20×5s = 100s window — covers cold-start embedding model load (~19s)
+# AND governs the pre-promotion boot smoke test loop below (was a hardcoded
+# 12×3s ≈ 36s window that was too tight for this app's startup).
 HEALTH_CHECK_RETRIES=${DEPLOY_HEALTH_RETRIES:-20}
 HEALTH_CHECK_DELAY=${DEPLOY_HEALTH_BACKOFF_S:-5}
 
@@ -223,7 +225,12 @@ boot_smoke_test() {
     sh -c "cd /app && uvicorn app.main_fastapi:app --host 0.0.0.0 --port ${app_port}" >/dev/null 2>&1
 
   local result=1  # 0=ok, 1=timeout, 2=container-died
-  for i in $(seq 1 12); do
+  # Use the same tunables as the post-recreate health check so the window
+  # scales with this app's startup (embedding model load + Qdrant indexing +
+  # 299-capability hydration can take 20-40s). Defaults: 20 retries × 5s ≈ 100s.
+  local smoke_retries="${HEALTH_CHECK_RETRIES}"
+  local smoke_delay="${HEALTH_CHECK_DELAY}"
+  for i in $(seq 1 "$smoke_retries"); do
     if curl -fsSL --max-time 4 "$smoke_url" >/dev/null 2>&1; then
       result=0
       break
@@ -232,7 +239,7 @@ boot_smoke_test() {
       result=2
       break
     fi
-    sleep 3
+    sleep "$smoke_delay"
   done
 
   # Always clean up the throwaway container + env file.
